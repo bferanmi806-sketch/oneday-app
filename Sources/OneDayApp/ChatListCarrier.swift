@@ -22,9 +22,10 @@ import UIKit
 /// 回底钮（本包头号用户面）：钮改由本容器以
 /// overlay 子视图承载，锚输入舱顶上方约 8pt（落位
 /// 由容器按 ChatView 喂入的 bottomSpace 在自身坐
-/// 标系内构造保证——舱顶位置是容器记账的底留位
-/// 同源值、不是跨坐标系推算，§124 三轮浮层病史的
-/// 根因在此不成立）；钮的显隐只改 overlay 的
+/// 标系内构造——喂入值以窗口底为锚、坐标换算只
+/// 扣以本视图窗口实帧量得的帧外段，§260；非估算
+/// 推算，§124 三轮浮层病史的根因在此不成立）；
+/// 钮的显隐只改 overlay 的
 /// alpha/transform，**不进滚动内容、不改 content-
 /// Inset、不改任何行帧**——出现/消失时末条消息纹
 /// 丝不动（旧形态钮在布局流内占一行、出现即把整
@@ -211,6 +212,15 @@ final class ChatListCarrierViewController: UIViewController,
     private var appliedTopInset: CGFloat = -1
     private var appliedBottomInset: CGFloat = -1
     private var bottomSpace: CGFloat = 0
+    /// 帧外段实测（§260）：本容器帧底→窗口底的距
+    /// 离。喂入的底 inset 与 bottomSpace 均以窗口
+    /// 底为锚（快照口径＝舱顶→窗口底），本容器帧
+    /// 底不在窗口底时（生产装配实测在窗口底上方
+    /// 86pt：壳层页帧收于坞上方），帧外段不在滚动
+    /// 视图内、不得计入 inset——施工与几何一律先
+    /// 扣此段。无窗口（未入窗/测试装配）时保留上
+    /// 次实测、初值 0（与全窗装配口径一致、不虚报）
+    private var windowBottomOverhang: CGFloat = 0
 
     private var arrowHost: UIHostingController<AnyView>?
     private var arrowVisible = false
@@ -290,7 +300,11 @@ final class ChatListCarrierViewController: UIViewController,
             // 帧闪退同根③）
             appliedTopInset = topInset
             appliedBottomInset = bottomInset
-            handle?.bottomInset = bottomInset
+            // §260：回报口径＝施工值（喂入扣帧外段，
+            // 以当前实测为准、施工拍再刷新一次）
+            handle?.bottomInset = max(
+                0, bottomInset - windowBottomOverhang
+            )
             pendingInset = PendingInset(
                 inset: UIEdgeInsets(
                     top: topInset, left: 0,
@@ -348,6 +362,10 @@ final class ChatListCarrierViewController: UIViewController,
         preservePosition: Bool, inSettleBeat: Bool
     ) {
         guard scrollView.bounds.width > 0 else { return }
+        // §260：本拍先量帧外段——下方施工与位置校
+        // 正的扣算全以本拍实测为准（入窗首拍即由 0
+        // 回落值翻实测、对账段随之拉回已应用 inset）
+        measureWindowBottomOverhang()
         // 重排前先记位置（在底钉底/不在底锚恢复）：
         // 行高修正（产物落盘/量实到达）只许动锚上
         // 方的账，不许动在屏内容——通行做法（估算
@@ -363,12 +381,21 @@ final class ChatListCarrierViewController: UIViewController,
         // （原 apply 同步块迁入，§259 同根③）；本段
         // 内的 offset 写入只会触发记账型 didScroll、
         // 不再重入施工
+        let constructedThisPass = pendingInset != nil
         let construct = { [self] in
             if let pending = pendingInset {
                 pendingInset = nil
-                scrollView.contentInset = pending.inset
+                // §260：施工值＝喂入值扣帧外段（顶 in-
+                // set 不扣：帧顶与窗口顶同位、实证无多
+                // 算）；指示器 inset 与回报同值
+                let applied = UIEdgeInsets(
+                    top: pending.inset.top, left: 0,
+                    bottom: effectiveBottomInset, right: 0
+                )
+                scrollView.contentInset = applied
                 scrollView.verticalScrollIndicatorInsets =
-                    pending.inset
+                    applied
+                handle?.bottomInset = effectiveBottomInset
                 layoutArrow()
             }
             if preservePosition {
@@ -385,7 +412,7 @@ final class ChatListCarrierViewController: UIViewController,
                               ),
                               topInset: Double(appliedTopInset),
                               bottomInset: Double(
-                                  appliedBottomInset
+                                  effectiveBottomInset
                               ),
                               contentHeight: Double(
                                   scrollView.contentSize.height
@@ -414,6 +441,29 @@ final class ChatListCarrierViewController: UIViewController,
             )
         } else {
             construct()
+        }
+
+        // §260 帧外段对账：inset 施工时无窗口（未入
+        // 窗）以回落值 0 扣算、入窗后帧外段可知时，
+        // 本拍（无待施工 inset）把已应用的底 inset
+        // 拉回实测恒等值。键盘动画中 contentInset
+        // 的模型值恒为目标值、对账恒等不打断动画；
+        // 位置校正已在 construct 内以施工口径执行、
+        // 此处只动 inset 本体
+        if !constructedThisPass {
+            let eff = effectiveBottomInset
+            if abs(scrollView.contentInset.bottom - eff)
+                > 0.5 {
+                var inset = scrollView.contentInset
+                inset.bottom = eff
+                scrollView.contentInset = inset
+                var indicator =
+                    scrollView.verticalScrollIndicatorInsets
+                indicator.bottom = eff
+                scrollView.verticalScrollIndicatorInsets =
+                    indicator
+                handle?.bottomInset = eff
+            }
         }
 
         if inSettleBeat {
@@ -624,6 +674,39 @@ final class ChatListCarrierViewController: UIViewController,
 
     // MARK: 几何读数与回调
 
+    /// 帧外段量测（§260）：以本视图在窗口内的实帧
+    /// 为准（原生单源）——convert 到窗口坐标取帧
+    /// 底、与窗口高作差；无窗口时回上次实测（不虚
+    /// 报新值）。壳层帧日后增减自动跟随、不写死数
+    @discardableResult
+    private func measureWindowBottomOverhang() -> CGFloat {
+        guard let window = view.window else {
+            return windowBottomOverhang
+        }
+        let frameInWindow = view.convert(
+            view.bounds, to: window
+        )
+        windowBottomOverhang = max(
+            0, window.bounds.height - frameInWindow.maxY
+        )
+        return windowBottomOverhang
+    }
+
+    /// 实际施工的底 inset（§260）：喂入值扣帧外段；
+    /// 距底/落点/有效视口等几何读数与施工值恒等
+    /// （单源），不许另读喂入原值
+    private var effectiveBottomInset: CGFloat {
+        max(0, appliedBottomInset - windowBottomOverhang)
+    }
+
+    /// 舱顶在本容器坐标系的底留位（§260）：喂入
+    /// bottomSpace（舱顶→窗口底）扣帧外段，与 inset
+    /// 同源修正——旧注「本容器帧底与窗口底同位」
+    /// 在生产装配不成立（帧底实测在窗口底上方）
+    private var effectiveBottomSpace: CGFloat {
+        max(0, bottomSpace - windowBottomOverhang)
+    }
+
     private func currentDistance() -> CGFloat {
         ChatScrollSupply.uiKitDistance(
             contentHeight: Double(scrollView.contentSize.height),
@@ -638,7 +721,7 @@ final class ChatListCarrierViewController: UIViewController,
     private func maxBottomOffsetY() -> CGFloat {
         max(
             -appliedTopInset,
-            scrollView.contentSize.height + appliedBottomInset
+            scrollView.contentSize.height + effectiveBottomInset
                 - scrollView.bounds.height
         )
     }
@@ -661,7 +744,7 @@ final class ChatListCarrierViewController: UIViewController,
             let visibleTop = scrollView.contentOffset.y
                 + appliedTopInset
             let effectiveBottom = scrollView.contentOffset.y
-                + scrollView.bounds.height - appliedBottomInset
+                + scrollView.bounds.height - effectiveBottomInset
             handle.contentEndVisible =
                 last.minY >= visibleTop - 1
                 && last.maxY <= effectiveBottom + 1
@@ -793,7 +876,7 @@ final class ChatListCarrierViewController: UIViewController,
             anchor: anchor,
             contentOriginY: Double(layoutParams.topPadding),
             topInset: Double(appliedTopInset),
-            bottomInset: Double(appliedBottomInset),
+            bottomInset: Double(effectiveBottomInset),
             contentHeight: Double(scrollView.contentSize.height),
             viewportHeight: Double(scrollView.bounds.height)
         ) {
@@ -856,17 +939,20 @@ final class ChatListCarrierViewController: UIViewController,
     }
 
     /// 钮落位：右距与旧钮行同值；底缘＝输入舱顶上
-    /// 方 gap——舱顶在本容器坐标系＝帧底−bottom-
-    /// Space（ChatView 记账的舱顶→窗口底距离、本
-    /// 容器帧底与窗口底同位）。钮是 overlay 子视
-    /// 图：本函数只改钮自身帧，不触任何滚动记账
+    /// 方 gap——舱顶在本容器坐标系＝帧底−（bottom-
+    /// Space 扣帧外段）（§260：喂入的 bottomSpace
+    /// 以窗口底为锚、本容器帧底与窗口底并不恒同
+    /// 位，生产装配实测差 86pt，旧注的同位假设作
+    /// 废）。钮是 overlay 子视图：本函数只改钮自
+    /// 身帧，不触任何滚动记账
     private func layoutArrow() {
         guard let host = arrowHost else { return }
+        measureWindowBottomOverhang()
         let size = layoutParams.arrowSize
         host.view.frame = CGRect(
             x: view.bounds.width - layoutParams.arrowTrailing
                 - size,
-            y: view.bounds.height - bottomSpace
+            y: view.bounds.height - effectiveBottomSpace
                 - layoutParams.arrowGapAboveComposer - size,
             width: size,
             height: size
