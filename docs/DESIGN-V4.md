@@ -12539,3 +12539,12 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **计数对账（预期）**：Core 2081 不变；App 179＋3＝182（grep 口径，含 helpers 伪名 1）；UI 8 不变；xcstrings 不变。本分支不改版号（组版装车时定）。
 
 **真机待验（归主线）**：装热修版开实验开关首帧不崩（用户启动即崩循环当场解）；余项并入 0.50.45 真机清单（新承载贴底必过项等）。
+### §261 测试宿主 SwiftData 致命崩溃专项（2026-11-15；分支 fix/test-host-swiftdata-crash，基线 rel-05045@2f3ce5b）
+
+**定因**：七 run 全红共因。App 测试宿主稳定复现 `SwiftData/BackingData.swift:835: Fatal error: This model instance was destroyed by calling ModelContext.reset`——访问已销毁的 ChatThread（20 起里 18 起为 p2）。日志＋crash-metadata 三路独立栈定点：`DrawerView.drawerItems → ChatThread.isPendingDeletion`、`ChatView.ensureMainThread`（通知投递内）、`ChatReliabilityOfflineTests.seedThreads`（save 的通知投递内）。根因＝装配层容器生命周期倒置：生产页挂载类的 ModelContainer 只存方法局部，方法返回即失强持有，而挂载树（@Query 订阅＋在途 .task／通知观察者）还活着；SwiftData 在上下文失效时 reset，残留访问即崩。跨容器 save 是同链另一触发器（§184 配方在案）。
+
+**修法**（只动测试宿主／装配层，生产行为零改动）：新增 `SwiftDataTestMount` 容器租约——挂载即 retain、tearDown 先拆窗→排空 0.6s→再放容器。八文件收编：组装回归／设备条件探针／断网可靠性／边缘探针／键盘验收（补 tearDown）／键盘诊断／讨论引用复现／抽屉桥 harness。新增 `SwiftDataHostLifetimeTests` 3 例回归（树先于容器释放的弱引用时序＋8 轮挂载循环后异容器 save＋拆卸后播种 save 同形）。
+
+**不适用面**：纯替身壳（ComposerGuideHost／EdgeEffectRegistration 等）与空容器壳（TabBarFloat／HubSegments／TopBarHitIntermittent）——容器里不存在 ChatThread 实例、无从销毁；它们是受害者，修挂载类即修它们。另：run 6 首崩的 `testKeyboardUpMovesComposerOnlyDockStays` 35s 停滞无 .ips，疑为键盘真机缺失下的超时（独立键盘线在修），本包只给它换上租约装配、不认领该超时。
+
+**CI 判读**：待回填（workflow_dispatch 一轮；判读口径：四条无终局用例恢复终局、宿主零重启、Core 2081 精确对账——新测在 App 层不增 Core、App 执行数 ＋3、UI 8/8）。

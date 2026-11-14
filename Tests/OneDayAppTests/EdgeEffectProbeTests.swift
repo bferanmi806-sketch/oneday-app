@@ -30,11 +30,14 @@ import XCTest
 final class EdgeEffectProbeTests: XCTestCase {
 
     private var window: UIWindow!
+    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    private var swiftDataMount = SwiftDataTestMount()
 
     override func tearDown() async throws {
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil
+        await swiftDataMount.release()
         try await super.tearDown()
     }
 
@@ -120,6 +123,11 @@ final class EdgeEffectProbeTests: XCTestCase {
     private func assemble(
         appState: AppState, container: ModelContainer
     ) throws -> Assembly {
+        // §184：容器进租约——Assembly 只是方法局部返回值，
+        // 容器须由租约强持有到 tearDown（本例崩溃的 p2 即
+        // 生产 ChatView.ensureMainThread 在此容器里新建的
+        // 「主线」线程，先于挂载树释放即被 reset 销毁）。
+        swiftDataMount.retain(container)
         let host = UIHostingController(
             rootView: AnyView(
                 RootView()

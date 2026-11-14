@@ -27,11 +27,14 @@ final class ChatReliabilityOfflineTests: XCTestCase {
     }
 
     private var window: DeviceWindow!
+    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    private var swiftDataMount = SwiftDataTestMount()
 
     override func tearDown() async throws {
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil
+        await swiftDataMount.release()
         try await super.tearDown()
     }
 
@@ -90,6 +93,9 @@ final class ChatReliabilityOfflineTests: XCTestCase {
     private func mountOffline(
         container: ModelContainer, appState: AppState
     ) {
+        // §184：容器进租约——seedThreads 的主／旁聊两线程
+        // （p1／p2）须活到挂载树拆净；方法局部释放即崩溃源。
+        swiftDataMount.retain(container)
         let host = UIHostingController(
             rootView: RootView()
                 .environment(appState)
