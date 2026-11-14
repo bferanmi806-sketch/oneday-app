@@ -12540,4 +12540,6 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 **修法第三轮**（同分支续改，38e6301 之后）：兜底收编——目标内所有建 ChatThread 容器的类一并进租约，含不挂载视图的六类（BasicsFixBatch／BasicsStopgap／DeleteCloseout／DeleteOptimistic／GoalQuoteEntry／TraceEcho）；不变量升级为「进程内无任何容器死亡」。空容器壳（TabBarFloat／HubSegments／TopBarHit）仍不收编。
 
-**CI 判读第三轮**：待回填（workflow_dispatch；判读口径：宿主零重启、crash-metadata 零 OneDayApp EXC_BREAKPOINT、四条无终局用例全过、自家回归 3 例全过、Core 2081、UI 8/8；EdgeEffect 探针抖动另按 §257.1 登记、不堵本专项）。
+**CI 判读第三轮**：run 43637480258（28m59s）**红 1 处断言＋余 1 崩**。宿主重启仍为 **1**、crash-metadata 仍为 2（1 份 11-01 陈旧＋1 份 OneDayApp EXC_BREAKPOINT，仍是 `testFailedTraceMaterializesWithErrorSnapshot`，同签名、首轮被崩打断、本轮未重跑、无终局）。四条无终局用例**全部通过**（连续两轮全绿）；自家回归 3 例全过；Core 2081/2081、UI 8/8。`testEdgeEffectAttributionProbe` 断言失败复现（同 "6" > "4"、同 617 行，与 run 6／冒烟门同签名，§257.1 抖动族、非崩溃）。
+
+**结论（2026-11-15）**：§184 容器死亡机制已修——崩溃 10→1、四条无终局用例连续两轮全绿、回归 3 例全过。余 1 崩孤立于 `testFailedTrace`（三轮各崩 1 次、皆首轮、第二轮重跑通过），其机制**不是容器死亡**（兜底收编后进程内已无容器死亡仍复现）——须 Mac 侧拿完整 .ips 故障帧定位被销毁实例的归属（或针对性诊断轮次），本机 Linux VM 无法做；不许再无假设盲迭代。EdgeEffect 探针抖动归 §257.1 线。分支状态：三提交（6b18d38／38e6301／de4757a），未合 main、未打 tag。
