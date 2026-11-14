@@ -28,7 +28,7 @@ final class DrawerBridgeHarnessTests: XCTestCase {
     private var window: UIWindow!
     private var appState: AppState!
     private var container: ModelContainer!
-    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级持有、永不释放）。
     private var swiftDataMount = SwiftDataTestMount()
 
     override func setUp() async throws {
@@ -41,7 +41,7 @@ final class DrawerBridgeHarnessTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
-        // §184：容器进租约——排空后再放容器（本类是
+        // §184：容器进进程级持有、永不释放（本类是
         // 跨用例崩溃的常见受害者：上一类的残留树在
         // 本类 setUp 的 save／挂载拍里被触发）。
         swiftDataMount.retain(container)

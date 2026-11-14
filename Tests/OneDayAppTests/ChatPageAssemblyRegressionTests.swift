@@ -29,8 +29,8 @@ final class ChatPageAssemblyRegressionTests: XCTestCase {
     }
 
     private var window: DeviceWindow!
-    /// §184：容器租约——挂载树的容器须强持有到 tearDown，
-    /// 释放顺序见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    /// §184：容器租约——挂载树的容器进进程级持有、永不释放，
+    /// 见 SwiftDataTestMount。
     private var swiftDataMount = SwiftDataTestMount()
 
     override func tearDown() async throws {

@@ -33,7 +33,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
     private var container: ModelContainer!
     private var context: ModelContext!
     private var appState: AppState!
-    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级持有、永不释放）。
     private var swiftDataMount = SwiftDataTestMount()
 
     override func setUp() async throws {
@@ -46,9 +46,8 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
         container = try ModelContainer(
             for: schema, configurations: [config]
         )
-        // §184：容器进租约——排空后再放容器，残留的挂载树
-        // 观察者不得碰已销毁的线程（旧 tearDown 直接放
-        // 容器，是跨用例崩溃的放行口之一）。
+        // §184：容器进进程级持有、永不释放（旧 tearDown
+        // 直接放容器，是跨用例崩溃的放行口之一）。
         swiftDataMount.retain(container)
         context = ModelContext(container)
         appState = AppState(
