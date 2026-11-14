@@ -12539,3 +12539,13 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **计数对账（预期）**：Core 2081 不变；App 179＋3＝182（grep 口径，含 helpers 伪名 1）；UI 8 不变；xcstrings 不变。本分支不改版号（组版装车时定）。
 
 **真机待验（归主线）**：装热修版开实验开关首帧不崩（用户启动即崩循环当场解）；余项并入 0.50.45 真机清单（新承载贴底必过项等）。
+
+### §259.1 0.50.46 热修组版（2026-11-15；分支 rel-05046，基线 fix/gen3-scroll-reentrancy@7f264b1）
+
+**装车一件**：§259 热修单包（新承载首帧闪退，调度单源修法＋新回归 3 条）。未合 main、未打 tag（正式发版须用户批准，组版备好即可）。
+
+**计数对账（Codemagic Index 5，2026-11-15 00:39–00:58，Mac mini M2，BUILD SUCCEEDED，断言失败 0）**：Core 2081/2081；新回归 ChatListCarrierReentrancyTests 3/3 passed；UI 8/8；EdgeEffect 像素探针 passed（21.323s，与 GHA 首跑红不同签名、同 GHA 重跑 run 43611140251 绿，§257.1 宿主抖动定性）。App：170 passed＋5 skipped（PresentationLayerScenarios 待真机裁决 5 条）＋6 条无终局——6 次 "Restarting after unexpected exit"（§184 宿主重启签名，与 GHA 七 run 同症）：testKeyboardUpMovesComposerOnlyDockStays、testBareFilePathMessageNotRenderedAsRawText、testOfflineOpenSideThreadShowsLocalRecords、testBridgeTapToOpenReachesFullTravel、testGoalQuoteRoundTripsThroughEntry、testFailedTraceMaterializesWithErrorSnapshot；其中前者与 testBridgeTapToOpenReachesFullTravel 在 GHA 七 run 共同无终局 4 条内，testFailedTraceMaterializesWithErrorSnapshot 为 run 43612107391 三轮连续无终局同条；与热修改动零交集（3 条新回归全过）。算术闭合：170＋5＋6＝181＝grep 口径 182 减 helpers 伪名 1（FailingHermesClient.swift:323 testMCPServer）。日志原文 test-full.log：Core 束行 "Executed 2081 tests"、UI 束行 "Executed 8 tests"；页面摘要所报 "1011" 在日志原文中无此行，不作数。GHA 同头 run 43608634430（Core 2081/0、新回归 3/3、UI 8/8、唯一红 EdgeEffect 探针）与重跑 run 43611140251 对账一致。
+
+**版号**：0.50.46／构建 174（Project.swift 四处与设置页版本串两行同改）。**实测提醒**：本包 IPA 系 Codemagic 在改版号前自热修头 7f264b1 构建，解包验 Info.plist＝0.50.45/173——文件名 0.50.46-174、包内版号 0.50.45（173），两者差一代；设置页 hero 串同为 v0.50.45 (173)。真机验收以行为（开实验开关首帧不崩）为准，版号显示滞后一代由主线裁决是否重建。
+
+**产物**：OneDay-v0.50.46-174.ipa，13,115,526 字节、md5 8e8c32ba702936a42c3e107dc7e22d09，落 ~/workspace/your_files/oneday-v0.50.46/（附最新待办总表）。
