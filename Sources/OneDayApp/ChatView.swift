@@ -2109,13 +2109,18 @@ struct ChatView: View {
                 arrowGapAboveComposer: 8,
                 arrowSize: OneDayMetrics.minTapTarget
             ),
-            // 顶/底留位与旧承载 contentMargins 同源
-            // 同值（顶＝窗口顶安全区实测＋顶簇实高；
-            // 底＝键盘快照 bottomSpace＋spacingS 单
-            // 点边距）——冻结数值的来源不因承载变
+            // 顶/底留位与旧承载同源（顶＝窗口顶安全
+            // 区实测＋顶簇实高；底＝键盘快照 bottom-
+            // Space＋单点边距）。§260 校准：新承载的
+            // 单点边距取 spacingM——与承载底 padding
+            // （spacingS）合计 24pt＝Muse 一手实测的
+            // 末条→舱顶总量（gen3-bottom-gap 报告）；
+            // 喂入值仍以窗口底为锚，帧外段的扣算在
+            // 承载侧以其实帧量测（§260）。旧承载
+            // contentMargins 的 spacingS 口径不动
             topInset: windowTopSafeInset + topBarHeight,
             bottomInset: kbSnapshot.bottomSpace
-                + OneDayMetrics.spacingS,
+                + OneDayMetrics.spacingM,
             bottomSpace: kbSnapshot.bottomSpace,
             keyboardAnimationDuration:
                 kbSnapshot.animationDuration,
