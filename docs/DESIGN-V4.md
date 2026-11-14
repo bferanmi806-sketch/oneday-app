@@ -12725,3 +12725,21 @@ run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43
 **真机待验（归主线，单列）**：见报告真机清单（文本/表格点开 QL 呈现、复制文字/导出 PDF 在 QL 面可用、锚点链接点开落 QL、QL 无资格类型落说明行、图片 zoom 不回退冒烟）。
 
 ### §271.1 CI 判读（待回填）
+
+## §272 权限流四项收敛（2026-11-14；分支 feat/permission-flow-convergence，基线 rel-05045@2f3ce5b；待办总表第 76 条／§259 §四立项；本节在分支编号 §261，组版 0.50.50 顺延为 §272）
+
+承 §259（连接器门面化）§四登记清单全四项，用户 19:05 已批全做。设备权限线与横扫 A-3 交叉核对：本包只读桥状态与系统现态做对账，不新增任何权限请求路径——已决定态绝不重走异步请求回调的铁律不触碰（对账走桥 park-state 读面＋既有 checkResumes 的同步现读）。
+
+**①卡真相收桥侧单源**：桥新增只读端点 `POST /device/park-state`（凭 token 查 park 在不在/过期时刻/ask 结局，不消费 token、不回原参数）。App 侧 Core 新增 `PermissionParkState` 解析＋`PermissionParkReconciler` 纯裁定，协调器回前台（checkResumes 前段）逐张未终态卡对账：桥说没了→翻 expired；终态卡与 asking/resuming 在途卡不对账（既成事实/时序，非真相）；读面不可达（旧桥 404/离线/回执不可信）回 nil 整轮跳过、本地缓存兜底——不确定不当真相。桥端点为伴生侧改动（hermes-deploy/companion/modules/device_bridge.py），须随伴生部署窗上线；端点未上线期间 App 行为与现行一致（全卡跳过对账）。
+
+**②24h 过期双轨合一**：起算点统一为桥 park 时刻。桥在 ask 载荷与结构化字段中带 `parkedAt`/`expiresAt`；App 落卡以桥时刻为准（PermissionCard 新增 expiresAt 入参、PermissionCardDates 统一口径），本地 createdAt＋24h 推算只留旧桥兜底。对账时桥 expiresAt 覆盖本地值，边界不一致窗口消除。
+
+**③ask 超时回收显性化**：桥 park 新增 `askOutcome` 记账——等答超时＝unanswered、用户点「先不」＝deferred、会话中途断＝undeliverable，此前三者在桥侧同为无声 parked。回执字段随带 askOutcome；App 对账采纳时把仍停 primer 的「未答」卡翻 parked 并置 `askUnanswered`（持久化新键、旧档解码兜底 false），卡面文案与主动「先不」分开（「刚才问的时候没等到你答复」），本地等答续体同步以 parked 收束。
+
+**④同步补课钩子收编**：协调器的无名闭包 `syncPerformer` 退役，改为具名协议口 `PermissionSyncPerforming`（协调器弱持），DeviceSyncController 在本类声明遵循、实现内固定 origin=.chat；AppState 接线由一段闭包改为一行挂载，接线点与实现同名可查。
+
+**与 feat/connectors-facade 的交叠面（组版期主线串行合）**：两分支同基线 2f3ce5b，实查 §259 分支改动面只有 ConnectorsFacade.swift（新增）／ConnectorsView.swift／DESIGN-V4.md 三件——与本包代码面（AppState／DeviceStore／DevicePermission*／DeviceSyncStore／DeviceBridgeClient／Core DevicePermissionFlow）**零文件交叠**，唯一同文件是 docs/DESIGN-V4.md 的尾部追加（§259 与 §261 各自成节，合并时按节序排即解）。概念面：门面 ConnectorsFacade 不持有权限流，协调器仍为 DeviceSessionController 内单实例，无同名双源。
+
+**验收**：Core 新增 6 测（桥时刻优先/旧桥兜底/旧档解码/读面解析/对账裁定全分支）；桥侧进程内测 permission_flow_261_test.py 6/6（超时未答/延后/载荷邮戳/字段透出），live 自测 device_bridge_selftest.py 全量 ALL PASS（含 §261 新增 4 检：邮戳随带、park-state 只读不消费、未知 token、消费后 exists=false）。CI 按 §190 判读（回填 §272.1）；真机待验清单见施工报告（权限三态逐项）。
+
+**版号**：本包不组版、不动版号（随后续组版并入）。
