@@ -109,7 +109,11 @@ struct OneDayApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let container = modelBootstrap.container {
+            if DetectorProbeConfig.isEnabled {
+                // 【探针分支专用，禁止合入】包 5 T4 数据检测探针场景
+                DetectorProbeScene()
+                    .environment(\.locale, AppLocale.uiLocale)
+            } else if let container = modelBootstrap.container {
                 // （症二实验台 CapsuleTapHarness 已随
                 // §202 路线 B 退役：动作级点按验证改打真
                 // App 演示模式装配，见 TopBarSingleAction-

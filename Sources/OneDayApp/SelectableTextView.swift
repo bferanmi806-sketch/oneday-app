@@ -447,7 +447,10 @@ struct SelectableTextRepresentable: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
-        textView.dataDetectorTypes = []
+        // 【探针分支覆写点，禁止合入】包 5 T4 探针：仅启动参
+        // -odProbeDetectors 在场时取覆写值，正常启动恒 []（现行口径）
+        textView.dataDetectorTypes =
+            DetectorProbeConfig.detectorTypesOverride ?? []
         textView.delegate = context.coordinator
         textView.attributedText = attributed
         textView.linkTextAttributes = [
