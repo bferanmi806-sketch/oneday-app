@@ -12560,3 +12560,19 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **CI 判读第三轮**：run 43637480258（28m59s）**红 1 处断言＋余 1 崩**。宿主重启仍为 **1**、crash-metadata 仍为 2（1 份 11-01 陈旧＋1 份 OneDayApp EXC_BREAKPOINT，仍是 `testFailedTraceMaterializesWithErrorSnapshot`，同签名、首轮被崩打断、本轮未重跑、无终局）。四条无终局用例**全部通过**（连续两轮全绿）；自家回归 3 例全过；Core 2081/2081、UI 8/8。`testEdgeEffectAttributionProbe` 断言失败复现（同 "6" > "4"、同 617 行，与 run 6／冒烟门同签名，§257.1 抖动族、非崩溃）。
 
 **结论（2026-11-15）**：§184 容器死亡机制已修——崩溃 10→1、四条无终局用例连续两轮全绿、回归 3 例全过。余 1 崩孤立于 `testFailedTrace`（三轮各崩 1 次、皆首轮、第二轮重跑通过），其机制**不是容器死亡**（兜底收编后进程内已无容器死亡仍复现）——须 Mac 侧拿完整 .ips 故障帧定位被销毁实例的归属（或针对性诊断轮次），本机 Linux VM 无法做；不许再无假设盲迭代。EdgeEffect 探针抖动归 §257.1 线。分支状态：三提交（6b18d38／38e6301／de4757a），未合 main、未打 tag。
+
+## §262 新承载滚动边缘效果恢复（2026-11-15；分支 fix/gen3-edge-effect，基线 fix/gen3-scroll-reentrancy@8d4daca；本节原自编号 §260 与贴底间距线撞号，组版 0.50.47 顺延为 §262）
+
+**反馈**：0.50.46 真机开启 `chat.carrier.gen3` 后上下朦胧感全失——正文直接顶到状态栏时钟与顶部浮钮底下、硬碰硬无糊边（用户 06:51 截图实证）。§173「渐进溶化」（自绘渐变带）已删且不得复活，本节恢复的是 2026-11-13 拍板的定版形态：系统自带软式滚动边缘模糊（§213）。
+
+**市面成熟做法（先查后改）**：A 级官方原文——WWDC25 Session 284《Build a UIKit app with the new design》：滚动视图在系统条下自动获得 edge effect；自定义覆盖容器走 `UIScrollEdgeElementContainerInteraction`（assign scrollView＋edge、add 到容器）；样式在滚动视图本体上设（官方示例 `scrollView.topEdgeEffect.style = .hard`）。B 级 SDK 头文件转述（与官方示例互证）：iOS 26 `UIScrollView.topEdgeEffect/bottomEdgeEffect: UIScrollEdgeEffect { get }`，`UIScrollEdgeEffect.style`（`.automatic/.soft/.hard`，automatic 在 iOS 26 解析为 soft）＋`isHidden`（默认 false）。SwiftUI 的 `.scrollEdgeEffectStyle(_:for:)` 即此物在 SwiftUI 侧的面——设的是底层滚动视图本体的 edge effect 样式；interaction 本身不带样式（与 §213「样式挂滚动视图、注册只塑造呈现」的既有口径一致）。
+
+**定因（代码实证）**：§213 在旧承载上分两半——①样式：ChatView 的 SwiftUI 列表挂 `.scrollEdgeEffectStyle(.soft, for: .top/.bottom)`（ChatView.swift:3079/3100）；②登记：内容栈里的登记锚 `ChatListScrollAnchor` 沿祖先链把底层 UIScrollView 登记进 `listScrollHandle`，顶簇宿主与舱带容器的 interaction 据此绑定。§257 换承载后两半一并漏接：新承载 `ChatListCarrierView` 是 UIViewControllerRepresentable，SwiftUI 修饰符够不到其内 UIKit 本体，`ChatListCarrierViewController` 从未直设 `topEdgeEffect/bottomEdgeEffect` 样式（全仓 grep 零命中）；登记锚只存在于旧承载面内，新承载面无锚、`ChatListCarrierView` 甚至不接收 `listScrollHandle`，两宿主 interaction 在 gen3 态恒绑不到本体（句柄为空或弱引用已失效）。状态栏带（列表自身顶缘效果）与浮件覆盖带（顶簇/舱带注册）因此同失。
+
+**修法（系统正道，不自绘）**：①`ChatListCarrierViewController.viewDidLoad` 直设 `scrollView.topEdgeEffect.style = .soft`、`bottomEdgeEffect.style = .soft`（与旧承载修饰符同义同值，样式单点自此随承载各归其本体）；②控制器新增 `edgeScrollHandle`（赋值即 `register(scrollView)` 登记本体，与锚的被动登记匣同式），representable 新增同名透传（make/update 双路），ChatView `carrierListSurface` 调用点传 `listScrollHandle`（与旧承载同一份）——两宿主的绑定逻辑（didSet＋布局/显形拍补绑）零改动、自动对齐新本体。不动 §173 任何残留、不动底部静止间距数值（inset 归 fix/gen3-bottom-gap 线，本节对 ChatView 的改动仅调用点新增一行实参、与 inset 实参行不相邻）。
+
+**回归测试**：OneDayAppTests 新增 ChatCarrierEdgeEffectTests 3 条——①承载本体双边样式 === .soft 且 isHidden 皆 false；②登记链：装配后共享句柄指向承载本体、顶宿主 interaction（edge=.top）与舱带 interaction（edge=.bottom）均绑到该本体；③生产装配点源码守护（限 carrierListSurface 片段、去注释后核 ChatListCarrierView 实参含 `edgeScrollHandle: listScrollHandle`，与 TabBarFloatTests 源码守护同式）。像素级双态验收仍由 EdgeEffectProbeTests 承接（旧承载面）。
+
+**计数对账（预期）**：Core 2081 不变；App 182＋3＝185；UI 8 不变；xcstrings 不变。本分支不改版号。
+
+**真机待验（归主线）**：装含本修的版本开实验开关——正文滚过状态栏带与顶簇浮钮下应有系统软糊边、滚过输入舱上方同理；静止无内容滚过时条区不可见（内容驱动）。
