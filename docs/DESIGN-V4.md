@@ -12578,3 +12578,14 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **真机待验（归主线）**：装含本修的版本开实验开关——正文滚过状态栏带与顶簇浮钮下应有系统软糊边、滚过输入舱上方同理；静止无内容滚过时条区不可见（内容驱动）。
 
 **CI 判读（2026-11-15 回填）**：两轮 workflow_dispatch。首轮 run 43650781042：Core 2081/2081、UI 8/8；新测 3 条中样式断言与源码守护通过，登记链 1 条红——断言错在自家测试装配（顶宿主 `edge=.top` 在其 viewDidLoad 才设、裸实例化未加载读到 rawValue 0；绑定断言本身通过），测试修正提交 fba915b（顶宿主改真入窗口装配）。次轮 run 43653896004：**新测 3 条全过**、Core 2081/2081 失败 0、本线零断言失败。整轮仍红的构成与本线零交集：§184 六条常客无终局（本分支基线早于 §184 专项修、宿主重启 7 次，登记在案）＋ DrawerRowContextMenuTests 1 条真断言红（菜单外点击等待超时；首轮同产品代码下 UI 8/8 全过、43611787229 亦曾同红，属间歇、归其自家线复核）。按 §190 口径本线判绿：改动面（承载样式/登记/装配点）全数实证通过。
+## §259 枢纽台账三店合一（2026-11-14；分支 feat/hub-single-store，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/hub-single-store-report-20261114.md）
+
+**病灶（普查 app-wide-assembly-audit 枢纽节实证）**：台账/任务/监测三店在各面各自 @State 私建——KanbanStore 全 App 五份、MonitorsStore 三份、LedgerStore 两份，互不相通（同物多账的实例级变体；HubLedgerSection 段头自注「他面的 KanbanStore 实例互不相干」）。枢纽段一面并持三份私建：条目流走段内 LedgerStore、新建/下钻走段内另两份，与他面各行其是。
+
+**收口（照 sharedHubStore 先例，不新造机制）**：AppState 新增 sharedLedgerStore()/sharedKanbanStore()/sharedMonitorsStore() 懒建单例；全部 10 处私建构造退役（HubLedgerSection 3＋ProgressCapsuleView 2＋FeedView 2＋GoalsView 目标详情 2＋IdeasView 1），各面改计算属性消费同一份。枢纽台账段条目只从共享 LedgerStore 一口出。
+
+**口径零改动**：LedgerBoard 分组/排序/副题、LedgerMerge、LedgerMonitorSynthesis、headerCounts 与条目构成（服务端账＋监测合成账）一字未动；加载调用点（各面 .task 的 load 序列）不变。行为差异仅收敛向：KanbanStore 版本探针全 App 只跑一次；三店 detail/缓存态跨面共享（与 sharedHubStore 已接受口径同类）；台账轮询共用一个实例（poll 在飞守卫，请求量不增）。
+
+**登记在案、不在本包**：监测条目仍由 App 在 LedgerStore 内合成（伴生采集器暂无监测源，真单源属伴生侧后续）；通知已决 View 层双源相加归待办第 71 条；IdeasStore/GoalsStore 多面私建待后续收口包。
+
+### §259.1 CI 判读（待回填）
