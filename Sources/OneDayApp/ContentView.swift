@@ -285,12 +285,9 @@ struct ContentView: View {
         // sheet（0.6.0 的 pendingAppsPage 切格落位通道
         // 随应用格退役删除）
         .onChange(of: appState.settingsSheetRequested) { _, requested in
-            // 临时探针（A6 诊断用，定因后删除）
-            print("[A6PROBE] onChange requested=\(requested) showSettings(before)=\(showSettings)")
             if requested {
                 appState.settingsSheetRequested = false
                 showSettings = true
-                print("[A6PROBE] showSettings set true")
             }
         }
         // 0.29.0：设置内页面置位的切格请求（连接器目
@@ -309,8 +306,6 @@ struct ContentView: View {
             }
         }
         .sheet(isPresented: $showSettings, onDismiss: {
-            // 临时探针（A6 诊断用，定因后删除）
-            print("[A6PROBE] settings sheet dismissed")
             // 设置页「全部对话」行的链式呈现：sheet 关
             // 闭落定后才开全屏页（旗的来历见其声明注）
             if showAllConversationsAfterSettings {
@@ -335,11 +330,6 @@ struct ContentView: View {
                     showSettings = false
                 }
             )
-            // 临时探针（A6 诊断用，定因后删除）：
-            // onAppear 挂在 sheet 内容根上，验呈现实
-            // 证（若 onChange 已置 true 但此行未出，
-            // 即呈现环节吞掉）
-            .onAppear { print("[A6PROBE] settings sheet appeared") }
         }
         // 0.6.0：总览桥前台轮询（30 秒一轮，OverviewBridge-
         // Store.poll）：以 scenePhase 为 task id——回前台
