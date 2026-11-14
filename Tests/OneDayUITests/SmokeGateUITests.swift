@@ -155,7 +155,7 @@ final class SmokeGateUITests: XCTestCase {
             }
             if !app.buttons[closeLabel].waitForExistence(timeout: 15) {
                 let visible = app.buttons.allElementsBoundByIndex
-                    .prefix(20).map(\.label)
+                    .prefix(20).map { $0.label }
                     .joined(separator: " | ")
                 XCTFail(
                     "设置页应打开（关闭钮在场）；当场按钮：\(visible)",
