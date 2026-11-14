@@ -25,6 +25,14 @@ import SwiftData
 /// 用法：挂载即 `retain(_:)`；tearDown 先拆窗再 `release()`
 /// （只清实例引用、不析构容器）。未 retain 时 release 为空操作。
 /// `release()` 保留 async 签名（调用点已是 `await`），内部不再悬停。
+///
+/// 第三轮兜底（2026-11-15）：目标内所有建 ChatThread 容器的类
+/// 一并收编——含不挂载视图的六类（BasicsFixBatch／BasicsStopgap／
+/// DeleteCloseout／DeleteOptimistic／GoalQuoteEntry／TraceEcho），
+/// 不变量升级为「进程内无任何容器死亡」，使 §184 在结构上
+/// 不可能（第二轮余 1 崩的来源未定位到具体类，兜底收编是最
+/// 小代价的闭合）。空容器壳（TabBarFloat／HubSegments／
+/// TopBarHit）仍不收编：容器里不存在 ChatThread 实例。
 @MainActor
 final class SwiftDataTestMount {
 

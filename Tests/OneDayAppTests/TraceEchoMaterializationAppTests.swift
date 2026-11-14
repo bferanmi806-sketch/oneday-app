@@ -12,14 +12,23 @@ import XCTest
 @MainActor
 final class TraceEchoMaterializationAppTests: XCTestCase {
 
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级
+    /// 持有、永不释放）。本类是第二轮唯一余崩的受害者
+    /// （testFailedTrace 在首轮被残留观察者打断、重跑通过）；
+    /// 本类自身容器亦进持有，杜绝其线程被后测 save 唤醒的
+    /// 观察者读到已销毁实例。
+    private var swiftDataMount = SwiftDataTestMount()
+
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([ChatThread.self, ChatEntry.self])
-        return try ModelContainer(
+        let container = try ModelContainer(
             for: schema,
             configurations: [ModelConfiguration(
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        swiftDataMount.retain(container)
+        return container
     }
 
     private func trace(

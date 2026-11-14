@@ -10,14 +10,22 @@ import XCTest
 @MainActor
 final class BasicsStopgapAppTests: XCTestCase {
 
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级
+    /// 持有、永不释放）。本类不挂载视图，但其容器若在进程内
+    /// 先死，残留观察者在别测 save 时仍可被唤醒；永不释放
+    /// 即杜绝（第二轮余 1 崩的兜底收编）。
+    private var swiftDataMount = SwiftDataTestMount()
+
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([ChatThread.self, ChatEntry.self])
-        return try ModelContainer(
+        let container = try ModelContainer(
             for: schema,
             configurations: [ModelConfiguration(
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        swiftDataMount.retain(container)
+        return container
     }
 
     func testSendFailedDefaultsFalseAndPersists() throws {

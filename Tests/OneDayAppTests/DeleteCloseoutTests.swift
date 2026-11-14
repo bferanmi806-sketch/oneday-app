@@ -22,6 +22,11 @@ final class DeleteCloseoutTests: XCTestCase {
 
     private var appState: AppState!
     private var container: ModelContainer!
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级
+    /// 持有、永不释放）。本类不挂载视图，但其容器若在进程内
+    /// 先死，残留观察者在别测 save 时仍可被唤醒；永不释放
+    /// 即杜绝（第二轮余 1 崩的兜底收编）。
+    private var swiftDataMount = SwiftDataTestMount()
     /// 全组共用一个写上下文（与生产同一形态：宿主
     /// 视图的 @Query 与 @Environment modelContext
     /// 本就是同一上下文，跨上下文删对象不合法）
@@ -41,6 +46,7 @@ final class DeleteCloseoutTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        swiftDataMount.retain(container)
         context = ModelContext(container)
     }
 
@@ -54,6 +60,7 @@ final class DeleteCloseoutTests: XCTestCase {
         }
         appState = nil
         context = nil
+        await swiftDataMount.release()
         container = nil
         try await super.tearDown()
     }

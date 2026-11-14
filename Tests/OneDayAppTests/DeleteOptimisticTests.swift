@@ -24,6 +24,11 @@ final class DeleteOptimisticTests: XCTestCase {
 
     private var appState: AppState!
     private var container: ModelContainer!
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级
+    /// 持有、永不释放）。本类不挂载视图，但其容器若在进程内
+    /// 先死，残留观察者在别测 save 时仍可被唤醒；永不释放
+    /// 即杜绝（第二轮余 1 崩的兜底收编）。
+    private var swiftDataMount = SwiftDataTestMount()
     private var context: ModelContext!
     private var suiteDefaults: UserDefaults!
     private var suiteName: String!
@@ -48,6 +53,7 @@ final class DeleteOptimisticTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        swiftDataMount.retain(container)
         context = ModelContext(container)
         suiteName = "delete-optimistic-tests-\(UUID().uuidString)"
         suiteDefaults = UserDefaults(suiteName: suiteName)
@@ -72,6 +78,7 @@ final class DeleteOptimisticTests: XCTestCase {
         suiteDefaults = nil
         appState = nil
         context = nil
+        await swiftDataMount.release()
         container = nil
         try await super.tearDown()
     }
