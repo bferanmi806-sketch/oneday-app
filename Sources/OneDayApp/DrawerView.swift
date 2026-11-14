@@ -1715,6 +1715,9 @@ struct DrawerView: View {
                 systemName: "gearshape",
                 label: "设置"
             ) {
+                // 临时探针（A6 诊断用，定因后删除）：
+                // 验齿轮点按是否到达动作
+                print("[A6PROBE] gear tapped")
                 appState.settingsSheetRequested = true
             }
             HStack(spacing: OneDayMetrics.spacingS) {
