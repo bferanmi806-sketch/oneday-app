@@ -13,12 +13,15 @@ import XCTest
 ///
 /// 探针说明：App 进程的 print 探针不进 xcodebuild 日志（第二轮中文例已呈现
 /// sheet、四行探针仍为零，已证实通道不通，App 侧探针已删），定因改走测试侧
-/// 状态快照——点按后 3 秒与失败时各取一次，快照写进断言信息（断言信息必进日志）。
-/// 快照判读：
+/// 状态快照——抽屉开后（基线）／点按后 3 秒／呈现后各取一次，测试进程 print
+/// 出来（测试进程输出进日志），失败时另写进断言信息（断言信息必进日志）。
+/// 快照判读（须中英两例同刻对照）：
 /// - 齿轮仍在且可命中、抽屉仍开、sheet 0 ＝ 点按未生效或消费未跑（动作/onChange 段）
 /// - 齿轮/频道行消失、sheet 0 ＝ 抽屉被收回或根重建吞掉请求（重建/收回段）
 /// - sheet 1 但关闭钮缺席 ＝ 呈现了但内容未进无障碍树（内容段）
 /// - 关闭钮曾出现后消失 ＝ 呈现后即被关（dismiss 段）
+/// - 齿轮在树但不可命中、底栏不在树、sheet 0（第三轮英文快照实测）＝ 抽屉仍开、
+///   但有物盖住齿轮且底栏离树——须看中文同刻是否同形，同形即常态、异形即病灶。
 final class SettingsSheetLocaleTests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -76,10 +79,14 @@ final class SettingsSheetLocaleTests: XCTestCase {
             Thread.sleep(forTimeInterval: 0.3)
         }
         XCTAssertTrue(gear.isHittable, "抽屉齿轮应可命中", line: line)
+        // 探针 v3（测试侧）：点按前取基线快照（抽屉开、齿轮可命中时的常态）。
+        print("[A6STATE] baseline " + snapshot(app, gear: gear, channelRow: channelRow))
         gear.tap()
 
         // 探针 v2（测试侧）：点按后 3 秒取快照，兼捕关闭钮是否曾短暂出现。
+        Thread.sleep(forTimeInterval: 3)
         let snapAfterTap = snapshot(app, gear: gear, channelRow: channelRow)
+        print("[A6STATE] afterTap " + snapAfterTap)
         var closeSeenTransiently = false
         for _ in 0..<10 {
             if app.buttons["关闭设置"].exists {
@@ -100,11 +107,13 @@ final class SettingsSheetLocaleTests: XCTestCase {
             )
             return
         }
+        // 探针 v3：呈现后取快照（中文对照例的同刻常态，与英文失败快照对照）。
+        print("[A6STATE] presented " + snapshot(app, gear: gear, channelRow: channelRow))
         closeButton.tap()
     }
 
     /// 点按后状态快照：齿轮/频道行是否还在树里、是否可命中、sheet 数、窗口数、
-    /// 底栏是否还在（根是否仍为 ContentView）。
+    /// 底栏是否还在（根是否仍为 ContentView）、按钮/文本总数（盖层呈现会改数）。
     private func snapshot(
         _ app: XCUIApplication,
         gear: XCUIElement,
@@ -114,5 +123,6 @@ final class SettingsSheetLocaleTests: XCTestCase {
             + " channelRow.exists=\(channelRow.exists)"
             + " sheets=\(app.sheets.count) windows=\(app.windows.count)"
             + " tabChat.exists=\(app.tabBars.buttons["聊天"].exists)"
+            + " buttons=\(app.buttons.count) texts=\(app.staticTexts.count)"
     }
 }
