@@ -273,9 +273,20 @@ final class SmokeGateUITests: XCTestCase {
             "登录面表单字段应在场"
         )
         connect.tap()
+        // 成功页须手动点「开始聊天」才进主界面
+        // （ConnectView successPage：无自动跳转；
+        // run 43634025826 实证：点连接后 35 秒轮询
+        // drawer.open 永不到，因停在成功页）。
+        // 「开始聊天」永不出现＝探活失败，先在此分清。
+        let begin = app.buttons["开始聊天"]
+        XCTAssertTrue(
+            begin.waitForExistence(timeout: 35),
+            "探活成功后应出现「开始聊天」（未出现＝探活失败）"
+        )
+        begin.tap()
         XCTAssertTrue(
             app.buttons["drawer.open"]
-                .waitForExistence(timeout: 35),
+                .waitForExistence(timeout: 25),
             "首连全流程走完应进主界面"
         )
     }
@@ -358,6 +369,36 @@ final class SmokeGateUITests: XCTestCase {
 
     // MARK: - 开关盘点·全部对话「显示系统运行」
 
+    /// 开关真拨：点 knob 坐标＋轮询读值。
+    /// run 43634025826 实证：整行中点点按事件已合成、
+    /// 值仍为 "0"，点按后 0.3 秒立即读值不可靠——
+    /// 落点改点开关 trailing 侧 knob，读值改带超时轮询。
+    private func tapSwitchKnobAndWait(
+        _ app: XCUIApplication, label: String,
+        to expected: String, timeout: TimeInterval = 8,
+        line: UInt = #line
+    ) {
+        let toggle = app.switches[label]
+        XCTAssertTrue(
+            toggle.waitForExistence(timeout: 20),
+            "开关应在场", line: line
+        )
+        toggle.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5)
+        ).tap()
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if (app.switches[label].value as? String) == expected {
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        XCTAssertEqual(
+            app.switches[label].value as? String, expected,
+            "开关拨后值应为 \(expected)", line: line
+        )
+    }
+
     /// 视图内开关真拨：开后分段多出「系统」段（系统运
     /// 行会话的唯一用户面入口），拨回关恢复。
     func testSmokeAllConversationsSystemRunsToggle() {
@@ -378,14 +419,12 @@ final class SmokeGateUITests: XCTestCase {
             "全部对话页应打开且开关在场"
         )
         XCTAssertEqual(toggle.value as? String, "0")
-        toggle.tap()
-        XCTAssertEqual(toggle.value as? String, "1")
+        tapSwitchKnobAndWait(app, label: "显示系统运行", to: "1")
         XCTAssertTrue(
             app.buttons["系统"].waitForExistence(timeout: 10),
             "开启后分段应多出「系统」段"
         )
-        toggle.tap()
-        XCTAssertEqual(toggle.value as? String, "0")
+        tapSwitchKnobAndWait(app, label: "显示系统运行", to: "0")
         app.buttons["完成"].tap()
     }
 
@@ -413,6 +452,20 @@ final class SmokeGateUITests: XCTestCase {
 
     // MARK: - A-8 抽屉分区可见性关态（排末位，内含恢复）
 
+    /// 设置页「旁聊」选择器：按值域与抽屉分区头区分——
+    /// Picker（.menu）值为当前显隐「显示/隐藏」，抽屉
+    /// 同标签分区头值为折叠态「已展开/已收起」；
+    /// app.buttons["旁聊"] 取首匹配会命中常驻抽屉头
+    /// （run 43634025826 实证：帧宽 277.7、不可命中）。
+    private func settingsSideChatPicker(
+        _ app: XCUIApplication
+    ) -> XCUIElement {
+        app.buttons.matching(NSPredicate(
+            format: "label == %@ AND (value == %@ OR value == %@)",
+            "旁聊", "显示", "隐藏"
+        )).firstMatch
+    }
+
     /// 设置→侧边栏把「旁聊」设为隐藏：抽屉旁聊行消失、
     /// 频道行仍在；再设回显示，行恢复。关态装配此前
     /// CI 零执行。命名 Z 前缀保证类内末位执行。
@@ -428,7 +481,7 @@ final class SmokeGateUITests: XCTestCase {
             "设置内侧边栏行应可达"
         )
         sidebarRow.tap()
-        let picker = app.buttons["旁聊"]
+        let picker = settingsSideChatPicker(app)
         XCTAssertTrue(
             picker.waitForExistence(timeout: 12),
             "侧边栏管理面应打开（旁聊选择器在场）"
@@ -463,7 +516,7 @@ final class SmokeGateUITests: XCTestCase {
             )).firstMatch
         XCTAssertTrue(scrollSettings(app, until: sidebarRow2))
         sidebarRow2.tap()
-        let picker2 = app.buttons["旁聊"]
+        let picker2 = settingsSideChatPicker(app)
         XCTAssertTrue(picker2.waitForExistence(timeout: 12))
         picker2.tap()
         let show = app.buttons["显示"]
