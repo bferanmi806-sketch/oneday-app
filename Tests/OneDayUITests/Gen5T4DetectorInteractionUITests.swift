@@ -12,6 +12,10 @@ import XCTest
 ///  ③ 长按命中段 vs 长按普通段的菜单差异（与选字/长按菜单的
 ///     相互影响）。
 /// 本文件不断言产品行为（探针采集），结果以 T4PROBE 前缀 print。
+/// 二轮修订（首轮教训）：正文左对齐、短行中心点落在文本外——
+/// 电话改点左侧文本起点；日期只认时间碎片（「13:00」在行尾），
+/// 按 0.70/0.82/0.93 三档横移逐个试、每点查记录变化；URL 行
+/// 先转储全部 textView 值再定位。
 final class Gen5T4DetectorInteractionUITests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -53,18 +57,7 @@ final class Gen5T4DetectorInteractionUITests: XCTestCase {
         print("T4PROBE UI|\(tag)|openURLLog=\"\(openURLLog(in: app))\"")
     }
 
-    private func tapRow(
-        _ tag: String, needle: String, in app: XCUIApplication
-    ) {
-        let row = textView(containing: needle, in: app)
-        guard row.waitForExistence(timeout: 10) else {
-            print("T4PROBE UI|\(tag)|row NOT FOUND needle=\(needle)")
-            return
-        }
-        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        Thread.sleep(forTimeInterval: 2.0)
-        dumpState("tap-\(tag)", in: app)
-        // 收尾：点空白处关掉可能呈现的系统面，回到场景
+    private func dismissAnySurface(in app: XCUIApplication) {
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
         Thread.sleep(forTimeInterval: 0.8)
     }
@@ -76,11 +69,72 @@ final class Gen5T4DetectorInteractionUITests: XCTestCase {
             "探针场景未出现"
         )
         dumpState("initial", in: app)
-        tapRow("phone", needle: "13800138000", in: app)
-        tapRow("date", needle: "2026年11月16日", in: app)
-        tapRow("address", needle: "西故现村", in: app)
-        tapRow("url", needle: "example.com/docs", in: app)
-        tapRow("email", needle: "inkroot001", in: app)
+        // 诊断：转储全部文本视图的值，定位 URL 行为何没被找到
+        for tv in app.textViews.allElementsBoundByIndex {
+            print("T4PROBE UI|textViewDump|value=\"\(tv.value as? String ?? "?")\"|label=\"\(tv.label)\"")
+        }
+
+        // 电话：左对齐短文本，点文本起点附近（dx 0.12）
+        let phone = textView(containing: "13800138000", in: app)
+        if phone.waitForExistence(timeout: 10) {
+            phone.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.5)).tap()
+            Thread.sleep(forTimeInterval: 2.0)
+            dumpState("tap-phone-left", in: app)
+            dismissAnySurface(in: app)
+        } else {
+            print("T4PROBE UI|tap-phone-left|row NOT FOUND")
+        }
+
+        // 日期：整行只有尾部「13:00」是命中段，三档横移逐个试
+        let date = textView(containing: "2026年11月16日", in: app)
+        if date.waitForExistence(timeout: 10) {
+            for dx in [0.70, 0.82, 0.93] {
+                let before = openURLLog(in: app)
+                date.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: 0.5)).tap()
+                Thread.sleep(forTimeInterval: 1.6)
+                dumpState("tap-date-dx\(dx)", in: app)
+                if openURLLog(in: app) != before {
+                    print("T4PROBE UI|tap-date|log changed at dx=\(dx), stop")
+                    break
+                }
+                dismissAnySurface(in: app)
+            }
+        } else {
+            print("T4PROBE UI|tap-date|row NOT FOUND")
+        }
+
+        // 地址：预期无命中（中文地址引擎零命中），点按应无出口——对照
+        let addr = textView(containing: "西故现村", in: app)
+        if addr.waitForExistence(timeout: 10) {
+            addr.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+            Thread.sleep(forTimeInterval: 1.6)
+            dumpState("tap-address-left", in: app)
+            dismissAnySurface(in: app)
+        } else {
+            print("T4PROBE UI|tap-address-left|row NOT FOUND")
+        }
+
+        // URL：用值转储里确认过的形态定位（needle 取域名片段）
+        let url = textView(containing: "example.com", in: app)
+        if url.waitForExistence(timeout: 10) {
+            url.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)).tap()
+            Thread.sleep(forTimeInterval: 2.0)
+            dumpState("tap-url-left", in: app)
+            dismissAnySurface(in: app)
+        } else {
+            print("T4PROBE UI|tap-url-left|row NOT FOUND")
+        }
+
+        // 邮箱：复验首轮结论（mailto 经 Coordinator 录音）
+        let email = textView(containing: "inkroot001", in: app)
+        if email.waitForExistence(timeout: 10) {
+            email.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+            Thread.sleep(forTimeInterval: 2.0)
+            dumpState("tap-email-left", in: app)
+            dismissAnySurface(in: app)
+        } else {
+            print("T4PROBE UI|tap-email-left|row NOT FOUND")
+        }
     }
 
     func testLongPressDetectedVsPlain() {
@@ -91,14 +145,31 @@ final class Gen5T4DetectorInteractionUITests: XCTestCase {
         )
         let phone = textView(containing: "13800138000", in: app)
         if phone.waitForExistence(timeout: 10) {
-            phone.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            phone.coordinate(withNormalizedOffset: CGVector(dx: 0.12, dy: 0.5))
                 .press(forDuration: 2.0)
             Thread.sleep(forTimeInterval: 1.2)
             dumpState("longpress-phone", in: app)
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
-            Thread.sleep(forTimeInterval: 0.8)
+            dismissAnySurface(in: app)
         } else {
             print("T4PROBE UI|longpress-phone|row NOT FOUND")
+        }
+        // 长按日期行的时间碎片（行尾「13:00」）：看日期段的长按菜单形态
+        let date = textView(containing: "2026年11月16日", in: app)
+        if date.waitForExistence(timeout: 10) {
+            for dx in [0.93, 0.82] {
+                date.coordinate(withNormalizedOffset: CGVector(dx: dx, dy: 0.5))
+                    .press(forDuration: 2.0)
+                Thread.sleep(forTimeInterval: 1.2)
+                dumpState("longpress-date-dx\(dx)", in: app)
+                let items = app.menuItems.allElementsBoundByIndex.map { $0.label }
+                dismissAnySurface(in: app)
+                if items.count > 1 {
+                    print("T4PROBE UI|longpress-date|menu captured at dx=\(dx), stop")
+                    break
+                }
+            }
+        } else {
+            print("T4PROBE UI|longpress-date|row NOT FOUND")
         }
         let plain = textView(containing: "普通文字", in: app)
         if plain.waitForExistence(timeout: 10) {
@@ -106,12 +177,16 @@ final class Gen5T4DetectorInteractionUITests: XCTestCase {
                 .press(forDuration: 2.0)
             Thread.sleep(forTimeInterval: 1.2)
             dumpState("longpress-plain", in: app)
-            app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.06)).tap()
-            Thread.sleep(forTimeInterval: 0.8)
+            dismissAnySurface(in: app)
         } else {
             print("T4PROBE UI|longpress-plain|row NOT FOUND")
         }
-        // 普通段点按（非长按）对照：不应有任何出口
-        tapRow("plain", needle: "普通文字", in: app)
+        // 普通段点按对照：不应有任何出口
+        let plainTap = textView(containing: "普通文字", in: app)
+        if plainTap.waitForExistence(timeout: 10) {
+            plainTap.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5)).tap()
+            Thread.sleep(forTimeInterval: 1.2)
+            dumpState("tap-plain", in: app)
+        }
     }
 }
