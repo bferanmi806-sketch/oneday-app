@@ -29,11 +29,15 @@ final class ChatPageAssemblyRegressionTests: XCTestCase {
     }
 
     private var window: DeviceWindow!
+    /// §184：容器租约——挂载树的容器须强持有到 tearDown，
+    /// 释放顺序见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    private var swiftDataMount = SwiftDataTestMount()
 
     override func tearDown() async throws {
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil
+        await swiftDataMount.release()
         try await super.tearDown()
     }
 
@@ -56,6 +60,9 @@ final class ChatPageAssemblyRegressionTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        // §184：容器进租约——方法返回后仍由租约强持有，
+        // 不许只存方法局部（局部释放先于挂载树即复现崩溃）。
+        swiftDataMount.retain(container)
         let host = UIHostingController(
             rootView: RootView()
                 .environment(appState)
@@ -258,6 +265,8 @@ final class ChatPageAssemblyRegressionTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        // §184：容器进租约（与 assembleProductionPage 同口径）。
+        swiftDataMount.retain(container)
         let rootHost = UIHostingController(
             rootView: RootView()
                 .environment(appState)

@@ -29,6 +29,16 @@ import XCTest
 @MainActor
 final class KeyboardFlowAcceptanceTests: XCTestCase {
     private var window: UIWindow!
+    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    private var swiftDataMount = SwiftDataTestMount()
+
+    override func tearDown() async throws {
+        window?.rootViewController = nil
+        window?.isHidden = true
+        window = nil
+        await swiftDataMount.release()
+        try await super.tearDown()
+    }
 
     private func spinRunLoop(seconds: TimeInterval) {
         let exp = expectation(description: "spin \(seconds)s")
@@ -153,6 +163,8 @@ final class KeyboardFlowAcceptanceTests: XCTestCase {
                 url: dir.appendingPathComponent("store.sqlite")
             )]
         )
+        // §184：容器进租约——方法局部释放先于挂载树即复现崩溃。
+        swiftDataMount.retain(container)
         let context = ModelContext(container)
         let thread = ChatThread(title: "验收长会话")
         context.insert(thread)

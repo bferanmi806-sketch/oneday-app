@@ -12276,3 +12276,15 @@ run **43571630543**（workflow_dispatch @ feat/liqian-lessons）**§190 终判�
 **五轮补读终局（2026-11-15 补读 run 43612193816，头 bcf16cf）**：completed / failure，exit 65——Build ✓、**Core 2047/2047**（0 failures，2044＋守卫回归 3 精确对账）、**UI 8/8**、全场断言失败 0。格式保真回归 3 条**全部 passed**（闸保真／呈现保真／整形守卫）。但 App 测试宿主 SwiftData 致命崩溃（`BackingData.swift:835`，UTC 16:28:33）打断 8 条测试无判词，含本包自有 `ChatCarrierSettleCarryTests` 2 条（三轮已 passed，本轮被打断）与 `DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone`，其余 5 条为 §184 常客。**五轮本身未终判绿**；热修拣入＋终轮 CI 仍待包 4 线后续。
 
 **节号顺延注记**：本节在本分支编号 §247；组版合入时与 main 侧既有节号统一对齐（main 侧已用至 §254），文内 §247 引用一并改。
+
+run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行、无任一 `Executed ... with N>0 failures`）；Core **2081/2081 精确对账**（Executed 2081、0 failures，＝预期 2034＋13＋17＋17）；UI **8/8 全跑全过**（Executed 8、0 failures——目标尾巴包自身 CI 未跑成的 UI 步至此**补验完成**）；App passed 168＋skipped 5＋无终局 5＝178（＋helpers 伪名 1＝grep 口径 179）；VERDICT 三连 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）。**§184 登记**：宿主重启 7 起（14:07–14:12 集中于 App 测试相位），波及无终局 5 条——ChatReliabilityOfflineTests.testMarkPendingSendRetainsEntryOnDisk 与 ComposerGuideHostTests.testBarGrowth_topRisesBottomPinned（.44 轮已登记者，本轮再现、按组版轮登记口径处理、不判红）、ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays、DrawerBridgeHarnessTests.testBridgeTapToOpenReachesFullTravel、EdgeEffectRegistrationTests.testAnchorRegistersAncestorScrollView（本轮新登记者，同签名）；崩溃元数据 8 份照常采集。IPA 解包验：0.50.45／173／site.didichou.oneday，13,115,227 字节，md5 `4e78123345ac2b4bd3aa4fbd6e11994b`。
+
+### §261 测试宿主 SwiftData 致命崩溃专项（2026-11-15；分支 fix/test-host-swiftdata-crash，基线 rel-05045@2f3ce5b）
+
+**定因**：七 run 全红共因。App 测试宿主稳定复现 `SwiftData/BackingData.swift:835: Fatal error: This model instance was destroyed by calling ModelContext.reset`——访问已销毁的 ChatThread（20 起里 18 起为 p2）。日志＋crash-metadata 三路独立栈定点：`DrawerView.drawerItems → ChatThread.isPendingDeletion`、`ChatView.ensureMainThread`（通知投递内）、`ChatReliabilityOfflineTests.seedThreads`（save 的通知投递内）。根因＝装配层容器生命周期倒置：生产页挂载类的 ModelContainer 只存方法局部，方法返回即失强持有，而挂载树（@Query 订阅＋在途 .task／通知观察者）还活着；SwiftData 在上下文失效时 reset，残留访问即崩。跨容器 save 是同链另一触发器（§184 配方在案）。
+
+**修法**（只动测试宿主／装配层，生产行为零改动）：新增 `SwiftDataTestMount` 容器租约——挂载即 retain、tearDown 先拆窗→排空 0.6s→再放容器。八文件收编：组装回归／设备条件探针／断网可靠性／边缘探针／键盘验收（补 tearDown）／键盘诊断／讨论引用复现／抽屉桥 harness。新增 `SwiftDataHostLifetimeTests` 3 例回归（树先于容器释放的弱引用时序＋8 轮挂载循环后异容器 save＋拆卸后播种 save 同形）。
+
+**不适用面**：纯替身壳（ComposerGuideHost／EdgeEffectRegistration 等）与空容器壳（TabBarFloat／HubSegments／TopBarHitIntermittent）——容器里不存在 ChatThread 实例、无从销毁；它们是受害者，修挂载类即修它们。另：run 6 首崩的 `testKeyboardUpMovesComposerOnlyDockStays` 35s 停滞无 .ips，疑为键盘真机缺失下的超时（独立键盘线在修），本包只给它换上租约装配、不认领该超时。
+
+**CI 判读**：待回填（workflow_dispatch 一轮；判读口径：四条无终局用例恢复终局、宿主零重启、Core 2081 精确对账——新测在 App 层不增 Core、App 执行数 ＋3、UI 8/8）。

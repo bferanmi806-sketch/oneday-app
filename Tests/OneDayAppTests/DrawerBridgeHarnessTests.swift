@@ -28,6 +28,8 @@ final class DrawerBridgeHarnessTests: XCTestCase {
     private var window: UIWindow!
     private var appState: AppState!
     private var container: ModelContainer!
+    /// §184：容器租约——见 SwiftDataTestMount（先拆窗→排空→再放容器）。
+    private var swiftDataMount = SwiftDataTestMount()
 
     override func setUp() async throws {
         try await super.setUp()
@@ -39,6 +41,10 @@ final class DrawerBridgeHarnessTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        // §184：容器进租约——排空后再放容器（本类是
+        // 跨用例崩溃的常见受害者：上一类的残留树在
+        // 本类 setUp 的 save／挂载拍里被触发）。
+        swiftDataMount.retain(container)
         let host = UIHostingController(
             rootView: DrawerBridgeHarness()
                 .environment(appState)
@@ -51,8 +57,10 @@ final class DrawerBridgeHarnessTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        window.rootViewController = nil
         window.isHidden = true
         window = nil
+        await swiftDataMount.release()
         container = nil
         appState = nil
         try await super.tearDown()
