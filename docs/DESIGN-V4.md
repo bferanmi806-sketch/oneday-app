@@ -12547,4 +12547,8 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 **不适用面**：纯替身壳（ComposerGuideHost／EdgeEffectRegistration 等）与空容器壳（TabBarFloat／HubSegments／TopBarHitIntermittent）——容器里不存在 ChatThread 实例、无从销毁；它们是受害者，修挂载类即修它们。另：run 6 首崩的 `testKeyboardUpMovesComposerOnlyDockStays` 35s 停滞无 .ips，疑为键盘真机缺失下的超时（独立键盘线在修），本包只给它换上租约装配、不认领该超时。
 
-**CI 判读**：待回填（workflow_dispatch 一轮；判读口径：四条无终局用例恢复终局、宿主零重启、Core 2081 精确对账——新测在 App 层不增 Core、App 执行数 ＋3、UI 8/8）。
+**CI 判读第一轮**：run 43627222674（38m46s）**红——第一版修法被证伪**。Core 2081/2081、UI 8/8、断言失败 0 仍成立；但宿主仍崩 **10 次**、同签名（crash-metadata 12 份：1 份 11-01 陈旧＋1 份 searchd 无关＋10 份 OneDayApp EXC_BREAKPOINT／SIGTRAP，通知投递内 `ensureMainThread`／`seedThreads`／`seedLongThread`）。实测反证：`testBareImagePath` 经 tearDown 排空仍通过，但下一测 `testMarkPending` 在播种 save 时被崩——残留观察者存活 ≥20 秒；自家回归 `testRepeatedMountTeardownThenSaveDoesNotTrap` 在第二轮播种时崩（最小复现）；`testSeedSaveAfterTeardownDoesNotTrap` 同样崩。另：自家回归另有 **async 测试里 `wait(for:)` 永不满足**的自家 bug（两例 5.5s 超时）。四条无终局用例中三条恢复终局并通过（键盘 8.98s、抽屉桥 3.55s、锚点 0.42s），`testMarkPending` 仍被崩打断。另：18:55:09／18:55:52 两次重启无 .ips，疑为键盘测试超时（与 SwiftData 崩溃机制不同，见上）。
+
+**修法第二版**（同分支续改，6b18d38 之后）：租约改不变量——容器一旦挂载即进**进程级持有、永不释放**（`liveContainers` 静态数组；`release()` 只清实例引用、不再悬停）。理据：崩溃的必要条件是实例被 reset 销毁；容器不死就没有 reset、残留观察者再被唤醒也只读到活实例；每测仍用自己的容器，隔离性不受损（内存库每库仅数条线程，泄漏量可忽略）。回归文件同步改：`wait(for:)`→`Task.sleep`（async 测试等渲染只用 sleep）；测试 1 改断言为「容器拆卸后仍在进程级持有且线程可读」；宿主析构只作观测打印、不作断言（析构时序不是承重墙）。
+
+**CI 判读第二轮**：待回填（workflow_dispatch；判读口径同第一轮）。
