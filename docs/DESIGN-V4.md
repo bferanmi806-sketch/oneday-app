@@ -12615,3 +12615,15 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+
+## §259 枢纽台账三店合一（2026-11-14；分支 feat/hub-single-store，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/hub-single-store-report-20261114.md）
+
+**病灶（普查 app-wide-assembly-audit 枢纽节实证）**：台账/任务/监测三店在各面各自 @State 私建——KanbanStore 全 App 五份、MonitorsStore 三份、LedgerStore 两份，互不相通（同物多账的实例级变体；HubLedgerSection 段头自注「他面的 KanbanStore 实例互不相干」）。枢纽段一面并持三份私建：条目流走段内 LedgerStore、新建/下钻走段内另两份，与他面各行其是。
+
+**收口（照 sharedHubStore 先例，不新造机制）**：AppState 新增 sharedLedgerStore()/sharedKanbanStore()/sharedMonitorsStore() 懒建单例；全部 10 处私建构造退役（HubLedgerSection 3＋ProgressCapsuleView 2＋FeedView 2＋GoalsView 目标详情 2＋IdeasView 1），各面改计算属性消费同一份。枢纽台账段条目只从共享 LedgerStore 一口出。
+
+**口径零改动**：LedgerBoard 分组/排序/副题、LedgerMerge、LedgerMonitorSynthesis、headerCounts 与条目构成（服务端账＋监测合成账）一字未动；加载调用点（各面 .task 的 load 序列）不变。行为差异仅收敛向：KanbanStore 版本探针全 App 只跑一次；三店 detail/缓存态跨面共享（与 sharedHubStore 已接受口径同类）；台账轮询共用一个实例（poll 在飞守卫，请求量不增）。
+
+**登记在案、不在本包**：监测条目仍由 App 在 LedgerStore 内合成（伴生采集器暂无监测源，真单源属伴生侧后续）；通知已决 View 层双源相加归待办第 71 条；IdeasStore/GoalsStore 多面私建待后续收口包。
+
+### §259.1 CI 判读（待回填）
