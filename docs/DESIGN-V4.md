@@ -12551,4 +12551,8 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 **修法第二版**（同分支续改，6b18d38 之后）：租约改不变量——容器一旦挂载即进**进程级持有、永不释放**（`liveContainers` 静态数组；`release()` 只清实例引用、不再悬停）。理据：崩溃的必要条件是实例被 reset 销毁；容器不死就没有 reset、残留观察者再被唤醒也只读到活实例；每测仍用自己的容器，隔离性不受损（内存库每库仅数条线程，泄漏量可忽略）。回归文件同步改：`wait(for:)`→`Task.sleep`（async 测试等渲染只用 sleep）；测试 1 改断言为「容器拆卸后仍在进程级持有且线程可读」；宿主析构只作观测打印、不作断言（析构时序不是承重墙）。
 
-**CI 判读第二轮**：待回填（workflow_dispatch；判读口径同第一轮）。
+**CI 判读第二轮**：run 43633461905（24m56s）**红 1 处断言＋余 1 崩**。宿主重启 **10→1**、crash-metadata 12→2（1 份 11-01 陈旧＋1 份 OneDayApp EXC_BREAKPOINT）。四条无终局用例**全部恢复终局并通过**（键盘／抽屉桥／锚点／testMarkPending 全过）；自家回归 3 例全过；DIAG 实测 `weakHost nil after teardown: true`——宿主在拆窗后析构，残留观察者不在宿主侧、而在框架通知注册侧，容器永生是唯一承重保证。Core 2081/2081、UI 8/8、断言失败 0（除下述 1 处）。余下两红：①`testEdgeEffectAttributionProbe` 真断言失败（`XCTAssertLessThanOrEqual failed: ("6") is greater than ("4")`，§257.1 同族像素探针抖动，非崩溃、不属本专项）；②`testFailedTraceMaterializesWithErrorSnapshot` 首轮被崩打断（通知投递内 SIGTRAP，同签名）、重跑通过——其自身容器为方法局部（未收编），余崩来源未定位到具体类。
+
+**修法第三轮**（同分支续改，38e6301 之后）：兜底收编——目标内所有建 ChatThread 容器的类一并进租约，含不挂载视图的六类（BasicsFixBatch／BasicsStopgap／DeleteCloseout／DeleteOptimistic／GoalQuoteEntry／TraceEcho）；不变量升级为「进程内无任何容器死亡」。空容器壳（TabBarFloat／HubSegments／TopBarHit）仍不收编。
+
+**CI 判读第三轮**：待回填（workflow_dispatch；判读口径：宿主零重启、crash-metadata 零 OneDayApp EXC_BREAKPOINT、四条无终局用例全过、自家回归 3 例全过、Core 2081、UI 8/8；EdgeEffect 探针抖动另按 §257.1 登记、不堵本专项）。
