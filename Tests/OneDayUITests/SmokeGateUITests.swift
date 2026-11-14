@@ -452,18 +452,54 @@ final class SmokeGateUITests: XCTestCase {
 
     // MARK: - A-8 抽屉分区可见性关态（排末位，内含恢复）
 
-    /// 设置页「旁聊」选择器：按值域与抽屉分区头区分——
-    /// Picker（.menu）值为当前显隐「显示/隐藏」，抽屉
-    /// 同标签分区头值为折叠态「已展开/已收起」；
-    /// app.buttons["旁聊"] 取首匹配会命中常驻抽屉头
-    /// （run 43634025826 实证：帧宽 277.7、不可命中）。
+    /// 设置页「旁聊」选择器：按 label 前缀＋帧宽取——
+    /// Picker（.menu）的 value 在 XCUI 侧不是「显示/
+    /// 隐藏」（run 43641863685 实证：值域谓词 12 秒
+    /// 零命中，作废第五轮 27d72e2→e061b0d 的值域假
+    /// 设）；label 为「旁聊」或「旁聊，<当前值>」，
+    /// 故只认前缀；设置行帧宽约 362（sheet 内 List
+    /// 行），与身后常驻抽屉头（run 43634025826 实
+    /// 证：帧宽 277.7、值「已展开」）以 300 分界。
+    /// 轮询 12 秒，未命中返回 nil 供调用方转储诊断。
     private func settingsSideChatPicker(
+        _ app: XCUIApplication, timeout: TimeInterval = 12
+    ) -> XCUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            for button in app.buttons.allElementsBoundByIndex {
+                if button.label.hasPrefix("旁聊"),
+                   button.frame.width > 300 {
+                    return button
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        return nil
+    }
+
+    /// 失败现场转储：打印所有 label 含「旁聊」的按钮
+    /// 与 cell（label／value／帧／可命中），供下一轮
+    /// 定查询——再不许凭推测换查询（第五轮定性要求）。
+    private func dumpSideChatCandidates(
         _ app: XCUIApplication
-    ) -> XCUIElement {
-        app.buttons.matching(NSPredicate(
-            format: "label == %@ AND (value == %@ OR value == %@)",
-            "旁聊", "显示", "隐藏"
-        )).firstMatch
+    ) {
+        for button in app.buttons.allElementsBoundByIndex {
+            guard button.label.contains("旁聊") else {
+                continue
+            }
+            print("ZA8-DUMP button label=\(button.label)"
+                + " value=\(String(describing: button.value))"
+                + " frame=\(button.frame)"
+                + " hittable=\(button.isHittable)")
+        }
+        for cell in app.cells.allElementsBoundByIndex {
+            guard cell.label.contains("旁聊") else {
+                continue
+            }
+            print("ZA8-DUMP cell label=\(cell.label)"
+                + " value=\(String(describing: cell.value))"
+                + " frame=\(cell.frame)")
+        }
     }
 
     /// 设置→侧边栏把「旁聊」设为隐藏：抽屉旁聊行消失、
@@ -481,11 +517,11 @@ final class SmokeGateUITests: XCTestCase {
             "设置内侧边栏行应可达"
         )
         sidebarRow.tap()
-        let picker = settingsSideChatPicker(app)
-        XCTAssertTrue(
-            picker.waitForExistence(timeout: 12),
-            "侧边栏管理面应打开（旁聊选择器在场）"
-        )
+        guard let picker = settingsSideChatPicker(app) else {
+            dumpSideChatCandidates(app)
+            XCTFail("侧边栏管理面应打开（旁聊选择器在场）")
+            return
+        }
         picker.tap()
         let hide = app.buttons["隐藏"]
         XCTAssertTrue(hide.waitForExistence(timeout: 8))
@@ -516,8 +552,11 @@ final class SmokeGateUITests: XCTestCase {
             )).firstMatch
         XCTAssertTrue(scrollSettings(app, until: sidebarRow2))
         sidebarRow2.tap()
-        let picker2 = settingsSideChatPicker(app)
-        XCTAssertTrue(picker2.waitForExistence(timeout: 12))
+        guard let picker2 = settingsSideChatPicker(app) else {
+            dumpSideChatCandidates(app)
+            XCTFail("恢复半程：旁聊选择器应在场")
+            return
+        }
         picker2.tap()
         let show = app.buttons["显示"]
         XCTAssertTrue(show.waitForExistence(timeout: 8))

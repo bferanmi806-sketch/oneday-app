@@ -82,6 +82,38 @@ final class SmokeGateLongListScrollTests: XCTestCase {
         return nil
     }
 
+    /// 轮询等偏移量落到目标（±2pt）——直接读
+    /// UIScrollView 实测值，不靠 SwiftUI 状态；
+    /// 超时返回最后实测值供断言打印。
+    private func waitForOffset(
+        _ list: UIScrollView, targetY: CGFloat,
+        timeout: TimeInterval
+    ) -> CGFloat {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if abs(list.contentOffset.y - targetY) <= 2 {
+                return list.contentOffset.y
+            }
+            spin(seconds: 0.2)
+        }
+        return list.contentOffset.y
+    }
+
+    /// 轮询等无障碍元素出现（AX 树刷新可滞后于状态
+    /// 翻转，单次查找会误判）——超时返回最后一次
+    /// 查找结果。
+    private func waitForAxElement(
+        timeout: TimeInterval,
+        _ lookup: () -> NSObject?
+    ) -> NSObject? {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if let element = lookup() { return element }
+            spin(seconds: 0.25)
+        }
+        return lookup()
+    }
+
     func testLongConversationScrollToBottomLandsWithTailVisible()
         throws
     {
@@ -146,15 +178,61 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "120 行长会话内容高应远超视口（fixture 真长）"
         )
 
-        // 滚到顶：回底箭头应出现
-        list.setContentOffset(CGPoint(
-            x: 0, y: -list.adjustedContentInset.top
-        ), animated: false)
+        // 先显式贴底并验偏移：不论出现贴底做没做成，
+        // 起点必须实测在底——否则「滚到顶」可能是原地
+        // 不动（第五轮即因此红：位移从未验证，只凭
+        // 1.2 秒固定等待就查箭头）。
+        let bottomTarget = list.contentSize.height
+            + list.adjustedContentInset.bottom
+            - list.bounds.height
+        list.setContentOffset(
+            CGPoint(x: 0, y: bottomTarget), animated: false
+        )
         list.layoutIfNeeded()
-        spin(seconds: 1.2)
+        let bottomY = waitForOffset(
+            list, targetY: bottomTarget, timeout: 5
+        )
+        print("LONGLIST bottom offset=\(bottomY)"
+            + " target=\(bottomTarget)"
+            + " contentSize=\(list.contentSize.height)")
+        XCTAssertGreaterThan(
+            bottomY, list.bounds.height,
+            "显式贴底后偏移应远离顶部（位移须实测）"
+        )
 
+        // 滚到顶：回底箭头应出现——偏移须实测落在顶
+        let topY = -list.adjustedContentInset.top
+        list.setContentOffset(
+            CGPoint(x: 0, y: topY), animated: false
+        )
+        list.layoutIfNeeded()
+        let settledY = waitForOffset(
+            list, targetY: topY, timeout: 5
+        )
+        print("LONGLIST top offset=\(settledY)"
+            + " target=\(topY)"
+            + " contentSize=\(list.contentSize.height)")
+        XCTAssertLessThanOrEqual(
+            abs(settledY - topY), 2,
+            "滚到顶后偏移应落在顶（位移须实测）"
+        )
+
+        // 首行在树里＝滚的确实是会话列表（防取错滚动面）
+        let firstRow = waitForAxElement(timeout: 5) {
+            axElement(
+                in: window, labelContaining: "冒烟长会话行 001"
+            )
+        }
+        XCTAssertNotNil(
+            firstRow,
+            "滚到顶后首行应在无障碍树里（滚的须是会话列表）"
+        )
+
+        // 箭头插入与 AX 树刷新可滞后于状态翻转，轮询等
         let arrow = try XCTUnwrap(
-            axElement(in: window, label: "回到底部"),
+            waitForAxElement(timeout: 5) {
+                axElement(in: window, label: "回到底部")
+            },
             "离底后回底箭头应出现（无障碍 label「回到底部」）"
         )
         XCTAssertTrue(
