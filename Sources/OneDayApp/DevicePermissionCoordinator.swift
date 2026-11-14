@@ -26,7 +26,11 @@ import Observation
 /// 不与用户主动「先不」混同。
 /// 同步补课执行口（§261 ④）：授权卡续办前补同步的
 /// 唯一执行面。实现＝DeviceSyncController（见
-/// DeviceSyncStore.swift 的遵循声明），来源恒 .chat
+/// DeviceSyncStore.swift 的遵循声明），来源恒 .chat。
+/// 协议本身钉在主隔离上——持有与调用方（协调器）同
+/// 为 @MainActor，existential 不跨隔离发送（首轮 CI
+/// 实证：不标则 Swift 6 按 non-Sendable 发送判红）
+@MainActor
 protocol PermissionSyncPerforming: AnyObject {
     func performPermissionSync(
         dataset: DeviceSyncDataset, config: ServerConfig
