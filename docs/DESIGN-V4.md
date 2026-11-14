@@ -12298,3 +12298,19 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **CI 判读第三轮**：run 43637480258（28m59s）**红 1 处断言＋余 1 崩**。宿主重启仍为 **1**、crash-metadata 仍为 2（1 份 11-01 陈旧＋1 份 OneDayApp EXC_BREAKPOINT，仍是 `testFailedTraceMaterializesWithErrorSnapshot`，同签名、首轮被崩打断、本轮未重跑、无终局）。四条无终局用例**全部通过**（连续两轮全绿）；自家回归 3 例全过；Core 2081/2081、UI 8/8。`testEdgeEffectAttributionProbe` 断言失败复现（同 "6" > "4"、同 617 行，与 run 6／冒烟门同签名，§257.1 抖动族、非崩溃）。
 
 **结论（2026-11-15）**：§184 容器死亡机制已修——崩溃 10→1、四条无终局用例连续两轮全绿、回归 3 例全过。余 1 崩孤立于 `testFailedTrace`（三轮各崩 1 次、皆首轮、第二轮重跑通过），其机制**不是容器死亡**（兜底收编后进程内已无容器死亡仍复现）——须 Mac 侧拿完整 .ips 故障帧定位被销毁实例的归属（或针对性诊断轮次），本机 Linux VM 无法做；不许再无假设盲迭代。EdgeEffect 探针抖动归 §257.1 线。分支状态：三提交（6b18d38／38e6301／de4757a），未合 main、未打 tag。
+
+## §259 新承载首帧闪退阻断热修（2026-11-14；分支 fix/gen3-scroll-reentrancy，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/gen3-reentrancy-fix-20261114.md）
+
+**定案**：0.50.45 真机开启 `chat.carrier.gen3` 首帧必崩（.ips：EXC_BREAKPOINT/SIGTRAP、主线程、进程存活 0.34s；开关已持久化＝用户启动即崩循环）。栈：viewDidLayoutSubviews→UIScrollView.setFrame→_adjustContentOffsetIfNecessary→setContentOffset→scrollViewDidScroll→materialize。机器码复核（.45 IPA 反汇编）：materialize+4068＝`brk #1` 陷阱垫，函数内 +912 `cmp` 指标/计数→+916 `b.hs` 正跳该垫，下标越界检查无疑；源码点 ChatListCarrier.swift:431 `rowFrames[index]`。时序：apply() 先行换入 rows、rowFrames 仍为初值 []（只由 layoutContent 生产）；首帧 L223 setFrame 在帧表重建前引发系统 offset 校正、同步重入 didScroll→materialize 按新 rows 迭代空帧表。任意非空线程首帧必崩、非概率。CI 漏检定性：开关默认关，开着开关的首帧路径此前无任何测试执行过。
+
+**修法（调度单源，不以守卫代调度）**：①didScroll 摘直调——只记账（排一拍），读数产出移入落定拍；②原 scheduleRelayout 合并调度件升格为唯一调度口 scheduleSettle，落定拍 performSettleBeat＝帧表同拍对齐→materialize→读数产出；③apply 只记账，inset 施工（含键盘动画与贴底校正）迁入 layoutContent、帧表重建后同拍执行；④layoutContent 拆 rebuildFrames（纯数据）＋施工段，尾部只排落定拍——布局期绝不进 materialize；⑤命令口（scrollToBottom/scrollToEntry）消费帧表前同拍对齐（ensureFramesCoherent＝同源同长前提的同拍恢复、非下标守卫），scrollToEntry 在帧表建不起（宽为零）时无落点直接返回；⑥materialize 改名 materializeNow，入口双门——重入门（重入即合并待办＋诊断留痕、立即返回）＋同源门（rows/rowFrames 不同长本拍不施工），函数内下标不设守卫，前提由调度单源＋双门保证（诊断线口径：守卫至多冗余、正解恒为调度单源；materialize 入口前提＝rows 与 rowFrames 同源同长）。
+
+**同根覆盖（五处＋一）**：didScroll 直调 materialize＋reportScrollGeometry（总闸）／L223 setFrame（实发路径，由总闸＋布局期禁入收敛）／apply inset 块 L276 帧表重建前同步 set offset／layoutContent 中途 set offset（原 L373/L390，帧表落定后同拍、只触发记账型 didScroll）／命令口 scrollTo* set offset 与 scrollToEntry 原 L598 stale 下标（同批同拍对齐）；reportScrollGeometry 原 L543 行下标与 L431 同假设、一并移入落定拍。VC 其余回调逐个过：手势 delegate 两谓词纯判定不施工、点空白识别只转发 ChatView 的 onBlankTap，均不涉承载布局状态，不动。
+
+**行为保持与代价（如实）**：回底箭头浮层、贴底四路、锚恢复语义不变（既有 Core 锚测/App 组装回归守）；托管与读数产出整体晚一拍（合并调度固有代价、与 UICollectionView 失效合并同构）；键盘 inset 动画与位置校正现同拍一并动画（原两段先后），静息态无差；开关缺省不变（转默认归包 4 后续线，非本热修范围）。
+
+**回归测试**：OneDayAppTests 新增 ChatListCarrierReentrancyTests 3 条，正打漏检路径——①非空行集＋apply 先行换行＋首帧布局＋didScroll 同步重入不崩、落定拍后 5 行全托管＋读数产出；②didScroll 五连发合并一拍（同步段零产出、拍后读数恰一次、托管不重建）；③行集替换后 didScroll、落定拍后新行集 6 行全托管。测试行视图固定高 60（量实＝估算）使落定拍数可精确断言。
+
+**计数对账（预期）**：Core 2081 不变；App 179＋3＝182（grep 口径，含 helpers 伪名 1）；UI 8 不变；xcstrings 不变。本分支不改版号（组版装车时定）。
+
+**真机待验（归主线）**：装热修版开实验开关首帧不崩（用户启动即崩循环当场解）；余项并入 0.50.45 真机清单（新承载贴底必过项等）。
