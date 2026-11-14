@@ -12541,3 +12541,8 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **验收**：Core 新增 6 测（桥时刻优先/旧桥兜底/旧档解码/读面解析/对账裁定全分支）；桥侧进程内测 permission_flow_261_test.py 6/6（超时未答/延后/载荷邮戳/字段透出），live 自测 device_bridge_selftest.py 全量 ALL PASS（含 §261 新增 4 检：邮戳随带、park-state 只读不消费、未知 token、消费后 exists=false）。CI 按 §190 判读（回填 §261.1）；真机待验清单见施工报告（权限三态逐项）。
 
 **版号**：本包不组版、不动版号（随后续组版并入）。
+
+### §261.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
+
+首轮 run 43612111973：真编译错一处——协调器调用点 `DevicePermissionCoordinator.swift:206` 把 non-Sendable 的 `any PermissionSyncPerforming` 跨隔离发送（协议未标隔离），BUILD FAILED、测试未跑；修法＝协议钉 @MainActor（持有/调用/实现三方同隔离），修复提交 86bfbca。
+二轮 run 43616881567：名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行）；Core **2086/2086 精确对账**（Executed 2086、0 failures＝基线 2081＋本包新测 5）；UI **8/8**（Executed 8、0 failures）；VERDICT 三连 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）；IPA 已打包上传（artifact 14123457170，13,036,642 字节——本包不组版、仅证构建完整）。**§184 登记**：App 相位 started 178、passed 167、无终局 11——其中 5 名与 §258.1 在案名单完全一致（ChatReliabilityOfflineTests.testMarkPendingSendRetainsEntryOnDisk、ComposerGuideHostTests.testBarGrowth_topRisesBottomPinned、ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays、DrawerBridgeHarnessTests.testBridgeTapToOpenReachesFullTravel、EdgeEffectRegistrationTests.testAnchorRegistersAncestorScrollView），另 6 名本轮新登记同签名（PresentationLayerScenarios 五测＋TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot，成片无终局、与本包改动面零交叠）。分支头 86bfbca，未合 main、未打 tag。
