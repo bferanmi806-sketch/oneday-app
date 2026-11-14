@@ -10,6 +10,15 @@ import XCTest
 ///
 /// 判定只认关闭钮「关闭设置」在场（SettingsView 恒传 onClose、关闭钮硬编码此标签，
 /// sheet 若呈现必在场；反之 sheet 未呈现）。
+///
+/// 探针说明：App 进程的 print 探针不进 xcodebuild 日志（第二轮中文例已呈现
+/// sheet、四行探针仍为零，已证实通道不通，App 侧探针已删），定因改走测试侧
+/// 状态快照——点按后 3 秒与失败时各取一次，快照写进断言信息（断言信息必进日志）。
+/// 快照判读：
+/// - 齿轮仍在且可命中、抽屉仍开、sheet 0 ＝ 点按未生效或消费未跑（动作/onChange 段）
+/// - 齿轮/频道行消失、sheet 0 ＝ 抽屉被收回或根重建吞掉请求（重建/收回段）
+/// - sheet 1 但关闭钮缺席 ＝ 呈现了但内容未进无障碍树（内容段）
+/// - 关闭钮曾出现后消失 ＝ 呈现后即被关（dismiss 段）
 final class SettingsSheetLocaleTests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -19,14 +28,12 @@ final class SettingsSheetLocaleTests: XCTestCase {
     /// 英文例：复现 A6——英文档下点齿轮，设置 sheet 应升起。
     func testSettingsSheetPresentsInEnglishLocale() {
         let app = launchDemo(["-appLanguage", "en"])
-        defer { app.terminate() }
         openSettingsViaDrawerGear(app)
     }
 
     /// 中文对照例：同一路径中文态应打开（A6 对照组同轮实证：约 1 秒即见关闭钮）。
     func testSettingsSheetPresentsInChineseLocale() {
         let app = launchDemo(["-AppleLanguages", "(zh-Hans)"])
-        defer { app.terminate() }
         openSettingsViaDrawerGear(app)
     }
 
@@ -44,6 +51,7 @@ final class SettingsSheetLocaleTests: XCTestCase {
     }
 
     /// 经抽屉底条齿轮进设置；关闭钮 20 秒内应在场，验后点关闭钮收尾。
+    /// 失败时断言信息带点按后快照与失败时快照，定位丢失段。
     private func openSettingsViaDrawerGear(
         _ app: XCUIApplication, line: UInt = #line
     ) {
@@ -69,10 +77,42 @@ final class SettingsSheetLocaleTests: XCTestCase {
         }
         XCTAssertTrue(gear.isHittable, "抽屉齿轮应可命中", line: line)
         gear.tap()
-        XCTAssertTrue(
-            app.buttons["关闭设置"].waitForExistence(timeout: 20),
-            "设置页应打开（关闭钮在场）", line: line
-        )
-        app.buttons["关闭设置"].tap()
+
+        // 探针 v2（测试侧）：点按后 3 秒取快照，兼捕关闭钮是否曾短暂出现。
+        let snapAfterTap = snapshot(app, gear: gear, channelRow: channelRow)
+        var closeSeenTransiently = false
+        for _ in 0..<10 {
+            if app.buttons["关闭设置"].exists {
+                closeSeenTransiently = true
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+
+        let closeButton = app.buttons["关闭设置"]
+        let opened = closeButton.waitForExistence(timeout: 20)
+        if !opened {
+            let snapAtFailure = snapshot(app, gear: gear, channelRow: channelRow)
+            XCTFail(
+                "设置页应打开（关闭钮在场）。点按后快照：\(snapAfterTap)；"
+                    + "关闭钮曾现：\(closeSeenTransiently)；失败时快照：\(snapAtFailure)",
+                line: line
+            )
+            return
+        }
+        closeButton.tap()
+    }
+
+    /// 点按后状态快照：齿轮/频道行是否还在树里、是否可命中、sheet 数、窗口数、
+    /// 底栏是否还在（根是否仍为 ContentView）。
+    private func snapshot(
+        _ app: XCUIApplication,
+        gear: XCUIElement,
+        channelRow: XCUIElement
+    ) -> String {
+        "gear.exists=\(gear.exists) gear.hittable=\(gear.isHittable)"
+            + " channelRow.exists=\(channelRow.exists)"
+            + " sheets=\(app.sheets.count) windows=\(app.windows.count)"
+            + " tabChat.exists=\(app.tabBars.buttons["聊天"].exists)"
     }
 }
