@@ -12648,3 +12648,11 @@ run 43605556552（头 2ad3e09）：名义 failure 仅 §184。实数：断言失
 ### §259.1 CI 判读（2026-11-14 回填；run 43605604281，分支头 01c577d）
 
 名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行、无任一 failed 结局）；**Core 2081/2081 精确对账**（bundle 汇总 Executed 2081、0 failures，与基线分毫不差）；**UI 8/8 全过**；App 点名 passed 167＋skipped 5（PresentationLayerScenarios 占位套、与基线一致）＋无终局 6＝178，与 .45 组版轮 App 起跑总数 178 **精确对上**（passed/无终局的此消彼长属宿主重启彩票：.45 无终局的 testBarGrowth_topRisesBottomPinned 本轮 passed）；VERDICT ×3 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）；三 target 起跑总计 2267＝2081＋178＋8 全对账。**§184 登记**：测试相位 15:02 被宿主截断（多套件耗时 100–433 秒的近冻结签名），无终局 6 条——testKeyboardUpMovesComposerOnlyDockStays、testMarkPendingSendRetainsEntryOnDisk、testBridgeTapToOpenReachesFullTravel、testAnchorRegistersAncestorScrollView（均为在案登记者）＋DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone、TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot（本轮同签名新登记，与本包改动面零交集）。构建与 IPA 打包步全过。**§190 终判实质绿。**
+
+## §259 通知与在线状态单源化（2026-11-14；分支 feat/notif-single-source，基线 rel-05045@2f3ce5b；待办总表第 71 条，普查 app-wide-assembly-audit 收口序 6）
+
+**通知已决记录**：同一本账此前三处现拼——NotificationsView 落点查账与 LedgerDetailView 各在 View 层 `decisionHistory + (anchorDecisions ?? [])`、AgentHubStore.anchorRowState 内部同式、ApprovalAnchorMaterialization 另用「宽窗 ?? 近窗」二选一。本包收成一处：Core 新增纯函数 `DecisionRecordHistory.merge(recent:wide:)`（近窗在前、同 id 近窗优先去重、宽窗补位保序；循 ReportCardHistory 先例的无状态合成，不新造对账组件），AgentHubStore 出唯一查账面 `decidedRecords`，四处消费全改读本面（物化改读合成集：记录集只增不减，宽窗陈旧窗口内带锚新决记录提前一轮物化，时序差如实登记于施工报告）。保留例外一处：裁决回路内刚刷新近窗的回读确认（decide 的 recordGone 落账、结果行对账）直读 decisionHistory——写路径即时核对、非呈现查账，理由已注 decidedRecords 文档。通知列表面（OverviewBridgeStore.historyNotifications＝现行∪存档、§241）本已是 Store 单点合成，本包实查确认、不动。
+
+**在线状态**：结论合成收成 OverviewBridgeStore.channelUp 一处（主源＝直探 /health 探活结论 hermesChannelUp、ConnectionLiveness 迟滞只服务此一输入；探活未知回落桥快照 hermesUp，回落只此一次）。Core `OverviewStatusLine` 退役双入参 (snapshot, hermesChannelUp) 仲裁签名，改单结论入参 (channelUp, pendingApprovals)——判定矩阵逐例等价，旧测试 13 条全迁新签名＋新增 1 条（结论未知时计数不顶状态），退役列明于此。附带实查发现：AppState.overviewBridgeAuthFailed 旗（0.7.0 立）全仓无读者（设置页早已改走自有状态面），9 处写入散在 OverviewBridgeStore／BoxBridgeStore／BoxTerminalView 三件——旗与全部写入点一并退役，呈现零变化（无读者即无呈现）。
+
+**计数对账（预期）**：Core 2081＋5（DecisionRecordHistoryTests）＋1（OverviewStatusLine 新例）＝**2087**；状态行旧例 13 条签名迁移不增不减。App 计数不变（无新增 App 测试）。CI 判读回填于 §259.1。
