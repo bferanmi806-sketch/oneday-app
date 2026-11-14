@@ -93,6 +93,27 @@ final class ChatCarrierEdgeEffectTests: XCTestCase {
         XCTAssertFalse(scroll.bottomEdgeEffect.isHidden)
     }
 
+    /// 顶宿主装配（与 EdgeEffectRegistrationTests
+    /// 同式简化）：edge=.top 在其 viewDidLoad 才设，
+    /// 须真入窗口加载后才可断言
+    private func mountTopHost() -> TopBarGuideHostController {
+        let window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        windows.append(window)
+        let wrapper = UIViewController()
+        let host = TopBarGuideHostController()
+        wrapper.addChild(host)
+        wrapper.view.addSubview(host.view)
+        host.view.frame = wrapper.view.bounds
+        host.didMove(toParent: wrapper)
+        window.rootViewController = wrapper
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        spinRunLoop(seconds: 0.3)
+        return host
+    }
+
     // MARK: - 登记链（本体→共享句柄→两宿主绑定）
 
     func testCarrierRegistersIntoSharedHandleAndBothHostsBind() {
@@ -104,7 +125,7 @@ final class ChatCarrierEdgeEffectTests: XCTestCase {
             "新承载装配后共享句柄应指向承载本体"
         )
         // 顶宿主：赋值即绑定、edge=.top
-        let topHost = TopBarGuideHostController()
+        let topHost = mountTopHost()
         topHost.edgeScrollHandle = edgeHandle
         XCTAssertEqual(topHost.traceEdgeInteraction.edge, .top)
         XCTAssertTrue(
