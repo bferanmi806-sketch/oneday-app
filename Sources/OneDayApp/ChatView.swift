@@ -2123,7 +2123,11 @@ struct ChatView: View {
                 kbSnapshot.animationCurveRawValue,
             arrowView: carrierArrowView,
             handle: carrierHandle,
-            callbacks: carrierCallbacks
+            callbacks: carrierCallbacks,
+            // §260：边缘效果注册的共享句柄与旧承载
+            // 同一份——新承载本体经它登记，两宿主的
+            // 滚动边缘注册才绑得到新承载
+            edgeScrollHandle: listScrollHandle
         )
         .ignoresSafeArea(edges: [.top, .bottom])
         .overlay { composerHostOverlayCarrier }

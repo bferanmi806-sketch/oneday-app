@@ -175,6 +175,20 @@ final class ChatListCarrierViewController: UIViewController,
     var handle: ChatListCarrierHandle?
     var callbacks: ChatListCarrierCallbacks?
 
+    /// §260：与两宿主（顶簇 TopBarGuideHost／舱带
+    /// ComposerGuideHost）共享的列表本体句柄——本
+    /// 承载的 UIScrollView 本体经它登记，两宿主的
+    /// UIScrollEdgeElementContainerInteraction 才
+    /// 绑得到。旧承载由内容栈里的登记锚 ChatList-
+    /// ScrollAnchor 沿祖先链喂入；新承载面里没有
+    /// 锚，本控制器改在句柄赋值拍直接登记（scroll-
+    /// View 自初始化起恒存、登记与视图加载无关；
+    /// 句柄弱引用、本体随控制器释放自动失效，与
+    /// 锚的被动登记匣同式）
+    var edgeScrollHandle: ChatListScrollViewHandle? {
+        didSet { edgeScrollHandle?.register(scrollView) }
+    }
+
     private var layoutParams = ChatCarrierLayout(
         horizontalPadding: 20, topPadding: 16,
         bottomPadding: 8, rowSpacing: 24,
@@ -230,6 +244,19 @@ final class ChatListCarrierViewController: UIViewController,
         scrollView.keyboardDismissMode = .interactive
         scrollView.showsVerticalScrollIndicator = true
         scrollView.alwaysBounceVertical = true
+        // §260：边缘效果样式的 UIKit 直设——与旧承
+        // 载 ChatView 的 .scrollEdgeEffectStyle
+        // (.soft, for: .top/.bottom) 同义同值。样式
+        // 挂滚动视图本体的 edge effect（WWDC25
+        // Session 284 官方式：scrollView.topEdge-
+        // Effect.style）；SwiftUI 修饰符够不到 rep-
+        // resentable 内的 UIKit 本体，§257 换承载时
+        // 此式与句柄登记一并漏接、上下朦胧感全失
+        // （0.50.46 真机反馈）。两宿主的注册容器只
+        // 塑造效果在覆盖容器后的呈现、不带样式
+        // （§213 纪律不变）；不自绘渐变（§173 红线）
+        scrollView.topEdgeEffect.style = .soft
+        scrollView.bottomEdgeEffect.style = .soft
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
         installBlankTapDismiss()
@@ -950,6 +977,10 @@ struct ChatListCarrierView: UIViewControllerRepresentable {
     var arrowView: AnyView?
     var handle: ChatListCarrierHandle
     var callbacks: ChatListCarrierCallbacks
+    /// §260：两宿主注册共用的列表本体句柄（Chat-
+    /// View 的 listScrollHandle，与旧承载同一份）；
+    /// 装配时透传给控制器、由其登记本体
+    var edgeScrollHandle: ChatListScrollViewHandle
 
     func makeUIViewController(
         context: Context
@@ -957,6 +988,7 @@ struct ChatListCarrierView: UIViewControllerRepresentable {
         let controller = ChatListCarrierViewController()
         controller.handle = handle
         controller.callbacks = callbacks
+        controller.edgeScrollHandle = edgeScrollHandle
         handle.controller = controller
         return controller
     }
@@ -967,6 +999,7 @@ struct ChatListCarrierView: UIViewControllerRepresentable {
     ) {
         controller.handle = handle
         controller.callbacks = callbacks
+        controller.edgeScrollHandle = edgeScrollHandle
         handle.controller = controller
         controller.apply(
             rows: rows,
