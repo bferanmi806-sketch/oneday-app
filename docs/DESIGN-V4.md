@@ -12543,7 +12543,7 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 ### §259.1 CI 判读（2026-11-14 回填）
 
-分支头 d032f65（含一轮修复提交：一轮揪出触感矩阵 success 计数因自研阅读页退役 −1，18→17 原位改判并注记对账，error 49 净不变——阅读页导出 PDF 的 error −1 与 QL 承载面新补 exportPDF 的 error ＋1 相抵）。三轮 run：43605779908（一轮）、43608380627（二轮）、43611217470（三轮，结果待核，见下）。
+代码头 d032f65（施工提交 413ebc5＋一轮修复提交 d032f65：一轮揪出触感矩阵 success 计数因自研阅读页退役 −1，18→17 原位改判并注记对账，error 49 净不变——阅读页导出 PDF 的 error −1 与 QL 承载面新补 exportPDF 的 error ＋1 相抵）。三轮 run：43605779908（一轮，跑 413ebc5）、43608380627（二轮，跑 d032f65）、43611217470（三轮，跑 d032f65，结果待核，见下）。
 
 - 一轮：断言失败 2 条——`HapticsMatrixTests.testMatrixCallSiteCounts`（本包真问题，已修，见上）与 `EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 已登记的像素探针宿主抖动，二轮未再红）；无终局 6 条（§184 宿主重启波及）。
 - 二轮：**断言失败 0**；Core Executed **2082**（＝静态对账 2081 基线＋净增 1，精确吻合）、UI **8/8**、App passed 166＋skipped 5＋无终局 7（合计＋helpers 伪名 1＝179 与基线同构）。无终局 7 条逐条并集核对：4 条为 §258.1 已登记的 §184 常客（testKeyboardUpMovesComposerOnlyDockStays/testMarkPendingSendRetainsEntryOnDisk/testBarGrowth_topRisesBottomPinned/testBridgeTapToOpenReachesFullTravel）；testAnchorRegistersAncestorScrollView 与 testPoolDeterministicAndConcurrentSafe、testGoalQuoteRoundTripsThroughEntry 均在本分支另一轮有 passed 判词；仅 `TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot` 两轮均 started 后被宿主重启打断、无判词——其在基线 .45 组版轮（43602076559）不在失败名单（即基线判绿），本包 diff 与回告物化链零交集。
