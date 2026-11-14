@@ -16,11 +16,21 @@ import XCTest
 /// ——冒烟门当场抓住 A-0 即立门证据；热修并入后转绿。
 final class SmokeGateUITests: XCTestCase {
 
-    /// 演示种子线程任一首帧可见文（本地行点进任一非空
-    /// 种子线程都应命中其一）
+    /// 演示种子线程首帧可见文（run 43612107391 自查
+    /// 纠正：旧表 5 条没有一条落在首个种子线程里——
+    /// 「三个节点都在线」是第二线程；「帮我看看服务
+    /// 器现在的状态。」是标点近似，种子原文此处是
+    /// 「，」；「演示旁聊起手」「这单演示数据是假的」
+    /// 全仓不存在；「演示旁聊中段」是第三线程。现表
+    /// 只取首线程（「帮我看看服务器状态」）消息的精
+    /// 确子串：尾三条（开线程默认落底、必在树里）＋
+    /// 头两条（列表若落顶时兜底），任一命中即算开出。
     private let seedMarkers = [
-        "三个节点都在线", "帮我看看服务器现在的状态。",
-        "演示旁聊中段", "演示旁聊起手", "这单演示数据是假的",
+        "好，就按你说的顺序来。",
+        "我盯五项，按重要性排",
+        "巡检类的定时任务，一般都盯哪些指标？",
+        "帮我看看服务器现在的状态，顺便确认",
+        "刚查过，一切正常",
     ]
 
     override func setUp() {
@@ -28,11 +38,22 @@ final class SmokeGateUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    /// pinChineseLocale：CI 模拟器是英文区域（DrawerRow
+    /// 注释实证），演示文案经词条库本地化——不钉语言，
+    /// 「开始连接」等按钮以英文渲染、按中文查必然超时
+    /// （run 43612107391 的 A1 即此）。标准做法：
+    /// -AppleLanguages (zh-Hans)。A6 测英文路径，显式
+    /// 传 false（其断言只认硬编码中文件＋本地化行）。
     private func launchDemo(
-        _ extra: [String]
+        _ extra: [String], pinChineseLocale: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-odDemoMode"] + extra
+        var args = ["-odDemoMode"]
+        if pinChineseLocale {
+            args += ["-AppleLanguages", "(zh-Hans)"]
+        }
+        args += extra
+        app.launchArguments = args
         app.launch()
         return app
     }
@@ -83,7 +104,16 @@ final class SmokeGateUITests: XCTestCase {
         rows.firstMatch.tap()
     }
 
-    /// 经抽屉底条齿轮进设置（演示态既有路径）
+    /// 经抽屉底条齿轮进设置（演示态既有路径）。
+    /// run 43612107391 自查：三例同卡于「关闭钮未现」
+    /// ——齿轮在抽屉宿主常驻、未开时也可能已在树里，
+    /// 只查存在就点，可能点到未落定的抽屉动画或离屏
+    /// 钮。本版三道加固：①等频道行可命中、确认抽屉
+    /// 真开；②齿轮可命中才点；③关钮 20 秒未现则重
+    /// 拨一次（置位只在呈现时消费，重拨幂等），仍未
+    /// 现把当场按钮清单写进断言、供下一轮日志定位。
+    /// 生产路径真机可证（用户当晚在设置里拨过开关），
+    /// 若加固后重跑仍卡于此步，即升产品问题处理。
     private func openSettings(
         _ app: XCUIApplication,
         gearLabels: [String] = ["设置"],
@@ -96,6 +126,11 @@ final class SmokeGateUITests: XCTestCase {
             "抽屉开启钮应在场", line: line
         )
         opener.tap()
+        let channelRow = app.buttons["drawer.row.channel.hermes"]
+        XCTAssertTrue(
+            channelRow.waitForExistence(timeout: 15),
+            "抽屉应打开（频道行在场）", line: line
+        )
         var gear: XCUIElement?
         for label in gearLabels {
             let candidate = app.buttons[label]
@@ -108,11 +143,27 @@ final class SmokeGateUITests: XCTestCase {
             XCTFail("抽屉底条设置钮应在场", line: line)
             return
         }
+        let gearDeadline = Date().addingTimeInterval(10)
+        while !gear.isHittable && Date() < gearDeadline {
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        XCTAssertTrue(gear.isHittable, "抽屉齿轮应可命中", line: line)
         gear.tap()
-        XCTAssertTrue(
-            app.buttons[closeLabel].waitForExistence(timeout: 12),
-            "设置页应打开（关闭钮在场）", line: line
-        )
+        if !app.buttons[closeLabel].waitForExistence(timeout: 20) {
+            if gear.exists && gear.isHittable {
+                gear.tap()
+            }
+            if !app.buttons[closeLabel].waitForExistence(timeout: 15) {
+                let visible = app.buttons.allElementsBoundByIndex
+                    .prefix(20).map(\.label)
+                    .joined(separator: " | ")
+                XCTFail(
+                    "设置页应打开（关闭钮在场）；当场按钮：\(visible)",
+                    line: line
+                )
+                return
+            }
+        }
     }
 
     /// 在设置列表里滚动直到元素可点
@@ -196,7 +247,12 @@ final class SmokeGateUITests: XCTestCase {
     /// 实查此启动参数此前在 Tests/ 内零引用。
     func testSmokeA1ConnectFirstRun() {
         let app = XCUIApplication()
-        app.launchArguments = ["-odDemoConnect"]
+        // 语言钉中文：连接页按钮走词条库本地化，CI 英文
+        // 模拟器上不钉则以英文渲染、「开始连接」永查不到
+        // （run 43612107391 实证）。
+        app.launchArguments = [
+            "-odDemoConnect", "-AppleLanguages", "(zh-Hans)",
+        ]
         app.launch()
         let start = app.buttons["开始连接"]
         XCTAssertTrue(
@@ -227,7 +283,16 @@ final class SmokeGateUITests: XCTestCase {
     // MARK: - A-4 文件网格模式首帧
 
     /// files.displayMode 非默认档（grid）持久化后进资源
-    /// 库首帧：网格真渲染出种子文件卡。
+    /// 库首帧：网格真渲染出种子文件。
+    /// run 43612107391 自查：旧断言按文件名查影音格，
+    /// 但网格态 MediaCell 刻意不渲染文件名（0.36.4：
+    /// 生成图名多为哈希串、属原始名漏出，已撤除），
+    /// 按名查在网格态永远查不到。本版改断两件网格态
+    /// 真渲染的东西：①文件段网格卡带标题（displayTitle
+    /// 去扩展名），任一 seeded 文档卡名命中即算数据到
+    /// 位；②全页按钮数下限（底栏 5＋影音格 4＋文件卡
+    /// 4，取 10 作松下限），证影音格真有格子而非空态。
+    /// 另断空态文案不在场（collect 空集才会出空态）。
     func testSmokeA4FilesGridFirstFrame() {
         let app = launchDemo(["-files.displayMode", "grid"])
         let tab = app.tabBars.buttons["资源库"]
@@ -235,29 +300,50 @@ final class SmokeGateUITests: XCTestCase {
         tab.tap()
         XCTAssertTrue(
             waitForAnyText(
-                app, ["生成图-节点拓扑", "巡检截图"],
+                app,
+                ["网络巡检周报", "每日简报-1108", "交付说明"],
                 timeout: 30
             ),
-            "网格首帧应渲染出种子文件（爬取装配非空）"
+            "网格首帧应渲染出种子文件卡（文件段卡名）"
+        )
+        XCTAssertFalse(
+            app.staticTexts["暂无影音交付"].exists
+                || app.staticTexts["暂无交付物"].exists,
+            "网格首帧不应落空态（聚合已到数据）"
+        )
+        XCTAssertGreaterThanOrEqual(
+            app.buttons.count, 10,
+            "网格首帧按钮数应含底栏＋影音格＋文件卡（≥10）"
         )
         XCTAssertEqual(app.state, .runningForeground)
     }
 
     // MARK: - A-6 英文语言路径首帧
 
-    /// appLanguage=en：底栏与设置面以英文真渲染（词条
-    /// 库 3225 条 en 全译；实验组标题与 gen3 开关名未入
-    /// 词条库、英文态回落中文——登记项，不在本例断言）。
+    /// appLanguage=en：设置面以英文真渲染（词条库 3225
+    /// 条 en 全译；实验组标题与 gen3 开关名未入词条库、
+    /// 英文态回落中文——登记项，不在本例断言）。
+    /// run 43612107391 自查：旧断言两处查无此物——底栏
+    /// 标题是 TabBarSymbols 硬编码中文（.labelStyle
+    /// (.iconOnly)＋.accessibilityLabel(pair.title)），
+    /// 「Chat」在任何语言下都不存在；设置关闭钮的
+    /// accessibilityLabel 也是硬编码「关闭设置」，
+    /// 「Close Settings」同样查不到。英文证明只剩本地
+    /// 化行（Appearance 行），底栏只断在场。另登记产品
+    /// 观察：底栏标题未本地化（A-6 原前提「底栏英文」
+    /// 不成立），修不修归主线，本线只改测试预期。
     func testSmokeA6EnglishFirstFrame() {
-        let app = launchDemo(["-appLanguage", "en"])
+        let app = launchDemo(
+            ["-appLanguage", "en"], pinChineseLocale: false
+        )
         XCTAssertTrue(
-            app.tabBars.buttons["Chat"]
+            app.tabBars.buttons["聊天"]
                 .waitForExistence(timeout: 25),
-            "英文态底栏应以英文渲染"
+            "英文态底栏应在场（标题硬编码中文，不本地化）"
         )
         openSettings(
             app, gearLabels: ["Settings", "设置"],
-            closeLabel: "Close Settings"
+            closeLabel: "关闭设置"
         )
         let appearance = app.descendants(matching: .any)
             .matching(NSPredicate(
@@ -267,7 +353,7 @@ final class SmokeGateUITests: XCTestCase {
             scrollSettings(app, until: appearance),
             "英文态设置面应渲染出 Appearance 行"
         )
-        app.buttons["Close Settings"].tap()
+        app.buttons["关闭设置"].tap()
     }
 
     // MARK: - 开关盘点·全部对话「显示系统运行」
