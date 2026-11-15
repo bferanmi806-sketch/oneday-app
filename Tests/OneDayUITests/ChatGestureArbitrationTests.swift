@@ -281,6 +281,18 @@ final class ChatGestureArbitrationTests: XCTestCase {
         }.joined(separator: " | ")
     }
 
+    private func reveal(
+        _ element: XCUIElement, in app: XCUIApplication
+    ) {
+        for _ in 0..<8 where !element.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(
+            element.isHittable,
+            "目标文本滚动后仍不可命中"
+        )
+    }
+
     /// 屏幕绝对坐标点（窗口坐标系原点＋点偏移）
     private func windowPoint(
         in app: XCUIApplication, x: CGFloat, y: CGFloat
