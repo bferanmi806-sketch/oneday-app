@@ -12909,3 +12909,7 @@ run 43678345805（workflow_dispatch @ rel-05052 尖端 9f65ece）：名义 failu
 **回放钉测**：`StreamSegmentAssemblerTests` 8 例（Tests/OneDayCoreTests）——事故原文（4640/4643 两段全文）分片回放断言当前段只含 B、A 只在封存列出现一次、合并全文与落定逐字一致；段内拼接与单闸同行为、新段首增量立即发布、空段不产出（工具先行/并行工具连发边界）、三段事件序、封段 flush 尾巴精确、巡查只推当前段、恢复往返、整器归零。先行提交（5786437，仅测试）CI 应红（基线无此类型），实现提交（4d4fb9b）转绿，判读见 §282.1。
 
 **不许回退面**：段内增量拼接（StreamPublishGateTests 9 例原样）、工具卡直播拼装、落定与落库逐字一致（transcript 路径未动）、gen4 块级呈现（打开段走 carrierStreamRow 原路、封存段走同口估高的静态行）。未合 main、未打 tag。
+
+### §282.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
+
+红轮 run 43682004969（先行提交 5786437、仅测试）：failure，红因＝`StreamSegmentAssemblerTests.swift:19:25: error: cannot find 'StreamSegmentAssembler' in scope`——基线无分段装配层，与 §282 根因定案互证。绿轮 run 43682868039（workflow_dispatch @ 分支尖端 6e571f6）：名义 failure，红因仅下述登记项，全日志本地核账（19,123 行）。**Core 2139/2139 精确对账**（Executed 2139、0 failures＝.52 的 2130＋新测 StreamSegmentAssemblerTests 9；事故原文回放例在内 9/9 全过；StreamPublishGateTests 9 例原样全过、段内行为不回退）；**App 233 注册得判词**（227 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed；另有 1 次 started 为 §184 余崩例重试、多计的启动数不入注册口径）；**UI 10/10 全过**。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／Package／Upload 三步 success。登记两项（不堵门，与 .47–.52 同签名、与本包改动零交集）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族）；②宿主重启 1 次（`TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot` 首跑无判词、重试 passed；BackingData 日志零命中，§184 余崩孤立项）。未合 main、未打 tag；报告 oneday-design-review/stream-segment-carryover-20261115.md。
