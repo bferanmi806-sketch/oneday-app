@@ -4762,9 +4762,16 @@ struct ChatView: View {
                         // bodyInk 同值、暗档见 Palette 注）
                         SelectableInlineText(
                             paragraphs: [
-                                .plain(
-                                    TextShaping.prettyWrapDocument(
-                                        entry.content
+                                // §271：整形后移 run 层
+                                // （plainRuns 不解析、整形
+                                // 只在产出 run 上施加尾行
+                                // 绑定；数字串内部不插符、
+                                // 检测令牌不断裂）
+                                InlineTextParagraph(
+                                    runs: TextShaping.shapeRuns(
+                                        InlineRunBuilder.plainRuns(
+                                            entry.content
+                                        )
                                     )
                                 )
                             ],
