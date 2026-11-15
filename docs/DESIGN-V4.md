@@ -12628,4 +12628,6 @@ run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，�
 
 **零交集声明**：不碰聊天呈现文件（LayoutProductService/SelectableTextView/ChatView 等）——`ChatView.swift:6145` 一带发送舱对位规格注释仍写 19.17/单行 46，本包按纪律未动，待聊天线或主线顺手更新为 20.37/46.37。与 feat/chat-type-scale-align（第 81 条）文件交集为零。
 
-### §265.1 CI 判读（待回填）
+### §265.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+三轮：一轮（43666397217）Core 测试编译失败——本包新测 `LineHeightSpecTests` 的 CGSize 高度 `.greatestFiniteMagnitude` 类型推断歧义，一行显式 `CGFloat.` 修正。二轮（43667407977）：Build ✓、Core 2099 执行 4 失败——全为本包新测（一字阶 pitch 锚量测方法：中文串在 TextKit 由 CJK 回退字体主导行高、三字阶实测同率 1.1933（Body 20.29/Subhead 17.90/Footnote 15.51），测不到字阶字体本体；二几何满行文末光标右界实测出界 0.67 超 0.6 容差），其余全绿（输入舱锚 passed、composer 全部改钉 passed、UI 10/10、App 唯一红 §257.1）。三轮（43671308663，头 92503dc）：名义 failure，红因仅既有登记两项——**Core 2099/2099 精确对账**（ rel-05048 的 2095＋本包新增 LineHeightSpecTests 4，0 failures；字阶锚改拉丁串后 4/4 passed，实证字阶字体本体 pitch 合规格 22/20/18）、**UI 10/10**、**App 192 注册 191 得判词**（185 passed＋5 skipped＋1 failed＝§257.1 像素探针、与本包零交集；宿主重启 1 次，§184 余崩 `testFailedTraceMaterializesWithErrorSnapshot` 无判词、BackingData 字面零命中——与 §264.1 同签名登记）；VERDICT／MATRIX／HUB-LAYOUT 三连 PASS。未合 main、未打 tag。
