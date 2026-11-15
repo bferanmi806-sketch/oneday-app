@@ -8,11 +8,16 @@ import XCTest
 @testable import OneDayApp
 
 /// 出厂冒烟门·长会话回底（横扫 C 类「懒生成回底黑闪」
-/// 的机器可验部分）：120 行长会话滚动到顶→回底箭头出
-/// 现→无障碍激活真触发滚动→断言落点贴底且末行真渲染
-/// 在可见区（空白帧＝末行正文不在列表内或不在可见框
-/// 内，断言即红）。黑闪是逐帧视觉现象，机器只能验「落点＋末行
-/// 非空」，逐帧观感留发版门文档真机手验清单。
+/// 的机器可验部分）：120 行长会话滚到顶→判别量验箭头
+/// 渲染（列表底 inset 出现 ≈+52 台阶，第九轮定案）→
+/// 编程滚底→断言落点贴底且末行真渲染在可见区（空白
+/// 帧＝末行正文不在列表内或不在可见框内，断言即红）。
+/// 箭头本体是纯 SwiftUI Button、进程内只以 AX 树元素
+/// 形态存在，而该树在无 AX 客户端的进程内托管下整棵
+/// 未生成（第七/八轮普查定案）——AX 激活在本例降为
+/// 非阻断观察项，其等价验证迁 XCUIApplication UI 测
+/// 形态为后续。黑闪是逐帧视觉现象，机器只能验「落点
+/// ＋末行非空」，逐帧观感留发版门文档真机手验清单。
 /// 装配范式同 ChatPageAssemblyRegressionTests（进程内
 /// 托管 RootView＋钦定主线）。
 @MainActor
@@ -172,6 +177,28 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             spin(seconds: 0.25)
         }
         return lookup()
+    }
+
+    /// 轮询读列表底 inset 落定值（第九轮判别量专用，
+    /// 定案见 oneday-design-review/smoke-arrow-check
+    /// -20261115.md §四第 1 条）：箭头行进出布局流让
+    /// 发送区栈高变化 44＋spacingS 8＝52pt，经
+    /// ComposerGuideHost 实测 pocketHeight→
+    /// kbSnapshot.bottomSpace→旧承载列表底
+    /// contentMargins（ChatView:3391）同值传导到平台
+    /// 滚动面 adjustedContentInset.bottom。显隐带
+    /// swap 动画、台阶可能渐变——全程轮询（≥5 秒）
+    /// 不提前收，返回（落定值, 峰值）供证据行打印。
+    private func pollBottomInset(
+        _ list: UIScrollView, seconds: TimeInterval
+    ) -> (settled: CGFloat, peak: CGFloat) {
+        let deadline = Date().addingTimeInterval(seconds)
+        var peak = list.adjustedContentInset.bottom
+        while Date() < deadline {
+            spin(seconds: 0.25)
+            peak = max(peak, list.adjustedContentInset.bottom)
+        }
+        return (list.adjustedContentInset.bottom, peak)
     }
 
     /// 列表子树内非空 UITextView 收集（第八轮换锚，
@@ -400,6 +427,14 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "显式贴底后偏移应远离顶部（位移须实测）"
         )
 
+        // 判别量基线（第九轮）：贴底稳态下箭头行不在
+        // 布局流内（isNearBottom 种子 true＋距底 0），
+        // 此刻的列表底 inset 即无箭头基线；滚顶后的台
+        // 阶差以此为准。留 1 秒待发送区栈高落定再读。
+        spin(seconds: 1)
+        let insetBaseline = list.adjustedContentInset.bottom
+        print("LONGLIST inset baseline=\(insetBaseline)")
+
         // 滚到顶：回底箭头应出现——偏移须实测落在顶
         let topY = -list.adjustedContentInset.top
         list.setContentOffset(
@@ -450,38 +485,95 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "首行帧应与列表可见框相交（滚顶后真可见）"
         )
 
-        // 箭头是纯 SwiftUI Button、只存在于 AX 树
-        // 里，无 UITextView 替代通道——保留 AX 激活
-        // 但查找改双通道并走（第八轮修法）：先
-        // accessibilityElements 属性通道、未命中退
-        // 第七轮 count/at: 通道；装配已挂 scene（见
-        // 上）作树就绪增益。轮询预算维持 5 秒；label
-        // 含未读变体「回到底部，N 条新消息」
-        // （ChatView 实证），按包含匹配
-        let arrow = try XCTUnwrap(
-            waitForAxElement(timeout: 5) {
-                axElementViaProperty(
-                    in: window, labelContaining: "回到底部",
-                    depth: 0
-                ) ?? axElement(
-                    in: window, labelContaining: "回到底部"
-                )
-            },
-            "离底后回底箭头应出现（无障碍 label「回到底部」）"
-        )
+        // 箭头判别量（第九轮定案，承 smoke-arrow-
+        // check-20261115.md §四第 1 条）：箭头是纯
+        // SwiftUI Button、在进程内只以 AX 树元素形
+        // 态存在，而该树在无 AX 客户端的进程内托管
+        // 下整棵未生成（第七轮普查 list=0 window=0、
+        // 第八轮 census2 axProp=0 双通道复证）——
+        // **AX 不可达就此定案，进程内箭头验证到此为
+        // 止**，改以渲染链的布局传导指纹为判别量：
+        // 箭头行进布局流→发送区栈高 +52（钮行 44＋
+        // spacingS 8）→pocketHeight→bottomSpace→
+        // 列表底 contentMargins→平台滚动面
+        // adjustedContentInset.bottom 同值 +52。滚
+        // 顶稳态后轮询 6 秒取落定差：出台阶＝喂入环
+        // ＋判定环＋渲染全链无罪钉死；无台阶＝喂入
+        // 环嫌疑（onScrollGeometryChange 在进程内
+        // 托管下未把距底读数送进派生点），按核查报
+        // 告口径停手报主线、本线不改产品码。
+        let insetPoll = pollBottomInset(list, seconds: 6)
+        let insetDelta = insetPoll.settled - insetBaseline
+        print("LONGLIST insetStep baseline=\(insetBaseline)"
+            + " settled=\(insetPoll.settled)"
+            + " peak=\(insetPoll.peak)"
+            + " delta=\(insetDelta)")
         XCTAssertTrue(
-            arrow.accessibilityActivate(),
-            "回底箭头无障碍激活应真触发滚动"
+            abs(insetDelta - 52) <= 8,
+            "滚顶后列表底 inset 应出现 ≈+52 台阶（箭头行"
+                + "进布局流的传导指纹，实测 delta="
+                + "\(insetDelta)）；无台阶即喂入环嫌疑——"
+                + "按 smoke-arrow-check §四第 1 条停手报"
+                + "主线、本线不改产品码"
         )
-        spin(seconds: 2.5)
 
-        let maxOffset = list.contentSize.height
+        // 箭头 AX 激活降为非阻断观察项（第九轮）：
+        // 双通道查找与激活结果只打印、不设断言（AX
+        // 树未生成定案内，查不到不构成失败）；激活
+        // 的等价验证迁 XCUIApplication UI 测形态
+        // （运行器本身是 AX 客户端、树必生成）为后
+        // 续，见 smoke-gate-report 第九轮准备节。
+        // label 含未读变体「回到底部，N 条新消息」
+        // （ChatView 实证），按包含匹配。
+        if let arrow = waitForAxElement(timeout: 5, {
+            axElementViaProperty(
+                in: window, labelContaining: "回到底部",
+                depth: 0
+            ) ?? axElement(
+                in: window, labelContaining: "回到底部"
+            )
+        }) {
+            let activated = arrow.accessibilityActivate()
+            spin(seconds: 2.5)
+            print("LONGLIST arrowAX found=true"
+                + " activated=\(activated)"
+                + " offsetAfter=\(list.contentOffset.y)")
+        } else {
+            print("LONGLIST arrowAX found=false"
+                + "（非阻断观察项：AX 树未生成定案内）")
+        }
+
+        // 末行步与箭头解耦（第九轮）：末行可见验证
+        // 改走编程滚底＋UITextView 普查，不再依赖箭
+        // 头激活——第八轮末行即因箭头步先败被挡住未
+        // 测（非测得失败）。滚底目标按当刻 inset 计
+        // （箭头行在流内时底 inset 含 +52、贴底后箭
+        // 头退出又回落 52），落点断言对每采样时刻的
+        // 现行 maxOffset 判（±2pt），不取一次性快照。
+        let tailTarget = list.contentSize.height
             + list.adjustedContentInset.bottom
             - list.bounds.height
+        list.setContentOffset(
+            CGPoint(x: 0, y: tailTarget), animated: false
+        )
+        list.layoutIfNeeded()
+        let tailDeadline = Date().addingTimeInterval(5)
+        var tailY = list.contentOffset.y
+        var tailMax = tailTarget
+        while Date() < tailDeadline {
+            tailMax = list.contentSize.height
+                + list.adjustedContentInset.bottom
+                - list.bounds.height
+            tailY = list.contentOffset.y
+            if abs(tailY - tailMax) <= 2 { break }
+            spin(seconds: 0.2)
+        }
+        print("LONGLIST tail offset=\(tailY)"
+            + " max=\(tailMax)")
         XCTAssertLessThanOrEqual(
-            abs(list.contentOffset.y - maxOffset), 2,
-            "激活回底后落点应贴底（offset \(list.contentOffset.y)"
-                + " vs 底 \(maxOffset)）"
+            abs(tailY - tailMax), 2,
+            "编程滚底后落点应贴底（offset \(tailY)"
+                + " vs 底 \(tailMax)）"
         )
 
         // 末行真渲染且落在可见框内（黑闪的机器可验
