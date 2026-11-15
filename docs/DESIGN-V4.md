@@ -12616,7 +12616,7 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
 
-## §259 枢纽台账三店合一（2026-11-14；分支 feat/hub-single-store，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/hub-single-store-report-20261114.md）
+## §265 枢纽台账三店合一（2026-11-14；分支 feat/hub-single-store，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/hub-single-store-report-20261114.md；本节原自编号 §259，组版 0.50.49 顺延为 §265）
 
 **病灶（普查 app-wide-assembly-audit 枢纽节实证）**：台账/任务/监测三店在各面各自 @State 私建——KanbanStore 全 App 五份、MonitorsStore 三份、LedgerStore 两份，互不相通（同物多账的实例级变体；HubLedgerSection 段头自注「他面的 KanbanStore 实例互不相干」）。枢纽段一面并持三份私建：条目流走段内 LedgerStore、新建/下钻走段内另两份，与他面各行其是。
 
@@ -12626,11 +12626,11 @@ run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，�
 
 **登记在案、不在本包**：监测条目仍由 App 在 LedgerStore 内合成（伴生采集器暂无监测源，真单源属伴生侧后续）；通知已决 View 层双源相加归待办第 71 条；IdeasStore/GoalsStore 多面私建待后续收口包。
 
-### §259.1 CI 判读（2026-11-14 回填）——**§190 终判绿（带 §184 在案登记）**
+### §265.1 CI 判读（2026-11-14 回填）——**§190 终判绿（带 §184 在案登记）**
 
 run 43605556552（头 2ad3e09）：名义 failure 仅 §184。实数：断言失败 **0**（全日志无 `Test Case ... failed` 行、每条 Executed 均 0 failures）；Core **2081/2081 精确对账**（started 2081、passed-unique 2081，与基线 §258 预期同值——本包不增删测试）；UI **8/8** 全过；App passed 168＋skipped 5＋无终局 5＝178（＋helpers 伪名 1＝grep 口径 179，与 .45 基线逐项同值）；VERDICT＝PASS ×3；xcstrings **3225** 键未触。**§184 登记**：宿主重启 7 起（14:45–14:51Z，集中于 App 测试相位），波及无终局 5 条与 §258.1 登记名单**逐名相同**（testMarkPendingSendRetainsEntryOnDisk、testBarGrowth_topRisesBottomPinned、testKeyboardUpMovesComposerOnlyDockStays、testBridgeTapToOpenReachesFullTravel、testAnchorRegistersAncestorScrollView），无新登记者、按签名不判红。
 
-## §259 连接器面门面化（2026-11-14；分支 feat/connectors-facade，基线 rel-05045@2f3ce5b；待办总表第 69 条／拼装普查收口序第 4）
+## §266 连接器面门面化（2026-11-14；分支 feat/connectors-facade，基线 rel-05045@2f3ce5b；待办总表第 69 条／拼装普查收口序第 4；本节原自编号 §259，组版 0.50.49 顺延为 §266）
 
 **定性**：全 App 拼装普查（app-wide-assembly-audit-20261114）连接器/权限页判【拼装】——ConnectorsView 一 View 直持 WriteGate/OneDayBridge/OverviewBridge/MemoryBridge 四个桥客户端，探活状态、MCP 名单、设备读数、云电脑子店各存一处，「连没连上」散在 ≥5 个持有者。本节把连接器面收成**单门面＋单一连接状态源**：View 只认门面一个入口、连接状态只在门面一处记账。用户面行为（连接/断开/状态呈现/权限流走法）与现行逐项一致、不许回退；频道凭据 §256 直连口径不在本面、不许回退。
 
@@ -12643,25 +12643,25 @@ run 43605556552（头 2ad3e09）：名义 failure 仅 §184。实数：断言失
 
 **不属本包（登记）**：①频道面 ChannelStatusStore 在 ChannelPairingView/DrawerView 各一实例——归频道面，且 §256 已改直连，本包不动、后续如收归另立小项；②CompanionProbeStore 为 AppState 单实例、归设置页版本组面，已单源，不并入；③设备权限/同步状态（deviceSession/deviceSync）为 AppState 单实例，门面只协调读数不记第二份；④**权限流协议栈**（DevicePermissionCoordinator 卡协议：桥 ask/notice 两通道＋桥侧 park＋本地卡 UserDefaults 持久化＋24h 过期）本包只登记不改协议——App 侧卡持有已单源（协调器单实例），三方对账（本地卡／桥 park／系统权限态）是跨线协议结构，「卡真相收为桥侧单源、本地只留展示缓存」属协议级大改，立项清单见施工报告 §四，不在本包自裁。
 
-**验收**：CI 按 §190 判读（回填 §259.1）；真机待验清单见施工报告 §五（连接器页全行状态、本机服务四行探活与详情、MCP 启停/测试、云电脑组与添加流、设备组读数与同步段、搜索过滤，逐项与 .45 对照无差）。
+**验收**：CI 按 §190 判读（回填 §266.1）；真机待验清单见施工报告 §五（连接器页全行状态、本机服务四行探活与详情、MCP 启停/测试、云电脑组与添加流、设备组读数与同步段、搜索过滤，逐项与 .45 对照无差）。
 
-### §259.1 CI 判读（2026-11-14 回填；run 43605604281，分支头 01c577d）
+### §266.1 CI 判读（2026-11-14 回填；run 43605604281，分支头 01c577d）
 
 名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行、无任一 failed 结局）；**Core 2081/2081 精确对账**（bundle 汇总 Executed 2081、0 failures，与基线分毫不差）；**UI 8/8 全过**；App 点名 passed 167＋skipped 5（PresentationLayerScenarios 占位套、与基线一致）＋无终局 6＝178，与 .45 组版轮 App 起跑总数 178 **精确对上**（passed/无终局的此消彼长属宿主重启彩票：.45 无终局的 testBarGrowth_topRisesBottomPinned 本轮 passed）；VERDICT ×3 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）；三 target 起跑总计 2267＝2081＋178＋8 全对账。**§184 登记**：测试相位 15:02 被宿主截断（多套件耗时 100–433 秒的近冻结签名），无终局 6 条——testKeyboardUpMovesComposerOnlyDockStays、testMarkPendingSendRetainsEntryOnDisk、testBridgeTapToOpenReachesFullTravel、testAnchorRegistersAncestorScrollView（均为在案登记者）＋DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone、TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot（本轮同签名新登记，与本包改动面零交集）。构建与 IPA 打包步全过。**§190 终判实质绿。**
 
-## §259 通知与在线状态单源化（2026-11-14；分支 feat/notif-single-source，基线 rel-05045@2f3ce5b；待办总表第 71 条，普查 app-wide-assembly-audit 收口序 6）
+## §267 通知与在线状态单源化（2026-11-14；分支 feat/notif-single-source，基线 rel-05045@2f3ce5b；待办总表第 71 条，普查 app-wide-assembly-audit 收口序 6；本节原自编号 §259，组版 0.50.49 顺延为 §267）
 
 **通知已决记录**：同一本账此前三处现拼——NotificationsView 落点查账与 LedgerDetailView 各在 View 层 `decisionHistory + (anchorDecisions ?? [])`、AgentHubStore.anchorRowState 内部同式、ApprovalAnchorMaterialization 另用「宽窗 ?? 近窗」二选一。本包收成一处：Core 新增纯函数 `DecisionRecordHistory.merge(recent:wide:)`（近窗在前、同 id 近窗优先去重、宽窗补位保序；循 ReportCardHistory 先例的无状态合成，不新造对账组件），AgentHubStore 出唯一查账面 `decidedRecords`，四处消费全改读本面（物化改读合成集：记录集只增不减，宽窗陈旧窗口内带锚新决记录提前一轮物化，时序差如实登记于施工报告）。保留例外一处：裁决回路内刚刷新近窗的回读确认（decide 的 recordGone 落账、结果行对账）直读 decisionHistory——写路径即时核对、非呈现查账，理由已注 decidedRecords 文档。通知列表面（OverviewBridgeStore.historyNotifications＝现行∪存档、§241）本已是 Store 单点合成，本包实查确认、不动。
 
 **在线状态**：结论合成收成 OverviewBridgeStore.channelUp 一处（主源＝直探 /health 探活结论 hermesChannelUp、ConnectionLiveness 迟滞只服务此一输入；探活未知回落桥快照 hermesUp，回落只此一次）。Core `OverviewStatusLine` 退役双入参 (snapshot, hermesChannelUp) 仲裁签名，改单结论入参 (channelUp, pendingApprovals)——判定矩阵逐例等价，旧测试 13 条全迁新签名＋新增 1 条（结论未知时计数不顶状态），退役列明于此。附带实查发现：AppState.overviewBridgeAuthFailed 旗（0.7.0 立）全仓无读者（设置页早已改走自有状态面），9 处写入散在 OverviewBridgeStore／BoxBridgeStore／BoxTerminalView 三件——旗与全部写入点一并退役，呈现零变化（无读者即无呈现）。
 
-**计数对账（预期）**：Core 2081＋5（DecisionRecordHistoryTests）＋1（OverviewStatusLine 新例）＝**2087**；状态行旧例 13 条签名迁移不增不减。App 计数不变（无新增 App 测试）。CI 判读回填于 §259.1。
+**计数对账（预期）**：Core 2081＋5（DecisionRecordHistoryTests）＋1（OverviewStatusLine 新例）＝**2087**；状态行旧例 13 条签名迁移不增不减。App 计数不变（无新增 App 测试）。CI 判读回填于 §267.1。
 
-### §259.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
+### §267.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
 
 run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对账**（Executed 2087、0 failures＝基线 2081＋DecisionRecordHistoryTests 5＋OverviewStatusLine 新例 1；本包新测全过——合成 5/5、状态行迁移 13＋新 1 全过）；UI **8/8**（0 failures）；VERDICT ×3 PASS。App passed 167＋skipped 5＋无终局 6＝178（＋helpers 伪名 1＝179，与基线口径同总数）。**断言失败 0**（全日志无 `Test Case … failed` 行）。名义 failure 仅 §184：宿主重启 8 起，波及无终局 6 条（均只有 started、无终局行）——5 条与 §258.1 登记名单逐字一致（testMarkPendingSendRetainsEntryOnDisk、testBarGrowth_topRisesBottomPinned、testKeyboardUpMovesComposerOnlyDockStays、testBridgeTapToOpenReachesFullTravel、testAnchorRegistersAncestorScrollView），第 6 条 LayoutProductPoolTests.testPoolDeterministicAndConcurrentSafe 同签名**本轮新登记**（量测池面、与本包改动无交集）。全档＝oneday-design-review/notif-single-source-report-20261114.md。
 
-## §263 枢纽模型区改跟随当前会话（2026-11-15；待办第 80 条，用户 09:25 拍板「按会话分开记，枢纽改成跟随当前会话」；分支 feat/hub-model-follow-current，基线 rel-05047@cb30f49）
+## §268 枢纽模型区改跟随当前会话（2026-11-15；待办第 80 条，用户 09:25 拍板「按会话分开记，枢纽改成跟随当前会话」；分支 feat/hub-model-follow-current，基线 rel-05047@cb30f49；本节原自编号 §263 与包 4 撞号，组版 0.50.49 顺延为 §268）
 
 **反馈**：用户 09:21 真机问「枢纽的模型和会话页的模型还是没有对齐吗？怎么还是 2 个？」——§227 账合一只治了同会话两面同键，枢纽的目标会话仍写死主线（hubModelAccountIDs 走 mainlineAccountIDs）：用户在旁聊里开枢纽，枢纽显/改的还是主线模型，与当前会话胶囊两值相对。
 
@@ -12678,3 +12678,17 @@ run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对�
 **真机待验（归主线）**：①主线内开枢纽：模型行与顶栏胶囊同值；②旁聊内开枢纽：模型行显该旁聊模型，在枢纽改选后回会话页胶囊同步同值、且主线模型不受影响；③冷启未进任何会话（空态）开枢纽：模型行显主线模型、不空不报错。
 
 **CI 判读（2026-11-15 回填）**：一轮 workflow_dispatch，run 43663353844（分支头 e084195）。全日志本地核账：**Core Executed 2084/2084、0 failures**（2081 基线＋本线 3 精确）；**App 192 注册全数得判词**（190＋2：186 passed＋5 skipped＋1 failed）；**UI 8/8**。本线新测 5/5 全过（Core 枢纽跟随 3 条＋App 账面 2 条）。整轮唯一断言失败＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（:617 浅色 bottomRest「6＞4」，§257.1 像素探针抖动族、与 .47/gen4 轮同签名、既有登记不堵门，与本线零交集）；本线断言失败 0。宿主重启 1 次（§184 集成后常态），BackingData:835 本轮零命中，§184 余崩例 testFailedTraceMaterializesWithErrorSnapshot 首试被重启吃判词、重跑 passed。run 级标 failure 即上述探针一条。按 §190 口径**本线判绿**。计数对账与预期一致（Core 2084、App 192、UI 8）。未合 main、未打 tag。
+
+## §269 0.50.49 组版（2026-11-15；分支 rel-05049，基线 rel-05048@3721c9a；预组版 rel-05049-prep 已验三包兼容，报告 oneday-design-review/rel-05049-prep-20261115.md）
+
+**装车四件**：①枢纽台账三店合一（feat/hub-single-store，待办第 68 条）——2ad3e09 主提交＋a4b9e5b 回填；②连接器面门面化（feat/connectors-facade，待办第 69 条）——01c577d 主提交＋44384be 回填；③通知与在线状态单源化（feat/notif-single-source，待办第 71 条）——af316a9 主提交＋aefaaac 回填；④枢纽模型区改跟随当前会话（feat/hub-model-follow-current，待办第 80 条）——e084195 主提交＋017f40d 回填，插在 71 之后、版号提交之前。共 8 提交 cherry-pick。
+
+**冲突处置**：仅 DESIGN 文末撞尾同型机械冲突 4 次（四个主提交各一），解法同预组版（HEAD 全保留、来节顺延文末）；四个回填提交全部自动合入（各自 .1 子节落回本节内、位置实查在位）。代码面零冲突：AppState.swift 68/71 双改自动合并、合并后对基线 diff ＝＋36/−6 与两包原 diff 逐行叠加一致；ChatView 第 80 条改动与 .48 包 4 改动不相邻、自动合入。**节号顺延（组版收口）**：三包自编号 §259 顺延为 **§265 枢纽三店合一／§266 连接器门面化／§267 通知单源化**，第 80 条自编号 §263（与包 4 §263 撞号）顺延为 **§268**；各节 .1 子节、正文自指与交叉引用同步改，节头均加顺延注记；gen3 热修 §259 与包 4 §263 原节未动（逐字核过）。
+
+**共存实查（grep 亲验）**：AppState 三店共享单例（sharedLedgerStore/sharedKanbanStore/sharedMonitorsStore）与实例匣在位；overviewBridgeAuthFailed 代码引用为零（注释残留 3 处、与 71 分支尖端自身状态一致）；ConnectorsFacade.swift 在位、ConnectorsView 引用 3 处；DecisionRecordHistory.merge 于 AgentHubStore.decidedRecords 在位；SessionModelAccount.hubTargetAccountIDs 在位、AgentHubView followThread 入参与 ChatView 呈现点传参在位。
+
+**计数对账（预期）**：Core 2095＋6（71 新增）＋3（80 新增）＝**2104**；UI **10**（.48 树实数 8＋A6 回归 2）；App 注册预期 192＋2（80 新增）＝194，实数以 CI 对账。
+
+**版号**：0.50.49／构建 177（Project.swift 四处与设置页版本串两行同改，旧号零残留已 grep 验）。
+
+### §269.1 CI 判读（待回填）
