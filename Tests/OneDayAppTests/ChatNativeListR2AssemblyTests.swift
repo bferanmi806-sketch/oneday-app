@@ -499,22 +499,23 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         // 落式与 §194 同）；舱底窗口值与回落式同值
         let restBottom = windowH
             - window.safeAreaInsets.bottom
+        let restMeasured = try composerBottomInWindow()
         XCTAssertEqual(
-            try composerBottomInWindow(), restBottom,
+            restMeasured, restBottom,
             accuracy: 1.0,
             "静息舱底须＝回落座 \(restBottom)，实测 "
-                + "\(try composerBottomInWindow())"
+                + "\(restMeasured)"
         )
         // 派生直证：底 inset＝（列表帧底−舱顶）窗
         // 口实测＋单点边距，无第二来源（R2 口径）
         let frameInWindow = controller.view.convert(
             controller.view.bounds, to: nil
         )
-        let hostView = try XCTUnwrap(
+        let host = try XCTUnwrap(
             controller.composerHost, "舱子托管应已装配"
-        ).view
-        let hostInWindow = hostView.convert(
-            hostView.bounds, to: nil
+        )
+        let hostInWindow = host.view.convert(
+            host.view.bounds, to: nil
         )
         let expectedRest = frameInWindow.maxY
             - hostInWindow.minY + bottomMargin
@@ -536,11 +537,12 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
             top: 541, duration: 0.25
         )
         drain(0.6)
+        let shownBottom = try composerBottomInWindow()
         XCTAssertEqual(
-            try composerBottomInWindow(), 541,
+            shownBottom, 541,
             accuracy: 1.0,
             "升起后舱底须＝通知帧顶 541，实测 "
-                + "\(try composerBottomInWindow())"
+                + "\(shownBottom)"
         )
         XCTAssertEqual(
             updates.last?.topInWindow, 541,
@@ -591,11 +593,12 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
                 top: top, duration: 0
             )
             window.layoutIfNeeded()
+            let frameBottom = try composerBottomInWindow()
             XCTAssertEqual(
-                try composerBottomInWindow(), top,
+                frameBottom, top,
                 accuracy: 1.0,
                 "逐帧跟随：帧顶 \(top) 时舱底须同值，实测 "
-                    + "\(try composerBottomInWindow())"
+                    + "\(frameBottom)"
             )
             XCTAssertEqual(
                 updates.last?.topInWindow, top,
@@ -619,11 +622,12 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
             "动画中段须采到在途帧（起 541→讫 474 之间）"
         )
         drain(0.8)
+        let settledBottom = try composerBottomInWindow()
         XCTAssertEqual(
-            try composerBottomInWindow(), 474,
+            settledBottom, 474,
             accuracy: 1.0,
             "动画落定后舱底须＝474，实测 "
-                + "\(try composerBottomInWindow())"
+                + "\(settledBottom)"
         )
 
         // 收起：willHide→舱回静息座、供数报 nil
@@ -633,11 +637,12 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
             top: windowH, duration: 0.25
         )
         drain(0.6)
+        let backBottom = try composerBottomInWindow()
         XCTAssertEqual(
-            try composerBottomInWindow(), restBottom,
+            backBottom, restBottom,
             accuracy: 1.0,
             "收起后舱底须回静息座 \(restBottom)，实测 "
-                + "\(try composerBottomInWindow())"
+                + "\(backBottom)"
         )
         XCTAssertNil(
             updates.last?.topInWindow,
