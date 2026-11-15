@@ -12744,7 +12744,17 @@ run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43
 
 **版号**：本包不组版、不动版号（随后续组版并入）。
 
-### §261.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
+### §272.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
 
 首轮 run 43612111973：真编译错一处——协调器调用点 `DevicePermissionCoordinator.swift:206` 把 non-Sendable 的 `any PermissionSyncPerforming` 跨隔离发送（协议未标隔离），BUILD FAILED、测试未跑；修法＝协议钉 @MainActor（持有/调用/实现三方同隔离），修复提交 86bfbca。
 二轮 run 43616881567：名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行）；Core **2086/2086 精确对账**（Executed 2086、0 failures＝基线 2081＋本包新测 5）；UI **8/8**（Executed 8、0 failures）；VERDICT 三连 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）；IPA 已打包上传（artifact 14123457170，13,036,642 字节——本包不组版、仅证构建完整）。**§184 登记**：App 相位 started 178、passed 167、无终局 11——其中 5 名与 §258.1 在案名单完全一致（ChatReliabilityOfflineTests.testMarkPendingSendRetainsEntryOnDisk、ComposerGuideHostTests.testBarGrowth_topRisesBottomPinned、ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays、DrawerBridgeHarnessTests.testBridgeTapToOpenReachesFullTravel、EdgeEffectRegistrationTests.testAnchorRegistersAncestorScrollView），另 6 名本轮新登记同签名（PresentationLayerScenarios 五测＋TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot，成片无终局、与本包改动面零交叠）。分支头 86bfbca，未合 main、未打 tag。
+
+## §273 0.50.50 组版（2026-11-15；分支 rel-05050，基线 rel-05049@a516ba0）
+
+**装车四件**（拣入序）：①间距二修（fix/gen3-bottom-gap-v2，基线 rel-05047）——7652c5c 红测＋0abaae9 正修＋2e755a1 判读回填，共 3 提交；其 DESIGN 节顺延为 **§270**。②叠字修（fix/gen4-stream-animation-scope，基线 rel-05048）——1cf4db6 修复＋8bf7b38 钉测，共 2 提交（无 DESIGN 改动）。③第 70 条文件预览 QuickLook 合一（feat/files-quicklook，基线 rel-05045）——413ebc5 本体＋d032f65 CI 修，共 2 提交（分支后两提交 b9b14d1/1c68a09 仅 §259.1 措辞回填、未拣）；其 DESIGN 节顺延为 **§271**（§271.1 判读回填随正文「待回填」原样，组版轮判读见 §273.1）。④第 76 条权限流四项收敛（feat/permission-flow-convergence，基线 rel-05045）——4ad1f90 本体＋86bfbca CI 修＋821f077 判读回填，共 3 提交；桥侧已随伴生 1.0.56 上线、本版只入 App 侧；其 DESIGN 节顺延为 **§272**（含 §272.1）。
+
+**冲突处置**：代码面仅 gap-v2 的 ChatListCarrier/ChatView 与基线相邻——git 自动合入后**人工对位核验 apply()**：新签名（composerTopInWindow/fallbackBottomSpace/bottomMargin）、§263（包 4）留高旗量实移交过滤、§270 新记账（measureBottomSpace 回报）三者共存无误，方予采信。DESIGN 冲突三处（文末撞尾同型）亲解：HEAD 全保留、四包节顺延 §270/§271/§272 追加文末。**组版对位一件**：基线内 gen4 的 ChatCarrierSettleCarryTests 仍以旧签名调 apply，按 gap-v2 报告 §7 迁移式改喂入（无窗口装配：composerTopInWindow 0＋回落种子 0＋边距 0，逐值复现旧施工值 0），独立提交 19c71e3。
+
+**计数对账（预期）**：Core **2110**（2104＋6：权限流 +5〔其分支 CI 2081→2086 实证〕＋文件预览净 +1；两树 `func test` 计数实测 2104→2110 互证）；UI **10**（不变）；App 注册预期 **213**（203＋10：间距二修 BottomGap 4→6 净 +2＋叠字钉测 +7＋文件预览 +1；函数计数 205→215、基线注册与函数差 2 沿旧例）。
+
+**版号**：0.50.50／构建 178（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
