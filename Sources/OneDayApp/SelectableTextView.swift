@@ -392,8 +392,24 @@ enum InlineTextFonts {
     /// 测池/呈现同栈（TK2）同步实量一行的高为本体：
     /// 定义即同源，行高模型下限与单测断言都从这
     /// 里读（§263）。结果按（字阶×档×粗体）缓存
-    private static let specCacheLock = NSLock()
-    private static var specCache: [String: CGFloat] = [:]
+    /// （盒＋锁，与 LayoutMeasurePool 的并发口径同
+    /// 形——静态可变字典本身过不了 Swift 6 并发检查）
+    private final class SpecCacheBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [String: CGFloat] = [:]
+        func get(_ key: String) -> CGFloat? {
+            lock.lock()
+            defer { lock.unlock() }
+            return values[key]
+        }
+        func set(_ key: String, _ value: CGFloat) {
+            lock.lock()
+            defer { lock.unlock() }
+            values[key] = value
+        }
+    }
+
+    private static let specCache = SpecCacheBox()
 
     static func specLineHeight(
         textStyle: UIFont.TextStyle,
@@ -401,10 +417,7 @@ enum InlineTextFonts {
         boldText: Bool
     ) -> CGFloat {
         let key = "\(textStyle.rawValue)|\(category.rawValue)|\(boldText)"
-        specCacheLock.lock()
-        let cached = specCache[key]
-        specCacheLock.unlock()
-        if let cached { return cached }
+        if let cached = specCache.get(key) { return cached }
         let assembled = SelectableInlineText.build(
             paragraphs: [.plain("测")],
             baseFont: baseFont(
@@ -433,9 +446,7 @@ enum InlineTextFonts {
         storage.attributedString = assembled
         layoutManager.ensureLayout(for: storage.documentRange)
         let height = layoutManager.usageBoundsForTextContainer.height
-        specCacheLock.lock()
-        specCache[key] = height
-        specCacheLock.unlock()
+        specCache.set(key, height)
         return height
     }
 
