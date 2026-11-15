@@ -110,9 +110,25 @@ struct AllConversationsView: View {
     /// 唯一出处——旧「全量减主线」口径（stationSes-
     /// sions）退役，分类走 Core SessionClassifier
     /// 现算（主线/合并桶/我的对话/系统/频道一筐出）
+    /// 账本名单（第 67 条包一）：本页两段名单的唯
+    /// 一输入——账本投影（@Query 本地线程注入合
+    /// 并）；本页 store 自此只管 UI 态与迁移执行，
+    /// 不再自持名单
+    private var ledgerVisibleSessions: [ServerSession] {
+        appState.sessionLedger.managementVisible(
+            appState: appState, localThreads: threads
+        )
+    }
+
+    private var ledgerArchivedSessions: [ServerSession] {
+        appState.sessionLedger.managementArchived(
+            appState: appState, localThreads: threads
+        )
+    }
+
     private var partition: SessionPartition {
         SessionClassifier.partition(
-            sessions: store.sessions,
+            sessions: ledgerVisibleSessions,
             mainServerSessionID: mainSessionID,
             linkedThreadSessionIDs: ThreadLinkage.nonMainLinkedSessionIDs(
                 threads: threads, sideChats: appState.sideChats
@@ -138,7 +154,7 @@ struct AllConversationsView: View {
     /// 是正交维度、全量呈现不按层分类，规格 §2/§5.1；
     /// 主线剔除走 Core 单一判定）
     private var archivedRows: [ServerSession] {
-        store.archivedSessions.filter {
+        ledgerArchivedSessions.filter {
             !SideChatClassifier.isMain(
                 serverSessionID: $0.id,
                 mainServerSessionID: mainSessionID
@@ -149,9 +165,9 @@ struct AllConversationsView: View {
     /// 主线行：全量里找钦定 id，找不到走单查兜底
     private var mainRow: ServerSession? {
         guard let mainSessionID else { return nil }
-        return store.sessions.first { $0.id == mainSessionID }
-            ?? store.archivedSessions.first { $0.id == mainSessionID }
-            ?? store.mainFallback
+        return ledgerVisibleSessions.first { $0.id == mainSessionID }
+            ?? ledgerArchivedSessions.first { $0.id == mainSessionID }
+            ?? appState.sessionLedger.mainFallback
     }
 
     var body: some View {
@@ -471,7 +487,7 @@ struct AllConversationsView: View {
         List(selection: $selection) {
             migrationSection
             noticeSection
-            if store.isLoading, store.sessions.isEmpty {
+            if store.isLoading, ledgerVisibleSessions.isEmpty {
                 Text("正在读取…")
                     .font(.captionText)
                     .foregroundStyle(Palette.inkSecondary)
@@ -599,7 +615,7 @@ struct AllConversationsView: View {
         List(selection: $selection) {
             migrationSection
             noticeSection
-            if store.isLoading, store.sessions.isEmpty {
+            if store.isLoading, ledgerVisibleSessions.isEmpty {
                 Text("正在读取…")
                     .font(.captionText)
                     .foregroundStyle(Palette.inkSecondary)
@@ -628,7 +644,7 @@ struct AllConversationsView: View {
         List(selection: $selection) {
             migrationSection
             noticeSection
-            if store.isLoading, store.archivedSessions.isEmpty {
+            if store.isLoading, ledgerArchivedSessions.isEmpty {
                 Text("正在读取…")
                     .font(.captionText)
                     .foregroundStyle(Palette.inkSecondary)
@@ -673,7 +689,7 @@ struct AllConversationsView: View {
                     // 名单行＋协调器起手（墓碑/目录摘
                     // 行/后台删）；最终失败由协调器恢
                     // 复，恢复信号触发本页重拉对齐
-                    store.removeLocal(sessionID: session.id)
+                    appState.sessionLedger.removeSession(sessionID: session.id)
                     appState.sessionDeletions.begin(
                         sessionID: session.id,
                         title: rowTitle(session),
@@ -852,9 +868,9 @@ struct AllConversationsView: View {
         guard !ids.isEmpty else { return }
         if kind == .delete {
             for id in ids {
-                let title = (store.sessions + store.archivedSessions)
+                let title = (ledgerVisibleSessions + ledgerArchivedSessions)
                     .first { $0.id == id }.map { rowTitle($0) } ?? ""
-                store.removeLocal(sessionID: id)
+                appState.sessionLedger.removeSession(sessionID: id)
                 appState.sessionDeletions.begin(
                     sessionID: id, title: title,
                     appState: appState, modelContext: modelContext
@@ -956,17 +972,16 @@ struct AllConversationsView: View {
     }
 }
 
-/// 管理页数据层（0.18.0）：全量分页拉取＋主线兜底
-/// 单查＋存量迁移执行与留痕。
+/// 管理页数据层（0.18.0 立、第 67 条包一瘦身）：
+/// 自持名单退役——两段名单/主线兜底/对账/归档缓
+/// 存对齐全归账本（SessionLedger），本店只剩本页
+/// UI 态（加载/错误/提示/迁移留痕/prune 预演数）
+/// 与存量迁移执行。load 只做触发与错误转译，拉取
+/// 本体在账本 refresh（§223：本页所有重拉点仍统
+/// 一走 reload → 本 load，不许漏对账）
 @MainActor
 @Observable
 final class AllConversationsStore {
-    /// 可见全量（archived=exclude 分页拉全）
-    var sessions: [ServerSession] = []
-    /// 已归档全量（archived=only 分页拉全）
-    var archivedSessions: [ServerSession] = []
-    /// 主线行兜底：分页没拉到钦定 id 时的单查结果
-    var mainFallback: ServerSession?
     var isLoading = false
     var loadError: String?
     /// 批量/清理结果人话条
@@ -976,25 +991,9 @@ final class AllConversationsStore {
     /// prune 预演回的将删条数（确认弹窗文案用）
     var pruneDryRunCount: Int?
 
-    /// 乐观删除摘行（§232）：确认删除后本页两段名
-    /// 单同拍摘除该行，不等服务端；最终失败靠恢复
-    /// 信号重拉回行
-    func removeLocal(sessionID: String) {
-        sessions.removeAll { $0.id == sessionID }
-        archivedSessions.removeAll { $0.id == sessionID }
-        if mainFallback?.id == sessionID { mainFallback = nil }
-    }
-
-    /// 名单全量重拉（§223 扩展：带本地线程与写上下
-    /// 文，供两段拉成后的对账回收）。可见集拉成即
-    /// 落位＋写回共享目录（§223 硬化：不再被已归档
-    /// 段失败连坐——旧形态两段任一失败 publish 不
-    /// 执行、目录静默变旧）；两段都拉成后以并集为
-    /// 存活集对账清本地残留（prune 与他端删除在本
-    /// 机的残留靠它回收）；任一段失败走 catch、不
-    /// 对账（名单不全不清）；任一段名单不完整（拉
-    /// 成但完整性判定未过，B-1 防护）同样不对账、
-    /// 只留痕——展示与写回照常
+    /// 名单全量重拉（触发账本 refresh；任一段拉取
+    /// 失败转人话错误——可见段已落位不回滚，与旧
+    /// load 的失败形态一致）
     func load(
         appState: AppState, localThreads: [ChatThread],
         modelContext: ModelContext
@@ -1002,118 +1001,15 @@ final class AllConversationsStore {
         isLoading = true
         loadError = nil
         do {
-            let visibleFetch = try await ServerSessionCatalog
-                .fetchAll(
-                    appState: appState, archived: "exclude"
-                )
-            let visible = visibleFetch.sessions
-            // §232：待删集（乐观删除后台未落定）不
-            // 进展示与目录写回——服务端此刻仍有其行，
-            // 不过滤会被重拉带回（乐观隐藏失效）；但
-            // 对账存活集仍用未过滤全集：待删会话在服
-            // 务端尚存活，其墓碑线程不许被对账误清
-            let pendingDeletions = appState.sessionDeletions
-                .queue.sessionIDs
-            sessions = visible.filter {
-                !pendingDeletions.contains($0.id)
-            }
-            // §198：全量可见集写回共享目录——抽屉频道
-            // 显行闸与本页频道段自此同源同数（本页已付
-            // 的分页代价全 App 只付一次）
-            appState.serverSessionCatalog.publish(
-                visible: sessions
-            )
-            let archivedFetch = try await ServerSessionCatalog
-                .fetchAll(
-                    appState: appState, archived: "only"
-                )
-            let archived = archivedFetch.sessions
-            archivedSessions = archived.filter {
-                !pendingDeletions.contains($0.id)
-            }
-            // §223 名单对账：存活集（可见＋已归档并
-            // 集）之外的自有绑定线程即残留，走共享
-            // 收口清除。B-1 防护闸（2026-11-14）：任
-            // 一段名单不完整（截断/总数对不上/重行）
-            // 即跳过对账并留痕——不完整名单里缺席的
-            // 线程可能只是没拉到，误判「服务端已删」
-            // 就是数据丢失；宁可不清、不可误清（名
-            // 单展示与目录写回不受闸影响、照常更新）
-            if visibleFetch.isComplete && archivedFetch.isComplete {
-                DeletedSessionCloseout.reconcileLocalThreads(
-                    threads: localThreads,
-                    liveSessionIDs: Set(visible.map(\.id))
-                        .union(archived.map(\.id)),
-                    appState: appState, modelContext: modelContext
-                )
-            } else {
-                ChatDiagTrace.record(
-                    "全部对话名单对账跳过：名单不完整"
-                        + "（可见段："
-                        + (visibleFetch.incompleteReason?
-                            .traceLabel ?? "完整")
-                        + "；归档段："
-                        + (archivedFetch.incompleteReason?
-                            .traceLabel ?? "完整")
-                        + "），本地线程本轮不动"
-                )
-            }
-            // §233 归档单真相·读面对账：抽屉的本地归
-            // 档键自此只是服务端归档态的呈现缓存——两
-            // 段名单齐全时逐条对齐（服务端已归档→补
-            // 键同隐、服务端可见→清键同显，含本页恢
-            // 复后的回显与存量本地独账的收敛）
-            syncDrawerArchiveCache(
-                localThreads: localThreads,
-                archivedIDs: Set(archived.map(\.id)),
-                visibleIDs: Set(visible.map(\.id)),
-                appState: appState
-            )
-            if let mainID = appState.sideChats.mainServerSessionID,
-               !visible.contains(where: { $0.id == mainID }),
-               !archived.contains(where: { $0.id == mainID }) {
-                mainFallback = try? await appState.performAdmin {
-                    client, config in
-                    try await client.serverSession(
-                        config: config, id: mainID
-                    )
-                }
-            } else {
-                mainFallback = nil
-            }
-            // 标题回落素材：无服务端标题者才拉消息派生
-            await appState.sessionTitles.ensureTitles(
-                for: visible + archived, appState: appState, budget: 12
+            try await appState.sessionLedger.refresh(
+                appState: appState, localThreads: localThreads,
+                modelContext: modelContext
             )
         } catch {
             loadError = (error as? HermesError)?.userMessage
                 ?? "名单没拉下来，请稍后再试。"
         }
         isLoading = false
-    }
-
-    /// 抽屉归档缓存对账（§233）：以服务端两段名单为
-    /// 准，把过回写闸的绑定线程的本地归档键对齐到服
-    /// 务端归档态——同物同账，本地键只是缓存、不再
-    /// 是第二真相。主线/合并桶绑定不在闸内（其本地
-    /// 键是呈现口径，不被服务端名单反向改写）
-    private func syncDrawerArchiveCache(
-        localThreads: [ChatThread], archivedIDs: Set<String>,
-        visibleIDs: Set<String>, appState: AppState
-    ) {
-        let sideChats = appState.sideChats
-        for thread in localThreads {
-            guard let sessionID = thread.serverSessionID,
-                  SideChatLink.mayWriteThroughToServer(
-                      sessionID: sessionID,
-                      mainSessionID: sideChats.mainServerSessionID
-                  ) else { continue }
-            if archivedIDs.contains(sessionID) {
-                sideChats.archive(localThreadID: thread.id)
-            } else if visibleIDs.contains(sessionID) {
-                sideChats.unarchive(localThreadID: thread.id)
-            }
-        }
     }
 
     /// 存量迁移执行（管理页首开）：计划走 Core 纯函数

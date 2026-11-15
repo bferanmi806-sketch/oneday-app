@@ -252,7 +252,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             modelContext: context
         )
         XCTAssertTrue(try threadExists(victim.id))
-        XCTAssertEqual(store.sessions.count, 120)
+        XCTAssertEqual(appState.sessionLedger.visibleSessions.count, 120)
         XCTAssertNil(store.loadError)
     }
 
@@ -322,7 +322,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             modelContext: context
         )
         XCTAssertNil(store.loadError)
-        XCTAssertEqual(store.sessions.count, 1000)
+        XCTAssertEqual(appState.sessionLedger.visibleSessions.count, 1000)
         XCTAssertTrue(try threadExists(tailVictim.id))
         XCTAssertEqual(
             appState.sideChats.titleOverrides[tailID], "尾巴标题"
@@ -348,9 +348,9 @@ final class SessionCatalogGuardTests: XCTestCase {
             modelContext: context
         )
         XCTAssertNil(store2.loadError)
-        XCTAssertEqual(store2.sessions.count, 149)
+        XCTAssertEqual(appState2.sessionLedger.visibleSessions.count, 149)
         XCTAssertEqual(
-            Set(store2.sessions.map(\.id)).count, 149
+            Set(appState2.sessionLedger.visibleSessions.map(\.id)).count, 149
         )
         XCTAssertTrue(try threadExists(shiftedVictim.id))
         XCTAssertTrue(try threadExists(tailVictim.id))

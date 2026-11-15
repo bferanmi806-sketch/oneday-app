@@ -7705,11 +7705,12 @@ private struct ComposerBarLayout: Layout {
         else { return nil }
         // 名单只用于候选检索（判定不成立照抛原错
         // 误）：不完整至多漏掉候选、回落不收养，方
-        // 向保守，不需完整性闸（B-1 防护盘点在案）
-        guard let fetch = try? await ServerSessionCatalog.fetchAll(
-            appState: appState, archived: "include"
-        ) else { return nil }
-        let sessions = fetch.sessions
+        // 向保守，不需完整性闸（B-1 防护盘点在案）。
+        // 第 67 条包一：名单改读账本（含已归档段；
+        // 账本未齐全时账本内回落现拉 include 全量）
+        guard let sessions = await appState.sessionLedger
+            .adoptionSessions(appState: appState)
+        else { return nil }
         let candidates = sessions.map {
             MainlineAdoptionCandidate(
                 id: $0.id, title: $0.serverTitle,

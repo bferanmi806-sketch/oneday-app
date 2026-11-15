@@ -12694,3 +12694,19 @@ run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对�
 ### §269.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43666064654 为四包树、B-1 追加前由组版本线自行取消、不作判读）：名义 failure，红因仅下述登记项。**Core 2104/2104 精确对账**（唯一用例 2104 全 passed、0 failures＝.48 的 2095＋71 新增 6＋80 新增 3；B-1 防护 9 例在 App 目标、Core 不变，与移植线判读口径一致）；**UI 10/10 全过**（8＋A6 回归 2）；**App 203 注册、202 得判词**（196 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），五包新测全过——DecisionRecordHistory 5/5、SessionCatalogGuardTests 9/9（含 >1000 条截断＋位移重页端到端钉链决胜例）、第 80 条枢纽跟随 App 锚点全过。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47/.48 同签名、与本版改动零交集）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 已定性孤立项；BackingData:835 日志零命中、crash-metadata 2 份）。IPA 解包亲验：0.50.49／177／site.didichou.oneday，13,144,086 字节，md5 `2de71e459aa05e057548db03618461fd`，落 ~/workspace/your_files/oneday-v0.50.49/（附待办总表副本）。未合 main、未打 tag。
+
+## §270 会话账本包一：只读收编＋账本单源地基（2026-11-15；分支 feat/session-ledger-1，基线 rel-05049@a516ba0；待办第 67 条，施工图 oneday-design-review/session-ledger-prep-20261115.md §4.2，设计本体沿用 prep-20261114 §2.2–2.6）
+
+**形态**：账本住 AppState（`let sessionLedger = SessionLedger()`，@MainActor @Observable，App target，与 AppState 同寿同模块）；Core 纯值型 `SessionRecord`＋合并纯函数 `SessionLedgerMerge`＋投影纯函数 `LedgerProjection`（OneDayCore/SessionRecord.swift，含出生证明规则号 R0–R9 与分类层同链同序、一致性靠 Core 矩阵测钉）；本地源注入式（账本经方法入参收 `localThreads: [ChatThread]` 快照，不自持 SwiftData 查询，与 Core 闸门同式）。`ServerSessionCatalog` 降为转发壳：静态翻页/完整性判定（B-1 装配核：IncompleteReason/FetchResult/fetchAll/fetchAllPages）逐字不动，两段名单与 hasLoaded 转发账本、refreshIfCold 转发账本可见段刷新；写口（publish/remove）本包先留壳转发，删除引擎归属归包二。
+
+**列**（按 §2.2 定版，呈现相关只补一列）：ledgerID（`local:<uuid>`/`server:<id>`）/localThreadID/serverSessionID/origin（复用 SessionLayer 不新造）/birthRule（审计用）/title（现行两管线原口径：线程记录走 DrawerThreadTitle、服务端记录走 resolvedTitle，派生素材层并入归包二 §4.3）/archived＋archiveSource（§233 单源：过回写闸且服务端段在即 .server，否则本地键 .local）/isPendingDeletion/source/activityAt（活动时间单口径：线程 updatedAt、服务端 ended??started）/linkPhase（.unlinked/.linked/.failed(count:)）/session 本体/segment＋segmentIndex/localIndex。完整性不进记录列——B-1 FetchResult 已承载、账本持 liveSet()＝(ids, LedgerCompleteness)（§2.3）。
+
+**收编面**：账本 refresh＝旧 AllConversationsStore.load 全时序逐拍复刻（双段 fetchAll→待删过滤落位→完整性对账闸（B-1 语义原样、失败留痕文案逐字）→§233 归档缓存同步（包二退役）→主线单查回落→标题补拉）；refreshVisible＝抽屉路（只拉可见段、只喂显示、不驱动删除、在飞合并）；adoptionSessions＝收养路（hasLoadedFull 读账本两段并集、否则回落 fetchAll(include) 现拉）。读面改投影：抽屉（删第一页自拉与两源字典，行集/标题/source 全改读记录列与 LedgerProjection）、管理页（两段名单改账本段投影、删 store 自持名单与 syncDrawerArchiveCache）、收养（ChatView 改读 adoptionSessions）。频道页/清理面两私抄与枢纽活动单页拉取按范围纪律未动、归包二（报告登记）。
+
+**有意口径收敛两项（与旧实现不等值、按 §4.2 明令）**：①抽屉 linkedSource 与服务端标题改读全量名单记录列，不再限旧第一页 100 条窗口（窗口外线程旧实现 source 恒 nil＝会被误判隐藏/标题退本地快照）；②未收养行新增待删过滤（§232 恢复意图，旧实现靠目录摘行＋页面新鲜度兜底）。
+
+**影子对账**：refresh/refreshVisible 内以旧口径现算旧行集（抽屉本地行/未收养行，全量刷新加管理页两段）与账本投影 diff，仅 diff 非空才 ChatDiagTrace 留痕，零 diff 沉默；包二验收后移除。
+
+**测试**：Core SessionLedgerTests 10 例（合并形态 3／规则↔层矩阵 1／抽屉两行集等值 2／合并序 1／管理页两段＋枢纽 1／频道含合并桶 1／归档列双源 1／标题两管线 1）；App SessionLedgerAppTests 5 例（真实装配链：脚本客户端＋SwiftData 容器租约＋store.load 真路——refresh 落位与 liveSet 完整交出、不完整闸 liveSet 形态＋线程不删、目录壳转发、收养读账本、可见段刷新投影）。SessionCatalogGuardTests 9 例断言读点随名单迁账本（语义不变）。
+
+**CI 判读**：待回填。

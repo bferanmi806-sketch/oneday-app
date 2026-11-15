@@ -106,7 +106,7 @@ final class AppState {
         if let serverSessionID,
            !serverSessionID.isEmpty,
            serverSessionID == sideChats.mainServerSessionID,
-           let serverModel = serverSessionCatalog.visibleSessions
+           let serverModel = sessionLedger.visibleSessions
                 .first(where: { $0.id == serverSessionID })?.model {
             effectiveStored = SessionModelAccount.effectiveStored(
                 stored: stored, serverReportedModel: serverModel
@@ -340,6 +340,13 @@ final class AppState {
     /// 道显行闸改读它判显隐（与管理页频道段同源），
     /// 不再共用开抽屉的 100 条名单窗口
     let serverSessionCatalog = ServerSessionCatalog()
+
+    /// 会话账本（第 67 条包一，2026-11-15）：「我有
+    /// 哪些会话」的单店——全 App 唯一拉取者与合并
+    /// 名单持有者；上方目录自本版起是它的转发壳
+    /// （init 内接线），管理页自持名单与抽屉自拉第
+    /// 一页同批退役
+    let sessionLedger = SessionLedger()
 
     /// 旁聊语义状态（0.7.0）：主线钦定/归档/标题覆盖/轻保活，
     /// 演示模式纯内存不落盘（见 SideChatStore）
@@ -915,6 +922,10 @@ final class AppState {
         deviceSession = DeviceSessionController()
         deviceSync = DeviceSyncController()
         deviceSync.dispatcher = deviceSession.dispatcher
+        // 第 67 条包一：目录壳接线账本本体（全部存储
+        // 属性初始化完成后才许接线，同本 init 其余接
+        // 线口径）
+        serverSessionCatalog.ledger = sessionLedger
         // §244 P-5：授权卡续办前的补同步接线（同步副
         // 本类卡 resume 前先补一次同步，来源标 chat）
         deviceSession.permissionFlow.syncPerformer = {
