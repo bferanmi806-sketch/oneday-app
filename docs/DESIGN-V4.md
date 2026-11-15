@@ -12660,3 +12660,21 @@ run 43605556552（头 2ad3e09）：名义 failure 仅 §184。实数：断言失
 ### §259.1 CI 判读（2026-11-14 回填）——**§190 终判实质绿（带 §184 在案登记）**
 
 run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对账**（Executed 2087、0 failures＝基线 2081＋DecisionRecordHistoryTests 5＋OverviewStatusLine 新例 1；本包新测全过——合成 5/5、状态行迁移 13＋新 1 全过）；UI **8/8**（0 failures）；VERDICT ×3 PASS。App passed 167＋skipped 5＋无终局 6＝178（＋helpers 伪名 1＝179，与基线口径同总数）。**断言失败 0**（全日志无 `Test Case … failed` 行）。名义 failure 仅 §184：宿主重启 8 起，波及无终局 6 条（均只有 started、无终局行）——5 条与 §258.1 登记名单逐字一致（testMarkPendingSendRetainsEntryOnDisk、testBarGrowth_topRisesBottomPinned、testKeyboardUpMovesComposerOnlyDockStays、testBridgeTapToOpenReachesFullTravel、testAnchorRegistersAncestorScrollView），第 6 条 LayoutProductPoolTests.testPoolDeterministicAndConcurrentSafe 同签名**本轮新登记**（量测池面、与本包改动无交集）。全档＝oneday-design-review/notif-single-source-report-20261114.md。
+
+## §263 枢纽模型区改跟随当前会话（2026-11-15；待办第 80 条，用户 09:25 拍板「按会话分开记，枢纽改成跟随当前会话」；分支 feat/hub-model-follow-current，基线 rel-05047@cb30f49）
+
+**反馈**：用户 09:21 真机问「枢纽的模型和会话页的模型还是没有对齐吗？怎么还是 2 个？」——§227 账合一只治了同会话两面同键，枢纽的目标会话仍写死主线（hubModelAccountIDs 走 mainlineAccountIDs）：用户在旁聊里开枢纽，枢纽显/改的还是主线模型，与当前会话胶囊两值相对。
+
+**拍板口径**：模型继续按会话分开记、单真值＝本地会话账（服务端会话 model 字段永不作数，§227 不动）；只改枢纽的**目标会话**——从写死主线改为当前打开的会话；无当前会话时回落主线（现行行为）。主线呈报时给了两选项（全局一个模型／按会话分开记＋枢纽跟随），用户点选后者。
+
+**语境查证（代码实证）**：枢纽全 App 唯一呈现点＝ChatView 的 `.sheet(isPresented: $showHub)`（mode .sheet；.activity 形态无入口），即枢纽打开时用户必在 ChatView 语境；「当前会话」真值在 ChatView 内（currentThreadID → CurrentThreadResolution → currentThread），AppState 不持当前线程（只有 drawerThreadSelection 等瞬时信号）。故枢纽不另立判定：呈现方把 currentThread 本体传入，枢纽只取数。
+
+**修法**：①Core `SessionModelAccount` 新增目标派生 `hubTargetAccountIDs`（有当前线程→accountIDs 同派生、isMainThread 由当前线程与钦定主线 id 比对；无→mainlineAccountIDs 原样回落），目标选择自此单源在 Core；②AgentHubView 新增入参 `followThread: ChatThread?`（默认 nil），`hubModelAccountIDs` 改走新派生——`hubCurrentChoice`（显名行）与 `hubModelPickerSheet.onSelect`（写账）本就共用此一口、改一处双改；模型行呈现形态（单行、显名口径）一字未动；③ChatView 呈现点传 `followThread: currentThread`（空态传 nil）。与 rel-05048 在飞线零交叠实查：gen4 包 4 增量对 ChatView 的改动在 467/2136/2330/2426/2462/9639 行区，与呈现点 1620 不相邻；A6 只碰 SettingsView；AgentHubView/SessionModelAccount 两线均未碰。
+
+**验收（单测钉死）**：Core SessionModelAccountTests 新增 3 条——①当前＝主线时目标派生与胶囊主线派生、旧枢纽派生三者恒等（绑定×副本矩阵）；②当前＝旁聊时目标＝旁聊账（已绑定取绑定、未绑定不回落主线副本、与胶囊旁聊派生恒等）；③无当前时恒等旧主线派生（主线在场/未落位两态）。App ModelAccountUnifyAppTests 新增 2 条——②账面实证（枢纽跟随键写账、胶囊旁聊键读到同笔、两面读数同值、主线账不被殃及）；③键恒等（跟随回落键＝现行主线键）。视图层接线（ChatView 传参、枢纽取数）无单测面，以代码位证据＋真机清单承接。
+
+**计数对账（预期）**：Core 2081＋3＝2084；App 190＋2＝192（.47 组版口径 190 注册）；UI 8 不变；xcstrings 不变。本分支不改版号。
+
+**真机待验（归主线）**：①主线内开枢纽：模型行与顶栏胶囊同值；②旁聊内开枢纽：模型行显该旁聊模型，在枢纽改选后回会话页胶囊同步同值、且主线模型不受影响；③冷启未进任何会话（空态）开枢纽：模型行显主线模型、不空不报错。
+
+**CI 判读**：待回填。

@@ -96,6 +96,12 @@ struct AgentHubView: View {
     }
 
     var mode: Mode = .sheet
+    /// 模型区跟随的当前会话线程（§263，第 80 条）：
+    /// 呈现方 ChatView 传入其 currentThread 本体——枢
+    /// 纽模型区据此读写当前会话那本账（与胶囊同源同
+    /// 键）；nil（呈现方无当前会话，如冷启空态）时枢
+    /// 纽回落钦定主线口径（§227），不留空、不报错
+    var followThread: ChatThread? = nil
     /// 审批终态回调（活动格据此刷新总览桥角标）
     var onApprovalChanged: (() -> Void)? = nil
 
@@ -463,11 +469,16 @@ struct AgentHubView: View {
         }
     }
 
-    /// 枢纽的模型账取键入参（§227 账合一）：以钦定
-    /// 主线线程的实际绑定为准，经 Core SessionModel-
-    /// Account.mainlineAccountIDs 派生——与胶囊在主
-    /// 线时同键同账；SideChatStore 的钦定 id 只作线
-    /// 程未落位时的回落缓存，不再独立成账
+    /// 枢纽的模型账取键入参（§263 目标改跟随当前会
+    /// 话，§227 账合一底座不变）：目标选择经 Core
+    /// SessionModelAccount.hubTargetAccountIDs 单派
+    /// 生——当前会话入参取呈现方传入的 followThread
+    /// 本体（与胶囊 currentThread 同一物），主线入参
+    /// 取钦定主线线程的实际绑定；有当前会话时与胶囊
+    /// 同键同账（当前＝主线时退化为 §227 同键定理），
+    /// 无当前会话时回落主线派生、行为与 §227 一字不
+    /// 变；SideChatStore 的钦定 id 只作线程未落位时
+    /// 的回落缓存，不再独立成账
     private var hubModelAccountIDs:
         (serverSessionID: String?, threadID: UUID?)
     {
@@ -475,16 +486,19 @@ struct AgentHubView: View {
         let mainThread = store.mainThreadID.flatMap { id in
             threads.first { $0.id == id }
         }
-        return SessionModelAccount.mainlineAccountIDs(
+        return SessionModelAccount.hubTargetAccountIDs(
+            currentThreadServerSessionID: followThread?.serverSessionID,
+            currentThreadID: followThread?.id,
             mainThreadServerSessionID: mainThread?.serverSessionID,
             mainThreadID: mainThread?.id,
             mainServerSessionID: store.mainServerSessionID
         )
     }
 
-    /// 枢纽的会话选择（§153/§227）：枢纽自聊天页打开、
-    /// 语境是主线——与顶栏在主线时同账（§227 起名副
-    /// 其实：取键与胶囊共用一条派生链）
+    /// 枢纽的会话选择（§153/§227/§263）：枢纽自聊天
+    /// 页打开，模型区跟随用户当前打开的会话——与顶
+    /// 栏胶囊共用同一条派生链、读写同一本账；无当前
+    /// 会话时回落主线
     private var hubCurrentChoice: ChatModelChoice {
         let ids = hubModelAccountIDs
         return appState.sessionModelChoice(
@@ -544,7 +558,8 @@ struct AgentHubView: View {
     /// PickerView 本体一字不改）——分组走呈现口径
     /// （pickerModelGroups，本机隐藏组不现身，与胶
     /// 囊面一致）；选中落账与旧目录行同路（select-
-    /// SessionModel 写主线会话键、点行即落账关面）；
+    /// SessionModel 写目标会话键——§263 起为当前会
+    /// 话键、无当前会话回落主线键，点行即落账关面）；
     /// 隐藏组动作不给（onHideGroup=nil，该面注明的
     /// 枢纽只读复用口径）
     private var hubModelPickerSheet: some View {

@@ -175,6 +175,81 @@ final class ModelAccountUnifyAppTests: XCTestCase {
         XCTAssertEqual(key(alignedIDs), key(capsuleIDs))
     }
 
+    // MARK: - 枢纽跟随当前会话（§263，第 80 条）
+
+    /// 锚点②账面实证：当前会话＝旁聊时，枢纽经跟随
+    /// 派生键写账，胶囊按旁聊自家派生键读到的正是同
+    /// 一笔、两面读数同值；主线账不被跟随写殃及
+    func testHubFollowWriteLandsInSideChatCapsuleKey() {
+        let state = makeState()
+        let mainThreadID = UUID()
+        let sideThreadID = UUID()
+        let hubIDs = SessionModelAccount.hubTargetAccountIDs(
+            currentThreadServerSessionID: "oneday-side-1",
+            currentThreadID: sideThreadID,
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: mainThreadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        let capsuleIDs = SessionModelAccount.accountIDs(
+            threadServerSessionID: "oneday-side-1",
+            threadID: sideThreadID, isMainThread: false,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        XCTAssertEqual(key(hubIDs), "s:oneday-side-1")
+        XCTAssertEqual(key(hubIDs), key(capsuleIDs))
+
+        // 枢纽写账（用户在旁聊里开枢纽点选）
+        let picked = ChatModelChoice(
+            model: "claude-sonnet-4-6", providerField: "custom"
+        )
+        state.selectSessionModel(
+            picked, serverSessionID: hubIDs.serverSessionID,
+            threadID: hubIDs.threadID
+        )
+        // 胶囊键下正是这一笔、两面读数同值
+        XCTAssertEqual(
+            state.sessionModelChoices[key(capsuleIDs)]?.model,
+            "claude-sonnet-4-6"
+        )
+        XCTAssertEqual(
+            state.sessionModelChoice(
+                serverSessionID: hubIDs.serverSessionID,
+                threadID: hubIDs.threadID
+            ),
+            state.sessionModelChoice(
+                serverSessionID: capsuleIDs.serverSessionID,
+                threadID: capsuleIDs.threadID
+            )
+        )
+        // 主线账未被跟随写殃及
+        let mainIDs = SessionModelAccount.mainlineAccountIDs(
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: mainThreadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        XCTAssertNil(state.sessionModelChoices[key(mainIDs)])
+    }
+
+    /// 锚点③账面实证：无当前会话时枢纽目标键与现行
+    /// 主线键恒等——回落读写的仍是主线那本账
+    func testHubTargetWithoutCurrentUsesLegacyMainlineKey() {
+        let mainThreadID = UUID()
+        let followIDs = SessionModelAccount.hubTargetAccountIDs(
+            currentThreadServerSessionID: nil, currentThreadID: nil,
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: mainThreadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        let legacyIDs = SessionModelAccount.mainlineAccountIDs(
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: mainThreadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        XCTAssertEqual(key(followIDs), key(legacyIDs))
+        XCTAssertEqual(key(followIDs), "s:oneday-main-adopted")
+    }
+
     // MARK: - 迁账语义
 
     /// 改绑/收养：旧键存量选择迁到新键，源账保留
