@@ -471,31 +471,21 @@ extension ChatCarrierSpacingProbeTests {
         installInWindow()
         injectDeviceSafeArea()
         container.view.layoutIfNeeded()
-        let rows: [ChatCarrierRow] = [
-            ChatCarrierRow(
-                key: "user-swipe", version: "v1",
-                estimatedHeight: 47
-            ) { AnyView(userRowView(withSwipe: true)) },
-            ChatCarrierRow(
-                key: "assistant", version: "v1",
-                estimatedHeight: 230
-            ) { AnyView(assistantRowView()) },
-            ChatCarrierRow(
-                key: "user-plain", version: "v1",
-                estimatedHeight: 47
-            ) { AnyView(userRowView(withSwipe: false)) },
-        ]
         controller.apply(
-            rows: rows,
-            layout: ChatListCarrierLayout(
-                horizontalInset: 20,
-                topPadding: 16,
-                bottomPadding: 8,
-                rowSpacing: 24,
-                topInset: 122,
-                bottomInset: 153,
-                bottomSpace: 137
+            rows: probeRows(),
+            layout: ChatCarrierLayout(
+                horizontalPadding: OneDayMetrics.pageGutter,
+                topPadding: OneDayMetrics.spacingM,
+                bottomPadding: OneDayMetrics.spacingS,
+                rowSpacing: OneDayMetrics.spacingL,
+                arrowTrailing: OneDayMetrics.spacingM,
+                arrowSize: OneDayMetrics.minTapTarget
             ),
+            topInset: 122,
+            bottomInset: 153,
+            bottomSpace: 137,
+            keyboardAnimationDuration: 0,
+            keyboardAnimationCurveRaw: 0,
             arrowView: nil
         )
         controller.view.layoutIfNeeded()
