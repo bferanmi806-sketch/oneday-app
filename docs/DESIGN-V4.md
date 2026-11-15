@@ -12578,3 +12578,21 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **真机待验（归主线）**：装含本修的版本开实验开关——正文滚过状态栏带与顶簇浮钮下应有系统软糊边、滚过输入舱上方同理；静止无内容滚过时条区不可见（内容驱动）。
 
 **CI 判读（2026-11-15 回填）**：两轮 workflow_dispatch。首轮 run 43650781042：Core 2081/2081、UI 8/8；新测 3 条中样式断言与源码守护通过，登记链 1 条红——断言错在自家测试装配（顶宿主 `edge=.top` 在其 viewDidLoad 才设、裸实例化未加载读到 rawValue 0；绑定断言本身通过），测试修正提交 fba915b（顶宿主改真入窗口装配）。次轮 run 43653896004：**新测 3 条全过**、Core 2081/2081 失败 0、本线零断言失败。整轮仍红的构成与本线零交集：§184 六条常客无终局（本分支基线早于 §184 专项修、宿主重启 7 次，登记在案）＋ DrawerRowContextMenuTests 1 条真断言红（菜单外点击等待超时；首轮同产品代码下 UI 8/8 全过、43611787229 亦曾同红，属间歇、归其自家线复核）。按 §190 口径本线判绿：改动面（承载样式/登记/装配点）全数实证通过。
+
+## §263 枢纽模型区改跟随当前会话（2026-11-15；待办第 80 条，用户 09:25 拍板「按会话分开记，枢纽改成跟随当前会话」；分支 feat/hub-model-follow-current，基线 rel-05047@cb30f49）
+
+**反馈**：用户 09:21 真机问「枢纽的模型和会话页的模型还是没有对齐吗？怎么还是 2 个？」——§227 账合一只治了同会话两面同键，枢纽的目标会话仍写死主线（hubModelAccountIDs 走 mainlineAccountIDs）：用户在旁聊里开枢纽，枢纽显/改的还是主线模型，与当前会话胶囊两值相对。
+
+**拍板口径**：模型继续按会话分开记、单真值＝本地会话账（服务端会话 model 字段永不作数，§227 不动）；只改枢纽的**目标会话**——从写死主线改为当前打开的会话；无当前会话时回落主线（现行行为）。主线呈报时给了两选项（全局一个模型／按会话分开记＋枢纽跟随），用户点选后者。
+
+**语境查证（代码实证）**：枢纽全 App 唯一呈现点＝ChatView 的 `.sheet(isPresented: $showHub)`（mode .sheet；.activity 形态无入口），即枢纽打开时用户必在 ChatView 语境；「当前会话」真值在 ChatView 内（currentThreadID → CurrentThreadResolution → currentThread），AppState 不持当前线程（只有 drawerThreadSelection 等瞬时信号）。故枢纽不另立判定：呈现方把 currentThread 本体传入，枢纽只取数。
+
+**修法**：①Core `SessionModelAccount` 新增目标派生 `hubTargetAccountIDs`（有当前线程→accountIDs 同派生、isMainThread 由当前线程与钦定主线 id 比对；无→mainlineAccountIDs 原样回落），目标选择自此单源在 Core；②AgentHubView 新增入参 `followThread: ChatThread?`（默认 nil），`hubModelAccountIDs` 改走新派生——`hubCurrentChoice`（显名行）与 `hubModelPickerSheet.onSelect`（写账）本就共用此一口、改一处双改；模型行呈现形态（单行、显名口径）一字未动；③ChatView 呈现点传 `followThread: currentThread`（空态传 nil）。与 rel-05048 在飞线零交叠实查：gen4 包 4 增量对 ChatView 的改动在 467/2136/2330/2426/2462/9639 行区，与呈现点 1620 不相邻；A6 只碰 SettingsView；AgentHubView/SessionModelAccount 两线均未碰。
+
+**验收（单测钉死）**：Core SessionModelAccountTests 新增 3 条——①当前＝主线时目标派生与胶囊主线派生、旧枢纽派生三者恒等（绑定×副本矩阵）；②当前＝旁聊时目标＝旁聊账（已绑定取绑定、未绑定不回落主线副本、与胶囊旁聊派生恒等）；③无当前时恒等旧主线派生（主线在场/未落位两态）。App ModelAccountUnifyAppTests 新增 2 条——②账面实证（枢纽跟随键写账、胶囊旁聊键读到同笔、两面读数同值、主线账不被殃及）；③键恒等（跟随回落键＝现行主线键）。视图层接线（ChatView 传参、枢纽取数）无单测面，以代码位证据＋真机清单承接。
+
+**计数对账（预期）**：Core 2081＋3＝2084；App 190＋2＝192（.47 组版口径 190 注册）；UI 8 不变；xcstrings 不变。本分支不改版号。
+
+**真机待验（归主线）**：①主线内开枢纽：模型行与顶栏胶囊同值；②旁聊内开枢纽：模型行显该旁聊模型，在枢纽改选后回会话页胶囊同步同值、且主线模型不受影响；③冷启未进任何会话（空态）开枢纽：模型行显主线模型、不空不报错。
+
+**CI 判读**：待回填。

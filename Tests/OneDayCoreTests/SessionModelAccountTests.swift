@@ -152,6 +152,112 @@ final class SessionModelAccountTests: XCTestCase {
             "oneday-main-designated", nil
         )
     }
+
+    // MARK: - 枢纽跟随派生（§263，第 80 条）
+
+    /// 锚点①：当前会话＝主线线程时，枢纽目标派生与
+    /// 胶囊主线派生、与旧枢纽主线派生三者恒等（绑定
+    /// ×副本矩阵）——跟随改造不许动主线既有行为
+    func testHubTargetFollowingMainThreadEqualsCapsuleAndLegacyHub() {
+        let bindings: [String?] = [nil, "oneday-main-adopted"]
+        let copies: [String?] = [nil, "oneday-main-stale"]
+        for binding in bindings {
+            for copy in copies {
+                let target = SessionModelAccount.hubTargetAccountIDs(
+                    currentThreadServerSessionID: binding,
+                    currentThreadID: threadID,
+                    mainThreadServerSessionID: binding,
+                    mainThreadID: threadID,
+                    mainServerSessionID: copy
+                )
+                let capsule = SessionModelAccount.accountIDs(
+                    threadServerSessionID: binding,
+                    threadID: threadID, isMainThread: true,
+                    mainServerSessionID: copy
+                )
+                let legacyHub = SessionModelAccount.mainlineAccountIDs(
+                    mainThreadServerSessionID: binding,
+                    mainThreadID: threadID,
+                    mainServerSessionID: copy
+                )
+                XCTAssertEqual(
+                    target.serverSessionID, capsule.serverSessionID
+                )
+                XCTAssertEqual(target.threadID, capsule.threadID)
+                XCTAssertEqual(
+                    target.serverSessionID, legacyHub.serverSessionID
+                )
+                XCTAssertEqual(target.threadID, legacyHub.threadID)
+            }
+        }
+    }
+
+    /// 锚点②：当前会话＝旁聊时，枢纽目标就是旁聊那
+    /// 本账——已绑定取绑定、未绑定不回落主线副本；
+    /// 且与胶囊在该旁聊的派生逐字恒等
+    func testHubTargetFollowingSideThreadEqualsCapsule() {
+        assertIDs(
+            SessionModelAccount.hubTargetAccountIDs(
+                currentThreadServerSessionID: "oneday-side-1",
+                currentThreadID: otherThreadID,
+                mainThreadServerSessionID: "oneday-main-adopted",
+                mainThreadID: threadID,
+                mainServerSessionID: "oneday-main-stale"
+            ),
+            "oneday-side-1", otherThreadID
+        )
+        assertIDs(
+            SessionModelAccount.hubTargetAccountIDs(
+                currentThreadServerSessionID: nil,
+                currentThreadID: otherThreadID,
+                mainThreadServerSessionID: "oneday-main-adopted",
+                mainThreadID: threadID,
+                mainServerSessionID: "oneday-main-designated"
+            ),
+            nil, otherThreadID
+        )
+        let target = SessionModelAccount.hubTargetAccountIDs(
+            currentThreadServerSessionID: "oneday-side-1",
+            currentThreadID: otherThreadID,
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: threadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        let capsule = SessionModelAccount.accountIDs(
+            threadServerSessionID: "oneday-side-1",
+            threadID: otherThreadID, isMainThread: false,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        XCTAssertEqual(target.serverSessionID, capsule.serverSessionID)
+        XCTAssertEqual(target.threadID, capsule.threadID)
+    }
+
+    /// 锚点③：无当前会话 → 恒等旧枢纽主线派生（主
+    /// 线在场与未落位两态），回落不是新账
+    func testHubTargetWithoutCurrentFallsBackToMainline() {
+        let inPlace = SessionModelAccount.hubTargetAccountIDs(
+            currentThreadServerSessionID: nil, currentThreadID: nil,
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: threadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        let legacy = SessionModelAccount.mainlineAccountIDs(
+            mainThreadServerSessionID: "oneday-main-adopted",
+            mainThreadID: threadID,
+            mainServerSessionID: "oneday-main-stale"
+        )
+        XCTAssertEqual(inPlace.serverSessionID, legacy.serverSessionID)
+        XCTAssertEqual(inPlace.threadID, legacy.threadID)
+        assertIDs(
+            SessionModelAccount.hubTargetAccountIDs(
+                currentThreadServerSessionID: nil, currentThreadID: nil,
+                mainThreadServerSessionID: nil,
+                mainThreadID: nil,
+                mainServerSessionID: "oneday-main-designated"
+            ),
+            "oneday-main-designated", nil
+        )
+    }
 }
 
 /// 服务端会话行 model 字段的定性（§227 裁决）：报告

@@ -75,6 +75,39 @@ public enum SessionModelAccount {
             mainServerSessionID: mainServerSessionID
         )
     }
+
+    /// 枢纽目标派生（§263，第 80 条，用户 2026-11-15
+    /// 拍板「枢纽改跟随当前会话」）：枢纽模型区的读写
+    /// 目标不再写死主线——有当前会话时与胶囊同派生
+    /// （accountIDs、入参取当前线程本体，isMainThread
+    /// 由当前线程与钦定主线 id 比对得出，与 ChatView
+    /// .currentModelAccountIDs 的入参拼法逐字同义）；
+    /// 无当前会话（冷启未进任何会话/空态）时回落主线
+    /// 派生（mainlineAccountIDs，§227 既有行为一字不
+    /// 变）。模型仍按会话分开记、单真值仍是本地会话
+    /// 账——本函数只决定枢纽这一面读写的目标键，不
+    /// 新立任何账。
+    public static func hubTargetAccountIDs(
+        currentThreadServerSessionID: String?,
+        currentThreadID: UUID?,
+        mainThreadServerSessionID: String?,
+        mainThreadID: UUID?,
+        mainServerSessionID: String?
+    ) -> (serverSessionID: String?, threadID: UUID?) {
+        guard let currentThreadID else {
+            return mainlineAccountIDs(
+                mainThreadServerSessionID: mainThreadServerSessionID,
+                mainThreadID: mainThreadID,
+                mainServerSessionID: mainServerSessionID
+            )
+        }
+        return accountIDs(
+            threadServerSessionID: currentThreadServerSessionID,
+            threadID: currentThreadID,
+            isMainThread: currentThreadID == mainThreadID,
+            mainServerSessionID: mainServerSessionID
+        )
+    }
 }
 /// 服务端会话行 model 字段的定性与读数（§227 裁决）：
 /// 该字段是服务端回执/化石值（会话创建时落下、或服
