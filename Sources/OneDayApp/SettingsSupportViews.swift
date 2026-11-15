@@ -8,8 +8,8 @@ import UIKit
 /// （版本源第五处自此收敛为本常量，grep 校验照旧
 /// 命中版本号字面）
 enum OneDayVersionLabel {
-    static let full = "OneDay v0.50.52 (180)"
-    static let hero = "v0.50.52 (180)"
+    static let full = "OneDay v0.50.53 (181)"
+    static let hero = "v0.50.53 (181)"
 }
 
 /// App 图标位图（§188）：经 Info.plist 的 CFBundleIcons
