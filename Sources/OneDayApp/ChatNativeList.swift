@@ -196,6 +196,9 @@ final class ChatRootViewController: UIViewController,
     /// 落点意图（H6）：冷开/命令贴底置真；收敛后
     /// 距底 ≤0.5 或用户拖动接管即消
     private var landingIntent = false
+    /// 落点收敛重拍计数（有界 5，见 performSettle-
+    /// Beat 的尾差处理）
+    private var landingRetries = 0
     private var userInteracting = false
     /// 布局未就绪时到达的恢复命令（先记账、落定
     /// 拍执行——与 gen3 restore 的等拍口径同义）
@@ -452,6 +455,7 @@ final class ChatRootViewController: UIViewController,
                 // 实布局后钉底（H6）；切线程的落位由
                 // ChatView 恢复链经句柄命令驱动
                 landingIntent = true
+                landingRetries = 0
             }
         } else if !reconfigureKeys.isEmpty {
             var snapshot = dataSource.snapshot()
@@ -541,6 +545,15 @@ final class ChatRootViewController: UIViewController,
             pinToBottom()
             if currentDistance() <= 0.5 {
                 landingIntent = false
+                landingRetries = 0
+            } else if landingRetries < 5 {
+                // 收敛尾差（H6）：自适应行高的迟到
+                // 修正会在钉底后改 contentSize、又不
+                // 必触发滚动回调——意图未消时有界重
+                // 拍（每拍先 layoutIfNeeded 逼修正落
+                // 地再重钉），收敛即停、不成环
+                landingRetries += 1
+                scheduleSettle()
             }
         }
         layoutArrow()
@@ -770,6 +783,7 @@ final class ChatRootViewController: UIViewController,
 
     func scrollToBottom(animated: Bool) {
         landingIntent = true
+        landingRetries = 0
         collectionView.layoutIfNeeded()
         let target = maxOffsetY()
         if animated {

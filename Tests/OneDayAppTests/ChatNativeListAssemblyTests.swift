@@ -182,6 +182,17 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         window.layoutIfNeeded()
     }
 
+    /// async 测试专用排空：expectation 的 wait 在
+    /// async 测试里会堵住主队列（CI 第四轮实证：
+    /// drain 超时而后续断言本身全过）——改以
+    /// Task.sleep 挂起等拍，主队列照常跑落定拍
+    private func drainAsync(
+        _ seconds: TimeInterval = 1.2
+    ) async {
+        try? await Task.sleep(for: .seconds(seconds))
+        window.layoutIfNeeded()
+    }
+
     private func frame(at index: Int) throws -> CGRect {
         let attrs = controller.collectionView
             .layoutAttributesForItem(
@@ -561,7 +572,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             """
         let rows = [assistantRow("band", text)]
         apply(rows: rows)
-        drain()
+        await drainAsync()
         let cellHeight = try frame(at: 0).height
 
         let textWidth = windowW
