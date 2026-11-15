@@ -448,12 +448,22 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
     /// 动画中段采样：动画窗内逐 30ms 读舱宿主的
     /// presentation 帧底（窗口坐标），命中「严格
     /// 在起讫之间」的在途样本即返回（动画由通知
-    /// 参数驱动、presentation 帧即中段真帧）
+    /// 参数驱动、presentation 帧即中段真帧）。
+    /// 节拍以 expectation＋asyncAfter 推进（与
+    /// drain 同式，§299.1 续作）：wait 正常泵主运
+    /// 行循环、显示链接得以推进动画；旧式 RunLoop
+    /// 切片自旋在无输入源时即时返回、饿死动画推
+    /// 进，采样恒读起点值（首轮实证）
     private func pollMidAnimationBottom(
         from: CGFloat, to: CGFloat
     ) -> CGFloat? {
         let deadline = Date().addingTimeInterval(0.45)
         while Date() < deadline {
+            let beat = expectation(description: "midAnimBeat")
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.03
+            ) { beat.fulfill() }
+            wait(for: [beat], timeout: 5)
             if let host = controller.composerHost,
                let presentation = host.view.layer
                 .presentation() {
@@ -467,10 +477,6 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
                     return bottom
                 }
             }
-            RunLoop.main.run(
-                mode: .default,
-                before: Date().addingTimeInterval(0.03)
-            )
         }
         return nil
     }

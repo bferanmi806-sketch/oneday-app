@@ -250,6 +250,12 @@ final class ChatRootViewController: UIViewController,
     private weak var dockBarView: UIView?
     private var dockIsFallback = false
     private weak var anchorWindow: UIWindow?
+    /// §299.1 续作：回落态布局拍重解析的上次尝试
+    /// 时刻——回落壳内恒无坞时每拍全窗遍历找坞会
+    /// 扰动落定收敛时序，布局拍自愈加 0.3s 节流
+    /// （窗口变化与离散触发点不经此闸，见
+    /// viewDidLayoutSubviews／resolveAnchors）
+    private var lastFallbackResolveAt: CFTimeInterval = 0
     private var keyboardUp = false
     /// §299 键盘顶存账（窗口坐标）：willShow/
     /// willChangeFrame 通知的结束帧顶——键盘本
@@ -575,8 +581,10 @@ final class ChatRootViewController: UIViewController,
     /// 用与命中模式——位置由 syncBottomConstant
     /// 逐拍换算进位置常量，参照本身不被任何约束
     /// 引用。触发点只在离散事件（入窗/显形/键盘
-    /// 收起/回落态布局拍自愈），不在每拍布局里走
-    /// 层级（与 §194 resolveAnchors 同式）
+    /// 收起）与回落态布局拍自愈——后者经
+    /// viewDidLayoutSubviews 的 0.3s 节流闸（§299.1
+    /// 续作）、窗口变化仍立即触发；不在每拍布局
+    /// 里无条件走层级（与 §194 resolveAnchors 同式）
     private func resolveAnchors() {
         guard let window = view.window else { return }
         let windowChanged = anchorWindow !== window
@@ -855,10 +863,20 @@ final class ChatRootViewController: UIViewController,
         // 析（入窗前）或回落态（标签栏随呈现时序
         // 迟到）在此补解析、找到即退出回落；常量
         // 只读缓存的坞参照实帧/键盘存账帧顶（与
-        // §194 布局拍纪律同式）
-        if anchorWindow !== view.window
-            || (dockIsFallback && !keyboardUp) {
+        // §194 布局拍纪律同式）。§299.1 续作：回
+        // 落态重解析加节流——窗口变化立即走，否
+        // 则距上次尝试 ≥0.3s 才走（回落壳内每拍
+        // 全窗遍历扰动落定收敛，③⑯ 残差候选机制）；
+        // 离散触发点（入窗/显形/键盘收起直调
+        // resolveAnchors）不经此闸、行为不变
+        if anchorWindow !== view.window {
             resolveAnchors()
+        } else if dockIsFallback && !keyboardUp {
+            let now = CACurrentMediaTime()
+            if now - lastFallbackResolveAt >= 0.3 {
+                lastFallbackResolveAt = now
+                resolveAnchors()
+            }
         }
         syncBottomConstant()
         // 布局前先记在底事实（旧帧口径）：布局变化
