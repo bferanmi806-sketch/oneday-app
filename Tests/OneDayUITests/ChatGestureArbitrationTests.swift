@@ -472,7 +472,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
         in app: XCUIApplication
     ) -> [String] {
         app.menuItems.allElementsBoundByIndex
-            .map(\.label).filter { !$0.isEmpty }
+            .map { $0.label }.filter { !$0.isEmpty }
     }
 
     /// 菜单在场时以列表小滚 dismiss（滚动散编辑菜
