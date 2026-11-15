@@ -12641,4 +12641,6 @@ run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，�
 
 **落点四·文档对账（零代码）**：BS-1＝§225.1 补记（抽屉面板定性覆盖式导航层、thinMaterial 按导航层豁免 U2 A、0.36.3 定案保留；U2 A 的「内容面」＝列表/卡片/正文承载面）；BS-2＝§14 条 3 作废注记（以 0.4.0 整表废止为现行、暗色字重全域降档纪律作废；NumberText.effectiveWeight 为个案保留）。
 
-### §265.1 CI 判读（回填）
+### §265.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+run 43666426575（workflow_dispatch @ feat/component-convergence，头 3d412dc）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝基线 rel-05048 同数，本包不新增 Core 测试；SegmentedControlSpecTests 随规格本体保留照常通过）；**UI 10/10 全过**；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门，与 §264.1 同签名）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与本包改动零交集）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 被 §184 余崩打断无判词（BackingData:835 日志文本零命中）。本包自有面（分段两面/搜索两面/按压反馈 13 面/Feed chevron）无测试红、无编译错。未组版、未合 main、未打 tag；真机清单见 component-convergence-20261115.md §七。
