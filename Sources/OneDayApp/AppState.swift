@@ -926,6 +926,9 @@ final class AppState {
         // 属性初始化完成后才许接线，同本 init 其余接
         // 线口径）
         serverSessionCatalog.ledger = sessionLedger
+        // 第 67 条包二：删除协调器壳接线账本引擎——
+        // 删除自此走账本单管线
+        sessionDeletions.ledger = sessionLedger
         // §244 P-5：授权卡续办前的补同步接线（同步副
         // 本类卡 resume 前先补一次同步，来源标 chat）
         deviceSession.permissionFlow.syncPerformer = {

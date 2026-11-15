@@ -7,9 +7,9 @@ import SwiftUI
 /// 单，与 Hermes 频道页同口径——Core 分类里归本频
 /// 道的会话按开始时间倒序，点行走既有续聊通道续聊
 /// （续聊即与本地线程关联；分类跟随会话来源，平台
-/// 会话常驻本频道不升层，见 R2 例外）。名单数据复
-/// 用 HermesChannelStore 的全量拉取（一处拉取口径，
-/// 不许各频道页各拉一套）。
+/// 会话常驻本频道不升层，见 R2 例外）。名单数据读
+/// 账本频道投影（第 67 条包二：一处拉取口径，不许
+/// 各频道页各拉一套）。
 struct PlatformChannelView: View {
     let channel: ChannelDescriptor
     var onOpenSession: (String) -> Void
@@ -21,18 +21,11 @@ struct PlatformChannelView: View {
     @Query private var threads: [ChatThread]
     @State private var store = HermesChannelStore()
 
-    private var partition: SessionPartition {
-        SessionClassifier.partition(
-            sessions: store.sessions,
-            mainServerSessionID: appState.sideChats.mainServerSessionID,
-            linkedThreadSessionIDs: ThreadLinkage.nonMainLinkedSessionIDs(
-                threads: threads, sideChats: appState.sideChats
-            )
-        )
-    }
-
     private var channelRows: [ServerSession] {
-        (partition.channels[channel.id] ?? []).sorted {
+        appState.sessionLedger.channelList(
+            appState: appState, localThreads: threads,
+            channelID: channel.id
+        ).sorted {
             ($0.startedDate ?? .distantPast)
                 > ($1.startedDate ?? .distantPast)
         }
@@ -47,7 +40,7 @@ struct PlatformChannelView: View {
                         .foregroundStyle(Palette.inkSecondary)
                         .listRowSeparator(.hidden)
                 }
-                if store.isLoading, store.sessions.isEmpty {
+                if store.isLoading, channelRows.isEmpty {
                     Text("正在读取…")
                         .font(.captionText)
                         .foregroundStyle(Palette.inkSecondary)
@@ -70,15 +63,22 @@ struct PlatformChannelView: View {
                             onOpen: { openSession(session) },
                             onChanged: {
                                 Task {
-                                    await store.load(appState: appState)
+                                    await store.load(
+                                        appState: appState,
+                                        localThreads: threads
+                                    )
                                 }
                             },
                             onDeleteRequested: { session in
-                                // §232 乐观删除：同拍摘自
-                                // 家名单行＋协调器起手（墓
-                                // 碑/目录/后台删）；最终失
-                                // 败靠恢复信号重拉回行
-                                store.removeLocal(sessionID: session.id)
+                                // §232 乐观删除：同拍摘账
+                                // 本名单行＋协调器起手（墓
+                                // 碑/后台删）；最终失败时
+                                // 引擎恢复账本名单、本页
+                                // 读投影自动回行
+                                appState.sessionLedger
+                                    .removeSession(
+                                        sessionID: session.id
+                                    )
                                 appState.sessionDeletions.begin(
                                     sessionID: session.id,
                                     title: rowTitle(session),
@@ -101,15 +101,19 @@ struct PlatformChannelView: View {
                     Button("完成") { onClose() }
                 }
             }
-            .refreshable { await store.load(appState: appState) }
-            // §232：乐观删除恢复信号→重拉回行
-            .onChange(
-                of: appState.sessionDeletions.restoreRevision
-            ) {
-                Task { await store.load(appState: appState) }
+            .refreshable {
+                await store.load(
+                    appState: appState, localThreads: threads
+                )
             }
+            // §232 恢复回行：本页直读账本投影，引擎恢
+            // 复时账本名单回行即自动呈现（第 67 条包二）
         }
-        .task { await store.load(appState: appState) }
+        .task {
+            await store.load(
+                appState: appState, localThreads: threads
+            )
+        }
     }
 
     private func openSession(_ session: ServerSession) {
@@ -118,8 +122,9 @@ struct PlatformChannelView: View {
     }
 
     private func rowTitle(_ session: ServerSession) -> String {
-        appState.sideChats.titleOverrides[session.id]
-            ?? appState.sessionTitles.title(for: session)
+        appState.sessionLedger.title(
+            for: session, appState: appState
+        )
     }
 
     private func rowLabel(_ session: ServerSession) -> some View {

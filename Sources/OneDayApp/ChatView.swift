@@ -8111,8 +8111,8 @@ private struct ComposerBarLayout: Layout {
             // 不挂重试条（删都删了，重试无义）
             if let hermesError = error as? HermesError,
                hermesError.isSessionNotFound {
-                DeletedSessionCloseout
-                    .handleOpenedSessionMissing(
+                appState.sessionLedger
+                    .noteOpenedSessionMissing(
                         sessionID: id, appState: appState
                     )
                 errorMessage = L10n.string(

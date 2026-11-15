@@ -269,39 +269,44 @@ struct EmptyCleanupSheet: View {
 
     // MARK: - 扫描与执行
 
-    /// 全量分页拉取（管理页日常只拉首 100 条，清理
-    /// 扫描必须拉全——名单不全不清，是围栏的前提）
-    private func fetchAllSessions() async throws -> [ServerSession] {
-        try await appState.performAdmin { client, config in
-            var all: [ServerSession] = []
-            let pageSize = 100
-            var offset = 0
-            while offset < 10_000 {
-                let page = try await client.serverSessionsPage(
-                    config: config, limit: pageSize, offset: offset,
-                    archived: "include")
-                all.append(contentsOf: page.sessions)
-                if page.sessions.isEmpty { break }
-                if let total = page.total, all.count >= total { break }
-                offset += pageSize
-            }
-            return all
-        }
+    /// 全量拉取（第 67 条包二收编）：私抄分页整段
+    /// 退役——走账本同源的唯一装配核（ServerSession-
+    /// Catalog.fetchAll，archived=include 两段合拉），
+    /// 完整性判定与 B-1 防护同源。清理是删除向：名
+    /// 单不完整不许生成候选（闸在 scan）
+    private func fetchAllSessions() async throws
+        -> ServerSessionCatalog.FetchResult {
+        try await ServerSessionCatalog.fetchAll(
+            appState: appState, archived: "include"
+        )
     }
 
     private func scan() async {
         phase = .scanning
         do {
-            let sessions = try await fetchAllSessions()
+            let result = try await fetchAllSessions()
+            // B-1 完整性闸：名单不完整（截断/总数对
+            // 不上/重行）→ 不生成候选、不进预览，宁
+            // 可不清、不可凭残名单删（留痕已由装配
+            // 核记下）
+            guard let candidates = EmptyCleanupScanGate
+                .candidates(from: result) else {
+                phase = .scanFailed(
+                    "名单没拉全（"
+                        + (result.incompleteReason?
+                            .traceLabel ?? "未知原因")
+                        + "），这次不生成清理名单。把名单读全再来。"
+                )
+                return
+            }
             let serverCount = try await appState.performAdmin {
                 client, config in
                 try await client.emptySessionCount(config: config)
             }
             phase = .preview(Scan(
-                sessions: sessions,
+                sessions: result.sessions,
                 serverCount: serverCount,
-                candidates: EmptySessionCleanup.candidates(
-                    from: sessions)))
+                candidates: candidates))
         } catch {
             phase = .scanFailed(
                 (error as? HermesError)?.userMessage
@@ -340,11 +345,13 @@ struct EmptyCleanupSheet: View {
                 done: index + 1, total: scan.candidates.count)
         }
         EmptyCleanupAuditStore.save(record)
-        // 删后核验：全量重扫，候选逐条对存活集
-        if let survivors = try? await fetchAllSessions() {
+        // 删后核验：全量重扫，候选逐条对存活集；重
+        // 扫名单不完整时核验不成立、留空不误报
+        if let survivors = try? await fetchAllSessions(),
+           survivors.isComplete {
             let verification = EmptySessionCleanup.verify(
                 candidateIDs: scan.candidates.map(\.id),
-                survivingIDs: Set(survivors.map(\.id)))
+                survivingIDs: Set(survivors.sessions.map(\.id)))
             record.verifiedGoneIDs = verification.goneIDs
             record.verifiedRemainingIDs = verification.remainingIDs
         }
@@ -352,5 +359,21 @@ struct EmptyCleanupSheet: View {
         EmptyCleanupAuditStore.save(record)
         phase = .done(record)
         onFinished()
+    }
+}
+
+/// 清理候选生成闸（B-1，第 67 条包二）：清理面是
+/// 删除向消费——名单不完整（截断/总数对不上/重
+/// 行）时返回 nil＝不许生成候选，与账本对账闸同
+/// 一纪律（宁可不清、不可误清）；完整时才走 Core
+/// 候选判定。单测直驱本闸钉死
+enum EmptyCleanupScanGate {
+    static func candidates(
+        from result: ServerSessionCatalog.FetchResult
+    ) -> [ServerSession]? {
+        guard result.isComplete else { return nil }
+        return EmptySessionCleanup.candidates(
+            from: result.sessions
+        )
     }
 }
