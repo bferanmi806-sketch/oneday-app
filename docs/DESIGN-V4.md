@@ -12543,3 +12543,13 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **CI 判读第三轮**：run 43637480258（28m59s）**红 1 处断言＋余 1 崩**。宿主重启仍为 **1**、crash-metadata 仍为 2（1 份 11-01 陈旧＋1 份 OneDayApp EXC_BREAKPOINT，仍是 `testFailedTraceMaterializesWithErrorSnapshot`，同签名、首轮被崩打断、本轮未重跑、无终局）。四条无终局用例**全部通过**（连续两轮全绿）；自家回归 3 例全过；Core 2081/2081、UI 8/8。`testEdgeEffectAttributionProbe` 断言失败复现（同 "6" > "4"、同 617 行，与 run 6／冒烟门同签名，§257.1 抖动族、非崩溃）。
 
 **结论（2026-11-15）**：§184 容器死亡机制已修——崩溃 10→1、四条无终局用例连续两轮全绿、回归 3 例全过。余 1 崩孤立于 `testFailedTrace`（三轮各崩 1 次、皆首轮、第二轮重跑通过），其机制**不是容器死亡**（兜底收编后进程内已无容器死亡仍复现）——须 Mac 侧拿完整 .ips 故障帧定位被销毁实例的归属（或针对性诊断轮次），本机 Linux VM 无法做；不许再无假设盲迭代。EdgeEffect 探针抖动归 §257.1 线。分支状态：三提交（6b18d38／38e6301／de4757a），未合 main、未打 tag。
+
+## §259 出厂冒烟门第八轮：长列表换锚 UITextView 普查＋箭头翻产品侧（2026-11-15；分支 chore/smoke-gate@bca7063，基线 chore/smoke-gate@385c1c7；本节为分支内编号，组版时顺延；全档＝oneday-design-review/smoke-gate-report-20261114.md 第八轮两节＋定因 oneday-design-review/smoke-gate-r8-diagnosis-20261115.md）
+
+**定因（测试侧，产品无罪）**：进程内托管时 SwiftUI 无障碍元素树由系统 AX 运行时懒生成、无 AX 客户端连接时整棵未生成——第七轮普查 list=0 window=0、第八轮 census2 复证 axProp=0（`accessibilityElements` 属性通道与 count/at: 通道同命、不穿透 hosting 边界）。遍历方法不是主因，树没生成时任何遍历都是 0。
+
+**第八轮修法（只改测试一文件 SmokeGateLongListScrollTests.swift）**：行身份与末行可见改走真实 UITextView 普查（照搬 ChatReliabilityOfflineTests 已证形态、限被滚列表子树、收窗帧＋规范化文本），位移断言原样保留；回底箭头保留 AX 激活，查找改属性＋count/at: 双通道轮询 5 秒、装配窗口挂 scene；census2 转储无论红绿必打（axProp/textViews/firstTV）。
+
+**第八轮终判（run 43674200469）**：13 例绿 9／红 4／无终局 0；Core 2081/2081 精确。红＝A6／gen3 两例（预期内、修未合入本分支，单独标注）＋长列表。长列表内容侧全清（位移双向精确、首行普查命中＋帧相交过），失败点后移至箭头步（:461，scene＋双通道 5 秒仍 nil）；§184 宿主重启 1 次、BackingData:835 零命中，照常登记。
+
+**翻盘口径达成 → 翻产品侧查箭头**：UITextView 普查 ✓＋位移全 ✓＋箭头仍不可激活 ✓ 三项齐备，按 r8 定因报告口径翻产品侧，落点 ChatView.swift:2053 起 `scrollToBottomButton` 的离底状态判定与渲染条件。登记两点：末行本轮未测（箭头步先败挡住、非测得失败）；整树为空仍可完全解释箭头进程内不可见，翻产品侧是查渲染/可见性条件、非断言产品有罪，产品线先分清「未渲染」与「树未生成致不可达」。
