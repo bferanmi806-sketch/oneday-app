@@ -94,6 +94,10 @@ enum DemoSeeder {
                 "",
                 "五是任务自身的上次运行结果。巡检任务自己失败是最危险的——其他四项全靠它报，所以它的失败要走单独的兜底通道。",
             ].joined(separator: "\n")),
+            ("user", "值班电话和状态页再发我一下，我存起来。"),
+            // §265：T4 UI 验收样本——电话/URL/邮箱须在
+            // 散文正文里（代码块不走 UITextView 探测）
+            ("assistant", "值班电话 13800138000，状态页 https://example.org/status ，邮箱 oncall@example.org。"),
             ("user", "好，就按你说的顺序来。"),
         ]
         for (index, sample) in samples.enumerated() {

@@ -447,7 +447,18 @@ struct SelectableTextRepresentable: UIViewRepresentable {
         textView.backgroundColor = .clear
         textView.textContainerInset = .zero
         textView.textContainer.lineFragmentPadding = 0
-        textView.dataDetectorTypes = []
+        // §265（换代包 5·T4）：数据探测只开 [.link,
+        // .phoneNumber]——探针报告 gen5-t4-probe-
+        // 20261115 实证定案：两类命中干净、出口全走
+        // 既有 shouldInteractWith→openURL 通道（电话
+        // 的点按主动作走系统 UITextItem 默认动作＝
+        // 拨号确认，即目标行为、无需拦截）；.calen-
+        // darEvent/.address 在 en-US 口径下中文基本
+        // 不识别且裸时刻碎片会被错期链化、.all 会把
+        // 金额「¥1,299.00」链化，三者不开（日期/地址
+        // 挂 zh-Hans 真机复验账，翻案时出口须走
+        // UITextItem delegate 组、不是本处开关）
+        textView.dataDetectorTypes = [.phoneNumber, .link]
         textView.delegate = context.coordinator
         textView.attributedText = attributed
         textView.linkTextAttributes = [
