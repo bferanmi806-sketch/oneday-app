@@ -1,67 +1,51 @@
 import OneDayCore
 import Observation
 
-/// 服务端会话全量目录（§198，抽屉包题一）：全部对
-/// 话页为名单付的分页拉全代价，全 App 共享一份——
-/// 可见集（archived=exclude）落本目录：管理页拉完
-/// 写回（write-through），抽屉开时冷缓存异步补拉。
-/// 频道显行闸自此读本目录的全量集现算分类，与管理
-/// 页频道段同源同数；开抽屉既有的 limit 100 一路拉
-/// 取只喂旁聊行来源过滤与标题解析、口径不变（频
-/// 道规格 §3.3 纪律：名单拉取不加码，补拉只在缓存
-/// 冷时发生一轮，热后开抽屉零新增拉取）
+/// 服务端会话全量目录（§198 立、第 67 条包一收编）：
+/// 自账本包一起本类降为 SessionLedger 的转发壳——
+/// 名单本体、冷热位、拉取调度全归账本单店，本类只
+/// 留三件：①旧调用面（publish/remove/refreshIfCold）
+/// 转发，删除协调器/收口件/既有测试一字不改；②分
+/// 页装配核（fetchAll/fetchAllPages＋完整性判定，
+/// B-1 防护）仍是全 App 唯一实现，账本 refresh 调
+/// 它、不另抄一份；③未接线（AppState init 前）时读
+/// 空集——目录只喂显示，空集＝频道区暂不显，与旧
+/// 拉取失败形态一致。
 @MainActor
 @Observable
 final class ServerSessionCatalog {
-    /// 可见全量（archived=exclude 分页拉全的结果）
-    private(set) var visibleSessions: [ServerSession] = []
-    /// 是否已有一轮全量结果（冷/热的唯一判定：拉到
-    /// 空集也是结果——服务端真无会话时不许每开一次
-    /// 抽屉就重拉一轮全量）
-    private(set) var hasLoaded = false
-    /// 补拉在飞标记（开抽屉/回前台/刷新令牌多路触发
-    /// 只合并成一轮）
-    private var isRefreshing = false
+    /// 账本本体（AppState init 接线）
+    @ObservationIgnored
+    weak var ledger: SessionLedger?
 
-    /// 管理页写回：它已付分页代价，顺手把同份可见集
-    /// 存进本目录（与管理页 store.sessions 同源同批）
+    /// 可见全量（账本展示名单的转发读）
+    var visibleSessions: [ServerSession] {
+        ledger?.visibleSessions ?? []
+    }
+
+    /// 是否已有一轮全量结果（账本冷热位的转发读）
+    var hasLoaded: Bool {
+        ledger?.hasLoaded ?? false
+    }
+
+    /// 管理页写回（转发账本 publishVisible）
     func publish(visible: [ServerSession]) {
-        visibleSessions = visible
-        hasLoaded = true
+        ledger?.publishVisible(visible)
     }
 
-    /// 摘行（§223 删除全域收口）：服务端会话已回查
-    /// 确认删除/不存在，目录里的对应行立即摘掉——
-    /// 删除面（管理页/频道页）与点开 404 防御共用，
-    /// 不等下一轮全量拉取才消失
+    /// 摘行（转发账本 removeSession）
     func remove(sessionID: String) {
-        visibleSessions.removeAll { $0.id == sessionID }
+        ledger?.removeSession(sessionID: sessionID)
     }
 
-    /// 冷缓存补拉：已热或在飞直接返回；失败不置
-    /// hasLoaded（下次开抽屉重试）、不抛错——闸的呈
-    /// 现回落＝频道区暂不显，与旧窗口口径的失败形态
-    /// 一致（拉不到不误显、不误报）。本目录只喂显
-    /// 示、不驱动任何删除，名单不完整也照常 publish
-    /// （防护闸只拦以名单为存活集的删除/回收，见
-    /// fetchAll 注）
+    /// 冷缓存补拉（转发账本）：旧签名无本地线程入
+    /// 参——本路只喂目录显示集，账本以空本地集刷新
+    /// 可见段；记录合并在各面呈现时以其 @Query 注
+    /// 入为准，本路不产记录
     func refreshIfCold(appState: AppState) async {
-        guard !hasLoaded, !isRefreshing else { return }
-        isRefreshing = true
-        defer { isRefreshing = false }
-        if let result = try? await Self.fetchAll(
-            appState: appState, archived: "exclude"
-        ) {
-            // §232：待删集不被补拉带回（乐观删除后台
-            // 未落定期间服务端仍有其行）
-            let pending = appState.sessionDeletions
-                .queue.sessionIDs
-            publish(
-                visible: result.sessions.filter {
-                    !pending.contains($0.id)
-                }
-            )
-        }
+        await ledger?.refreshVisibleIfCold(
+            appState: appState, localThreads: []
+        )
     }
 
     /// 名单不完整的判定原因（B-1 防护，2026-11-14

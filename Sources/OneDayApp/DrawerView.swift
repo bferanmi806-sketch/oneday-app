@@ -139,15 +139,6 @@ struct DrawerView: View {
     /// 底条搜索词（本地过滤旁聊区，22:45 纠正后恢复
     /// 0.18.0 抽屉搜索口径）
     @State private var drawerQuery = ""
-    /// 服务端会话 source 映射（会话 id→source）：只
-    /// 喂旁聊行显的来源过滤判定，不作名单数据源；
-    /// 拉不到为空表（本地行恒放行）
-    @State private var drawerServerSources: [String: String] = [:]
-    /// 服务端会话本体映射（会话 id→ServerSession，
-    /// 0.20.0 第三条）：旁聊行标题解析取服务端 AI 标
-    /// 题用（DrawerThreadTitle）；与 source 映射同次
-    /// 拉取同批落位，拉不到为空表（行标题回落本地）
-    @State private var drawerServerSessions: [String: ServerSession] = [:]
     /// 本地旁聊行重命名（长按四件之一，0.18.0 沿革）
     @State private var renamingThread: ChatThread?
     @State private var renameText = ""
@@ -347,8 +338,9 @@ struct DrawerView: View {
                 initialName: appState.identityName ?? ""
             )
         }
-        // 开抽屉时补拉服务端 source 映射（只喂来源过
-        // 滤判定；信号源＝壳层维护的语义开合状态）。
+        // 开抽屉时触发账本可见段刷新（第 67 条包一：
+        // source/标题改读账本记录列；信号源＝壳层维
+        // 护的语义开合状态）。
         // §162 状态呈现收敛：关抽屉（开→关一沿，Core
         // DrawerSearchPolicy 裁决）即复位搜索词——旧
         // 行为词残留到下次打开、入口直接落在上次的
@@ -373,7 +365,7 @@ struct DrawerView: View {
         // 次作预取（本地名单由 @Query 随挂载自动建
         // 树），语义打开时仍走上方 onChange 的拉取
         .onAppear {
-            if drawerServerSources.isEmpty {
+            if !appState.sessionLedger.hasLoaded {
                 Task { await loadDrawerData() }
             }
         }
@@ -411,57 +403,26 @@ struct DrawerView: View {
         }
     }
 
-    /// 服务端会话 source 映射拉取（0.19.0 返工瘦身
-    /// 版）：0.18.0 时代此处拉两路名单（可见＋归档）
-    /// 喂抽屉成行；现名单本体是本地线程，服务端只
-    /// 需 id→source 一张映射作行显过滤（limit 100 一
-    /// 页取全——现存 28 条；archived=exclude 与管理
-    /// 页可见口径同源，归档会话的关联线程另有本地
-    /// 归档位把守）
+    /// 抽屉数据刷新（第 67 条包一收编）：旧形态本面
+    /// 自拉第一页建 source/标题映射（0.19.0/0.20.0）
+    /// ＋目录冷补拉一路；自此只触发账本可见段刷新
+    /// ——拉取全 App 只剩账本一处发起源，source/标
+    /// 题改读记录列（全量名单、不再限第一页窗口）
     private func loadDrawerData() async {
-        if let page = try? await appState.performAdmin({ client, config in
-            try await client.serverSessionsPage(
-                config: config, limit: 100, offset: 0, archived: "exclude"
-            )
-        }) {
-            drawerServerSources = Dictionary(
-                uniqueKeysWithValues: page.sessions.map {
-                    ($0.id, $0.source ?? "")
-                }
-            )
-            // 0.20.0 第三条：同批落本体映射，旁聊行标
-            // 题解析（drawerDisplayTitle）取服务端标题
-            drawerServerSessions = Dictionary(
-                uniqueKeysWithValues: page.sessions.map {
-                    ($0.id, $0)
-                }
-            )
-        }
-        // §198：频道闸的全量目录冷时补拉一轮（已热零
-        // 新增拉取——管理页写回与本路补拉共用一份，
-        // 见 ServerSessionCatalog）；不阻塞本路返回，
-        // 目录落位后闸的呈现随观察自动刷新
-        Task {
-            await appState.serverSessionCatalog
-                .refreshIfCold(appState: appState)
-        }
+        await appState.sessionLedger.refreshVisible(
+            appState: appState, localThreads: threads
+        )
     }
 
-    /// 旁聊行显示名（0.20.0 第三条）：本地线程已关联
-    /// 服务端会话时走 DrawerThreadTitle 解析（手改名
-    /// ＞服务端 AI 标题＞本地派生快照）——开抽屉/
-    /// 回前台拉到的服务端标题经 drawerServerSessions
-    /// 实时参与呈现，服务端改名/新生成标题下次开抽屉
-    /// 即跟上；未关联的纯本地线程 serverTitle 恒 nil、
-    /// 原样回落本地标题
+    /// 旁聊行显示名（0.20.0 第三条口径不变、数据源
+    /// 换账本）：记录标题列即 DrawerThreadTitle 解
+    /// 析结果（手改名＞服务端 AI 标题＞本地派生快
+    /// 照，合并时以全量名单算）；记录缺失（线程未
+    /// 注入本轮合并）回落本地标题
     private func drawerDisplayTitle(for thread: ChatThread) -> String {
-        DrawerThreadTitle.resolve(
-            localTitle: thread.title,
-            titleIsManual: thread.titleIsManual,
-            serverTitle: thread.serverSessionID.flatMap {
-                drawerServerSessions[$0]?.cleanedServerTitle
-            }
-        )
+        ledgerRecords
+            .first { $0.localThreadID == thread.id }?
+            .title ?? thread.title
     }
 
     /// 身份行（§157 第一批①，用户 2026-11-11 21:01
@@ -956,122 +917,64 @@ struct DrawerView: View {
         )
     }
 
-    /// 搜索过滤（0.18.0 口径原样）：标题或任一条目内
-    /// 容包含搜索词（不区分大小写）；非搜索态恒全量
-    private var filteredThreads: [ChatThread] {
-        // §162：规范化与判定同出 Core 政策一处
-        let query = DrawerSearchPolicy.normalizedQuery(drawerQuery)
-        guard !query.isEmpty else { return threads }
-        return threads.filter { thread in
-            // 0.20.0：搜索按显示名匹配（AI 标题回流后用
-            // 户看到什么名就能搜到什么名）
-            drawerDisplayTitle(for: thread)
-                .localizedCaseInsensitiveContains(query)
-                || thread.entries.contains {
-                    $0.content.localizedCaseInsensitiveContains(query)
-                }
-        }
-    }
-
-    /// 可见本地线程（0.7.0 口径原样）：归档过滤恒生
-    /// 效——本地归档旁聊从一切名单隐藏（搜索也不许
-    /// 捞出来），只在管理页已归档段可见。§232 补：
-    /// 乐观删除墓碑同在此单点过滤——待删线程从抽
-    /// 屉一切名单（常态/搜索同源）即时消失，恢复
-    /// 解标即回。§233 补：绑定服务端会话的线程，
-    /// 其归档键只是服务端归档态的呈现缓存（抽屉
-    /// 归档回写服务端、管理页名单对账收敛），真
-    /// 源在服务端；纯本地线程的键仍是其唯一归档账
-    private var drawerItems: [ChatThread] {
-        filteredThreads.filter {
-            !$0.isPendingDeletion
-                && !SideChatArchive.isArchived(
-                    localThreadID: $0.id,
-                    archivedKeys: appState.sideChats.archivedKeys
-                )
-        }
-    }
-
-    /// 旁聊区行源：可见本地线程剔主线后逐条过 Core
-    /// 行显过滤（DrawerSideChatFilter：主线/归档已在
-    /// 上游剔除，此处再核关联会话来源一道——kanban/
-    /// 平台源的导入线程不显示；来源未知恒放行）。
-    /// 0.29.0：主线判定改走 Core 单一函数 SideChat-
-    /// Classifier.isMain 双信号（钦定 id＋主线会话绑
-    /// 定）——旧单信号只认钦定 id，钦定丢失/指向他
-    /// 条时绑着主线会话的真主线对话会漏进本区（用
-    /// 户 12:31 点名「主线聊天不需要出现在旁聊里
-    /// 面」）；搜索态名单与本区同一行源、自动同口径
-    private var sideThreads: [ChatThread] {
-        drawerItems.filter { thread in
-            DrawerSideChatFilter.threadListed(
-                isMainThread: SideChatClassifier.isMain(
-                    localThreadID: thread.id,
-                    linkedServerSessionID: thread.serverSessionID,
-                    mainThreadID: appState.sideChats.mainThreadID,
-                    mainServerSessionID: appState.sideChats
-                        .mainServerSessionID
-                ),
-                isLocallyArchived: false,
-                linkedSource: thread.serverSessionID.flatMap {
-                    drawerServerSources[$0]
-                }
-            )
-        }
-    }
-
-    /// 未收养旁聊行源（2026-11-13 P2 修复）：分类
-    /// .mine 且无本地线程的服务端会话——AI 在 App
-    /// 里替用户开的旁聊（R3b）与本地线程已删的 App
-    /// 铸旁聊（R3）。现算口径在 Core DrawerUnadopted-
-    /// SideChats（入参两路并集：全量目录＋本面刚拉
-    /// 的第一页，新鲜度优先；已关联者剔除防与本地
-    /// 行双出）；本面只补搜索过滤（按服务端标题，
-    /// 与本地行按显示名搜同一手感）
-    private var visibleUnadoptedSideSessions: [ServerSession] {
-        let all = DrawerUnadoptedSideChats.sessions(
-            catalog: appState.serverSessionCatalog.visibleSessions,
-            latestPage: Array(drawerServerSessions.values),
-            mainServerSessionID: appState.sideChats.mainServerSessionID,
-            linkedThreadSessionIDs: ThreadLinkage
-                .nonMainLinkedSessionIDs(
-                    threads: threads, sideChats: appState.sideChats
-                )
+    /// 账本合并名单（第 67 条包一）：本面名单的唯
+    /// 一输入——@Query 本地线程注入账本、与账本服
+    /// 务端段现场合并；行集/排序/标题全读记录列，
+    /// 本面不再自拉名单、不再自算行集
+    private var ledgerRecords: [SessionRecord] {
+        appState.sessionLedger.records(
+            appState: appState, localThreads: threads
         )
-        let query = DrawerSearchPolicy.normalizedQuery(drawerQuery)
-        guard !query.isEmpty else { return all }
-        return all.filter {
-            $0.resolvedTitle(firstUserMessage: nil)
-                .localizedCaseInsensitiveContains(query)
-        }
     }
 
-    /// 旁聊区合并行集（本地行＋未收养行同区平铺、
-    /// 活动时间倒序）：本地行时间＝线程 updatedAt、
-    /// 未收养行＝服务端活动时间（无日期者垫底）；
-    /// 同刻保原序（本地行在前、各自保序——合并排
-    /// 序不许打乱本地行既有相对序，22:45 平铺口径）
-    private var sideRows: [DrawerSideRow] {
-        var merged: [(row: DrawerSideRow, date: Date, order: Int)] = []
-        for (index, thread) in sideThreads.enumerated() {
-            merged.append((.thread(thread), thread.updatedAt, index))
-        }
-        let unadopted = visibleUnadoptedSideSessions
-        for (index, session) in unadopted.enumerated() {
-            merged.append((
-                .unadopted(session),
-                DrawerUnadoptedSideChats.activityDate(of: session)
-                    ?? .distantPast,
-                sideThreads.count + index
-            ))
-        }
-        return merged
-            .sorted { lhs, rhs in
-                if lhs.date != rhs.date { return lhs.date > rhs.date }
-                return lhs.order < rhs.order
-            }
-            .map(\.row)
+    private var threadsByID: [UUID: ChatThread] {
+        Dictionary(
+            uniqueKeysWithValues: threads.map { ($0.id, $0) }
+        )
     }
+
+    /// 旁聊区合并行集（账本投影＋本面搜索）：行集
+    /// 与合并排序走 LedgerProjection.drawerSideRows
+    /// （本地行＋未收养行同区平铺、活动时间倒序）；
+    /// 搜索沿旧口径（0.18.0/§162）——本地行按记录
+    /// 标题（＝显示名）或任一条目内容、未收养行按
+    /// 服务端标题管线（resolvedTitle、素材传 nil
+    /// 与旧行同式），不区分大小写
+    private var sideRows: [DrawerSideRow] {
+        let query = DrawerSearchPolicy.normalizedQuery(
+            drawerQuery
+        )
+        var rows: [DrawerSideRow] = []
+        for record in LedgerProjection.drawerSideRows(
+            ledgerRecords
+        ) {
+            if let threadID = record.localThreadID,
+               let thread = threadsByID[threadID] {
+                if !query.isEmpty {
+                    let hit = record.title
+                        .localizedCaseInsensitiveContains(query)
+                        || thread.entries.contains {
+                            $0.content
+                                .localizedCaseInsensitiveContains(
+                                    query
+                                )
+                        }
+                    guard hit else { continue }
+                }
+                rows.append(.thread(thread))
+            } else if let session = record.session {
+                if !query.isEmpty {
+                    guard session.resolvedTitle(
+                        firstUserMessage: nil
+                    ).localizedCaseInsensitiveContains(query)
+                    else { continue }
+                }
+                rows.append(.unadopted(session))
+            }
+        }
+        return rows
+    }
+
 
     /// 旁聊区行型（本地线程行／未收养服务端行）：
     /// 两路行源合并呈现的统一行标识（id 带来源前缀
