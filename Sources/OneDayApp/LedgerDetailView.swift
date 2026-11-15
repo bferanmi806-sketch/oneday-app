@@ -247,7 +247,7 @@ struct LedgerDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(Palette.inkSecondary)
                 if current.isReconciled {
-                    Text("这条是对账时补记的：它开始时台账还没记上。")
+                    Text("这条是后来补记的：它开始的时候，台账还没记上。")
                         .font(.footnote)
                         .foregroundStyle(Palette.inkMuted)
                 }

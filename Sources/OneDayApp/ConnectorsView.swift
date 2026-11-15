@@ -630,7 +630,7 @@ struct ConnectorsView: View {
                 ContentUnavailableView(
                     "还没有已连接的服务",
                     systemImage: "cable.connector",
-                    description: Text("服务端尚未配置任何 MCP 连接。在电脑上给 Hermes 配置后会显示在这里。")
+                    description: Text("服务端还没有配置任何连接器。在电脑上给 Hermes 配置后，会显示在这里。")
                 )
                 .padding(.vertical, OneDayMetrics.spacingM)
             }
@@ -980,7 +980,7 @@ struct ConnectorsView: View {
 
             Section {
                 detailRow("连接状态", entry.statusLabel)
-                detailRow("证据档位", entry.evidence.label)
+                detailRow("确认方式", entry.evidence.label)
                 detailRow("来源", server.originLabel)
                 detailRow("传输方式", transportLabel(server))
                 if let endpoint = server.endpointLine {
@@ -1252,9 +1252,7 @@ struct ConnectorsView: View {
         case "http", "streamable-http", "sse":
             return "远程连接"
         case "stdio":
-            return "本地进程"
-        case let other?:
-            return other
+            return "本机运行"
         default:
             return "—"
         }

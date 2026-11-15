@@ -273,7 +273,7 @@ final class LedgerStore {
         case .unauthorized:
             return L10n.string("服务器拒绝了这次登录。请到「设置」里检查登录是否还有效。")
         case .bridgeMissing, .recordGone, .failed:
-            return L10n.string("台账服务还没上线。上线后，这里会自动开始记录每件工作的进度。")
+            return L10n.string("台账功能还没开通。开通后，这里会自动开始记录每件工作的进度。")
         }
     }
 
@@ -284,13 +284,13 @@ final class LedgerStore {
         case .detected(let info):
             if let version = info.companionVersion,
                !version.isEmpty {
-                return L10n.format("现在这台伴生服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。", version)
+                return L10n.format("现在的服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。", version)
             }
-            return L10n.string("伴生服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。")
+            return L10n.string("服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。")
         case .missing:
-            return L10n.string("还没有探测到带台账的伴生服务。台账上线后，这里会自动开始记录每件工作的进度。")
+            return L10n.string("还没有连上带台账功能的服务。台账开通后，这里会自动开始记录每件工作的进度。")
         case .unreadable, .unreachable, nil:
-            return L10n.string("台账服务还没上线。上线后，这里会自动开始记录每件工作的进度。")
+            return L10n.string("台账功能还没开通。开通后，这里会自动开始记录每件工作的进度。")
         }
     }
 

@@ -8214,25 +8214,25 @@
         }
       }
     },
-    "伴生服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。": {
+    "服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The companion service doesn't have the ledger yet. Once it upgrades, the progress of every job will start recording here automatically."
+            "value": "The service doesn't have the ledger yet. Once it upgrades, the progress of every job will start recording here automatically."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "伴生服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。"
+            "value": "服务还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "伴生服務還沒有臺帳功能。等它升級後，這裡會自動開始記錄每件工作的進度。"
+            "value": "服務還沒有臺帳功能。等它升級後，這裡會自動開始記錄每件工作的進度。"
           }
         }
       }
@@ -16929,25 +16929,25 @@
         }
       }
     },
-    "台账服务还没上线。上线后，这里会自动开始记录每件工作的进度。": {
+    "台账功能还没开通。开通后，这里会自动开始记录每件工作的进度。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The ledger service isn't live yet. Once it is, the progress of every job will start recording here automatically."
+            "value": "The ledger feature isn't available yet. Once it is, the progress of every job will start recording here automatically."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "台账服务还没上线。上线后，这里会自动开始记录每件工作的进度。"
+            "value": "台账功能还没开通。开通后，这里会自动开始记录每件工作的进度。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "臺帳服務還沒上線。上線後，這裡會自動開始記錄每件工作的進度。"
+            "value": "臺帳功能還沒開通。開通後，這裡會自動開始記錄每件工作的進度。"
           }
         }
       }
@@ -41101,25 +41101,25 @@
         }
       }
     },
-    "服务端尚未配置任何 MCP 连接。在电脑上给 Hermes 配置后会显示在这里。": {
+    "服务端还没有配置任何连接器。在电脑上给 Hermes 配置后，会显示在这里。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No MCP connections are configured on the server yet. Configure them for Hermes on a computer and they'll show up here."
+            "value": "No connectors are configured on the server yet. Configure them for Hermes on a computer and they will show up here."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "服务端尚未配置任何 MCP 连接。在电脑上给 Hermes 配置后会显示在这里。"
+            "value": "服务端还没有配置任何连接器。在电脑上给 Hermes 配置后，会显示在这里。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "伺服器端尚未設定任何 MCP 連接。在電腦上給 Hermes 設定後會顯示在這裡。"
+            "value": "伺服器端還沒有設定任何連接器。在電腦上給 Hermes 設定後，會顯示在這裡。"
           }
         }
       }
@@ -42323,25 +42323,25 @@
         }
       }
     },
-    "本地进程": {
+    "本机运行": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Local process"
+            "value": "Runs locally"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "本地进程"
+            "value": "本机运行"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "本機程序"
+            "value": "本機運行"
           }
         }
       }
@@ -49847,25 +49847,25 @@
         }
       }
     },
-    "现在这台伴生服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。": {
+    "现在的服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This companion service is on version %@ and doesn't have the ledger yet. Once it upgrades, the progress of every job will start recording here automatically."
+            "value": "The service is currently version %@ and doesn't have the ledger yet. Once it upgrades, the progress of every job will start recording here automatically."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "现在这台伴生服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。"
+            "value": "现在的服务是 %@ 版，还没有台账功能。等它升级后，这里会自动开始记录每件工作的进度。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "現在這台伴生服務是 %@ 版，還沒有臺帳功能。等它升級後，這裡會自動開始記錄每件工作的進度。"
+            "value": "現在的服務是 %@ 版，還沒有臺帳功能。等它升級後，這裡會自動開始記錄每件工作的進度。"
           }
         }
       }
@@ -58423,25 +58423,25 @@
         }
       }
     },
-    "证据档位": {
+    "确认方式": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Evidence level"
+            "value": "How it was verified"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "证据档位"
+            "value": "确认方式"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "證據檔位"
+            "value": "確認方式"
           }
         }
       }
@@ -61207,25 +61207,25 @@
         }
       }
     },
-    "还没有探测到带台账的伴生服务。台账上线后，这里会自动开始记录每件工作的进度。": {
+    "还没有连上带台账功能的服务。台账开通后，这里会自动开始记录每件工作的进度。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "No companion service with the ledger has been found yet. Once the ledger is live, the progress of every job will start recording here automatically."
+            "value": "No service with the ledger has been reached yet. Once the ledger is available, the progress of every job will start recording here automatically."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "还没有探测到带台账的伴生服务。台账上线后，这里会自动开始记录每件工作的进度。"
+            "value": "还没有连上带台账功能的服务。台账开通后，这里会自动开始记录每件工作的进度。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "還沒有探測到帶臺帳的伴生服務。臺帳上線後，這裡會自動開始記錄每件工作的進度。"
+            "value": "還沒有連上帶臺帳功能的服務。臺帳開通後，這裡會自動開始記錄每件工作的進度。"
           }
         }
       }
@@ -63410,25 +63410,25 @@
         }
       }
     },
-    "这条是对账时补记的：它开始时台账还没记上。": {
+    "这条是后来补记的：它开始的时候，台账还没记上。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This entry was backfilled during reconciliation — the ledger hadn't recorded it when it started."
+            "value": "This entry was added later - the ledger hadn't recorded it when it started."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这条是对账时补记的：它开始时台账还没记上。"
+            "value": "这条是后来补记的：它开始的时候，台账还没记上。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "這條是對帳時補記的：它開始時臺帳還沒記上。"
+            "value": "這條是後來補記的：它開始的時候，臺帳還沒記上。"
           }
         }
       }
@@ -68237,25 +68237,25 @@
         }
       }
     },
-    "预设是「默认模型＋整套辅助分配」的一份快照，启用后整套一起换；与多模型汇总（几个模型一起答一道题）不是一回事。": {
+    "预设是「默认模型＋整套辅助分配」的一整套设置，启用后整套一起换；与多模型汇总（几个模型一起答一道题）不是一回事。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A preset is a snapshot of 'default model + the full set of auxiliary assignments' — enabling it switches everything at once. It is not multi-model synthesis (several models answering one question together)."
+            "value": "A preset is one complete set - the default model plus the full set of auxiliary assignments - and enabling it swaps the whole set at once. It is not multi-model aggregation (several models answering one question together)."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "预设是「默认模型＋整套辅助分配」的一份快照，启用后整套一起换；与多模型汇总（几个模型一起答一道题）不是一回事。"
+            "value": "预设是「默认模型＋整套辅助分配」的一整套设置，启用后整套一起换；与多模型汇总（几个模型一起答一道题）不是一回事。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "預設是「預設模型＋整套輔助分配」的一份快照，啟用後整套一起換；與多模型彙總（幾個模型一起答一道題）不是一回事。"
+            "value": "預設是「預設模型＋整套輔助分配」的一整套設定，啟用後整套一起換；與多模型彙總（幾個模型一起答一道題）不是一回事。"
           }
         }
       }
@@ -69416,24 +69416,24 @@
         }
       }
     },
-    "删除走逐条围栏校验，删完会再全量核对一遍；候选清单和结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。": {
+    "删除前会逐条确认，删完再全部核对一遍；这批会话和删除结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Each deletion is fenced and verified one by one, then the whole list is checked again. The candidate list and results are kept in this device’s cleanup records. Empty sessions contain no messages — only the session itself is removed."
+            "value": "Each one is confirmed before it is deleted, and everything is checked again afterwards. This batch and the deletion results are saved to this device's cleanup records. Empty conversations have no messages - what gets deleted is the conversation itself."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "删除走逐条围栏校验，删完会再全量核对一遍；候选清单和结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。"
+            "value": "删除前会逐条确认，删完再全部核对一遍；这批会话和删除结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "刪除走逐條圍欄校驗，刪完會再全量核對一遍；候選清單和結果會存進本機清理記錄。空會話沒有任何訊息，刪掉的是會話本身。"
+            "value": "刪除前會逐條確認，刪完再全部核對一遍；這批會話和刪除結果會存進本機清理記錄。空會話沒有任何訊息，刪掉的是會話本身。"
           }
         }
       }
@@ -69548,24 +69548,24 @@
         }
       }
     },
-    "这次清理的候选清单和结果已存进本机清理记录。": {
+    "这次删掉的会话和结果已存进本机清理记录。": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This cleanup’s candidate list and results were saved to this device’s cleanup records."
+            "value": "The conversations deleted this time and the results were saved to this device's cleanup records."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "这次清理的候选清单和结果已存进本机清理记录。"
+            "value": "这次删掉的会话和结果已存进本机清理记录。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "這次清理的候選清單和結果已存進本機清理記錄。"
+            "value": "這次刪掉的會話和結果已存進本機清理記錄。"
           }
         }
       }
@@ -72788,25 +72788,25 @@
         }
       }
     },
-    "预设是整套设置的快照：默认模型加全部辅助分配，一次切换。不是几个模型一起答一道题。": {
+    "预设就是一整套设置：默认模型加全部辅助分配，一次切换。不是几个模型一起答一道题。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A preset is a snapshot of the whole setup: the default model plus all auxiliary assignments, switched in one go. It is not several models answering one question together."
+            "value": "A preset is one complete set of settings: the default model plus all auxiliary assignments, switched in one go. It is not several models answering one question together."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "预设是整套设置的快照：默认模型加全部辅助分配，一次切换。不是几个模型一起答一道题。"
+            "value": "预设就是一整套设置：默认模型加全部辅助分配，一次切换。不是几个模型一起答一道题。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "預設是整套設定的快照：預設模型加全部輔助分配，一次切換。不是幾個模型一起答一道題。"
+            "value": "預設就是一整套設定：預設模型加全部輔助分配，一次切換。不是幾個模型一起答一道題。"
           }
         }
       }

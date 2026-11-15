@@ -57,7 +57,7 @@ struct HubLedgerSection: View {
                 ContentUnavailableView {
                     Label("台账还没上线", systemImage: "list.bullet")
                 } description: {
-                    Text(message ?? "台账服务还没上线。上线后，这里会自动开始记录每件工作的进度。")
+                    Text(message ?? "台账功能还没开通。开通后，这里会自动开始记录每件工作的进度。")
                 } actions: {
                     Button("重新检查") {
                         Task { await store.load(appState: appState) }
