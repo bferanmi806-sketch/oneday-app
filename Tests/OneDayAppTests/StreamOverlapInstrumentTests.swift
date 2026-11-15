@@ -1,0 +1,529 @@
+import OneDayCore
+import OneDayDesign
+import SwiftUI
+import UIKit
+import XCTest
+@testable import OneDayApp
+
+/// 第 91 条②仪表定因（gen4 流式叠字，0.50.50 真机复现）：
+/// 真实装配（真实 ChatListCarrier＋真实 StreamingBlock-
+/// Text/StreamingText 路＋生产同形气泡与布局参数）注入
+/// 固定流式序列，逐拍捕获——TokenFlow 排版输出（fit/
+/// place 两相，经 DEBUG 探针 StreamOverlapProbe）、文
+/// 本拍分词、承载换根/量实回填事件、行帧与 content-
+/// Offset、托管子树叶节点帧。判读口径：已落定词元（前
+/// 拍已存在且已可见、文本未变）原点跨拍纵向位移
+/// >0.5pt ＝签名复现。本套件是诊断仪表：断言只守装
+/// 配与数据完整性，判读结论打 OVP| 前缀日志供报告引
+/// 用（不在此判红绿，避免把未定因的现象写成假回归）。
+@MainActor
+final class StreamOverlapInstrumentTests: XCTestCase {
+
+    // MARK: 装配
+
+    private var window: UIWindow!
+    private var root: UIViewController!
+    private var controller: ChatListCarrierViewController!
+    private var handle: ChatListCarrierHandle!
+
+    private let streamKey = "stream-under-test"
+    private let settledCount = 12
+    private let settledHeight: CGFloat = 72
+
+    override func setUp() {
+        super.setUp()
+        installAssembly()
+    }
+
+    override func tearDown() {
+        uninstallAssembly()
+        super.tearDown()
+    }
+
+    private func installAssembly() {
+        StreamOverlapProbe.reset()
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        root = UIViewController()
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        controller = ChatListCarrierViewController()
+        handle = ChatListCarrierHandle()
+        controller.handle = handle
+        controller.callbacks = ChatListCarrierCallbacks(
+            onScrollGeometry: {},
+            onTopVisibleEntry: { _ in },
+            onBlankTap: {}
+        )
+        handle.controller = controller
+        root.addChild(controller)
+        root.view.addSubview(controller.view)
+        controller.view.frame = root.view.bounds
+        controller.didMove(toParent: root)
+        root.view.layoutIfNeeded()
+    }
+
+    private func uninstallAssembly() {
+        window?.rootViewController = nil
+        window?.isHidden = true
+        window = nil
+        root = nil
+        controller = nil
+        handle = nil
+    }
+
+    // MARK: 行构造（生产同形）
+
+    private var testLayout: ChatCarrierLayout {
+        ChatCarrierLayout(
+            horizontalPadding: OneDayMetrics.pageGutter,
+            topPadding: OneDayMetrics.spacingM,
+            bottomPadding: OneDayMetrics.spacingS,
+            rowSpacing: OneDayMetrics.spacingL,
+            arrowTrailing: OneDayMetrics.spacingM,
+            arrowGapAboveComposer: 8,
+            arrowSize: OneDayMetrics.minTapTarget
+        )
+    }
+
+    /// 生产气泡同形（ChatView.assistantBubble 逐项同值）：
+    /// HStack{ 内容＋内边距＋气泡底; Spacer(44) }
+    private func bubbleView(
+        text: String, reduceMotion: Bool
+    ) -> AnyView {
+        let core = HStack(alignment: .top) {
+            StreamingBlockText(text: text)
+                .padding(.horizontal, OneDayMetrics.bubblePaddingH)
+                .padding(.vertical, OneDayMetrics.bubblePaddingV)
+                .background(
+                    Palette.bubbleFill,
+                    in: RoundedRectangle(
+                        cornerRadius: OneDayMetrics.assistantBubbleCorner
+                    )
+                )
+            Spacer(minLength: OneDayMetrics.bubbleSideInset)
+        }
+        if reduceMotion {
+            return AnyView(
+                core.environment(\.accessibilityReduceMotion, true)
+            )
+        }
+        return AnyView(core)
+    }
+
+    /// 生产版本公式（ChatView.streamRowVersion，gen4 开）
+    private func streamVersion(text: String) -> Int {
+        text.count &* 31
+            &+ StreamingBlockSegmenter.blocks(for: text).count
+    }
+
+    /// 生产暂定估算（carrierStreamRowEstimate 的产物未
+    /// 齐回落支：字符粗估行数×callout 行高＋气泡纵边距）
+    private func provisionalEstimate(text: String) -> CGFloat {
+        let lineFloor = UIFont.preferredFont(
+            forTextStyle: .callout
+        ).lineHeight
+        let chars = max(text.count, 1)
+        let lines = min(40, max(1, Int(ceil(Double(chars) / 18.0))))
+        return CGFloat(lines) * lineFloor
+            + OneDayMetrics.bubblePaddingV * 2
+    }
+
+    private func makeRows(
+        text: String, reduceMotion: Bool,
+        estimateOverride: CGFloat?
+    ) -> [ChatCarrierRow] {
+        var rows: [ChatCarrierRow] = (0..<settledCount).map { i in
+            ChatCarrierRow(
+                key: "settled-\(i)",
+                entryID: UUID(),
+                version: 1,
+                estimatedHeight: settledHeight,
+                makeView: {
+                    AnyView(
+                        Color.clear.frame(height: self.settledHeight)
+                    )
+                }
+            )
+        }
+        rows.append(
+            ChatCarrierRow(
+                key: streamKey,
+                entryID: nil,
+                version: streamVersion(text: text),
+                estimatedHeight: estimateOverride
+                    ?? provisionalEstimate(text: text),
+                makeView: {
+                    self.bubbleView(
+                        text: text, reduceMotion: reduceMotion
+                    )
+                }
+            )
+        )
+        return rows
+    }
+
+    private func applyBeat(
+        _ beat: Int, text: String, reduceMotion: Bool = false,
+        estimateOverride: CGFloat? = nil
+    ) {
+        StreamOverlapProbe.beginBeat(beat)
+        controller.apply(
+            rows: makeRows(
+                text: text, reduceMotion: reduceMotion,
+                estimateOverride: estimateOverride
+            ),
+            layout: testLayout,
+            topInset: 122,
+            composerTopInWindow: 874 - 137,
+            fallbackBottomSpace: 137,
+            bottomMargin: OneDayMetrics.spacingM,
+            keyboardAnimationDuration: 0,
+            keyboardAnimationCurveRaw: 0,
+            arrowView: AnyView(Color.clear)
+        )
+    }
+
+    private func drain(_ seconds: TimeInterval) {
+        RunLoop.main.run(until: Date().addingTimeInterval(seconds))
+    }
+
+    // MARK: 托管子树叶帧采样
+
+    /// 流式行托管视图：contentView 子视图中帧 minY 最大者
+    private func streamHostView() -> UIView? {
+        guard let content = controller.scrollView.subviews.first
+        else { return nil }
+        return content.subviews.max {
+            $0.frame.minY < $1.frame.minY
+        }
+    }
+
+    private struct LeafFrame {
+        var frame: CGRect
+        var presFrame: CGRect?
+        var cls: String
+    }
+
+    /// 叶节点帧（托管视图自身坐标系；pres＝presentation
+    /// 层帧，与模型帧不一致即有动画在途）
+    private func leafFrames(of host: UIView) -> [LeafFrame] {
+        var leaves: [LeafFrame] = []
+        func walk(_ view: UIView, depth: Int) {
+            if depth > 14 { return }
+            if view.subviews.isEmpty {
+                let frame = view.convert(view.bounds, to: host)
+                var pres: CGRect?
+                if let p = view.layer.presentation() {
+                    let pf = p.frame
+                    if abs(pf.origin.x - view.frame.origin.x) > 0.5
+                        || abs(pf.origin.y - view.frame.origin.y) > 0.5
+                        || abs(pf.size.width - view.frame.size.width) > 0.5
+                        || abs(pf.size.height - view.frame.size.height) > 0.5 {
+                        pres = view.superview?
+                            .convert(pf, to: host) ?? pf
+                    }
+                }
+                leaves.append(
+                    LeafFrame(
+                        frame: frame, presFrame: pres,
+                        cls: String(describing: type(of: view))
+                    )
+                )
+                return
+            }
+            for sub in view.subviews { walk(sub, depth: depth + 1) }
+        }
+        walk(host, depth: 0)
+        return leaves
+    }
+
+    private func fmt(_ v: CGFloat) -> String {
+        String(format: "%.1f", Double(v))
+    }
+
+    private func dumpLeaves(
+        tag: String, beat: Int, host: UIView
+    ) {
+        let leaves = leafFrames(of: host)
+        print("OVP|LEAVES \(tag) beat=\(beat) count=\(leaves.count)")
+        for (i, leaf) in leaves.enumerated() {
+            var line = "OVP|LEAF \(tag) beat=\(beat) i=\(i) "
+                + "f=\(fmt(leaf.frame.minX)),\(fmt(leaf.frame.minY)),"
+                + "\(fmt(leaf.frame.width))x\(fmt(leaf.frame.height)) "
+                + "cls=\(leaf.cls)"
+            if let pres = leaf.presFrame {
+                line += " pres=\(fmt(pres.minX)),\(fmt(pres.minY)),"
+                    + "\(fmt(pres.width))x\(fmt(pres.height))"
+            }
+            print(line)
+        }
+    }
+
+    // MARK: 逐拍判读
+
+    private struct BeatFrame {
+        var beat: Int
+        var text: String
+        /// 本拍 StreamingText 的尾块文本与词元（onChange 记录）
+        var tailText: String
+        var tokens: [String]
+        /// 本拍末 place 相排版（最终落位口径）
+        var placeOrigins: [CGPoint]
+        var placeSizes: [CGSize]
+        var placeCount: Int
+        var fitCount: Int
+        var visibleEnd: Int
+        var hostFrame: CGRect
+        var offsetY: CGFloat
+        var contentHeight: CGFloat
+    }
+
+    private func snapshotBeat(_ beat: Int, fullText: String) -> BeatFrame {
+        let beats = StreamOverlapProbe.textBeats.filter {
+            $0.beat == beat
+        }
+        let lastBeat = beats.last
+        let places = StreamOverlapProbe.arrangements.filter {
+            $0.beat == beat && $0.phase == "place"
+        }
+        let fits = StreamOverlapProbe.arrangements.filter {
+            $0.beat == beat && $0.phase == "fit"
+        }
+        let vis = StreamOverlapProbe.visibilities.filter {
+            $0.beat == beat
+        }
+        let host = streamHostView()
+        return BeatFrame(
+            beat: beat,
+            text: fullText,
+            tailText: lastBeat?.text ?? "",
+            tokens: lastBeat?.tokens ?? [],
+            placeOrigins: places.last?.origins ?? [],
+            placeSizes: places.last?.sizes ?? [],
+            placeCount: places.count,
+            fitCount: fits.count,
+            visibleEnd: vis.last?.visibleCount ?? 0,
+            hostFrame: host?.frame ?? .zero,
+            offsetY: controller.scrollView.contentOffset.y,
+            contentHeight: controller.scrollView.contentSize.height
+        )
+    }
+
+    /// 跨拍判读：已落定词元（前拍存在＋已可见＋文本同）
+    /// 原点纵向位移统计；尾块重置（闭合换层）单独标记
+    private func compareBeats(
+        _ prev: BeatFrame, _ cur: BeatFrame, tag: String
+    ) {
+        let prefixOK = cur.tailText.hasPrefix(prev.tailText)
+            && !prev.tailText.isEmpty
+        guard prefixOK else {
+            print(
+                "OVP|CMP \(tag) beat=\(cur.beat) tailReset "
+                    + "prevTail=\(prev.tailText.count)字 "
+                    + "curTail=\(cur.tailText.count)字"
+            )
+            return
+        }
+        let common = min(
+            prev.tokens.count, cur.tokens.count,
+            prev.placeOrigins.count, cur.placeOrigins.count
+        )
+        var settled = 0
+        var moved: [(Int, CGFloat, CGFloat)] = []
+        var maxDy: CGFloat = 0
+        for i in 0..<common {
+            guard prev.tokens[i] == cur.tokens[i] else { continue }
+            guard i < prev.visibleEnd else { continue }
+            settled += 1
+            let dy = cur.placeOrigins[i].y - prev.placeOrigins[i].y
+            let dx = cur.placeOrigins[i].x - prev.placeOrigins[i].x
+            if abs(dy) > 0.5 {
+                moved.append((i, dx, dy))
+                maxDy = max(maxDy, abs(dy))
+            }
+        }
+        var line = "OVP|CMP \(tag) beat=\(cur.beat) settled=\(settled) "
+            + "movedY=\(moved.count) maxDy=\(fmt(maxDy))"
+        for (i, dx, dy) in moved.prefix(24) {
+            line += " [\(i):dx\(fmt(dx)),dy\(fmt(dy))]"
+        }
+        print(line)
+        // 本拍内多相收敛：place 相里已落定词元的原点种数
+        let places = StreamOverlapProbe.arrangements.filter {
+            $0.beat == cur.beat && $0.phase == "place"
+        }
+        var maxVariants = 0
+        var variantIdx = -1
+        for i in 0..<common {
+            guard prev.tokens[i] == cur.tokens[i] else { continue }
+            var seen = Set<String>()
+            for p in places where i < p.origins.count {
+                seen.insert(
+                    "\(fmt(p.origins[i].x)),\(fmt(p.origins[i].y))"
+                )
+            }
+            if seen.count > maxVariants {
+                maxVariants = seen.count
+                variantIdx = i
+            }
+        }
+        print(
+            "OVP|CONV \(tag) beat=\(cur.beat) placePasses=\(places.count) "
+                + "maxOriginVariants=\(maxVariants) atIdx=\(variantIdx)"
+        )
+    }
+
+    private func dumpBeat(_ frame: BeatFrame, tag: String) {
+        print(
+            "OVP|BEAT \(tag) beat=\(frame.beat) full=\(frame.text.count)字 "
+                + "tail=\(frame.tailText.count)字 tokens=\(frame.tokens.count) "
+                + "place=\(frame.placeCount) fit=\(frame.fitCount) "
+                + "visibleEnd=\(frame.visibleEnd) "
+                + "hostH=\(fmt(frame.hostFrame.height)) "
+                + "offsetY=\(fmt(frame.offsetY)) "
+                + "contentH=\(fmt(frame.contentHeight))"
+        )
+        let events = StreamOverlapProbe.carrierEvents.filter {
+            $0.beat == frame.beat
+        }
+        for e in events {
+            print(
+                "OVP|CARR \(tag) beat=\(frame.beat) \(e.kind) "
+                    + "key=\(e.key) \(e.detail)"
+            )
+        }
+    }
+
+    // MARK: 序列驱动
+
+    /// 把全文字节拍喂入：每拍 apply→中段采样（+45ms 叶
+    /// 帧）→落定（0.5s）→拍末快照＋跨拍判读
+    private func runSequence(
+        tag: String, chunks: [String], reduceMotion: Bool = false,
+        estimates: [CGFloat]? = nil, sampleLeaves: Bool = true
+    ) -> [BeatFrame] {
+        var frames: [BeatFrame] = []
+        var text = ""
+        for (index, chunk) in chunks.enumerated() {
+            let beat = index + 1
+            text += chunk
+            applyBeat(
+                beat, text: text, reduceMotion: reduceMotion,
+                estimateOverride: estimates?[index]
+            )
+            drain(0.045)
+            if sampleLeaves, let host = streamHostView() {
+                dumpLeaves(
+                    tag: tag + "-mid", beat: beat, host: host
+                )
+            }
+            drain(0.5)
+            if sampleLeaves, let host = streamHostView() {
+                dumpLeaves(
+                    tag: tag + "-end", beat: beat, host: host
+                )
+            }
+            let frame = snapshotBeat(beat, fullText: text)
+            dumpBeat(frame, tag: tag)
+            if let prev = frames.last {
+                compareBeats(prev, frame, tag: tag)
+            }
+            frames.append(frame)
+        }
+        return frames
+    }
+
+    // MARK: 序列文本
+
+    /// 纯追加（单段、无块闭合）：CJK＋拉丁增长、多处
+    /// 换行边界（全长约 150 字、11 拍）
+    private var appendOnlyChunks: [String] {
+        [
+            "这次更新把消息列表",
+            "换成了新的承载方式，",
+            "流式回复按块出现，",
+            "已经落定的段落保持",
+            "静止，不再重排。",
+            "streaming pipeline ",
+            "的 token origin ",
+            "必须稳定，wrap ",
+            "boundary 处的字符",
+            "最容易出问题，需要",
+            "逐帧核对才算数。",
+        ]
+    }
+
+    /// 块闭合：第一段约 90 字后空行，第二段成新尾块继
+    /// 续增长（全长约 200 字、13 拍；闭合拍＝第 9 拍）
+    private var closureChunks: [String] {
+        [
+            "先说结论：这次的改动",
+            "只动呈现层，不动数据。",
+            "流式文本先按块切分，",
+            "闭合块走静态渲染，",
+            "只有尾块逐词渐显。",
+            "这样落定前后同构，",
+            "不会整树换装。",
+            "以上是第一段。",
+            "\n\n第二段从这里开始，",
+            "它成为新的尾块，",
+            "继续逐批增长，",
+            "直到整段结束。",
+            "收尾这一句用来确认闭合后仍然稳定。",
+        ]
+    }
+
+    // MARK: 用例
+
+    func testInstrumentAppendOnly() {
+        let frames = runSequence(
+            tag: "APPEND", chunks: appendOnlyChunks
+        )
+        XCTAssertEqual(frames.count, appendOnlyChunks.count)
+        XCTAssertFalse(
+            frames.last?.tokens.isEmpty ?? true,
+            "装配应产出词元排版数据"
+        )
+    }
+
+    func testInstrumentBlockClosure() {
+        let frames = runSequence(
+            tag: "CLOSE", chunks: closureChunks
+        )
+        XCTAssertEqual(frames.count, closureChunks.count)
+        XCTAssertFalse(
+            frames.last?.tokens.isEmpty ?? true,
+            "装配应产出词元排版数据"
+        )
+    }
+
+    /// 对照：Reduce Motion（环境覆盖，与生产 env 读口
+    /// 同路）——同闭合序列，判读动画是否为必要条件
+    func testInstrumentBlockClosureReduceMotion() {
+        let frames = runSequence(
+            tag: "CLOSE-RM", chunks: closureChunks,
+            reduceMotion: true
+        )
+        XCTAssertEqual(frames.count, closureChunks.count)
+    }
+
+    /// 对照：固定行高回放——先以暂定估算跑一遍闭合序
+    /// 列、逐拍记流式行量实高；重装后同序列以量实高作
+    /// 估算回放（估算＝量实，承载无回填收敛），判读高
+    /// 度收敛是否为原点位移的必要条件
+    func testInstrumentFixedHeightReplay() {
+        let first = runSequence(
+            tag: "CLOSE-FH1", chunks: closureChunks,
+            sampleLeaves: false
+        )
+        let heights = first.map { $0.hostFrame.height }
+        print("OVP|FH heights=\(heights.map { fmt($0) }.joined(separator: ","))")
+        uninstallAssembly()
+        installAssembly()
+        let second = runSequence(
+            tag: "CLOSE-FH2", chunks: closureChunks,
+            estimates: heights, sampleLeaves: false
+        )
+        XCTAssertEqual(second.count, first.count)
+    }
+}

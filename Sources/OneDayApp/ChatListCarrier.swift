@@ -661,6 +661,13 @@ final class ChatListCarrierViewController: UIViewController,
             if let existing = hosted[row.key] {
                 host = existing
                 if hostedVersions[row.key] != row.version {
+                    #if DEBUG
+                    // 第 91 条②仪表：换根记录（只记不干预）
+                    StreamOverlapProbe.recordCarrier(
+                        kind: "rootSwap", key: row.key,
+                        detail: "v\(hostedVersions[row.key] ?? -1)->v\(row.version)"
+                    )
+                    #endif
                     host.rootView = row.makeView()
                     hostedVersions[row.key] = row.version
                 }
@@ -671,6 +678,13 @@ final class ChatListCarrierViewController: UIViewController,
                 host.view.backgroundColor = .clear
                 hosted[row.key] = host
                 hostedVersions[row.key] = row.version
+                #if DEBUG
+                // 第 91 条②仪表：新建托管记录（只记不干预）
+                StreamOverlapProbe.recordCarrier(
+                    kind: "hostCreate", key: row.key,
+                    detail: "v\(row.version)"
+                )
+                #endif
                 addChild(host)
                 contentView.addSubview(host.view)
                 host.didMove(toParent: self)
@@ -688,6 +702,13 @@ final class ChatListCarrierViewController: UIViewController,
             if measured > 0,
                abs(measured - frame.height) > 0.5,
                measuredHeights[row.key]?.height != measured {
+                #if DEBUG
+                // 第 91 条②仪表：量实回填记录（只记不干预）
+                StreamOverlapProbe.recordCarrier(
+                    kind: "measure", key: row.key,
+                    detail: "frame \(frame.height)->measured \(measured)"
+                )
+                #endif
                 measuredHeights[row.key] = (
                     version: row.version, height: measured
                 )

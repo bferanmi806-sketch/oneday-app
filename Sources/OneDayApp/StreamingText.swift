@@ -39,7 +39,13 @@ struct StreamingText: View {
     @State private var noBlur: Set<Int> = []
 
     var body: some View {
-        TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
+        #if DEBUG
+        // 第 91 条②仪表：可见集变化点记录（只记不干预）
+        let _ = StreamOverlapProbe.recordVisibility(
+            tokenCount: tokens.count, visibleCount: visible.count
+        )
+        #endif
+        return TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
             ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
                 // 第 82 条：被 TokenFlow 落位的是
                 // StreamingTokenView——它自身不挂动画，
@@ -65,6 +71,13 @@ struct StreamingText: View {
             let oldCount = tokens.count
             tokens = newTokens
             let batch = newTokens.count - oldCount
+            #if DEBUG
+            // 第 91 条②仪表：文本拍记录（只记不干预）
+            StreamOverlapProbe.recordTextBeat(
+                text: newText, tokens: newTokens,
+                oldCount: oldCount, batch: batch
+            )
+            #endif
             guard batch > 0 else { return }
             if batch > 8 {
                 noBlur.formUnion(oldCount..<newTokens.count)
@@ -179,11 +192,21 @@ struct TokenFlow: Layout {
         subviews: Subviews,
         cache: inout TokenFlowArranger
     ) -> CGSize {
-        cache.arrange(
-            sizes: subviews.map { $0.sizeThatFits(.unspecified) },
-            width: proposal.width ?? .greatestFiniteMagnitude,
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
+        let width = proposal.width ?? .greatestFiniteMagnitude
+        let result = cache.arrange(
+            sizes: sizes,
+            width: width,
             spacing: spacing
-        ).size
+        )
+        #if DEBUG
+        // 第 91 条②仪表：fit 相排版输出记录（只记不干预）
+        StreamOverlapProbe.recordArrangement(
+            phase: "fit", width: width, sizes: sizes,
+            origins: result.origins, total: result.size
+        )
+        #endif
+        return result.size
     }
 
     func placeSubviews(
@@ -192,11 +215,19 @@ struct TokenFlow: Layout {
         subviews: Subviews,
         cache: inout TokenFlowArranger
     ) {
+        let sizes = subviews.map { $0.sizeThatFits(.unspecified) }
         let result = cache.arrange(
-            sizes: subviews.map { $0.sizeThatFits(.unspecified) },
+            sizes: sizes,
             width: bounds.width,
             spacing: spacing
         )
+        #if DEBUG
+        // 第 91 条②仪表：place 相排版输出记录（只记不干预）
+        StreamOverlapProbe.recordArrangement(
+            phase: "place", width: bounds.width, sizes: sizes,
+            origins: result.origins, total: result.size
+        )
+        #endif
         for (index, subview) in subviews.enumerated() {
             let origin = result.origins[index]
             subview.place(
