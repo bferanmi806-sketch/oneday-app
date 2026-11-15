@@ -12850,3 +12850,25 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 ### §270.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
 
 两轮 workflow_dispatch：run 43670014909（主提交 adbb19a）编译红——SessionRecord 声明 Equatable 而 ServerSession 本体无 Equatable、合成失败；修提交 8048685 去 Equatable（行集比较一律走 ledgerID）。run 43670533023（分支头 8048685）：名义 failure，红因仅既有登记两项。**Core 2115/2115 精确**（2104 基线＋本包 11）；**App 208 注册、207 得判词**（201 passed＋5 skipped 设计内跳＋1 failed；201＝基线 196＋本包 5 精确）；**UI 10/10**。本包新测全过：SessionLedgerTests 11/11、SessionLedgerAppTests 5/5、SessionCatalogGuardTests 9/9。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／打包／上传 IPA 均 success。登记两项（与 rel-05049 同签名、不堵门）：①唯一 failed＝EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1，:617「6＞4」逐字同签名）；②宿主重启 1 次、testFailedTraceMaterializesWithErrorSnapshot 无判词（§184 余崩；BackingData:835 零命中）。未合 main、未打 tag。报告 oneday-design-review/session-ledger-1-20261115.md。
+
+## §271 会话账本包二：写路径收编＋私抄清零（2026-11-15；分支 feat/session-ledger-2，基线 feat/session-ledger-1@ef98cb2；待办第 67 条，施工图 oneday-design-review/session-ledger-prep-20261115.md §4.3/§4.4）
+
+**私抄清零（残余两份分页实现退役）**：频道页 `HermesChannelStore` 内联分页整段删除——两频道页（Hermes/平台）名单改读账本 `channelList` 投影（分类在账本合并时统一算一次），store 只剩加载/失败态；拉取触发统一走账本 `refreshVisible`。清理面 `EmptyCleanupView.fetchAllSessions` 私抄整段删除——改走唯一装配核 `ServerSessionCatalog.fetchAll(archived:"include")`，候选生成前过 `EmptyCleanupScanGate` 完整性闸：名单不完整（截断/总数对不上/重行）不许生成候选、不进预览（人话原因上屏、留痕由装配核记），删后核验同闸（不完整留空不误报）；`emptySessionCount` 交叉核对保留。至此全 App 分页拉全只剩装配核一处实现（grep 清零证据见报告）。
+
+**删除引擎归账本**：`SessionDeletionEngine`（原 SessionDeletionCoordinator 实现整体迁入）由 `SessionLedger.deletions` 持有——队列/墓碑/后台围栏删/落定/恢复一台，队列为待删集唯一真相；账本构建名单的待删过滤只读自家引擎队列一处。`SessionDeletionCoordinator` 降为转发壳（AppState 接线落账本引擎、未接线落自持同型引擎，调用面/注入口/存储键逐字不变）。落定收口经账本门面 `closeoutDeletedSession`、点开 404 防御经 `noteOpenedSessionMissing`（实现仍是 §223 共享收口件，外部面不再直调）；名单对账回收本就在账本 refresh 内。恢复广播退役面：管理页与两频道页删 `restoreRevision` 监听——恢复时引擎已解墓碑＋名单回行落账本，读投影自对齐；仅非账本面（服务端会话页，定版分工自持名单、不合并）保留监听。
+
+**§233 退役**：`SessionLedger.refresh` 删 `syncDrawerArchiveCache` 整步——归档态直读记录归档列（过回写闸绑定以服务端段为准、余者本地键，archiveSource 如实分列），服务端态不再反向改写本地归档键。归档键存储与本地归档动作不变。
+
+**标题单管线**：Core 新增 `SessionTitlePipeline` 核心（本地手改名＞服务端标题＞本地快照＞首条消息派生＞人话名兜底，优先级只此一处）；`ServerSession.resolvedTitle` 与 `DrawerThreadTitle.resolve` 降为入参适配（旧口径逐例等值、Core 既有两组测试不改断言全过）；账本记录两段标题改经管线。名单面标题补拉（ensureTitles）只在账本 refresh/refreshVisible 内发生（频道页自带补拉随私抄退役）；行标题读点收账本 `title(for:)`（存量覆盖优先＋统一管线），管理页/两频道页三处直读覆盖表清零。总览活动行/服务端会话页/枢纽活动拼装的补拉与读点非名单面、不在本包收编面（报告登记）。
+
+**影子对账移除**：`shadowReconcile/shadowDiff` 与两处调用整段删除。移除前核查：留痕仅存设备本地（ChatDiagTrace＝os 日志＋UserDefaults 最近 20 条），包一从未组版上真机、无任何非空留痕记录存在可查；行集等值改由 Core/App 单测常驻钉住（SessionLedgerTests 等值组＋SessionLedgerAppTests）。
+
+**不在本包范围（报告登记待主线排期）**：存量迁移挂载点迁账本（runMigration 仍在管理页 store）、主线钦定与三张关联表持有迁账本、归档键持有迁账本（双轨回写保回滚一版）——施工图 §4.3 有列、本包任务书五项未含，不擅自扩面。
+
+**测试**：Core 新增 SessionTitlePipelineTests 7 例（全序优先级＋快照空串直通＋resolvedTitle 等值）；App 新增 SessionLedgerPackage2Tests 4 例（清理闸三信号拦截 1＋完整放行 1、频道投影分流＋收养升层 1、删除经壳落账本引擎 1）；SessionCatalogGuardTests 9 例、DeleteOptimisticTests、DeleteCloseoutTests 断言语义不变必过。
+
+**CI 判读**：见 §271.1。
+
+### §271.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
+
+一轮 workflow_dispatch：run 43673074950（分支头 55a84ac）：名义 failure，红因仅既有登记两项。**Core 2122/2122 精确对账**（2115 基线＋本包新增 7，0 failures）；**App 212 注册、211 得判词**（205 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed；212＝基线 208＋本包新增 4 精确）；**UI 10/10**。本包新测全过：SessionTitlePipelineTests 7/7、SessionLedgerPackage2Tests 4/4、**SessionCatalogGuardTests 9/9**（B-1 闸不回退硬证）、DeleteOptimisticTests/DeleteCloseoutTests 两套全过（删除引擎换归属后旧断言语义不变）。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／打包／上传 IPA 均 success。登记两项（与包一/rel-05049 同签名、不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针，:617「6＞4」逐字同签名）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 余崩孤立项；BackingData:835 日志零命中）。
