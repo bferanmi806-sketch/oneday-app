@@ -363,6 +363,61 @@ public extension ButtonStyle where Self == PressableButtonStyle {
     static var odPressable: PressableButtonStyle { PressableButtonStyle() }
 }
 
+/// 手势点按面按压反馈（2026-11-15 第 88 条扩约定）：
+/// .odPressable 只覆盖 Button，onTapGesture 面没有
+/// isPressed 通道、点下无任何一帧内反馈（宪法 §9），
+/// 本修饰给手势面补同款反馈——视觉参数与 Pressable-
+/// ButtonStyle 逐值一致（opacity 0.55／scale 0.985／
+/// MotionTokens.press 动画），全 App 一种按压长相。
+/// 按下感知走 simultaneous DragGesture(minimumDi-
+/// stance: 0)：不抢宿主既有点按/长按/滚动手势；指位
+/// 移超 10pt 判为滚动/拖动自动撤压，离手与离屏复位。
+/// enabled=false 时手势惰性直通（不可点的行不许装
+/// 可点：无动作的行连反馈也不许给）。
+public struct PressFeedbackModifier: ViewModifier {
+    private let enabled: Bool
+    @State private var isPressed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    public init(enabled: Bool = true) {
+        self.enabled = enabled
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .opacity(enabled && isPressed ? 0.55 : 1)
+            .scaleEffect(enabled && isPressed ? 0.985 : 1)
+            .animation(
+                MotionTokens.resolved(
+                    MotionTokens.press, reduceMotion: reduceMotion
+                ),
+                value: isPressed
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { value in
+                        guard enabled else { return }
+                        let travel = abs(value.translation.width)
+                            + abs(value.translation.height)
+                        let pressed = travel < 10
+                        if isPressed != pressed {
+                            isPressed = pressed
+                        }
+                    }
+                    .onEnded { _ in isPressed = false }
+            )
+            .onDisappear { isPressed = false }
+    }
+}
+
+public extension View {
+    /// 手势点按面按压反馈（与 Button 的 .odPressable
+    /// 同款参数）；enabled=false 时不产生任何反馈
+    func odPressFeedback(_ enabled: Bool = true) -> some View {
+        modifier(PressFeedbackModifier(enabled: enabled))
+    }
+}
+
 /// 空态：图标弱色 light、标题 semibold、说明次色，整页至多一个。
 public struct EmptyState: View {
     private let icon: String
