@@ -11816,7 +11816,7 @@ run 43543959202（头 5715391＝本包 163ad79＋桩适配 cherry-pick 自 rel-0
 
 ## §228 0.50.38 四包正式组版（2026-11-14；分支 rel-05038，基线 rel-05037 头 a6e9560；全档＝oneday-design-review/release-05038-assembly-20261114.md）
 
-**装车四件**：①枢纽全页重建 feat/hub-page-muse-parity @104e815；②头像呈现 feat/avatar-presentation-fit @beda470；③Muse 对齐三项＋边缘探针重校准 feat/edge-probe-bubble-recalibration @0d72a94（内含 feat/muse-align-batch 全链、未单独重复合入）；④模型账合一＋存量加固 feat/model-account-unify @0ed96c9。
+**装车五件**：①枢纽全页重建 feat/hub-page-muse-parity @104e815；②头像呈现 feat/avatar-presentation-fit @beda470；③Muse 对齐三项＋边缘探针重校准 feat/edge-probe-bubble-recalibration @0d72a94（内含 feat/muse-align-batch 全链、未单独重复合入）；④模型账合一＋存量加固 feat/model-account-unify @0ed96c9。
 
 **编号收口**：枢纽 §222 保留（.37 树 §221 后正接）；头像 §222→**§224**（§223 留删除收口包）；对齐 §217→**§225**；重校准 §218→**§226**；模型账 §216→**§227**、§216.2→**§227.2**。代码注释自指逐处同步（枢纽旧指 §217/§218 不动）。
 
@@ -12681,13 +12681,13 @@ run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对�
 
 ## §269 0.50.49 组版（2026-11-15；分支 rel-05049，基线 rel-05048@3721c9a；预组版 rel-05049-prep 已验三包兼容，报告 oneday-design-review/rel-05049-prep-20261115.md）
 
-**装车四件**：①枢纽台账三店合一（feat/hub-single-store，待办第 68 条）——2ad3e09 主提交＋a4b9e5b 回填；②连接器面门面化（feat/connectors-facade，待办第 69 条）——01c577d 主提交＋44384be 回填；③通知与在线状态单源化（feat/notif-single-source，待办第 71 条）——af316a9 主提交＋aefaaac 回填；④枢纽模型区改跟随当前会话（feat/hub-model-follow-current，待办第 80 条）——e084195 主提交＋017f40d 回填，插在 71 之后、版号提交之前。共 8 提交 cherry-pick。
+**装车四件**：①枢纽台账三店合一（feat/hub-single-store，待办第 68 条）——2ad3e09 主提交＋a4b9e5b 回填；②连接器面门面化（feat/connectors-facade，待办第 69 条）——01c577d 主提交＋44384be 回填；③通知与在线状态单源化（feat/notif-single-source，待办第 71 条）——af316a9 主提交＋aefaaac 回填；④枢纽模型区改跟随当前会话（feat/hub-model-follow-current，待办第 80 条）——e084195 主提交＋017f40d 回填，插在 71 之后、版号提交之前；⑤B-1 会话名单防护（fix/session-catalog-guard-rebase，待办第 79 条 B-1／第 67 条前置）——eb1ce01 防护本体＋0db2678 端到端钉链决胜测试，实际顺序排在四包与版号提交之后追加拣入（零冲突、ChatView 仅 adoptOnTitleConflict 段自动合入）。共 10 提交 cherry-pick。**超限记明**：本版五包超出每版 ≤4 包常规上限，理由＝B-1 为数据丢失止血项（名单截断/重页致本地线程误清链），按 2026-11-15 主线裁案 A「防护判绿即占最早组版空位、先于非止血项」先行装车。
 
 **冲突处置**：仅 DESIGN 文末撞尾同型机械冲突 4 次（四个主提交各一），解法同预组版（HEAD 全保留、来节顺延文末）；四个回填提交全部自动合入（各自 .1 子节落回本节内、位置实查在位）。代码面零冲突：AppState.swift 68/71 双改自动合并、合并后对基线 diff ＝＋36/−6 与两包原 diff 逐行叠加一致；ChatView 第 80 条改动与 .48 包 4 改动不相邻、自动合入。**节号顺延（组版收口）**：三包自编号 §259 顺延为 **§265 枢纽三店合一／§266 连接器门面化／§267 通知单源化**，第 80 条自编号 §263（与包 4 §263 撞号）顺延为 **§268**；各节 .1 子节、正文自指与交叉引用同步改，节头均加顺延注记；gen3 热修 §259 与包 4 §263 原节未动（逐字核过）。
 
-**共存实查（grep 亲验）**：AppState 三店共享单例（sharedLedgerStore/sharedKanbanStore/sharedMonitorsStore）与实例匣在位；overviewBridgeAuthFailed 代码引用为零（注释残留 3 处、与 71 分支尖端自身状态一致）；ConnectorsFacade.swift 在位、ConnectorsView 引用 3 处；DecisionRecordHistory.merge 于 AgentHubStore.decidedRecords 在位；SessionModelAccount.hubTargetAccountIDs 在位、AgentHubView followThread 入参与 ChatView 呈现点传参在位。
+**共存实查（grep 亲验）**：AppState 三店共享单例（sharedLedgerStore/sharedKanbanStore/sharedMonitorsStore）与实例匣在位；overviewBridgeAuthFailed 代码引用为零（注释残留 3 处、与 71 分支尖端自身状态一致）；ConnectorsFacade.swift 在位、ConnectorsView 引用 3 处；DecisionRecordHistory.merge 于 AgentHubStore.decidedRecords 在位；SessionModelAccount.hubTargetAccountIDs 在位、AgentHubView followThread 入参与 ChatView 呈现点传参在位。B-1：ServerSessionCatalog.FetchResult 完整性判定（isComplete/incompleteReason）与对账闸在位、SessionCatalogGuardTests 9 例在位。
 
-**计数对账（预期）**：Core 2095＋6（71 新增）＋3（80 新增）＝**2104**；UI **10**（.48 树实数 8＋A6 回归 2）；App 注册预期 192＋2（80 新增）＝194，实数以 CI 对账。
+**计数对账（预期）**：Core 2095＋6（71 新增）＋3（80 新增）＝**2104**（B-1 防护 9 例在 App 目标、Core 不变——移植线判读报告实证）；UI **10**（.48 树实数 8＋A6 回归 2）；App 注册预期 192＋2（80 新增）＋9（B-1：防护 8＋钉链决胜 1）＝**203**，实数以 CI 对账。
 
 **版号**：0.50.49／构建 177（Project.swift 四处与设置页版本串两行同改，旧号零残留已 grep 验）。
 
