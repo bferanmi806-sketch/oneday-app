@@ -108,6 +108,7 @@ struct ChatListCarrierCallbacks {
 /// 当前面由 ChatView 的 listHandle 派生决定，链本
 /// 体不为每个承载再抄一份（§257 的执行双胞胎到
 /// 本口收口）
+@MainActor
 protocol ChatListSurfaceControlling: AnyObject {
     func scrollToBottom(animated: Bool)
     func scrollToEntry(_ id: UUID, animated: Bool)

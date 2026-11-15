@@ -185,8 +185,6 @@ final class ChatRootViewController: UIViewController,
             _, _ in
             ChatRootViewController.makeSection(box: box)
         }
-        layout.selfSizingInvalidation =
-            .enabledIncludingConstraints
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
         )
@@ -203,8 +201,6 @@ final class ChatRootViewController: UIViewController,
             _, _ in
             ChatRootViewController.makeSection(box: box)
         }
-        layout.selfSizingInvalidation =
-            .enabledIncludingConstraints
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
         )
@@ -216,10 +212,13 @@ final class ChatRootViewController: UIViewController,
     /// 的 update 可能先于 viewDidLoad 到达，cell 注
     /// 册与数据源不许等装载拍）
     private func setUpCollectionView() {
-        // 句柄回指在 init 期即立（apply 可能先于
-        // viewDidLoad 到达，命令不许落空）
-        handle.controller = self
         collectionView.delegate = self
+        // 自适应行高失效口径（iOS 16+ UICollection-
+        // View 属性、非 layout 属性）：cell 内约束
+        // 变化即自动重测——托管内容（SwiftUI 拟合）
+        // 的高变化靠本口收敛，不手算不回填（H9/H10）
+        collectionView.selfSizingInvalidation =
+            .enabledIncludingConstraints
         collectionView.register(
             ChatNativeHostingCell.self,
             forCellWithReuseIdentifier:
@@ -269,6 +268,9 @@ final class ChatRootViewController: UIViewController,
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // 句柄回指（representable 的 make/update 已
+        // 立、本处为脱离 representable 装配时的兜底）
+        handle?.controller = self
         view.backgroundColor = .clear
         collectionView.backgroundColor = .clear
         // 记账全手动（与 gen3 同口：inset 只认喂入
