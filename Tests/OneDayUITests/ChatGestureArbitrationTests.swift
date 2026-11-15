@@ -29,6 +29,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     func testLongPressOnTextShowsEditMenuNotRowMenu() throws {
         let app = launchDemoApp()
+        openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
         text.coordinate(
             withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
@@ -39,6 +40,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     func testLongPressOnBubblePaddingShowsRowMenu() throws {
         let app = launchDemoApp()
+        openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
         // 气泡左内边距带中点：文本视图左缘外 8pt
         // （bubblePaddingH=16 的带宽一半处）
@@ -64,6 +66,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     func testDoubleTapOnTextSelectsWordNotRowMenu() throws {
         let app = launchDemoApp()
+        openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
         text.coordinate(
             withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
@@ -74,6 +77,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     func testSwipeRightOnRowTriggersReplyQuote() throws {
         let app = launchDemoApp()
+        openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
         let frame = text.frame
         let start = windowPoint(
@@ -93,6 +97,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     func testLongPressOnPhoneShowsLinkMenuNotRowMenu() throws {
         let app = launchDemoApp()
+        openSeededThread(in: app)
         let text = try contactTextView(in: app)
         // 号码在文本首行前段（「值班电话 」之后）：
         // 取文本视图帧内 (0.32, 0.30) 处
@@ -132,6 +137,51 @@ final class ChatGestureArbitrationTests: XCTestCase {
         app.launchArguments = ["-odDemoMode"]
         app.launch()
         return app
+    }
+
+    /// 打开演示种子会话（§265 五轮树转储定案）：
+    /// 演示启动落在主线（审批卡＋空状态建议），种
+    /// 子会话「帮我看看服务器状态」在抽屉本地行里
+    /// ——先开抽屉、按行标题点开它，消息才上屏。
+    /// 抽屉行口径与 DrawerRowContextMenuTests 同源
+    private func openSeededThread(in app: XCUIApplication) {
+        let openButton = app.buttons["drawer.open"]
+        XCTAssertTrue(
+            openButton.waitForExistence(timeout: 15),
+            "抽屉入口未出现"
+        )
+        if openButton.isHittable {
+            openButton.tap()
+        }
+        let rows = app.buttons.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH %@",
+                "drawer.row.side.local."
+            )
+        )
+        var target: XCUIElement?
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline, target == nil {
+            for row in rows.allElementsBoundByIndex
+            where row.label.contains("服务器状态") {
+                target = row
+                break
+            }
+            if target == nil {
+                Thread.sleep(forTimeInterval: 0.4)
+            }
+        }
+        guard let target else {
+            XCTFail("抽屉里找不到演示种子会话行")
+            return
+        }
+        if !target.isHittable {
+            app.scrollViews.firstMatch.swipeUp()
+        }
+        target.tap()
+        _ = app.buttons["topbar.modelCapsule"]
+            .waitForExistence(timeout: 10)
+        Thread.sleep(forTimeInterval: 1.0)
     }
 
     /// 末条用户消息的正文文本视图（演示种子末条
@@ -229,31 +279,6 @@ final class ChatGestureArbitrationTests: XCTestCase {
             return "t\($0.elementType.rawValue):"
                 + String(stripped.prefix(30))
         }.joined(separator: " | ")
-    }
-
-    /// 临时取证（树形态定案后删）：聊天页无障碍树
-    /// 全量转储进测试日志
-    func testZDebugTreeDump() {
-        let app = launchDemoApp()
-        defer { app.terminate() }
-        _ = app.buttons["topbar.modelCapsule"]
-            .waitForExistence(timeout: 30)
-        Thread.sleep(forTimeInterval: 2)
-        print("TREEDUMP-BEGIN")
-        print(app.debugDescription)
-        print("TREEDUMP-END")
-    }
-
-    private func reveal(
-        _ element: XCUIElement, in app: XCUIApplication
-    ) {
-        for _ in 0..<8 where !element.isHittable {
-            app.swipeUp()
-        }
-        XCTAssertTrue(
-            element.isHittable,
-            "目标文本滚动后仍不可命中"
-        )
     }
 
     /// 屏幕绝对坐标点（窗口坐标系原点＋点偏移）
