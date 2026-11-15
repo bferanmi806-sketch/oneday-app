@@ -12758,3 +12758,7 @@ run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43
 **计数对账（预期）**：Core **2110**（2104＋6：权限流 +5〔其分支 CI 2081→2086 实证〕＋文件预览净 +1；两树 `func test` 计数实测 2104→2110 互证）；UI **10**（不变）；App 注册预期 **213**（203＋10：间距二修 BottomGap 4→6 净 +2＋叠字钉测 +7＋文件预览 +1；函数计数 205→215、基线注册与函数差 2 沿旧例）。
 
 **版号**：0.50.50／构建 178（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
+
+### §273.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带登记两项）**
+
+run 43670883668（workflow_dispatch @ rel-05050 尖端）：名义 failure，红因仅下述登记项，全日志本地核账。**Core 2110/2110 精确对账**（Executed 2110、0 failures＝.49 的 2104＋权限流 5＋文件预览净 1，与 §273 预期逐项吻合）；**App 213 注册、212 得判词**（206 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），四包新测全过——BottomGap 6/6、StreamingTokenScope 7/7、SettleCarry 2/2（组版迁移喂入后首轮即过）、Reentrancy 3/3、SessionCatalogGuard 9/9 不退；**UI 10 注册 9 过 1 红**（见登记②）。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 App failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47/.48/.49 同签名、与本版改动零交集）；②UI 唯一红＝`DrawerRowContextMenuTests.testLocalAndCurrentSelectedRowsExposeFourActions`（75.152s）——失败模式为 XCTWaiter 超时（rawValue 2≠1，「菜单外点击后上下文菜单仍在」＝等消失等不到），与 §263.1 已登记的 UI 抽屉长按菜单等待超时 flake 同签名、四包改动面（承载/流式文本/文件打开/设备权限）与抽屉行菜单零交集，登记为既有 flake 不判本版。另：宿主重启 **1 次**（03:30:54 Restarting），`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（§184 已定性孤立项；BackingData 日志零命中）。IPA 解包亲验：0.50.50／178／site.didichou.oneday，13,059,781 字节，md5 `1b1b2a6442f7f1d26067884d88033562`，落 ~/workspace/your_files/oneday-v0.50.50/（附待办总表副本）。未合 main、未打 tag。
