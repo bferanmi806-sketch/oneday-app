@@ -17,6 +17,14 @@ import SwiftUI
 /// 单批增量 >8 词元时步进压缩至总时长 240ms 且退化为
 /// 纯 opacity（无 blur），断线重连的全量补发不被动画
 /// 扣留（审查 M-2/E-4）。
+///
+/// 动画作用域（第 82 条，2026-11-15）：入场动画只许
+/// 动 blur＋opacity，词元位置永不进动画事务——动画
+/// 收在 StreamingTokenView 内部视觉层，被 TokenFlow
+/// 落位的视图自身不挂动画。定因与帧证据见
+/// gen4-stream-overlap-diagnosis-20261115.md（旧形态
+/// 动画挂在被落位视图整体上，换行边界词元的原点翻
+/// 动被插值成纵向滑移＝真机叠字）。
 struct StreamingText: View {
     let text: String
 
@@ -33,25 +41,14 @@ struct StreamingText: View {
     var body: some View {
         TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
             ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
-                Text(token)
-                    // 0.4.4（§29）：流式行与落盘正文同
-                    // 口径——16pt（.callout 语义载体）＋
-                    // bodyInk 炭灰；0.3.8 第 29 条的
-                    // 17 regular 角色随正文基准一并改
-                    .font(.callout)
-                    .foregroundStyle(Palette.bodyInk)
-                    .blur(
-                        radius: visible.contains(index)
-                            || noBlur.contains(index) ? 0 : 6
-                    )
-                    .opacity(visible.contains(index) ? 1 : 0)
-                    .animation(
-                        MotionTokens.resolved(
-                            MotionTokens.streamIn,
-                            reduceMotion: reduceMotion
-                        ),
-                        value: visible.contains(index)
-                    )
+                // 第 82 条：被 TokenFlow 落位的是
+                // StreamingTokenView——它自身不挂动画，
+                // 入场动画收在其内部视觉层（见该类型注）
+                StreamingTokenView(
+                    token: token,
+                    shown: visible.contains(index),
+                    flat: noBlur.contains(index)
+                )
             }
             StreamingCaret()
                 .padding(.leading, OneDayMetrics.spacingMicro)
@@ -116,45 +113,76 @@ struct StreamingText: View {
     }
 }
 
+/// 词元视觉层（第 82 条）：TokenFlow 落位的就是本视
+/// 图，它自身不挂任何动画修饰——父 Layout 赋予的
+/// origin 变更永远直跳、不进动画事务。入场动画
+/// （blur＋opacity）只挂在 body 内的 Text 上：动画
+/// 域仅限本视图内部的视觉属性，够不到外层落位。
+///
+/// 病根回溯（gen4-stream-overlap-diagnosis-20261115）：
+/// 旧形态把 .animation(streamIn, value:) 直接挂在被
+/// 落位的词元视图上——该修饰的语义是「值变时本视
+/// 图一切可动画属性一并过渡」，TokenFlow 每拍重排
+/// 时换行边界词元的原点翻动被 120ms easeOut 插值
+/// 成纵向滑移、压住本行字形（真机叠字）。落定字形
+/// 与行中追加字的现有观感（只有浓淡、无位移）由本
+/// 分层原样保持：shown/flat 语义与旧链逐项同值。
+private struct StreamingTokenView: View {
+    let token: String
+    /// 已入场（visible 含本词元序号）
+    let shown: Bool
+    /// 大批量退化档：纯 opacity 入场（无 blur）
+    let flat: Bool
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Text(token)
+            // 0.4.4（§29）：流式行与落盘正文同
+            // 口径——16pt（.callout 语义载体）＋
+            // bodyInk 炭灰；0.3.8 第 29 条的
+            // 17 regular 角色随正文基准一并改
+            .font(.callout)
+            .foregroundStyle(Palette.bodyInk)
+            .blur(radius: shown || flat ? 0 : 6)
+            .opacity(shown ? 1 : 0)
+            .animation(
+                MotionTokens.resolved(
+                    MotionTokens.streamIn,
+                    reduceMotion: reduceMotion
+                ),
+                value: shown
+            )
+    }
+}
+
 /// 词元换行布局：左到右排布、满行换行，行距可定。
 /// sizeThatFits 与 placeSubviews 共用同一排布算法，
 /// 尺寸与落位不会打架
+///
+/// 第 82 条：排布经 TokenFlowArranger 缓存——贪心逐
+/// 行落位下，词元 i 的原点只取决于它之前的词元尺
+/// 寸与行宽，追加永不翻动前缀原点；缓存按（行宽＋
+/// 间距＋尺寸序列）记账，纯追加只续排尾部。失效口
+/// 径：行宽变、或已排前缀任一词元尺寸变（分词重组、
+/// 字号环境变都会改尺寸）→ 自首个不一致处起重排，
+/// 不给陈旧排版（与流式卡顿定因的「全量重排」同账）
 struct TokenFlow: Layout {
     var spacing: CGFloat = OneDayMetrics.tokenFlowSpacing
 
-    private func arrange(
-        subviews: Subviews, width: CGFloat
-    ) -> (size: CGSize, origins: [CGPoint]) {
-        var origins: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var lineHeight: CGFloat = 0
-        var maxX: CGFloat = 0
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += lineHeight + spacing
-                lineHeight = 0
-            }
-            origins.append(CGPoint(x: x, y: y))
-            lineHeight = max(lineHeight, size.height)
-            x += size.width
-            maxX = max(maxX, x)
-        }
-        return (
-            CGSize(width: maxX, height: y + lineHeight), origins
-        )
+    func makeCache(subviews: Subviews) -> TokenFlowArranger {
+        TokenFlowArranger()
     }
 
     func sizeThatFits(
         proposal: ProposedViewSize,
         subviews: Subviews,
-        cache: inout ()
+        cache: inout TokenFlowArranger
     ) -> CGSize {
-        arrange(
-            subviews: subviews,
-            width: proposal.width ?? .greatestFiniteMagnitude
+        cache.arrange(
+            sizes: subviews.map { $0.sizeThatFits(.unspecified) },
+            width: proposal.width ?? .greatestFiniteMagnitude,
+            spacing: spacing
         ).size
     }
 
@@ -162,9 +190,13 @@ struct TokenFlow: Layout {
         in bounds: CGRect,
         proposal: ProposedViewSize,
         subviews: Subviews,
-        cache: inout ()
+        cache: inout TokenFlowArranger
     ) {
-        let result = arrange(subviews: subviews, width: bounds.width)
+        let result = cache.arrange(
+            sizes: subviews.map { $0.sizeThatFits(.unspecified) },
+            width: bounds.width,
+            spacing: spacing
+        )
         for (index, subview) in subviews.enumerated() {
             let origin = result.origins[index]
             subview.place(
@@ -175,6 +207,80 @@ struct TokenFlow: Layout {
                 proposal: .unspecified
             )
         }
+    }
+}
+
+/// TokenFlow 排版引擎（纯值形态，可单测）：贪心逐行
+/// 落位＋前缀缓存。缓存键＝（行宽，间距，已排尺寸序
+/// 列）；命中形态有二——全等（整表复用）与共享前缀
+/// （自首个尺寸不一致处、或纯追加的尾部续排，前缀
+/// 原点逐点复用）。行宽/间距变、或前缀尺寸变 → 对
+/// 应位置起重排（lastResumeIndex 记本次续排起点：
+/// 0＝自首词元重排）。排版结果只由尺寸序列决定，
+/// 与子视图身份无关——末尾光标这类「位置会移、尺
+/// 寸恒定」的子视图在序列里只是一个普通元素，前缀
+/// 比对在它处自然分界、词元前缀照常复用
+struct TokenFlowArranger {
+    /// 落完一个词元后的游标（续排的衔接状态）
+    private struct Cursor: Equatable {
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var lineHeight: CGFloat = 0
+        var maxX: CGFloat = 0
+    }
+
+    private var cachedWidth: CGFloat?
+    private var cachedSpacing: CGFloat = 0
+    private var cachedSizes: [CGSize] = []
+    private var cachedOrigins: [CGPoint] = []
+    private var cursors: [Cursor] = []
+    /// 最近一次 arrange 的续排起点（诊断/测试读数）
+    private(set) var lastResumeIndex = 0
+
+    mutating func arrange(
+        sizes: [CGSize], width: CGFloat, spacing: CGFloat
+    ) -> (size: CGSize, origins: [CGPoint]) {
+        var resume = 0
+        var cursor = Cursor()
+        var origins: [CGPoint] = []
+        if cachedWidth == width, cachedSpacing == spacing {
+            let limit = min(cachedSizes.count, sizes.count)
+            var prefix = 0
+            while prefix < limit,
+                  cachedSizes[prefix] == sizes[prefix] {
+                prefix += 1
+            }
+            if prefix > 0 {
+                resume = prefix
+                origins = Array(cachedOrigins.prefix(prefix))
+                cursor = cursors[prefix - 1]
+            }
+        }
+        var nextCursors = Array(cursors.prefix(resume))
+        for index in resume..<sizes.count {
+            let size = sizes[index]
+            if cursor.x > 0, cursor.x + size.width > width {
+                cursor.x = 0
+                cursor.y += cursor.lineHeight + spacing
+                cursor.lineHeight = 0
+            }
+            origins.append(CGPoint(x: cursor.x, y: cursor.y))
+            cursor.lineHeight = max(cursor.lineHeight, size.height)
+            cursor.x += size.width
+            cursor.maxX = max(cursor.maxX, cursor.x)
+            nextCursors.append(cursor)
+        }
+        let total = CGSize(
+            width: cursor.maxX,
+            height: cursor.y + cursor.lineHeight
+        )
+        cachedWidth = width
+        cachedSpacing = spacing
+        cachedSizes = sizes
+        cachedOrigins = origins
+        cursors = nextCursors
+        lastResumeIndex = resume
+        return (total, origins)
     }
 }
 
