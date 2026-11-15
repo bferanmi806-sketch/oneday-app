@@ -12595,4 +12595,4 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 **真机待验（归主线）**：①主线内开枢纽：模型行与顶栏胶囊同值；②旁聊内开枢纽：模型行显该旁聊模型，在枢纽改选后回会话页胶囊同步同值、且主线模型不受影响；③冷启未进任何会话（空态）开枢纽：模型行显主线模型、不空不报错。
 
-**CI 判读**：待回填。
+**CI 判读（2026-11-15 回填）**：一轮 workflow_dispatch，run 43663353844（分支头 e084195）。全日志本地核账：**Core Executed 2084/2084、0 failures**（2081 基线＋本线 3 精确）；**App 192 注册全数得判词**（190＋2：186 passed＋5 skipped＋1 failed）；**UI 8/8**。本线新测 5/5 全过（Core 枢纽跟随 3 条＋App 账面 2 条）。整轮唯一断言失败＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（:617 浅色 bottomRest「6＞4」，§257.1 像素探针抖动族、与 .47/gen4 轮同签名、既有登记不堵门，与本线零交集）；本线断言失败 0。宿主重启 1 次（§184 集成后常态），BackingData:835 本轮零命中，§184 余崩例 testFailedTraceMaterializesWithErrorSnapshot 首试被重启吃判词、重跑 passed。run 级标 failure 即上述探针一条。按 §190 口径**本线判绿**。计数对账与预期一致（Core 2084、App 192、UI 8）。未合 main、未打 tag。
