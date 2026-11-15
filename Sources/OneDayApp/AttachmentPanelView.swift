@@ -405,8 +405,20 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                             return context.maximumDetentValue
                                 * 0.5
                         }
+                        // §299.2 候选①：in-sheet 量测把
+                        // 底部安全区计进理想高（§299.1
+                        // 实测 +34），resolver 返回前减
+                        // 托管视图当前实测安全区（不写
+                        // 死数值），抵量测侧的这一计
+                        let adjusted = fit
+                            - host.view.safeAreaInsets.bottom
+                        guard adjusted > 0 else {
+                            return context.maximumDetentValue
+                                * 0.5
+                        }
                         return min(
-                            fit, context.maximumDetentValue
+                            adjusted,
+                            context.maximumDetentValue
                         )
                     },
                 ]

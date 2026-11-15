@@ -179,6 +179,8 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         print(
             "ATTACH-FIT sheet=\(sheetHeight) ideal=\(ideal) "
                 + "presentedIdeal=\(presentedIdeal) "
+                + "safeBottom="
+                + "\(presented.view.safeAreaInsets.bottom) "
                 + "photoAccess=\(access) labels=\(labels)"
         )
 
