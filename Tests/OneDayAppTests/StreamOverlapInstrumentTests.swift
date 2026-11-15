@@ -18,6 +18,7 @@ import XCTest
 /// 用（不在此判红绿，避免把未定因的现象写成假回归）。
 @MainActor
 final class StreamOverlapInstrumentTests: XCTestCase {
+    nonisolated(unsafe) static var profileDebugPrinted = false
 
     // MARK: 装配
 
@@ -574,9 +575,12 @@ final class StreamOverlapInstrumentTests: XCTestCase {
         guard bounds.width > 10, bounds.height > 10 else {
             return []
         }
+        host.setNeedsDisplay()
+        host.layoutIfNeeded()
+        CATransaction.flush()
         let renderer = UIGraphicsImageRenderer(bounds: bounds)
         let image = renderer.image { _ in
-            host.drawHierarchy(in: bounds, afterScreenUpdates: false)
+            host.drawHierarchy(in: bounds, afterScreenUpdates: true)
         }
         guard let cg = image.cgImage else { return [] }
         let width = cg.width
@@ -591,6 +595,15 @@ final class StreamOverlapInstrumentTests: XCTestCase {
         ) else { return [] }
         ctx.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
         let scale = image.scale
+        if !Self.profileDebugPrinted {
+            Self.profileDebugPrinted = true
+            var totalDark = 0
+            for value in pixels where value < 110 { totalDark += 1 }
+            print(
+                "OVP|PXDBG imagePx=\(width)x\(height) scale=\(scale) "
+                    + "darkTotal=\(totalDark)"
+            )
+        }
         var centers: [CGFloat] = []
         var runStart: Int?
         for row in 0..<height {
