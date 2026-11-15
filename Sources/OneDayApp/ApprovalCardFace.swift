@@ -22,9 +22,12 @@ import SwiftUI
 ///
 /// §245 补齐两件：①工具图标（行首，Core 单源映
 /// 射，对标参照卡的工具图标位）；②防呆呈现合成一
-/// 套——blockedReason（裁决前预检）上卡面＋只给驳
-/// 回，failureReason（裁决后回执）经宿主 cardNotes
-/// 同槽呈现，原因都走「上卡面」一条通道。
+/// 套——预检原因上卡面＋只给驳回，裁决回执原因经
+/// 宿主 cardNotes 同槽呈现，原因都走「上卡面」一
+/// 条通道。B-05（§299）：桥字段已合并为 reason＋
+/// reason_phase，卡面只经 Core
+/// ApprovalCardCopy.reasonLine 单读口取行，不再
+/// 直读记录字段拼句。
 struct ApprovalCardFace<DetailArea: View>: View {
     let record: WriteGateRecord
     /// 裁决提交中（宿主 store.decidingIDs 命中）：钮
@@ -76,11 +79,13 @@ struct ApprovalCardFace<DetailArea: View>: View {
             // 定这条确定性批不了时，原因原文上卡面
             // （措辞与伴生查案报告定案一致），动作区
             // 只给驳回（见 actionArea）——与裁决失败
-            // 的 failureReason 共用「原因上卡面」这一
-            // 条通道，不许两套并存
-            if let blockedReason = record.blockedReason {
+            // 回执原因共用「原因上卡面」这一条通道，
+            // 不许两套并存。B-05（§299）：整行只经
+            // Core reasonLine 单读口（reason＋阶段标
+            // 拼句），本面不直读字段
+            if let reasonLine = ApprovalCardCopy.reasonLine(for: record) {
                 Label {
-                    Text("这条无法批准：\(blockedReason)")
+                    Text(reasonLine)
                         // 第 85 条（BC-2）：整句是可读文字，
                         // 走 warningText（浅档 5.56）；图标
                         // 仍走 warning 本色
