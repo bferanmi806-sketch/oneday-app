@@ -13002,7 +13002,7 @@ run 43684396656（workflow_dispatch @ rel-05054 尖端 7e8cebb），全日志本
 
 **修法（单一数据源：段以服务端事件序为身份）**：Core 新增 `StreamSegmentAssembler`（Sources/OneDayCore/StreamSegmentAssembler.swift）——封存段全文列＋当前段一只独立 `StreamPublishGate`（段内发布节流与 §32 逐字同制、段内拼接行为零变更）；`sealCurrentSegment` 在工具边界 flush 取精确全文封段、新段从空缓冲起步（首增量立即发布不被上段窗口拖住）；`fullSegments` 供按段落盘；`mergedFullText` 以 `"\n\n"` 连接各段，与 `RunTranscriptSettle` 对 transcript 的落定拼接逐字同制。ChatView 接线：`followRunEvents` 在 `.toolStarted` 先封段再落卡；封存段经 `liveOrder` 的 `.sealedText(段序)` 标记原位只读呈现（封段时 `.text` 标记原位换名、段的事件位不动；新段首增量另记 `.text` 于新事件位），旧承载 liveZone 与新承载 carrier 行共用 `liveRenderItems` 单口、封存段行键＝流式行键＋`#seg<段序>` 后缀；`streamingText` 自此只承载当前打开段（gen4 块级呈现「只动画最新块、已出段落静态」由此在装配层成立）；`persistRunPartials` 按段成条、按 liveOrder 事件序与工具卡交错落盘（时序即回填段序凭据），思考仍挂第一条助理条目不按段拆；`resumeRunIfNeeded` 按时序重建段——时序最末的助理段为打开段（后续增量只许拼进它）、其余封存，旧版落盘的单条合并半截整条作打开段（与旧行为一致）；状态 output 兜底落定改走 `mergedFullText`。呈现侧附带变化（有意）：工具执行期间，打开段的空位气泡（等待点）落在工具卡之后——即新段的事件位，首增量到达即原位换成正文。
 
-**回放钉测**：`StreamSegmentAssemblerTests` 8 例（Tests/OneDayCoreTests）——事故原文（4640/4643 两段全文）分片回放断言当前段只含 B、A 只在封存列出现一次、合并全文与落定逐字一致；段内拼接与单闸同行为、新段首增量立即发布、空段不产出（工具先行/并行工具连发边界）、三段事件序、封段 flush 尾巴精确、巡查只推当前段、恢复往返、整器归零。先行提交（5786437，仅测试）CI 应红（基线无此类型），实现提交（4d4fb9b）转绿，判读见 §288.1。
+**回放钉测**：`StreamSegmentAssemblerTests` 9 例（Tests/OneDayCoreTests）——事故原文（4640/4643 两段全文）分片回放断言当前段只含 B、A 只在封存列出现一次、合并全文与落定逐字一致；段内拼接与单闸同行为、新段首增量立即发布、空段不产出（工具先行/并行工具连发边界）、三段事件序、封段 flush 尾巴精确、巡查只推当前段、恢复往返、整器归零。先行提交（5786437，仅测试）CI 应红（基线无此类型），实现提交（4d4fb9b）转绿，判读见 §288.1。
 
 **不许回退面**：段内增量拼接（StreamPublishGateTests 9 例原样）、工具卡直播拼装、落定与落库逐字一致（transcript 路径未动）、gen4 块级呈现（打开段走 carrierStreamRow 原路、封存段走同口估高的静态行）。未合 main、未打 tag。
 
