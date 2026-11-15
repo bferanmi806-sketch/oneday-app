@@ -146,7 +146,14 @@ struct SettingsView: View {
                         Button(action: onClose) {
                             Image(systemName: "xmark")
                         }
-                        .accessibilityLabel("关闭设置")
+                        // A6 根因修：关闭钮是结构钩子（冒烟门／回归
+                        // 测试按「关闭设置」寻址），无障碍名必须逐字
+                        // 稳定——字面量会走 LocalizedStringKey 查目录，
+                        // 英文档下译成 "Close Settings"，钩子随之漂移、
+                        // 测试找不到钮（sheet 本已呈现）。改 Text(verbatim:)
+                        // 钉死逐字，与齿轮「设置」／底栏「聊天」等结构
+                        // 名的既有口径一致；可见文案仍走目录本地化，不动。
+                        .accessibilityLabel(Text(verbatim: "关闭设置"))
                     }
                 }
             }
