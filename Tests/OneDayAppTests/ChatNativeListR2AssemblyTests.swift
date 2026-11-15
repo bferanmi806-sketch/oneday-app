@@ -18,11 +18,15 @@ import OneDayDesign
 /// 开段 item 的渲染树、封段后 A 只在封存段
 /// item、B 只在打开段 item，任一段文字在任一帧
 /// 只出现在一个 item 内；
-/// ⑨键盘换代装配（H8）：舱子托管底边＝容器
-/// keyboardLayoutGuide 顶（同坐标系直读）、底
-/// inset＝舱实测帧派生（帧底−舱顶＋边距）、引
-/// 导线顶起 60 后舱随行/inset 同步 +60/短内容
-/// 间距仍 24；
+/// ⑨键盘跟随装配（§299 回 §194 形态，代 H8 引
+/// 导线版）：键盘通知驱动舱常量——静息回落座、
+/// willShow 后舱底＝通知帧顶、willChangeFrame
+/// 时长 0 逐帧跟随、动画中段 presentation 帧在
+/// 途对账、willHide 回座；同一解析点组装的
+/// KeyboardFrameUpdate 供数（top/时长/曲线原
+/// 值、hide 后 nil）同拍断言；引导线全程不动
+/// （驱动者是通知的直证）；底 inset 仍＝舱实
+/// 测帧派生（R2 口径不变）；
 /// ⑩流式跟随：跟随命令（生产链同口）后打开段
 /// 逐拍生长，距底恒达标、末行→舱顶恒 24——落
 /// 点只认真实布局、收敛后钉底（H6）。
@@ -404,68 +408,240 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ⑨ 键盘换代装配（H8）
+    // MARK: - ⑨ 键盘跟随装配（§299 回 §194 形态）
 
-    func testComposerGuidePinningAndDerivedInset() throws {
+    /// 键盘通知投递（与 R1 装配 seatComposer 同
+    /// 式）：投的即生产驱动本体——结束帧＋动画
+    /// 参数原值；安全区模拟已退役（定因报告
+    /// §七.4：模拟只验约束成立、不验跟随）
+    private func postKeyboard(
+        name: Notification.Name, top: CGFloat,
+        duration: Double
+    ) {
+        NotificationCenter.default.post(
+            name: name, object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    NSValue(cgRect: CGRect(
+                        x: 0, y: top, width: windowW,
+                        height: windowH - top
+                    )),
+                UIResponder.keyboardAnimationDurationUserInfoKey:
+                    NSNumber(value: duration),
+                UIResponder.keyboardAnimationCurveUserInfoKey:
+                    NSNumber(value: 7),
+            ]
+        )
+    }
+
+    private func composerBottomInWindow() throws
+        -> CGFloat
+    {
+        let host = try XCTUnwrap(
+            controller.composerHost, "舱子托管应已装配"
+        )
+        return host.view.convert(
+            host.view.bounds, to: nil
+        ).maxY
+    }
+
+    /// 动画中段采样：动画窗内逐 30ms 读舱宿主的
+    /// presentation 帧底（窗口坐标），命中「严格
+    /// 在起讫之间」的在途样本即返回（动画由通知
+    /// 参数驱动、presentation 帧即中段真帧）
+    private func pollMidAnimationBottom(
+        from: CGFloat, to: CGFloat
+    ) -> CGFloat? {
+        let deadline = Date().addingTimeInterval(0.45)
+        while Date() < deadline {
+            if let host = controller.composerHost,
+               let presentation = host.view.layer
+                .presentation() {
+                let bottom = controller.view.convert(
+                    CGPoint(
+                        x: 0, y: presentation.frame.maxY
+                    ),
+                    to: nil
+                ).y
+                if bottom < from - 2, bottom > to + 2 {
+                    return bottom
+                }
+            }
+            RunLoop.main.run(
+                mode: .default,
+                before: Date().addingTimeInterval(0.03)
+            )
+        }
+        return nil
+    }
+
+    func testComposerNotificationFollowAndSnapshotFeed()
+        throws
+    {
         assemble()
+        // 供数记录口：控制器与舱常量同一解析点组
+        // 装的 KeyboardFrameUpdate 全量留档——底
+        // 栏键盘态退场（ChatView .toolbar 藏坞）
+        // 的唯一输入即此包的 topInWindow，本例验
+        // 其供数面
+        var updates: [KeyboardFrameUpdate] = []
+        controller.onKeyboardFrameChange = {
+            updates.append($0)
+        }
         let rows = [
             settledRow("only", "只有一条短回复的会话。")
         ]
         apply(rows: rows)
         drain()
-        let host = try XCTUnwrap(
-            controller.composerHost, "舱子托管应已装配"
-        )
         let cv = controller.collectionView
-        // 结构直证：舱底＝容器 keyboardLayoutGuide
-        // 顶（同在容器视图坐标系、直读两帧）
-        let guideTop = controller.view
-            .keyboardLayoutGuide.layoutFrame.minY
+        // 静息座位：本壳无坞（裸装配）→回落窗口安
+        // 全区底（生产装配恒有坞、走坞实测顶，回
+        // 落式与 §194 同）；舱底窗口值与回落式同值
+        let restBottom = windowH
+            - window.safeAreaInsets.bottom
         XCTAssertEqual(
-            host.view.frame.maxY, guideTop, accuracy: 1.0,
-            "舱底须钉 keyboardLayoutGuide 顶，舱底 "
-                + "\(host.view.frame.maxY) vs 引导线顶 \(guideTop)"
+            try composerBottomInWindow(), restBottom,
+            accuracy: 1.0,
+            "静息舱底须＝回落座 \(restBottom)，实测 "
+                + "\(try composerBottomInWindow())"
         )
         // 派生直证：底 inset＝（列表帧底−舱顶）窗
-        // 口实测＋单点边距，无第二来源
+        // 口实测＋单点边距，无第二来源（R2 口径）
         let frameInWindow = controller.view.convert(
             controller.view.bounds, to: nil
         )
-        let hostInWindow = host.view.convert(
-            host.view.bounds, to: nil
+        let hostView = try XCTUnwrap(
+            controller.composerHost, "舱子托管应已装配"
+        ).view
+        let hostInWindow = hostView.convert(
+            hostView.bounds, to: nil
         )
-        let expected = frameInWindow.maxY
+        let expectedRest = frameInWindow.maxY
             - hostInWindow.minY + bottomMargin
         XCTAssertEqual(
-            cv.contentInset.bottom, expected, accuracy: 1.0,
-            "底 inset 须＝舱实测帧派生 \(expected)，实测 \(cv.contentInset.bottom)"
+            cv.contentInset.bottom, expectedRest,
+            accuracy: 1.0,
+            "底 inset 须＝舱实测帧派生 \(expectedRest)，实测 \(cv.contentInset.bottom)"
         )
-        // 引导线顶起 60（附加安全区模拟键盘帧顶
-        // 起）：舱随行同值、派生 inset 同步 +60、
-        // 短内容末行→舱顶仍 24
-        let insetBefore = cv.contentInset.bottom
-        controller.additionalSafeAreaInsets.bottom += 60
-        window.layoutIfNeeded()
+        // 引导线基线：记其当前帧——后续通知驱动
+        // 舱移动全程它不许动（舱动即通知驱动的结
+        // 构直证；引导线只采样不驱动，§299）
+        let guideTopAtRest = controller.view
+            .keyboardLayoutGuide.layoutFrame.minY
+
+        // 升起：willShow（帧顶 541／时长 0.25／曲
+        // 线 7）→舱底落通知帧顶、供数同拍同值
+        postKeyboard(
+            name: UIResponder.keyboardWillShowNotification,
+            top: 541, duration: 0.25
+        )
         drain(0.6)
         XCTAssertEqual(
-            host.view.frame.maxY,
+            try composerBottomInWindow(), 541,
+            accuracy: 1.0,
+            "升起后舱底须＝通知帧顶 541，实测 "
+                + "\(try composerBottomInWindow())"
+        )
+        XCTAssertEqual(
+            updates.last?.topInWindow, 541,
+            "供数 top 须＝通知帧顶 541，实测 "
+                + "\(String(describing: updates.last?.topInWindow))"
+        )
+        XCTAssertEqual(
+            updates.last?.duration, 0.25,
+            "供数时长须＝通知原值 0.25"
+        )
+        XCTAssertEqual(
+            updates.last?.curveRawValue, 7,
+            "供数曲线须＝通知原值 7"
+        )
+        XCTAssertEqual(
             controller.view.keyboardLayoutGuide
                 .layoutFrame.minY,
-            accuracy: 1.0,
-            "引导线顶起后舱底须仍钉其顶"
+            guideTopAtRest, accuracy: 0.5,
+            "引导线须全程未动（驱动者是通知不是它）"
         )
+        // inset 随舱帧派生同步：恒等式复核（舱顶
+        // 487→inset 403）
+        let hostTopAfterShow = try composerTopInWindow()
         XCTAssertEqual(
-            cv.contentInset.bottom, insetBefore + 60,
-            accuracy: 1.5,
-            "引导线顶起 60 后底 inset 须同步 +60，实测 \(cv.contentInset.bottom)"
+            cv.contentInset.bottom,
+            frameInWindow.maxY - hostTopAfterShow
+                + bottomMargin,
+            accuracy: 1.0,
+            "升起后底 inset 须随舱帧派生，实测 \(cv.contentInset.bottom)"
         )
+        // 短内容末行→舱顶在键盘位仍 24
         let last = try frame(at: 0)
         let lastInWindow = cv.convert(last, to: nil)
-        let gap = try composerTopInWindow()
-            - lastInWindow.maxY
         XCTAssertEqual(
-            gap, targetGap, accuracy: 1.0,
-            "键盘等价位下末行底→舱顶须 24±1，实测 \(gap)"
+            hostTopAfterShow - lastInWindow.maxY,
+            targetGap, accuracy: 1.0,
+            "键盘位下末行底→舱顶须 24±1，实测 "
+                + "\(hostTopAfterShow - lastInWindow.maxY)"
+        )
+
+        // 中段帧逐帧对账：willChangeFrame 时长 0
+        // 逐事件给中间帧顶，舱底逐值立即跟随（交
+        // 互式消散的逐帧形态）
+        for top in [640.0, 580.0, 541.0] {
+            postKeyboard(
+                name: UIResponder
+                    .keyboardWillChangeFrameNotification,
+                top: top, duration: 0
+            )
+            window.layoutIfNeeded()
+            XCTAssertEqual(
+                try composerBottomInWindow(), top,
+                accuracy: 1.0,
+                "逐帧跟随：帧顶 \(top) 时舱底须同值，实测 "
+                    + "\(try composerBottomInWindow())"
+            )
+            XCTAssertEqual(
+                updates.last?.topInWindow, top,
+                "逐帧供数 top 须同值 \(top)"
+            )
+        }
+
+        // 动画中段帧对账：自 541 以 0.5s 动画移向
+        // 474——中段 presentation 帧须严格在途（非
+        // 瞬跳、非未动），落定后舱底＝474
+        postKeyboard(
+            name: UIResponder
+                .keyboardWillChangeFrameNotification,
+            top: 474, duration: 0.5
+        )
+        let mid = pollMidAnimationBottom(
+            from: 541, to: 474
+        )
+        XCTAssertNotNil(
+            mid,
+            "动画中段须采到在途帧（起 541→讫 474 之间）"
+        )
+        drain(0.8)
+        XCTAssertEqual(
+            try composerBottomInWindow(), 474,
+            accuracy: 1.0,
+            "动画落定后舱底须＝474，实测 "
+                + "\(try composerBottomInWindow())"
+        )
+
+        // 收起：willHide→舱回静息座、供数报 nil
+        // （isKeyboardUp 源头恢复假值、底栏归位）
+        postKeyboard(
+            name: UIResponder.keyboardWillHideNotification,
+            top: windowH, duration: 0.25
+        )
+        drain(0.6)
+        XCTAssertEqual(
+            try composerBottomInWindow(), restBottom,
+            accuracy: 1.0,
+            "收起后舱底须回静息座 \(restBottom)，实测 "
+                + "\(try composerBottomInWindow())"
+        )
+        XCTAssertNil(
+            updates.last?.topInWindow,
+            "收起后供数 top 须 nil（藏坞解除）"
         )
     }
 

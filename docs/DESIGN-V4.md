@@ -13175,3 +13175,17 @@ run 43746767854（workflow_dispatch @ rel-05058 尖端 0a9fca6），全日志 24
 
 run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25,031 行本地核账：**Core 2164/2164、0 failures**；**R1 装配 7/7 续绿**；**R2 装配 ⑦⑨⑩ 续绿**；**R3 装配四例全过**（⑪⑫⑬＋拼装资格）；**R4 装配 ⑭⑮⑯ 全过**——⑯ `NATIVE-LANDING-R4 contentSize=4156.0 offset=3352.0 distance=0.0 contentEndVisible=true`，与同轮 R1 ③ 的 NATIVE-LANDING 逐值相同、与 R4 预制两轮逐值相同（确定性复现）；**DiscussQuote 双面门绿**（9.2s）；**DataDetector 3/3 续绿**；**键盘矩阵本轮绿**（99.2s，rig 抖动族自愈、与登记观察一致）。App 红恰 2 件：§257.1 登记探针（EdgeEffectProbe，失败值 24/8/18/25 与基线逐值同签名、钉旗后仍在旧面量测）＋⑧（「0≠1」量测不可达、已登记量测限制）。UI 20 例 9 红、恰第 95 条登记族：原生面五件（AX 帧不稳同签名）＋仲裁 4 件（右滑/长按正文/长按电话/双击；边距带本轮过），全程无产品反例。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.59/OneDay-0.50.59-unsigned.ipa：**14,051,848 字节、md5 `9fb4ac69e24fc752a43e6d585dbd3e7e`**，解包验 CFBundleShortVersionString=0.50.59、CFBundleVersion=187、bundle id site.didichou.oneday。待办总表已落第 99 条 R4 落地行（.59 已组版、浸泡自本版起算、R5 门＝满一整版无承载级回退），副本随交付目录；真机清单 17 项＝首组手势五件最终验收（默认新面直接验）＋续组 11 项（新增第 6 项「装后默认即新面」、收尾项改「关开关回旧面再开回」）；全矩阵 24 项＋千条 Instruments 对照为浸泡期验收门、随真机验回填。未合 main、未打 tag。
+
+## §299 第 100 条新面键盘跟随热修（2026-11-16；分支 feat/native-kb-follow-fix，基线 rel-05059@9619b61；定因 keyboard-rise-diagnosis-20261116）
+
+**切片口径**：阻断级热修单包，只修新面键盘跟随（定因 K1/K2），不动浸泡账（主线已裁：跟随失效构成承载级回退、修复版经真机验过后重算 .59 浸泡、R5 继续关门；账在待办总表由组版线记）。旧面 §194/§195 路径与行为一字不动；本面包判绿后由主线按热修单包组版。
+
+**修法①落位回 §194 形态（治 K1）**：`ChatRootViewController` 内自持键盘通知订阅（selector 式，willShow/willHide 定翻转、willChangeFrame 供逐帧跟随，与 ComposerGuideHostController 同纪律）；舱底恒钉自有位置引导线 `bottomGuide.topAnchor`（约束永不切换），其 top 常量只由 `syncBottomConstant` 一个函数算——键盘态＝通知结束帧顶（window.convert 转窗口坐标存账）、静息态＝坞实测顶（窗口层级找 UITabBar 本体/类名兜底、只读帧不被约束引用，`layoutSpaceMinY` 累加口径与 §194 同式）、无坞回落窗口安全区底；翻转与帧变化以通知动画参数原值推进布局（时长 0 的逐帧事件直接布局、不包动画）。锚解析触发点＝入窗/显形/键盘收起/回落态布局拍自愈（与 §194 同式）。`keyboardLayoutGuide` 退出驱动位：只在翻转拍采样其顶值记入 ChatDiagTrace 自述与通知帧顶同帧对账（预期仍停静息值、即 K1 根因本人的持续留证），不再作任何落位依据。
+
+**修法②kbSnapshot 供数同源收口（治 K2）**：同一通知解析点在驱动舱常量的同拍组装 `KeyboardFrameUpdate`（停靠判定/动画参数与 §194 reportKeyboardFrame 同式），经 `ChatRootViewController.onKeyboardFrameChange`→representable 桥接→ChatView 的 `$kbFrameUpdate` 绑定（事件拍直写＋等值守卫，与 ComposerGuideHost 桥同纪律）。快照本体恒 ChatView 的 `kbSnapshot` 一份、根 onChange 整包写入不分面——`isKeyboardUp`／chatSurface 聚焦藏坞（`.toolbar(.hidden, for: .tabBar)`）在新面恢复触发。解析点按面收口：三面互斥在场、同一时刻只有一个解析点在写，不许第二套快照。
+
+**迟滞（L1/L2）处置**：不预设修法、不加任何机制。L2 代码面排查结论＝无实证、不动：第一响应者路径两面共用同一 ComposerTextView/bottomBar、无面别分支；聚焦边沿 ChatView 的工作量新面是旧面的子集（旧面另有 anchorToBottomAfterKeyboard* 挂账链在聚焦＋WillChangeFrame/DidChangeFrame 两拍运行、新面 §293 起无此链）；新面 apply() 的 O(行数) 记账在每次 ChatView 重建时发生（流式拍同频）、不独占点按→首帧窗口，且与旧面 SwiftUI 列表 diff 同量级。录屏 ≈1.2s 列表一过性位移在代码面无候选机制、无实证，登记备查。迟滞最终判别归真机复验（新面内收起后立即再点是否秒起→L1 冷启动坐实/出局），本包不为迟滞落码。
+
+**装配换代（验收面）**：R2 装配 ⑨ 改写为通知驱动版 `testComposerNotificationFollowAndSnapshotFeed`——静息回落座、willShow 后舱底＝通知帧顶＋供数同拍同值（top/时长/曲线原值）、引导线全程未动（驱动者是通知的结构直证）、willChangeFrame 时长 0 逐帧对账（640/580/541 逐值）、0.5s 动画中段 presentation 帧在途对账（541→474 严格在途样本）、willHide 回座＋供数 nil；底 inset 舱实测派生恒等式与键盘位末行→舱顶 24 保留。R1 装配的键盘座位（seatComposer）由附加安全区顶引导线改为投递键盘通知本体（生产驱动即通知、无模拟层），② 升起态补座位绝对值断言（舱顶＝通知帧顶−舱高，防自洽量静默失效）。安全区模拟自此只许作结构证据、不得作跟随出货证据（定因报告 §七.4）；跟随终验归真机（真键盘动画中段帧舱底与键盘顶同拍对账＋迟滞判别一并）。
+
+**验收门**：至多两轮全量门、§190 全日志核账；Core 基线 2164（rel-05059 口径，新增测试另计）；红只认登记签名族（§257.1 探针、R2 ⑧ 量测限制、第 95 条 AX 帧不稳族、键盘矩阵 rig 红、§184 签名内）。CI 判读见 §299.1（回填）。

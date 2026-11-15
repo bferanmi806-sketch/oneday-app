@@ -442,11 +442,15 @@ struct ChatView: View {
         windowHeight: 874, dockTopInWindow: 791,
         pocketHeight: 105
     )
-    /// R1（修正）：键盘帧更新包的收件槽——由 Com-
-    /// poserGuideHost 控制器（唯一解析点）在键盘事
-    /// 件拍直写（帧顶已转窗口坐标），本页 onChange
+    /// R1（修正）：键盘帧更新包的收件槽——由当前
+    /// 在场面的控制器（唯一解析点）在键盘事件拍
+    /// 直写（帧顶已转窗口坐标），本页 onChange
     /// 以其动画参数原值整包写进快照（见 body 根的
-    /// onChange(kbFrameUpdate)）。首版由本页 .onRe-
+    /// onChange(kbFrameUpdate)）。解析点按面收口：
+    /// 旧面/gen3 面＝ComposerGuideHost 控制器，
+    /// 原生面＝ChatRootViewController（§299 同源
+    /// 收口）——三面互斥在场、同一时刻只有一个解
+    /// 析点在写，快照本体恒一份。首版由本页 .onRe-
     /// ceive 自行解析通知：屏幕坐标原值与快照窗口
     /// 坐标不重合、锚恒偏——解析自此不归本页
     @State private var kbFrameUpdate: KeyboardFrameUpdate?
@@ -2343,8 +2347,8 @@ struct ChatView: View {
     // MARK: - 原生重建面（§291 R1）
 
     /// 原生面列表：根容器（ChatNativeListView，
-    /// R2 起输入舱收编入容器子托管、底边钉其
-    /// keyboardLayoutGuide）＋顶簇宿主 overlay
+    /// R2 起输入舱收编入容器子托管、落位 §299
+    /// 起回 §194 通知帧顶常量形态）＋顶簇宿主 overlay
     /// （§195 不变）＋跟随处理链（与 gen3 面同一
     /// 条链——链内命令经 surface* 分发器派生到当
     /// 前面，见各共享函数）。页面级修饰在
@@ -2365,10 +2369,14 @@ struct ChatView: View {
             // 喂入（§293 R2 收口）：顶留位＝窗口顶
             // 安全区实测＋顶簇实高（§195 记账不
             // 变）；底侧不再喂数——舱内容本体交容
-            // 器子托管（底边钉其 keyboardLayout-
-            // Guide），底 inset 由容器以舱实测帧派
-            // 生。§194 快照（kbSnapshot）自此与本
-            // 面脱钩（gen3/旧面照旧消费）
+            // 器子托管（落位由容器内 §299 通知帧
+            // 顶常量驱动），底 inset 由容器以舱实
+            // 测帧派生。§194 快照（kbSnapshot）自
+            // §299 起在本面同源供数：容器内同一通
+            // 知解析点经 keyboardFrame 绑定喂本页
+            // kbFrameUpdate（与旧面 ComposerGuide-
+            // Host 同一口径、同一份快照）——R2 期
+            // 「快照与本面脱钩」就此收口（定因 K2）
             topInset: windowTopSafeInset + topBarHeight,
             bottomMargin: OneDayMetrics.spacingM,
             composerView: AnyView(
@@ -2381,6 +2389,7 @@ struct ChatView: View {
                     }
                 )
             ),
+            keyboardFrame: $kbFrameUpdate,
             arrowView: carrierArrowView,
             handle: nativeHandle,
             callbacks: nativeCallbacks,
@@ -2432,15 +2441,19 @@ struct ChatView: View {
         .onChange(of: currentThreadID) { oldID, newID in
             handleCarrierThreadSwitch(oldID: oldID, newID: newID)
         }
-        // §293（R2／H8）：本面不再订阅键盘通知、不
-        // 再走键盘锚定挂账链（anchorToBottomAfter-
-        // KeyboardCarrier 一族是 §194 时代的补偿机
-        // 制）——键盘升降的跟随由容器布局拍承接：
-        // 舱帧经引导线逐帧变→容器布局拍逐帧对账
-        // inset→在底同拍钉底（ChatRootViewContr-
-        // oller viewDidLayoutSubviews）。聚焦/帧变
-        // 化在本面无 ChatView 侧动作；gen3 面同链
-        // 照旧（其订阅在 gen3 面内）
+        // §293（R2／H8）→§299：本面在 ChatView 侧
+        // 仍不订阅键盘通知、不走键盘锚定挂账链
+        // （anchorToBottomAfterKeyboardCarrier 一
+        // 族是 §194 时代的补偿机制）——键盘升降
+        // 的跟随由容器内通知链承接：容器自持订阅
+        // 以帧顶常量驱动舱帧（§299 回 §194 形
+        // 态）→容器布局拍逐帧对账 inset→在底同拍
+        // 钉底（ChatRootViewController viewDid-
+        // LayoutSubviews）。快照供数同出容器内解
+        // 析点（keyboardFrame 绑定，见上方喂入
+        // 注），本页根 onChange(kbFrameUpdate) 整
+        // 包入快照与旧面共用、不分面。gen3 面同
+        // 链照旧（其订阅在 gen3 面内）
         .task(id: currentThreadID) {
             guard let id = currentThreadID else { return }
             if ChatListAnchorStore.anchor(for: id) != nil

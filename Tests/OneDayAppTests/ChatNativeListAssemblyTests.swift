@@ -23,12 +23,15 @@ import OneDayDesign
 /// ⑥产物估算与 cell 实高带宽（H10）。
 /// §293（R2）装配形态变更：输入舱不再是壳外
 /// UIView＋喂入两数——舱内容经 apply 的 compo-
-/// serView 交容器子托管、底边钉容器 keyboard-
-/// LayoutGuide；「键盘座位」改由附加底安全区顶
-/// 起引导线实现（引导线帧由安全区＋键盘帧共同
-/// 决定，顶起量与真键盘同式），断言对象＝容器
-/// 内舱宿主实帧。R1 期以喂入模拟键盘帧的旧座位
-/// （composerBar 约束＋skew）自此退役
+/// serView 交容器子托管；「键盘座位」R2 期由附
+/// 加底安全区顶起引导线实现。§299（第 100 条
+/// 热修）再换代：舱落位回 §194 通知帧顶常量形
+/// 态、引导线退出驱动位——座位随之改由投递键
+/// 盘通知实现（投的即生产驱动本体：willShow/
+/// willHide＋结束帧＋动画参数，时长 0 即时落
+/// 位），断言对象仍＝容器内舱宿主实帧。安全区
+/// 模拟自此退役：它验的是「安全区变化时约束成
+/// 立」、不是跟随（定因报告 §七.4）
 @MainActor
 final class ChatNativeListAssemblyTests: XCTestCase {
 
@@ -107,8 +110,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     /// 舱内容（壳家具，与 R1 期的 UIView 条同位）：
     /// 定高 54 的 SwiftUI 条，经 apply 交容器子托
-    /// 管——其帧由容器 keyboardLayoutGuide 决定，
-    /// 不由测试约束
+    /// 管——其帧由容器 §299 位置常量（通知帧顶/
+    /// 静息坞顶）决定，不由测试约束
     private func composerContent() -> AnyView {
         AnyView(
             Rectangle()
@@ -117,18 +120,35 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         )
     }
 
-    /// 引导线座位（false＝静息、true＝键盘升起
-    /// 等价位）：静息时附加安全区为零、引导线停
-    /// 安全区底；升起时附加底安全区把引导线顶上
-    /// 推（windowH−keyboardTop）——引导线帧由安
-    /// 全区＋键盘帧共同决定，附加安全区顶起与真
-    /// 键盘顶起同机制，舱底钉引导线顶随之升起
+    /// 键盘座位（false＝静息、true＝键盘升起位）：
+    /// §299 起座位＝向默认通知中心投递键盘通知
+    /// 本体——升起投 willShow（结束帧顶＝key-
+    /// boardTop、时长 0 即时落位），收起投 will-
+    /// Hide（结束帧出窗）。容器自持订阅以同一解
+    /// 析驱动舱常量与快照供数，座位即生产链本
+    /// 人、无模拟层。R2 期的附加安全区顶引导线
+    /// 座位随引导线退出驱动位一并退役
     private func seatComposer(onKeyboard: Bool) {
-        controller.additionalSafeAreaInsets = UIEdgeInsets(
-            top: 0, left: 0,
-            bottom: onKeyboard
-                ? windowH - keyboardTop : 0,
-            right: 0
+        let center = NotificationCenter.default
+        let userInfo: [AnyHashable: Any] = [
+            UIResponder.keyboardFrameEndUserInfoKey:
+                NSValue(cgRect: CGRect(
+                    x: 0,
+                    y: onKeyboard ? keyboardTop : windowH,
+                    width: windowW,
+                    height: windowH - keyboardTop
+                )),
+            UIResponder.keyboardAnimationDurationUserInfoKey:
+                NSNumber(value: 0),
+            UIResponder.keyboardAnimationCurveUserInfoKey:
+                NSNumber(value: 7),
+        ]
+        center.post(
+            name: onKeyboard
+                ? UIResponder.keyboardWillShowNotification
+                : UIResponder.keyboardWillHideNotification,
+            object: nil,
+            userInfo: userInfo
         )
         window.layoutIfNeeded()
     }
@@ -356,6 +376,16 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         apply(rows: rows, onKeyboard: true)
         drain()
         try assertShortGap(rows: rows, label: "键盘升起")
+        // §299 座位绝对值：升起态舱顶须坐到通知帧
+        // 顶−舱高（491）——gap 断言是自洽量（舱不
+        // 动也能过），座位须另有绝对锚防静默失效
+        let composerTop = try composerTopInWindow()
+        XCTAssertEqual(
+            composerTop, keyboardTop - composerHeight,
+            accuracy: 1.5,
+            "键盘升起态舱顶须＝通知帧顶−舱高 "
+                + "\(keyboardTop - composerHeight)，实测 \(composerTop)"
+        )
     }
 
     func testShortContentThreeRowsGap() throws {

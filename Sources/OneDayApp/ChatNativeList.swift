@@ -10,8 +10,9 @@ import UIKit
 /// UIHostingConfiguration 托管现有 SwiftUI 行内容
 /// 进 cell（内容本体一字不动）；直播区自 R2 起逐
 /// 项入快照（ChatView nativeLiveRow，§293）；输入
-/// 舱自 R2 起收编为本容器子托管——底边钉本视图
-/// keyboardLayoutGuide（H8 键盘换代，见下）。
+/// 舱自 R2 起收编为本容器子托管——落位原钉本视图
+/// keyboardLayoutGuide（H8），§299 起改回 §194
+/// 通知帧顶单常量形态（见下 H8 沿革）。
 ///
 /// 几何纪律（施工图 §四硬约束）：
 /// - H1 间距单源：相邻消息纵向间距只由 section
@@ -39,18 +40,34 @@ import UIKit
 ///   本面再抄一份。喂入只剩顶 inset 与单点边距两
 ///   笔（§263 口径同源）；底几何自 R2 起全由本容
 ///   器内实测派生（见 H8）。
-/// - H8 键盘只走 keyboardLayoutGuide（R2 换代）：
-///   输入舱子托管底边钉本视图 keyboardLayout-
-///   Guide.topAnchor——键盘升降/交互消散由引导
-///   线逐帧驱动（含系统动画曲线，无通知订阅、无
-///   快照常数、无状态机自算）；列表底 inset 每拍
-///   由舱子托管的实际布局帧一处派生（量测→对账
-///   →在底同拍钉底，全在布局拍/落定拍内）；§194
-///   通知常量与 ChatView 侧键盘锚定挂账链在本面
-///   不再消费（gen3/旧面照旧）。引导线在本层级
-///   的追踪真值由真机 A2/A3 门裁决（施工图 §五
-///   R2 门）——本容器的内部回滚点＝本节整组改动
-///   （舱收编＋派生源），与流式半边互不牵连。
+/// - H8 键盘跟随（R2 换代→§299 回 §194 形态）：
+///   R2 曾定「只走 keyboardLayoutGuide」——舱底
+///   钉本视图引导线顶、引导线逐帧驱动。2026-
+///   11-16 用户 .59 真机录屏证伪（定因报告 key-
+///   board-rise-diagnosis-20261116）：引导线在本
+///   层级（SwiftUI 托管内嵌控制器）真机不追踪真
+///   键盘、舱全程钉坞位被键盘盖住，与 §193→
+///   §194 病史同族；其真机门 A2/A3 从未回填即
+///   随 .59 转默认。§299 落位回 §194 形态：舱底
+///   恒钉自有位置引导线 bottomGuide，其 top 常
+///   量只由 syncBottomConstant 一个函数算——键
+///   盘态＝通知广播的结束帧顶（窗口坐标）、静息
+///   态＝坞实测顶、无坞回落窗口安全区底；状态翻
+///   转与帧变化以通知动画参数原值推进布局（时
+///   长 0 的逐帧事件直接布局）。keyboardLayout-
+///   Guide 自此退出驱动位、只在事件拍作采样对
+///   照记入自述（预期仍停静息值、即根因本人）。
+///   列表底 inset 仍每拍由舱子托管实测帧一处派
+///   生（量测→对账→在底同拍钉底，全在布局拍/
+///   落定拍内），此半边 R2 口径不变。ChatView
+///   侧键盘锚定挂账链在本面仍不消费（gen3/旧面
+///   照旧）；但 kbSnapshot 供数自 §299 起同源
+///   收口：同一通知解析点在驱动舱常量的同拍组
+///   装 KeyboardFrameUpdate 经 onKeyboardFrame-
+///   Change 喂 ChatView 的 kbFrameUpdate（与旧
+///   面 ComposerGuideHost 同一口径、同一快照，
+///   不许第二套）——isKeyboardUp／聚焦藏坞在
+///   新面恢复触发（定因 K2 的修法）。
 
 // MARK: - 行描述（ChatView 喂入）
 
@@ -206,10 +223,39 @@ final class ChatRootViewController: UIViewController,
 
     /// 输入舱子托管（R2 收编）：内容由 ChatView
     /// 以 AnyView 喂入（bottomBar 本体），底边钉
-    /// 本视图 keyboardLayoutGuide——舱落位只认引
-    /// 导线（H8）。装配测试经 internal 读口取其帧
+    /// 自有位置引导线 bottomGuide——其 top 常量
+    /// 是舱落位的唯一数（§299 回 §194 形态：键
+    /// 盘态＝通知帧顶、静息态＝坞实测顶，sync-
+    /// BottomConstant 唯一计算点）。装配测试经
+    /// internal 读口取其帧
     private(set) var composerHost:
         UIHostingController<AnyView>?
+    /// §299：键盘帧更新回调（representable 桥接
+    /// 回 ChatView 的 kbFrameUpdate 绑定）——与
+    /// 舱常量同一通知解析点同拍组装（reportKey-
+    /// boardFrame），帧顶已转窗口坐标、动画参数
+    /// 原值；快照本体仍是 ChatView 的 kbSnapshot
+    /// 一份，本容器不另持快照
+    var onKeyboardFrameChange: ((KeyboardFrameUpdate) -> Void)?
+    /// §299 位置引导线：top 由 bottomGuideTop-
+    /// Constraint 的常量定位（布局空间换算，见
+    /// syncBottomConstant）；舱底恒钉其 topAnchor、
+    /// 约束永不切换激活态（§194「模式即病灶」）
+    private let bottomGuide = UILayoutGuide()
+    private var bottomGuideTopConstraint: NSLayoutConstraint!
+    /// §299 坞锚当前参照（UITabBar 本体或类名兜
+    /// 底命中；回落态为 nil 且 dockIsFallback＝
+    /// true，参照＝窗口安全区底）——与 §194 同
+    /// 式：只读其实帧、永不被约束直接引用
+    private weak var dockBarView: UIView?
+    private var dockIsFallback = false
+    private weak var anchorWindow: UIWindow?
+    private var keyboardUp = false
+    /// §299 键盘顶存账（窗口坐标）：willShow/
+    /// willChangeFrame 通知的结束帧顶——键盘本
+    /// 人广播的真值，常量换算的唯一键盘输入；
+    /// 收起即清
+    private var keyboardTopInWindow: CGFloat?
     /// 视图未装载时到达的舱内容（装载拍补装）
     private var pendingComposerView: AnyView?
     /// 落定拍调度账（与 gen3 §259 同式：滚动回调
@@ -349,6 +395,47 @@ final class ChatRootViewController: UIViewController,
         collectionView.topEdgeEffect.style = .soft
         collectionView.bottomEdgeEffect.style = .soft
         view.addSubview(collectionView)
+        // §299：位置引导线入本视图（top 常量待
+        // syncBottomConstant 按当前输入填，初始 0
+        // ＝未解析前舱贴顶、无害瞬态，锚解析在入
+        // 窗/显形拍即补）；舱装配（installComposer-
+        // IfNeeded）把舱底钉其 topAnchor
+        view.addLayoutGuide(bottomGuide)
+        bottomGuideTopConstraint = bottomGuide.topAnchor
+            .constraint(equalTo: view.topAnchor, constant: 0)
+        NSLayoutConstraint.activate([
+            bottomGuide.leadingAnchor.constraint(
+                equalTo: view.leadingAnchor),
+            bottomGuide.trailingAnchor.constraint(
+                equalTo: view.trailingAnchor),
+            bottomGuide.heightAnchor.constraint(
+                equalToConstant: 0),
+            bottomGuideTopConstraint,
+        ])
+        // §299 键盘信号（与 §194 同式）：willShow/
+        // willHide 定状态翻转、willChangeFrame 供
+        // 逐帧跟随，三者的结束帧都是位置常量的键
+        // 盘输入；动画参数随通知取。selector 式观
+        // 察者（不存 token，与 ComposerGuideHost-
+        // Controller 同纪律：块式 token 在 Swift 6
+        // 下 deinit/跨闭包发送有实证坑）
+        let center = NotificationCenter.default
+        center.addObserver(
+            self, selector: #selector(keyboardWillShow(_:)),
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil
+        )
+        center.addObserver(
+            self, selector: #selector(keyboardWillHide(_:)),
+            name: UIResponder.keyboardWillHideNotification,
+            object: nil
+        )
+        center.addObserver(
+            self,
+            selector: #selector(keyboardWillChangeFrame(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification,
+            object: nil
+        )
         installComposerIfNeeded()
         installBlankTapDismiss()
         ChatDiagTrace.record(
@@ -357,7 +444,314 @@ final class ChatRootViewController: UIViewController,
         )
     }
 
-    // MARK: 输入舱收编（R2／H8）
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // §299 锚解析触发点之一（入窗后窗口已定）：
+        // 与 §194 的入窗/显形重解析同式——切格往返
+        // 期间标签栏实例若被换过，在此换新参照
+        resolveAnchors()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        resolveAnchors()
+    }
+
+    // MARK: 键盘跟随（§299 回 §194 形态）
+
+    @objc private func keyboardWillShow(
+        _ note: Notification
+    ) {
+        setKeyboardUp(true, note: note)
+    }
+
+    @objc private func keyboardWillHide(
+        _ note: Notification
+    ) {
+        setKeyboardUp(false, note: note)
+    }
+
+    /// §299 帧变化跟进（交互式下滑收键盘/候选条
+    /// 高度变化）：键盘态内逐事件刷新存账帧顶并重
+    /// 算常量——通知帧是键盘本人的广播，不经任何
+    /// 引导线转译；时长 0 的逐帧事件直接布局、不
+    /// 包动画（与 §194 willChangeFrame 同式）
+    @objc private func keyboardWillChangeFrame(
+        _ note: Notification
+    ) {
+        guard keyboardUp else { return }
+        updateKeyboardTop(from: note)
+        syncBottomConstant()
+        animateLayout(with: note, immediateIfZero: true)
+        reportKeyboardFrame(from: note)
+    }
+
+    /// §299 键盘帧顶存账：通知的结束帧是屏幕坐
+    /// 标，经本窗换算成窗口坐标存下；常量换算在
+    /// syncBottomConstant 里逐布局拍按本视图当前
+    /// 布局空间重算，本函数只存窗口真值（与
+    /// §194 updateKeyboardTop 同式）
+    private func updateKeyboardTop(from note: Notification) {
+        guard let value = note.userInfo?[
+            UIResponder.keyboardFrameEndUserInfoKey
+        ] as? NSValue else { return }
+        let screenFrame = value.cgRectValue
+        if let window = view.window {
+            keyboardTopInWindow = window.convert(
+                screenFrame, from: nil
+            ).minY
+        } else {
+            keyboardTopInWindow = screenFrame.minY
+        }
+    }
+
+    /// §299 键盘态翻转：升起先把通知帧顶存账（常
+    /// 量的唯一键盘输入），收起先重解析坞参照（聚
+    /// 焦藏坞期间标签栏可能换实例）；常量重算后与
+    /// 键盘动画同参推进布局（与 §194 setKeyboardUp
+    /// 同式）。翻转拍采样引导线顶记入自述作对照
+    /// ——引导线只采样、不驱动（预期其仍停静息
+    /// 值、即定因 K1 本人）
+    private func setKeyboardUp(
+        _ up: Bool, note: Notification
+    ) {
+        if up {
+            updateKeyboardTop(from: note)
+        } else {
+            resolveAnchors()
+        }
+        guard up != keyboardUp else {
+            // 同态重播（willShow 重发等）：按已存帧
+            // 顶重同步常量即可，不重入记账
+            if up {
+                syncBottomConstant()
+                view.layoutIfNeeded()
+                reportKeyboardFrame(from: note)
+            }
+            return
+        }
+        keyboardUp = up
+        if !up { keyboardTopInWindow = nil }
+        syncBottomConstant()
+        animateLayout(with: note, immediateIfZero: false)
+        reportKeyboardFrame(from: note)
+        sampleGuideForTrace(event: up ? "kbShow" : "kbHide")
+    }
+
+    /// 与键盘动画同参推进一次布局（时长/曲线取自
+    /// 通知）；immediateIfZero 时时长为 0 直接布
+    /// 局——交互式逐帧跟随不许包进动画系统再迟
+    /// 一拍（与 §194 animateLayout 同式）
+    private func animateLayout(
+        with note: Notification, immediateIfZero: Bool
+    ) {
+        let userInfo = note.userInfo
+        let duration = userInfo?[
+            UIResponder.keyboardAnimationDurationUserInfoKey
+        ] as? Double ?? 0.25
+        let curveRaw = userInfo?[
+            UIResponder.keyboardAnimationCurveUserInfoKey
+        ] as? UInt ?? 7
+        if immediateIfZero, duration <= 0 {
+            view.layoutIfNeeded()
+            return
+        }
+        UIView.animate(
+            withDuration: duration, delay: 0,
+            options: UIView.AnimationOptions(
+                rawValue: curveRaw << 16
+            )
+        ) { [weak self] in
+            self?.view.layoutIfNeeded()
+        }
+    }
+
+    /// §299 锚解析：在本视图所在窗口的层级里找坞
+    /// 参照（UITabBar 本体或类名兜底），只登记引
+    /// 用与命中模式——位置由 syncBottomConstant
+    /// 逐拍换算进位置常量，参照本身不被任何约束
+    /// 引用。触发点只在离散事件（入窗/显形/键盘
+    /// 收起/回落态布局拍自愈），不在每拍布局里走
+    /// 层级（与 §194 resolveAnchors 同式）
+    private func resolveAnchors() {
+        guard let window = view.window else { return }
+        let windowChanged = anchorWindow !== window
+        anchorWindow = window
+        let foundBar = Self.findDockAnchor(in: window)
+        if let foundBar {
+            if dockBarView !== foundBar || dockIsFallback
+                || windowChanged {
+                dockBarView = foundBar
+                dockIsFallback = false
+            }
+        } else if !dockIsFallback || windowChanged {
+            // 无坞环境回落（探针裸装配等非生产形
+            // 态）：参照＝窗口安全区底——生产装配
+            // 恒有坞，不走此路
+            dockBarView = nil
+            dockIsFallback = true
+        }
+        syncBottomConstant()
+    }
+
+    /// §299 位置常量唯一计算点：bottomGuide 的
+    /// top 常量＝目标顶边－本视图布局空间顶边。
+    /// 目标顶边按当前输入取实测真值：键盘升起态
+    /// ＝通知广播的键盘帧顶（窗口坐标——键盘升
+    /// 起时抽屉必闭、祖先链 transform 恒等，窗口
+    /// 坐标与布局空间累加坐标同值；无帧存账时保
+    /// 留上次常量、不许跌回坞值）；静息态＝坞参
+    /// 照的布局空间顶边（沿 superview 链累加
+    /// frame 原点——布局真值、忽略 transform，
+    /// 抽屉平移不假补偿、舱随前景同移）。逐布局
+    /// 拍调用（只读缓存值、无层级遍历），偏差
+    /// >0.5 才写（与 §194 syncBottomConstant 同式）
+    private func syncBottomConstant() {
+        guard let window = view.window,
+              let bottomGuideTopConstraint else { return }
+        let targetTop: CGFloat
+        if keyboardUp {
+            guard let kbTop = keyboardTopInWindow
+            else { return }
+            targetTop = kbTop
+        } else if let bar = dockBarView,
+                  bar.window === window {
+            targetTop = Self.layoutSpaceMinY(of: bar)
+        } else if dockIsFallback {
+            targetTop = window.bounds.height
+                - window.safeAreaInsets.bottom
+        } else {
+            return
+        }
+        let constant = targetTop
+            - Self.layoutSpaceMinY(of: view)
+        if abs(bottomGuideTopConstraint.constant - constant)
+            > 0.5 {
+            bottomGuideTopConstraint.constant = constant
+        }
+    }
+
+    /// 视图在窗口布局空间的顶边（frame 原点沿父
+    /// 链累加；transform 不进布局帧、天然不计，
+    /// 与 §194 同名近似同式）
+    private static func layoutSpaceMinY(
+        of view: UIView
+    ) -> CGFloat {
+        var y = view.frame.minY
+        var ancestor = view.superview
+        while let current = ancestor,
+              !(current is UIWindow) {
+            y += current.frame.minY
+            ancestor = current.superview
+        }
+        return y
+    }
+
+    /// 窗口层级内找坞锚目标（深度优先两级）：先
+    /// UITabBar 本体；无本体时取类名含 TabBar 且
+    /// 宽度 >300 的视图（系统内部实现跨版本改名/
+    /// 换类的兜底，与 §194 findDockAnchor 同式）
+    private static func findDockAnchor(
+        in window: UIWindow
+    ) -> UIView? {
+        func walk(_ view: UIView) -> UIView? {
+            if let bar = view as? UITabBar { return bar }
+            for sub in view.subviews {
+                if let hit = walk(sub) { return hit }
+            }
+            return nil
+        }
+        if let bar = walk(window) {
+            return bar
+        }
+        func walkByName(_ view: UIView) -> UIView? {
+            let name = String(describing: type(of: view))
+            if name.contains("TabBar"),
+               view.frame.width > 300 {
+                return view
+            }
+            for sub in view.subviews {
+                if let hit = walkByName(sub) { return hit }
+            }
+            return nil
+        }
+        return walkByName(window)
+    }
+
+    /// §299 键盘帧更新包的组装点——与 updateKey-
+    /// boardTop 同一解析（window.convert 转窗口
+    /// 坐标）、同一通知；停靠判定在窗口坐标系内
+    /// 做（满宽＋底边贴窗口底＋帧顶在窗口内），
+    /// 浮动/分离键盘按不在场报（top＝nil）；键盘
+    /// 不在场（willHide 后）恒报 nil。动画参数取
+    /// userInfo 原值。喂 ChatView 的 kbFrameUpdate
+    /// ——与舱常量同源同拍（定因 K2 收口；与
+    /// §194 reportKeyboardFrame 同式）
+    private func reportKeyboardFrame(
+        from note: Notification
+    ) {
+        let info = note.userInfo
+        let duration = (info?[
+            UIResponder.keyboardAnimationDurationUserInfoKey
+        ] as? NSNumber)?.doubleValue ?? 0
+        let curve = (info?[
+            UIResponder.keyboardAnimationCurveUserInfoKey
+        ] as? NSNumber)?.intValue ?? 0
+        var top: CGFloat? = nil
+        if keyboardUp,
+           let window = view.window,
+           let value = info?[
+               UIResponder.keyboardFrameEndUserInfoKey
+           ] as? NSValue {
+            let rect = window.convert(
+                value.cgRectValue, from: nil
+            )
+            let docked = rect.width
+                    >= window.bounds.width - 1
+                && rect.maxY
+                    >= window.bounds.height - 1
+                && rect.minY
+                    < window.bounds.height - 1
+            top = docked ? rect.minY : nil
+        }
+        onKeyboardFrameChange?(
+            KeyboardFrameUpdate(
+                topInWindow: top,
+                duration: duration,
+                curveRawValue: curve
+            )
+        )
+    }
+
+    /// §299 引导线采样对照（只记自述、永不驱动）：
+    /// 翻转拍记通知帧顶与本视图 keyboardLayout-
+    /// Guide 顶的窗口值同帧对账——真机验收看数
+    /// 字：舱底应＝通知帧顶；guide 若仍停静息值
+    /// 即 K1 根因本人的持续留证
+    private func sampleGuideForTrace(event: String) {
+        guard let window = view.window else { return }
+        let guideTopInWindow = view.convert(
+            CGPoint(
+                x: 0,
+                y: view.keyboardLayoutGuide.layoutFrame.minY
+            ),
+            to: window
+        ).y
+        let kbText = keyboardTopInWindow.map {
+            String(format: "%.1f", $0)
+        } ?? "nil"
+        ChatDiagTrace.record(
+            "原生面 §299 [\(event)] kbTopWin=\(kbText) "
+                + "guideTopWin="
+                + String(format: "%.1f", guideTopInWindow)
+        )
+    }
+
+    // MARK: 输入舱收编（R2／§299）
 
     /// 舱内容喂入（representable update 入口）：已
     /// 装配则原位换内容（rootView 替换、约束不
@@ -383,11 +777,12 @@ final class ChatRootViewController: UIViewController,
 
     /// 舱子托管装配：UIHostingController 收编为子
     /// 控制器（H2：safeAreaRegions 清零）；约束只
-    /// 三条——左右贴本视图、底边钉 keyboardLay-
-    /// outGuide.topAnchor，高由内容固有尺寸（舱
-    /// 栈自带定高口径）。键盘的一切运动（升起/候
-    /// 选条/交互消散）经引导线逐帧传到本约束，舱
-    /// 随之同拍移动——本面不再有第二条键盘通道
+    /// 三条——左右贴本视图、底边恒钉自有位置引
+    /// 导线 bottomGuide.topAnchor，高由内容固有
+    /// 尺寸（舱栈自带定高口径）。键盘的一切运动
+    /// （升起/候选条/交互消散）经通知帧顶常量逐
+    /// 拍传到本约束（§299，见键盘跟随节），舱随
+    /// 之同拍移动——本面不许有第二条键盘通道
     private func installComposerIfNeeded() {
         guard composerHost == nil,
               let content = pendingComposerView
@@ -408,7 +803,7 @@ final class ChatRootViewController: UIViewController,
                 equalTo: view.trailingAnchor
             ),
             host.view.bottomAnchor.constraint(
-                equalTo: view.keyboardLayoutGuide.topAnchor
+                equalTo: bottomGuide.topAnchor
             ),
         ])
         composerHost = host
@@ -456,6 +851,16 @@ final class ChatRootViewController: UIViewController,
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        // §299：本拍先做位置常量同步——窗口未解
+        // 析（入窗前）或回落态（标签栏随呈现时序
+        // 迟到）在此补解析、找到即退出回落；常量
+        // 只读缓存的坞参照实帧/键盘存账帧顶（与
+        // §194 布局拍纪律同式）
+        if anchorWindow !== view.window
+            || (dockIsFallback && !keyboardUp) {
+            resolveAnchors()
+        }
+        syncBottomConstant()
         // 布局前先记在底事实（旧帧口径）：布局变化
         // （旋转/壳层帧变）后在底者钉底、不在底者不
         // 动——与 gen3 layoutContent 的位置保全同式
@@ -580,9 +985,10 @@ final class ChatRootViewController: UIViewController,
         if insetChanged {
             // apply 只记账，inset 施工归落定拍在布局
             // 落定后同拍执行。底侧恒由舱实测帧派生
-            // （R2）：键盘动画不再经参数喂入——引导
-            // 线逐帧驱动舱帧、布局拍逐帧对账 inset，
-            // 动画曲线即系统给引导线的那一条
+            // （R2）：键盘动画不再经参数喂入——通知
+            // 帧顶常量逐拍驱动舱帧、布局拍逐帧对账
+            // inset，动画曲线即通知自带的那一条
+            // （§299）
             fedTopInset = topInset
             measureBottomSpace()
             handle?.bottomInset = effectiveBottomInset
@@ -1152,9 +1558,16 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     var topInset: CGFloat
     var bottomMargin: CGFloat
     /// 输入舱内容（R2 收编）：由控制器子托管、底
-    /// 边钉其 keyboardLayoutGuide（H8）；底几何的
-    /// 喂入自此只剩本内容本体，无舱顶/动画参数喂入
+    /// 边钉其位置引导线（§299 通知帧顶常量驱
+    /// 动）；底几何的喂入自此只剩本内容本体，无
+    /// 舱顶/动画参数喂入
     var composerView: AnyView
+    /// §299：键盘帧更新收件槽（ChatView 的 kb-
+    /// FrameUpdate 状态绑定）——控制器在键盘事
+    /// 件拍直写（帧顶已转窗口坐标），与旧面
+    /// ComposerGuideHost 的 keyboardFrame 绑定
+    /// 同一口径、同一份快照
+    var keyboardFrame: Binding<KeyboardFrameUpdate?>
     var arrowView: AnyView?
     var handle: ChatNativeListHandle
     var callbacks: ChatListCarrierCallbacks
@@ -1168,6 +1581,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
         controller.callbacks = callbacks
         controller.edgeScrollHandle = edgeScrollHandle
         handle.controller = controller
+        wireKeyboardFeed(to: controller)
         return controller
     }
 
@@ -1179,6 +1593,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
         controller.callbacks = callbacks
         controller.edgeScrollHandle = edgeScrollHandle
         handle.controller = controller
+        wireKeyboardFeed(to: controller)
         controller.apply(
             rows: rows,
             layout: layout,
@@ -1187,5 +1602,22 @@ struct ChatNativeListView: UIViewControllerRepresentable {
             composerView: composerView,
             arrowView: arrowView
         )
+    }
+
+    /// §299：把控制器的键盘帧回调接回 ChatView
+    /// 的绑定——回调源自通知处理（非布局拍），
+    /// 事件拍直写同步：快照与舱常量同拍翻转是
+    /// 本收口的本意（与 ComposerGuideHost 桥的
+    /// keyboardFrame 接线同一纪律）；等值守卫防
+    /// 同值重播触发无谓重渲
+    private func wireKeyboardFeed(
+        to controller: ChatRootViewController
+    ) {
+        let keyboardFrame = keyboardFrame
+        controller.onKeyboardFrameChange = { update in
+            if keyboardFrame.wrappedValue != update {
+                keyboardFrame.wrappedValue = update
+            }
+        }
     }
 }
