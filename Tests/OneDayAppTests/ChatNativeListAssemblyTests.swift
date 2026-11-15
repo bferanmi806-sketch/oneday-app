@@ -512,6 +512,19 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         // 回底命令后读数复位
         controller.scrollToBottom(animated: false)
         drain(1.0)
+        // 全状态留档（距底 2.0 三轮同值的定因材
+        // 料：标尺/应用 inset/布局 contentSize 三者
+        // 哪一处分叉，一轮判清）
+        let lastFrame = try frame(at: rows.count - 1)
+        print(
+            "NATIVE-MIDSTATE contentSize=\(cv.contentSize.height)"
+                + " offset=\(cv.contentOffset.y)"
+                + " inset=\(cv.contentInset)"
+                + " adjusted=\(cv.adjustedContentInset)"
+                + " handleBottomInset=\(handle.bottomInset)"
+                + " lastFrame=\(lastFrame)"
+                + " distance=\(handle.latestDistance)"
+        )
         XCTAssertLessThanOrEqual(
             handle.latestDistance, 1.0,
             "回底后距底须 ≤1，实测 \(handle.latestDistance)"
