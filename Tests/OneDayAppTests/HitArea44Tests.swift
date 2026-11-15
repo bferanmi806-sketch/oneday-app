@@ -312,6 +312,17 @@ final class HitArea44Tests: XCTestCase {
 
     // MARK: - ② 命中路由 rig
 
+    /// 量具登记纪律（TopBar rig 先例）：注册只认
+    /// didMoveToWindow——makeUIView 会被 SwiftUI 的量
+    /// 测 pass 造出未挂窗替身，按它取位会量到原点
+    private final class RegisteredView: UIView {
+        var onWindow: (() -> Void)?
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            if window != nil { onWindow?() }
+        }
+    }
+
     /// 陷阱层登记盒（文件作用域，同 TopBar rig 的量具式）
     private final class TrapBox: @unchecked Sendable {
         var trap: UIView?
@@ -320,15 +331,16 @@ final class HitArea44Tests: XCTestCase {
 
     private struct TrapView: UIViewRepresentable {
         let box: TrapBox
-        func makeUIView(context: Context) -> UIView {
-            let view = UIView()
+        func makeUIView(context: Context) -> RegisteredView {
+            let view = RegisteredView()
             view.backgroundColor = .clear
-            box.trap = view
+            view.onWindow = { [weak view] in
+                guard let view else { return }
+                box.trap = view
+            }
             return view
         }
-        func updateUIView(_ view: UIView, context: Context) {
-            box.trap = view
-        }
+        func updateUIView(_ view: RegisteredView, context: Context) {}
     }
 
     /// 视觉盘中心登记（挂在视觉帧的 background 上，
@@ -336,22 +348,25 @@ final class HitArea44Tests: XCTestCase {
     private struct CenterMarker: UIViewRepresentable {
         let name: String
         let box: TrapBox
-        func makeUIView(context: Context) -> UIView {
-            let view = UIView()
+        func makeUIView(context: Context) -> RegisteredView {
+            let view = RegisteredView()
             view.isUserInteractionEnabled = false
-            box.centers[name] = view
+            view.onWindow = { [weak view] in
+                guard let view else { return }
+                box.centers[name] = view
+            }
             return view
         }
-        func updateUIView(_ view: UIView, context: Context) {
-            box.centers[name] = view
-        }
+        func updateUIView(_ view: RegisteredView, context: Context) {}
     }
 
     /// rig 装配：陷阱垫底、三钮纵排居中——
     /// A＝标签内链复刻（输入舱式：30 盘＋44 帧＋矩形
     /// 命中形＋−7 抵消）；B＝钮外层链复刻（枢纽玻璃
-    /// 钮式：36 玻璃盘、链挂钮外）；C＝对照（36 玻璃
-    /// 钮、无外扩）
+    /// 钮式：36 玻璃盘、链挂钮外）；C＝对照（36 普通
+    /// 钮、无外扩、无玻璃——玻璃钮的平台交互层自带
+    /// 60×50 命中面、超 44，盘外点分不出外扩归因，
+    /// 见 testRigExteriorChainRoutes 注）
     private struct RigView: View {
         let box: TrapBox
         var body: some View {
@@ -396,7 +411,7 @@ final class HitArea44Tests: XCTestCase {
                     )
                     .contentShape(Rectangle())
                     .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
-                    // C：对照（无外扩）
+                    // C：对照（普通钮、无玻璃、无外扩）
                     Button {} label: {
                         Image(systemName: "xmark")
                             .frame(width: 36, height: 36)
@@ -404,12 +419,22 @@ final class HitArea44Tests: XCTestCase {
                                 CenterMarker(name: "c", box: box)
                             )
                     }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
+                    .buttonStyle(.plain)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    /// 等待泵（ComposerGuideHostTests 同式）：SwiftUI
+    /// 的挂载/布局链要靠主 runloop 泵过才落位，裸
+    /// layoutIfNeeded 量到的是未挂窗帧
+    private func spinRunLoop(seconds: TimeInterval) {
+        let exp = expectation(description: "spin \(seconds)s")
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+            exp.fulfill()
+        }
+        wait(for: [exp], timeout: seconds + 5)
     }
 
     private func makeRig() -> (UIWindow, TrapBox) {
@@ -422,13 +447,17 @@ final class HitArea44Tests: XCTestCase {
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
         host.view.layoutIfNeeded()
+        spinRunLoop(seconds: 0.6)
+        window.layoutIfNeeded()
+        host.view.layoutIfNeeded()
         return (window, box)
     }
 
     private func liveCenter(
         _ name: String, in window: UIWindow, box: TrapBox
     ) -> CGPoint? {
-        guard let marker = box.centers[name] else { return nil }
+        guard let marker = box.centers[name],
+              marker.window === window else { return nil }
         let frame = marker.convert(marker.bounds, to: window)
         return CGPoint(x: frame.midX, y: frame.midY)
     }
@@ -457,7 +486,7 @@ final class HitArea44Tests: XCTestCase {
             XCTAssertNotNil(hit, "\(label)：命中为空", file: file, line: line)
             XCTAssertFalse(
                 hit === trap,
-                "\(label)：命中落到下层陷阱——外扩未通路由",
+                "\(label)：命中落到下层陷阱——外扩未通路由（命中=\(String(describing: hit))）",
                 file: file, line: line
             )
         }
@@ -471,9 +500,14 @@ final class HitArea44Tests: XCTestCase {
         assertRouting("a", dx: 19, expectTrap: false, "A 盘外命中域内")
     }
 
-    /// B（钮外层链·玻璃钮）：盘心命中＋盘外 20pt
-    /// （36 盘半径 18 之外、44 之内、溢出 36 布局槽）
-    /// 必须由钮认领；C（对照无外扩）同点必须落陷阱
+    /// B（钮外层链·玻璃钮）：盘心与盘外 20pt 均须通
+    /// 路由（不落陷阱）。归因注记：.glass 钮的平台玻
+    /// 璃交互层自带 60×50 命中面（首轮 rig 实测、超
+    /// 44），盘外点即便没有外层链也会被平台层认领，
+    /// 故 B 只判路由通断、不作外扩归因；外扩归因由
+    /// 对照 C 承担——普通 36 钮无外扩时盘外 20pt 必
+    /// 须落陷阱、有外扩的 A 同构点必须被认领，两相对
+    /// 照证明「帧＋命中形＋负抵消」链本身通路由
     func testRigExteriorChainRoutes() {
         assertRouting("b", dx: 0, expectTrap: false, "B 盘心")
         assertRouting("b", dx: 20, expectTrap: false, "B 盘外命中域内")
