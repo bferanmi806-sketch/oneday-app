@@ -12520,19 +12520,8 @@ run **43571630543**（workflow_dispatch @ feat/liqian-lessons）**§190 终判�
 
 **版号**：0.50.45／构建 173（Project.swift 四处与设置页版本串两行同改）。
 
-**范围登记**（如实）：落定不换装只覆盖正文流式条目（D2 高度突变主体）；工具卡直播期已逐卡成行原位更新、落定按既有条目物化（键面不做映射，维持登记）；包 3 报告 §七登记的 diffable 化/GuideHost 子 VC 化/§195 退役不在本包范围（简报已定死只做 §1.4）。
-
-**验收**：Core 新测（切块分类/规范源/尾块与闭合前缀/**冻结性**——追加生长下闭合块 kind/源/派生 id 恒不变、**单拍成本可验设计**——约 40 拍生长模拟中每拍新身份 ≤2 且闭合身份只增不灭、表格尾部重分类只动尾块、闭合前缀重解析往返、组合账、开关缺省、映射首占）；App 新测（承载留高旗：带旗落定帧高连续＋重测纠偏、无旗版本变回估算）。真机 D 组全项归主线窗口（清单在报告 §五）；Instruments 以成本单测代偿并登记（报告 §二/§五）。
-
-### §247.1 CI 判读（2026-11-14 回填至四轮；终判待补）
-
-一轮（43602488358）Core 测试编译失败（本包测试 LayoutStyleKey 构造口径误写、一行修正）；二轮（43603461195）**Core 2044/2044**（基线 2033＋新增 11 精确对账）、UI 8/8，唯一失败为本包新 App 测试的宿主形态问题（窗口不布局致承载宽度恒 0），三轮（43606759313）以离屏直驱＋inset 同步泵重写后 **ChatCarrierSettleCarryTests passed、App 套件 passed**，全场唯一红为 UI 抽屉长按菜单等待超时（与本包无交集、同期热修线轮次全过，判既有 flake 登记）；四轮（43609551093）追加验收裁定：发布闸装配逐字保真 passed、呈现装配标题行保真以预期内实锤失败复现丢字（§九、run 转储与用户截图同形），守卫修复已落码、五轮（43612193816）已派发——终判与热修（fix/gen3-scroll-reentrancy）拣入后的终轮判读，因 GitHub 账号级 API 限流（403）暂阻，恢复后补跑回填。追加落点：Core `VisualRules.swift` prettyWrap 定界符守卫（§九 .3）与 `StreamingAssemblyFidelityTests` 3 条（闸保真/呈现保真/整形守卫），终轮预计 Core 2047。
-
-**五轮补读终局（2026-11-15 补读 run 43612193816，头 bcf16cf）**：completed / failure，exit 65——Build ✓、**Core 2047/2047**（0 failures，2044＋守卫回归 3 精确对账）、**UI 8/8**、全场断言失败 0。格式保真回归 3 条**全部 passed**（闸保真／呈现保真／整形守卫）。但 App 测试宿主 SwiftData 致命崩溃（`BackingData.swift:835`，UTC 16:28:33）打断 8 条测试无判词，含本包自有 `ChatCarrierSettleCarryTests` 2 条（三轮已 passed，本轮被打断）与 `DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone`，其余 5 条为 §184 常客。**五轮本身未终判绿**；热修拣入＋终轮 CI 仍待包 4 线后续。
-
-**终轮补读（2026-11-15，run 43656926502，头 41bbcae＝7b2b674＋反向拣入 §184 四提交＋§259 热修两提交）**：completed / failure（** TEST FAILED **）。Build ✓；**Core 2047/2047**（0 failures，2044＋保真 3 精确对账）；**UI 8/8**（OneDayUITests passed）；保真回归 3 条全 passed；热修 `ChatListCarrierReentrancyTests` 3/3 passed；§184 `SwiftDataHostLifetimeTests` 3/3 passed，宿主重启全场仅 **1** 次（`testFailedTraceMaterializesWithErrorSnapshot` 余崩打断、无判词——§184 已定性孤立项、只登记不判本包）；`PresentationLayerScenarios` 5 条 skipped（设计内）。**真红 2 条＝本包自有 `ChatCarrierSettleCarryTests` 2/2 failed**（4 处断言：期望量实高 180／260、实得估算 100／90，连首条基线量实断言即败）——三轮在热修前承载上 passed、五轮被宿主崩溃打断，本轮在拣入 §259 后首得终局即红：§259 落定拍合并调度（量测／materialize 延后一拍）与本测试三轮的离屏同步泵驱动口径相冲，量实未在断言前落定。**终判：未绿**——待主线裁定修法（测试驱动补落定拍泵 vs 承载量测时序），不在本线擅改。另 `EdgeEffectProbeTests.testEdgeEffectAttributionProbe` 失败为 §257.1 既有抖动签名（"6"＞"4"、617 行），登记不判本包。
-
 ### §258.1 CI 判读（2026-11-14 回填）——**§190 终判绿（带 §184 在案登记）**
+
 run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全程无 `Test Case ... failed` 行、无任一 `Executed ... with N>0 failures`）；Core **2081/2081 精确对账**（Executed 2081、0 failures，＝预期 2034＋13＋17＋17）；UI **8/8 全跑全过**（Executed 8、0 failures——目标尾巴包自身 CI 未跑成的 UI 步至此**补验完成**）；App passed 168＋skipped 5＋无终局 5＝178（＋helpers 伪名 1＝grep 口径 179）；VERDICT 三连 PASS（MATRIX／HUB-LAYOUT／主 VERDICT）。**§184 登记**：宿主重启 7 起（14:07–14:12 集中于 App 测试相位），波及无终局 5 条——ChatReliabilityOfflineTests.testMarkPendingSendRetainsEntryOnDisk 与 ComposerGuideHostTests.testBarGrowth_topRisesBottomPinned（.44 轮已登记者，本轮再现、按组版轮登记口径处理、不判红）、ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays、DrawerBridgeHarnessTests.testBridgeTapToOpenReachesFullTravel、EdgeEffectRegistrationTests.testAnchorRegistersAncestorScrollView（本轮新登记者，同签名）；崩溃元数据 8 份照常采集。IPA 解包验：0.50.45／173／site.didichou.oneday，13,115,227 字节，md5 `4e78123345ac2b4bd3aa4fbd6e11994b`。
 
 ## §259 新承载首帧闪退阻断热修（2026-11-14；分支 fix/gen3-scroll-reentrancy，基线 rel-05045@2f3ce5b；全档＝oneday-design-review/gen3-reentrancy-fix-20261114.md）
@@ -12611,5 +12600,7 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 一轮（43602488358）Core 测试编译失败（本包测试 LayoutStyleKey 构造口径误写、一行修正）；二轮（43603461195）**Core 2044/2044**（基线 2033＋新增 11 精确对账）、UI 8/8，唯一失败为本包新 App 测试的宿主形态问题（窗口不布局致承载宽度恒 0），三轮（43606759313）以离屏直驱＋inset 同步泵重写后 **ChatCarrierSettleCarryTests passed、App 套件 passed**，全场唯一红为 UI 抽屉长按菜单等待超时（与本包无交集、同期热修线轮次全过，判既有 flake 登记）；四轮（43609551093）追加验收裁定：发布闸装配逐字保真 passed、呈现装配标题行保真以预期内实锤失败复现丢字（§九、run 转储与用户截图同形），守卫修复已落码、五轮（43612193816）已派发——终判与热修（fix/gen3-scroll-reentrancy）拣入后的终轮判读，因 GitHub 账号级 API 限流（403）暂阻，恢复后补跑回填。追加落点：Core `VisualRules.swift` prettyWrap 定界符守卫（§九 .3）与 `StreamingAssemblyFidelityTests` 3 条（闸保真/呈现保真/整形守卫），终轮预计 Core 2047。
 
 **五轮补读终局（2026-11-15 补读 run 43612193816，头 bcf16cf）**：completed / failure，exit 65——Build ✓、**Core 2047/2047**（0 failures，2044＋守卫回归 3 精确对账）、**UI 8/8**、全场断言失败 0。格式保真回归 3 条**全部 passed**（闸保真／呈现保真／整形守卫）。但 App 测试宿主 SwiftData 致命崩溃（`BackingData.swift:835`，UTC 16:28:33）打断 8 条测试无判词，含本包自有 `ChatCarrierSettleCarryTests` 2 条（三轮已 passed，本轮被打断）与 `DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone`，其余 5 条为 §184 常客。**五轮本身未终判绿**；热修拣入＋终轮 CI 仍待包 4 线后续。
+
+**终轮补读（2026-11-15，run 43656926502，头 41bbcae＝7b2b674＋反向拣入 §184 四提交＋§259 热修两提交）**：completed / failure（** TEST FAILED **）。Build ✓；**Core 2047/2047**（0 failures，2044＋保真 3 精确对账）；**UI 8/8**（OneDayUITests passed）；保真回归 3 条全 passed；热修 `ChatListCarrierReentrancyTests` 3/3 passed；§184 `SwiftDataHostLifetimeTests` 3/3 passed，宿主重启全场仅 **1** 次（`testFailedTraceMaterializesWithErrorSnapshot` 余崩打断、无判词——§184 已定性孤立项、只登记不判本包）；`PresentationLayerScenarios` 5 条 skipped（设计内）。**真红 2 条＝本包自有 `ChatCarrierSettleCarryTests` 2/2 failed**（4 处断言：期望量实高 180／260、实得估算 100／90，连首条基线量实断言即败）——三轮在热修前承载上 passed、五轮被宿主崩溃打断，本轮在拣入 §259 后首得终局即红：§259 落定拍合并调度（量测／materialize 延后一拍）与本测试三轮的离屏同步泵驱动口径相冲，量实未在断言前落定。**终判：未绿**——待主线裁定修法（测试驱动补落定拍泵 vs 承载量测时序），不在本线擅改。另 `EdgeEffectProbeTests.testEdgeEffectAttributionProbe` 失败为 §257.1 既有抖动签名（"6"＞"4"、617 行），登记不判本包。
 
 **节号顺延注记**：本节在本分支编号 §247；0.50.48 组版顺延为 **§263**（rel 线已用至 §262），文内与代码自指保留分支编号 §247、组版侧引用以 §263 为准。
