@@ -479,6 +479,54 @@ struct ChatView: View {
     @AppStorage(ChatCarrierFeature.defaultsKey)
     private var gen3CarrierEnabled = false
     @State private var carrierHandle = ChatListCarrierHandle()
+    /// §291（原生重建 R1）：原生面特性开关（Core
+    /// ChatNativeListFeature，默认关；设置页实验区
+    /// 与本键同源）与原生面句柄（与 gen3 句柄同形
+    /// 态，见 ChatNativeList.swift）。三旗并存期分
+    /// 叉口径：原生面开时优先于 gen3/旧面（施工图
+    /// §5.2 缺省面始终只有一个）
+    @AppStorage(ChatNativeListFeature.defaultsKey)
+    private var nativeListEnabled = false
+    @State private var nativeHandle = ChatNativeListHandle()
+
+    /// 当前面命令分发（§291 收口）：跟随/落定/锚
+    /// 恢复链只经本组分发器下达——原生面在场走原
+    /// 生句柄、否则 gen3 句柄，链本体不为每个承载
+    /// 再抄一份（§257 的执行双胞胎到本口收口）。
+    /// 两面句柄同形不同型（协议存在类型与本仓
+    /// Swift 6 隔离形态冲突、CI 两轮实证，见
+    /// ChatNativeListHandle 注），分发器即收口面
+    private func surfaceScrollToBottom(animated: Bool) {
+        if nativeListEnabled {
+            nativeHandle.scrollToBottom(animated: animated)
+        } else {
+            carrierHandle.scrollToBottom(animated: animated)
+        }
+    }
+
+    private func surfaceCaptureAnchor() -> ChatListAnchor? {
+        nativeListEnabled
+            ? nativeHandle.captureAnchor()
+            : carrierHandle.captureAnchor()
+    }
+
+    private func surfaceRestore(_ anchor: ChatListAnchor) {
+        if nativeListEnabled {
+            nativeHandle.restore(anchor)
+        } else {
+            carrierHandle.restore(anchor)
+        }
+    }
+
+    private func surfaceScrollToEntry(
+        _ id: UUID, animated: Bool
+    ) {
+        if nativeListEnabled {
+            nativeHandle.scrollToEntry(id, animated: animated)
+        } else {
+            carrierHandle.scrollToEntry(id, animated: animated)
+        }
+    }
     /// §247（换代包 4）：流式呈现开关（Core Chat-
     /// StreamingFeature，缺省 true＝块级增量新
     /// 路；关＝流式行回 TokenFlow 逐词渐显旧路，
@@ -1147,7 +1195,9 @@ struct ChatView: View {
     /// 本身
     private var chatSurface: some View {
         Group {
-            if gen3CarrierEnabled {
+            if nativeListEnabled {
+                nativeListSurface
+            } else if gen3CarrierEnabled {
                 carrierListSurface
             } else {
                 legacyListSurface
@@ -2281,6 +2331,174 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - 原生重建面（§291 R1）
+
+    /// 原生面列表：根容器（ChatNativeListView）＋
+    /// 两宿主 overlay（与 gen3 面同式同层：输入舱
+    /// 托管与顶簇托管不换）＋跟随处理链（与 gen3
+    /// 面同一条链——链内命令经 surface* 分发器派
+    /// 生到当前面，见各共享函数）。页面级修饰在
+    /// chatSurface 链上共享，本面只管列表本体与回
+    /// 底钮浮层
+    private var nativeListSurface: some View {
+        ChatNativeListView(
+            rows: nativeRows(),
+            layout: ChatCarrierLayout(
+                horizontalPadding: OneDayMetrics.pageGutter,
+                topPadding: OneDayMetrics.spacingM,
+                bottomPadding: OneDayMetrics.spacingS,
+                rowSpacing: OneDayMetrics.spacingL,
+                arrowTrailing: OneDayMetrics.spacingM,
+                arrowGapAboveComposer: 8,
+                arrowSize: OneDayMetrics.minTapTarget
+            ),
+            // 喂入与 gen3 面逐值同源（§263 口径）：
+            // 顶留位＝窗口顶安全区实测＋顶簇实高；
+            // 底留位只喂舱顶窗口实测＋未量得回落＋
+            // 单点边距，本体由容器以两实测相减自产
+            topInset: windowTopSafeInset + topBarHeight,
+            composerTopInWindow: kbSnapshot.windowHeight
+                - composerBottomSpace,
+            fallbackBottomSpace: kbSnapshot.bottomSpace,
+            bottomMargin: OneDayMetrics.spacingM,
+            keyboardAnimationDuration:
+                kbSnapshot.animationDuration,
+            keyboardAnimationCurveRaw:
+                kbSnapshot.animationCurveRawValue,
+            arrowView: carrierArrowView,
+            handle: nativeHandle,
+            callbacks: nativeCallbacks,
+            edgeScrollHandle: listScrollHandle
+        )
+        .ignoresSafeArea(edges: [.top, .bottom])
+        .overlay { composerHostOverlayCarrier }
+        .overlay { topBarHostOverlay }
+        .onChange(of: currentThread?.sortedEntries.count) { _, _ in
+            applyBottomProximity(
+                distance: bottomDistanceRecorder.latest
+            )
+            if isNearBottom {
+                scrollToBottomCarrier(animated: false)
+            }
+            feedAwayUnread()
+        }
+        .onChange(of: streamingText) { _, newText in
+            if let newText {
+                kickStreamingBlockProducts(for: newText)
+            }
+            guard let newText else {
+                streamFollowGate.reset()
+                streamFollowSettleGeneration += 1
+                streamFollowPending = false
+                return
+            }
+            if isNearBottom,
+               streamFollowGate.shouldFollow(
+                   currentCount: newText.count
+               ) {
+                streamFollowSettleGeneration += 1
+                streamFollowPending = true
+                let generation = streamFollowSettleGeneration
+                Task { @MainActor in
+                    await Task.yield()
+                    settleStreamFollowCarrier(
+                        generation: generation
+                    )
+                }
+            }
+        }
+        .onChange(of: composerBottomSpace) {
+            settleStreamFollowCarrier(
+                generation: streamFollowSettleGeneration
+            )
+        }
+        .onChange(of: sendPinToken) { _, _ in
+            awayUnread.noteOwnSend(
+                entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
+            )
+            isNearBottom = BottomFollowPolicy.nearBottomAfterOwnSend()
+            scrollToBottomCarrier(animated: false)
+        }
+        .onChange(of: currentThreadID) { oldID, newID in
+            handleCarrierThreadSwitch(oldID: oldID, newID: newID)
+        }
+        .onChange(of: composerFocused) { _, focused in
+            if focused {
+                anchorToBottomAfterKeyboardCarrier()
+            } else {
+                keyboardAnchorPending = false
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIResponder.keyboardWillChangeFrameNotification
+            )
+        ) { _ in
+            keyboardFrameSettled = false
+            if composerFocused {
+                anchorToBottomAfterKeyboardCarrier()
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: UIResponder.keyboardDidChangeFrameNotification
+            )
+        ) { _ in
+            settleKeyboardAnchorCarrier()
+        }
+        .task(id: currentThreadID) {
+            guard let id = currentThreadID else { return }
+            if ChatListAnchorStore.anchor(for: id) != nil
+                || appState.sideChats.scrollAnchor(for: id) != nil {
+                restoreCarrierPosition(for: id)
+            } else {
+                carrierFirstFrameSettle(for: id)
+            }
+        }
+        .task(id: nativeListEnabled) {
+            // 开关在本页在场时被打开：按当前线程锚恢
+            // 复一次（与 gen3 面同路）
+            if let id = currentThreadID {
+                restoreCarrierPosition(for: id)
+                carrierFirstFrameSettle(for: id)
+            }
+        }
+    }
+
+    /// 原生面回调：与 carrierCallbacks 同式——几何
+    /// 读数先同步进引用匣、判定推下一拍；读数源换
+    /// 原生句柄
+    private var nativeCallbacks: ChatListCarrierCallbacks {
+        ChatListCarrierCallbacks(
+            onScrollGeometry: {
+                bottomDistanceRecorder.latest =
+                    nativeHandle.latestDistance
+                bottomDistanceRecorder.contentEndVisible =
+                    nativeHandle.contentEndVisible
+                bottomDistanceRecorder.containerHeight =
+                    nativeHandle.containerHeight
+                bottomDistanceRecorder.bottomInset =
+                    nativeHandle.bottomInset
+                DispatchQueue.main.async {
+                    applyBottomProximity(
+                        distance: bottomDistanceRecorder.latest
+                    )
+                    evaluateSettleOnEventCarrier()
+                }
+            },
+            onTopVisibleEntry: { entryID in
+                DispatchQueue.main.async {
+                    if topVisibleEntryID != entryID {
+                        topVisibleEntryID = entryID
+                    }
+                }
+            },
+            onBlankTap: {
+                composerFocusHandle.dismiss()
+            }
+        )
+    }
+
     /// 新承载的输入舱宿主 overlay：托管本体与旧承
     /// 载同一 ComposerGuideHost、同一批实测回报绑
     /// 定（§194 机制与冻结记账零改）；只有舱内容
@@ -2482,6 +2700,193 @@ struct ChatView: View {
             }
         }
         return rows
+    }
+
+    // MARK: 原生面行构建（§291 R1）
+
+    /// 原生面行集组装：落定行全集与 carrierRows()
+    /// 同源同序（渲染计划条目/工具组→直播区→回
+    /// 告卡→审批区→空状态）、估算与版本口径逐项
+    /// 复用 gen3 行构建（产物层单源）。唯一形态
+    /// 差：直播区在 R1 不开流式行——liveRender-
+    /// Items 逐项仍在，但整段以旧面 liveZone 一块
+    /// 不透明 item 入快照（估算＝逐项估算和＋项间
+    /// 距，版本＝逐项版本指纹），R2 再收编为快照
+    /// 直播 item（施工图 §五 R1/R2 切分）
+    private func nativeRows() -> [ChatNativeRow] {
+        var rows: [ChatNativeRow] = []
+        if let thread = currentThread {
+            let plan = renderPlan(for: thread)
+            for item in plan.items {
+                switch item {
+                case .entry(let entry):
+                    rows.append(
+                        nativeEntryRow(
+                            entry,
+                            dividerText: plan.dividers[entry.id]
+                        )
+                    )
+                case .toolGroup(let groupEntries):
+                    let cards = groupEntries.compactMap(\.toolCard)
+                    rows.append(
+                        ChatNativeRow(
+                            key: "toolgroup-\(groupEntries[0].id.uuidString)",
+                            entryID: groupEntries[0].id,
+                            version: groupEntries.count,
+                            estimatedHeight: 96,
+                            makeView: {
+                                AnyView(
+                                    ToolCardGroupView(cards: cards)
+                                )
+                            }
+                        )
+                    )
+                }
+            }
+        }
+        let liveItems = liveRenderItems()
+        if !liveItems.isEmpty {
+            let liveCarrierRows = liveItems.map {
+                carrierLiveRow($0)
+            }
+            let version = liveCarrierRows.reduce(
+                liveCarrierRows.count
+            ) { $0 &* 31 &+ $1.version }
+            let estimate = liveCarrierRows
+                .map(\.estimatedHeight)
+                .reduce(0, +)
+                + CGFloat(
+                    max(0, liveCarrierRows.count - 1)
+                ) * OneDayMetrics.spacingL
+            rows.append(
+                ChatNativeRow(
+                    key: "live-zone",
+                    entryID: nil,
+                    version: version,
+                    estimatedHeight: estimate,
+                    makeView: {
+                        AnyView(
+                            VStack(
+                                alignment: .leading,
+                                spacing: OneDayMetrics.spacingL
+                            ) {
+                                liveZone
+                            }
+                            .frame(
+                                maxWidth: .infinity,
+                                alignment: .leading
+                            )
+                        )
+                    }
+                )
+            )
+        }
+        if let overviewStore {
+            for item in ReportCardPolicy.cards(
+                notifications: overviewStore.notifications,
+                isMainThread: isCurrentMainThread
+            ) {
+                rows.append(
+                    ChatNativeRow(
+                        key: "report-\(item.id)",
+                        entryID: nil,
+                        version: 0,
+                        estimatedHeight: 110,
+                        makeView: {
+                            AnyView(
+                                reportCard(
+                                    item, store: overviewStore
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+        }
+        rows.append(
+            ChatNativeRow(
+                key: "approval-zone",
+                entryID: nil,
+                version: appState.sharedHubStore()
+                    .anchoredRecordIDs.count,
+                estimatedHeight: 0,
+                makeView: {
+                    AnyView(
+                        ChatApprovalZone(
+                            store: appState.sharedHubStore(),
+                            anchoredRecordIDs: appState
+                                .sharedHubStore().anchoredRecordIDs
+                        )
+                    )
+                }
+            )
+        )
+        if ChatEmptyState.shows(
+            threadIsNil: currentThread == nil,
+            entryCount: currentThread?.sortedEntries.count ?? 0,
+            isStreaming: isStreaming
+        ) {
+            rows.append(
+                ChatNativeRow(
+                    key: "empty-hero",
+                    entryID: nil,
+                    version: 0,
+                    estimatedHeight: 190,
+                    makeView: { AnyView(emptyStateHero) }
+                )
+            )
+            rows.append(
+                ChatNativeRow(
+                    key: "empty-suggestions",
+                    entryID: nil,
+                    version: 0,
+                    estimatedHeight: 190,
+                    makeView: { AnyView(emptyStateSuggestions) }
+                )
+            )
+            if showsModelSetupCard {
+                rows.append(
+                    ChatNativeRow(
+                        key: "empty-modelsetup",
+                        entryID: nil,
+                        version: 0,
+                        estimatedHeight: 120,
+                        makeView: {
+                            AnyView(
+                                modelSetupCard.padding(
+                                    .top, OneDayMetrics.spacingL
+                                )
+                            )
+                        }
+                    )
+                )
+            }
+        }
+        return rows
+    }
+
+    /// 原生面条目行：与 carrierEntryRow 同键（落
+    /// 定映射命中沿用流式行键）、同版本、同估算
+    /// （产物层），只换行描述类型
+    private func nativeEntryRow(
+        _ entry: ChatEntry, dividerText: String?
+    ) -> ChatNativeRow {
+        let settledKey = streamSettleMap.rowKey(for: entry.id)
+        return ChatNativeRow(
+            key: settledKey ?? "entry-\(entry.id.uuidString)",
+            entryID: entry.id,
+            version: carrierEntryVersion(entry),
+            estimatedHeight: carrierRowEstimate(
+                for: entry, hasDivider: dividerText != nil
+            ),
+            makeView: {
+                AnyView(
+                    entryRowContent(
+                        entry, dividerText: dividerText
+                    )
+                )
+            }
+        )
     }
 
     /// §247（包 4）直播区逐项行：思考/单工具/工
@@ -3935,7 +4340,7 @@ struct ChatView: View {
     private func performScrollToBottomCarrier(
         animated: Bool
     ) {
-        carrierHandle.scrollToBottom(animated: animated)
+        surfaceScrollToBottom(animated: animated)
     }
 
     /// 落定评估的新承载事件口：读数出自句柄引用匣
@@ -4061,7 +4466,7 @@ struct ChatView: View {
     ) {
         if let oldID, oldID != newID,
            threads.contains(where: { $0.id == oldID }) {
-            if let anchor = carrierHandle.captureAnchor() {
+            if let anchor = surfaceCaptureAnchor() {
                 ChatListAnchorStore.setAnchor(
                     anchor, for: oldID
                 )
@@ -4102,7 +4507,7 @@ struct ChatView: View {
                 guard currentThreadID == threadID else {
                     return
                 }
-                carrierHandle.restore(anchor)
+                surfaceRestore(anchor)
             }
             return
         }
@@ -4114,9 +4519,9 @@ struct ChatView: View {
             try? await Task.sleep(for: .milliseconds(120))
             guard currentThreadID == threadID else { return }
             if legacy.atBottom {
-                carrierHandle.scrollToBottom(animated: false)
+                surfaceScrollToBottom(animated: false)
             } else if let entryID = legacy.entryID {
-                carrierHandle.scrollToEntry(
+                surfaceScrollToEntry(
                     entryID, animated: false
                 )
             }
@@ -4135,7 +4540,7 @@ struct ChatView: View {
             guard currentThreadID == threadID,
                   isNearBottom
             else { return }
-            carrierHandle.scrollToBottom(animated: false)
+            surfaceScrollToBottom(animated: false)
         }
     }
 

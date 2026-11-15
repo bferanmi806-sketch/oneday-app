@@ -104,7 +104,13 @@ struct ChatListCarrierCallbacks {
 
 /// 与 ChatListScrollViewHandle／ComposerFocus-
 /// Handle 同式的被动句柄：ChatView 持一份，命令
-/// （贴底/锚恢复）经它下达、几何读数经它回读
+/// （贴底/锚恢复）经它下达、几何读数经它回读。
+/// §291（原生重建 R1）：原生面另有同形态句柄
+/// （ChatNativeListHandle，ChatNativeList.swift）
+/// ——两面句柄同形不同型，ChatView 的跟随/锚链经
+/// 四个分发器按当前面派发（链本体仍只一份）；抽
+/// 协议存在类型曾试（CI 两轮实证与本仓 Swift 6
+/// 隔离形态冲突：见 §291.1），不走
 final class ChatListCarrierHandle {
     /// 距底读数（Core ChatScrollSupply 新式，与旧
     /// 承载 bottomDistanceRecorder.latest 同义同源）

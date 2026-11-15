@@ -26,6 +26,25 @@ public enum ChatCarrierFeature {
     }
 }
 
+// MARK: - 原生重建特性开关（R1）
+
+/// 原生重建特性开关（DESIGN §291，施工图 chat-
+/// native-rebuild-blueprint §五）：聊天列表第三面
+/// （UICollectionView＋diffable＋compositional）的
+/// 旗，缺省 false。与 gen3 旗并存期缺省面始终只有
+/// 一个：本旗开时原生面优先于 gen3/旧面（ChatView
+/// chatSurface 分叉口径），关旗即回现行面。R4 一
+/// 刀才许动缺省（施工图 §五总纪律）。
+public enum ChatNativeListFeature {
+    public static let defaultsKey = "chat.list.native"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        defaults.bool(forKey: defaultsKey)
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸
