@@ -593,4 +593,189 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "末行帧应与列表可见框相交（真可见、非空白）"
         )
     }
+
+    /// 喂入环仪表（冒烟门第十轮定因，纯诊断、除装配
+    /// 健全外无断言——结论靠 FEEDDIAG 打印行回主线判
+    /// 读）：同装配三段对照，分清「几何回调在单跳编
+    /// 程滚动下未送达／尾锚事实位陈旧钉住派生／下游
+    /// 量测链未重跑」三候选——
+    /// ①单跳到顶（复刻第九轮条件，预期无台阶）；
+    /// ②渐进回底再渐进上行：首步 10pt 让尾锚在仍被
+    /// Lazy 实例化时先报离屏（清事实位），随后步进
+    /// 跨 176 离底阈值——台阶若在渐进段出现，喂入＋
+    /// 派生＋量测＋留位全链在进程内成立，单跳之差
+    /// 只剩事实位陈旧一解；
+    /// ③箭头已显后单跳回落底：台阶回落＝单跳的几何
+    /// 送达本身成立→①的无台阶只能由事实位钉住解
+    /// 释；不回落＝单跳送达不成立（候选①坐实）。
+    /// 判读全表见 oneday-design-review/smoke-feed-
+    /// link-diagnosis-20261115.md（本轮即其仪表轮）。
+    func testLongConversationFeedLinkDiagnostic() throws {
+        let schema = Schema([ChatThread.self, ChatEntry.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(
+                schema: schema, isStoredInMemoryOnly: true
+            )]
+        )
+        let context = container.mainContext
+        let base = Date().timeIntervalSince1970 - 7_200
+        let thread = ChatThread(title: "冒烟长会话")
+        thread.createdAt = Date(timeIntervalSince1970: base)
+        context.insert(thread)
+        for index in 1...120 {
+            let entry = ChatEntry(
+                role: index.isMultiple(of: 2)
+                    ? "assistant" : "user",
+                content: String(
+                    format: "冒烟长会话行 %03d", index
+                ),
+                thread: thread
+            )
+            entry.createdAt = Date(timeIntervalSince1970:
+                base + TimeInterval(index * 30))
+            context.insert(entry)
+        }
+        try context.save()
+
+        let appState = AppState(
+            client: DemoHermesClient(), demoMode: .connected
+        )
+        appState.sideChats.designateMainThread(thread.id)
+
+        let host = UIHostingController(
+            rootView: RootView()
+                .environment(appState)
+                .environment(\.locale, AppLocale.uiLocale)
+                .modelContainer(container)
+        )
+        let window: SmokeWindow
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first {
+            window = SmokeWindow(windowScene: scene)
+            window.frame = CGRect(
+                x: 0, y: 0, width: 402, height: 874
+            )
+        } else {
+            window = SmokeWindow(
+                frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+            )
+        }
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.frame = window.bounds
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        spin(seconds: 3)
+
+        var scrolls: [UIScrollView] = []
+        allScrollViews(window, into: &scrolls)
+        let list = try XCTUnwrap(
+            scrolls.max {
+                $0.contentSize.height < $1.contentSize.height
+            },
+            "会话列表滚动面应在场"
+        )
+        XCTAssertGreaterThan(
+            list.contentSize.height, list.bounds.height * 3,
+            "120 行长会话内容高应远超视口（fixture 真长）"
+        )
+
+        func currentDistance() -> CGFloat {
+            list.contentSize.height - list.contentOffset.y
+                - list.bounds.height
+        }
+        func maxOffset() -> CGFloat {
+            list.contentSize.height
+                + list.adjustedContentInset.bottom
+                - list.bounds.height
+        }
+
+        // 起点：显式贴底落定（尾锚在屏、事实位应为真）
+        list.setContentOffset(
+            CGPoint(x: 0, y: maxOffset()), animated: false
+        )
+        list.layoutIfNeeded()
+        _ = waitForOffset(list, targetY: maxOffset(), timeout: 5)
+        spin(seconds: 1)
+        let baseInset = list.adjustedContentInset.bottom
+        print("FEEDDIAG base inset=\(baseInset)"
+            + " distance=\(currentDistance())")
+
+        // ① 单跳到顶（复刻第九轮）
+        list.setContentOffset(
+            CGPoint(x: 0, y: -list.adjustedContentInset.top),
+            animated: false
+        )
+        list.layoutIfNeeded()
+        let jumpPoll = pollBottomInset(list, seconds: 3)
+        print("FEEDDIAG jumpTop settled=\(jumpPoll.settled)"
+            + " peak=\(jumpPoll.peak)"
+            + " delta=\(jumpPoll.settled - baseInset)")
+
+        // ②a 渐进回底（500 步进；尾锚重新实例化在屏）
+        var y = list.contentOffset.y
+        while y < maxOffset() - 1 {
+            y = min(maxOffset(), y + 500)
+            list.setContentOffset(
+                CGPoint(x: 0, y: y), animated: false
+            )
+            spin(seconds: 0.3)
+        }
+        spin(seconds: 1)
+        print("FEEDDIAG backBottom"
+            + " inset=\(list.adjustedContentInset.bottom)"
+            + " distance=\(currentDistance())")
+
+        // ②b 渐进上行（首步 10 清事实位、随后跨 176）
+        let steps: [CGFloat] = [
+            10, 60, 130, 250, 250, 250, 250, 250, 250, 250,
+            250, 250, 250, 250, 250, 250, 250, 250, 250, 250,
+            250, 250, 250, 250, 250, 250, 250, 250, 250, 250,
+            250, 250, 250, 250, 250, 250,
+        ]
+        var foundAt: CGFloat = -1
+        for step in steps {
+            let target = max(
+                -list.adjustedContentInset.top,
+                list.contentOffset.y - step
+            )
+            list.setContentOffset(
+                CGPoint(x: 0, y: target), animated: false
+            )
+            spin(seconds: 0.4)
+            let insetNow = list.adjustedContentInset.bottom
+            print("FEEDDIAG ascend step=\(step)"
+                + " distance=\(currentDistance())"
+                + " inset=\(insetNow)")
+            if insetNow - baseInset >= 20 {
+                foundAt = currentDistance()
+                break
+            }
+            if target <= -list.adjustedContentInset.top + 1 {
+                break
+            }
+        }
+        let ascendPoll = pollBottomInset(list, seconds: 3)
+        print("FEEDDIAG ascendDone"
+            + " settled=\(ascendPoll.settled)"
+            + " delta=\(ascendPoll.settled - baseInset)"
+            + " foundAt=\(foundAt)")
+
+        // ③ 箭头已显后单跳回落底（判单跳送达本身）
+        if ascendPoll.settled - baseInset >= 20 {
+            list.setContentOffset(
+                CGPoint(x: 0, y: maxOffset()), animated: false
+            )
+            list.layoutIfNeeded()
+            let fallPoll = pollBottomInset(list, seconds: 3)
+            print("FEEDDIAG jumpBottom"
+                + " settled=\(fallPoll.settled)"
+                + " delta=\(fallPoll.settled - baseInset)")
+        } else {
+            print("FEEDDIAG jumpBottom skipped"
+                + " (ascend 段未出台阶)")
+        }
+    }
 }
+
