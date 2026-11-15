@@ -12691,4 +12691,6 @@ run 43605735361（head af316a9）：构建 success；Core **2087/2087 精确对�
 
 **版号**：0.50.49／构建 177（Project.swift 四处与设置页版本串两行同改，旧号零残留已 grep 验）。
 
-### §269.1 CI 判读（待回填）
+### §269.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43666064654 为四包树、B-1 追加前由组版本线自行取消、不作判读）：名义 failure，红因仅下述登记项。**Core 2104/2104 精确对账**（唯一用例 2104 全 passed、0 failures＝.48 的 2095＋71 新增 6＋80 新增 3；B-1 防护 9 例在 App 目标、Core 不变，与移植线判读口径一致）；**UI 10/10 全过**（8＋A6 回归 2）；**App 203 注册、202 得判词**（196 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），五包新测全过——DecisionRecordHistory 5/5、SessionCatalogGuardTests 9/9（含 >1000 条截断＋位移重页端到端钉链决胜例）、第 80 条枢纽跟随 App 锚点全过。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47/.48 同签名、与本版改动零交集）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 已定性孤立项；BackingData:835 日志零命中、crash-metadata 2 份）。IPA 解包亲验：0.50.49／177／site.didichou.oneday，13,144,086 字节，md5 `2de71e459aa05e057548db03618461fd`，落 ~/workspace/your_files/oneday-v0.50.49/（附待办总表副本）。未合 main、未打 tag。
