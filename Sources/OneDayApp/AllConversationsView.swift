@@ -500,6 +500,13 @@ struct AllConversationsView: View {
     /// 径，数可信，与抽屉行不给数分工，规格 §5.1）；
     /// 2026-11-13 频道一期：有成员的平台频道在此续
     /// 行（同口径带数），点开与抽屉同一入口分发器
+    /// 平台频道行源（2026-11-15 图标统一批，第 86
+    /// 条）：与抽屉同律——有官方原图（注册表已登
+    /// 记 iconAssetName）才上行；无资产的平台本页
+    /// 不出裸行（此前无图标行与有图标行同段并存、
+    /// 标题左缘错位，且与抽屉「无资产不上行」纪
+    /// 律正相反，审计 C 线硬伤 2-1）。将来某平台补
+    /// 登官方原图即自动上行，不需再改本面
     private var platformChannelRows: [ChannelDescriptor] {
         let order = ChannelRegistry.drawerList.map(\.id)
         return partition.channels
@@ -513,6 +520,7 @@ struct AllConversationsView: View {
                 return a < b
             }
             .compactMap { ChannelRegistry.descriptor(for: $0) }
+            .filter { $0.iconAssetName != nil }
     }
 
     private var channelsContent: some View {

@@ -42,4 +42,37 @@ final class ChannelBrandAssetTests: XCTestCase {
             )
         }
     }
+
+    /// 第 86 条（2026-11-15 图标统一批）：全部对话
+    /// 页平台行改「有官方原图才上行」后，登记面从
+    /// 抽屉七行扩到全部已登记平台——逐个验资产实
+    /// 物在包内解析得出且近正方，防「登记了名、文
+    /// 件缺失」静默空白（§225 同族教训）
+    func testAllRegisteredPlatformBrandAssetsResolveToBitmaps() {
+        var assetNames = Set<String>()
+        for platform in SessionSources.platforms {
+            if let name = SessionSources.platformIconAssetName(
+                platform
+            ) {
+                assetNames.insert(name)
+            }
+        }
+        XCTAssertEqual(
+            assetNames.count, 16,
+            "已登记平台图标资产数应为 16（既有 6＋统一批 10）：\(assetNames)"
+        )
+        for name in assetNames {
+            let image = UIImage(named: name)
+            XCTAssertNotNil(
+                image,
+                "平台图标资产 \(name) 在生产包内解析不出位图"
+            )
+            guard let image else { continue }
+            XCTAssertEqual(
+                image.size.width, image.size.height,
+                accuracy: max(2, image.size.width * 0.05),
+                "平台图标资产 \(name) 应为近正方图面：\(image.size)"
+            )
+        }
+    }
 }

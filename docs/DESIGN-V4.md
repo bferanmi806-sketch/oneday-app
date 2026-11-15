@@ -12615,3 +12615,17 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+## §265 平台行图标统一批（2026-11-15；分支 feat/platform-icons-unify，基线 rel-05048@3721c9a；全档＝oneday-design-review/platform-icons-unify-20261115.md）
+
+**缘起**：全局标准审计 C 线硬伤 2-1（待办第 86 条）＋第 88 条④。全部对话页 `platformChannelRows` 对凡有成员的平台全续行，而 `platformIconAssetName` 只登记 6/23——17 个平台行无图标、标题左缘与同段其他行错位，且与抽屉纪律「无资产的平台不许上行」正相反。主线裁决：两面统一为一条口径——**有官方原图才上行**。
+
+**落法**：
+- 资产续登十枚（512×512 PNG、单 universal，与既有 Channel 同制）：WhatsApp／Signal／LINE／企业微信／Teams／Google Chat／Mattermost／SimpleX／腾讯元宝＝Apple iTunes lookup 官方 App artwork 512（逐个 trackId／bundle 登记于全档报告）；BlueBubbles 未上架 App Store，取其官方仓库（BlueBubblesApp/bluebubbles-app）iOS AppIcon 1024 原图缩 512（RGBA 原样保留、未合成背景、未改绘）。whatsapp_cloud 与 whatsapp、wecom_callback 与 wecom 同品牌共用资产。
+- 注册表 `platformIconAssetName` 续登 12 个平台 id，函数注同步改写（统一口径＋仍回 nil 五家的原因逐个注明）。
+- 全部对话页 `platformChannelRows` 末端加 `iconAssetName != nil` 过滤：无资产平台本页不上行、将来补登即自动上行；行渲染本体不动——图标有无不再同段并存，标题左缘错位随之消解（实查：本页平台行自此恒带 40pt 图标槽，与 Hermes 行同式）。
+- 仍不上行五家：matrix（官方仅横式字标、无应用级原图，拼凑成图标即仿绘）、photon（官网仅装饰图形、无官方图标资产）、email／sms（无品牌通用通道）、weixin（沿 2026-11-13 用户拍板退役、非资产缺失——官方原图曾入册、随微信行下架退役，本批不复登，口径延续请主线复核）。
+- Simular（第 88 条④）：复查官方渠道仍无图标级官方原图（官网 favicon 仅 32px、官方 GitHub 组织头像为纯黑方块、无 App Store 应用）——`ConnectorCatalog.knownServers["box"]` 维持 §4 降级 `.symbol("desktopcomputer")`，代码注补复查结论，不冒充品牌。
+
+**测试**：Core 新增 `testChannelRegistryIconUnifyBatch`（12 登记＋5 nil 逐个钉死）；App 新增 `testAllRegisteredPlatformBrandAssetsResolveToBitmaps`（§225 同族：全部 16 枚已登记平台资产逐个验包内位图解析＋近正方，防登记名与文件缺失脱节）。
+
+### §265.1 CI 判读（待回填）
