@@ -377,15 +377,14 @@ struct DeliverablesView: View {
         }
     }
 
-    // MARK: - 大分段（照 Muse 资源库图自制，0.36.2 落值）
+    // MARK: - 大分段（2026-11-15 第 88 条收口：迁系统 segmented）
 
-    /// 分段控件：轨道＝surface 白＋发丝边、全胶囊，
-    /// 总高 48；选中药丸＝selectionFill 灰垫、高 36、
-    /// 内缩 6、无阴影；字 17 semibold 两态皆 ink——
-    /// 选中区分只靠灰垫有无（规格 §1.6 落值，Seg-
-    /// mentedControlSpec 钉死）。切换＝药丸 matched-
-    /// Geometry 滑移＋selection 触感（表 D）
-    @Namespace private var segmentNamespace
+    /// 分段控件沿革：0.36.2 照 Muse 资源库图自制
+    /// （SegmentedControlSpec 落值：总高 48／药丸 36
+    /// ／内缩 6）；2026-11-15 主线裁决「系统件优先
+    /// 为默认、自制为例外」，本面纯文字两段无例外
+    /// 理由、自制件退役——现行形态与形态差见
+    /// segmentControl 注
 
     /// 「文件」Rotor 命名空间（0.43.0，A11Y-V7）：
     /// 长列表/网格里按文件名直达——条目随当前段
@@ -403,55 +402,23 @@ struct DeliverablesView: View {
             : sortedMedia.map(\.name)
     }
 
+    /// 系统 segmented（第 88 条收口）：形态差如实
+    /// 记——总高 48→系统约 32；轨道自 surface 白＋
+    /// 发丝边改系统灰、选中垫自 selectionFill 改系
+    /// 统白拇指（自带微影）；字阶自 .bodyText semi-
+    /// bold 改系统分段字；左右边距自控件局部口径
+    /// 16 回页面口径 pageGutter 20。触感矩阵（规格
+    /// §2.3）：分段切换＝selection，保留；药丸滑移
+    /// 由系统分段自带过渡替代
     private var segmentControl: some View {
-        HStack(spacing: 0) {
-            segmentButton(title: "文件", tag: 0)
-            segmentButton(title: "影音内容", tag: 1)
+        Picker("内容类型", selection: $segment) {
+            Text("文件").tag(0)
+            Text("影音内容").tag(1)
         }
-        .padding(SegmentedControlSpec.inset)
-        .background(Palette.surface, in: Capsule())
-        .overlay {
-            Capsule()
-                .strokeBorder(Palette.separator, lineWidth: 1)
-        }
-        .padding(.horizontal, SegmentedControlSpec.horizontalMargin)
+        .pickerStyle(.segmented)
+        .padding(.horizontal, OneDayMetrics.pageGutter)
         .padding(.vertical, OneDayMetrics.spacingSM)
-        // 触感矩阵（规格 §2.3）：分段切换＝selection
         .sensoryFeedback(.selection, trigger: segment)
-    }
-
-    private func segmentButton(title: String, tag: Int) -> some View {
-        let selected = segment == tag
-        return Button {
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.selectionSpring,
-                    reduceMotion: reduceMotion
-                )
-            ) { segment = tag }
-        } label: {
-            Text(title)
-                .font(.bodyText.weight(.semibold))
-                .foregroundStyle(Palette.ink)
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: SegmentedControlSpec.pillHeight
-                )
-                .background {
-                    if selected {
-                        Capsule()
-                            .fill(Palette.selectionFill)
-                            .matchedGeometryEffect(
-                                id: "segmentPill",
-                                in: segmentNamespace
-                            )
-                    }
-                }
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.odPressable)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 
     // MARK: - 派生集（过滤→页级排序→分组）
@@ -699,6 +666,7 @@ struct DeliverablesView: View {
         .onTapGesture {
             openEntry(entry, among: sortedDocuments)
         }
+        .odPressFeedback()
         .contextMenu {
             actionItems(for: entry, among: sortedDocuments)
         }
@@ -851,6 +819,7 @@ struct DeliverablesView: View {
         .onTapGesture {
             openEntry(entry, among: sortedDocuments)
         }
+        .odPressFeedback()
         .id(entry.path)
         // 0.43.0（A11Y-V7）：Rotor 卡标记（网格态）
         .accessibilityRotorEntry(id: entry.name, in: fileRotorNamespace)
@@ -1082,6 +1051,7 @@ struct DeliverablesView: View {
         .onTapGesture {
             openEntry(entry, among: sortedMedia)
         }
+        .odPressFeedback()
         .contextMenu {
             actionItems(for: entry, among: sortedMedia)
         }
