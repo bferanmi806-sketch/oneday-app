@@ -330,6 +330,15 @@ struct AgentHubView: View {
             }
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
+            // 第 83 条（命中域收口）：玻璃盘 36 不变（样
+            // 式按标签帧成盘）、命中域在钮外层外扩 44；
+            // 负内边距抵消外扩、页头行布局不动
+            .frame(
+                width: OneDayMetrics.minTapTarget,
+                height: OneDayMetrics.minTapTarget
+            )
+            .contentShape(Rectangle())
+            .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
             .accessibilityLabel("分享智能体名片")
         } else {
             ShareLink(
@@ -343,6 +352,15 @@ struct AgentHubView: View {
             }
             .buttonStyle(.glass)
             .buttonBorderShape(.circle)
+            // 第 83 条（命中域收口）：玻璃盘 36 不变（样
+            // 式按标签帧成盘）、命中域在钮外层外扩 44；
+            // 负内边距抵消外扩、页头行布局不动
+            .frame(
+                width: OneDayMetrics.minTapTarget,
+                height: OneDayMetrics.minTapTarget
+            )
+            .contentShape(Rectangle())
+            .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
             .accessibilityLabel("分享智能体名片")
         }
     }
@@ -372,6 +390,16 @@ struct AgentHubView: View {
                     }
                     .buttonStyle(.glass)
                     .buttonBorderShape(.circle)
+                    // 第 83 条（命中域收口）：玻璃盘 36 不
+                    // 变（样式按标签帧成盘）、命中域在钮外
+                    // 层外扩 44；负内边距抵消外扩、页头行
+                    // 布局不动
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+                    .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
                     .accessibilityLabel("关闭")
 
                     Spacer()
@@ -613,7 +641,19 @@ struct AgentHubView: View {
                                 ? Palette.selectionFill : Color.clear,
                             in: Capsule()
                         )
-                        .contentShape(Capsule())
+                        // 第 83 条（命中域收口）：选中胶囊视
+                        // 觉高 36 不变、段钮命中高外扩 44
+                        // （条高 48 内居中、上下各剩 2pt）；
+                        // 负内边距抵消外扩、条布局不动。命
+                        // 中形由旧 36 胶囊改外层矩形（与全
+                        // 仓外扩口径同款）
+                        .frame(height: OneDayMetrics.minTapTarget)
+                        .contentShape(Rectangle())
+                        .padding(
+                            .vertical,
+                            -(OneDayMetrics.minTapTarget
+                                - OneDayMetrics.hubSegCapsuleHeight) / 2
+                        )
                 }
                 .buttonStyle(.odPressable)
                 .accessibilityLabel(item.title)

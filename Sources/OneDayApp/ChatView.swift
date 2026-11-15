@@ -6298,7 +6298,16 @@ struct ChatView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 24, height: 24)
+                    // 第 83 条（命中域收口）：视觉 24 不变、
+                    // 命中域外扩 44（与同文件回告卡 ✕ 同款
+                    // 两层帧）；负内边距抵消外扩、失败条的
+                    // 行高布局不动
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
                     .contentShape(Rectangle())
+                    .padding(-(OneDayMetrics.minTapTarget - 24) / 2)
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel("关闭提示")
@@ -7033,6 +7042,19 @@ private struct ComposerBarLayout: Layout {
                 )
                 .background(Palette.primaryPale, in: Circle())
                 .contentTransition(.symbolEffect(.replace))
+                // 第 83 条（命中域收口）：视觉盘 30 不变、
+                // 命中域外扩 44（与顶栏圆钮同口径）；负内
+                // 边距抵消外扩、布局仍按 30 走（Composer-
+                // BarLayout 的量测口径不动）
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .accessibilityLabel(isStreaming ? "停止生成" : "发送")
@@ -7062,7 +7084,18 @@ private struct ComposerBarLayout: Layout {
                     width: ComposerLayout.buttonHeight,
                     height: ComposerLayout.buttonHeight
                 )
-                .contentShape(Circle())
+                // 第 83 条（命中域收口）：字形不变、命中
+                // 域外扩 44（外层矩形取代旧 30 圆命中形）；
+                // 负内边距抵消外扩、布局仍按 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .accessibilityLabel("语音输入")
@@ -7094,7 +7127,18 @@ private struct ComposerBarLayout: Layout {
                     width: ComposerLayout.buttonHeight,
                     height: ComposerLayout.buttonHeight
                 )
-                .contentShape(Circle())
+                // 第 83 条（命中域收口）：字形不变、命中
+                // 域外扩 44（外层矩形取代旧 30 圆命中形）；
+                // 负内边距抵消外扩、布局仍按 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .accessibilityLabel("添加附件")

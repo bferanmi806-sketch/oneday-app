@@ -659,7 +659,15 @@ struct FilesBrowserView: View {
                     .font(.system(size: 17))
                     .foregroundStyle(Palette.ink)
                     .frame(width: 32, height: 32)
+                    // 第 83 条（命中域收口）：字形不变、命
+                    // 中域外扩 44；负内边距抵消外扩、页头
+                    // 行布局不动
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
                     .contentShape(Rectangle())
+                    .padding(-(OneDayMetrics.minTapTarget - 32) / 2)
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel("新建文件夹")
@@ -673,7 +681,15 @@ struct FilesBrowserView: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 32, height: 32)
+                // 第 83 条（命中域收口）：字形不变、命中
+                // 域外扩 44；负内边距抵消外扩、页头行布
+                // 局不动
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
                 .contentShape(Rectangle())
+                .padding(-(OneDayMetrics.minTapTarget - 32) / 2)
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel(
