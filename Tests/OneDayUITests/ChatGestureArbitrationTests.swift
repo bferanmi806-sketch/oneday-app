@@ -139,17 +139,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func lastUserTextView(
         in app: XCUIApplication
     ) throws -> XCUIElement {
-        let text = app.textViews.matching(
-            NSPredicate(
-                format: "value CONTAINS %@", "按你说的顺序来"
-            )
-        ).firstMatch
-        XCTAssertTrue(
-            text.waitForExistence(timeout: 15),
-            "演示末条用户消息文本未出现"
-        )
-        reveal(text, in: app)
-        return text
+        try textView(matching: "按你说的顺序来", in: app)
     }
 
     /// §265 演示种子 T4 样本消息的文本视图（值班
@@ -157,25 +147,68 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func contactTextView(
         in app: XCUIApplication
     ) throws -> XCUIElement {
-        let text = app.textViews.matching(
-            NSPredicate(
-                format: "value CONTAINS %@", "值班电话"
-            )
-        ).firstMatch
-        XCTAssertTrue(
-            text.waitForExistence(timeout: 15),
-            "演示 T4 样本消息文本未出现"
+        try textView(matching: "值班电话", in: app)
+    }
+
+    /// 按正文找承载文本视图：a11y value 经 TextSh-
+    /// aping 整形、字间插有 U+2060（冒烟门同族实
+    /// 证），谓词 CONTAINS 原文必落空——改逐元素
+    /// 读 value、剥整形字符后比对；首轮找不到时
+    /// 上滑列表促 LazyVStack 物化后重找（两轮）。
+    /// 终失败把全树文本视图的 value 摘要写进断言
+    /// 信息、自带取证
+    private func textView(
+        matching needle: String, in app: XCUIApplication
+    ) throws -> XCUIElement {
+        for round in 0..<2 {
+            let deadline = Date().addingTimeInterval(12)
+            while Date() < deadline {
+                for element in app.textViews
+                    .allElementsBoundByIndex {
+                    guard let raw = element.value as? String
+                    else { continue }
+                    let stripped = raw
+                        .replacingOccurrences(
+                            of: "\u{2060}", with: ""
+                        )
+                        .replacingOccurrences(
+                            of: "\u{200B}", with: ""
+                        )
+                        .replacingOccurrences(
+                            of: "\u{FEFF}", with: ""
+                        )
+                    if stripped.contains(needle) {
+                        reveal(element, in: app)
+                        return element
+                    }
+                }
+                Thread.sleep(forTimeInterval: 0.4)
+            }
+            if round == 0 { app.swipeUp() }
+        }
+        XCTFail(
+            "按正文找不到承载文本视图「\(needle)」；"
+                + "当时文本视图 value 摘要："
+                + valueDigest(in: app)
         )
-        reveal(text, in: app)
-        return text
+        throw NSError(domain: "ChatGestureArbitration", code: 1)
+    }
+
+    private func valueDigest(in app: XCUIApplication) -> String {
+        app.textViews.allElementsBoundByIndex.map {
+            let raw = ($0.value as? String) ?? "<nil>"
+            let stripped = raw.replacingOccurrences(
+                of: "\u{2060}", with: ""
+            )
+            return String(stripped.prefix(30))
+        }.joined(separator: " | ")
     }
 
     private func reveal(
         _ element: XCUIElement, in app: XCUIApplication
     ) {
-        let scrollView = app.scrollViews.firstMatch
         for _ in 0..<8 where !element.isHittable {
-            scrollView.swipeUp()
+            app.swipeUp()
         }
         XCTAssertTrue(
             element.isHittable,
