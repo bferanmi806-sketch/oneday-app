@@ -76,7 +76,8 @@ final class ChatCarrierSettleCarryTests: XCTestCase {
     private func apply(_ row: ChatCarrierRow) {
         controller.apply(
             rows: [row], layout: layout,
-            topInset: 0, bottomInset: 0, bottomSpace: 0,
+            topInset: 0, composerTopInWindow: 0,
+            fallbackBottomSpace: 0, bottomMargin: 0,
             keyboardAnimationDuration: 0,
             keyboardAnimationCurveRaw: 0, arrowView: nil
         )
