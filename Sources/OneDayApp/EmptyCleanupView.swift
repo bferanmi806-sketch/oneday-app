@@ -154,7 +154,7 @@ struct EmptyCleanupSheet: View {
                         }
                     }
                     .odGroup()
-                    Text("删除走逐条围栏校验，删完会再全量核对一遍；候选清单和结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。")
+                    Text("删除前会逐条确认，删完再全部核对一遍；这批会话和删除结果会存进本机清理记录。空会话没有任何消息，删掉的是会话本身。")
                         .font(.footnote)
                         .foregroundStyle(Palette.inkSecondary)
                         .padding(.top, OneDayMetrics.spacingM)
@@ -249,7 +249,7 @@ struct EmptyCleanupSheet: View {
                     }
                     .odGroup()
                 }
-                Text("这次清理的候选清单和结果已存进本机清理记录。")
+                Text("这次删掉的会话和结果已存进本机清理记录。")
                     .font(.footnote)
                     .foregroundStyle(Palette.inkSecondary)
                     .padding(.top, OneDayMetrics.spacingM)
