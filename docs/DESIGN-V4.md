@@ -12827,4 +12827,6 @@ run 43666408050（workflow_dispatch @ feat/platform-icons-unify）：名义 fail
 
 **版号**：0.50.51／构建 179（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
 
-### §277.1 CI 判读（待回填）
+### §277.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带登记一项）**
+
+run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红因仅下述登记项，全日志本地核账。**Core 2110→2111 精确对账**（Executed 2111、0 failures＝§277 预期：.50 的 2110＋图标包 1，桥-1/文案/组件三包零增删）；**App 214 注册、214 得判词**（208 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），注册数与预期逐项吻合（213＋图标包 1）、本轮**无无判词项**；**UI 10/10 全过**（Executed 10、0 failures）。四包关键面全过：CompanionProbeTests 30/30（桥-1 探针回归）、testChannelRegistryIconUnifyBatch passed、testAllRegisteredPlatformBrandAssetsResolveToBitmaps passed（16 枚资产实物解析）、SegmentedControlSpecTests 全过。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／Package／Upload 三步 success。登记一项（不堵门）：唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47–.50 同签名、与本版改动零交集）。另：宿主重启 **1 次**（04:23:30），`testFailedTraceMaterializesWithErrorSnapshot` 首启被打断、重试 **passed**（§184 余崩本轮得通过判词）；BackingData:835 日志零命中；UI 抽屉长按菜单 flake 本轮未现（UI 全过）。IPA 解包亲验：0.50.51／179／site.didichou.oneday，13,842,659 字节，md5 `425da449bc0be894ec79899946ed0aad`，落 ~/workspace/your_files/oneday-v0.50.51/（附待办总表副本）。未合 main、未打 tag。
