@@ -1,9 +1,8 @@
+import OneDayDesign
 import SwiftUI
 import UIKit
 import XCTest
 @testable import OneDayApp
-@testable import OneDayCore
-@testable import OneDayDesign
 
 /// §89 回归门：新承载相邻行间距实测。
 ///
@@ -19,11 +18,10 @@ import XCTest
 /// 本门装配含真实壳层链：窗口＋父 VC 注入真机安全
 /// 区（additionalSafeAreaInsets 上 59/下 83）＋真实
 /// 承载控制器＋生产同值布局；行内容为 ChatView 用
-/// 户行同构复刻（SelectableInlineText＋气泡内边距/
-/// 填充＋右滑回复修饰）。另设环境自检：同层级裸宿
-/// 主（不清零）在内容深处必须量出 128.33（45.33＋
-/// 83）——证明本装配的安全区污染在场，承载断言非
-/// 空转。
+/// 户行同构复刻（探针实证：宽 362 时纯内容高
+/// 45.33）。另设环境自检：同层级裸宿主（不清零）
+/// 在内容深处必须量出 128.33（45.33＋83）——证明
+/// 本装配的安全区污染在场，承载断言非空转。
 @MainActor
 final class ChatCarrierRowSpacingTests: XCTestCase {
 
@@ -60,37 +58,42 @@ final class ChatCarrierRowSpacingTests: XCTestCase {
         )
     }
 
-    /// 用户行复刻（与 ChatView.userMessageText＋气泡
-    /// 段同构：右滑回复修饰＋可选文本＋气泡内边距＋
-    /// 用户泡填充；宽 362 时实测高 45.33）
+    // MARK: - 行内容复刻（与生产同构同值，探针实证）
+
+    private func userBubbleText() -> some View {
+        SelectableInlineText(
+            paragraphs: [.plain("测试一下")],
+            textStyle: .callout,
+            foreground: Palette.userBubbleText,
+            onSelectionChange: { _ in }
+        )
+        .padding(.horizontal, OneDayMetrics.bubblePaddingH)
+        .padding(.vertical, OneDayMetrics.bubblePaddingV)
+        .background(
+            Palette.userBubbleFill,
+            in: RoundedRectangle(
+                cornerRadius: OneDayMetrics.bubbleCorner
+            )
+        )
+    }
+
     private func userRowView() -> some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            Spacer(minLength: OneDayMetrics.bubbleSideInset)
-            VStack(alignment: .leading, spacing: 0) {
-                SelectableInlineText(
-                    segments: [
-                        InlineTextSegment(
-                            kind: .text, content: "测试一下"
-                        ),
-                    ],
-                    isUser: true,
-                    onLinkTap: nil, onPhoneTap: nil
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
+            HStack {
+                Spacer(minLength: OneDayMetrics.bubbleSideInset)
+                VStack(
+                    alignment: .trailing,
+                    spacing: OneDayMetrics.spacingXS
+                ) {
+                    userBubbleText()
+                }
+                .modifier(
+                    SwipeReplyModifier(
+                        isEnabled: true, onReply: {}
+                    )
                 )
-            }
-            .padding(.horizontal, OneDayMetrics.bubblePaddingH)
-            .padding(.vertical, OneDayMetrics.bubblePaddingV)
-            .background {
-                BubbleShape(
-                    corners: BubbleCorners(
-                        topLeading: true, topTrailing: true,
-                        bottomLeading: true, bottomTrailing: false
-                    ),
-                    radius: OneDayMetrics.bubbleCorner
-                )
-                .fill(OneDayPalette.userBubbleFill)
             }
         }
-        .modifier(SwipeReplyModifier(onTrigger: {}))
     }
 
     private func installInWindow() {
@@ -207,7 +210,7 @@ final class ChatCarrierRowSpacingTests: XCTestCase {
         let sv = controller.scrollView
         // 内容总高＝上 padding 16＋30×45.33＋29×24＋
         // 下 padding 8（任一行被 +83 污染都会胀大）
-        let expectedContent = 16 + 30 * 45.33 + 29 * 24 + 8
+        let expectedContent = 16.0 + 30.0 * 45.33 + 29.0 * 24.0 + 8.0
         XCTAssertEqual(
             sv.contentSize.height, expectedContent, accuracy: 1.0,
             "内容总高应为纯内容高＋行距 24×29，无安全区污染"
@@ -228,13 +231,15 @@ final class ChatCarrierRowSpacingTests: XCTestCase {
                 "行帧高应为纯内容高 45.33，实测 \(host.frame.height)"
             )
         }
-        for index in 1..<hosts.count {
-            let gap = hosts[index].frame.minY
-                - hosts[index - 1].frame.maxY
-            XCTAssertEqual(
-                gap, 24, accuracy: 1.0,
-                "相邻行帧间隙应＝行距令牌 24，实测 \(gap)"
-            )
+        if hosts.count > 1 {
+            for index in 1..<hosts.count {
+                let gap = hosts[index].frame.minY
+                    - hosts[index - 1].frame.maxY
+                XCTAssertEqual(
+                    gap, 24, accuracy: 1.0,
+                    "相邻行帧间隙应＝行距令牌 24，实测 \(gap)"
+                )
+            }
         }
     }
 }
