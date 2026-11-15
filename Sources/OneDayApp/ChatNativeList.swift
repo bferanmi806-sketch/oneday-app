@@ -2,15 +2,16 @@ import OneDayCore
 import SwiftUI
 import UIKit
 
-/// 会话页原生重建 R1（DESIGN §291，施工图
-/// chat-native-rebuild-blueprint-20261115 §五 R1）：
+/// 会话页原生重建 R1＋R2（DESIGN §291/§293，施工
+/// 图 chat-native-rebuild-blueprint-20261115 §五）：
 /// ChatRootViewController＋UICollectionView（正
 /// 向、不倒置）＋UICollectionViewDiffableDataSource
 /// ＋compositional 单列布局。落定行全集以
 /// UIHostingConfiguration 托管现有 SwiftUI 行内容
-/// 进 cell（内容本体一字不动）；直播区在 R1 不开
-/// 流式行——ChatView 以旧面 liveZone 整段一块不透
-/// 明 item 喂入（R2 收编为快照直播 item）。
+/// 进 cell（内容本体一字不动）；直播区自 R2 起逐
+/// 项入快照（ChatView nativeLiveRow，§293）；输入
+/// 舱自 R2 起收编为本容器子托管——底边钉本视图
+/// keyboardLayoutGuide（H8 键盘换代，见下）。
 ///
 /// 几何纪律（施工图 §四硬约束）：
 /// - H1 间距单源：相邻消息纵向间距只由 section
@@ -34,11 +35,22 @@ import UIKit
 ///   算，不缓存事实位。
 /// - 与 gen3 容器的关系：本面与 gen3 面共用同一
 ///   句柄形态（同形不同型，见 ChatNativeList-
-///   Handle）与同一批喂入（舱顶实测/
-///   回落种子/单点边距/键盘动画参数，§263 口径逐
-///   值同源）；ChatView 跟随/锚链只认句柄、不为
-///   本面再抄一份。键盘换代（keyboardLayoutGuide）
-///   是 R2 的事，本面沿 §194 快照喂入不变。
+///   Handle）；ChatView 跟随/锚链只认句柄、不为
+///   本面再抄一份。喂入只剩顶 inset 与单点边距两
+///   笔（§263 口径同源）；底几何自 R2 起全由本容
+///   器内实测派生（见 H8）。
+/// - H8 键盘只走 keyboardLayoutGuide（R2 换代）：
+///   输入舱子托管底边钉本视图 keyboardLayout-
+///   Guide.topAnchor——键盘升降/交互消散由引导
+///   线逐帧驱动（含系统动画曲线，无通知订阅、无
+///   快照常数、无状态机自算）；列表底 inset 每拍
+///   由舱子托管的实际布局帧一处派生（量测→对账
+///   →在底同拍钉底，全在布局拍/落定拍内）；§194
+///   通知常量与 ChatView 侧键盘锚定挂账链在本面
+///   不再消费（gen3/旧面照旧）。引导线在本层级
+///   的追踪真值由真机 A2/A3 门裁决（施工图 §五
+///   R2 门）——本容器的内部回滚点＝本节整组改动
+///   （舱收编＋派生源），与流式半边互不牵连。
 
 // MARK: - 行描述（ChatView 喂入）
 
@@ -174,22 +186,24 @@ final class ChatRootViewController: UIViewController,
     /// 时顺延到下一条目行）
     private var frameIDByKey: [String: UUID] = [:]
 
-    /// 喂入记账（与 gen3 逐值同源，§263）：顶 inset
-    /// 喂入值／舱顶窗口实测／未量得回落／单点边距
+    /// 喂入记账：顶 inset 喂入值／单点边距（§263
+    /// 口径与 gen3 同源）。底侧自 R2 起无喂入——
+    /// 舱在本容器内、留位全由其实测帧派生
     private var fedTopInset: CGFloat = 0
-    private var composerTopInWindow: CGFloat = 0
-    private var fallbackBottomSpace: CGFloat = 0
     private var bottomMargin: CGFloat = 0
-    /// 实测留位（帧底−舱顶，两实测同在窗口系相
-    /// 减）；nil＝尚未入窗量得（施工走回落种子）
+    /// 实测留位（列表帧底−舱顶，两实测同在窗口系
+    /// 相减）；nil＝尚未入窗量得（量得前底侧按 0
+    /// 记账：首个布局拍即量得，先于任何可见帧）
     private var measuredBottomSpace: CGFloat?
 
-    private struct PendingInset {
-        let animationDuration: TimeInterval
-        let animationCurveRaw: Int
-    }
-
-    private var pendingInset: PendingInset?
+    /// 输入舱子托管（R2 收编）：内容由 ChatView
+    /// 以 AnyView 喂入（bottomBar 本体），底边钉
+    /// 本视图 keyboardLayoutGuide——舱落位只认引
+    /// 导线（H8）。装配测试经 internal 读口取其帧
+    private(set) var composerHost:
+        UIHostingController<AnyView>?
+    /// 视图未装载时到达的舱内容（装载拍补装）
+    private var pendingComposerView: AnyView?
     /// 落定拍调度账（与 gen3 §259 同式：滚动回调
     /// 只记账、施工与读数产出统一在落定拍）
     private var settleScheduled = false
@@ -322,11 +336,73 @@ final class ChatRootViewController: UIViewController,
         collectionView.topEdgeEffect.style = .soft
         collectionView.bottomEdgeEffect.style = .soft
         view.addSubview(collectionView)
+        installComposerIfNeeded()
         installBlankTapDismiss()
         ChatDiagTrace.record(
             "原生重建 R1 新面装配（开关开）："
                 + "UICollectionView＋diffable 就绪"
         )
+    }
+
+    // MARK: 输入舱收编（R2／H8）
+
+    /// 舱内容喂入（representable update 入口）：已
+    /// 装配则原位换内容（rootView 替换、约束不
+    /// 动）；未装配则记账待装载拍补装。nil＝本面
+    /// 无舱（装配测试的裸列表形态），不装配
+    func applyComposer(view newView: AnyView?) {
+        pendingComposerView = newView
+        guard isViewLoaded else { return }
+        if newView == nil {
+            if let host = composerHost {
+                host.willMove(toParent: nil)
+                host.view.removeFromSuperview()
+                host.removeFromParent()
+                composerHost = nil
+            }
+            return
+        }
+        installComposerIfNeeded()
+        if let newView {
+            composerHost?.rootView = newView
+        }
+    }
+
+    /// 舱子托管装配：UIHostingController 收编为子
+    /// 控制器（H2：safeAreaRegions 清零）；约束只
+    /// 三条——左右贴本视图、底边钉 keyboardLay-
+    /// outGuide.topAnchor，高由内容固有尺寸（舱
+    /// 栈自带定高口径）。键盘的一切运动（升起/候
+    /// 选条/交互消散）经引导线逐帧传到本约束，舱
+    /// 随之同拍移动——本面不再有第二条键盘通道
+    private func installComposerIfNeeded() {
+        guard composerHost == nil,
+              let content = pendingComposerView
+        else { return }
+        let host = UIHostingController(rootView: content)
+        host.safeAreaRegions = []
+        host.view.backgroundColor = .clear
+        host.view.translatesAutoresizingMaskIntoConstraints =
+            false
+        addChild(host)
+        view.addSubview(host.view)
+        host.didMove(toParent: self)
+        NSLayoutConstraint.activate([
+            host.view.leadingAnchor.constraint(
+                equalTo: view.leadingAnchor
+            ),
+            host.view.trailingAnchor.constraint(
+                equalTo: view.trailingAnchor
+            ),
+            host.view.bottomAnchor.constraint(
+                equalTo: view.keyboardLayoutGuide.topAnchor
+            ),
+        ])
+        composerHost = host
+        // 回底钮浮层恒在舱之上（装配序兜底）
+        if let arrowHost {
+            view.bringSubviewToFront(arrowHost.view)
+        }
     }
 
     private func makeDataSource() {
@@ -374,11 +450,8 @@ final class ChatRootViewController: UIViewController,
         rows newRows: [ChatNativeRow],
         layout: ChatCarrierLayout,
         topInset: CGFloat,
-        composerTopInWindow newComposerTop: CGFloat,
-        fallbackBottomSpace newFallback: CGFloat,
         bottomMargin newMargin: CGFloat,
-        keyboardAnimationDuration: TimeInterval,
-        keyboardAnimationCurveRaw: Int,
+        composerView: AnyView?,
         arrowView: AnyView?
     ) {
         // 布局参数同步进匣：间距/内边距/占位任一变
@@ -471,24 +544,19 @@ final class ChatRootViewController: UIViewController,
         )
 
         let insetChanged = fedTopInset != topInset
-            || composerTopInWindow != newComposerTop
-            || fallbackBottomSpace != newFallback
             || bottomMargin != newMargin
-        composerTopInWindow = newComposerTop
-        fallbackBottomSpace = newFallback
         bottomMargin = newMargin
         if insetChanged {
-            // 与 gen3 §259 同式：apply 只记账，inset
-            // 施工归落定拍在布局落定后同拍执行
+            // apply 只记账，inset 施工归落定拍在布局
+            // 落定后同拍执行。底侧恒由舱实测帧派生
+            // （R2）：键盘动画不再经参数喂入——引导
+            // 线逐帧驱动舱帧、布局拍逐帧对账 inset，
+            // 动画曲线即系统给引导线的那一条
             fedTopInset = topInset
             measureBottomSpace()
             handle?.bottomInset = effectiveBottomInset
-            pendingInset = PendingInset(
-                animationDuration:
-                    keyboardAnimationDuration,
-                animationCurveRaw: keyboardAnimationCurveRaw
-            )
         }
+        applyComposer(view: composerView)
         if keysChanged || !reconfigureKeys.isEmpty
             || insetChanged {
             scheduleSettle()
@@ -539,12 +607,7 @@ final class ChatRootViewController: UIViewController,
         else { return }
         collectionView.layoutIfNeeded()
         measureBottomSpace()
-        if let pending = pendingInset {
-            pendingInset = nil
-            constructInsets(pending)
-        } else {
-            reconcileInsets()
-        }
+        reconcileInsets()
         if let anchor = pendingAnchor {
             pendingAnchor = nil
             executeRestore(anchor)
@@ -574,43 +637,14 @@ final class ChatRootViewController: UIViewController,
         report()
     }
 
-    /// inset 施工（键盘动画参数在场时与 gen3 同式
-    /// 走系统曲线动画）：顶＝喂入值＋短内容派生顶
-    /// inset（H3），底＝实测留位＋单点边距（§263）
-    private func constructInsets(
-        _ pending: PendingInset
-    ) {
-        let target = UIEdgeInsets(
-            top: fedTopInset + derivedTopInset(),
-            left: 0,
-            bottom: effectiveBottomInset, right: 0
-        )
-        let construct = { [self] in
-            collectionView.contentInset = target
-            collectionView
-                .verticalScrollIndicatorInsets = target
-            handle?.bottomInset = effectiveBottomInset
-        }
-        if pending.animationDuration > 0,
-           collectionView.window != nil {
-            UIView.animate(
-                withDuration: pending.animationDuration,
-                delay: 0,
-                options: UIView.AnimationOptions(
-                    rawValue: UInt(
-                        pending.animationCurveRaw
-                    ) << 16
-                ).union([.beginFromCurrentState]),
-                animations: construct
-            )
-        } else {
-            construct()
-        }
-    }
-
-    /// 实测对账（与 gen3 同式）：未施工拍把已应用
-    /// inset 拉回当拍实测恒等值——顶随派生量、底
-    /// 随实测留位，施工值与量测一旦分叉即如实显形
+    /// 实测对账（inset 唯一施工口，R2 收口）：每
+    /// 拍把已应用 inset 拉回当拍实测恒等值——顶＝
+    /// 喂入值＋短内容派生量、底＝舱实测留位＋单点
+    /// 边距，施工值与量测一旦分叉即如实显形。R1
+    /// 期另有「键盘动画参数驱动的施工」一路（con-
+    /// structInsets），R2 起键盘运动经引导线逐帧
+    /// 成本拍布局变化、对账逐帧跟进即同拍——动画
+    /// 参数喂入与施工动画一并退役
     private func reconcileInsets() {
         let targetTop = fedTopInset + derivedTopInset()
         let targetBottom = effectiveBottomInset
@@ -651,21 +685,29 @@ final class ChatRootViewController: UIViewController,
 
     // MARK: 几何读数（全部现测，H7）
 
-    /// 实测留位量测（§263，与 gen3 逐字同式）：帧
-    /// 底由本视图 convert 实帧、舱顶为 ChatView 喂
-    /// 入的舱帧实测顶，两实测同在窗口系相减
+    /// 实测留位量测（§263 同式、量测对象换代）：
+    /// 帧底由本视图 convert 实帧、舱顶由舱子托管
+    /// 的实帧 convert——两实测同在窗口系相减。R1
+    /// 期舱在 ChatView 的 overlay 里、舱顶经绑定喂
+    /// 入；R2 舱收编入本容器后量测不出容器、喂入
+    /// 链退役（H8 的派生单源）
     private func measureBottomSpace() {
-        guard let window = view.window else { return }
+        guard let window = view.window,
+              let host = composerHost
+        else { return }
         let frameInWindow = view.convert(
             view.bounds, to: window
         )
+        let hostInWindow = host.view.convert(
+            host.view.bounds, to: window
+        )
         measuredBottomSpace = max(
-            0, frameInWindow.maxY - composerTopInWindow
+            0, frameInWindow.maxY - hostInWindow.minY
         )
     }
 
     private var effectiveBottomSpace: CGFloat {
-        measuredBottomSpace ?? fallbackBottomSpace
+        measuredBottomSpace ?? 0
     }
 
     private var effectiveBottomInset: CGFloat {
@@ -1077,13 +1119,11 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     var rows: [ChatNativeRow]
     var layout: ChatCarrierLayout
     var topInset: CGFloat
-    /// 与 gen3 面同一批喂入（§263：舱顶窗口实测＋
-    /// 未量得回落＋单点边距）
-    var composerTopInWindow: CGFloat
-    var fallbackBottomSpace: CGFloat
     var bottomMargin: CGFloat
-    var keyboardAnimationDuration: TimeInterval
-    var keyboardAnimationCurveRaw: Int
+    /// 输入舱内容（R2 收编）：由控制器子托管、底
+    /// 边钉其 keyboardLayoutGuide（H8）；底几何的
+    /// 喂入自此只剩本内容本体，无舱顶/动画参数喂入
+    var composerView: AnyView
     var arrowView: AnyView?
     var handle: ChatNativeListHandle
     var callbacks: ChatListCarrierCallbacks
@@ -1112,13 +1152,8 @@ struct ChatNativeListView: UIViewControllerRepresentable {
             rows: rows,
             layout: layout,
             topInset: topInset,
-            composerTopInWindow: composerTopInWindow,
-            fallbackBottomSpace: fallbackBottomSpace,
             bottomMargin: bottomMargin,
-            keyboardAnimationDuration:
-                keyboardAnimationDuration,
-            keyboardAnimationCurveRaw:
-                keyboardAnimationCurveRaw,
+            composerView: composerView,
             arrowView: arrowView
         )
     }

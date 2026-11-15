@@ -287,6 +287,94 @@ public enum ChatScrollSupply {
         }
         return (legacyOut, uiKitOut, distancesMatch)
     }
+
+    /// 轨迹回放（落定序列对拍，原生重建 R2 增补）：
+    /// 同一规范化轨迹分别经旧式与新式供数喂「贴底
+    /// 协调者＋落定状态机」全链（请求贴底→逐状态
+    /// step→restick 消费后按宿主同式重新入观察），
+    /// 返回两路 Step 序列。R2 的供数换源门：原生面
+    /// 的距底/可见集/内容高改由集合视图 delegate 与
+    /// 布局回调直供、键盘事件源改由容器布局拍派生
+    /// ——判定链消费的仍是同一批几何事实，本回放钉
+    /// 死「供数公式换源不改裁决序列」：两路序列须
+    /// 逐点相等、每点距底与地面真值相等（容差
+    /// 0.001）。轨迹按单个贴底回合构造（可含一次
+    /// restick 续回合）；收官步（settled/calibrated/
+    /// exhausted）为序列终点
+    public static func replaySettleSequence(
+        trace: [CanonicalState]
+    ) -> (
+        legacy: [BottomSettleMachine.Step],
+        uiKit: [BottomSettleMachine.Step],
+        distancesMatch: Bool
+    ) {
+        var distancesMatch = true
+        func run(
+            useUIKit: Bool
+        ) -> [BottomSettleMachine.Step] {
+            var coordinator = BottomStickCoordinator()
+            var machine = BottomSettleMachine()
+            var steps: [BottomSettleMachine.Step] = []
+            var generation = 0
+            if case .perform(let g) = coordinator
+                .requestStick(at: 0) {
+                generation = g
+            }
+            machine.begin(animated: false)
+            var clock: TimeInterval = 1
+            for state in trace {
+                let raw: Double
+                if useUIKit {
+                    raw = uiKitDistance(
+                        contentHeight: state.contentHeight,
+                        offsetY: state.travel - state.topInset,
+                        viewportHeight: state.viewportHeight,
+                        bottomInset: state.bottomInset
+                    )
+                } else {
+                    raw = legacyDistance(
+                        contentHeight: state.contentHeight
+                            + state.topInset + state.bottomInset,
+                        offsetY: state.travel,
+                        containerHeight: state.viewportHeight
+                    )
+                }
+                if abs(raw - state.distance) > 0.001 {
+                    distancesMatch = false
+                }
+                let step = machine.step(
+                    distance: CGFloat(raw),
+                    contentEndVisible:
+                        state.contentEndVisible,
+                    restickArmed: coordinator.isRestickArmed(
+                        generation: generation
+                    )
+                )
+                steps.append(step)
+                switch step {
+                case .restick:
+                    // 宿主同式：消费复贴→执行无动画贴
+                    // →新请求顶替挂账→重新入观察
+                    _ = coordinator.consumeRestick(
+                        generation: generation
+                    )
+                    clock += 1
+                    if case .perform(let g) = coordinator
+                        .requestStick(at: clock) {
+                        generation = g
+                    }
+                    machine.begin(animated: false)
+                case .settled, .calibrated, .exhausted:
+                    return steps
+                case .continue:
+                    break
+                }
+            }
+            return steps
+        }
+        return (run(useUIKit: false), run(useUIKit: true),
+                distancesMatch)
+    }
 }
 
 // MARK: - 行高组合模型（消费排版产物）
