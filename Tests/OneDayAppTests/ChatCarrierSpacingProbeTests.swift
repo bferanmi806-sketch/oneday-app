@@ -265,7 +265,7 @@ final class ChatCarrierSpacingProbeTests: XCTestCase {
 
     func testProbeStandaloneSizes() {
         let proposal = CGSize(
-            width: 362, height: .greatestFiniteMagnitude
+            width: 362, height: CGFloat.greatestFiniteMagnitude
         )
         let cases: [(String, AnyView)] = [
             ("user-swipe", AnyView(userRowView(withSwipe: true))),
