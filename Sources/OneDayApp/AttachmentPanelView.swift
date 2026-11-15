@@ -380,15 +380,24 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                   let sheet = host.sheetPresentationController
             else { return }
             // §299.2 候选②（候选①实测不净后换）：
-            // sheet 托管控制器 safeAreaRegions 清
-            // 零（R1 行宿主 H2 同款）——§299.1/§299.2
-            // 量测律：in-sheet 量测计入底部安全区
-            // +34、帧关系再按托管视图安全区叠一
-            // 层 +34；候选①只减量测侧、帧仍 +34。
-            // 源头清零使托管视图安全区恒 0：量测
-            // 回内容理想高、帧附加项同灭
-            if !host.safeAreaRegions.isEmpty {
-                host.safeAreaRegions = []
+            // 托管视图底部安全区源头归零——§299.1/
+            // §299.2 量测律：in-sheet 量测计入底部
+            // 安全区 +34、帧关系再按托管视图安全
+            // 区叠一层 +34；候选①只减量测侧、帧仍
+            // +34。归零落点：safeAreaRegions 是
+            // UIHostingController 类型化 API，本桥
+            // 经响应链只拿到 SwiftUI所建 sheet 宿
+            // 主的 UIViewController 泛型面、到达不
+            // 了（首试编译实证），改走 UIViewCon-
+            // troller 的 additionalSafeAreaInsets
+            // 反向补偿：按当前实测总量反推区域分
+            // 量并抵消（不写死数值；补偿后总量 0、
+            // 重入不累加），量测与帧附加项同灭
+            let totalBottom = host.view.safeAreaInsets.bottom
+            if totalBottom != 0 {
+                host.additionalSafeAreaInsets.bottom
+                    = host.additionalSafeAreaInsets.bottom
+                    - totalBottom
             }
             if sheet.detents.first?.identifier != Self.detentID {
                 sheet.detents = [
