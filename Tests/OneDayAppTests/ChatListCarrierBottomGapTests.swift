@@ -337,16 +337,21 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
         )
     }
 
-    /// 红测期喂入（旧签名）：快照派生值＋单点边距
-    /// ——与 0.50.47 出货喂法逐字一致
+    /// §263 喂入：舱顶窗口实测（convert，与生产
+    /// barFrameInWindow 同法同拍）＋回落种子＋单点
+    /// 边距。回落种子恒取静息派生值——量得实测后
+    /// 它永不参与施工，落座追随用例据此判读（种子
+    /// 不变、留位随实测变）
     private func applyDerived(keyboard: Bool) {
-        let space = derivedBottomSpace(keyboard: keyboard)
         controller.apply(
             rows: makeRows(count: 30),
             layout: testLayout,
             topInset: 122,
-            bottomInset: space + Assembly.bottomMargin,
-            bottomSpace: space,
+            composerTopInWindow: composerTopInWindow,
+            fallbackBottomSpace: derivedBottomSpace(
+                keyboard: false
+            ),
+            bottomMargin: Assembly.bottomMargin,
             keyboardAnimationDuration: 0,
             keyboardAnimationCurveRaw: 0,
             arrowView: AnyView(Color.clear)
@@ -532,5 +537,72 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
             handle.contentEndVisible,
             "回底后末端事实转真"
         )
+    }
+
+    /// 落座追随：舱改钉键盘锚线（落座变化）后，回
+    /// 落种子（静息派生值）一字不变、只喂新的舱顶
+    /// 实测——施工留位必须随实测迁移、总量恒 24
+    /// （派生口径下种子不变即留位不变、空距随落座
+    /// 漂移 83）
+    func testInsetTracksSeatingChangeViaMeasuredFeed() {
+        installShell(skew: Assembly.chainSkew)
+        applyDerived(keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        controller.scrollToBottom(animated: false)
+        drainRunLoop()
+        assertMeasuredGeometry()
+
+        seatComposerOnKeyboard()
+        applyDerived(keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        controller.scrollToBottom(animated: false)
+        drainRunLoop()
+        assertMeasuredGeometry()
+    }
+
+    /// 无窗口装配（§259 既有测试形态）：量测不落
+    /// 地、施工走回落种子＋边距——种子即旧派生喂
+    /// 入口径，行为与 §260 无窗口回落逐值一致
+    func testWindowlessAssemblyUsesFallbackSeed() {
+        controller.loadViewIfNeeded()
+        controller.apply(
+            rows: makeRows(count: 30),
+            layout: testLayout,
+            topInset: 122,
+            composerTopInWindow: 0,
+            fallbackBottomSpace: derivedRestSeed,
+            bottomMargin: Assembly.bottomMargin,
+            keyboardAnimationDuration: 0,
+            keyboardAnimationCurveRaw: 0,
+            arrowView: nil
+        )
+        controller.view.frame = CGRect(
+            x: 0, y: 0, width: Assembly.windowWidth,
+            height: Assembly.pageHeight
+        )
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+
+        let expected = derivedRestSeed
+            + Assembly.bottomMargin
+        XCTAssertEqual(
+            controller.scrollView.contentInset.bottom,
+            expected, accuracy: 0.6,
+            "无窗口时施工值＝回落种子＋边距"
+        )
+        XCTAssertEqual(
+            handle.bottomInset, expected, accuracy: 0.6
+        )
+    }
+
+    /// 静息派生种子（窗口高−坞顶＋栈高，公式直算
+    /// ——无窗口装配下没有探针可 convert，取装配常
+    /// 量口径：(874−791)＋54＝137）
+    private var derivedRestSeed: CGFloat {
+        Assembly.windowHeight
+            - (Assembly.windowHeight - Assembly.dockHeight)
+            + Assembly.pocketHeight
     }
 }

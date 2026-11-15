@@ -2124,19 +2124,22 @@ struct ChatView: View {
                 arrowGapAboveComposer: 8,
                 arrowSize: OneDayMetrics.minTapTarget
             ),
-            // 顶/底留位与旧承载同源（顶＝窗口顶安全
-            // 区实测＋顶簇实高；底＝键盘快照 bottom-
-            // Space＋单点边距）。§260 校准：新承载的
-            // 单点边距取 spacingM——与承载底 padding
-            // （spacingS）合计 24pt＝Muse 一手实测的
-            // 末条→舱顶总量（gen3-bottom-gap 报告）；
-            // 喂入值仍以窗口底为锚，帧外段的扣算在
-            // 承载侧以其实帧量测（§260）。旧承载
-            // contentMargins 的 spacingS 口径不动
+            // 顶留位与旧承载同源（窗口顶安全区实测＋
+            // 顶簇实高）。底留位 §263 改实测单源：只
+            // 喂舱顶窗口实测（窗口高实测−舱顶实测回
+            // 报，即 barFrameInWindow.minY 同拍同源
+            // 值）＋未量得回落（快照派生、仅瞬态种
+            // 子）＋单点边距 spacingM（与承载底 pad-
+            // ding spacingS 合计 24pt、§260 校准值不
+            // 变）；留位本体由承载以帧底与舱顶两实
+            // 测相减自产。§260 派生 inset 喂入＋帧外
+            // 段扣减退役（gen3-gap-recheck 定案）。
+            // 旧承载 contentMargins 口径不动
             topInset: windowTopSafeInset + topBarHeight,
-            bottomInset: kbSnapshot.bottomSpace
-                + OneDayMetrics.spacingM,
-            bottomSpace: kbSnapshot.bottomSpace,
+            composerTopInWindow: kbSnapshot.windowHeight
+                - composerBottomSpace,
+            fallbackBottomSpace: kbSnapshot.bottomSpace,
+            bottomMargin: OneDayMetrics.spacingM,
             keyboardAnimationDuration:
                 kbSnapshot.animationDuration,
             keyboardAnimationCurveRaw:
