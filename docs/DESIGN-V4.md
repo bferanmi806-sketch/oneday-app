@@ -12843,6 +12843,10 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 
 **影子对账**：refresh/refreshVisible 内以旧口径现算旧行集（抽屉本地行/未收养行，全量刷新加管理页两段）与账本投影 diff，仅 diff 非空才 ChatDiagTrace 留痕，零 diff 沉默；包二验收后移除。
 
-**测试**：Core SessionLedgerTests 10 例（合并形态 3／规则↔层矩阵 1／抽屉两行集等值 2／合并序 1／管理页两段＋枢纽 1／频道含合并桶 1／归档列双源 1／标题两管线 1）；App SessionLedgerAppTests 5 例（真实装配链：脚本客户端＋SwiftData 容器租约＋store.load 真路——refresh 落位与 liveSet 完整交出、不完整闸 liveSet 形态＋线程不删、目录壳转发、收养读账本、可见段刷新投影）。SessionCatalogGuardTests 9 例断言读点随名单迁账本（语义不变）。
+**测试**：Core SessionLedgerTests 11 例（合并形态 3／规则↔层矩阵 1／抽屉两行集等值 2／合并序 1／管理页两段＋枢纽 1／频道含合并桶 1／归档列双源 1／标题两管线 1）；App SessionLedgerAppTests 5 例（真实装配链：脚本客户端＋SwiftData 容器租约＋store.load 真路——refresh 落位与 liveSet 完整交出、不完整闸 liveSet 形态＋线程不删、目录壳转发、收养读账本、可见段刷新投影）。SessionCatalogGuardTests 9 例断言读点随名单迁账本（语义不变）。
 
-**CI 判读**：待回填。
+**CI 判读**：见 §270.1。
+
+### §270.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
+
+两轮 workflow_dispatch：run 43670014909（主提交 adbb19a）编译红——SessionRecord 声明 Equatable 而 ServerSession 本体无 Equatable、合成失败；修提交 8048685 去 Equatable（行集比较一律走 ledgerID）。run 43670533023（分支头 8048685）：名义 failure，红因仅既有登记两项。**Core 2115/2115 精确**（2104 基线＋本包 11）；**App 208 注册、207 得判词**（201 passed＋5 skipped 设计内跳＋1 failed；201＝基线 196＋本包 5 精确）；**UI 10/10**。本包新测全过：SessionLedgerTests 11/11、SessionLedgerAppTests 5/5、SessionCatalogGuardTests 9/9。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／打包／上传 IPA 均 success。登记两项（与 rel-05049 同签名、不堵门）：①唯一 failed＝EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1，:617「6＞4」逐字同签名）；②宿主重启 1 次、testFailedTraceMaterializesWithErrorSnapshot 无判词（§184 余崩；BackingData:835 零命中）。未合 main、未打 tag。报告 oneday-design-review/session-ledger-1-20261115.md。
