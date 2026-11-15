@@ -88,6 +88,13 @@ struct ChatView: View {
     /// scenePhase 观察——切后台杀流后回前台无人对账，
     /// 是「显示无网络」误报的生命周期半侧定因）
     @Environment(\.scenePhase) private var scenePhase
+    /// R3（§295）：原生散文规格的拼装环境——全环
+    /// 境值（颜色 resolve 与字号/字重档的同源读
+    /// 口，与 SelectableInlineText 的 @Environ-
+    /// ment(\.self) 同式）＋链接出口（原生文本委
+    /// 托的 openURL 与托管形态同一环境动作）
+    @Environment(\.self) private var environment
+    @Environment(\.openURL) private var openURL
     @Query(sort: \ChatThread.updatedAt, order: .reverse) private var threads: [ChatThread]
 
     @State private var currentThreadID: UUID?
@@ -2824,18 +2831,47 @@ struct ChatView: View {
 
     /// 原生面条目行：与 carrierEntryRow 同键（落
     /// 定映射命中沿用流式行键）、同版本、同估算
-    /// （产物层），只换行描述类型
+    /// （产物层），只换行描述类型。R3（§295）：
+    /// 资格判定通过的落定散文行带原生规格走原生
+    /// cell（版本并入样式键与右滑门控——样式环
+    /// 境或选区门控一变即 reconfigure 换规格，
+    /// 与托管形态的环境重渲同义）
     private func nativeEntryRow(
         _ entry: ChatEntry, dividerText: String?
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
+        let key = settledKey ?? "entry-\(entry.id.uuidString)"
+        let estimate = carrierRowEstimate(
+            for: entry, hasDivider: dividerText != nil
+        )
+        if let spec = nativeProseSpec(
+            for: entry, dividerText: dividerText
+        ) {
+            var version = carrierEntryVersion(entry)
+            version = version &* 31
+                &+ nativeProseStyleKey.hashValue
+            version = version &* 31
+                &+ (spec.swipeEnabled ? 1 : 0)
+            return ChatNativeRow(
+                key: key,
+                entryID: entry.id,
+                version: version,
+                estimatedHeight: estimate,
+                proseSpec: spec,
+                makeView: {
+                    AnyView(
+                        entryRowContent(
+                            entry, dividerText: dividerText
+                        )
+                    )
+                }
+            )
+        }
         return ChatNativeRow(
-            key: settledKey ?? "entry-\(entry.id.uuidString)",
+            key: key,
             entryID: entry.id,
             version: carrierEntryVersion(entry),
-            estimatedHeight: carrierRowEstimate(
-                for: entry, hasDivider: dividerText != nil
-            ),
+            estimatedHeight: estimate,
             makeView: {
                 AnyView(
                     entryRowContent(
@@ -2843,6 +2879,174 @@ struct ChatView: View {
                     )
                 )
             }
+        )
+    }
+
+    /// R3 散文下沉的样式键（拼装缓存与行版本共
+    /// 用）：与 SelectableInlineText 的拼装缓存
+    /// 键同因子（字阶/字号档/粗体/前景与次级墨
+    /// 的解析值）——环境一变键即变、旧拼装自然
+    /// 淘汰、行版本随之翻新
+    private var nativeProseStyleKey: String {
+        func components(_ color: Color) -> String {
+            color.resolve(in: environment).cgColor
+                .components?
+                .map { "\($0)" }.joined(separator: ",")
+                ?? ""
+        }
+        return [
+            dynamicTypeSize.contentSizeCategory.rawValue,
+            environment.legibilityWeight == .bold
+                ? "b" : "r",
+            components(Palette.bodyInk),
+            components(Palette.inkSecondaryOnFill),
+            components(Palette.userBubbleText),
+        ].joined(separator: "|")
+    }
+
+    /// R3（§295）落定散文原生规格：资格判定＋拼
+    /// 装＋动作注入。资格口径（与 bubble() 的呈
+    /// 现分支逐项对账——下沉后呈现须与托管形态
+    /// 逐字同构，任一呈现件在席即整行留托管）：
+    /// - 通用：非工具卡/留痕/审批/目标回响行、
+    ///   正文非空、本会话落定映射不在席（H11 落
+    ///   定不换装字面优先，见 ChatNativeProse-
+    ///   Cell 头注）；
+    /// - 助手行：无落盘思考、无服务端图片行，
+    ///   且五组派生扫描全空（交付标记/MEDIA 图/
+    ///   内联图候选/独立成行路径/整条裸路径皆无
+    ///   ＝正文未经任何摘行、displayText 与原文
+    ///   逐字相等、文件牌组为空集）；
+    /// - 用户行：无引用块/源引用、无本地图与服
+    ///   务端图片行、无附件文件牌、非待发非失败
+    ///   （正文泡是行内唯一呈现件）；
+    /// - 段序列全为 prose/quote（结构段在席由拼
+    ///   装层返回 nil 整行留托管）。
+    /// 动作半边全注入既有链：菜单/右滑共用
+    /// beginReply、菜单分流 forkToSideChat、选
+    /// 择 selectionPayload、选区 noteTextSel-
+    /// ection、链接 openURL——与 messageMenu/
+    /// swipeReply 两修饰符的门控逐项同值（菜单
+    /// 恒开＝正文非空已由资格保证；右滑门控＝
+    /// 正文非空且本行无选区在场）
+    private func nativeProseSpec(
+        for entry: ChatEntry, dividerText: String?
+    ) -> ChatNativeProseSpec? {
+        guard entry.toolCard == nil,
+              entry.traceKey == nil,
+              entry.approvalKey == nil,
+              entry.echoKey == nil,
+              !entry.content.isEmpty,
+              streamSettleMap.rowKey(for: entry.id) == nil
+        else { return nil }
+        let isUser = entry.role == "user"
+        if isUser {
+            guard entry.quote == nil,
+                  entry.sourceQuote == nil,
+                  entry.allImageDatas.isEmpty,
+                  entry.remoteImagePaths.isEmpty,
+                  entry.remoteFilePaths.isEmpty,
+                  !entry.sendFailed,
+                  !entry.isPendingSend
+            else { return nil }
+        } else {
+            guard entry.role == "assistant",
+                  (entry.reasoning ?? "").isEmpty,
+                  entry.remoteImagePaths.isEmpty
+            else { return nil }
+            let scans = EntryScanMemo.scans(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            )
+            guard scans.delivery.deliveryIDs.isEmpty,
+                  scans.delivery.text == entry.content,
+                  scans.media.imagePaths.isEmpty,
+                  scans.media.text == entry.content,
+                  scans.inlineCandidates.isEmpty,
+                  scans.standalonePaths.isEmpty,
+                  FileRefDetector.wholeMessagePath(
+                      in: entry.content
+                  ) == nil
+            else { return nil }
+        }
+        let category = dynamicTypeSize
+            .contentSizeCategory
+        let boldText = environment.legibilityWeight
+            == .bold
+        func resolve(_ color: Color) -> UIColor {
+            UIColor(
+                cgColor: color.resolve(in: environment)
+                    .cgColor
+            )
+        }
+        guard let segments = ChatNativeProseAssembly
+            .segments(
+                isUser: isUser,
+                content: entry.content,
+                styleKey: nativeProseStyleKey,
+                baseFont: InlineTextFonts.baseFont(
+                    textStyle: .body,
+                    category: category,
+                    boldText: boldText
+                ),
+                overrideFont: { style in
+                    InlineTextFonts.baseFont(
+                        textStyle: style,
+                        category: category,
+                        boldText: boldText
+                    )
+                },
+                textColor: resolve(
+                    isUser
+                        ? Palette.userBubbleText
+                        : Palette.bodyInk
+                ),
+                dimmedColor: resolve(
+                    Palette.inkSecondaryOnFill
+                ),
+                quoteTextColor: resolve(
+                    Palette.inkSecondaryOnFill
+                )
+            )
+        else { return nil }
+        let text = plainText(for: entry)
+        return ChatNativeProseSpec(
+            dividerText: dividerText,
+            isUser: isUser,
+            segments: segments,
+            linkColor: resolve(Palette.primary),
+            bubbleFill: resolve(
+                isUser
+                    ? Palette.userBubbleFill
+                    : Palette.bubbleFill
+            ),
+            dividerColor: resolve(Palette.inkSecondary),
+            quoteBarColor: resolve(Palette.inkMuted),
+            highlightColor: resolve(Palette.primaryTint),
+            highlighted: entry.id
+                == anchorHighlightEntryID,
+            arrowIdleFill: resolve(Palette.fieldFill),
+            arrowArmedFill: resolve(Palette.primaryPale),
+            arrowIdleTint: resolve(Palette.inkSecondary),
+            arrowArmedTint: resolve(Palette.onPrimary),
+            menuPlainText: text,
+            onMenuReply: { beginReply(to: entry) },
+            onMenuFork: { forkToSideChat(from: entry) },
+            onMenuSelect: {
+                selectionPayload = SelectionPayload(
+                    text: text
+                )
+            },
+            swipeEnabled: activeSelectionEntryID
+                != entry.id,
+            onSwipeReply: { beginReply(to: entry) },
+            onSelectionChange: { active in
+                noteTextSelection(
+                    entryID: entry.id, active: active
+                )
+            },
+            openURL: { url in openURL(url) }
         )
     }
 

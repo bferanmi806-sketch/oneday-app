@@ -66,16 +66,24 @@ struct ChatNativeRow {
     let version: Int
     let estimatedHeight: CGFloat
     let makeView: () -> AnyView
+    /// R3（§295）：落定散文原生规格——非 nil 时
+    /// 本行走原生散文 cell（ChatNativeProseCell、
+    /// 不经 SwiftUI 托管）；makeView 保留为同行
+    /// 的托管形态（双形态对拍与回退口，cell 分
+    /// 发以 proseSpec 在场为准）
+    let proseSpec: ChatNativeProseSpec?
 
     init(
         key: String, entryID: UUID?, version: Int,
         estimatedHeight: CGFloat,
+        proseSpec: ChatNativeProseSpec? = nil,
         makeView: @escaping () -> AnyView
     ) {
         self.key = key
         self.entryID = entryID
         self.version = version
         self.estimatedHeight = estimatedHeight
+        self.proseSpec = proseSpec
         self.makeView = makeView
     }
 }
@@ -274,6 +282,11 @@ final class ChatRootViewController: UIViewController,
             forCellWithReuseIdentifier:
                 ChatNativeHostingCell.reuseID
         )
+        collectionView.register(
+            ChatNativeProseCell.self,
+            forCellWithReuseIdentifier:
+                ChatNativeProseCell.reuseID
+        )
         makeDataSource()
     }
 
@@ -410,6 +423,24 @@ final class ChatRootViewController: UIViewController,
             UICollectionViewDiffableDataSource<Int, String>(
                 collectionView: collectionView
             ) { [weak self] collectionView, indexPath, key in
+                // R3（§295）：散文规格在场的行走原生
+                // cell（文本本体直嵌、不经托管）；
+                // 其余行维持托管 cell。行键的形态由
+                // 内容资格决定、同键内恒定（落定映射
+                // 在席的条目不下沉，见 ChatNative-
+                // ProseCell 头注），reconfigure 不跨
+                // 形态换 cell 类
+                if let row = self?.rowsByKey[key],
+                   let spec = row.proseSpec {
+                    let cell = collectionView
+                        .dequeueReusableCell(
+                            withReuseIdentifier:
+                                ChatNativeProseCell.reuseID,
+                            for: indexPath
+                        ) as! ChatNativeProseCell
+                    cell.configure(with: spec)
+                    return cell
+                }
                 let cell = collectionView
                     .dequeueReusableCell(
                         withReuseIdentifier:

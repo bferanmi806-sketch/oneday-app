@@ -103,7 +103,12 @@ final class HapticsMatrixTests: XCTestCase {
         // 新补 exportPDF 的 error ＋1 相抵（仍 49）
         XCTAssertEqual(count(of: "Haptics.success()", in: all), 17)
         XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 8)
-        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 5)
+        // §295（原生重建 R3）：右滑回复触发的最轻
+        // impact 在原生散文 cell 增一落点（5→6）——
+        // 与 SwipeReplyModifier 的落点是同一事件的
+        // 双承载形态（一行只走其一：原生面走 cell、
+        // 托管面走修饰符），行为不重不丢
+        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 6)
         XCTAssertEqual(
             count(of: ".sensoryFeedback(.selection", in: all), 3)
         XCTAssertEqual(
