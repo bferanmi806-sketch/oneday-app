@@ -21,10 +21,9 @@ import UIKit
 ///
 /// 回底钮（本包头号用户面）：钮改由本容器以
 /// overlay 子视图承载，锚输入舱顶上方约 8pt（落位
-/// 由容器按 ChatView 喂入的 bottomSpace 在自身坐
-/// 标系内构造——喂入值以窗口底为锚、坐标换算只
-/// 扣以本视图窗口实帧量得的帧外段，§260；非估算
-/// 推算，§124 三轮浮层病史的根因在此不成立）；
+/// 由容器按实测留位在自身坐标系内构造——留位＝
+/// 承载帧底与舱顶两实测相减，§263；§260 的窗口
+/// 锚派生喂入＋帧外段扣减已退役，见 §263 注记）；
 /// 钮的显隐只改 overlay 的
 /// alpha/transform，**不进滚动内容、不改 content-
 /// Inset、不改任何行帧**——出现/消失时末条消息纹
@@ -209,9 +208,12 @@ final class ChatListCarrierViewController: UIViewController,
     private var lastTopVisibleEntryID: UUID?
     private var lastReportedTopVisible: UUID??
     /// apply 记账的待应用 inset（§259：apply 只记
-    /// 账，layoutContent 在帧表重建后同拍施工）
+    /// 账，layoutContent 在帧表重建后同拍施工）。
+    /// §263：只记顶 inset 与键盘动画参数——底 inset
+    /// 不再有「待应用值」，施工拍以当拍实测留位现
+    /// 算（量在哪、帧在哪，不吃喂入存量）
     private struct PendingInset {
-        let inset: UIEdgeInsets
+        let topInset: CGFloat
         let animationDuration: TimeInterval
         let animationCurveRaw: Int
     }
@@ -224,17 +226,28 @@ final class ChatListCarrierViewController: UIViewController,
     private var isMaterializing = false
     private var materializePending = false
     private var appliedTopInset: CGFloat = -1
-    private var appliedBottomInset: CGFloat = -1
-    private var bottomSpace: CGFloat = 0
-    /// 帧外段实测（§260）：本容器帧底→窗口底的距
-    /// 离。喂入的底 inset 与 bottomSpace 均以窗口
-    /// 底为锚（快照口径＝舱顶→窗口底），本容器帧
-    /// 底不在窗口底时（生产装配实测在窗口底上方
-    /// 86pt：壳层页帧收于坞上方），帧外段不在滚动
-    /// 视图内、不得计入 inset——施工与几何一律先
-    /// 扣此段。无窗口（未入窗/测试装配）时保留上
-    /// 次实测、初值 0（与全窗装配口径一致、不虚报）
-    private var windowBottomOverhang: CGFloat = 0
+    /// 舱顶窗口系实测（§263）：ChatView 喂入的舱帧
+    /// 窗口实测顶（ComposerGuideHost 的 barFrame-
+    /// InWindow.minY——舱顶本人、每布局拍更新）。
+    /// §260 的快照派生 bottomSpace 喂入自此退役：
+    /// 派生公式「(窗口高−锚顶)＋栈高」混窗口系记账
+    /// 与 §194 布局空间钉位、舱实际落座与锚模型恒
+    /// 差一份壳层链偏差（诊断 gen3-gap-recheck 定
+    /// 案），锚/栈高两个中间量退出公式
+    private var composerTopInWindow: CGFloat = 0
+    /// 单点边距（§263）：实测留位之外、与布局底
+    /// padding 合计 24pt 目标总量的喂入侧份额
+    /// （ChatView 喂 spacingM；§260 校准值不变）
+    private var bottomMargin: CGFloat = 0
+    /// 未量得回落（§263）：入窗量得实测留位前（未
+    /// 入窗/首拍前）的瞬态种子——ChatView 喂入的
+    /// 快照派生值，仅供此态施工，首个入窗布局拍即
+    /// 被实测覆写、永不参与已量得帧的记账
+    private var fallbackBottomSpace: CGFloat = 0
+    /// 实测留位（§263）：承载帧底−舱顶，两实测同
+    /// 在窗口系相减、量在承载自己的坐标系里——所
+    /// 需量本体。nil＝尚未入窗量得（施工走回落）
+    private var measuredBottomSpace: CGFloat?
 
     private var arrowHost: UIHostingController<AnyView>?
     private var arrowVisible = false
@@ -294,8 +307,9 @@ final class ChatListCarrierViewController: UIViewController,
         rows newRows: [ChatCarrierRow],
         layout: ChatCarrierLayout,
         topInset: CGFloat,
-        bottomInset: CGFloat,
-        bottomSpace newBottomSpace: CGFloat,
+        composerTopInWindow newComposerTop: CGFloat,
+        fallbackBottomSpace newFallback: CGFloat,
+        bottomMargin newMargin: CGFloat,
         keyboardAnimationDuration: TimeInterval,
         keyboardAnimationCurveRaw: Int,
         arrowView: AnyView?
@@ -315,9 +329,12 @@ final class ChatListCarrierViewController: UIViewController,
             }
         }
         let insetChanged = appliedTopInset != topInset
-            || appliedBottomInset != bottomInset
-            || bottomSpace != newBottomSpace
-        bottomSpace = newBottomSpace
+            || composerTopInWindow != newComposerTop
+            || fallbackBottomSpace != newFallback
+            || bottomMargin != newMargin
+        composerTopInWindow = newComposerTop
+        fallbackBottomSpace = newFallback
+        bottomMargin = newMargin
         if insetChanged {
             // §259：apply 只记账——inset 的实际应用
             // （含键盘动画与贴底校正）归 layoutContent
@@ -326,17 +343,13 @@ final class ChatListCarrierViewController: UIViewController,
             // 重入 materialize 撞未建帧表（0.50.45 首
             // 帧闪退同根③）
             appliedTopInset = topInset
-            appliedBottomInset = bottomInset
-            // §260：回报口径＝施工值（喂入扣帧外段，
-            // 以当前实测为准、施工拍再刷新一次）
-            handle?.bottomInset = max(
-                0, bottomInset - windowBottomOverhang
-            )
+            // §263：回报口径＝当拍实测口径的施工值
+            // （先以新喂入的舱顶刷一次量测、施工拍再
+            // 对齐一次）
+            measureBottomSpace()
+            handle?.bottomInset = effectiveBottomInset
             pendingInset = PendingInset(
-                inset: UIEdgeInsets(
-                    top: topInset, left: 0,
-                    bottom: bottomInset, right: 0
-                ),
+                topInset: topInset,
                 animationDuration: keyboardAnimationDuration,
                 animationCurveRaw: keyboardAnimationCurveRaw
             )
@@ -389,10 +402,11 @@ final class ChatListCarrierViewController: UIViewController,
         preservePosition: Bool, inSettleBeat: Bool
     ) {
         guard scrollView.bounds.width > 0 else { return }
-        // §260：本拍先量帧外段——下方施工与位置校
-        // 正的扣算全以本拍实测为准（入窗首拍即由 0
-        // 回落值翻实测、对账段随之拉回已应用 inset）
-        measureWindowBottomOverhang()
+        // §263：本拍先量实测留位——下方施工与位置
+        // 校正全以本拍两实测相减为准（入窗首拍即由
+        // 回落种子翻实测、对账段随之拉回已应用
+        // inset）
+        measureBottomSpace()
         // 重排前先记位置（在底钉底/不在底锚恢复）：
         // 行高修正（产物落盘/量实到达）只许动锚上
         // 方的账，不许动在屏内容——通行做法（估算
@@ -412,11 +426,12 @@ final class ChatListCarrierViewController: UIViewController,
         let construct = { [self] in
             if let pending = pendingInset {
                 pendingInset = nil
-                // §260：施工值＝喂入值扣帧外段（顶 in-
-                // set 不扣：帧顶与窗口顶同位、实证无多
-                // 算）；指示器 inset 与回报同值
+                // §263：施工底 inset＝当拍实测留位＋单
+                // 点边距（顶 inset 不掺量测：帧顶与窗
+                // 口顶同位、喂入即真值）；指示器 inset
+                // 与回报同值
                 let applied = UIEdgeInsets(
-                    top: pending.inset.top, left: 0,
+                    top: pending.topInset, left: 0,
                     bottom: effectiveBottomInset, right: 0
                 )
                 scrollView.contentInset = applied
@@ -470,10 +485,10 @@ final class ChatListCarrierViewController: UIViewController,
             construct()
         }
 
-        // §260 帧外段对账：inset 施工时无窗口（未入
-        // 窗）以回落值 0 扣算、入窗后帧外段可知时，
-        // 本拍（无待施工 inset）把已应用的底 inset
-        // 拉回实测恒等值。键盘动画中 contentInset
+        // §263 实测对账：inset 施工时未入窗（走回落
+        // 种子）、入窗量得实测后，或舱落座变化未经
+        // apply 到达本拍时，把已应用的底 inset 拉回
+        // 当拍实测恒等值。键盘动画中 contentInset
         // 的模型值恒为目标值、对账恒等不打断动画；
         // 位置校正已在 construct 内以施工口径执行、
         // 此处只动 inset 本体
@@ -701,47 +716,51 @@ final class ChatListCarrierViewController: UIViewController,
 
     // MARK: 几何读数与回调
 
-    /// 帧外段量测（§260）：以本视图在窗口内的实帧
-    /// 为准（原生单源）——convert 到窗口坐标取帧
-    /// 底、与窗口高作差；无窗口时回上次实测（不虚
-    /// 报新值）。壳层帧日后增减自动跟随、不写死数
-    @discardableResult
-    private func measureWindowBottomOverhang() -> CGFloat {
-        guard let window = view.window else {
-            return windowBottomOverhang
-        }
+    /// 实测留位量测（§263）：所需量＝舱顶→承载帧
+    /// 底，两端同取窗口系实测相减——帧底由本视图
+    /// convert 实帧、舱顶为 ChatView 喂入的舱帧实
+    /// 测顶（barFrameInWindow 每拍更新）。无窗口时
+    /// 保留上次实测（不虚报新值）；壳层帧与舱落座
+    /// 日后增减自动跟随、不写死数。§260 的帧外段
+    /// （帧底→窗口底）量测整段退役：其前提（帧底
+    /// 停坞上方）与 §186 探针冲突、生产恒量得 0、
+    /// 扣减空转（诊断定案）
+    private func measureBottomSpace() {
+        guard let window = view.window else { return }
         let frameInWindow = view.convert(
             view.bounds, to: window
         )
-        windowBottomOverhang = max(
-            0, window.bounds.height - frameInWindow.maxY
+        measuredBottomSpace = max(
+            0, frameInWindow.maxY - composerTopInWindow
         )
-        return windowBottomOverhang
     }
 
-    /// 实际施工的底 inset（§260）：喂入值扣帧外段；
-    /// 距底/落点/有效视口等几何读数与施工值恒等
-    /// （单源），不许另读喂入原值
-    private var effectiveBottomInset: CGFloat {
-        max(0, appliedBottomInset - windowBottomOverhang)
-    }
-
-    /// 舱顶在本容器坐标系的底留位（§260）：喂入
-    /// bottomSpace（舱顶→窗口底）扣帧外段，与 inset
-    /// 同源修正——旧注「本容器帧底与窗口底同位」
-    /// 在生产装配不成立（帧底实测在窗口底上方）
+    /// 底留位本体（§263）：已量得走实测、未量得走
+    /// 回落种子；施工/距底/落点/有效视口/钮落位全
+    /// 部只读本值（实测单源）
     private var effectiveBottomSpace: CGFloat {
-        max(0, bottomSpace - windowBottomOverhang)
+        measuredBottomSpace ?? fallbackBottomSpace
     }
 
+    /// 实际施工的底 inset（§263）：实测留位＋单点
+    /// 边距（与布局底 padding 合计 24pt 目标总量）
+    private var effectiveBottomInset: CGFloat {
+        effectiveBottomSpace + bottomMargin
+    }
+
+    /// 距底读数（§263）：底界与留位同一实测——以
+    /// effectiveBottomInset（实测派生）为标尺，不
+    /// 许再读 adjustedContentInset.bottom 自证：
+    /// §260 口径下列表停自家最大偏移恒读 0、留位
+    /// 多算多少空距就藏多少、回底箭头永不现（诊
+    /// 断定案）；换实测标尺后，施工值与量测一旦分
+    /// 叉读数即如实显形
     private func currentDistance() -> CGFloat {
         ChatScrollSupply.uiKitDistance(
             contentHeight: Double(scrollView.contentSize.height),
             offsetY: Double(scrollView.contentOffset.y),
             viewportHeight: Double(scrollView.bounds.height),
-            bottomInset: Double(
-                scrollView.adjustedContentInset.bottom
-            )
+            bottomInset: Double(effectiveBottomInset)
         ).cgFloat
     }
 
@@ -966,15 +985,13 @@ final class ChatListCarrierViewController: UIViewController,
     }
 
     /// 钮落位：右距与旧钮行同值；底缘＝输入舱顶上
-    /// 方 gap——舱顶在本容器坐标系＝帧底−（bottom-
-    /// Space 扣帧外段）（§260：喂入的 bottomSpace
-    /// 以窗口底为锚、本容器帧底与窗口底并不恒同
-    /// 位，生产装配实测差 86pt，旧注的同位假设作
-    /// 废）。钮是 overlay 子视图：本函数只改钮自
-    /// 身帧，不触任何滚动记账
+    /// 方 gap——舱顶在本容器坐标系＝帧底−实测留位
+    /// （§263：留位为承载帧底与舱顶两实测相减，钮
+    /// 落位与施工 inset 同源）。钮是 overlay 子视
+    /// 图：本函数只改钮自身帧，不触任何滚动记账
     private func layoutArrow() {
         guard let host = arrowHost else { return }
-        measureWindowBottomOverhang()
+        measureBottomSpace()
         let size = layoutParams.arrowSize
         host.view.frame = CGRect(
             x: view.bounds.width - layoutParams.arrowTrailing
@@ -1056,8 +1073,13 @@ struct ChatListCarrierView: UIViewControllerRepresentable {
     var rows: [ChatCarrierRow]
     var layout: ChatCarrierLayout
     var topInset: CGFloat
-    var bottomInset: CGFloat
-    var bottomSpace: CGFloat
+    /// §263：舱顶窗口系实测（舱宿主 barFrameIn-
+    /// Window.minY）与未量得回落（快照派生值、仅
+    /// 瞬态种子）、单点边距——底留位自此由承载以
+    /// 两实测相减自产，不再喂入派生 inset
+    var composerTopInWindow: CGFloat
+    var fallbackBottomSpace: CGFloat
+    var bottomMargin: CGFloat
     var keyboardAnimationDuration: TimeInterval
     var keyboardAnimationCurveRaw: Int
     var arrowView: AnyView?
@@ -1091,8 +1113,9 @@ struct ChatListCarrierView: UIViewControllerRepresentable {
             rows: rows,
             layout: layout,
             topInset: topInset,
-            bottomInset: bottomInset,
-            bottomSpace: bottomSpace,
+            composerTopInWindow: composerTopInWindow,
+            fallbackBottomSpace: fallbackBottomSpace,
+            bottomMargin: bottomMargin,
             keyboardAnimationDuration: keyboardAnimationDuration,
             keyboardAnimationCurveRaw: keyboardAnimationCurveRaw,
             arrowView: arrowView

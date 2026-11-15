@@ -79,10 +79,16 @@ final class ChatListCarrierReentrancyTests: XCTestCase {
         _ rows: [ChatCarrierRow],
         topInset: CGFloat = 100, bottomInset: CGFloat = 60
     ) {
+        // §263 签名迁移：本套装配无窗口、量测不落
+        // 地，施工底 inset 由回落种子＋边距决定——
+        // 种子取 bottomInset−16 使施工值与旧喂入逐
+        // 值一致（60），本套几何前提不变
         controller.apply(
             rows: rows, layout: testLayout,
-            topInset: topInset, bottomInset: bottomInset,
-            bottomSpace: 200,
+            topInset: topInset,
+            composerTopInWindow: 0,
+            fallbackBottomSpace: bottomInset - 16,
+            bottomMargin: 16,
             keyboardAnimationDuration: 0,
             keyboardAnimationCurveRaw: 0,
             arrowView: nil
