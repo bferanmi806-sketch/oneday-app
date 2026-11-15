@@ -554,20 +554,19 @@ final class ChatRootViewController: UIViewController,
                 landingIntent = false
             } else if CACurrentMediaTime()
                 - landingIntentSince < 2.0 {
-                // 收敛尾差（H6）：自适应行高的迟到
-                // 修正会在钉底后改 contentSize、又不
-                // 必触发滚动回调——意图存续期内延迟
+                // 收敛尾差（H6）：意图存续期内延迟
                 // 重拍（与 gen3 §259 落定拍的
-                // asyncAfter 同式），修正落地后再重
-                // 钉、收敛即停。预算按时间窗不按次数
-                // （CI 第五至七轮实证：零延迟连发与
-                // 8 次延迟拍都曾在最后一笔 +2 修正落
-                // 地前耗尽——全状态打印判清：inset
-                // 三处全等、contentSize 与末行帧精确
-                // 自洽、offset 恰停 max−2，即修正迟
-                // 到而非标尺分叉）；2 秒窗外仍未收敛
-                // 则停拍（残差由现测读数如实呈报、
-                // 不假装在底）
+                // asyncAfter 同式）——真实迟到修正
+                // （如图片落图改行高）落地后重钉、收
+                // 敛即停；预算按时间窗不按次数。2 秒
+                // 窗外仍未收敛则停拍、残差由现测读数
+                // 如实呈报不假装在底：装配实证存在
+                // ≤2pt 的布局 offset 调整残差（钉底
+                // 触发的布局 pass 为保锚点位回调 off-
+                // set，inset/contentSize/末行帧全自
+                // 洽、末行完整可见，见装配测试④全状
+                // 态打印与报告 §六定因）——那是布局
+                // 的可达落点、非本拍能推翻的标尺分叉
                 scheduleSettle(delay: 0.05)
             }
         }
