@@ -13170,3 +13170,8 @@ run 43746767854（workflow_dispatch @ rel-05058 尖端 0a9fca6），全日志 24
 **本版口径**：装后缺省即新面；曾显式关（存 false）的用户保持旧面、不被覆盖；浸泡计数自本版起算——至少一整版无承载级回退事件（闪退/贴底/跟随/叠字）才许开 R5。缺省回滚＝三处缺省改回 false（Core 解析＋ChatView/SettingsView 字面），或用户侧关设置页实验组开关（一台机口径）；本节仅登记、不执行。
 **预期计数**：Core 2164/2164；R1 装配续绿；R2 装配 ⑦⑨⑩ 续绿（⑧ 量测限制已登记）；R3 装配 ⑪⑫⑬＋拼装资格续绿；R4 装配 ⑭⑮⑯ 全绿；DiscussQuote 双面门绿；App 红仅 §257.1 登记探针（数值同签名）＋⑧；UI 红仅第 95 条登记族＋键盘矩阵 rig 可红。签名外新红停手报主线。CI 判读见 §298.1（回填）。
 **待办账**：新增第 99 条 R4 落地行（.59 已组版、浸泡起算、R5 门＝满一整版无承载级回退）。
+
+### §298.1 0.50.59 组版 CI 判读（2026-11-16 回填）——签名全合、已出货
+
+run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25,031 行本地核账：**Core 2164/2164、0 failures**；**R1 装配 7/7 续绿**；**R2 装配 ⑦⑨⑩ 续绿**；**R3 装配四例全过**（⑪⑫⑬＋拼装资格）；**R4 装配 ⑭⑮⑯ 全过**——⑯ `NATIVE-LANDING-R4 contentSize=4156.0 offset=3352.0 distance=0.0 contentEndVisible=true`，与同轮 R1 ③ 的 NATIVE-LANDING 逐值相同、与 R4 预制两轮逐值相同（确定性复现）；**DiscussQuote 双面门绿**（9.2s）；**DataDetector 3/3 续绿**；**键盘矩阵本轮绿**（99.2s，rig 抖动族自愈、与登记观察一致）。App 红恰 2 件：§257.1 登记探针（EdgeEffectProbe，失败值 24/8/18/25 与基线逐值同签名、钉旗后仍在旧面量测）＋⑧（「0≠1」量测不可达、已登记量测限制）。UI 20 例 9 红、恰第 95 条登记族：原生面五件（AX 帧不稳同签名）＋仲裁 4 件（右滑/长按正文/长按电话/双击；边距带本轮过），全程无产品反例。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。签名外新红零。
+**出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.59/OneDay-0.50.59-unsigned.ipa：**14,051,848 字节、md5 `9fb4ac69e24fc752a43e6d585dbd3e7e`**，解包验 CFBundleShortVersionString=0.50.59、CFBundleVersion=187、bundle id site.didichou.oneday。待办总表已落第 99 条 R4 落地行（.59 已组版、浸泡自本版起算、R5 门＝满一整版无承载级回退），副本随交付目录；真机清单 17 项＝首组手势五件最终验收（默认新面直接验）＋续组 11 项（新增第 6 项「装后默认即新面」、收尾项改「关开关回旧面再开回」）；全矩阵 24 项＋千条 Instruments 对照为浸泡期验收门、随真机验回填。未合 main、未打 tag。
