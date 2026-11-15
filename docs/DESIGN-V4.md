@@ -12951,3 +12951,18 @@ run 43674334927（workflow_dispatch @ feat/text-pipeline-run-layer 尖端），�
 ### §284.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43680945034（workflow_dispatch @ rel-05053 尖端 f2a0ad9），全日志本地核账：**Core Executed 2145/2145、0 failures**（2130 基线＋72 新测 15 精确对账，TextPipelineRunLayerTests 15/15 全过；81 Core 零增与预期一致）；**App 239 注册、238 得判词**（232 passed＋5 skipped 设计内跳＋1 failed；81 新测 ChatTypeScaleAlignTests 6/6 全过）；**UI 10/10**；VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS，BUILD SUCCEEDED、IPA 正常打包上传。登记两项（与两包改动零交集，不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族）；②§184 余崩同签名——`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（239 注册中唯一无判词例），BackingData:835 日志零命中。run 级 conclusion=failure 仅由①引起。IPA 13,911,163 字节、md5 `0c186b4b248fcc329b97dcaf4b90a1f3`，包内 Info.plist 实读 0.50.53／181。未合 main、未打 tag。
+
+## §285 新承载贴底三修：短内容底锚定（2026-11-15；分支 fix/gen3-bottom-anchor-v3，基线 rel-05050@edf8b12；全档＝oneday-design-review/gen3-bottom-anchor-v3-20261115.md，定因＝audit-5050-failures-20261115-codex.md §1；本节原自编号 §274，组版 0.50.54 顺延为 §285）
+
+**病根**：§270（二修）公式只闭合长内容。`rebuildFrames` 内容高只等于行高和＋上下 padding、无最小高度填充；`maxBottomOffsetY` 有 −appliedTopInset 下限——短内容（H＜V−T−B）时命令偏移被钳在 −T，余空 V−T−B−H 全留在末行之后，物理上到不了底（.50 真机 3 条消息短会话末条→舱 ≈148pt 空白）。二修 6 例全用 30 行长内容、短内容从未测。
+
+**修法（底锚定填充）**：`rebuildFrames` 先算自然高，不足有效视口高（V−T−B）时差额 F＝(V−T−B)−H 整笔垫在首行之上，内容高下限＝有效视口高。代数闭合：填充在场时 H′＝V−T−B ⇒ maxBottomOffsetY＝max(−T, H′＋B−V)＝−T，末行底（内容系 H′−底 padding）在该偏移下距舱顶（V−实测留位）恰＝底 padding 8＋边距 16＝24，与长内容同值。长内容 F 恒 0、§270 留位公式本体不动；距底（uiKitDistance）/锚恢复（restoredOffsetY 钳制域）/命令口全读 contentSize 与帧表、平移自洽，零新公式、零估算/补偿层。平台同构：SwiftUI `defaultScrollAnchor` 的 `.alignment` 角色（iOS 18）专管「内容小于容器时对齐」、Android `LinearLayoutManager.setStackFromEnd` 为官方底锚定机制——本承载是 UIScrollView 手工承载，以内容最小高等价实现同一语义。
+
+**填充的实测门**：填充量只吃实测——底 inset 须已入窗量得实测留位（`measuredBottomSpace` 在场）才许参与；未量得瞬态不填充（拿回落种子算填充＝拿派生值施工，与 §270 退役同罪）。离屏无窗口装配（SettleCarry 以 contentSize 为观测面）因此逐值不变。填充随行高/落座每拍重算：流式增长时等量收（H 涨 F 退、末行底落点不动）、键盘双态随 B 自动伸缩、内容跨填充边界（短↔长）双向穿越落点不变。
+
+**测试纪律（本节起）**：贴底类测试必须含短内容分支——真实壳层链装配（§270 同装配）、1 行/3 行、键盘开/合双态、**不手动调 scrollToBottom**（落位须由 apply 链自产，审计 §3），断言量实际帧（托管真帧末行底＋同帧四数：offset＝−T、contentSize＝V−T−B、末行底→舱顶 24±1、距底≈0）。
+
+### §285.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带登记两项）**
+
+红测轮 run 43677105588（提交 f1a6bb5，仅测试）：红构成精确——新短内容 5 例全红且数值与手算代数逐值吻合（3 行静息空距 454＝24＋430、单行静息 622＝24＋598、3 行键盘 208＝24＋184、单行键盘 376＝24＋352；距底读数同额为负），原 6 例全过；Core 2110/2110、UI 10/10。
+绿测轮 run 43679825045（提交 5abfdc2，正修）：名义 failure，红因仅登记项，全日志本地核账。**Core 2110/2110 精确**（与基线逐值一致，本线零 Core 改动）；**App 218 注册、217 得判词**（211 passed＋5 skipped 设计内＋1 failed），BottomGap **11/11**（原 6＋新 5）、SettleCarry 2/2、Reentrancy 3/3 不退；**UI 10/10**；VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 App failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动、与 .47–.52 同签名、与本线零交集）；②宿主重启 1 次、`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 余崩既有登记；BackingData 零命中）。IPA 产物 13,060,817 字节（本线不改版号）。未合 main、未打 tag。
