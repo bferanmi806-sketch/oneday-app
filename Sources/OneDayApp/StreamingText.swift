@@ -191,9 +191,9 @@ struct StreamingText: View {
             let delay = min(Double(index) * step, 0.24)
             Task {
                 try? await Task.sleep(for: .seconds(delay))
-                guard generation == newGeneration
+                guard self.generation == newGeneration
                 else { return }
-                visible.insert(key)
+                self.visible.insert(key)
             }
         }
     }

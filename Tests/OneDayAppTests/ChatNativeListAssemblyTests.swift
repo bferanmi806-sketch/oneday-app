@@ -8,10 +8,10 @@ import OneDayDesign
 /// §291（原生重建 R1）原生承载真实装配回归：把
 /// ChatRootViewController 装进与 ChatListCarrier-
 /// BottomGapTests 同构的真壳（窗口→页面→承载全
-/// 窗出血→坞/键盘座位＋输入舱托管＋83 变换歪
-/// 斜），行内容全是真实生产视图（MarkdownText
-/// 助手泡＋SelectableInlineText 用户泡＋分隔条
-/// 目）——禁用固定高占位行作证据（蓝图 §七）：
+/// 窗出血→坞座位），行内容全是真实生产视图
+/// （MarkdownText 助手泡＋SelectableInlineText
+/// 用户泡＋分隔条目）——禁用固定高占位行作证据
+/// （蓝图 §七）：
 /// ①相邻 cell 帧间距＝单源 24（H1）；②短内容双
 /// 键盘态末行底→舱顶＝24、落位只由 apply 链自产
 /// （H3/H6）；③长会话进入即真底三数留档（con-
@@ -21,6 +21,14 @@ import OneDayDesign
 /// 底读数与锚一致（H7 现测）；⑤托管高度与裸宿
 /// 主（safeAreaRegions 清零）等价（H2 回退门）；
 /// ⑥产物估算与 cell 实高带宽（H10）。
+/// §292（R2）装配形态变更：输入舱不再是壳外
+/// UIView＋喂入两数——舱内容经 apply 的 compo-
+/// serView 交容器子托管、底边钉容器 keyboard-
+/// LayoutGuide；「键盘座位」改由附加底安全区顶
+/// 起引导线实现（引导线帧由安全区＋键盘帧共同
+/// 决定，顶起量与真键盘同式），断言对象＝容器
+/// 内舱宿主实帧。R1 期以喂入模拟键盘帧的旧座位
+/// （composerBar 约束＋skew）自此退役
 @MainActor
 final class ChatNativeListAssemblyTests: XCTestCase {
 
@@ -31,7 +39,6 @@ final class ChatNativeListAssemblyTests: XCTestCase {
     private let dockHeight: CGFloat = 83
     private let keyboardTop: CGFloat = 545
     private let composerHeight: CGFloat = 54
-    private let composerSkew: CGFloat = 83
     private let fedTopInset: CGFloat = 122
     private let bottomMargin: CGFloat = 16
     private let bottomPadding: CGFloat = 8
@@ -40,22 +47,18 @@ final class ChatNativeListAssemblyTests: XCTestCase {
     private var window: UIWindow!
     private var controller: ChatRootViewController!
     private var handle: ChatNativeListHandle!
-    private var composerBar: UIView!
-    private var composerBottom: NSLayoutConstraint!
-    private var composerBottomOnKeyboard: NSLayoutConstraint!
 
     override func tearDown() {
         window?.isHidden = true
         window = nil
         controller = nil
         handle = nil
-        composerBar = nil
         super.tearDown()
     }
 
     /// 装壳：窗口→根→承载（全窗出血、topInset 喂
-    /// 122）＋坞/键盘座位＋输入舱托管（变换歪斜
-    /// 83，与真机同式）
+    /// 122）＋坞座位（舱自 R2 起由容器收编、不在
+    /// 壳层装配，见 composerContent/seatComposer）
     private func assemble() {
         window = UIWindow(
             frame: CGRect(
@@ -99,59 +102,53 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             ),
         ])
 
-        composerBar = UIView()
-        composerBar.backgroundColor = .systemGray4
-        composerBar.translatesAutoresizingMaskIntoConstraints =
-            false
-        root.view.addSubview(composerBar)
-        composerBottom = composerBar.bottomAnchor.constraint(
-            equalTo: root.view.bottomAnchor,
-            constant: -dockHeight + composerSkew
-        )
-        composerBottomOnKeyboard = composerBar.bottomAnchor
-            .constraint(
-                equalTo: root.view.topAnchor,
-                constant: keyboardTop + composerHeight
-                    + composerSkew
-            )
-        NSLayoutConstraint.activate([
-            composerBar.leadingAnchor.constraint(
-                equalTo: root.view.leadingAnchor
-            ),
-            composerBar.trailingAnchor.constraint(
-                equalTo: root.view.trailingAnchor
-            ),
-            composerBar.heightAnchor.constraint(
-                equalToConstant: composerHeight
-            ),
-            composerBottom,
-        ])
         root.view.layoutIfNeeded()
     }
 
-    /// 舱落座（false＝坞上、true＝键盘顶）＋回喂
-    /// 入两数（舱顶窗口实测与回落空间，与生产链
-    /// 同口：composerTopInWindow＝窗口高−舱底空
-    /// 间、fallback＝座位顶起算＋舱高）
-    private func seatComposer(onKeyboard: Bool) -> (
-        top: CGFloat, fallback: CGFloat
-    ) {
-        composerBottom.isActive = !onKeyboard
-        composerBottomOnKeyboard.isActive = onKeyboard
-        window.layoutIfNeeded()
-        let frameInWindow = composerBar.convert(
-            composerBar.bounds, to: nil
+    /// 舱内容（壳家具，与 R1 期的 UIView 条同位）：
+    /// 定高 54 的 SwiftUI 条，经 apply 交容器子托
+    /// 管——其帧由容器 keyboardLayoutGuide 决定，
+    /// 不由测试约束
+    private func composerContent() -> AnyView {
+        AnyView(
+            Rectangle()
+                .fill(Color.gray)
+                .frame(height: composerHeight)
         )
-        let fallback = (
-            windowH - (onKeyboard ? keyboardTop : windowH - dockHeight)
-        ) + composerHeight
-        return (frameInWindow.minY, fallback)
+    }
+
+    /// 引导线座位（false＝静息、true＝键盘升起
+    /// 等价位）：静息时附加安全区为零、引导线停
+    /// 安全区底；升起时附加底安全区把引导线顶上
+    /// 推（windowH−keyboardTop）——引导线帧由安
+    /// 全区＋键盘帧共同决定，附加安全区顶起与真
+    /// 键盘顶起同机制，舱底钉引导线顶随之升起
+    private func seatComposer(onKeyboard: Bool) {
+        controller.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 0, left: 0,
+            bottom: onKeyboard
+                ? windowH - keyboardTop : 0,
+            right: 0
+        )
+        window.layoutIfNeeded()
+    }
+
+    /// 容器内舱宿主实帧（窗口坐标）：断言的舱顶
+    /// 出此实帧、不出任何喂入数
+    private func composerTopInWindow() throws -> CGFloat {
+        let host = try XCTUnwrap(
+            controller.composerHost,
+            "舱子托管应已装配"
+        )
+        return host.view.convert(
+            host.view.bounds, to: nil
+        ).minY
     }
 
     private func apply(
         rows: [ChatNativeRow], onKeyboard: Bool = false
     ) {
-        let seat = seatComposer(onKeyboard: onKeyboard)
+        seatComposer(onKeyboard: onKeyboard)
         controller.apply(
             rows: rows,
             layout: ChatCarrierLayout(
@@ -164,13 +161,11 @@ final class ChatNativeListAssemblyTests: XCTestCase {
                 arrowSize: OneDayMetrics.minTapTarget
             ),
             topInset: fedTopInset,
-            composerTopInWindow: seat.top,
-            fallbackBottomSpace: seat.fallback,
             bottomMargin: bottomMargin,
-            keyboardAnimationDuration: 0,
-            keyboardAnimationCurveRaw: 0,
+            composerView: composerContent(),
             arrowView: AnyView(Color.clear)
         )
+        window.layoutIfNeeded()
     }
 
     private func drain(_ seconds: TimeInterval = 1.2) {
@@ -385,9 +380,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         let lastInWindow = controller.collectionView.convert(
             last, to: nil
         )
-        let composerTop = composerBar.convert(
-            composerBar.bounds, to: nil
-        ).minY
+        let composerTop = try composerTopInWindow()
         let gap = composerTop - lastInWindow.maxY
         XCTAssertEqual(
             gap, targetGap, accuracy: 1.0,
@@ -445,11 +438,9 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         )
         // 末行底在窗口坐标下与舱顶的间距同样收 24
         // （长内容钉底与短内容派生顶 inset 两路同
-        // 一口径）
+        // 一口径）；舱顶取容器内舱宿主实帧
         let lastInWindow = cv.convert(lastFrame, to: nil)
-        let composerTop = composerBar.convert(
-            composerBar.bounds, to: nil
-        ).minY
+        let composerTop = try composerTopInWindow()
         XCTAssertEqual(
             composerTop - lastInWindow.maxY, targetGap,
             accuracy: 1.5,

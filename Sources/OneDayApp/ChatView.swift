@@ -2333,11 +2333,12 @@ struct ChatView: View {
 
     // MARK: - 原生重建面（§291 R1）
 
-    /// 原生面列表：根容器（ChatNativeListView）＋
-    /// 两宿主 overlay（与 gen3 面同式同层：输入舱
-    /// 托管与顶簇托管不换）＋跟随处理链（与 gen3
-    /// 面同一条链——链内命令经 surface* 分发器派
-    /// 生到当前面，见各共享函数）。页面级修饰在
+    /// 原生面列表：根容器（ChatNativeListView，
+    /// R2 起输入舱收编入容器子托管、底边钉其
+    /// keyboardLayoutGuide）＋顶簇宿主 overlay
+    /// （§195 不变）＋跟随处理链（与 gen3 面同一
+    /// 条链——链内命令经 surface* 分发器派生到当
+    /// 前面，见各共享函数）。页面级修饰在
     /// chatSurface 链上共享，本面只管列表本体与回
     /// 底钮浮层
     private var nativeListSurface: some View {
@@ -2352,26 +2353,31 @@ struct ChatView: View {
                 arrowGapAboveComposer: 8,
                 arrowSize: OneDayMetrics.minTapTarget
             ),
-            // 喂入与 gen3 面逐值同源（§263 口径）：
-            // 顶留位＝窗口顶安全区实测＋顶簇实高；
-            // 底留位只喂舱顶窗口实测＋未量得回落＋
-            // 单点边距，本体由容器以两实测相减自产
+            // 喂入（§292 R2 收口）：顶留位＝窗口顶
+            // 安全区实测＋顶簇实高（§195 记账不
+            // 变）；底侧不再喂数——舱内容本体交容
+            // 器子托管（底边钉其 keyboardLayout-
+            // Guide），底 inset 由容器以舱实测帧派
+            // 生。§194 快照（kbSnapshot）自此与本
+            // 面脱钩（gen3/旧面照旧消费）
             topInset: windowTopSafeInset + topBarHeight,
-            composerTopInWindow: kbSnapshot.windowHeight
-                - composerBottomSpace,
-            fallbackBottomSpace: kbSnapshot.bottomSpace,
             bottomMargin: OneDayMetrics.spacingM,
-            keyboardAnimationDuration:
-                kbSnapshot.animationDuration,
-            keyboardAnimationCurveRaw:
-                kbSnapshot.animationCurveRawValue,
+            composerView: AnyView(
+                bottomBar(
+                    showsArrowRow: false,
+                    onScrollToBottom: {
+                        scrollToBottomCarrier(
+                            animated: true
+                        )
+                    }
+                )
+            ),
             arrowView: carrierArrowView,
             handle: nativeHandle,
             callbacks: nativeCallbacks,
             edgeScrollHandle: listScrollHandle
         )
         .ignoresSafeArea(edges: [.top, .bottom])
-        .overlay { composerHostOverlayCarrier }
         .overlay { topBarHostOverlay }
         .onChange(of: currentThread?.sortedEntries.count) { _, _ in
             applyBottomProximity(
@@ -2407,11 +2413,6 @@ struct ChatView: View {
                 }
             }
         }
-        .onChange(of: composerBottomSpace) {
-            settleStreamFollowCarrier(
-                generation: streamFollowSettleGeneration
-            )
-        }
         .onChange(of: sendPinToken) { _, _ in
             awayUnread.noteOwnSend(
                 entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
@@ -2422,30 +2423,15 @@ struct ChatView: View {
         .onChange(of: currentThreadID) { oldID, newID in
             handleCarrierThreadSwitch(oldID: oldID, newID: newID)
         }
-        .onChange(of: composerFocused) { _, focused in
-            if focused {
-                anchorToBottomAfterKeyboardCarrier()
-            } else {
-                keyboardAnchorPending = false
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardWillChangeFrameNotification
-            )
-        ) { _ in
-            keyboardFrameSettled = false
-            if composerFocused {
-                anchorToBottomAfterKeyboardCarrier()
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardDidChangeFrameNotification
-            )
-        ) { _ in
-            settleKeyboardAnchorCarrier()
-        }
+        // §292（R2／H8）：本面不再订阅键盘通知、不
+        // 再走键盘锚定挂账链（anchorToBottomAfter-
+        // KeyboardCarrier 一族是 §194 时代的补偿机
+        // 制）——键盘升降的跟随由容器布局拍承接：
+        // 舱帧经引导线逐帧变→容器布局拍逐帧对账
+        // inset→在底同拍钉底（ChatRootViewContr-
+        // oller viewDidLayoutSubviews）。聚焦/帧变
+        // 化在本面无 ChatView 侧动作；gen3 面同链
+        // 照旧（其订阅在 gen3 面内）
         .task(id: currentThreadID) {
             guard let id = currentThreadID else { return }
             if ChatListAnchorStore.anchor(for: id) != nil
@@ -2499,10 +2485,12 @@ struct ChatView: View {
         )
     }
 
-    /// 新承载的输入舱宿主 overlay：托管本体与旧承
+    /// gen3 承载的输入舱宿主 overlay：托管本体与旧承
     /// 载同一 ComposerGuideHost、同一批实测回报绑
     /// 定（§194 机制与冻结记账零改）；只有舱内容
-    /// 的回底钮行退场（钮归容器 overlay）
+    /// 的回底钮行退场（钮归容器 overlay）。§292
+    /// （R2）起原生面不再经本 overlay——其舱收编
+    /// 入 ChatRootViewController 子托管（H8）
     @ViewBuilder
     private var composerHostOverlayCarrier: some View {
         ComposerGuideHost(
