@@ -561,4 +561,145 @@ final class StreamOverlapInstrumentTests: XCTestCase {
         )
         XCTAssertEqual(second.count, first.count)
     }
+
+    // MARK: 第二轮：快拍＋像素行剖面＋可见性孔洞
+
+    /// 渲染托管视图为灰度行剖面：逐行统计暗像素数，
+    /// 归并为文本行带（中心 y 列表）。display-list 渲
+    /// 染没有逐词元平台视图可读，像素剖面是呈现层唯
+    /// 一可观测口——同一文本行在剖面里出现双带/离格
+    /// 带即叠印的帧级签名
+    private func lineProfile(of host: UIView) -> [CGFloat] {
+        let bounds = host.bounds
+        guard bounds.width > 10, bounds.height > 10 else {
+            return []
+        }
+        let renderer = UIGraphicsImageRenderer(bounds: bounds)
+        let image = renderer.image { _ in
+            host.drawHierarchy(in: bounds, afterScreenUpdates: false)
+        }
+        guard let cg = image.cgImage else { return [] }
+        let width = cg.width
+        let height = cg.height
+        var pixels = [UInt8](repeating: 0, count: width * height)
+        let space = CGColorSpaceCreateDeviceGray()
+        guard let ctx = CGContext(
+            data: &pixels, width: width, height: height,
+            bitsPerComponent: 8, bytesPerRow: width,
+            space: space,
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return [] }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: width, height: height))
+        let scale = image.scale
+        var centers: [CGFloat] = []
+        var runStart: Int?
+        for row in 0..<height {
+            var dark = 0
+            let base = row * width
+            for col in 0..<width where pixels[base + col] < 110 {
+                dark += 1
+            }
+            let isText = dark >= 4
+            if isText, runStart == nil {
+                runStart = row
+            } else if !isText, let start = runStart {
+                if row - start >= 3 {
+                    centers.append(
+                        CGFloat(start + row - 1) / 2 / scale
+                    )
+                }
+                runStart = nil
+            }
+        }
+        return centers
+    }
+
+    private func dumpProfile(
+        tag: String, beat: Int, sampleMs: Int, host: UIView
+    ) {
+        let centers = lineProfile(of: host)
+        print(
+            "OVP|PX \(tag) beat=\(beat) t=\(sampleMs)ms lines=\(centers.count) "
+                + "centers=\(centers.map { fmt($0) }.joined(separator: ","))"
+        )
+    }
+
+    /// 快拍（120ms/拍，贴近真机批间隔）：每拍 apply
+    /// 后 0/33/66/99ms 渲染采样行剖面，拍末不排空、
+    /// 直接下一拍；全程结束后排空再采落定剖面
+    func testInstrumentFastBeatsPixelProbe() {
+        var text = ""
+        for (index, chunk) in closureChunks.enumerated() {
+            let beat = index + 1
+            text += chunk
+            applyBeat(beat, text: text)
+            for ms in [0, 33, 66, 99] {
+                if ms > 0 { drain(0.033) }
+                if let host = streamHostView() {
+                    dumpProfile(
+                        tag: "FAST", beat: beat,
+                        sampleMs: ms, host: host
+                    )
+                }
+            }
+            drain(0.02)
+            let frame = snapshotBeat(beat, fullText: text)
+            dumpBeat(frame, tag: "FAST")
+        }
+        drain(0.8)
+        if let host = streamHostView() {
+            dumpProfile(
+                tag: "FAST", beat: closureChunks.count,
+                sampleMs: 999, host: host
+            )
+        }
+        let last = snapshotBeat(
+            closureChunks.count, fullText: text
+        )
+        print(
+            "OVP|FASTEND tokens=\(last.tokens.count) "
+                + "visibleEnd=\(last.visibleEnd)"
+        )
+    }
+
+    /// 候选②逆情形：首段 16 词元、stagger 未跑完时第
+    /// 二段（11 词元）到达——batch<0 早退、新尾块不排
+    /// 自己的 stagger；其词元靠首段遗留的延时任务按旧
+    /// 下标逐个点亮（张冠李戴的入场调度）。可见性时间
+    /// 线里出现「tokenCount 已是新尾块、visibleCount
+    /// 长期小于它」即瞬时孔洞实证
+    func testInstrumentTailResetVisibilityHoles() {
+        // 首段 16 个词元（CJK 逐字成元）
+        let para1 = "这是一个比较长的开头段落用来占位"
+        // 第二段 11 个词元
+        let para2 = "第二段只有这么长而已啦"
+        var text = para1
+        StreamOverlapProbe.beginBeat(1)
+        applyBeat(1, text: text)
+        drain(0.08) // stagger（16 元、压缩步进）远未跑完
+        text += "\n\n" + para2
+        applyBeat(2, text: text)
+        drain(0.08)
+        // 后续小批增长：insert 只覆盖 oldCount 起的下标
+        for (i, extra) in ["继续", "往后", "生长"].enumerated() {
+            text += extra
+            applyBeat(3 + i, text: text)
+            drain(0.3)
+        }
+        drain(0.8)
+        let beats = StreamOverlapProbe.textBeats
+        let vis = StreamOverlapProbe.visibilities
+        print(
+            "OVP|HOLE textBeats=\(beats.map { "\($0.beat):tok\($0.tokens.count),old\($0.oldCount),batch\($0.batch)" }.joined(separator: " "))"
+        )
+        print(
+            "OVP|HOLE visTimeline=\(vis.map { "\($0.beat):tc\($0.tokenCount)/vc\($0.visibleCount)" }.joined(separator: " "))"
+        )
+        print(
+            "OVP|HOLE finalTokens=\(beats.last?.tokens.count ?? -1) "
+                + "finalVisible=\(vis.last?.visibleCount ?? -1)"
+        )
+        XCTAssertFalse(beats.isEmpty)
+    }
 }
+
