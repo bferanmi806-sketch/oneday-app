@@ -12975,7 +12975,7 @@ run 43680945034（workflow_dispatch @ rel-05053 尖端 f2a0ad9），全日志本
 
 **只复核不改**：枢纽简介 `HubIdentitySection` 两处 `.body`＋lineSpacing(6)（pitch ≈28）属 §222 按 Muse 量测的有意偏离，本包只在施工报告给「保留偏离／回规格」两案量测对照，不落码、留废由主线裁。
 
-**钉测**：新增 `LineHeightSpecTests` 4 例——固定四行中文串经 TextKit 实排反推 pitch：三字阶规格锚（22/20/18，容差 1.0）＋输入舱锚（实排 pitch 合常数 20.37、容差 0.5，兼钉 basePointSize＝17）。既有钉测随派生改钉：ComposerLayoutTests（常数/封顶/胶囊/圆角）、ComposerTextMetricsTests（2 行 100.74、4 行 141.48、封顶胶囊 182.22 等）、AccessibilityPackageTests（基准 17、封顶 122.22、胶囊 46.37；行高派生断言改除 basePointSize 符号量），ComposerGeometryTests 光标度量注释按 17pt 缩放更新（断言未动）。
+**钉测**：新增 `LineHeightSpecTests` 4 例——固定四行串经 TextKit 实排反推 pitch：三字阶规格锚（22/20/18，容差 1.0；量测串用拉丁文——二轮 CI 实证中文串在 TextKit 里由 CJK 回退字体主导行高、三字阶 pitch 同率 1.1933，测不到字阶字体本体）＋输入舱锚（中文串、生产路径本体，实排 pitch 合常数 20.37、容差 0.5，兼钉 basePointSize＝17）。既有钉测随派生改钉：ComposerLayoutTests（常数/封顶/胶囊/圆角）、ComposerTextMetricsTests（2 行 100.74、4 行 141.48、封顶胶囊 182.22 等）、AccessibilityPackageTests（基准 17、封顶 122.22、胶囊 46.37；行高派生断言改除 basePointSize 符号量），ComposerGeometryTests 光标度量注释按 17pt 缩放更新＋满行文末光标右界容差 0.6→1.5（二轮实测出界 0.67 为行末推进亚点取整、非逃逸）。
 
 **零交集声明**：不碰聊天呈现文件（LayoutProductService/SelectableTextView/ChatView 等）——`ChatView.swift:6145` 一带发送舱对位规格注释仍写 19.17/单行 46，本包按纪律未动，待聊天线或主线顺手更新为 20.37/46.37。与 feat/chat-type-scale-align（第 81 条）文件交集为零。
 
