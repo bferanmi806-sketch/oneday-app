@@ -115,6 +115,22 @@ public enum SessionSources {
     /// channels-token-batch 三报告）。微信图标随
     /// 二期微信行下架一并退役（2026-11-13 用户拍
     /// 板），故此处不再登记 weixin
+    ///
+    /// 2026-11-15 图标统一批（待办第 86 条，审计 C
+    /// 线硬伤 2-1）：全部对话页与抽屉统一为一条口
+    /// 径——有官方原图才上行。本批续登十家：WhatsApp
+    /// （whatsapp_cloud 同品牌共用）、Signal、LINE、
+    /// 企业微信（wecom_callback 共用）、Teams、
+    /// Google Chat、Mattermost、SimpleX、腾讯元宝
+    /// 均取 Apple iTunes lookup 官方 App artwork
+    /// 512；BlueBubbles 取其官方仓库 iOS AppIcon
+    /// 1024 原图（该产品未上架 App Store）。来源逐
+    /// 个登记于 platform-icons-unify-20261115 报
+    /// 告。仍回 nil 的五家：matrix（官方仅横式字标、
+    /// 无应用级原图，拼凑成图标即仿绘）、photon
+    /// （官网仅装饰图形、无官方图标资产）、email／
+    /// sms（无品牌通用通道）、weixin（沿 2026-11-13
+    /// 拍板退役，非资产缺失）
     public static func platformIconAssetName(
         _ source: String
     ) -> String? {
@@ -125,6 +141,17 @@ public enum SessionSources {
         case "qqbot", "qq": return "ChannelQQ"
         case "discord": return "ChannelDiscord"
         case "slack": return "ChannelSlack"
+        case "whatsapp", "whatsapp_cloud":
+            return "ChannelWhatsApp"
+        case "signal": return "ChannelSignal"
+        case "line": return "ChannelLINE"
+        case "wecom", "wecom_callback": return "ChannelWecom"
+        case "teams": return "ChannelTeams"
+        case "google_chat": return "ChannelGoogleChat"
+        case "mattermost": return "ChannelMattermost"
+        case "simplex": return "ChannelSimpleX"
+        case "yuanbao": return "ChannelYuanbao"
+        case "bluebubbles": return "ChannelBlueBubbles"
         default: return nil
         }
     }

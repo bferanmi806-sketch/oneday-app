@@ -459,6 +459,48 @@ final class SessionClassificationTests: XCTestCase {
             "在 QQ 里和你的智能体聊的对话")
     }
 
+    // 图标统一批（2026-11-15，第 86 条）：有官方原
+    // 图的平台逐个登记；whatsapp_cloud／
+    // wecom_callback 与主平台同品牌共用一张资产。
+    // 无合格官方原图的平台恒回 nil——全部对话页据
+    // 此不上行（与抽屉同律），不许仿绘/SF 补位
+    func testChannelRegistryIconUnifyBatch() {
+        let expected: [(id: String, asset: String)] = [
+            ("whatsapp", "ChannelWhatsApp"),
+            ("whatsapp_cloud", "ChannelWhatsApp"),
+            ("signal", "ChannelSignal"),
+            ("line", "ChannelLINE"),
+            ("wecom", "ChannelWecom"),
+            ("wecom_callback", "ChannelWecom"),
+            ("teams", "ChannelTeams"),
+            ("google_chat", "ChannelGoogleChat"),
+            ("mattermost", "ChannelMattermost"),
+            ("simplex", "ChannelSimpleX"),
+            ("yuanbao", "ChannelYuanbao"),
+            ("bluebubbles", "ChannelBlueBubbles"),
+        ]
+        for item in expected {
+            XCTAssertEqual(
+                SessionSources.platformIconAssetName(item.id),
+                item.asset, "\(item.id) 官方图标登记")
+            XCTAssertEqual(
+                ChannelRegistry.descriptor(for: item.id)?.iconAssetName,
+                item.asset, "\(item.id) 频道描述图标")
+        }
+        // matrix（官方仅横式字标、无应用级原图）／
+        // photon（无官方图标资产）／email／sms（无品
+        // 牌通用通道）／weixin（沿 2026-11-13 用户拍
+        // 板退役、非资产缺失）恒不登记
+        for platform in ["matrix", "photon", "email", "sms", "weixin"] {
+            XCTAssertNil(
+                SessionSources.platformIconAssetName(platform),
+                "\(platform) 不应登记图标")
+            XCTAssertNil(
+                ChannelRegistry.descriptor(for: platform)?.iconAssetName,
+                "\(platform) 频道描述不应带图标")
+        }
+    }
+
     // session_key 回落：source 缺失时平台段同值判
     // （session_key 形如 agent:main:whatsapp:dm:…）
     func testR6PlatformViaSessionKeyFallback() {
