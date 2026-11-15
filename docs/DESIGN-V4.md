@@ -12615,3 +12615,17 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+
+## §265 会话页换代包 5·交互收口（2026-11-15；分支 feat/chat-gen5，基线 rel-05048@3721c9a；全档＝oneday-design-review/chat-gen5-20261115.md）
+
+**范围三件**（蓝图 §2 包 5 的 S3/T4＋用户 2026-11-14 亲令大厂机制③的右滑仲裁；T1 行距已由第 81 条实测定值先行、不在本包）：
+
+**一、S3 选字菜单下移非文本层**（提交 337fbff）：`MessageMenuModifier` 自行内容根摘除——根挂载的 UIContextMenuInteraction 是文本视图的祖先、长按文本先出整行菜单压死 UITextView 原生选字＋编辑菜单（审计 S3 定性、筹备稿 chat-gen5-prep-20261114 §1 定案）。改挂面：用户泡/助手泡的**气泡背景层**（背景 shape＋内边距带，`.background` 视图构建器形态、背景层非文本祖先）、图片卡（用户本地图行/服务端图卡、助手媒体行/内联图/裸路径图卡）、文件牌组（双侧）、交付项、裸路径文件卡、引用块（纯 Text）、待发状态行。`assistantBubble` 加 `menuEntry` 参数（落定行传 entry、流式泡不传形态不变）。菜单五项/门控（纯图片不挂）/「选择」sheet 兜底定位零改；源引用块（含可点按钮）不挂、登记在案。C4 验收＝UI 测试长按两路（文本→编辑菜单、边距带→整行菜单）。
+
+**二、右滑回复手势仲裁改造**（提交 d24802d）：废 `.simultaneousGesture(DragGesture)`（双审计定性其跟踪消耗 UITextView 双击的两次 down→up 序列）。新桥 `SwipeReplyPanBridge.swift`：UIPanGestureRecognizer 经 ascend 装宿主滚动视图（ScrollViewTapDismiss 已验同路、新旧承载同装配）、每行一枚、maximumNumberOfTouches=1；仲裁三条全走 UIKit 官方入口——**方向门** `gestureRecognizerShouldBegin` 消费 Core 新增 `SwipeReplyMotion.passesDirectionGate`（横向速度严格占优且向右）；**失败依赖（点按先行）** `shouldRequireFailureOf` 对 UITap/UILongPress 恒真（文本双击/长按识别器不失败则横滑不开）＋安装时令滚动 pan `require(toFail:)` 本识别器（纵滚让行）；**起始点排除**（代码块/表格横滚区）移进 shouldBegin（不开始即不吞触摸，与旧构造「同时识别＋回调忽略」的实质差别）。辖区圈定走 shouldReceive 按行帧判。数值口径（起滑 30/触发 60/封顶 90/排除帧）逐字不变、仍 Core 单源；修饰符只持状态、经 `onPanChanged/onPanEnded` 两回调消费；§152 选区在场停用右滑的既有守卫不变（isEnabled 翻假→桥 dismantle 摘除识别器、装配测试把守）。与 0.36.20–23 退役桥的差别：装配走已验 ascend 路、判据只两条明路、无自创阈值——P-15 的教训形态（判据三换死状不变）不适用于本构造的装配面，但真机手感（起滑延迟/纵滚让行延迟）仍列复验项、不以 CI 绿冒充真机绿。
+
+**三、T4 检测开集**（提交 3091ead）：`SelectableTextView` 的 `dataDetectorTypes` 由 `[]` 改 **`[.phoneNumber, .link]`**——探针报告 gen5-t4-probe-20261115 定案：两类命中干净、数字类语料零误报；`.calendarEvent/.address` 不开（en-US 口径中文基本不识别＋裸时刻碎片错期链化；挂 zh-Hans 真机复验账）、`.all` 不开（金额「¥1,299.00」链化实证）。delegate 分流不存在：链接走既有 `shouldInteractWith`→openURL、电话点按主动作走系统 UITextItem 默认动作（拨号确认＝目标行为）；日期/地址若翻案开，出口须实现 UITextItem delegate 组、往 URL 版 shouldInteractWith 加 scheme 分流是无效施工（探针 §5.3）。条件两项落测：①长按命中段弹系统链接菜单（UI 测试验 Call 项＋整行菜单不出现、与 S3 同面）；②点按主动作路径（Coordinator 出口单测三类全转发＋return false；电话点按的真机拨号确认面沿探针 §6-2b 挂账、随组版真机清单验）。**真呈现路径验收**（探针 §5.5 明令）：单测装配生产 MarkdownText 全链与用户纯文本路入窗枚举 `.link` 属性——TextShaping 在数字串内插 U+2060 后，电话/URL/邮箱命中与载荷仍准、覆盖子串剥 WJ 与原文一致、订单号/金额零命中。演示种子加一条 T4 样本消息（值班电话/状态页/邮箱，散文形态、末条流式补答契约不动）。
+
+**计数对账（预期）**：Core 2095＋1（方向门组）；App 192＋7（T4 真呈现 3＋桥 4）；UI 10＋5（手势仲裁五件）。实数以 CI 为准。
+
+### §265.1 CI 判读（待回填）
