@@ -194,120 +194,51 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - 无障碍渲染树文本采集（⑧判据面）
+    // MARK: - 视图树文本采集（⑧判据面）
 
-    /// 递归采集一棵视图树里全部可达文本：无障碍
-    /// 标签（SwiftUI 元素经托管树的 accessibility-
-    /// Elements 递出）＋平台文本视图/标签的正文。
-    /// 第一轮 CI 实证：UIHostingConfiguration 的
-    /// SwiftUI 内容只经 accessibilityElements 数组
-    /// 采集时递不出（托管视图的元素经 UIAccessi-
-    /// bilityContainer 协议按需生成）——故并行走
-    /// 容器协议通道（accessibilityElementCount／
-    /// at:），这是 AX 运行时自身的取数口；两通道
-    /// 并集后按 cell 拼成整串再查标记（词元级标
-    /// 签被切开时拼接后仍可命中，排除断言的误报
-    /// 面只限「标记字符恰按序跨元素相邻」——对
-    /// 本测试的判别标记 DeOldify／colorize.cc
-    /// 而言即真渲染在场）
+    /// 直接遍历一棵视图树、收集实际文本载体
+    /// （UITextView／UILabel／UITextField）的
+    /// 正文。量测通道定版（⑧采集修复，§294.1
+    /// 后续）：此前经 accessibility 采集串量
+    /// 测——UIHostingConfiguration 托管内容在
+    /// 该通道下漏采（尾块计数 0）与重采（同段
+    /// 两份）并存，且无障碍元素树懒生成、时序
+    /// 口径在本仓三轮 CI 实证时有时无（ChatRe-
+    /// liabilityOfflineTests 既有判语）。改走
+    /// 视图树遍历：只读真实载体、每载体只取一
+    /// 个文本源（同一载体的 text 与 attribu-
+    /// tedText 是同一内容、只取其一，防同段在
+    /// 单 cell 内重复计数），全程不触 acces-
+    /// sibility 运行时；按 cell 遍历即按 item
+    /// 归属计数
     private func renderTexts(in view: UIView) -> [String] {
         var out: [String] = []
-        func walkElement(
-            _ element: UIAccessibilityElement, depth: Int
-        ) {
-            if let label = element.accessibilityLabel,
-               !label.isEmpty {
-                out.append(label)
-            }
-            walkContainer(of: element, depth: depth + 1)
-        }
-        // 容器协议的两型重载：UIAccessibility-
-        // Container 协议名在本工具链（iOS 26 SDK）
-        // 不可作类型引用（第二轮 CI 编译实证），
-        // 但其方法 accessibilityElementCount／
-        // accessibilityElement(at:) 在 UIView 与
-        // UIAccessibilityElement 两型上均可直调，
-        // 故按具体型分发、不点名协议
-        func walkContainer(of view: UIView, depth: Int) {
-            walkChildren(
-                count: view.accessibilityElementCount(),
-                childAt: {
-                    view.accessibilityElement(at: $0)
-                },
-                depth: depth
-            )
-        }
-        func walkContainer(
-            of element: UIAccessibilityElement,
-            depth: Int
-        ) {
-            walkChildren(
-                count: element
-                    .accessibilityElementCount(),
-                childAt: {
-                    element.accessibilityElement(at: $0)
-                },
-                depth: depth
-            )
-        }
-        func walkChildren(
-            count: Int,
-            childAt: (Int) -> Any?,
-            depth: Int
-        ) {
-            guard depth <= 6, count > 0,
-                  count < 100_000
-            else { return }
-            for index in 0..<count {
-                guard let child = childAt(index)
-                else { continue }
-                if let childView = child as? UIView {
-                    walk(childView, depth: depth + 1)
-                } else if let childElement = child
-                    as? UIAccessibilityElement {
-                    walkElement(
-                        childElement, depth: depth + 1
-                    )
-                }
-            }
-        }
-        func walk(_ object: Any, depth: Int = 0) {
-            if let v = object as? UIView {
-                if v.isAccessibilityElement,
-                   let label = v.accessibilityLabel,
-                   !label.isEmpty {
-                    out.append(label)
-                }
-                if let textView = v as? UITextView {
-                    if let text = textView.text,
-                       !text.isEmpty {
-                        out.append(text)
-                    }
-                    if let attributed =
-                        textView.attributedText?.string,
-                       !attributed.isEmpty {
-                        out.append(attributed)
-                    }
-                }
-                if let label = v as? UILabel,
-                   let text = label.text, !text.isEmpty {
+        func walk(_ v: UIView) {
+            if let textView = v as? UITextView {
+                if let text = textView.text,
+                   !text.isEmpty {
                     out.append(text)
+                } else if let attributed =
+                    textView.attributedText?.string,
+                    !attributed.isEmpty {
+                    out.append(attributed)
                 }
-                if let elements = v.accessibilityElements {
-                    elements.forEach {
-                        walk($0, depth: depth + 1)
-                    }
-                }
-                if !v.isAccessibilityElement {
-                    walkContainer(of: v, depth: depth + 1)
-                }
-                v.subviews.forEach {
-                    walk($0, depth: depth + 1)
-                }
-            } else if let element =
-                        object as? UIAccessibilityElement {
-                walkElement(element, depth: depth)
             }
+            if let label = v as? UILabel {
+                if let text = label.text,
+                   !text.isEmpty {
+                    out.append(text)
+                } else if let attributed =
+                    label.attributedText?.string,
+                    !attributed.isEmpty {
+                    out.append(attributed)
+                }
+            }
+            if let field = v as? UITextField,
+               let text = field.text, !text.isEmpty {
+                out.append(text)
+            }
+            v.subviews.forEach(walk)
         }
         walk(view)
         return out
