@@ -71,14 +71,27 @@ public enum ChatThemes {
             // 0x1473C8→0x136FC1——对弱面 tintLight 实算
             // 4.48＜4.5，加深后 4.74；链接/强调落在弱面
             // 与页底均过闸（对比闸④钉住，见测试）
-            accentLight: 0x136FC1, accentDark: 0x5EB1EF,
+            // 2026-11-15（第 85 条对比度收口）：再深一
+            // 档至 0x1268B8——旧值压助手泡面 #EEEEF0
+            // 实算 4.45、差 4.5 线 0.05（泡内链接/强
+            // 调字格，全格复核唯一差线格）；新值对泡
+            // 面 4.90／页底 5.54／卡面 5.68／弱面
+            // 5.23／白字压之 5.68，全格过闸（新增对
+            // 比闸⑥钉住，见测试）
+            accentLight: 0x1268B8, accentDark: 0x5EB1EF,
             tintLight: 0xEDF7FD, tintDark: 0x16242E
         ),
         ChatTheme(
             id: "iceBlue", displayName: "浅蓝",
             bubbleLight: 0xD9EEFC, bubbleDark: 0x1D5FA8,
             bubbleTextLight: 0x14324E, bubbleTextDark: 0xFFFFFF,
-            accentLight: 0x1F6FC4, accentDark: 0x7FB8F0,
+            // 2026-11-15（第 85 条收口复核追加）：旧值
+            // 0x1F6FC4 压助手泡面 #EEEEF0 实算 4.39 同
+            // 样差线（审计原稿只核默认款、本包全格复
+            // 核时发现）——同色相深一档至 0x1B6AB9：
+            // 对泡面 4.76／页底 5.37／卡面 5.51／弱面
+            // 4.98，全格过闸（对比闸⑥）
+            accentLight: 0x1B6AB9, accentDark: 0x7FB8F0,
             tintLight: 0xEAF5FD, tintDark: 0x152736
         ),
         ChatTheme(

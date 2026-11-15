@@ -12615,3 +12615,16 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+
+## §265 第 85 条对比度硬伤收口（2026-11-15；分支 fix/contrast-hard-fixes，基线 rel-05048@3721c9a）
+
+**病根**（全局标准审计 B 线，standards-audit-color-material-20261115.md）：令牌表双档齐全，病在消费层用错场——本节六条 BC-1…BC-6 一次收口。对比口径：WCAG 相对亮度公式，正文 ≥4.5、大字 ≥3.0；改后逐组合复算全表在收口报告 contrast-hard-fixes-20261115.md。
+
+- **BC-1 暗档白字压 primary 填充 2.33**：primary 暗档 #5EB1EF 本职「压黑底作文字」，被 5 面当填充压写死白字。改走现成正道 primaryPale＋onPrimary（暗档 4.87／浅档 13.84）：FeedView 保存兴趣钮、GoalsView 开始吧、IdeasView 开始吧/打开对话、ApprovalCardFace 审批主钮、ChatView 回底未读角标。同类追加一处（.48 新面、审计基线后出现）：ChatView 右滑回复武装盘原配 primary＋onPrimary（配对错位、暗档同为 2.33）→ primaryPale＋onPrimary。
+- **BC-2 success/warning 作可读文字（浅档）2.22/2.20**：Palette 新增文字档令牌 successText（浅 #1A7431／暗随 systemGreen）与 warningText（浅 #9C5700／暗随 systemOrange），及 stateColor 的文字位姊妹 stateTextColor（未知态回 inkSecondary）；文字位全量替换 24 处（审计实证 4 面＋同类横扫 20 处：状态词/「使用中」/「默认」/「已安装」/「已保存」/审批注记/听写计时数字等），状态点与纯图标用途逐处核过不动。
+- **BC-3 inkMuted 文字位清零**：全仓 121 处引用逐处分类，文字位 33 处升 inkSecondary（GoalsView 11／NotificationsView 10／ChatView 3／LedgerDetailView 5／HubLedgerSection 2／两配对页脚各 1）；余 88 处为图标/状态点/占位/引用竖条/删除线装饰等非文字用途，保留。AgentShareCard 标题（固定画布 artwork）未动、登记存疑。
+- **BC-4 代码关键词暗档三级面 4.03**：旧注释口径漏算 codeFill α0.32 叠层。codeKeyword 暗档 #C792EA→#D0A6F0（合成三基面 7.47/5.69/4.80）；Palette 代码三色注释按真基面回填（浅档基面 codeFill 实色 #E2E4E7：4.80/5.80/5.96；BS-5② 的基面错位一并纠正）。
+- **BC-5 默认主题 primary 压 bubbleFill 4.45**：ChatTheme 默认款 accentLight #136FC1→#1268B8（对泡面 4.90、全格过）。全格复核追加：浅蓝款 #1F6FC4 同格实算 4.39 同样差线（审计原稿只核默认款）→ #1B6AB9（4.76）；余六款本已过（最低 pink 4.51）。ChatThemeTests 新增对比闸⑥（全款浅档强调对助手泡面 ≥4.5）钉住整格，默认款值钉同步更新。
+- **BC-6 角标白字压 danger 暗档 3.41**：Palette 新增角标填充专用 dangerFill（浅与 danger 同值 #AA4A45／暗深红 #D92B1F，白字 5.56/4.87）；ChatView 通知角标改用之，danger 本体（文字/图标职）不动。
+
+**节号顺延注记**：本节在本分支编号 §265；若组版时 rel 线已用过该号，按 §263 先例顺延、文内与代码自指保留本号。
