@@ -54,7 +54,6 @@ struct NotificationsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion)
     private var reduceMotion
-    @Namespace private var filterNamespace
 
 
     /// 筛选档（全部/未读）：纯本页呈现态，不落盘
@@ -184,64 +183,27 @@ struct NotificationsView: View {
         return NotificationDetail.subtitle(unreadCount: unreadCount)
     }
 
-    /// 筛选条：轨道＝surface＋发丝边全胶囊、选中药丸
-    /// ＝selectionFill 垫＋字 semibold（与连接器页分
-    /// 段同源同值，SegmentedControlSpec）；档题后带
-    /// 计数小字（全部＝总数、未读＝未读数，均实算）
+    /// 筛选条（2026-11-15 第 88 条收口）：自制分段
+    /// （SegmentedControlSpec 几何）迁系统 segmented
+    /// ——主线裁决「系统件优先为默认、自制为例外」，
+    /// 本面纯文字两段无例外理由。形态差如实记：总
+    /// 高 48→系统约 32；轨道自 surface 白＋发丝边改
+    /// 系统灰、选中垫自 selectionFill 改系统白拇指
+    /// （自带微影）；字阶自 .bodyText semibold 改系
+    /// 统分段字；计数自弱色独立段并入段题文字（全
+    /// 部＝总数、未读＝未读数，均实算）；切换触感
+    /// （selection）保留，药丸滑移由系统过渡替代
     private var filterBar: some View {
-        HStack(spacing: 0) {
-            filterButton(.all, title: String(localized: "全部"),
-                         count: store.historyNotifications.count)
-            filterButton(.unread, title: String(localized: "未读"),
-                         count: unreadCount)
-        }
-        .padding(SegmentedControlSpec.inset)
-        .background(Palette.surface, in: Capsule())
-        .overlay {
-            Capsule().strokeBorder(Palette.separator, lineWidth: 1)
-        }
-        .sensoryFeedback(.selection, trigger: filter)
-    }
-
-    private func filterButton(
-        _ value: NotificationDetail.Filter,
-        title: String, count: Int
-    ) -> some View {
-        let selected = filter == value
-        return Button {
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.selectionSpring,
-                    reduceMotion: reduceMotion
-                )
-            ) { filter = value }
-        } label: {
-            HStack(spacing: OneDayMetrics.spacingXS) {
-                Text(title)
-                Text("\(count)")
-                    .foregroundStyle(Palette.inkMuted)
-            }
-            .font(.bodyText.weight(.semibold))
-            .foregroundStyle(Palette.ink)
-            .frame(
-                maxWidth: .infinity,
-                minHeight: SegmentedControlSpec.pillHeight
+        Picker("筛选", selection: $filter) {
+            Text(
+                "\(String(localized: "全部")) \(store.historyNotifications.count)"
             )
-            .background {
-                if selected {
-                    Capsule()
-                        .fill(Palette.selectionFill)
-                        .matchedGeometryEffect(
-                            id: "notificationFilterPill",
-                            in: filterNamespace
-                        )
-                }
-            }
-            .contentShape(Rectangle())
+            .tag(NotificationDetail.Filter.all)
+            Text("\(String(localized: "未读")) \(unreadCount)")
+                .tag(NotificationDetail.Filter.unread)
         }
-        .buttonStyle(.odPressable)
-        .accessibilityLabel("\(title) \(count)")
-        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .pickerStyle(.segmented)
+        .sensoryFeedback(.selection, trigger: filter)
     }
 
     // MARK: - 内容面（四态：骨架/失败/空/列表）
