@@ -30,19 +30,45 @@ final class StreamOverlapInstrumentTests: XCTestCase {
     private let settledCount = 12
     private let settledHeight: CGFloat = 72
 
+    // setUp/tearDown 内联装配（与 ChatListCarrierBottom-
+    // GapTests 同形态：只做属性赋值与 UIKit 直调——从
+    // 非隔离的生命周期方法调 @MainActor 实例方法会触
+    // 发 Swift 6 sending-self 编译红，实测两轮）
     override func setUp() {
         super.setUp()
-        // XCTest 在主线程执行 setUp（既有装配测试同前
-        // 提）；assumeIsolated 让 @MainActor 装配方法可
-        // 在此直调（裸调触发 Swift 6 sending-self 红）
-        MainActor.assumeIsolated { installAssembly() }
+        StreamOverlapProbe.reset()
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        root = UIViewController()
+        window.rootViewController = root
+        window.makeKeyAndVisible()
+        controller = ChatListCarrierViewController()
+        handle = ChatListCarrierHandle()
+        controller.handle = handle
+        controller.callbacks = ChatListCarrierCallbacks(
+            onScrollGeometry: {},
+            onTopVisibleEntry: { _ in },
+            onBlankTap: {}
+        )
+        handle.controller = controller
+        root.addChild(controller)
+        root.view.addSubview(controller.view)
+        controller.view.frame = root.view.bounds
+        controller.didMove(toParent: root)
+        root.view.layoutIfNeeded()
     }
 
     override func tearDown() {
-        MainActor.assumeIsolated { uninstallAssembly() }
+        window?.rootViewController = nil
+        window?.isHidden = true
+        window = nil
+        root = nil
+        controller = nil
+        handle = nil
         super.tearDown()
     }
 
+    /// 重装（固定行高回放的第二相用；测试方法本身在
+    /// MainActor 上下文内，可直调隔离方法）
     private func installAssembly() {
         StreamOverlapProbe.reset()
         window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
