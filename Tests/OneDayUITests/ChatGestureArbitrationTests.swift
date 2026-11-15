@@ -458,13 +458,16 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func editMenuVisible(
         in app: XCUIApplication
     ) -> Bool {
-        let predicate = NSPredicate(
-            format: "label IN %@", ["Copy", "拷贝"]
-        )
-        return app.menuItems.matching(predicate)
-            .firstMatch.exists
-            || app.buttons.matching(predicate)
-                .firstMatch.exists
+        app.menuItems.matching(
+            NSPredicate(
+                format: "label IN %@", ["Copy", "拷贝"]
+            )
+        ).firstMatch.exists
+            || app.buttons.matching(
+                NSPredicate(
+                    format: "label IN %@", ["Copy", "拷贝"]
+                )
+            ).firstMatch.exists
     }
 
     /// 当前 menuItems 的标签清单（失败取证用）
@@ -497,13 +500,16 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func waitForCallItem(
         in app: XCUIApplication, timeout: TimeInterval
     ) -> Bool {
-        let predicate = NSPredicate(
-            format: "label IN %@", ["Call", "呼叫"]
-        )
-        let item = app.menuItems.matching(predicate)
-            .firstMatch
-        let button = app.buttons.matching(predicate)
-            .firstMatch
+        let item = app.menuItems.matching(
+            NSPredicate(
+                format: "label IN %@", ["Call", "呼叫"]
+            )
+        ).firstMatch
+        let button = app.buttons.matching(
+            NSPredicate(
+                format: "label IN %@", ["Call", "呼叫"]
+            )
+        ).firstMatch
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
             if item.exists || button.exists {
@@ -531,21 +537,27 @@ final class ChatGestureArbitrationTests: XCTestCase {
                 print("TEST-PHONE linkAction=alert")
                 return true
             }
-            let call = NSPredicate(
-                format: "label IN %@", ["Call", "呼叫"]
-            )
-            if app.buttons.matching(call).firstMatch.exists
-                || app.menuItems.matching(call)
-                    .firstMatch.exists {
+            if app.buttons.matching(
+                NSPredicate(
+                    format: "label IN %@",
+                    ["Call", "呼叫"]
+                )
+            ).firstMatch.exists
+                || app.menuItems.matching(
+                    NSPredicate(
+                        format: "label IN %@",
+                        ["Call", "呼叫"]
+                    )
+                ).firstMatch.exists {
                 print("TEST-PHONE linkAction=callItem")
                 return true
             }
-            let number = NSPredicate(
-                format: "label CONTAINS %@",
-                "13800138000"
-            )
-            if app.buttons.matching(number)
-                .firstMatch.exists {
+            if app.buttons.matching(
+                NSPredicate(
+                    format: "label CONTAINS %@",
+                    "13800138000"
+                )
+            ).firstMatch.exists {
                 print("TEST-PHONE linkAction=numberButton")
                 return true
             }
