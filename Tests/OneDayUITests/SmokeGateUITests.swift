@@ -248,6 +248,68 @@ final class SmokeGateUITests: XCTestCase {
         XCTAssertEqual(app.state, .runningForeground)
     }
 
+    // MARK: - 回底箭头端到端（真手势，第十一轮收口迁入）
+
+    /// 长会话真手势上滑离底→回底箭头出现→点箭头回
+    /// 底→箭头消失。进程内长列表例的台阶判别量经第
+    /// 十轮仪表定因为装配差异（进程内托管下 SwiftUI
+    /// 几何回调不向 action 送达、台阶原理性不可达，
+    /// 产品喂入环无罪；定案 smoke-feed-link-
+    /// diagnosis-20261115.md §五），箭头端到端按等
+    /// 价覆盖原则迁本形态：UI 测独立进程、真窗口、
+    /// 真手势通道，几何回调送达与真机同路。演示种
+    /// 子主线程 9 条含多条长回复（内容高数倍于视
+    /// 口），开线程默认落底、箭头不应在场；真手势
+    /// 上滑过 176pt 离底阈值后箭头进布局流（label
+    /// 「回到底部」，离底未读时带「，N 条新消息」
+    /// 后缀、按包含匹配）；点后滚回底部、箭头退出
+    /// 布局流消失。链上派生政策与量测传导另由 Core
+    /// 纯函数测＋ComposerGuideHostTests 替身钉住，
+    /// 覆盖不降反升。
+    func testSmokeBackToBottomArrowEndToEnd() {
+        let app = launchDemo([])
+        openFirstSeededThread(app)
+        XCTAssertTrue(
+            waitForAnyText(
+                app,
+                ["好，就按你说的顺序来。", "我盯五项，按重要性排"],
+                timeout: 25
+            ),
+            "种子主线程尾段应渲染（开线程默认落底）"
+        )
+        let arrow = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS %@", "回到底部"
+        )).firstMatch
+        XCTAssertFalse(
+            arrow.exists,
+            "落底态回底箭头不应在场"
+        )
+        // 真手势上滑离底：逐滑轮询箭头出现（离底阈
+        // 值 176pt，种子内容数倍于视口、数滑必过；
+        // 流式补回复在近底时可能跟随回拉，循环逐滑
+        // 直至真离底）
+        let deadline = Date().addingTimeInterval(30)
+        while !arrow.exists && Date() < deadline {
+            app.swipeUp()
+            _ = arrow.waitForExistence(timeout: 2)
+        }
+        XCTAssertTrue(
+            arrow.exists,
+            "真手势上滑离底后回底箭头应出现"
+        )
+        arrow.tap()
+        // 点箭头回底：箭头退出布局流、从树消失
+        let goneDeadline = Date().addingTimeInterval(12)
+        while arrow.exists && Date() < goneDeadline {
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        XCTAssertFalse(
+            arrow.exists,
+            "点箭头回底后箭头应消失"
+        )
+        XCTAssertEqual(app.state, .runningForeground)
+    }
+
     // MARK: - A-1 连接页装配与首连全流程
 
     /// -odDemoConnect 全新安装路径：欢迎面→登录面预填

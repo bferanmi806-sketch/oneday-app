@@ -8,18 +8,24 @@ import XCTest
 @testable import OneDayApp
 
 /// 出厂冒烟门·长会话回底（横扫 C 类「懒生成回底黑闪」
-/// 的机器可验部分）：120 行长会话滚到顶→判别量验箭头
-/// 渲染（列表底 inset 出现 ≈+52 台阶，第九轮定案）→
-/// 编程滚底→断言落点贴底且末行真渲染在可见区（空白
-/// 帧＝末行正文不在列表内或不在可见框内，断言即红）。
-/// 箭头本体是纯 SwiftUI Button、进程内只以 AX 树元素
-/// 形态存在，而该树在无 AX 客户端的进程内托管下整棵
-/// 未生成（第七/八轮普查定案）——AX 激活在本例降为
-/// 非阻断观察项，其等价验证迁 XCUIApplication UI 测
-/// 形态为后续。黑闪是逐帧视觉现象，机器只能验「落点
-/// ＋末行非空」，逐帧观感留发版门文档真机手验清单。
-/// 装配范式同 ChatPageAssemblyRegressionTests（进程内
-/// 托管 RootView＋钦定主线）。
+/// 的机器可验部分）：120 行长会话滚到顶→首行普查验
+/// 身份→编程滚底→断言落点贴底且末行真渲染在可见区
+/// （空白帧＝末行正文不在列表内或不在可见框内，断言
+/// 即红）。本例职责止于内容侧（位移／普查／末行）：
+/// 回底箭头端到端不在进程内验——第九轮台阶判别量
+/// （列表底 inset +52）经第十轮仪表定因为装配差异
+/// （进程内托管下 SwiftUI 几何回调不向 action 送
+/// 达、台阶原理性不可达，产品喂入环无罪，定案见
+/// oneday-design-review/smoke-feed-link-diagnosis
+/// -20261115.md §五），第十一轮收口：台阶断言退役
+/// 为注释登记（见例内），箭头端到端迁 OneDayUITests
+/// 真手势例 testSmokeBackToBottomArrowEndToEnd（独
+/// 立进程、真手势、与真机同路）；链上派生政策与量
+/// 测传导由 Core 纯函数测＋ComposerGuideHostTests
+/// 替身钉住，覆盖不降反升。黑闪是逐帧视觉现象，机
+/// 器只能验「落点＋末行非空」，逐帧观感留发版门文
+/// 档真机手验清单。装配范式同 ChatPageAssembly
+/// RegressionTests（进程内托管 RootView＋钦定主线）。
 @MainActor
 final class SmokeGateLongListScrollTests: XCTestCase {
 
@@ -179,9 +185,11 @@ final class SmokeGateLongListScrollTests: XCTestCase {
         return lookup()
     }
 
-    /// 轮询读列表底 inset 落定值（第九轮判别量专用，
-    /// 定案见 oneday-design-review/smoke-arrow-check
-    /// -20261115.md §四第 1 条）：箭头行进出布局流让
+    /// 轮询读列表底 inset 落定值（第九轮判别量采样
+    /// 法；第十轮定因后判别量断言已退役、本法只供收
+    /// 口登记的证据行打印，定案见 oneday-design-
+    /// review/smoke-feed-link-diagnosis-20261115.md
+    /// §五）：箭头行进出布局流让
     /// 发送区栈高变化 44＋spacingS 8＝52pt，经
     /// ComposerGuideHost 实测 pocketHeight→
     /// kbSnapshot.bottomSpace→旧承载列表底
@@ -427,10 +435,12 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "显式贴底后偏移应远离顶部（位移须实测）"
         )
 
-        // 判别量基线（第九轮）：贴底稳态下箭头行不在
-        // 布局流内（isNearBottom 种子 true＋距底 0），
-        // 此刻的列表底 inset 即无箭头基线；滚顶后的台
-        // 阶差以此为准。留 1 秒待发送区栈高落定再读。
+        // 台阶证据行基线（第九轮采样法、第十一轮起只
+        // 作登记打印）：贴底稳态下箭头行不在布局流内
+        // （isNearBottom 种子 true＋距底 0），此刻的
+        // 列表底 inset 即无箭头基线；滚顶后仍采样一
+        // 次打证据行（断言已退役，见滚顶后登记段）。
+        // 留 1 秒待发送区栈高落定再读。
         spin(seconds: 1)
         let insetBaseline = list.adjustedContentInset.bottom
         print("LONGLIST inset baseline=\(insetBaseline)")
@@ -485,44 +495,48 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "首行帧应与列表可见框相交（滚顶后真可见）"
         )
 
-        // 箭头判别量（第九轮定案，承 smoke-arrow-
-        // check-20261115.md §四第 1 条）：箭头是纯
-        // SwiftUI Button、在进程内只以 AX 树元素形
-        // 态存在，而该树在无 AX 客户端的进程内托管
-        // 下整棵未生成（第七轮普查 list=0 window=0、
-        // 第八轮 census2 axProp=0 双通道复证）——
-        // **AX 不可达就此定案，进程内箭头验证到此为
-        // 止**，改以渲染链的布局传导指纹为判别量：
-        // 箭头行进布局流→发送区栈高 +52（钮行 44＋
-        // spacingS 8）→pocketHeight→bottomSpace→
-        // 列表底 contentMargins→平台滚动面
-        // adjustedContentInset.bottom 同值 +52。滚
-        // 顶稳态后轮询 6 秒取落定差：出台阶＝喂入环
-        // ＋判定环＋渲染全链无罪钉死；无台阶＝喂入
-        // 环嫌疑（onScrollGeometryChange 在进程内
-        // 托管下未把距底读数送进派生点），按核查报
-        // 告口径停手报主线、本线不改产品码。
+        // 【收口登记·第十一轮】箭头台阶断言就此退役，
+        // 不再设断言——后人勿把此处 delta=0 当新缺陷
+        // 重查（本签名已三轮停手报主线）。沿革：箭头
+        // 本体是纯 SwiftUI Button、进程内只以 AX 树
+        // 元素形态存在，而该树在无 AX 客户端的进程内
+        // 托管下整棵未生成（第七/八轮普查定案），第九
+        // 轮改以渲染链布局传导指纹为判别量（箭头行进
+        // 布局流→发送区栈高 +52→pocketHeight→
+        // bottomSpace→列表底 contentMargins→平台面
+        // adjustedContentInset.bottom 同值 +52），实
+        // 测 delta=0.0、无台阶，一度判「喂入环嫌疑」；
+        // 第十轮仪表定因（oneday-design-review/smoke
+        // -feed-link-diagnosis-20261115.md §二/§五）
+        // 钉死为**装配差异、产品喂入环无罪**：该装配
+        // 里自 UIKit 侧改 contentOffset 后，SwiftUI
+        // 几何回调（onScrollGeometryChange 与尾锚
+        // onGeometryChange 一类）不向 action 送达——
+        // 渐进上行 36 步、距底 ≈8,450pt 驻留 15 秒以
+        // 上台阶仍为 0.0；下游量测链与 inset 传导两
+        // 节同仓替身装配实证可通（ComposerGuideHost
+        // Tests 三法），派生政策为 Core 纯函数单测钉
+        // 住；真机同链实证可通（.50 录屏箭头在场）。
+        // 台阶在此装配下原理性不可达，继续挂断言只
+        // 会每轮假红、消耗判读。处置：轮询与证据行
+        // 保留作哨（delta 日后若非零反而值得知道），
+        // 箭头端到端验点迁 OneDayUITests 真手势例
+        // testSmokeBackToBottomArrowEndToEnd（独立进
+        // 程、真手势通道、几何回调送达与真机同路）。
         let insetPoll = pollBottomInset(list, seconds: 6)
         let insetDelta = insetPoll.settled - insetBaseline
         print("LONGLIST insetStep baseline=\(insetBaseline)"
             + " settled=\(insetPoll.settled)"
             + " peak=\(insetPoll.peak)"
-            + " delta=\(insetDelta)")
-        XCTAssertTrue(
-            abs(insetDelta - 52) <= 8,
-            "滚顶后列表底 inset 应出现 ≈+52 台阶（箭头行"
-                + "进布局流的传导指纹，实测 delta="
-                + "\(insetDelta)）；无台阶即喂入环嫌疑——"
-                + "按 smoke-arrow-check §四第 1 条停手报"
-                + "主线、本线不改产品码"
-        )
+            + " delta=\(insetDelta)"
+            + "（登记打印、非断言：定案见例内收口登记）")
 
         // 箭头 AX 激活降为非阻断观察项（第九轮）：
         // 双通道查找与激活结果只打印、不设断言（AX
         // 树未生成定案内，查不到不构成失败）；激活
-        // 的等价验证迁 XCUIApplication UI 测形态
-        // （运行器本身是 AX 客户端、树必生成）为后
-        // 续，见 smoke-gate-report 第九轮准备节。
+        // 的等价验证已于第十一轮收口迁 OneDayUITests
+        // testSmokeBackToBottomArrowEndToEnd（真手势
+        // 例，运行器本身是 AX 客户端、树必生成）。
         // label 含未读变体「回到底部，N 条新消息」
         // （ChatView 实证），按包含匹配。
         if let arrow = waitForAxElement(timeout: 5, {
@@ -593,189 +607,4 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "末行帧应与列表可见框相交（真可见、非空白）"
         )
     }
-
-    /// 喂入环仪表（冒烟门第十轮定因，纯诊断、除装配
-    /// 健全外无断言——结论靠 FEEDDIAG 打印行回主线判
-    /// 读）：同装配三段对照，分清「几何回调在单跳编
-    /// 程滚动下未送达／尾锚事实位陈旧钉住派生／下游
-    /// 量测链未重跑」三候选——
-    /// ①单跳到顶（复刻第九轮条件，预期无台阶）；
-    /// ②渐进回底再渐进上行：首步 10pt 让尾锚在仍被
-    /// Lazy 实例化时先报离屏（清事实位），随后步进
-    /// 跨 176 离底阈值——台阶若在渐进段出现，喂入＋
-    /// 派生＋量测＋留位全链在进程内成立，单跳之差
-    /// 只剩事实位陈旧一解；
-    /// ③箭头已显后单跳回落底：台阶回落＝单跳的几何
-    /// 送达本身成立→①的无台阶只能由事实位钉住解
-    /// 释；不回落＝单跳送达不成立（候选①坐实）。
-    /// 判读全表见 oneday-design-review/smoke-feed-
-    /// link-diagnosis-20261115.md（本轮即其仪表轮）。
-    func testLongConversationFeedLinkDiagnostic() throws {
-        let schema = Schema([ChatThread.self, ChatEntry.self])
-        let container = try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(
-                schema: schema, isStoredInMemoryOnly: true
-            )]
-        )
-        let context = container.mainContext
-        let base = Date().timeIntervalSince1970 - 7_200
-        let thread = ChatThread(title: "冒烟长会话")
-        thread.createdAt = Date(timeIntervalSince1970: base)
-        context.insert(thread)
-        for index in 1...120 {
-            let entry = ChatEntry(
-                role: index.isMultiple(of: 2)
-                    ? "assistant" : "user",
-                content: String(
-                    format: "冒烟长会话行 %03d", index
-                ),
-                thread: thread
-            )
-            entry.createdAt = Date(timeIntervalSince1970:
-                base + TimeInterval(index * 30))
-            context.insert(entry)
-        }
-        try context.save()
-
-        let appState = AppState(
-            client: DemoHermesClient(), demoMode: .connected
-        )
-        appState.sideChats.designateMainThread(thread.id)
-
-        let host = UIHostingController(
-            rootView: RootView()
-                .environment(appState)
-                .environment(\.locale, AppLocale.uiLocale)
-                .modelContainer(container)
-        )
-        let window: SmokeWindow
-        if let scene = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene }).first {
-            window = SmokeWindow(windowScene: scene)
-            window.frame = CGRect(
-                x: 0, y: 0, width: 402, height: 874
-            )
-        } else {
-            window = SmokeWindow(
-                frame: CGRect(x: 0, y: 0, width: 402, height: 874)
-            )
-        }
-        window.rootViewController = host
-        window.makeKeyAndVisible()
-        host.view.frame = window.bounds
-        host.view.setNeedsLayout()
-        host.view.layoutIfNeeded()
-        spin(seconds: 3)
-
-        var scrolls: [UIScrollView] = []
-        allScrollViews(window, into: &scrolls)
-        let list = try XCTUnwrap(
-            scrolls.max {
-                $0.contentSize.height < $1.contentSize.height
-            },
-            "会话列表滚动面应在场"
-        )
-        XCTAssertGreaterThan(
-            list.contentSize.height, list.bounds.height * 3,
-            "120 行长会话内容高应远超视口（fixture 真长）"
-        )
-
-        func currentDistance() -> CGFloat {
-            list.contentSize.height - list.contentOffset.y
-                - list.bounds.height
-        }
-        func maxOffset() -> CGFloat {
-            list.contentSize.height
-                + list.adjustedContentInset.bottom
-                - list.bounds.height
-        }
-
-        // 起点：显式贴底落定（尾锚在屏、事实位应为真）
-        list.setContentOffset(
-            CGPoint(x: 0, y: maxOffset()), animated: false
-        )
-        list.layoutIfNeeded()
-        _ = waitForOffset(list, targetY: maxOffset(), timeout: 5)
-        spin(seconds: 1)
-        let baseInset = list.adjustedContentInset.bottom
-        print("FEEDDIAG base inset=\(baseInset)"
-            + " distance=\(currentDistance())")
-
-        // ① 单跳到顶（复刻第九轮）
-        list.setContentOffset(
-            CGPoint(x: 0, y: -list.adjustedContentInset.top),
-            animated: false
-        )
-        list.layoutIfNeeded()
-        let jumpPoll = pollBottomInset(list, seconds: 3)
-        print("FEEDDIAG jumpTop settled=\(jumpPoll.settled)"
-            + " peak=\(jumpPoll.peak)"
-            + " delta=\(jumpPoll.settled - baseInset)")
-
-        // ②a 渐进回底（500 步进；尾锚重新实例化在屏）
-        var y = list.contentOffset.y
-        while y < maxOffset() - 1 {
-            y = min(maxOffset(), y + 500)
-            list.setContentOffset(
-                CGPoint(x: 0, y: y), animated: false
-            )
-            spin(seconds: 0.3)
-        }
-        spin(seconds: 1)
-        print("FEEDDIAG backBottom"
-            + " inset=\(list.adjustedContentInset.bottom)"
-            + " distance=\(currentDistance())")
-
-        // ②b 渐进上行（首步 10 清事实位、随后跨 176）
-        let steps: [CGFloat] = [
-            10, 60, 130, 250, 250, 250, 250, 250, 250, 250,
-            250, 250, 250, 250, 250, 250, 250, 250, 250, 250,
-            250, 250, 250, 250, 250, 250, 250, 250, 250, 250,
-            250, 250, 250, 250, 250, 250,
-        ]
-        var foundAt: CGFloat = -1
-        for step in steps {
-            let target = max(
-                -list.adjustedContentInset.top,
-                list.contentOffset.y - step
-            )
-            list.setContentOffset(
-                CGPoint(x: 0, y: target), animated: false
-            )
-            spin(seconds: 0.4)
-            let insetNow = list.adjustedContentInset.bottom
-            print("FEEDDIAG ascend step=\(step)"
-                + " distance=\(currentDistance())"
-                + " inset=\(insetNow)")
-            if insetNow - baseInset >= 20 {
-                foundAt = currentDistance()
-                break
-            }
-            if target <= -list.adjustedContentInset.top + 1 {
-                break
-            }
-        }
-        let ascendPoll = pollBottomInset(list, seconds: 3)
-        print("FEEDDIAG ascendDone"
-            + " settled=\(ascendPoll.settled)"
-            + " delta=\(ascendPoll.settled - baseInset)"
-            + " foundAt=\(foundAt)")
-
-        // ③ 箭头已显后单跳回落底（判单跳送达本身）
-        if ascendPoll.settled - baseInset >= 20 {
-            list.setContentOffset(
-                CGPoint(x: 0, y: maxOffset()), animated: false
-            )
-            list.layoutIfNeeded()
-            let fallPoll = pollBottomInset(list, seconds: 3)
-            print("FEEDDIAG jumpBottom"
-                + " settled=\(fallPoll.settled)"
-                + " delta=\(fallPoll.settled - baseInset)")
-        } else {
-            print("FEEDDIAG jumpBottom skipped"
-                + " (ascend 段未出台阶)")
-        }
-    }
 }
-
