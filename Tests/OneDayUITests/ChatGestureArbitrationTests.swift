@@ -299,6 +299,16 @@ final class ChatGestureArbitrationTests: XCTestCase {
     /// 上滑列表促 LazyVStack 物化后重找（两轮）。
     /// 终失败把全树文本视图的 value 摘要写进断言
     /// 信息、自带取证
+    ///
+    /// 命中后不许直接用帧（第 95 条定因）：程序
+    /// 化落底后首命中的 AX 报告帧带 contentOff-
+    /// set 量级位移（真帧 y=698 报 32.7、落进顶
+    /// 栏带），且 isHittable 为真、旧 reveal 不纠
+    /// 偏——点位按位移帧算必落错带。命中一律先
+    /// 过 settle：以落定后帧（连续两读一致＋几
+    /// 何自洽）为准才返回；位移帧靠真实滚动活动
+    /// 纠偏（两轮 CI 实证：滚动/手势之后同元素
+    /// 帧自报真值）
     private func textView(
         matching needle: String, in app: XCUIApplication
     ) throws -> XCUIElement {
@@ -312,30 +322,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
         for round in 0..<2 {
             let deadline = Date().addingTimeInterval(12)
             while Date() < deadline {
-                for element in candidateElements(in: app) {
-                    let raw = (element.value as? String)
-                        ?? element.label
-                    guard !raw.isEmpty else { continue }
-                    let stripped = raw
-                        .replacingOccurrences(
-                            of: "\u{2060}", with: ""
-                        )
-                        .replacingOccurrences(
-                            of: "\u{200B}", with: ""
-                        )
-                        .replacingOccurrences(
-                            of: "\u{FEFF}", with: ""
-                        )
-                    if stripped.contains(needle) {
-                        print(
-                            "TEST-FINDER matched needle="
-                                + needle
-                                + " type=\(element.elementType.rawValue)"
-                                + " frame=\(element.frame)"
-                        )
-                        reveal(element, in: app)
-                        return element
-                    }
+                if let element = firstMatch(
+                    needle: needle, in: app
+                ) {
+                    return settle(
+                        element, needle: needle, in: app
+                    )
                 }
                 Thread.sleep(forTimeInterval: 0.4)
             }
@@ -347,6 +339,132 @@ final class ChatGestureArbitrationTests: XCTestCase {
                 + valueDigest(in: app)
         )
         throw NSError(domain: "ChatGestureArbitration", code: 1)
+    }
+
+    /// 单次扫描命中：逐元素读 value、剥整形字符
+    /// 后比对，首命中即返回（帧未落定、调用方须
+    /// 过 settle 才许用帧）；无命中返回 nil
+    private func firstMatch(
+        needle: String, in app: XCUIApplication
+    ) -> XCUIElement? {
+        for element in candidateElements(in: app) {
+            let raw = (element.value as? String)
+                ?? element.label
+            guard !raw.isEmpty else { continue }
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            if stripped.contains(needle) {
+                print(
+                    "TEST-FINDER matched needle="
+                        + needle
+                        + " type=\(element.elementType.rawValue)"
+                        + " frame=\(element.frame)"
+                )
+                return element
+            }
+        }
+        return nil
+    }
+
+    /// 帧落定（第 95 条）：命中元素先等帧落定才
+    /// 许用——判据＝连续两读帧逐字一致、且几何
+    /// 自洽（有限、非空、在窗口内、顶边不在顶栏
+    /// 带、isHittable）。帧稳定地不合理（位移帧
+    /// 逐读不变）时靠外力纠偏：不在场/退化帧走
+    /// 既有 reveal 滚动带入；在场位移帧走列表往
+    /// 返小滚（下滚再上滚回底）触发 AX 帧重算；
+    /// 纠偏后重新匹配（快照句柄可能已指向别的
+    /// 节点）。纠偏上限 3 次、总等上限约 15 秒；
+    /// 超时未落定打 UNSETTLED 行、按旧行为返回
+    /// （断言自会以真失败形态留痕、不放宽）
+    private func settle(
+        _ element: XCUIElement, needle: String,
+        in app: XCUIApplication
+    ) -> XCUIElement {
+        let win = app.windows.firstMatch.frame
+        var current = element
+        var lastFrame = current.frame
+        var stableReads = 0
+        var provocations = 0
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            let f = current.frame
+            if f == lastFrame,
+               framePlausible(f, in: win),
+               current.isHittable {
+                stableReads += 1
+                if stableReads >= 2 {
+                    print(
+                        "TEST-FINDER settled needle="
+                            + needle + " frame=\(f)"
+                    )
+                    return current
+                }
+            } else if f != lastFrame {
+                lastFrame = f
+                stableReads = 0
+            } else {
+                // 帧逐读不变但不合理：稳定地错
+                stableReads += 1
+                if stableReads >= 3 {
+                    guard provocations < 3 else { break }
+                    provocations += 1
+                    provokeRelayout(of: current, in: app)
+                    if let rematched = firstMatch(
+                        needle: needle, in: app
+                    ) {
+                        current = rematched
+                    }
+                    lastFrame = current.frame
+                    stableReads = 0
+                }
+            }
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        print(
+            "TEST-FINDER UNSETTLED needle=" + needle
+                + " frame=\(current.frame)"
+        )
+        return current
+    }
+
+    /// 帧几何自洽判据：有限、非空、整帧在窗口
+    /// 内、顶边不在顶栏带（<48——位移帧 y≈32.7
+    /// 与容器帧 y≈0 的共同落点；消息正文真帧恒
+    /// 在顶簇之下）
+    private func framePlausible(
+        _ f: CGRect, in win: CGRect
+    ) -> Bool {
+        f.width > 0 && f.height > 0
+            && f.minX.isFinite && f.minY.isFinite
+            && f.minY >= 48
+            && f.maxY <= win.maxY + 1
+    }
+
+    /// 纠偏动作：元素不在场/帧退化（inf/空）走
+    /// 既有双向 reveal 滚动带入；在场但帧位移
+    /// 走列表往返小滚（先下滚再上滚、落点回到
+    /// 底部）——两轮 CI 实证真实滚动活动后 AX
+    /// 帧自报真值（swipe 例二试、电话例 reveal
+    /// 后各有纠正帧在案）
+    private func provokeRelayout(
+        of element: XCUIElement, in app: XCUIApplication
+    ) {
+        if element.exists, element.isHittable {
+            let list = app.scrollViews.firstMatch
+            list.swipeDown()
+            list.swipeUp()
+        } else if element.exists {
+            reveal(element, in: app)
+        }
     }
 
     /// 候选元素池（§265 四轮判读后扩面）：消息正文
@@ -583,7 +701,29 @@ final class ChatGestureArbitrationTests: XCTestCase {
         lineHeight: CGFloat
     ) {
         let text = try contactTextView(in: app)
-        let frame = text.frame
+        // 帧再落定一读（第 95 条同型）：finder 返
+        // 回的句柄在树变更后重解析可能落到容器节
+        // 点（两轮实证首读曾得 303 宽容器帧 y≈0），
+        // 连读至两读一致且几何自洽才用；始终不合
+        // 理则回零帧、由调用方既有退化回落接管
+        let win = app.windows.firstMatch.frame
+        var frame = text.frame
+        for _ in 0..<10 {
+            Thread.sleep(forTimeInterval: 0.4)
+            let next = text.frame
+            if next == frame,
+               framePlausible(frame, in: win) {
+                break
+            }
+            frame = next
+        }
+        if !framePlausible(frame, in: win) {
+            print(
+                "TEST-PHONE 帧未落定、回退化回落"
+                    + " frame=\(frame)"
+            )
+            frame = .zero
+        }
         let font = UIFont.preferredFont(
             forTextStyle: .callout
         )
