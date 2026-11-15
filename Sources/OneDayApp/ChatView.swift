@@ -10304,26 +10304,28 @@ private struct MessageMenuModifier: ViewModifier {
 /// （长按是静止按压、右滑是横向拖动，形态不重
 /// 叠）。
 ///
-/// 构造（Stream Chat SwiftUI 现行生产代码逐行
-/// 同构，调研报告 production-patterns-research-
-/// 20261111 §1.2/§1.5）：行内容挂 `.simultane-
-/// ousGesture(DragGesture(minimumDistance:
-/// 30))`，onChanged 只消费横向分量写 offset
-/// （判定全走 Core SwipeReplyMotion，阈值以
-/// Stream 参数为单源：起滑 30/途中触发 60/显
-/// 示封顶 90）；不设方向比值门、不做任何识别
-/// 器编排——纵滑时横向分量≈0、offset 恒 0、气
-/// 泡不动，纵滚完整归列表。0.36.20–0.36.23 的
-/// UIKit 探针桥四轮真机全灭（P-15），整桥与诊
-/// 断件本轮退役；第 1 轮同族构造的失败差异
-/// （起滑 6/方向门/松手触发/封顶 76/无坐标空
-/// 间与排除区）逐项按 Stream 销账，见 DESIGN
-/// §95。
-/// 起始点排除区（Stream 同款）：行内自有横向
-/// 交互的子区（代码块/表格的横向滚动区）经
-/// PreferenceKey 发布其在命名坐标空间内的
-/// 帧，拖动起始点落在其中则整段忽略——那片
-/// 区域的横滑归它自己。
+/// 数值口径（沿 §95 定版、Stream 参数单源）：判
+/// 定全走 Core SwipeReplyMotion——起滑 30/途中
+/// 触发 60/显示封顶 90；起始点排除区（行内自有
+/// 横向交互的子区——代码块/表格的横向滚动区）
+/// 经 PreferenceKey 发布其在命名坐标空间内的
+/// 帧，起始点落在其中则整段忽略。
+///
+/// 识别层沿革：0.36.26–§264 是 Stream 同构的
+/// SwiftUI `.simultaneousGesture(DragGesture)`
+/// （0.36.20–0.36.23 的 UIKit 探针桥四轮真机全
+/// 灭后退役，P-15）。§265（换代包 5）按用户
+/// 2026-11-14 亲令大厂机制③换代：双审计定性
+/// simultaneousGesture 的跟踪消耗文本视图触摸
+/// 序列、双击选字被截流——识别改走 UIKit 识别
+/// 器桥（SwipeReplyPanBridge：UIPanGesture-
+/// Recognizer 装宿主滚动视图，方向门＝横向速
+/// 度占优才认＋失败依赖＝点按/长按先行＋纵滚
+/// require(toFail:) 让行），本修饰符只持拖动
+/// 状态、经桥的两条回调消费位移/收尾。与桥时
+/// 代（0.36.20）的差别：装配走 ScrollViewTap-
+/// Dismiss 已验的 ascend 寻面、判据只两条明路
+/// （速度门＋失败依赖）、数值口径零自创。
 /// 箭头在内容左缘下层：随显形进度淡入/缩放，
 /// 越线转武装态，且触发与触觉在越线同一刻发
 /// 生（途中触发，不等松手）；松手只做回位
@@ -10349,15 +10351,34 @@ struct SwipeReplyModifier: ViewModifier {
                 content
                     // 命中域＝整条消息容器（Stream
                     // 行同款 contentShape）：行内空
-                    // 区起手也能拖
+                    // 区起手也能拖（§265 后命中圈定
+                    // 由桥的 shouldReceive 按行帧判，
+                    // 本 contentShape 只管行内 SwiftUI
+                    // 命中形态、语义不变）
                     .contentShape(Rectangle())
                     .coordinateSpace(name: "swipeToReply")
+                    // §265：UIKit 识别器桥挂行内容
+                    // background（零尺寸语义外的全帧
+                    // 背景视图、isUserInteractionEna-
+                    // bled=false 不夺命中；识别器本
+                    // 体装在宿主滚动视图上，见
+                    // SwipeReplyPanBridge）
+                    .background {
+                        SwipeReplyPanInstaller(
+                            excludedFrames: excludedFrames,
+                            onPanChanged: { translationX in
+                                handlePanChanged(translationX)
+                            },
+                            onPanEnded: {
+                                handlePanEnded()
+                            }
+                        )
+                    }
                     .offset(
                         x: SwipeReplyMotion.displayOffset(
                             for: dragOffset
                         )
                     )
-                    .simultaneousGesture(swipeGesture)
                     .onPreferenceChange(
                         SwipeReplyExcludedFrameKey.self
                     ) { frames in
@@ -10369,49 +10390,41 @@ struct SwipeReplyModifier: ViewModifier {
         }
     }
 
-    /// 右滑手势本体：只消费横向分量写 offset（判
-    /// 定走 Core 单源）；起始点落在排除区整段忽
-    /// 略；越线当场触发＋触觉（整段只一次）；松
-    /// 手动画回位、不再判触发
-    private var swipeGesture: some Gesture {
-        DragGesture(
-            minimumDistance: SwipeReplyMotion.minimumDistance,
-            coordinateSpace: .named("swipeToReply")
+    /// 桥回调·拖动中：只消费横向位移写 offset
+    /// （判定走 Core 单源）；越线当场触发＋触觉
+    /// （整段只一次）。起始点排除已由桥在 sho-
+    /// uldBegin 判死（识别器根本不开始），本处
+    /// 不再复查
+    private func handlePanChanged(_ translationX: CGFloat) {
+        let newOffset = SwipeReplyMotion.dragOffset(
+            translationWidth: translationX,
+            currentOffset: dragOffset
         )
-        .onChanged { value in
-            if SwipeReplyMotion.isExcluded(
-                startLocation: value.startLocation,
-                frames: excludedFrames
-            ) {
-                return
-            }
-            let newOffset = SwipeReplyMotion.dragOffset(
-                translationWidth: value.translation.width,
-                currentOffset: dragOffset
-            )
-            dragOffset = newOffset
-            if !hasTriggered,
-               SwipeReplyMotion.shouldTrigger(
-                   offset: newOffset
-               ) {
-                hasTriggered = true
-                // 轻触觉（动效宪法表 D，impact
-                // .light 落点不变）：与引用落定同
-                // 一因果链，只震这一次
-                Haptics.impact(.light)
-                onReply()
-            }
+        dragOffset = newOffset
+        if !hasTriggered,
+           SwipeReplyMotion.shouldTrigger(
+               offset: newOffset
+           ) {
+            hasTriggered = true
+            // 轻触觉（动效宪法表 D，impact
+            // .light 落点不变）：与引用落定同
+            // 一因果链，只震这一次
+            Haptics.impact(.light)
+            onReply()
         }
-        .onEnded { _ in
-            hasTriggered = false
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.swap,
-                    reduceMotion: reduceMotion
-                )
-            ) {
-                dragOffset = 0
-            }
+    }
+
+    /// 桥回调·收尾：松手/取消/失败同口——复位触
+    /// 发标记、动画回位、不再判触发
+    private func handlePanEnded() {
+        hasTriggered = false
+        withAnimation(
+            MotionTokens.resolved(
+                MotionTokens.swap,
+                reduceMotion: reduceMotion
+            )
+        ) {
+            dragOffset = 0
         }
     }
 

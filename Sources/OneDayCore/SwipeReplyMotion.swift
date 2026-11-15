@@ -8,20 +8,19 @@ import Foundation
 /// （SwipeReplyModifier）只持拖动状态、判定全走
 /// 本处单测把守。
 ///
-/// 构造口径（Stream Chat SwiftUI 现行生产代码逐
-/// 行同构，调研报告 production-patterns-research-
-/// 20261111 §1.2/§1.5）：呈现层在行内容上挂
-/// `.simultaneousGesture(DragGesture(minimumDi-
-/// stance: 30))`，onChanged 只消费横向分量写
-/// offset——**不设方向比值门、不做任何识别器编
-/// 排**：纵滑时横向分量≈0、offset 恒 0、气泡不
-/// 动，纵滚完整归列表；横滑只跟横向分量，纵向
-/// 分量直接丢弃。阈值以 Stream 参数为单源，本
-/// 处不许另写数字：起滑 30（MessageListConfig
-/// minimumSwipeGestureDistance）、途中触发 60
-/// （SwipeToReplyModifier.replyThreshold）、显示
-/// 封顶 90（触发线＋起滑线，Stream maximumHor-
-/// izontalSwipeDisplacement 同式）。
+/// 数值口径（Stream Chat SwiftUI 现行生产代码同
+/// 源，调研报告 production-patterns-research-
+/// 20261111 §1.2/§1.5）：阈值以 Stream 参数为单
+/// 源，本处不许另写数字：起滑 30（MessageList-
+/// Config minimumSwipeGestureDistance）、途中触
+/// 发 60（SwipeToReplyModifier.replyThresh-
+/// old）、显示封顶 90（触发线＋起滑线，Stream
+/// maximumHorizontalSwipeDisplacement 同式）。
+/// 承载构造沿革：0.36.26–§264 呈现层挂 SwiftUI
+/// simultaneousGesture(DragGesture) 只消费横向
+/// 分量（纵滑时横向分量≈0、offset 恒 0）；§265
+/// 起识别层换 UIKit 仲裁（见下沿革段），本枚举
+/// 数值逐字不变。
 ///
 /// 沿革与退役（P-15）：0.36.19 首版 DragGesture
 /// ＋onChanged 方向门真机压死纵滚；0.36.20–
@@ -32,6 +31,21 @@ import Foundation
 /// 与 `engages`、跟手口径 `followedOffset(dx:
 /// lockTranslation:)`（扣锁定段）随桥整件退役；
 /// 旧阈值 52（松手触发）/76（封顶）一并作废。
+///
+/// §265（换代包 5，用户 2026-11-14 亲令大厂机制
+/// 三条之③）：simultaneousGesture 构造与双击选
+/// 字共存失败（双审计定性：SwiftUI 手势跟踪消耗
+/// 文本视图的触摸序列），呈现层改走 UIKit 识别
+/// 器仲裁——UIPanGestureRecognizer 装在宿主滚
+/// 动视图上（ScrollViewTapDismiss 的 ascend 装
+/// 配同路），仲裁两条：方向门（本处 passesDir-
+/// ectionGate，gestureRecognizerShouldBegin 消
+/// 费）＋失败依赖（点按/长按先行，delegate 的
+/// shouldRequireFailureOf 声明；列表纵滚经
+/// require(toFail:) 等本识别器先失败）。本枚举
+/// 的数值口径（起滑/触发/封顶/排除）逐字不变，
+/// 变的只是识别与仲裁的承载层；桥的装配与回调
+/// 在 OneDayApp SwipeReplyPanBridge。
 public enum SwipeReplyMotion {
     /// 起滑线：手势 minimumDistance 与「开始写
     /// 位移」的横向分量线同值（Stream 同式）
@@ -90,5 +104,18 @@ public enum SwipeReplyMotion {
         startLocation: CGPoint, frames: [CGRect]
     ) -> Bool {
         frames.contains { $0.contains(startLocation) }
+    }
+
+    /// 方向门（§265，大厂口径③）：横滑识别器在
+    /// shouldBegin 时消费——横向速度严格占优且
+    /// 向右才认横滑；纵向占优（纵滚）、向左、静
+    /// 止一律不认（识别器转 failed、触摸完整归滚
+    /// 动/文本体系）。速度分量取识别器在宿主视图
+    /// 内的 velocity(in:) 原值，符号只认 x 轴向
+    /// 右为正、y 轴只比绝对值
+    public static func passesDirectionGate(
+        velocityX: CGFloat, velocityY: CGFloat
+    ) -> Bool {
+        velocityX > 0 && abs(velocityX) > abs(velocityY)
     }
 }
