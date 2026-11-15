@@ -13175,3 +13175,25 @@ run 43746767854（workflow_dispatch @ rel-05058 尖端 0a9fca6），全日志 24
 
 run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25,031 行本地核账：**Core 2164/2164、0 failures**；**R1 装配 7/7 续绿**；**R2 装配 ⑦⑨⑩ 续绿**；**R3 装配四例全过**（⑪⑫⑬＋拼装资格）；**R4 装配 ⑭⑮⑯ 全过**——⑯ `NATIVE-LANDING-R4 contentSize=4156.0 offset=3352.0 distance=0.0 contentEndVisible=true`，与同轮 R1 ③ 的 NATIVE-LANDING 逐值相同、与 R4 预制两轮逐值相同（确定性复现）；**DiscussQuote 双面门绿**（9.2s）；**DataDetector 3/3 续绿**；**键盘矩阵本轮绿**（99.2s，rig 抖动族自愈、与登记观察一致）。App 红恰 2 件：§257.1 登记探针（EdgeEffectProbe，失败值 24/8/18/25 与基线逐值同签名、钉旗后仍在旧面量测）＋⑧（「0≠1」量测不可达、已登记量测限制）。UI 20 例 9 红、恰第 95 条登记族：原生面五件（AX 帧不稳同签名）＋仲裁 4 件（右滑/长按正文/长按电话/双击；边距带本轮过），全程无产品反例。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.59/OneDay-0.50.59-unsigned.ipa：**14,051,848 字节、md5 `9fb4ac69e24fc752a43e6d585dbd3e7e`**，解包验 CFBundleShortVersionString=0.50.59、CFBundleVersion=187、bundle id site.didichou.oneday。待办总表已落第 99 条 R4 落地行（.59 已组版、浸泡自本版起算、R5 门＝满一整版无承载级回退），副本随交付目录；真机清单 17 项＝首组手势五件最终验收（默认新面直接验）＋续组 11 项（新增第 6 项「装后默认即新面」、收尾项改「关开关回旧面再开回」）；全矩阵 24 项＋千条 Instruments 对照为浸泡期验收门、随真机验回填。未合 main、未打 tag。
+
+## §299 听写实现瘦身包（2026-11-16；分支 feat/dictation-slim，基线 rel-05059@9619b61；横扫 A-07）
+
+**定性**：形态不翻案、只拆实现机器。用户 2026-11-10 定案形态逐项不动（录音条＝废弃桶＋音波＋计时＋停/发送两钮、录时零文字、停录整段落字进输入框）；拆的是当年为已撤销的「实时出字」目标而建、目标撤销后未随之退役的 6 代叠加机器（0.36.6 初版→0.36.8/0.36.11 两轮热修→0.36.12/13 仪表加装→0.36.15 预热＋时序钟→0.36.17 改判后整套留产）。
+
+**标准装配对账（报告 §一）**：引擎本体维持系统路线——SpeechAnalyzer＋SpeechTranscriber（WWDC25 官方路线）、AVAudioEngine installTap 喂入（官方示例形态）、prepareToAnalyze 提前构造分析器（DocC 明文「may improve how quickly the modules return their first results」）、权限同步读 AVAudioApplication.recordPermission 已决定不重走异步回调（授权铁律）。官方装配里没有「预热状态机/起步时序钟/诊断仪表」层，该层为自造、整组退役。
+
+**退役清单**：①Core `DictationPreheatState/Event/Policy` 状态机＋控制器 round 令牌＋arm/disarm/suspend 三闸 → 收成一个 `preheatEnabled: Bool`＋单飞 `warmTask`：产物在否即就绪、备败不落任何状态（点按冷路径兜底）、弃置先 cancel 再清引用（迟到回执见取消即作废，替代 round 令牌）、产物自带 language 字段在消费点复核（原有口径保留）；三入口（arm/disarm/suspend）签名与语义不变，ChatView 零改动。②Core `DictationStartTiming/StartPoint` 起步时序钟整组删，控制器 begin/mark 打点全删。③诊断四格（preset/sup/inst/avail）＋结果分型计数（vol/fin）＋末阶段/诊断串 UserDefaults 落盘＋`markDiag` 整组删；`PreparedDictation` 删四个只喂仪表的字段（presetName/supported/installed/available）；`markStage` 只留 os.Logger。④上屏诊断行 `DictationStageDiagnosticLine` 退役（预备页页脚＋失败行两处调用点同删）——其使命（定位实时出字与 tap 崩溃）均已结案。⑤`usedFallbackEngine` 只写无读（原唯一消费点即 markDiag）随删。⑥专属测试 `DictationPreheatTimingTests.swift`（只测上述已退役机器）整文件删。
+
+**保留清单（不在瘦身范围）**：AudioPipe/ProgressObserver 的 nonisolated 回调隔离形态（.ips 实锤依据）；MicPermissionGate 同步门（授权铁律）；DictationFaultPolicy 启动故障闩（根除假录音）；DictationAudioFormatPolicy 格式门（NSException 防护）；相位守卫、会话合并、电平/波形/计时/静音、落稿政策与录音条政策（行为面，测试钉死）；波形/计时呈现（A-33 有据保留）。
+
+**行为等价对拍**：既有 Core 测试不动一字继续钉——DictationSettlePolicyTests（停录落字 fillComposer／落字并发送 fillAndSend／空稿静默 silentIdle＋录音条四态 BarPolicy：录音中三钮全活、准备中只许废弃、整理中全禁、其余相位全禁）、DictationTests（会话落稿 committedText 含/不含未定稿两路、取消回 baseDraft＝废弃不落字、相位守卫拒迟到回调、权限门三路）、DictationTapFeedBoxTests（tap 盒任意队列喂入）。验收项含授权/回调隔离两铁律：预热与启动全程只同步读权限状态、已授权绝不重走异步请求回调（requestMicrophonePermission 仍为全仓唯一异步请求点、nonisolated 不变）；tap 与进度观察闭包仍生在 nonisolated 盒内、只碰 Sendable 状态。
+
+**体量**：DictationController.swift 1451→1231 行；Core Dictation.swift 668→541 行；合计净删约 350 行机器（不计测试与文档）。
+
+### §299.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+第一轮（run 43763336069@04d876f，全日志 25,060 行本地核账）：**Core 2153/2153、0 failures**——基线 2164 恰减 11，即所删 DictationPreheatTimingTests 的 11 例（时序 7＋预热 4），账面闭合；听写行为套件全绿（SettlePolicy 落稿三路＋录音条四态、Session 落稿/取消回基稿、MicPermissionGate 三路、FaultPolicy、TapFeedBox 并发喂入）。App 红恰 2 件且与 .59 基线逐项同签名：§257.1（24/8/18/25 逐值同）＋R2 装配 ⑧（「0≠1」量测不可达登记签名）。UI 红 11：原生面 5＋仲裁 4（第 95 条 AX 帧不稳登记族，与基线逐项同）＋键盘矩阵 1（失败串明文「GAP 未成格（rig 定位失效）」——.55 以来登记的 rig 不稳族签名，非 GAP 产品面）＋抽屉行菜单 1（菜单外点击后菜单仍在、waiter 超时；不在 .59 红集内、与本刀改动面零交集，待第二轮仲裁成员涨落）。§184：宿主重启 1 次、BackingData 零命中，签名内。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=FAIL（由键盘矩阵 rig 红带动，与 .55 两轮同形态）。
+
+第二轮（run 43767273818@04d876f，零改动同提交，全日志 24,975 行）：**Core 2153/2153 复全绿、与首轮逐数相同**；听写行为套件复绿。App 红仍恰 2 件同签名（⑧「0≠1」×3 断言同形态；§257.1 前三值 24/8/18 逐值同、第四值 25→27 小幅漂移——该探针为登记红的量测探针、红状态与归属不变，漂移如实登记）。UI 红 10：原生面 5＋仲裁 4＋键盘矩阵 1（「GAP 未成格（rig 定位失效）」逐字同签名）；**抽屉行菜单转绿**——首轮的基线外红未复现，坐实 UI 不稳族的成员涨落、非产品反例（本刀对抽屉面零改动）。§184 同签名（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=FAIL（同首轮）。
+
+**§299 判定：判绿**（预制面，不组版）——瘦身落码与等价论证见 §299 正文；行为对拍两轮全绿、Core 两轮逐数一致；全部红均属登记签名族且无一落在本刀改动面上（听写面在 CI 的覆盖＝Core 行为套件＋App 编译/装配，均绿）；两铁律 grep 验收过（异步授权请求点全仓唯一且 nonisolated、tap/KVO 闭包仍生于 nonisolated 盒内、权限只同步读）。真机面（录音条四态手感、停录落字、预热命中快路）归主线组版时的听写真机清单，本刀不判。
