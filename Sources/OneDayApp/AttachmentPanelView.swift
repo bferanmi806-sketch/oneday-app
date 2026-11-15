@@ -17,10 +17,13 @@ import UIKit
 /// 退：选 1 张点添加即走，与旧直达同效。
 /// §299（A-08 定高收口）：定高机制自 §152/§154 的
 /// 自造量测回路（本视图经 PreferenceKey 回报内容
-/// 高→宿主状态→Core 决策→.height detent）改走系
-/// 统 fitted 尺寸——高度由系统布局按内容理想尺寸
-/// 单源决定，量测回路整套退役；呈现口径单源在
-/// 本文件的 attachmentPanelPresentation()。
+/// 高→宿主状态→Core 决策→.height detent）改走
+/// UIKit custom detent resolver 在呈现控制器内定
+/// 高（本文件 AttachmentSheetDetentBridge）——高
+/// 度由系统布局按内容理想尺寸单源求解，量测回
+/// 路整套退役。SwiftUI .presentationSizing
+/// (.fitted) 先行试过、经装配实测在 iPhone 底部
+/// sheet 上不改变高度（§299.1），不取。
 ///
 /// 授权纪律：照片条只同步读 PHPhotoLibrary 现态
 /// （系统授权铁律：已决定绝不重走请求、未决定也不
@@ -89,6 +92,15 @@ struct AttachmentPanelView: View {
         }
         .padding(OneDayMetrics.spacingM)
         .frame(maxWidth: .infinity, alignment: .leading)
+        // §299 定高桥：内容高指纹（资源库区有无／
+        // 确认行有无）喂呈现控制器 custom detent，
+        // 高度在呈现层单源求解（见桥本体注）
+        .background(
+            AttachmentSheetDetentBridge(
+                fingerprint: (showsLibrary ? 1 : 0)
+                    | (selectedIDs.isEmpty ? 0 : 2)
+            )
+        )
         .task {
             loadStrip()
         }
@@ -309,14 +321,117 @@ struct AttachmentPanelView: View {
 
 extension View {
     /// §299（A-08 定高收口）：附件面板呈现口径单
-    /// 源——系统 fitted 尺寸：sheet 高由系统布局
-    /// 按内容理想尺寸单源决定（资源库区有无、确
-    /// 认行增减同经布局自适应），不设 detent、不
-    /// 做任何自量测。ChatView 呈现点与装配测试共
-    /// 用本口径，不许在别处另抄一份
+    /// 源——拖拽指示走 SwiftUI 声明；定高不在此
+    /// 处：由面板内的 AttachmentSheetDetentBridge
+    /// 以 UIKit custom detent 在呈现控制器内求解
+    /// （SwiftUI 无 iPhone 底部 sheet 的内容贴合
+    /// 原语：.presentationSizing(.fitted) 经装配实
+    /// 测不改变 sheet 高，§299.1）。ChatView 呈现
+    /// 点与装配测试共用本口径，不许在别处另抄一份
     func attachmentPanelPresentation() -> some View {
         self
-            .presentationSizing(.fitted)
             .presentationDragIndicator(.visible)
+    }
+}
+
+/// §299（A-08 定高收口）：附件面板 sheet 定高桥
+/// ——UIKit 文档正道 `UISheetPresentationControl-
+/// ler.Detent.custom(resolver:)`：resolver 在呈
+/// 现控制器求解 detent 时，以系统布局对呈现内
+/// 容取理想高（托管视图 sizeThatFits、无界高查
+/// 询，与当前 detent 无关、无 §154 式自指），钳
+/// 顶只认 context.maximumDetentValue（系统单
+/// 源）；量测不可用时回半高（与旧 .medium 兜底
+/// 同档、面板照常打开）。内容理想高只由指纹决
+/// 定（资源库区有无／确认行有无——照片数与缩略
+/// 图到达不改高），指纹变才 invalidateDetents
+/// 触发重解；detent 集若被 SwiftUI 呈现层重置，
+/// 每次 apply 按 identifier 自愈重断言。
+struct AttachmentSheetDetentBridge: UIViewRepresentable {
+    var fingerprint: Int
+
+    func makeUIView(context: Context) -> BridgeView {
+        BridgeView()
+    }
+
+    func updateUIView(_ uiView: BridgeView, context: Context) {
+        uiView.apply(fingerprint: fingerprint)
+    }
+
+    final class BridgeView: UIView {
+        private static let detentID =
+            UISheetPresentationController.Detent.Identifier(
+                "attachmentPanel.fit"
+            )
+        private var lastFingerprint: Int?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            // 进窗拍可能早于呈现布局完成，下一轮以
+            // 已存指纹再断言一次（apply 幂等）
+            let fingerprint = lastFingerprint ?? 0
+            DispatchQueue.main.async { [weak self] in
+                self?.apply(fingerprint: fingerprint)
+            }
+        }
+
+        func apply(fingerprint: Int) {
+            guard let host = enclosingViewController(),
+                  let sheet = host.sheetPresentationController
+            else { return }
+            if sheet.detents.first?.identifier != Self.detentID {
+                sheet.detents = [
+                    .custom(identifier: Self.detentID) {
+                        [weak host] context in
+                        guard let host else {
+                            return context.maximumDetentValue
+                                * 0.5
+                        }
+                        let width = host.view.bounds.width > 0
+                            ? host.view.bounds.width
+                            : (host.view.window?.bounds.width
+                                ?? 0)
+                        guard width > 0 else {
+                            return context.maximumDetentValue
+                                * 0.5
+                        }
+                        let fit = host.view.sizeThatFits(
+                            CGSize(
+                                width: width,
+                                height: .greatestFiniteMagnitude
+                            )
+                        ).height
+                        guard fit > 0 else {
+                            return context.maximumDetentValue
+                                * 0.5
+                        }
+                        return min(
+                            fit, context.maximumDetentValue
+                        )
+                    },
+                ]
+                sheet.selectedDetentIdentifier = Self.detentID
+                sheet.invalidateDetents()
+            }
+            if lastFingerprint != fingerprint {
+                lastFingerprint = fingerprint
+                sheet.invalidateDetents()
+            }
+        }
+
+        /// 响应链上首个视图控制器即 sheet 的托管
+        /// 呈现控制器本体（本桥恒挂在呈现内容内）
+        private func enclosingViewController()
+            -> UIViewController?
+        {
+            var responder: UIResponder? = self
+            while let current = responder {
+                if let vc = current as? UIViewController {
+                    return vc
+                }
+                responder = current.next
+            }
+            return nil
+        }
     }
 }

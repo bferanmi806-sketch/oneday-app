@@ -408,10 +408,11 @@ struct ChatView: View {
     // PhotosUI 选图器（视频过滤、与图片选图器分开
     // 两套绑定，互不串扰）
     @State private var showAttachPanel = false
-    // §299（A-08 收口）：面板定高改走系统 fitted
-    // 尺寸（见 sheet 本体注），§152 的内容实测高状
-    // 态与 §154 的宿主真高回写随量测回路一并退役、
-    // 本页不再持有任何面板高度状态
+    // §299（A-08 收口）：面板定高改走呈现控制器
+    // custom detent 单源求解（见 sheet 本体注），
+    // §152 的内容实测高状态与 §154 的宿主真高回
+    // 写随量测回路一并退役、本页不再持有任何面
+    // 板高度状态
     // §186（2026-11-12，承载换代）：输入舱顶→窗口底
     // 距离的实测回报（ComposerGuideHost 在布局拍回
     // 写）——消息列表底 contentMargins ＝本值＋
@@ -1271,14 +1272,13 @@ struct ChatView: View {
         // 呈现下一层，直接收面板后批量取数入条（多
         // 选逐张走单张同一取数路，§152）。
         // §299（A-08 定高收口）：定高自 §152 的内容
-        // 实测 detent 改走系统 fitted 尺寸——sheet 高
-        // 由系统布局按内容理想尺寸单源决定（未授权
-        // 态与确认行增减同经系统布局自适应）；§152/
-        // §154 的量测回路整套退役：PreferenceKey 回
-        // 报、宿主实测高/真高两状态、Core 定高决策
-        // （可信下限＋75% 钳顶）、fixedSize 保真一并
-        // 删除，呈现口径单源收在 AttachmentPanel-
-        // View 的 attachmentPanelPresentation()
+        // 实测 detent 改走 UIKit custom detent 在呈
+        // 现控制器内单源求解（面板内 Attachment-
+        // SheetDetentBridge，未授权态与确认行增减
+        // 经指纹触发重解）；§152/§154 的量测回路整
+        // 套退役：PreferenceKey 回报、宿主实测高/真
+        // 高两状态、Core 定高决策（可信下限＋75%
+        // 钳顶）、fixedSize 保真一并删除
         .sheet(isPresented: $showAttachPanel) {
             AttachmentPanelView(
                 onCamera: {

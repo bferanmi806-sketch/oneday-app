@@ -5,19 +5,29 @@ import XCTest
 @testable import OneDayApp
 
 /// §299（A-08 定高收口）真实装配断言：附件面板经
-/// 生产呈现口径（attachmentPanelPresentation＝系
-/// 统 fitted 尺寸＋拖拽指示）在真窗口里真呈现——
-/// ①面板在场：presented 控制器存在、面板内容在
-/// 其视图树内；
-/// ②sheet 高贴内容：与独立托管 sizeThatFits 的内
-/// 容理想高对账（容差吸收安全区口径差），且显著
-/// 小于 .medium 档（不回落默认档）、显著大于塌
-/// 陷带（不重演 §154 量测自噬）；
-/// ③动态跟随：同口径下内容增行时 sheet 高跟随
-/// 变高——真面板的确认行由照片授权态＋条内选集
-/// 驱动、装配环境不可达，故以同构 VStack（真实
-/// 文本行、非固定高占位）经同一生产修饰器验增
-/// 行跟随；真面板本体走 ①②。
+/// 生产呈现口径（宿主 attachmentPanelPresenta-
+/// tion 拖拽指示＋面板内 AttachmentSheetDetent-
+/// Bridge 的 UIKit custom detent 定高）在真窗口
+/// 里真呈现——
+/// ①面板在场：presented 控制器存在、其托管视图
+/// sizeThatFits 与独立托管理想高逐值对账（空
+/// sheet 测不出此高）；
+/// ②sheet 高贴内容：帧高与内容理想高对账（容差
+/// 吸收安全区口径差），且显著小于 .medium 档
+/// （不回默认档）、显著大于塌陷带（不重演 §154
+/// 量测自噬）；
+/// ③动态跟随：同桥同指纹口径下内容增行时 sheet
+/// 高跟随变高——真面板的确认行由照片授权态＋条
+/// 内选集驱动、装配环境不可达，故以同构 VStack
+/// （真实文本行、非固定高占位）挂同一生产定高
+/// 桥验增行跟随；真面板本体走 ①②。
+/// 注：首轮（run 43763594395）曾以 .presenta-
+/// tionSizing(.fitted) 为定高路实测 sheet=874
+/// 全高、理想高 136.67 被无视——fitted 在
+/// iPhone 底部 sheet 不改高，定高已改本桥；同
+/// 轮实测 App 测试窗口内无障碍标签集为空集，
+/// 在场断言因此不用 AX 标签面、改走托管视图
+/// sizeThatFits 对账（标签集只打印留档）。
 @MainActor
 final class AttachmentPanelFitAssemblyTests: XCTestCase {
 
@@ -53,9 +63,23 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
     private func assemble<Content: View>(
         content: Content
     ) -> UIViewController {
-        window = UIWindow(
-            frame: CGRect(x: 0, y: 0, width: windowW, height: windowH)
-        )
+        // 呈现类断言须场景窗口（iOS 26 起 init
+        // (frame:) 已弃用、且无场景窗口的 sheet 呈
+        // 现口径不完整）：有场景挂场景并钉帧，无场
+        // 景回落旧式帧窗
+        if let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene }).first {
+            window = UIWindow(windowScene: scene)
+            window.frame = CGRect(
+                x: 0, y: 0, width: windowW, height: windowH
+            )
+        } else {
+            window = UIWindow(
+                frame: CGRect(
+                    x: 0, y: 0, width: windowW, height: windowH
+                )
+            )
+        }
         let root = UIHostingController(
             rootView: SheetHost(content: content)
         )
@@ -124,15 +148,6 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
         let presented = try XCTUnwrap(root.presentedViewController)
 
-        // 在场：presented 视图树内有面板内容（动
-        // 作行无障碍标签可达）
-        let labels = collectAccessibilityLabels(in: presented.view)
-        XCTAssertTrue(
-            labels.contains("添加文件"),
-            "面板动作行不在场，标签集：\(labels)"
-        )
-        XCTAssertTrue(labels.contains("添加视频"))
-
         // 内容理想高（独立托管、同宽 sizeThatFits）
         let probe = UIHostingController(rootView: makePanel())
         let ideal = probe.sizeThatFits(
@@ -141,12 +156,30 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             )
         ).height
 
+        // 在场：presented 本体即面板的托管控制器
+        // ——其视图 sizeThatFits 须与独立托管理想
+        // 高逐值对账（呈现的若是空 sheet 或错内容，
+        // 测不出此高）。无障碍标签集只留档不作断
+        // 言（首轮实测本环境 AX 树不填充、为空集）
+        let presentedIdeal = presented.view.sizeThatFits(
+            CGSize(
+                width: windowW, height: .greatestFiniteMagnitude
+            )
+        ).height
+        XCTAssertEqual(
+            presentedIdeal, ideal, accuracy: 4,
+            "presented 内容理想高 \(presentedIdeal) "
+                + "≠ 面板理想高 \(ideal)，面板不在场"
+        )
+        let labels = collectAccessibilityLabels(in: presented.view)
+
         let access = PHPhotoLibrary.authorizationStatus(
             for: .readWrite
         ).rawValue
         print(
             "ATTACH-FIT sheet=\(sheetHeight) ideal=\(ideal) "
-                + "photoAccess=\(access)"
+                + "presentedIdeal=\(presentedIdeal) "
+                + "photoAccess=\(access) labels=\(labels)"
         )
 
         // 不塌陷（§154 失败形态：高塌到近零）
@@ -188,6 +221,14 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // 与真面板同构：定高桥挂内容本体、指
+            // 纹＝增行有无（面板侧为资源库/确认行
+            // 两位指纹，机制同一）
+            .background(
+                AttachmentSheetDetentBridge(
+                    fingerprint: model.expanded ? 1 : 0
+                )
+            )
         }
     }
 
