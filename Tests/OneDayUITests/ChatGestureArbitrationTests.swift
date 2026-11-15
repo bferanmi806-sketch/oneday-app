@@ -170,8 +170,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
         for round in 0..<2 {
             let deadline = Date().addingTimeInterval(12)
             while Date() < deadline {
-                for element in app.textViews
-                    .allElementsBoundByIndex {
+                for element in candidateElements(in: app) {
                     let raw = (element.value as? String)
                         ?? element.label
                     guard !raw.isEmpty else { continue }
@@ -186,6 +185,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
                             of: "\u{FEFF}", with: ""
                         )
                     if stripped.contains(needle) {
+                        print(
+                            "TEST-FINDER matched needle="
+                                + needle
+                                + " type=\(element.elementType.rawValue)"
+                                + " frame=\(element.frame)"
+                        )
                         reveal(element, in: app)
                         return element
                     }
@@ -202,14 +207,41 @@ final class ChatGestureArbitrationTests: XCTestCase {
         throw NSError(domain: "ChatGestureArbitration", code: 1)
     }
 
+    /// 候选元素池（§265 四轮判读后扩面）：消息正文
+    /// 在演示聊天页的无障碍树里不是 TextView 形态
+    /// 出现（四轮快照恒只有输入舱一枚 TextView）——
+    /// 正文可能以 StaticText／合并元素形态在树，
+    /// 三类一并扫、命中打 TEST-FINDER 行留痕
+    private func candidateElements(
+        in app: XCUIApplication
+    ) -> [XCUIElement] {
+        app.textViews.allElementsBoundByIndex
+            + app.staticTexts.allElementsBoundByIndex
+            + app.otherElements.allElementsBoundByIndex
+    }
+
     private func valueDigest(in app: XCUIApplication) -> String {
-        app.textViews.allElementsBoundByIndex.map {
-            let raw = ($0.value as? String) ?? "<nil>"
+        candidateElements(in: app).map {
+            let raw = ($0.value as? String) ?? $0.label
             let stripped = raw.replacingOccurrences(
                 of: "\u{2060}", with: ""
             )
-            return String(stripped.prefix(30))
+            return "t\($0.elementType.rawValue):"
+                + String(stripped.prefix(30))
         }.joined(separator: " | ")
+    }
+
+    /// 临时取证（树形态定案后删）：聊天页无障碍树
+    /// 全量转储进测试日志
+    func testZDebugTreeDump() {
+        let app = launchDemoApp()
+        defer { app.terminate() }
+        _ = app.buttons["topbar.modelCapsule"]
+            .waitForExistence(timeout: 30)
+        Thread.sleep(forTimeInterval: 2)
+        print("TREEDUMP-BEGIN")
+        print(app.debugDescription)
+        print("TREEDUMP-END")
     }
 
     private func reveal(
