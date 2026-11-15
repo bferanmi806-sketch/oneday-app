@@ -128,7 +128,7 @@ final class DataDetectorPresentationTests: XCTestCase {
         XCTAssertEqual(views.count, 1, "散文段应恰一台承载文本视图")
         XCTAssertEqual(
             views.first?.dataDetectorTypes,
-            [.phoneNumber, .link],
+            UIDataDetectorTypes([.phoneNumber, .link]),
             "承载视图探测开集应为 [.phoneNumber, .link]"
         )
         let links = awaitLinks()

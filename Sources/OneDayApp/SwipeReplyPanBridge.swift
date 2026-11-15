@@ -225,7 +225,12 @@ final class SwipeReplyPanInstallerView: UIView,
     /// 方向门＋排除门：速度不满足横向占优、或起
     /// 滑点落在排除帧（代码块/表格横滚区）内——
     /// 不许开始（转 failed、触摸不被吞）
-    func gestureRecognizerShouldBegin(
+    /// 注：本方法与 UIView 自带的同名 open 方法
+    /// （识别器宿主视图的开始否决钩）同签名——
+    /// override 一份声明同时充当 delegate 证人
+    /// 与该钩子的覆写；本视图自身不挂识别器，宿
+    /// 主钩子面无行为交集
+    override func gestureRecognizerShouldBegin(
         _ gestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         guard let pan = gestureRecognizer
