@@ -12816,3 +12816,15 @@ run 43666426575（workflow_dispatch @ feat/component-convergence，头 3d412dc�
 ### §276.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43666408050（workflow_dispatch @ feat/platform-icons-unify）：名义 failure，红因仅下述登记项。**Core 2096/2096 精确对账**（Executed 2096、0 failures＝rel-05048 的 2095＋本包新增 1：testChannelRegistryIconUnifyBatch）；**本包新测全过**——Core testChannelRegistryIconUnifyBatch passed、App testAllRegisteredPlatformBrandAssetsResolveToBitmaps passed（16 枚已登记资产实物解析＋近正方）、既有 testDrawerChannelBrandAssetsResolveToBitmaps passed；**UI Executed 10、9 过 1 红**；Build／符号动效登记核查／Package／Upload IPA 步骤全 success。登记两项（不堵门）：①App 唯一 failed＝EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1 像素探针抖动——"6"＞"4"、617 行、浅色 bottomRest，与 .47/.48 同签名、与本包零交集）；②UI 唯一 failed＝DrawerRowContextMenuTests.testUnadoptedServerRowExposesFourActions（菜单外点击后上下文菜单未消、XCTWaiter 超时，50.8s——抽屉长按菜单等待 flake 族，§263.1 已登记同族；本包未触 DrawerView／上下文菜单／演示数据）。§184 本轮安静：BackingData:835 日志零命中、无宿主崩溃签名。未合 main、未打 tag。
+
+## §277 0.50.51 组版（2026-11-15；分支 rel-05051，基线 rel-05050@edf8b12）
+
+**装车四件＋小改一件**（拣入序）：①桥-1 探针归位（feat/bridge-1-probe-home，基线 rel-05045）——24ea062 本体＋0629e62 判读回填，共 2 提交；其 DESIGN 节顺延为 **§274**（含 §274.1）。②第 87 条文案行话清零（fix/copy-jargon-cleanup，基线 rel-05048）——13a9a9a 单提交（无 DESIGN 改动）。③第 88 条同物多制收口（feat/component-convergence，基线 rel-05048）——fbc92f6/cea2008/f8dff3a/6939723/730f7cf 五代码提交＋3d412dc 文档＋97a4643 判读回填，共 7 提交；其 DESIGN 节顺延为 **§275**（含 §275.1），§225.1/§14 两处对账补记随入、交叉引用「对账全文见 §265」同步改指 §275。④第 86 条平台行图标统一＋第 88 条④（feat/platform-icons-unify，基线 rel-05048）——7fa59dc 本体＋f37cf70 判读回填，共 2 提交；其 DESIGN 节顺延为 **§276**（含 §276.1）。⑤主线裁定小改（组版对位提交）：枢纽简介行高回规格——HubIdentitySection 简介区/风格区两处 `.body`＋`lineSpacing(6)`（§222 有意偏离、pitch ≈28）摘除 lineSpacing、回字阶规格 22（第 84 条案 B 裁定，量测依据 line-height-spec-20261115.md 枢纽节）；ChatView 发送舱规格注释 19.17/46 改 20.37/46.37（第 84 条遗留顺手项、仅注释）。
+
+**冲突处置**：代码面四包全自动合入、零冲突（桥-1 改 Companion/Ledger 面、文案改 strings 与文案位、组件改分段/搜索/按压面、图标改注册表与资产，互不交叠）。DESIGN 冲突四处（文末撞尾同型）亲解：HEAD 全保留、四包节顺延 §274/§275/§276 追加文末，判读回填小冲突两处（§275.1/§276.1）按顺延号改题后续写。
+
+**计数对账（预期）**：Core **2111**（2110＋1：图标包 testChannelRegistryIconUnifyBatch；桥-1/文案/组件三包各自 CI 均与自家基线同数、零增删；两树 `func test` 计数实测 2110→2111 互证）；UI **10**（不变）；App 注册预期 **214**（213＋1：图标包 testAllRegisteredPlatformBrandAssetsResolveToBitmaps；函数计数 215→216、基线注册与函数差 2 沿旧例）。
+
+**版号**：0.50.51／构建 179（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
+
+### §277.1 CI 判读（待回填）

@@ -122,7 +122,6 @@ struct HubIdentitySection: View {
                 Text(paragraph)
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
-                    .lineSpacing(6)
             }
         }
         .listRowSeparator(.hidden)
@@ -146,7 +145,6 @@ struct HubIdentitySection: View {
                 Text(paragraph)
                     .font(.body)
                     .foregroundStyle(Palette.ink)
-                    .lineSpacing(6)
             }
         }
         .listRowSeparator(.hidden)
