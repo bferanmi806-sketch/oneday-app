@@ -58,7 +58,19 @@ struct DictationBar: View {
                     height: ComposerLayout.buttonHeight
                 )
                 .background(Palette.fieldFill, in: Circle())
-                .contentShape(Circle())
+                // 第 83 条（命中域收口）：视觉盘 30 不变、
+                // 命中域外扩 44（外层矩形取代旧 30 圆命中
+                // 形）；负内边距抵消外扩、录音条布局仍按
+                // 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .disabled(!controls.discardEnabled)
@@ -78,7 +90,19 @@ struct DictationBar: View {
                     height: ComposerLayout.buttonHeight
                 )
                 .background(Palette.fieldFill, in: Circle())
-                .contentShape(Circle())
+                // 第 83 条（命中域收口）：视觉盘 30 不变、
+                // 命中域外扩 44（外层矩形取代旧 30 圆命中
+                // 形）；负内边距抵消外扩、录音条布局仍按
+                // 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .disabled(!controls.stopEnabled)
@@ -98,7 +122,19 @@ struct DictationBar: View {
                     height: ComposerLayout.buttonHeight
                 )
                 .background(Palette.primaryPale, in: Circle())
-                .contentShape(Circle())
+                // 第 83 条（命中域收口）：视觉盘 30 不变、
+                // 命中域外扩 44（外层矩形取代旧 30 圆命中
+                // 形）；负内边距抵消外扩、录音条布局仍按
+                // 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
         }
         .buttonStyle(.odPressable)
         .disabled(!controls.sendEnabled)

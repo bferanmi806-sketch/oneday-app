@@ -525,6 +525,16 @@ struct FeedView: View {
                 Image(systemName: "info.circle")
                     .font(.system(size: 15))
                     .foregroundStyle(Palette.inkSecondary)
+                    // 第 83 条（命中域收口）：字形不变、命
+                    // 中域外扩 44；负内边距按字形名义 15 抵
+                    // 消（(44−15)/2），帖头行高由同排脚注文
+                    // 本主导、布局不动
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+                    .padding(-(OneDayMetrics.minTapTarget - 15) / 2)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("来源")

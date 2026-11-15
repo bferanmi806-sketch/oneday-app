@@ -818,7 +818,15 @@ struct DeliverablesView: View {
                         .font(.system(size: 16, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
                         .frame(width: 40, height: 40)
+                        // 第 83 条（命中域收口）：与同文件媒
+                        // 体行同钮对齐——命中域外扩 44；负内
+                        // 边距抵消外扩、文档行布局不动
+                        .frame(
+                            width: OneDayMetrics.minTapTarget,
+                            height: OneDayMetrics.minTapTarget
+                        )
                         .contentShape(Rectangle())
+                        .padding(-(OneDayMetrics.minTapTarget - 40) / 2)
                 }
                 .accessibilityLabel("更多操作")
             }
