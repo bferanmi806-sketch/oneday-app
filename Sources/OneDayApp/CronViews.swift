@@ -160,7 +160,7 @@ struct CronJobsView: View {
                 }
                 Text(job.enabled ? "启用" : "已暂停")
                     .font(.footnote)
-                    .foregroundStyle(job.enabled ? Palette.success : Palette.inkSecondary)
+                    .foregroundStyle(job.enabled ? Palette.successText : Palette.inkSecondary)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)

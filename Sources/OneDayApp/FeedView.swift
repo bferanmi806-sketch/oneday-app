@@ -1132,21 +1132,24 @@ struct FeedBriefEditorView: View {
                 Section {
                     // S2-11：保存钮提主钮层级——照 §118 审批
                     // 卡主钮同款形态（通栏胶囊、高
-                    // ApprovalCardSpec.buttonHeight、蓝实心
-                    // 白字），不再用 Form 文本行式 Button
+                    // ApprovalCardSpec.buttonHeight、主钮
+                    // 配色），不再用 Form 文本行式 Button
+                    // 2026-11-15（第 85 条）：配色改走主钮正
+                    // 道 primaryPale＋onPrimary——旧「primary
+                    // 实心＋白字」暗档仅 2.33:1（BC-1）
                     Button {
                         Task { await saveInterest() }
                     } label: {
                         ZStack {
                             Text("保存兴趣")
                                 .font(.headline)
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Palette.onPrimary)
                             if store.briefSaving {
                                 HStack {
                                     Spacer()
                                     ProgressView()
                                         .controlSize(.small)
-                                        .tint(Color.white)
+                                        .tint(Palette.onPrimary)
                                 }
                                 .padding(
                                     .trailing,
@@ -1156,7 +1159,7 @@ struct FeedBriefEditorView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .frame(height: ApprovalCardSpec.buttonHeight)
-                        .background(Palette.primary, in: Capsule())
+                        .background(Palette.primaryPale, in: Capsule())
                         .contentShape(Capsule())
                         .opacity(
                             store.briefSaving || !interestChanged

@@ -180,7 +180,7 @@ struct HubLedgerSection: View {
                ) {
                 Text(note)
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             Spacer()
             // §217：新建入口收口——原任务段/监测段各
@@ -322,7 +322,7 @@ struct HubLedgerSection: View {
             if item.isReconciled {
                 Text("补记")
                     .font(.caption2)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
                     .padding(.horizontal, OneDayMetrics.iconTextGap)
                     .padding(.vertical, OneDayMetrics.spacingMicro)
                     .overlay {

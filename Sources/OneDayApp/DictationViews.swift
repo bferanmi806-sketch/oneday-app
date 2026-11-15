@@ -138,7 +138,7 @@ struct DictationBar: View {
                 NumberText(DictationTiming.format(
                     elapsedSeconds: controller.elapsedSeconds), font: .subheadline)
                     .foregroundStyle(controller.isTimingWarning
-                        ? Palette.warning : Palette.inkSecondary)
+                        ? Palette.warningText : Palette.inkSecondary)
             }
         }
     }

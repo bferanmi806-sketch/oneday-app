@@ -122,7 +122,7 @@ struct PresetsView: View {
                         if isActive {
                             Text("使用中")
                                 .font(.footnote)
-                                .foregroundStyle(Palette.success)
+                                .foregroundStyle(Palette.successText)
                         }
                     }
                     Text(preset.summaryLine)

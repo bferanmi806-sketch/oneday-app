@@ -317,7 +317,7 @@ struct ApprovalReviewContent: View {
             ForEach(detail.review.noteLabels, id: \.self) { label in
                 Label(label, systemImage: "exclamationmark.triangle")
                     .font(.footnote)
-                    .foregroundStyle(Palette.warning)
+                    .foregroundStyle(Palette.warningText)
             }
             if detail.review.requestedOldString != nil {
                 Label(
@@ -325,7 +325,7 @@ struct ApprovalReviewContent: View {
                     systemImage: "exclamationmark.triangle"
                 )
                 .font(.footnote)
-                .foregroundStyle(Palette.warning)
+                .foregroundStyle(Palette.warningText)
             }
             Text(detail.review.displayDiff)
                 .font(.system(.footnote, design: .monospaced))

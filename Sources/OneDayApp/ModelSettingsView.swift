@@ -426,7 +426,7 @@ struct ModelSettingsView: View {
             if isDefaultOwner {
                 Text("默认")
                     .font(.footnote)
-                    .foregroundStyle(Palette.success)
+                    .foregroundStyle(Palette.successText)
             }
             Text(L10n.format("%lld 个模型", modelCount))
                 .font(.footnote)
@@ -752,7 +752,7 @@ struct GovernedModelRows: View {
             if current {
                 Text("默认")
                     .font(.footnote)
-                    .foregroundStyle(Palette.success)
+                    .foregroundStyle(Palette.successText)
             }
         }
         .contentShape(Rectangle())

@@ -42,7 +42,7 @@ struct CloudComputerDetailView: View {
                         Spacer()
                         Text(status.text)
                             .foregroundStyle(
-                                status.tone == .ok ? Palette.success
+                                status.tone == .ok ? Palette.successText
                                     : status.tone == .bad ? Palette.danger
                                     : Palette.inkSecondary
                             )
@@ -192,7 +192,7 @@ struct CredentialFormView: View {
             case .verified(let detail):
                 Text("已连上：\(detail)")
                     .font(.footnote)
-                    .foregroundStyle(Palette.success)
+                    .foregroundStyle(Palette.successText)
             case .failed(let detail):
                 Text(detail)
                     .font(.footnote)

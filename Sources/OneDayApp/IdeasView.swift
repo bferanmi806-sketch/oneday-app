@@ -682,10 +682,13 @@ struct IdeaDetailView: View {
                         Text(acting ? "处理中…" : "开始吧")
                     }
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    // 第 85 条（BC-1）：主钮改走 primaryPale
+                    // ＋onPrimary 正道（旧白字压 primary 暗
+                    // 档仅 2.33:1）
+                    .foregroundStyle(Palette.onPrimary)
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
-                    .background(Palette.primary, in: Capsule())
+                    .background(Palette.primaryPale, in: Capsule())
                 }
                 // 手感 A 档：页面主动作补按下态（公用
                 // 按压件）；采纳结果触感已由 IdeasStore
@@ -698,10 +701,12 @@ struct IdeaDetailView: View {
                 } label: {
                     Text("打开对话")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        // 第 85 条（BC-1）：同「开始吧」主钮
+                        // 配色正道（primaryPale＋onPrimary）
+                        .foregroundStyle(Palette.onPrimary)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
-                        .background(Palette.primary, in: Capsule())
+                        .background(Palette.primaryPale, in: Capsule())
                 }
                 // 手感 A 档：与「开始吧」同式补按下态
                 .buttonStyle(.odPressable)

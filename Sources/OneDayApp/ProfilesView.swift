@@ -45,7 +45,7 @@ struct ProfilesView: View {
                             Spacer()
                             Text("使用中")
                                 .font(.footnote)
-                                .foregroundStyle(Palette.success)
+                                .foregroundStyle(Palette.successText)
                         }
                         .padding(.horizontal, OneDayMetrics.spacingM)
                         .frame(minHeight: OneDayMetrics.rowHeight)
@@ -188,7 +188,7 @@ struct ProfilesView: View {
                 if isActive {
                     Text("使用中")
                         .font(.footnote)
-                        .foregroundStyle(Palette.success)
+                        .foregroundStyle(Palette.successText)
                 }
             }
             .padding(.horizontal, OneDayMetrics.spacingM)

@@ -547,7 +547,7 @@ struct ChannelPairingView: View {
         Section {
             Text("钥匙只存在你自己的服务器上，这个 App 不保存。")
                 .font(.captionText)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .listRowBackground(Color.clear)

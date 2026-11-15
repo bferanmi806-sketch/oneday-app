@@ -324,7 +324,9 @@ struct OverviewView: View {
                 Spacer()
                 Text(ServerLabels.platformState(platform.state))
                     .font(.captionText)
-                    .foregroundStyle(Palette.stateColor(platform.state))
+                    // 第 85 条（BC-2）：状态词文字位走
+                    // stateTextColor（同 GatewayView 口径）
+                    .foregroundStyle(Palette.stateTextColor(platform.state))
             }
             if let message = platform.errorMessage, !message.isEmpty {
                 Text(message)

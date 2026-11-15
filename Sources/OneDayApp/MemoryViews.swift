@@ -157,7 +157,7 @@ struct MemoryView: View {
             icon: "internaldrive",
             title: "内置记忆",
             trailing: active ? "使用中" : nil,
-            trailingColor: Palette.success
+            trailingColor: Palette.successText
         )
     }
 
@@ -182,7 +182,7 @@ struct MemoryView: View {
             title: provider.name,
             subtitle: chineseDescription,
             trailing: isActive(provider, in: status) ? "使用中" : nil,
-            trailingColor: Palette.success,
+            trailingColor: Palette.successText,
             showsChevron: true
         )
     }
@@ -368,7 +368,7 @@ struct MemoryProviderConfigView: View {
                         Spacer()
                         Text("使用中")
                             .font(.footnote)
-                            .foregroundStyle(Palette.success)
+                            .foregroundStyle(Palette.successText)
                     }
                     .padding(.horizontal, OneDayMetrics.spacingM)
                     .frame(minHeight: OneDayMetrics.rowHeight)
