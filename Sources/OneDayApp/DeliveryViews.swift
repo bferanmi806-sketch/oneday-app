@@ -148,6 +148,7 @@ struct DeliveryImageView: View {
             }
         }
         .onTapGesture { onOpen() }
+        .odPressFeedback()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             A11yText.imageLabel(fileName: meta.name)
