@@ -93,8 +93,10 @@ public enum LedgerSegment: Sendable, Equatable {
     case none
 }
 
-/// 账本记录（一行一会话）
-public struct SessionRecord: Sendable, Equatable, Identifiable {
+/// 账本记录（一行一会话）。不声明 Equatable：
+/// ServerSession 本体无 Equatable，行集比较一律
+/// 走 ledgerID（影子对账与测试同口径）
+public struct SessionRecord: Sendable, Identifiable {
     /// 本地线程在：local:<uuid>；未收养：server:<id>
     /// （与现归档键命名空间同形，迁移零翻译）
     public var ledgerID: String
