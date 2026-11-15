@@ -12896,4 +12896,6 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 
 **版号**：0.50.52／构建 180（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
 
-### §281.1 CI 判读（待回填）
+### §281.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带登记两项）**
+
+run 43678345805（workflow_dispatch @ rel-05052 尖端 9f65ece）：名义 failure，红因仅下述登记项，全日志本地核账（19,040 行）。**Core 2130/2130 精确对账**（Executed 2130、0 failures＝.51 的 2111＋账本包一 11＋包二 7＋对比度闸⑥ 1，与 §281 预期逐项吻合；命中域 10 例在 App 目标、不入 Core）；**App 233 注册、232 得判词**（226 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），注册数与预期逐项吻合（214＋账本包一 5＋包二 4＋命中域 10）；**UI 10/10 全过**（Executed 10、0 failures；抽屉长按菜单 flake 本轮未现）。四包新测全过：SessionLedgerTests 11/11、SessionTitlePipelineTests 7/7、SessionLedgerAppTests 5/5、SessionLedgerPackage2Tests 4/4、SessionCatalogGuardTests 9/9（B-1 闸不回退）、HitArea44Tests 10/10、ChatThemeTests 14 例全过（含对比闸⑥）、DeleteOptimisticTests／DeleteCloseoutTests 两套全过（删除引擎换归属后旧断言不退）。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／Package／Upload 三步 success。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，:617 XCTAssertLessThanOrEqual，与 .47–.51 同签名、与本版改动零交集）；②宿主重启 **1 次**（05:02:02），`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（§184 余崩孤立项；BackingData 日志零命中）。IPA 解包亲验：0.50.52／180／site.didichou.oneday，13,889,508 字节，md5 `ac317dae325f4311efaad51848216bab`，落 ~/workspace/your_files/oneday-v0.50.52/（附待办总表副本）。未合 main、未打 tag。
