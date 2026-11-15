@@ -102,6 +102,19 @@ struct ChatListCarrierCallbacks {
 
 // MARK: - 句柄（ChatView 的命令口与读数匣）
 
+/// 列表面控制口（§291 原生重建 R1 抽出）：gen3 容
+/// 器与原生容器（ChatRootViewController）共用同一
+/// 句柄形态——ChatView 的跟随/锚恢复链只认本口，
+/// 当前面由 ChatView 的 listHandle 派生决定，链本
+/// 体不为每个承载再抄一份（§257 的执行双胞胎到
+/// 本口收口）
+protocol ChatListSurfaceControlling: AnyObject {
+    func scrollToBottom(animated: Bool)
+    func scrollToEntry(_ id: UUID, animated: Bool)
+    func captureAnchor() -> ChatListAnchor?
+    func restore(_ anchor: ChatListAnchor)
+}
+
 /// 与 ChatListScrollViewHandle／ComposerFocus-
 /// Handle 同式的被动句柄：ChatView 持一份，命令
 /// （贴底/锚恢复）经它下达、几何读数经它回读
@@ -117,7 +130,7 @@ final class ChatListCarrierHandle {
     /// 底 inset 实值（本承载手动记账，与设定值恒等）
     var bottomInset: CGFloat = 0
 
-    weak var controller: ChatListCarrierViewController?
+    weak var controller: (any ChatListSurfaceControlling)?
 
     func scrollToBottom(animated: Bool) {
         controller?.scrollToBottom(animated: animated)
@@ -190,7 +203,7 @@ enum ChatListAnchorStore {
 // MARK: - 容器视图控制器
 
 final class ChatListCarrierViewController: UIViewController,
-    UIScrollViewDelegate
+    UIScrollViewDelegate, ChatListSurfaceControlling
 {
     let scrollView = UIScrollView()
     private let contentView = UIView()

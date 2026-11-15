@@ -455,6 +455,14 @@ struct SettingsView: View {
     @AppStorage(ChatStreamingFeature.defaultsKey)
     private var gen4StreamingEnabled = true
 
+    /// §291（原生重建 R1）原生面开关（Core Chat-
+    /// NativeListFeature，与 ChatView 同键同源）：
+    /// 默认关；开后消息列表换 UICollectionView 原
+    /// 生承载（落定行集），关掉即回现行面、无数据
+    /// 迁移。R4 转默认前本开关即回滚口
+    @AppStorage(ChatNativeListFeature.defaultsKey)
+    private var nativeListEnabled = false
+
     private var labSection: some View {
         Section {
             Toggle(isOn: $gen3CarrierEnabled) {
@@ -479,6 +487,19 @@ struct SettingsView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：回复逐块成形、已成形的部分先按正式排版显示；关掉回逐词渐显的旧呈现。仅在会话页新承载开启时生效。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $nativeListEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表原生重建"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("实验开关：开启后消息列表换用系统集合视图承载（原生重建 R1），出问题关掉即回现行承载。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
