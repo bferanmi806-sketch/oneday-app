@@ -167,6 +167,7 @@ final class ChatCarrierSpacingProbeTests: XCTestCase {
             x: 0, y: 0, width: 402, height: 874
         )
         controller.didMove(toParent: container)
+        container.view.layoutIfNeeded()
     }
 
     private func drainRunLoop(seconds: TimeInterval) {
@@ -234,7 +235,9 @@ final class ChatCarrierSpacingProbeTests: XCTestCase {
             keyboardAnimationCurveRaw: 0,
             arrowView: nil
         )
+        controller.view.layoutIfNeeded()
         drainRunLoop(seconds: 1.5)
+        controller.view.layoutIfNeeded()
         let sv = controller.scrollView
         print(
             "PROBE89 carrier contentSize=\(sv.contentSize) "
