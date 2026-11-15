@@ -198,46 +198,105 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
 
     /// 递归采集一棵视图树里全部可达文本：无障碍
     /// 标签（SwiftUI 元素经托管树的 accessibility-
-    /// Elements 递出）＋平台文本视图/标签的正文
+    /// Elements 递出）＋平台文本视图/标签的正文。
+    /// 第一轮 CI 实证：UIHostingConfiguration 的
+    /// SwiftUI 内容只经 accessibilityElements 数组
+    /// 采集时递不出（托管视图的元素经 UIAccessi-
+    /// bilityContainer 协议按需生成）——故并行走
+    /// 容器协议通道（accessibilityElementCount／
+    /// at:），这是 AX 运行时自身的取数口；两通道
+    /// 并集后按 cell 拼成整串再查标记（词元级标
+    /// 签被切开时拼接后仍可命中，排除断言的误报
+    /// 面只限「标记字符恰按序跨元素相邻」——对
+    /// 本测试的判别标记 DeOldify／colorize.cc
+    /// 而言即真渲染在场）
     private func renderTexts(in view: UIView) -> [String] {
         var out: [String] = []
-        func walk(_ object: Any) {
+        func walkElement(
+            _ element: UIAccessibilityElement, depth: Int
+        ) {
+            if let label = element.accessibilityLabel,
+               !label.isEmpty {
+                out.append(label)
+            }
+            walkContainer(element, depth: depth + 1)
+        }
+        func walkContainer(_ object: Any, depth: Int) {
+            guard depth <= 6,
+                  let container = object
+                    as? UIAccessibilityContainer
+            else { return }
+            let count = container
+                .accessibilityElementCount()
+            guard count > 0, count < 100_000 else {
+                return
+            }
+            for index in 0..<count {
+                guard let child = container
+                    .accessibilityElement(at: index)
+                else { continue }
+                if let childView = child as? UIView {
+                    walk(childView, depth: depth + 1)
+                } else if let childElement = child
+                    as? UIAccessibilityElement {
+                    walkElement(
+                        childElement, depth: depth + 1
+                    )
+                }
+            }
+        }
+        func walk(_ object: Any, depth: Int = 0) {
             if let v = object as? UIView {
                 if v.isAccessibilityElement,
                    let label = v.accessibilityLabel,
                    !label.isEmpty {
                     out.append(label)
                 }
-                if let textView = v as? UITextView,
-                   let text = textView.text, !text.isEmpty {
-                    out.append(text)
+                if let textView = v as? UITextView {
+                    if let text = textView.text,
+                       !text.isEmpty {
+                        out.append(text)
+                    }
+                    if let attributed =
+                        textView.attributedText?.string,
+                       !attributed.isEmpty {
+                        out.append(attributed)
+                    }
                 }
                 if let label = v as? UILabel,
                    let text = label.text, !text.isEmpty {
                     out.append(text)
                 }
                 if let elements = v.accessibilityElements {
-                    elements.forEach(walk)
+                    elements.forEach {
+                        walk($0, depth: depth + 1)
+                    }
                 }
-                v.subviews.forEach(walk)
+                if !v.isAccessibilityElement {
+                    walkContainer(v, depth: depth + 1)
+                }
+                v.subviews.forEach {
+                    walk($0, depth: depth + 1)
+                }
             } else if let element =
-                        object as? UIAccessibilityElement,
-                      let label = element.accessibilityLabel,
-                      !label.isEmpty {
-                out.append(label)
+                        object as? UIAccessibilityElement {
+                walkElement(element, depth: depth)
             }
         }
         walk(view)
         return out
     }
 
+    /// 一个 cell 的全部可达文本拼成的整串
+    private func renderText(in view: UIView) -> String {
+        renderTexts(in: view).joined()
+    }
+
     /// 含标记文本的可见 cell 数（同帧渲染树口径）
     private func cellsContaining(_ marker: String) -> Int {
         controller.collectionView.visibleCells.filter {
             cell in
-            renderTexts(in: cell).contains {
-                $0.contains(marker)
-            }
+            renderText(in: cell).contains(marker)
         }.count
     }
 
@@ -311,6 +370,18 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         ])
         drain()
         XCTAssertEqual(
+            controller.collectionView
+                .numberOfItems(inSection: 0),
+            1,
+            "闭合前须为打开段单 item（前缀＋尾块同 item 内分工）"
+        )
+        print(
+            "R2-⑧ 第一拍渲染树："
+                + controller.collectionView.visibleCells
+                    .map { renderText(in: $0) }
+                    .joined(separator: " | ")
+        )
+        XCTAssertEqual(
             cellsContaining("DeOldify"), 1,
             "闭合前 A 须只出现在打开段 item 一处渲染树"
         )
@@ -344,35 +415,34 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
             cellsContaining("colorize.cc"), 1,
             "封段后 B 须只出现在打开段 item 一处"
         )
+        print(
+            "R2-⑧ 第二拍渲染树："
+                + controller.collectionView.visibleCells
+                    .map { renderText(in: $0) }
+                    .joined(separator: " | ")
+        )
         // 互斥直证：封存段 cell 不含 B、打开段 cell
         // 不含 A
         let cells = controller.collectionView.visibleCells
         let sealedCell = try XCTUnwrap(
             cells.first {
-                renderTexts(in: $0).contains {
-                    $0.contains("DeOldify")
-                }
+                renderText(in: $0).contains("DeOldify")
             },
             "封存段 cell 须在场"
         )
         XCTAssertFalse(
-            renderTexts(in: sealedCell).contains {
-                $0.contains("colorize.cc")
-            },
+            renderText(in: sealedCell)
+                .contains("colorize.cc"),
             "封存段渲染树不许含打开段文字"
         )
         let tailCell = try XCTUnwrap(
             cells.first {
-                renderTexts(in: $0).contains {
-                    $0.contains("colorize.cc")
-                }
+                renderText(in: $0).contains("colorize.cc")
             },
             "打开段 cell 须在场"
         )
         XCTAssertFalse(
-            renderTexts(in: tailCell).contains {
-                $0.contains("DeOldify")
-            },
+            renderText(in: tailCell).contains("DeOldify"),
             "打开段渲染树不许残留已封段文字"
         )
     }
