@@ -12813,4 +12813,6 @@ run 43666426575（workflow_dispatch @ feat/component-convergence，头 3d412dc�
 
 **测试**：Core 新增 `testChannelRegistryIconUnifyBatch`（12 登记＋5 nil 逐个钉死）；App 新增 `testAllRegisteredPlatformBrandAssetsResolveToBitmaps`（§225 同族：全部 16 枚已登记平台资产逐个验包内位图解析＋近正方，防登记名与文件缺失脱节）。
 
-### §276.1 CI 判读（待回填）
+### §276.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+run 43666408050（workflow_dispatch @ feat/platform-icons-unify）：名义 failure，红因仅下述登记项。**Core 2096/2096 精确对账**（Executed 2096、0 failures＝rel-05048 的 2095＋本包新增 1：testChannelRegistryIconUnifyBatch）；**本包新测全过**——Core testChannelRegistryIconUnifyBatch passed、App testAllRegisteredPlatformBrandAssetsResolveToBitmaps passed（16 枚已登记资产实物解析＋近正方）、既有 testDrawerChannelBrandAssetsResolveToBitmaps passed；**UI Executed 10、9 过 1 红**；Build／符号动效登记核查／Package／Upload IPA 步骤全 success。登记两项（不堵门）：①App 唯一 failed＝EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1 像素探针抖动——"6"＞"4"、617 行、浅色 bottomRest，与 .47/.48 同签名、与本包零交集）；②UI 唯一 failed＝DrawerRowContextMenuTests.testUnadoptedServerRowExposesFourActions（菜单外点击后上下文菜单未消、XCTWaiter 超时，50.8s——抽屉长按菜单等待 flake 族，§263.1 已登记同族；本包未触 DrawerView／上下文菜单／演示数据）。§184 本轮安静：BackingData:835 日志零命中、无宿主崩溃签名。未合 main、未打 tag。
