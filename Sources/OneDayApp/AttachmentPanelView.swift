@@ -379,6 +379,17 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
             guard let host = enclosingViewController(),
                   let sheet = host.sheetPresentationController
             else { return }
+            // §299.2 候选②（候选①实测不净后换）：
+            // sheet 托管控制器 safeAreaRegions 清
+            // 零（R1 行宿主 H2 同款）——§299.1/§299.2
+            // 量测律：in-sheet 量测计入底部安全区
+            // +34、帧关系再按托管视图安全区叠一
+            // 层 +34；候选①只减量测侧、帧仍 +34。
+            // 源头清零使托管视图安全区恒 0：量测
+            // 回内容理想高、帧附加项同灭
+            if !host.safeAreaRegions.isEmpty {
+                host.safeAreaRegions = []
+            }
             if sheet.detents.first?.identifier != Self.detentID {
                 sheet.detents = [
                     .custom(identifier: Self.detentID) {
@@ -405,20 +416,8 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                             return context.maximumDetentValue
                                 * 0.5
                         }
-                        // §299.2 候选①：in-sheet 量测把
-                        // 底部安全区计进理想高（§299.1
-                        // 实测 +34），resolver 返回前减
-                        // 托管视图当前实测安全区（不写
-                        // 死数值），抵量测侧的这一计
-                        let adjusted = fit
-                            - host.view.safeAreaInsets.bottom
-                        guard adjusted > 0 else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
                         return min(
-                            adjusted,
-                            context.maximumDetentValue
+                            fit, context.maximumDetentValue
                         )
                     },
                 ]
