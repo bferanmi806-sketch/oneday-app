@@ -80,7 +80,7 @@ struct MarkdownText: View {
     ) -> some View {
         SelectableInlineText(
             paragraphs: Self.proseParagraphs(paragraphs),
-            textStyle: .callout,
+            textStyle: .body,
             foreground: Palette.bodyInk,
             onSelectionChange: onSelectionChange
         )
@@ -100,7 +100,7 @@ struct MarkdownText: View {
                 ? 0
                 : (paragraph.tightAfter
                     ? OneDayMetrics.spacingXS
-                    : OneDayMetrics.spacingSM)
+                    : OneDayMetrics.paragraphSpacing)
             switch paragraph.kind {
             case .body:
                 break
@@ -261,7 +261,7 @@ struct MarkdownText: View {
             // VStack 的几何同值），整块内任意选段
             SelectableInlineText(
                 paragraphs: Self.quoteParagraphs(lines),
-                textStyle: .callout,
+                textStyle: .body,
                 foreground: Palette.inkSecondaryOnFill,
                 onSelectionChange: onSelectionChange
             )
@@ -295,13 +295,13 @@ struct MarkdownText: View {
                     // 基线），与标记列保持首行对齐
                     SelectableInlineText(
                         paragraphs: [.markdown(item.text)],
-                        textStyle: .callout,
+                        textStyle: .body,
                         foreground: Palette.bodyInk,
                         onSelectionChange: onSelectionChange
                     )
                     .alignmentGuide(.firstTextBaseline) { _ in
                         InlineTextFonts.firstBaseline(
-                            textStyle: .callout,
+                            textStyle: .body,
                             category: dynamicTypeSize
                                 .contentSizeCategory,
                             boldText: legibilityWeight == .bold

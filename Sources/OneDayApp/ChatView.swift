@@ -1398,21 +1398,18 @@ struct ChatView: View {
             await refreshEchoTraces()
             // §251（换代包 2）：排版产物预热——进/切
             // 线程时对已载条目在后台预产产物（影子
-            // 层、只算不消费，呈现零作用）。文本宽＝
-            // 屏宽−（气泡内边距×2＋侧留白），与助手
-            // 泡/用户泡的几何同账（两泡同为 W−76）；
-            // 助手文本取摘标记后文本（EntryScanMemo
-            // .media）——与气泡 displayText 在无确证
-            // 摘行时逐字相等，有摘行时键按内容哈希
-            // 自会分家、不产生错产物（包 3 消费时以
-            // displayText 现查现产）
+            // 层、只算不消费，呈现零作用）。文本宽走
+            // LayoutProductService.textWidth 单源（§263：
+            // 用户泡旧账 W−76、助手正文屏宽×文宽占屏
+            // 比，与气泡几何同账）；助手文本取摘标记
+            // 后文本（EntryScanMemo.media）——与气泡
+            // displayText 在无确证摘行时逐字相等，有
+            // 摘行时键按内容哈希自会分家、不产生错产
+            // 物（包 3 消费时以 displayText 现查现产）
             if let thread = currentThread {
-                let textWidth = UIScreen.main.bounds.width
-                    - OneDayMetrics.bubblePaddingH * 2
-                    - OneDayMetrics.bubbleSideInset
                 LayoutProductService.shared.preheat(
                     entries: preheatEntries(for: thread),
-                    width: textWidth,
+                    screenWidth: UIScreen.main.bounds.width,
                     style: LayoutStyleContext(
                         sizeCategory:
                             dynamicTypeSize.contentSizeCategory,
@@ -2498,7 +2495,8 @@ struct ChatView: View {
     /// 户原文/助手摘标记后文本，工具卡/回响/锚定
     /// 行不入产物）——缓存同步直读（预热已在进线
     /// 程时预产），未命中走暂定估算、量实到达后由
-    /// 承载侧覆盖。文本宽与预热同账（W−76）
+    /// 承载侧覆盖。文本宽与预热同账（LayoutProduct-
+    /// Service.textWidth 单源，§263）
     private func carrierRowEstimate(
         for entry: ChatEntry, hasDivider: Bool
     ) -> CGFloat {
@@ -2506,9 +2504,10 @@ struct ChatView: View {
             sizeCategory: dynamicTypeSize.contentSizeCategory,
             boldText: UIAccessibility.isBoldTextEnabled
         )
-        let textWidth = UIScreen.main.bounds.width
-            - OneDayMetrics.bubblePaddingH * 2
-            - OneDayMetrics.bubbleSideInset
+        let textWidth = LayoutProductService.textWidth(
+            isUser: entry.role == "user",
+            screenWidth: UIScreen.main.bounds.width
+        )
         var product: LayoutProduct?
         if entry.role == "user" {
             product = cachedLayoutProduct(
@@ -2534,8 +2533,11 @@ struct ChatView: View {
             preferredContentSizeCategory:
                 dynamicTypeSize.contentSizeCategory
         )
+        // §263：行高下限与正文同链——preferredFont
+        // .body 的规格行高（默认档 22），与呈现段落
+        // 样式钉的 lineHeight 同值（量实与模型同源）
         let lineFloor = UIFont.preferredFont(
-            forTextStyle: .callout, compatibleWith: traits
+            forTextStyle: .body, compatibleWith: traits
         ).lineHeight
         let dividerHeight = UIFont.preferredFont(
             forTextStyle: .footnote, compatibleWith: traits
@@ -4528,6 +4530,9 @@ struct ChatView: View {
                         // 担、0.26.0 主题泡字色由 fore-
                         // ground 承担（默认行浅档与
                         // bodyInk 同值、暗档见 Palette 注）
+                        // §263：字阶随正文单源升 .body
+                        // （用户/助手同档，见 LayoutStyle-
+                        // Context.coreKey 注）
                         SelectableInlineText(
                             paragraphs: [
                                 .plain(
@@ -4536,7 +4541,7 @@ struct ChatView: View {
                                     )
                                 )
                             ],
-                            textStyle: .callout,
+                            textStyle: .body,
                             foreground: Palette.userBubbleText,
                             onSelectionChange: { active in
                                 noteTextSelection(
@@ -5475,7 +5480,24 @@ struct ChatView: View {
     private func assistantBubble<Content: View>(
         @ViewBuilder _ content: () -> Content
     ) -> some View {
-        HStack(alignment: .top) {
+        // §263：正文列几何对齐 Muse 同机实测——左缘
+        // ＝屏宽×左缘占屏比（402pt 屏上 33pt）、文宽
+        // ＝屏宽×文宽占屏比（≈309pt）。旧账左缘＝
+        // pageGutter＋bubblePaddingH＝36、列宽被侧让
+        // 位 44 封在 W−116；新落法：左缘差额以负
+        // leading 收（按比例、随屏宽变），列宽以气
+        // 泡 maxWidth 封顶（短文仍可抱合、长文封顶
+        // 换行），量测喂入同值（LayoutProductService
+        // .textWidth 单源）。用户泡几何不动
+        let screenWidth = UIScreen.main.bounds.width
+        let columnCap = screenWidth
+            * OneDayMetrics.assistantTextWidthFraction
+            + OneDayMetrics.bubblePaddingH * 2
+        let leading = screenWidth
+            * OneDayMetrics.assistantTextLeadingFraction
+            - OneDayMetrics.pageGutter
+            - OneDayMetrics.bubblePaddingH
+        return HStack(alignment: .top) {
             content()
                 .padding(.horizontal, OneDayMetrics.bubblePaddingH)
                 .padding(.vertical, OneDayMetrics.bubblePaddingV)
@@ -5485,8 +5507,10 @@ struct ChatView: View {
                         cornerRadius: OneDayMetrics.assistantBubbleCorner
                     )
                 )
-            Spacer(minLength: OneDayMetrics.bubbleSideInset)
+                .frame(maxWidth: columnCap, alignment: .leading)
+            Spacer(minLength: 0)
         }
+        .padding(.leading, leading)
     }
 
     @ViewBuilder

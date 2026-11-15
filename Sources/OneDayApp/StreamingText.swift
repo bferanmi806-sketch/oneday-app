@@ -35,10 +35,10 @@ struct StreamingText: View {
             ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
                 Text(token)
                     // 0.4.4（§29）：流式行与落盘正文同
-                    // 口径——16pt（.callout 语义载体）＋
-                    // bodyInk 炭灰；0.3.8 第 29 条的
-                    // 17 regular 角色随正文基准一并改
-                    .font(.callout)
+                    // 口径＋bodyInk 炭灰；§263：正文基
+                    // 准升 .body（17pt），流式同源跟随、
+                    // 落盘不跳字号
+                    .font(.body)
                     .foregroundStyle(Palette.bodyInk)
                     .blur(
                         radius: visible.contains(index)
