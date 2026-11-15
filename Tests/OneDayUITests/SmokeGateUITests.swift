@@ -120,13 +120,21 @@ final class SmokeGateUITests: XCTestCase {
         closeLabel: String = "关闭设置",
         line: UInt = #line
     ) {
-        let opener = app.buttons["drawer.open"]
-        XCTAssertTrue(
-            opener.waitForExistence(timeout: 25),
-            "抽屉开启钮应在场", line: line
-        )
-        opener.tap()
         let channelRow = app.buttons["drawer.row.channel.hermes"]
+        if !channelRow.exists {
+            // 抽屉未开才走开启钮：开态下内容面被
+            // DrawerContainerView.syncAccessibility
+            // 整棵摘出无障碍树，drawer.open 永不存在
+            // （run 43650912503 ZA8 实证）；调用方若
+            // 已在开态抽屉里（如 ZA8 恢复半程），频道
+            // 行直接在场、跳过开启步。
+            let opener = app.buttons["drawer.open"]
+            XCTAssertTrue(
+                opener.waitForExistence(timeout: 25),
+                "抽屉开启钮应在场", line: line
+            )
+            opener.tap()
+        }
         XCTAssertTrue(
             channelRow.waitForExistence(timeout: 15),
             "抽屉应打开（频道行在场）", line: line
@@ -528,15 +536,31 @@ final class SmokeGateUITests: XCTestCase {
         hide.tap()
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["关闭设置"].tap()
-        // 抽屉验关态
-        let opener = app.buttons["drawer.open"]
-        XCTAssertTrue(opener.waitForExistence(timeout: 15))
-        opener.tap()
-        XCTAssertTrue(
-            app.buttons["drawer.row.channel.hermes"]
-                .waitForExistence(timeout: 12),
-            "关态下频道行仍应在场"
-        )
+        // 抽屉验关态。run 43650912503 实证：返回钮与
+        // 关闭钮两下点按均命中正物（日志中断检查点名
+        // BackButton／xmark）、App 随后 idle，但等
+        // drawer.open 15 秒零命中——定因（源码双证，
+        // 测试侧）：①ContentView 普通 onClose 只关
+        // sheet、不收抽屉，齿轮本就从开态抽屉点出，
+        // 关设置后抽屉仍开；②DrawerContainerView
+        // .syncAccessibility 开态把内容面整棵摘出无
+        // 障碍树，顶栏 drawer.open 在此永不存在。
+        // 等待对象改频道行（抽屉已开的正信号）；未
+        // 现才走关态路等 drawer.open 点开（防产品日
+        // 后改 onClose 顺带收抽屉时本例仍成立）。
+        let channelRow = app.buttons["drawer.row.channel.hermes"]
+        if !channelRow.waitForExistence(timeout: 8) {
+            let opener = app.buttons["drawer.open"]
+            XCTAssertTrue(
+                opener.waitForExistence(timeout: 15),
+                "关设置后抽屉开启钮应在场"
+            )
+            opener.tap()
+            XCTAssertTrue(
+                channelRow.waitForExistence(timeout: 12),
+                "关态下频道行仍应在场"
+            )
+        }
         let sideRows = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH %@",
             "drawer.row.side.local."
@@ -563,12 +587,19 @@ final class SmokeGateUITests: XCTestCase {
         show.tap()
         app.navigationBars.buttons.firstMatch.tap()
         app.buttons["关闭设置"].tap()
-        let opener2 = app.buttons["drawer.open"]
-        XCTAssertTrue(opener2.waitForExistence(timeout: 15))
-        opener2.tap()
-        XCTAssertTrue(
-            sideRows.firstMatch.waitForExistence(timeout: 12),
-            "恢复显示后旁聊行应回来"
-        )
+        // 同前半定因：关设置后抽屉仍开着，旁聊行应
+        // 直接回到树里；未回才走关态路点开抽屉再验。
+        if !sideRows.firstMatch.waitForExistence(timeout: 8) {
+            let opener2 = app.buttons["drawer.open"]
+            XCTAssertTrue(
+                opener2.waitForExistence(timeout: 15),
+                "恢复半程关设置后抽屉开启钮应在场"
+            )
+            opener2.tap()
+            XCTAssertTrue(
+                sideRows.firstMatch.waitForExistence(timeout: 12),
+                "恢复显示后旁聊行应回来"
+            )
+        }
     }
 }

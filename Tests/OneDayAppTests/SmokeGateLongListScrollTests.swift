@@ -46,40 +46,110 @@ final class SmokeGateLongListScrollTests: XCTestCase {
         }
     }
 
-    /// 全窗无障碍扁平表里按 label 精确找元素（VoiceOver
-    /// 同路：SwiftUI 钮在进程内只能经无障碍面触发）
-    private func axElement(
-        in window: UIWindow, label: String
-    ) -> NSObject? {
-        let count = window.accessibilityElementCount()
-        guard count != NSNotFound, count > 0 else { return nil }
-        for index in 0..<count {
-            guard let element = window.accessibilityElement(
-                at: index
-            ) as? NSObject else { continue }
-            if element.accessibilityLabel == label {
-                return element
-            }
+    /// 无障碍标签规范化：正文渲染前过 TextShaping
+    /// .prettyWrap（VisualRules 实证：段尾字形逐对插
+    /// 零宽 WORD JOINER U+2060 绑定），「冒烟长会话
+    /// 行 001」在真实标签里是「…00⁠1」——按原文子串
+    /// 永远匹配不到（run 43650912503 首行断言即此，
+    /// 与 §74 真呈现路径数字串内插 U+2060 同族）。
+    /// 比对前两侧一律剥零宽字符。
+    private func normalizedAxLabel(_ label: String?) -> String {
+        guard let label else { return "" }
+        return label.filter {
+            $0 != "\u{2060}" && $0 != "\u{200B}"
+                && $0 != "\u{FEFF}"
         }
-        return nil
     }
 
-    private func axElement(
-        in window: UIWindow, labelContaining needle: String
-    ) -> NSObject? {
-        let count = window.accessibilityElementCount()
-        guard count != NSNotFound, count > 0 else { return nil }
-        for index in 0..<count {
-            guard let element = window.accessibilityElement(
-                at: index
-            ) as? NSObject else { continue }
-            if element.accessibilityLabel?.contains(needle)
-                == true
-            {
-                return element
+    /// 递归收集无障碍元素：子视图下钻＋每层
+    /// UIAccessibilityContainer 供出的元素双路并走、
+    /// ObjectIdentifier 去重、深度封顶。旧法只读
+    /// window.accessibilityElementCount() 扁平表——
+    /// 全仓唯一用法，同仓范式 ChatPageAssembly-
+    /// RegressionTests 全程走视图层级遍历；该扁平表
+    /// 在进程内宿主（裸 UIWindow、无 scene）能否穿
+    /// 过 UIHostingController 边界从未被证实（run
+    /// 43650912503：首行与箭头同表双失、机制未分
+    /// 清）。本法自根双路下钻，不依赖窗口扁平化。
+    private func collectAxElements(
+        in view: UIView, depth: Int,
+        into: inout [NSObject], seen: inout Set<ObjectIdentifier>
+    ) {
+        guard depth <= 48 else { return }
+        if view.isAccessibilityElement {
+            addAxObject(
+                view as NSObject, depth: depth,
+                into: &into, seen: &seen
+            )
+        }
+        let count = view.accessibilityElementCount()
+        if count != NSNotFound, count > 0 {
+            for index in 0..<count {
+                if let element = view.accessibilityElement(
+                    at: index
+                ) as? NSObject {
+                    addAxObject(
+                        element, depth: depth,
+                        into: &into, seen: &seen
+                    )
+                }
             }
         }
-        return nil
+        for sub in view.subviews {
+            collectAxElements(
+                in: sub, depth: depth + 1,
+                into: &into, seen: &seen
+            )
+        }
+    }
+
+    /// 去重登记一个元素；元素本身是视图时继续下钻
+    /// （容器供出的 SwiftUI 平台视图子树同路）
+    private func addAxObject(
+        _ object: NSObject, depth: Int,
+        into: inout [NSObject], seen: inout Set<ObjectIdentifier>
+    ) {
+        guard seen.insert(ObjectIdentifier(object)).inserted
+        else { return }
+        into.append(object)
+        if let view = object as? UIView {
+            collectAxElements(
+                in: view, depth: depth + 1,
+                into: &into, seen: &seen
+            )
+        }
+    }
+
+    private func axElements(in root: UIView) -> [NSObject] {
+        var elements: [NSObject] = []
+        var seen: Set<ObjectIdentifier> = []
+        collectAxElements(
+            in: root, depth: 0, into: &elements, seen: &seen
+        )
+        return elements
+    }
+
+    /// 按 label 包含找元素（两侧规范化后比对；
+    /// VoiceOver 同路：SwiftUI 钮在进程内只能经无
+    /// 障碍面触发）
+    private func axElement(
+        in root: UIView, labelContaining needle: String
+    ) -> NSObject? {
+        let target = normalizedAxLabel(needle)
+        return axElements(in: root).first {
+            normalizedAxLabel($0.accessibilityLabel)
+                .contains(target)
+        }
+    }
+
+    /// 找会话行：先限被滚的列表子树（命中即证滚的
+    /// 是会话列表），未命中退全窗（身份由调用方以
+    /// 帧相交兜底）
+    private func findChatRow(
+        _ needle: String, list: UIScrollView, window: UIWindow
+    ) -> NSObject? {
+        axElement(in: list, labelContaining: needle)
+            ?? axElement(in: window, labelContaining: needle)
     }
 
     /// 轮询等偏移量落到目标（±2pt）——直接读
@@ -217,21 +287,41 @@ final class SmokeGateLongListScrollTests: XCTestCase {
             "滚到顶后偏移应落在顶（位移须实测）"
         )
 
-        // 首行在树里＝滚的确实是会话列表（防取错滚动面）
-        let firstRow = waitForAxElement(timeout: 5) {
-            axElement(
-                in: window, labelContaining: "冒烟长会话行 001"
-            )
-        }
-        XCTAssertNotNil(
-            firstRow,
+        // 身份锚（第七轮换锚，定因见 normalizedAxLabel
+        // 与 collectAxElements 注）：先在被滚的列表子
+        // 树内找行（命中即证滚的是会话列表），未命中
+        // 退全窗找、并以帧与列表可见框相交兜底身份；
+        // 普查打印入日志，下一轮无论红绿都能分清机
+        // 制（整形零宽字／扁平表不穿透／行未生成）。
+        let listScreenFrame = list.convert(list.bounds, to: nil)
+        let listCensus = axElements(in: list)
+        let smokeLabels = listCensus
+            .map { normalizedAxLabel($0.accessibilityLabel) }
+            .filter { $0.contains("冒烟") }
+        print("LONGLIST ax census list=\(listCensus.count)"
+            + " window=\(axElements(in: window).count)"
+            + " smokeRows=\(smokeLabels.count)"
+            + " first=\(smokeLabels.first ?? "无")")
+        let firstRow = try XCTUnwrap(
+            waitForAxElement(timeout: 5) {
+                findChatRow(
+                    "冒烟长会话行 001", list: list, window: window
+                )
+            },
             "滚到顶后首行应在无障碍树里（滚的须是会话列表）"
         )
+        XCTAssertTrue(
+            firstRow.accessibilityFrame
+                .intersects(listScreenFrame),
+            "首行帧应与列表可见框相交（滚顶后真可见）"
+        )
 
-        // 箭头插入与 AX 树刷新可滞后于状态翻转，轮询等
+        // 箭头插入与 AX 树刷新可滞后于状态翻转，轮询等；
+        // label 含未读变体「回到底部，N 条新消息」
+        // （ChatView 实证），按包含匹配
         let arrow = try XCTUnwrap(
             waitForAxElement(timeout: 5) {
-                axElement(in: window, label: "回到底部")
+                axElement(in: window, labelContaining: "回到底部")
             },
             "离底后回底箭头应出现（无障碍 label「回到底部」）"
         )
@@ -253,12 +343,11 @@ final class SmokeGateLongListScrollTests: XCTestCase {
         // 末行真渲染且落在可见框内（黑闪的机器可验部分：
         // 空白帧时末行不在无障碍树里、或帧不在可见区）
         let tail = try XCTUnwrap(
-            axElement(
-                in: window, labelContaining: "冒烟长会话行 120"
+            findChatRow(
+                "冒烟长会话行 120", list: list, window: window
             ),
             "落底后末行应在无障碍树里（已真生成）"
         )
-        let listScreenFrame = list.convert(list.bounds, to: nil)
         XCTAssertTrue(
             tail.accessibilityFrame.intersects(listScreenFrame),
             "末行帧应与列表可见框相交（真可见、非空白）"
