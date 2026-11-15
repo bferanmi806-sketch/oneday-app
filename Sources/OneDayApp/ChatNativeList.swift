@@ -196,9 +196,9 @@ final class ChatRootViewController: UIViewController,
     /// 落点意图（H6）：冷开/命令贴底置真；收敛后
     /// 距底 ≤0.5 或用户拖动接管即消
     private var landingIntent = false
-    /// 落点收敛重拍计数（有界 8、延迟拍，见
-    /// performSettleBeat 的尾差处理）
-    private var landingRetries = 0
+    /// 落点意图置真时刻（收敛重拍的时间窗预算起
+    /// 点，见 performSettleBeat 的尾差处理）
+    private var landingIntentSince: CFTimeInterval = 0
     private var userInteracting = false
     /// 布局未就绪时到达的恢复命令（先记账、落定
     /// 拍执行——与 gen3 restore 的等拍口径同义）
@@ -455,7 +455,7 @@ final class ChatRootViewController: UIViewController,
                 // 实布局后钉底（H6）；切线程的落位由
                 // ChatView 恢复链经句柄命令驱动
                 landingIntent = true
-                landingRetries = 0
+                landingIntentSince = CACurrentMediaTime()
             }
         } else if !reconfigureKeys.isEmpty {
             var snapshot = dataSource.snapshot()
@@ -552,18 +552,22 @@ final class ChatRootViewController: UIViewController,
             pinToBottom()
             if currentDistance() <= 0.5 {
                 landingIntent = false
-                landingRetries = 0
-            } else if landingRetries < 8 {
+            } else if CACurrentMediaTime()
+                - landingIntentSince < 2.0 {
                 // 收敛尾差（H6）：自适应行高的迟到
                 // 修正会在钉底后改 contentSize、又不
-                // 必触发滚动回调——意图未消时有界重
-                // 拍。重拍必须带延迟（与 gen3 §259 落
-                // 定拍的 asyncAfter 同式）：零延迟连发
-                // 时修正所需的 display pass 插不进来、
-                // 次数先耗尽（CI 第五轮实证：回底后距
-                // 底恰 2.0 两轮同值）；延迟拍让修正落
-                // 地后再重钉，收敛即停、不成环
-                landingRetries += 1
+                // 必触发滚动回调——意图存续期内延迟
+                // 重拍（与 gen3 §259 落定拍的
+                // asyncAfter 同式），修正落地后再重
+                // 钉、收敛即停。预算按时间窗不按次数
+                // （CI 第五至七轮实证：零延迟连发与
+                // 8 次延迟拍都曾在最后一笔 +2 修正落
+                // 地前耗尽——全状态打印判清：inset
+                // 三处全等、contentSize 与末行帧精确
+                // 自洽、offset 恰停 max−2，即修正迟
+                // 到而非标尺分叉）；2 秒窗外仍未收敛
+                // 则停拍（残差由现测读数如实呈报、
+                // 不假装在底）
                 scheduleSettle(delay: 0.05)
             }
         }
@@ -794,7 +798,7 @@ final class ChatRootViewController: UIViewController,
 
     func scrollToBottom(animated: Bool) {
         landingIntent = true
-        landingRetries = 0
+        landingIntentSince = CACurrentMediaTime()
         collectionView.layoutIfNeeded()
         let target = maxOffsetY()
         if animated {
