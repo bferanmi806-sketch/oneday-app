@@ -7080,9 +7080,6 @@ struct ChatView: View {
                 Text(dictationFailureMessage(failure))
                     .font(.caption)
                     .foregroundStyle(Palette.ink)
-                // 0.36.9：失败行同挂诊断行（末阶段上
-                // 屏，礼记同案后手——见 DictationViews）
-                DictationStageDiagnosticLine()
             }
             Spacer(minLength: 0)
             if failure == .permissionDenied {
