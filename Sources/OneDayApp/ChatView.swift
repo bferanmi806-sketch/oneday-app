@@ -2775,12 +2775,16 @@ struct ChatView: View {
             preferredContentSizeCategory:
                 dynamicTypeSize.contentSizeCategory
         )
-        // §263：行高下限与正文同链——preferredFont
-        // .body 的规格行高（默认档 22），与呈现段落
-        // 样式钉的 lineHeight 同值（量实与模型同源）
-        let lineFloor = UIFont.preferredFont(
-            forTextStyle: .body, compatibleWith: traits
-        ).lineHeight
+        // §263：行高下限与正文同链——.body 的规格
+        // 行高走布局管理器默认行高链路（默认档 22），
+        // 与量测池量到的 pitch 同源；preferredFont
+        // 的 .lineHeight 是字体自然行高（20.29）、
+        // 不是规格值，不许拿它喂下限
+        let lineFloor = InlineTextFonts.specLineHeight(
+            textStyle: .body,
+            category: style.sizeCategory,
+            boldText: style.boldText
+        )
         let dividerHeight = UIFont.preferredFont(
             forTextStyle: .footnote, compatibleWith: traits
         ).lineHeight

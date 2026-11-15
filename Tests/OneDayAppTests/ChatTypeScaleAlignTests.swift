@@ -49,38 +49,51 @@ final class ChatTypeScaleAlignTests: XCTestCase {
         return assemble([.plain(text)])
     }
 
-    // MARK: - 字体链：规格 leading 活在 preferredFont 里
+    // MARK: - 字体链：规格 leading 在布局管理器默认行高里
 
     func testBodyFontCarriesSpecLeading() {
         let body = InlineTextFonts.baseFont(
             textStyle: .body, category: .large, boldText: false
         )
         XCTAssertEqual(body.pointSize, 17, accuracy: 0.1)
-        // 苹果 HIG 表默认档 Body leading＝22
-        XCTAssertEqual(body.lineHeight, 22, accuracy: 0.5)
-        // 与 preferredFont 本体逐值同（链路无损耗）
-        let preferred = UIFont.preferredFont(
-            forTextStyle: .body,
-            compatibleWith: UITraitCollection(
-                preferredContentSizeCategory: .large
-            )
-        )
+        // font.lineHeight 是字体自然行高（20.29）、
+        // 不是规格值——首轮 CI 实测钉死，防后人拿它
+        // 冒充规格 leading
+        XCTAssertEqual(body.lineHeight, 20.29, accuracy: 0.5)
+        // 苹果 HIG 表默认档 Body leading＝22，经布局
+        // 管理器默认行高链路（specLineHeight）读出
         XCTAssertEqual(
-            body.lineHeight, preferred.lineHeight, accuracy: 0.01
+            InlineTextFonts.specLineHeight(
+                textStyle: .body, category: .large, boldText: false
+            ),
+            22, accuracy: 0.5
         )
         // 粗体文本（semibold）只换字重、不丢规格行高
         let bold = InlineTextFonts.baseFont(
             textStyle: .body, category: .large, boldText: true
         )
-        XCTAssertEqual(bold.lineHeight, 22, accuracy: 0.5)
         XCTAssertEqual(bold.pointSize, 17, accuracy: 0.1)
-        // 对照：次级字阶 .callout 的规格行高是 21——
-        // 旧管线实测 pitch 19.0 连它都没到
+        XCTAssertEqual(
+            InlineTextFonts.specLineHeight(
+                textStyle: .body, category: .large, boldText: true
+            ),
+            22, accuracy: 0.5
+        )
+        // 对照：次级字阶 .callout 规格行高 21、自然
+        // 行高 19.09——旧管线实测 pitch 19.0 正是拿
+        // 自然行高顶替了规格，连自家字阶的 21 都没到
         let callout = InlineTextFonts.baseFont(
             textStyle: .callout, category: .large, boldText: false
         )
         XCTAssertEqual(callout.pointSize, 16, accuracy: 0.1)
-        XCTAssertEqual(callout.lineHeight, 21, accuracy: 0.5)
+        XCTAssertEqual(callout.lineHeight, 19.09, accuracy: 0.5)
+        XCTAssertEqual(
+            InlineTextFonts.specLineHeight(
+                textStyle: .callout, category: .large,
+                boldText: false
+            ),
+            21, accuracy: 0.5
+        )
     }
 
     // MARK: - 实量 pitch：默认档 22
@@ -145,21 +158,16 @@ final class ChatTypeScaleAlignTests: XCTestCase {
 
     func testPitchScalesWithContentSizeCategory() async {
         let category = UIContentSizeCategory.extraExtraLarge
-        // 规格表在该档的成对值经 preferredFont 链路读
-        // 出（表值由系统字体度量承载、测试不另抄表）
-        let spec = UIFont.preferredFont(
-            forTextStyle: .body,
-            compatibleWith: UITraitCollection(
-                preferredContentSizeCategory: category
-            )
+        // HIG 规格表 XXL 档成对值：Body 21pt／leading
+        // 26（表值直钉＋链路读值双验）
+        let spec = InlineTextFonts.specLineHeight(
+            textStyle: .body, category: category, boldText: false
         )
+        XCTAssertEqual(spec, 26, accuracy: 0.5)
         let font = InlineTextFonts.baseFont(
             textStyle: .body, category: category, boldText: false
         )
-        XCTAssertEqual(
-            font.lineHeight, spec.lineHeight, accuracy: 0.01
-        )
-        XCTAssertGreaterThan(spec.lineHeight, 22)
+        XCTAssertEqual(font.pointSize, 21, accuracy: 0.1)
         // 实量 pitch 随档同涨
         let pool = LayoutMeasurePool(workerCount: 1)
         let scaled = assemble(
@@ -168,27 +176,20 @@ final class ChatTypeScaleAlignTests: XCTestCase {
         let single = assemble([.plain("测")], category: category)
         let double = await pool.measure(scaled, width: 309)
         let one = await pool.measure(single, width: 309)
-        XCTAssertEqual(
-            double - one, spec.lineHeight, accuracy: 0.75
-        )
+        XCTAssertEqual(double - one, 26, accuracy: 0.75)
+        XCTAssertEqual(double - one, spec, accuracy: 0.75)
     }
 
     // MARK: - 行高模型下限与呈现同值
 
     func testHeightModelFloorSameSource() async {
         // ChatView.carrierRowEstimate 的下限公式本体
-        // （preferredFont .body 规格行高）与呈现字体
-        // 链、量测单行高三值同源
-        let traits = UITraitCollection(
-            preferredContentSizeCategory: .large
-        )
-        let floor = UIFont.preferredFont(
-            forTextStyle: .body, compatibleWith: traits
-        ).lineHeight
-        let font = InlineTextFonts.baseFont(
+        // （specLineHeight .body）与量测单行高同源、
+        // 同钉 HIG 表默认档 22
+        let floor = InlineTextFonts.specLineHeight(
             textStyle: .body, category: .large, boldText: false
         )
-        XCTAssertEqual(font.lineHeight, floor, accuracy: 0.01)
+        XCTAssertEqual(floor, 22, accuracy: 0.5)
         let pool = LayoutMeasurePool(workerCount: 1)
         let oneLine = await pool.measure(
             linedParagraph(1), width: 309

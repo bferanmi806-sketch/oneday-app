@@ -212,14 +212,15 @@ struct SelectableInlineText: View {
             let style = NSMutableParagraphStyle()
             style.lineBreakMode = .byWordWrapping
             style.paragraphSpacing = paragraph.spaceAfter
-            // §263：行高消费 text style 规格 leading——
-            // 本段字体的 lineHeight（preferredFont 链路，
-            // 默认档 .body＝22pt）钉为最小/最大行高，
-            // 量测与呈现同值；不设 lineHeightMultiple
-            // （那是把规格值再乘一道、自设比冒充规格，
-            // 正是旧管线行距偏紧的病根之一）
-            style.minimumLineHeight = font.lineHeight
-            style.maximumLineHeight = font.lineHeight
+            // §263：行高不在段落样式里另设数值——text
+            // style 的规格 leading 由 preferredFont＋
+            // TextKit 布局管理器的默认行高交付（默认
+            // 档 .body pitch 实测 22＝HIG 表值）；首轮
+            // 曾试 min/max 钉 font.lineHeight，被 CI
+            // 实测证伪：font.lineHeight 是字体自然行
+            // 高（.body 20.29），不是规格值、且 TK2
+            // 并不据此给 pitch，已撤。lineHeightMul-
+            // tiple 同理不许设（自设比冒充规格）
             if let marker = paragraph.listMarker {
                 // 标记几何：首行自 levelIndent 起，
                 // \t 落右对齐制表位（标记收尾于列
@@ -348,17 +349,18 @@ private final class InlineTextRenderCache: @unchecked Sendable {
 }
 
 /// 字体构造单源（正文拼装与列表基线对齐共用）：
-/// 基字体＝preferredFont 本体按字号档直取——text
-/// style 的规格行高（HIG 表：.body 默认档 17/22、
-/// .callout 16/21）只活在 preferredFont 的字体度
-/// 量里，必须整字取用；粗体文本开启时基字重
-/// semibold（BoldTextPolicy 根口径＝未钉字重文本
-/// 统一此档），只换字重 trait、保留 text style
-/// 描述符（规格行高随之保留）。
+/// 基字体＝preferredFont 本体按字号档直取；粗体
+/// 文本开启时基字重 semibold（BoldTextPolicy 根
+/// 口径＝未钉字重文本统一此档），只换字重 trait、
+/// 保留 text style 描述符。
 /// §263 定因：旧法只摘 preferredFont 的 pointSize、
-/// 再以 systemFont 重构——systemFont 的自然行高
-/// （≈1.19×字号）顶替了规格 leading（.callout 实
-/// 测 pitch 19.0＜规格 21），是行距偏紧的根
+/// 再以 systemFont 重构——systemFont 无 text style，
+/// 其自然行高（≈1.19×字号）顶替了规格 leading
+/// （.callout 实测 pitch 19.0＜规格 21），是行距
+/// 偏紧的根。规格 leading 的读口在 specLineHeight
+/// （布局管理器默认行高链路），不在 font.lineHeight
+/// （那是字体自然行高：.body 20.29≠规格 22，CI 实
+/// 测钉死、不许拿它冒充规格）
 enum InlineTextFonts {
     static func baseFont(
         textStyle: UIFont.TextStyle,
@@ -379,6 +381,22 @@ enum InlineTextFonts {
             ],
         ])
         return UIFont(descriptor: descriptor, size: 0)
+    }
+
+    /// text style 规格行高（HIG Dynamic Type 表的
+    /// leading：.body 默认档 22、XXL 档 26、.callout
+    /// 默认档 21）——只活在布局管理器对 text style
+    /// 字体的默认行高里，TextKit 量测/呈现的 pitch
+    /// 即此值；行高模型下限与单测断言都从这里读，
+    /// 与呈现同源（§263）
+    static func specLineHeight(
+        textStyle: UIFont.TextStyle,
+        category: UIContentSizeCategory,
+        boldText: Bool
+    ) -> CGFloat {
+        NSLayoutManager().defaultLineHeight(for: baseFont(
+            textStyle: textStyle, category: category, boldText: boldText
+        ))
     }
 
     /// 首行基线距视图顶（列表标记列 firstTextBase-
