@@ -266,6 +266,16 @@ final class SmokeGateUITests: XCTestCase {
     /// 布局流消失。链上派生政策与量测传导另由 Core
     /// 纯函数测＋ComposerGuideHostTests 替身钉住，
     /// 覆盖不降反升。
+    /// 第十二轮改造：第十一轮首步在尾段文案进树约
+    /// 3 秒即断言失败（落底态箭头已在场），「开线程
+    /// 落定」族两候选未分——①落定未稳／断言抢跑
+    /// （懒估行高修正把落点推离真底，或落底滚动尚
+    /// 在途）；②本环境开线程初始即离底。首步改落
+    /// 定轮询：轮询等箭头消失（上限 10 秒、每秒一
+    /// 行 ARROWSETTLE 证据行），消失才进后续三步
+    /// （原样不动）；10 秒仍在场＝候选②成立，断
+    /// 言如实失败报主线（升产品开线程落底取证），
+    /// 不改产品码、不放宽后续断言。
     func testSmokeBackToBottomArrowEndToEnd() {
         let app = launchDemo([])
         openFirstSeededThread(app)
@@ -280,9 +290,25 @@ final class SmokeGateUITests: XCTestCase {
         let arrow = app.buttons.matching(NSPredicate(
             format: "label CONTAINS %@", "回到底部"
         )).firstMatch
+        // 首步落定轮询（第十二轮）：每秒查一次并打
+        // 一行 ARROWSETTLE 证据行（在场状态），上限
+        // 10 秒。轮询内消失＝落定完成（候选①：第十
+        // 一轮首断言系抢跑），进后续三步；10 秒仍在
+        // 场＝候选②成立（本环境开线程初始即离底），
+        // 下方断言如实失败、分清即止。
+        let settleDeadline = Date().addingTimeInterval(10)
+        var settleSecond = 0
+        while arrow.exists && Date() < settleDeadline {
+            print("ARROWSETTLE t=\(settleSecond)s arrowExists=true")
+            Thread.sleep(forTimeInterval: 1)
+            settleSecond += 1
+        }
+        print(
+            "ARROWSETTLE t=\(settleSecond)s arrowExists=\(arrow.exists)"
+        )
         XCTAssertFalse(
             arrow.exists,
-            "落底态回底箭头不应在场"
+            "落定轮询 10 秒后回底箭头仍在场（候选②：本环境开线程初始即离底）"
         )
         // 真手势上滑离底：逐滑轮询箭头出现（离底阈
         // 值 176pt，种子内容数倍于视口、数滑必过；
