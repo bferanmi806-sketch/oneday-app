@@ -160,13 +160,21 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func textView(
         matching needle: String, in app: XCUIApplication
     ) throws -> XCUIElement {
+        // 先等聊天页装配到位（顶栏胶囊在位＝页面已
+        // 组装）：本类按字母序在全轮 UI 测试里最先
+        // 跑、吃冷启动，未等页面起来时全树无文本视
+        // 图、轮询多久都是零（KeyboardDragDismiss-
+        // Tests 同口径先等胶囊 30 秒）
+        _ = app.buttons["topbar.modelCapsule"]
+            .waitForExistence(timeout: 30)
         for round in 0..<2 {
             let deadline = Date().addingTimeInterval(12)
             while Date() < deadline {
                 for element in app.textViews
                     .allElementsBoundByIndex {
-                    guard let raw = element.value as? String
-                    else { continue }
+                    let raw = (element.value as? String)
+                        ?? element.label
+                    guard !raw.isEmpty else { continue }
                     let stripped = raw
                         .replacingOccurrences(
                             of: "\u{2060}", with: ""
