@@ -53,6 +53,7 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
         static let bottomPadding: CGFloat = 8
         static let bottomMargin: CGFloat = 16
         static let targetGap: CGFloat = 24
+        static let topInset: CGFloat = 122
     }
 
     private var window: UIWindow!
@@ -343,10 +344,16 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
     /// 它永不参与施工，落座追随用例据此判读（种子
     /// 不变、留位随实测变）
     private func applyDerived(keyboard: Bool) {
+        applyRows(count: 30, keyboard: keyboard)
+    }
+
+    /// 行数可变版喂入（§274 短内容用例用）：其余喂
+    /// 入口径与 applyDerived 逐值一致
+    private func applyRows(count: Int, keyboard: Bool) {
         controller.apply(
-            rows: makeRows(count: 30),
+            rows: makeRows(count: count),
             layout: testLayout,
-            topInset: 122,
+            topInset: Assembly.topInset,
             composerTopInWindow: composerTopInWindow,
             fallbackBottomSpace: derivedBottomSpace(
                 keyboard: false
@@ -416,6 +423,61 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
             "贴底时末端事实应为真",
             file: file, line: line
         )
+    }
+
+    /// 托管行实际帧底（视图坐标）：内容视图（滚动
+    /// 视图内高＝contentSize 的那块）里托管子视图的
+    /// 帧是 materialize 落的真帧——取其最大 maxY
+    /// 换算到视图坐标，不经 contentSize 反推
+    private var hostedLastRowBottomInView: CGFloat? {
+        let scrollView = controller.scrollView
+        guard let content = scrollView.subviews.max(
+            by: { $0.frame.height < $1.frame.height }
+        ), content.frame.height > 0 else { return nil }
+        let bottoms = content.subviews.map { $0.frame.maxY }
+        guard let maxBottom = bottoms.max() else { return nil }
+        return maxBottom - scrollView.contentOffset.y
+    }
+
+    /// §274 短内容断言组：不手动调 scrollToBottom
+    /// ——落位必须由 apply 链自产（审计 §3：验收不
+    /// 许先手动滚底）。四数同帧：静止 offset 恰为
+    /// −顶 inset（物理底点）、内容高恰＝有效视口高
+    /// （V−T−B，三量全实测）、托管真帧末行底→舱顶
+    /// 24±1、§263 既有断言组不退
+    private func assertShortContentAnchored(
+        file: StaticString = #filePath, line: UInt = #line
+    ) {
+        let scrollView = controller.scrollView
+        XCTAssertEqual(
+            scrollView.contentOffset.y,
+            -Assembly.topInset, accuracy: 0.6,
+            "短内容静止 offset 应恰为 −顶 inset（物理底点）",
+            file: file, line: line
+        )
+        let effectiveViewport = scrollView.bounds.height
+            - scrollView.contentInset.top
+            - scrollView.contentInset.bottom
+        XCTAssertEqual(
+            scrollView.contentSize.height,
+            effectiveViewport, accuracy: 0.6,
+            "短内容内容高应恰＝有效视口高（底锚定填充）",
+            file: file, line: line
+        )
+        let hostedBottom = hostedLastRowBottomInView
+        XCTAssertNotNil(
+            hostedBottom, "短内容行应已托管在场",
+            file: file, line: line
+        )
+        if let hostedBottom {
+            XCTAssertEqual(
+                composerTopInView - hostedBottom,
+                Assembly.targetGap, accuracy: 1,
+                "托管真帧末行底→舱顶应＝24±1",
+                file: file, line: line
+            )
+        }
+        assertMeasuredGeometry(file: file, line: line)
     }
 
     // MARK: 用例
@@ -560,6 +622,90 @@ final class ChatListCarrierBottomGapTests: XCTestCase {
         controller.scrollToBottom(animated: false)
         drainRunLoop()
         assertMeasuredGeometry()
+    }
+
+    /// §274 短内容·单行·静息：内容自然高 84 ≪ 有
+    /// 效视口——二修下末行贴顶、末行底→舱顶空距
+    /// ＝24＋填充缺口（本条红：空距数百、距底读数
+    /// 为负、内容高＝自然高）；底锚定后四数闭合
+    func testShortContentSingleRowRestAnchorsToBottom() {
+        installShell(skew: Assembly.chainSkew)
+        applyRows(count: 1, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+
+        assertShortContentAnchored()
+    }
+
+    /// §274 短内容·三行·静息：.50 真机失败的同形
+    /// 场景（3 条消息短会话、末条到舱 ≈148 空白的
+    /// 装配复刻）——落位由 apply 链自产、不手动滚底
+    func testShortContentThreeRowsRestAnchorsToBottom() {
+        installShell(skew: Assembly.chainSkew)
+        applyRows(count: 3, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+
+        assertShortContentAnchored()
+    }
+
+    /// §274 短内容·三行·键盘态：舱改钉键盘锚线后
+    /// 重新喂入——有效视口随 B 变小、填充随之收，
+    /// 末行底→舱顶仍 24±1（偏移落点由锚恢复钳制
+    /// 与底点重合，全程不手动滚底）
+    func testShortContentThreeRowsKeyboardAnchorsToBottom() {
+        installShell(skew: Assembly.chainSkew)
+        applyRows(count: 3, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        assertShortContentAnchored()
+
+        seatComposerOnKeyboard()
+        applyRows(count: 3, keyboard: true)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        assertShortContentAnchored()
+    }
+
+    /// §274 短内容·单行·键盘态：填充缺口最大的一
+    /// 档在键盘态同样闭合
+    func testShortContentSingleRowKeyboardAnchorsToBottom() {
+        installShell(skew: Assembly.chainSkew)
+        applyRows(count: 1, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+
+        seatComposerOnKeyboard()
+        applyRows(count: 1, keyboard: true)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        assertShortContentAnchored()
+    }
+
+    /// §274 填充边界穿越：3 行（填充在场）→30 行
+    /// （填充归零、长内容二修路径）→3 行，两向穿
+    /// 越后落点与空距逐值不变、全程不手动滚底
+    func testContentGrowthAcrossAnchorBoundaryStaysGlued() {
+        installShell(skew: Assembly.chainSkew)
+        applyRows(count: 3, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        assertShortContentAnchored()
+
+        applyRows(count: 30, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        XCTAssertGreaterThan(
+            controller.scrollView.contentSize.height,
+            controller.scrollView.bounds.height,
+            "30 行应为长内容（内容高超视口）"
+        )
+        assertMeasuredGeometry()
+
+        applyRows(count: 3, keyboard: false)
+        controller.view.layoutIfNeeded()
+        drainRunLoop()
+        assertShortContentAnchored()
     }
 
     /// 无窗口装配（§259 既有测试形态）：量测不落
