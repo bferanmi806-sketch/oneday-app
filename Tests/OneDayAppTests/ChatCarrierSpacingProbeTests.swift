@@ -312,3 +312,68 @@ final class ChatCarrierSpacingProbeTests: XCTestCase {
         }
     }
 }
+
+/// §89 探针 3（同文件追加）：量测原语的位置/偏移敏感
+/// 性——与承载同式装配（宿主控制器为窗口根 VC 的子
+/// 控制器、其视图挂进带生产 inset 的滚动视图内容
+/// 视图），同一用户行复刻摆在内容纵深四位、滚动偏
+/// 移三档下逐一量 sizeThatFits＋视图 safeAreaInsets。
+/// 生产现场的行是在贴底滚动位附近被量实的，若量值
+/// 随位置/偏移变，量实即被摆位污染。
+extension ChatCarrierSpacingProbeTests {
+
+    func testProbeMeasureAcrossPositions() {
+        window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        container = UIViewController()
+        window.rootViewController = container
+        window.makeKeyAndVisible()
+
+        let scrollView = UIScrollView(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 122, left: 0, bottom: 153, right: 0
+        )
+        scrollView.contentSize = CGSize(width: 402, height: 2000)
+        container.view.addSubview(scrollView)
+        let contentView = UIView(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 2000)
+        )
+        scrollView.addSubview(contentView)
+        container.view.layoutIfNeeded()
+
+        let proposal = CGSize(
+            width: 362, height: CGFloat.greatestFiniteMagnitude
+        )
+        var hosts: [(CGFloat, UIHostingController<AnyView>)] = []
+        for y in [100.0, 600.0, 1200.0, 1800.0] {
+            let hc = UIHostingController(
+                rootView: AnyView(userRowView(withSwipe: true))
+            )
+            container.addChild(hc)
+            contentView.addSubview(hc.view)
+            hc.view.frame = CGRect(
+                x: 20, y: y, width: 362, height: 47
+            )
+            hc.didMove(toParent: container)
+            hosts.append((y, hc))
+        }
+        for offset in [0.0, 500.0, 1000.0] {
+            scrollView.contentOffset = CGPoint(x: 0, y: offset)
+            drainRunLoop(seconds: 0.3)
+            container.view.layoutIfNeeded()
+            for (y, hc) in hosts {
+                let size = hc.sizeThatFits(in: proposal)
+                print(
+                    "PROBE89 pos y=\(y) offset=\(offset) "
+                    + "sizeThatFits=\(size) "
+                    + "safeArea=\(hc.view.safeAreaInsets) "
+                    + "windowFrame=\(hc.view.convert(hc.view.bounds, to: nil))"
+                )
+            }
+        }
+    }
+}
