@@ -103,7 +103,9 @@ struct ChatView: View {
     /// 语音输入控制器（0.36.6，§71）：端上识别、录音
     /// 条占住发送舱；文本经 onTextChange 回写 input
     @State private var dictation = DictationController()
-    /// 非 nil 表示正在生成：值是已累积的流式文本
+    /// 非 nil 表示正在生成：值是当前打开段已发布的
+    /// 流式快照（第 93 条起按段装配：封存段不在此
+    /// 值里，走 sealedStreamSegments）
     @State private var streamingText: String?
     /// 流式思考（reasoning）已发布快照（0.5.1，§32）：
     /// 非 nil 表示本轮已收到思考增量；思考原文经发布
@@ -113,12 +115,22 @@ struct ChatView: View {
     /// 本轮首个思考增量的到达时刻（0.5.1）：折叠单元
     /// 实时计时与落盘 reasoningSeconds 的计时起点
     @State private var reasoningStartedAt: Date?
-    /// 正文/思考两条通道的发布合并闸（0.5.1，§32，
-    /// OneDayCore.StreamPublishGate）：增量先攒缓冲、
-    /// 按 80ms 窗或 64 字阈值合并发布，与 streamFollow-
-    /// Gate（管滚动）分工互不替代；run 驱动起止归零
-    @State private var contentPublishGate = StreamPublishGate()
+    /// 正文分段装配器（第 93 条，OneDayCore.Stream-
+    /// SegmentAssembler）：段内仍是 0.5.1 发布合并闸
+    /// （§32：80ms 窗/64 字阈值合并发布，与 stream-
+    /// FollowGate 管滚动分工互不替代），装配器在其
+    /// 上补段维度——工具边界封段、新段新缓冲，
+    /// streamingText 自此只承载当前打开段的已发布
+    /// 快照，封存段走 sealedStreamSegments 只读呈现
+    @State private var streamAssembler = StreamSegmentAssembler()
+    /// 思考通道的发布合并闸（0.5.1，§32）：增量先攒
+    /// 缓冲合并发布，run 驱动起止归零
     @State private var reasoningPublishGate = StreamPublishGate()
+    /// 已封存正文段的全文（事件序，第 93 条）：工具
+    /// 边界封段后入列，直播区/carrier 按 liveOrder
+    /// 的 .sealedText 标记原位只读呈现，不再参与累
+    /// 积——下一段的增量永不回流到这里
+    @State private var sealedStreamSegments: [String] = []
     @State private var sendTask: Task<Void, Never>?
     /// 本轮 run 的状态机（0.31.0）：相位与终态证据的
     /// 单一出处（Core RunTurnStateMachine），驱动见
@@ -593,6 +605,11 @@ struct ChatView: View {
     private enum LiveOrderItem: Equatable {
         case reasoning
         case text
+        /// 已封存正文段（第 93 条）：下标＝sealed-
+        /// StreamSegments 的段序；封段时由 .text 标
+        /// 记原位换成此标记（位置即段的事件位），新
+        /// 段的 .text 标记在新段首增量到达时另记
+        case sealedText(Int)
         case tool(String)
     }
 
@@ -2488,6 +2505,22 @@ struct ChatView: View {
             )
         case .text:
             return carrierStreamRow()
+        case .sealedText(let index, let text):
+            // 封存段行（第 93 条）：键＝流式行键＋段序
+            // 后缀（与打开段行、落定行互不撞键）；内容
+            // 定稿，版本只随段文本（封段后恒定）；估高
+            // 与流式行同口（同为一段正文的气泡）
+            return ChatCarrierRow(
+                key: "\(currentStreamRowKey())#seg\(index)",
+                entryID: nil,
+                version: text.count,
+                estimatedHeight: gen4StreamingEnabled
+                    ? carrierStreamRowEstimate(text: text)
+                    : 120,
+                makeView: {
+                    AnyView(streamingBubbleIncremental(text))
+                }
+            )
         case .tool(let card):
             return ChatCarrierRow(
                 key: "live-\(item.id)",
@@ -2977,6 +3010,9 @@ struct ChatView: View {
     private enum LiveRenderItem: Identifiable {
         case reasoning
         case text
+        /// 已封存正文段的只读呈现（第 93 条）：内容
+        /// 定稿不再变，与打开段的流式气泡分开成项
+        case sealedText(index: Int, text: String)
         case tool(ToolCard)
         case toolGroup([ToolCard])
 
@@ -2984,6 +3020,8 @@ struct ChatView: View {
             switch self {
             case .reasoning: return "live-reasoning"
             case .text: return "live-text"
+            case .sealedText(let index, _):
+                return "sealed-text-\(index)"
             case .tool(let card): return "tool-\(card.id)"
             case .toolGroup(let cards):
                 return "toolgroup-\(cards.first?.id ?? "none")"
@@ -3014,6 +3052,17 @@ struct ChatView: View {
                 flushTools()
                 if streamingText != nil {
                     items.append(.text)
+                }
+            case .sealedText(let index):
+                flushTools()
+                if sealedStreamSegments.indices
+                    .contains(index) {
+                    items.append(
+                        .sealedText(
+                            index: index,
+                            text: sealedStreamSegments[index]
+                        )
+                    )
                 }
             case .tool(let id):
                 if let card = liveToolCards.first(
@@ -3050,6 +3099,11 @@ struct ChatView: View {
                     streamingBubble(streamingText)
                         .id("streaming")
                 }
+            case .sealedText(let index, let text):
+                // 封存段只读呈现（第 93 条）：与打开段
+                // 同族气泡、内容定稿不动画重排
+                streamingBubble(text)
+                    .id("sealed-text-\(index)")
             case .tool(let card):
                 ToolCardView(card: card)
                     .id("tool-\(card.id)")
@@ -8489,6 +8543,9 @@ private struct ComposerBarLayout: Layout {
         liveToolCards = []
         // 0.36.10：事件序标记同步清零，从本轮重记
         liveOrder = []
+        // 第 93 条：封存段列同清（装配器本体在
+        // driveRun 起点归零）
+        sealedStreamSegments = []
         sendTask = Task {
             // 0.36.29（件四）：带文件时先逐个上传——
             // 任一失败整条拦下，不许丢下文件只发文本；
@@ -8856,6 +8913,7 @@ private struct ComposerBarLayout: Layout {
         streamingText = ""
         liveToolCards = []
         liveOrder = []
+        sealedStreamSegments = []
         sendTask = Task {
             var fileServerPaths = entry.remoteFilePaths
             if !filePayloads.isEmpty, fileServerPaths.isEmpty {
@@ -9327,7 +9385,8 @@ private struct ComposerBarLayout: Layout {
         livePartialEntryIDs = []
         terminalOutputHint = nil
         terminalStatusHint = nil
-        contentPublishGate.reset()
+        streamAssembler.reset()
+        sealedStreamSegments = []
         reasoningPublishGate.reset()
         streamingReasoning = nil
         reasoningStartedAt = nil
@@ -9462,7 +9521,7 @@ private struct ComposerBarLayout: Layout {
                 try? await Task.sleep(for: .milliseconds(40))
                 if Task.isCancelled { break }
                 let now = ProcessInfo.processInfo.systemUptime
-                if let snapshot = contentPublishGate
+                if let snapshot = streamAssembler
                     .collectDue(at: now) {
                     streamingText = snapshot
                 }
@@ -9485,8 +9544,11 @@ private struct ComposerBarLayout: Layout {
                  .interim(let delta):
                 if !delta.isEmpty {
                     // 0.36.10：正文首达记位（事件序编排）
+                    // 第 93 条：封段后 .text 标记已被换成
+                    // .sealedText，新段首增量在此重新记位
+                    // ——位置即新段的事件位（工具卡之后）
                     noteLiveOrder(.text)
-                    if let snapshot = contentPublishGate
+                    if let snapshot = streamAssembler
                         .offer(delta, at: now) {
                         streamingText = snapshot
                     }
@@ -9502,6 +9564,10 @@ private struct ComposerBarLayout: Layout {
                     streamingReasoning = snapshot
                 }
             case .toolStarted(let id, let name, let preview):
+                // 第 93 条：工具开始＝服务端段边界——
+                // 先封当前正文段再落卡，卡后的新段增量
+                // 进新缓冲，不许再拼回本段
+                sealStreamSegment(at: now)
                 appendLiveToolCard(
                     id: id, name: name, preview: preview
                 )
@@ -9527,6 +9593,32 @@ private struct ComposerBarLayout: Layout {
             runMachine.apply(.streamLost)
             persistRunPartials(thread: thread)
         }
+    }
+
+    /// 封段（第 93 条）：工具边界到达时把当前正文段
+    /// 定稿入封存列——呈现侧三件同步：封存列镜像装
+    /// 配器、liveOrder 的 .text 标记原位换成 .sealed-
+    /// Text（段的事件位不动）、streamingText 回到新
+    /// 段的空快照（本轮未结束、保持非 nil 的生成
+    /// 态）。当前段为空（工具先行/并行工具连发边界）
+    /// 时装配器无段可封，此处整件空转
+    private func sealStreamSegment(at now: TimeInterval) {
+        guard let sealed = streamAssembler
+            .sealCurrentSegment(at: now) else { return }
+        sealedStreamSegments = streamAssembler.sealedSegments
+        let marker = LiveOrderItem.sealedText(
+            sealedStreamSegments.count - 1
+        )
+        if let textIndex = liveOrder.firstIndex(of: .text) {
+            liveOrder[textIndex] = marker
+        } else {
+            noteLiveOrder(marker)
+        }
+        streamingText = streamAssembler.currentPublished
+        // 封存段的块产物在打开期已逐拍催产，封段的
+        // flush 可能带出尾巴增量：为定稿全文补一拍
+        // 催产，防尾块产物缺位（新承载＋新路才工作）
+        kickStreamingBlockProducts(for: sealed)
     }
 
     private func appendLiveToolCard(
@@ -9932,7 +10024,11 @@ private struct ComposerBarLayout: Layout {
         }
         let output = terminalStatusHint?.output
             ?? terminalOutputHint
-        let fallbackText = contentPublishGate.fullText
+        // 第 93 条：兜底全文走装配器合并口径（各段
+        // 以 "\n\n" 连接，与 transcript 落定拼接同
+        // 制）——旧单闸全文是跨段直接拼接，与落库
+        // 形态不一致
+        let fallbackText = streamAssembler.mergedFullText
         let settled = SettledRunTurn(
             found: true,
             toolCards: liveToolCards,
@@ -10099,10 +10195,18 @@ private struct ComposerBarLayout: Layout {
 
     /// 结果未知时的半截落盘（进程被回收也不凭空消
     /// 失）：工具卡与已累积正文按条目落盘、记 id 供
-    /// 落定时整段替换（与旧 interrupted 落盘同制）
+    /// 落定时整段替换（与旧 interrupted 落盘同制）。
+    /// 第 93 条：正文按段成条——封存段与当前段各成
+    /// 一条助理条目、按 liveOrder 的事件序与工具卡
+    /// 交错落盘（时序即恢复回填的段序凭据）；旧形态
+    /// 把整轮正文拼成一条，跨段混存正是串字在落盘
+    /// 侧的同根形态（回填只能整段吞回单一缓冲、前
+    /// 段与后段就此混为一谈）。标记外的卡/段（回填
+    /// 重挂等）按卡序/段序殿后补齐，不丢件
     private func persistRunPartials(thread: ChatThread) {
         let flushNow = ProcessInfo.processInfo.systemUptime
-        if let snapshot = contentPublishGate.flush(at: flushNow) {
+        if let snapshot = streamAssembler
+            .flushCurrent(at: flushNow) {
             streamingText = snapshot
         }
         if let snapshot = reasoningPublishGate
@@ -10110,37 +10214,82 @@ private struct ComposerBarLayout: Layout {
             streamingReasoning = snapshot
         }
         deleteLivePartialEntries(in: thread)
-        let accumulated = contentPublishGate.fullText
         let reasoningText = reasoningPublishGate.fullText
+        let segments = streamAssembler.fullSegments
+        let sealedCount = streamAssembler
+            .sealedSegments.count
         let endDate = Date()
-        let cards = liveToolCards
         var ids: [UUID] = []
-        for (index, card) in cards.enumerated() {
+        var slot = 0
+        var insertedAssistant = false
+        func persistCard(_ card: ToolCard) {
             let cardEntry = ChatEntry(
                 role: "tool", content: "", thread: thread,
                 toolCard: card
             )
             cardEntry.createdAt = endDate.addingTimeInterval(
-                Double(index) * 0.001
+                Double(slot) * 0.001
             )
+            slot += 1
             modelContext.insert(cardEntry)
             ids.append(cardEntry.id)
         }
-        if !accumulated.isEmpty {
+        func persistSegment(_ text: String) {
+            // 思考挂第一条助理条目：思考是本轮的单一
+            // 折叠单元、不按段拆（与落定口径同）
             let assistantEntry = ChatEntry(
-                role: "assistant", content: accumulated,
+                role: "assistant", content: text,
                 thread: thread,
-                reasoning: reasoningText.isEmpty
-                    ? nil : reasoningText,
+                reasoning: !insertedAssistant
+                    && !reasoningText.isEmpty
+                    ? reasoningText : nil,
                 reasoningSeconds: nil
             )
             assistantEntry.createdAt = endDate
-                .addingTimeInterval(
-                    Double(cards.count) * 0.001 + 0.001
-                )
+                .addingTimeInterval(Double(slot) * 0.001)
+            slot += 1
             modelContext.insert(assistantEntry)
-            thread.updatedAt = Date()
+            insertedAssistant = true
             ids.append(assistantEntry.id)
+        }
+        var persistedCardIDs: Set<String> = []
+        var persistedSegments: Set<Int> = []
+        for marker in liveOrder {
+            switch marker {
+            case .reasoning:
+                continue
+            case .sealedText(let index):
+                if segments.indices.contains(index) {
+                    persistSegment(segments[index])
+                    persistedSegments.insert(index)
+                }
+            case .text:
+                // 当前段在 fullSegments 中的下标恒为封
+                // 存段数（有内容才在列）
+                if streamAssembler.hasCurrentContent,
+                   segments.indices.contains(sealedCount) {
+                    persistSegment(segments[sealedCount])
+                    persistedSegments.insert(sealedCount)
+                }
+            case .tool(let id):
+                if let card = liveToolCards.first(
+                    where: { $0.id == id }
+                ) {
+                    persistCard(card)
+                    persistedCardIDs.insert(id)
+                }
+            }
+        }
+        for card in liveToolCards
+        where !persistedCardIDs.contains(card.id) {
+            persistCard(card)
+        }
+        for (index, text) in segments.enumerated()
+        where !persistedSegments.contains(index) {
+            persistSegment(text)
+        }
+        if insertedAssistant {
+            thread.updatedAt = Date()
         }
         if !ids.isEmpty {
             try? modelContext.save()
@@ -10181,6 +10330,10 @@ private struct ComposerBarLayout: Layout {
         // 在调用本函数之前已把半截转入条目）
         liveToolCards = []
         liveOrder = []
+        // 第 93 条：封存段列同清——落定条目已入列，
+        // 残留段会在下一轮直播区冒头（装配器本体在
+        // 下一轮 driveRun 起点归零）
+        sealedStreamSegments = []
     }
 
     /// 停止（0.31.0）：runs 通道真取消——发 stop 后
@@ -10234,7 +10387,8 @@ private struct ComposerBarLayout: Layout {
         lastEventSeq = -1
         terminalOutputHint = nil
         terminalStatusHint = nil
-        contentPublishGate.reset()
+        streamAssembler.reset()
+        sealedStreamSegments = []
         reasoningPublishGate.reset()
         streamingReasoning = nil
         reasoningStartedAt = nil
@@ -10259,25 +10413,56 @@ private struct ComposerBarLayout: Layout {
             liveToolCards = partials
                 .filter { $0.role == "tool" }
                 .compactMap(\.toolCard)
-            if let partialText = partials
-                .filter({ $0.role == "assistant" })
-                .max(by: { $0.createdAt < $1.createdAt })?
-                .content, !partialText.isEmpty {
-                _ = contentPublishGate.offer(
-                    partialText,
-                    at: ProcessInfo.processInfo.systemUptime
-                )
-                streamingText = partialText
-            } else {
-                streamingText = ""
+            // 第 93 条：半截按段回填——落盘条目按时
+            // 序走查，工具卡与助理段各自归位重建事件
+            // 序；时序最末一条若是助理段，它就是断线
+            // 时打开着的段（重挂后的增量只许拼进它），
+            // 其余助理段一律封存只读。旧形态只取最末
+            // 一段正文吞回单一缓冲：多段半截的前段就
+            // 此从呈现消失、且与打开段混存。旧版落盘
+            // 的单条合并半截（一段到底）在此即整条作
+            // 打开段，行为与旧形态一致
+            let ordered = partials.sorted {
+                $0.createdAt < $1.createdAt
             }
+            let openEntryID = ordered.last?.id
+            var sealedTexts: [String] = []
+            var openText = ""
+            var rebuiltOrder: [LiveOrderItem] = []
+            for partial in ordered {
+                if partial.role == "tool",
+                   let card = partial.toolCard {
+                    rebuiltOrder.append(.tool(card.id))
+                } else if partial.role == "assistant",
+                          !partial.content.isEmpty {
+                    if partial.id == openEntryID {
+                        openText = partial.content
+                        rebuiltOrder.append(.text)
+                    } else {
+                        rebuiltOrder.append(
+                            .sealedText(sealedTexts.count)
+                        )
+                        sealedTexts.append(partial.content)
+                    }
+                }
+            }
+            if !rebuiltOrder.contains(.text) {
+                rebuiltOrder.append(.text)
+            }
+            streamAssembler.restore(
+                sealed: sealedTexts, current: openText,
+                at: ProcessInfo.processInfo.systemUptime
+            )
+            sealedStreamSegments = streamAssembler
+                .sealedSegments
+            liveOrder = rebuiltOrder
+            streamingText = streamAssembler.currentPublished
         } else {
             streamingText = ""
+            // 0.36.10：无半截可回填时事件序仍立正文位
+            // （卡列恒空、只剩 .text 一记）
+            liveOrder = [.text]
         }
-        // 0.36.10：恢复回填的事件序＝卡序在前、正文殿
-        // 后（半截落盘的原始交错序已不可考，落定以
-        // transcript 重建为准）
-        liveOrder = liveToolCards.map { .tool($0.id) } + [.text]
         isDrivingRun = true
         var mutableEntry = entry
         await reconcileRun(
