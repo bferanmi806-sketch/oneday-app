@@ -25,6 +25,12 @@ import UIKit
 final class SessionCatalogGuardTests: XCTestCase {
 
     private var container: ModelContainer!
+    /// §184：容器租约——见 SwiftDataTestMount（容器进进程级
+    /// 持有、永不释放）。本类建 ChatThread 容器，属第三轮兜
+    /// 底收编范围（「进程内无任何容器死亡」不变量）；原包
+    /// 在 .45 基线的自跑中曾被宿主崩溃吃掉对照例判词，移
+    /// 植到 .47 线时按 DeleteCloseoutTests 同式对齐
+    private var swiftDataMount = SwiftDataTestMount()
     private var context: ModelContext!
     private var priorMainSessionID: String?
 
@@ -43,6 +49,7 @@ final class SessionCatalogGuardTests: XCTestCase {
                 schema: schema, isStoredInMemoryOnly: true
             )]
         )
+        swiftDataMount.retain(container)
         context = ModelContext(container)
     }
 
@@ -56,6 +63,7 @@ final class SessionCatalogGuardTests: XCTestCase {
         }
         UserDefaults.standard.removeObject(forKey: queueKey)
         context = nil
+        await swiftDataMount.release()
         container = nil
         try await super.tearDown()
     }
@@ -269,6 +277,83 @@ final class SessionCatalogGuardTests: XCTestCase {
         )
         XCTAssertFalse(try threadExists(victim.id))
         XCTAssertTrue(try threadExists(live.id))
+    }
+
+    // MARK: - ④ 端到端钉链（B-1 销账决胜例，筹备稿 §4.4-3）
+
+    /// 两段同走 AllConversationsStore.load 真路：
+    /// 段一（截断）：服务端名单共 1001 条、每页报
+    /// total=1001，10 页上限只拉到前 1000 条；自有旁
+    /// 聊线程绑第 1001 条（尾部 id）——旧形态名单静
+    /// 默截断、对账以残缺名单为存活集，线程被物理删
+    /// ＋侧账 purge；防护后必须整件不动（线程在、标
+    /// 题覆盖在）。
+    /// 段二（offset 位移重页）：第 2 页含第 1 页尾行
+    /// （重行指纹），一条自有旁聊被位移挤出名单——
+    /// 装配必须去重（展示名单 149 条无重行）、对账必
+    /// 须跳过（被挤出的线程不动）。
+    /// 本例在 .47 旧代码上两段皆红（线程删＋侧账清
+    /// ＋名单带重行），防护入线后必绿
+    func testLoadEndToEndTruncationAndShiftedPageKeepLocalThreads()
+        async throws
+    {
+        // 段一：>1000 条名单＋尾部自有旁聊
+        var pages: [String: SessionsPage] = [:]
+        for pageIndex in 0..<10 {
+            let start = pageIndex * 100 + 1
+            pages["exclude|\(pageIndex * 100)"] = makePage(
+                ids: ids(start...(start + 99)), total: 1001
+            )
+        }
+        pages["only|0"] = makePage(ids: [], total: 0)
+        let appState = makeAppState(pages: pages)
+        let tailID = "oneday-side-tail-1001"
+        let tailVictim = try makeThread(sessionID: tailID)
+        appState.sideChats.setTitleOverride("尾巴标题", for: tailID)
+        defer {
+            appState.sideChats.setTitleOverride(nil, for: tailID)
+        }
+        let store = AllConversationsStore()
+        await store.load(
+            appState: appState,
+            localThreads: try context.fetch(
+                FetchDescriptor<ChatThread>()
+            ),
+            modelContext: context
+        )
+        XCTAssertNil(store.loadError)
+        XCTAssertEqual(store.sessions.count, 1000)
+        XCTAssertTrue(try threadExists(tailVictim.id))
+        XCTAssertEqual(
+            appState.sideChats.titleOverrides[tailID], "尾巴标题"
+        )
+
+        // 段二：offset 位移重页＋被挤出的自有旁聊
+        let appState2 = makeAppState(pages: [
+            "exclude|0": makePage(ids: ids(1...100), total: 150),
+            "exclude|100": makePage(
+                ids: ["s-100"] + ids(101...149), total: 150
+            ),
+            "only|0": makePage(ids: [], total: 0),
+        ])
+        let shiftedVictim = try makeThread(
+            sessionID: "oneday-side-shifted-out"
+        )
+        let store2 = AllConversationsStore()
+        await store2.load(
+            appState: appState2,
+            localThreads: try context.fetch(
+                FetchDescriptor<ChatThread>()
+            ),
+            modelContext: context
+        )
+        XCTAssertNil(store2.loadError)
+        XCTAssertEqual(store2.sessions.count, 149)
+        XCTAssertEqual(
+            Set(store2.sessions.map(\.id)).count, 149
+        )
+        XCTAssertTrue(try threadExists(shiftedVictim.id))
+        XCTAssertTrue(try threadExists(tailVictim.id))
     }
 }
 
