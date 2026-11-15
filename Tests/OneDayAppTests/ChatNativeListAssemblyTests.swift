@@ -95,7 +95,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
                 equalTo: root.view.bottomAnchor
             ),
             dock.heightAnchor.constraint(
-                constant: dockHeight
+                equalToConstant: dockHeight
             ),
         ])
 
@@ -122,7 +122,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
                 equalTo: root.view.trailingAnchor
             ),
             composerBar.heightAnchor.constraint(
-                constant: composerHeight
+                equalToConstant: composerHeight
             ),
             composerBottom,
         ])
@@ -182,12 +182,12 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         window.layoutIfNeeded()
     }
 
-    private func frame(at index: Int) -> CGRect {
+    private func frame(at index: Int) throws -> CGRect {
         let attrs = controller.collectionView
             .layoutAttributesForItem(
                 at: IndexPath(item: index, section: 0)
             )
-        return XCTUnwrap(attrs).frame
+        return try XCTUnwrap(attrs).frame
     }
 
     // MARK: - 真实行内容（生产视图、非占位）
@@ -218,7 +218,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         ChatNativeRow(
             key: key, entryID: entryID, version: 1,
             estimatedHeight: 80,
-            makeView: { assistantContent(text) }
+            makeView: { self.assistantContent(text) }
         )
     }
 
@@ -307,7 +307,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ① 相邻行距单源 24
 
-    func testAdjacentRealRowsKeepSingleSourceSpacing() {
+    func testAdjacentRealRowsKeepSingleSourceSpacing() throws {
         assemble()
         let rows = [
             assistantRow("a1", "第一条助手短回复。"),
@@ -322,7 +322,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         drain()
         var frames: [CGRect] = []
         for index in rows.indices {
-            frames.append(frame(at: index))
+            frames.append(try frame(at: index))
         }
         for index in rows.indices {
             XCTAssertGreaterThan(
@@ -341,18 +341,18 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ② 短内容双键盘态
 
-    func testShortContentGapKeyboardClosedAndOpen() {
+    func testShortContentGapKeyboardClosedAndOpen() throws {
         assemble()
         let rows = [assistantRow("only", "只有一条短回复的会话。")]
         apply(rows: rows, onKeyboard: false)
         drain()
-        assertShortGap(rows: rows, label: "键盘收起")
+        try assertShortGap(rows: rows, label: "键盘收起")
         apply(rows: rows, onKeyboard: true)
         drain()
-        assertShortGap(rows: rows, label: "键盘升起")
+        try assertShortGap(rows: rows, label: "键盘升起")
     }
 
-    func testShortContentThreeRowsGap() {
+    func testShortContentThreeRowsGap() throws {
         assemble()
         let rows = [
             assistantRow("s1", "三行短会话的第一行。"),
@@ -361,7 +361,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         ]
         apply(rows: rows, onKeyboard: false)
         drain()
-        assertShortGap(rows: rows, label: "三行短会话")
+        try assertShortGap(rows: rows, label: "三行短会话")
     }
 
     /// 短内容断言：末行底（窗口坐标）→舱顶（窗
@@ -369,8 +369,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
     /// 试全程不调任何滚动 API）
     private func assertShortGap(
         rows: [ChatNativeRow], label: String
-    ) {
-        let last = frame(at: rows.count - 1)
+    ) throws {
+        let last = try frame(at: rows.count - 1)
         let lastInWindow = controller.collectionView.convert(
             last, to: nil
         )
@@ -390,7 +390,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ③ 长会话进入即真底（三数留档）
 
-    func testLongThreadLandsAtRealBottom() {
+    func testLongThreadLandsAtRealBottom() throws {
         assemble()
         var rows: [ChatNativeRow] = []
         for index in 0..<40 {
@@ -413,14 +413,14 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         apply(rows: rows)
         drain(1.6)
         let cv = controller.collectionView
-        let lastFrame = frame(at: rows.count - 1)
-        let distance = handle.latestDistance ?? -1
+        let lastFrame = try frame(at: rows.count - 1)
+        let distance = handle.latestDistance
         // 三数留档（CI 日志可查，报告回填）
         print(
             "NATIVE-LANDING contentSize=\(cv.contentSize.height)"
                 + " offset=\(cv.contentOffset.y)"
                 + " lastFrame=\(lastFrame)"
-                + " bottomInset=\(handle.bottomInset ?? -1)"
+                + " bottomInset=\(handle.bottomInset)"
                 + " distance=\(distance)"
                 + " contentEndVisible=\(handle.contentEndVisible)"
         )
@@ -449,7 +449,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ④ 跳中段：距底现测＋锚一致
 
-    func testMiddleJumpDistanceAndAnchorAgree() {
+    func testMiddleJumpDistanceAndAnchorAgree() throws {
         assemble()
         var rows: [ChatNativeRow] = []
         var entryIDs: [UUID] = []
@@ -473,13 +473,13 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             animated: false
         )
         drain(0.8)
-        let distance = handle.latestDistance ?? -1
+        let distance = handle.latestDistance
         XCTAssertGreaterThan(
             distance, 176,
             "跳中段后距底读数须现测为大值，实测 \(distance)"
         )
         let anchor = controller.captureAnchor()
-        let unwrapped = XCTUnwrap(
+        let unwrapped = try XCTUnwrap(
             anchor, "中段应能捕获恢复锚"
         )
         XCTAssertFalse(unwrapped.atBottom)
@@ -489,7 +489,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             + cv.contentInset.top
         var expected: UUID?
         for index in rows.indices {
-            if frame(at: index).maxY > visibleTop + 0.5 {
+            if try frame(at: index).maxY > visibleTop + 0.5 {
                 expected = entryIDs[index]
                 break
             }
@@ -502,21 +502,21 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         controller.scrollToBottom(animated: false)
         drain(1.0)
         XCTAssertLessThanOrEqual(
-            handle.latestDistance ?? 999, 1.0,
-            "回底后距底须 ≤1，实测 \(handle.latestDistance ?? -1)"
+            handle.latestDistance, 1.0,
+            "回底后距底须 ≤1，实测 \(handle.latestDistance)"
         )
     }
 
     // MARK: - ⑤ 托管高度等价（H2 回退门）
 
-    func testHostingHeightMatchesBareHost() {
+    func testHostingHeightMatchesBareHost() throws {
         assemble()
         let text =
             "托管等价检验：同一段多行正文，在集合视图 cell 里经 UIHostingConfiguration 托管的高度，必须与裸 UIHostingController（宿主 safeAreaRegions 清零）在同宽下的自适应高度一致——若本断言红，说明配置式托管的拟合被安全区抬高，R1 按施工图回退 keyed 托管控制器方案。"
         let rows = [assistantRow("host-eq", text)]
         apply(rows: rows)
         drain()
-        let cellHeight = frame(at: 0).height
+        let cellHeight = try frame(at: 0).height
 
         let rowWidth = windowW
             - OneDayMetrics.pageGutter * 2
@@ -550,7 +550,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ⑥ 产物估算带宽（H10）
 
-    func testProductEstimateWithinBand() async {
+    func testProductEstimateWithinBand() async throws {
         assemble()
         let text = """
             产物带宽检验第一段：排版产物在量测池里按真实字体与段落规格量出文本总高，行高模型再叠上气泡内边距组合成整行估算。
@@ -562,7 +562,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         let rows = [assistantRow("band", text)]
         apply(rows: rows)
         drain()
-        let cellHeight = frame(at: 0).height
+        let cellHeight = try frame(at: 0).height
 
         let textWidth = windowW
             - OneDayMetrics.pageGutter * 2
@@ -578,7 +578,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
                 width: textWidth,
                 style: style
             )
-        let unwrapped = XCTUnwrap(product, "产物应能现产")
+        let unwrapped = try XCTUnwrap(product, "产物应能现产")
         let lineFloor = InlineTextFonts.specLineHeight(
             textStyle: .body,
             category: .large,
