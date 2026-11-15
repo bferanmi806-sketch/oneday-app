@@ -12951,3 +12951,10 @@ run 43674334927（workflow_dispatch @ feat/text-pipeline-run-layer 尖端），�
 ### §284.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43680945034（workflow_dispatch @ rel-05053 尖端 f2a0ad9），全日志本地核账：**Core Executed 2145/2145、0 failures**（2130 基线＋72 新测 15 精确对账，TextPipelineRunLayerTests 15/15 全过；81 Core 零增与预期一致）；**App 239 注册、238 得判词**（232 passed＋5 skipped 设计内跳＋1 failed；81 新测 ChatTypeScaleAlignTests 6/6 全过）；**UI 10/10**；VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS，BUILD SUCCEEDED、IPA 正常打包上传。登记两项（与两包改动零交集，不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族）；②§184 余崩同签名——`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（239 注册中唯一无判词例），BackingData:835 日志零命中。run 级 conclusion=failure 仅由①引起。IPA 13,911,163 字节、md5 `0c186b4b248fcc329b97dcaf4b90a1f3`，包内 Info.plist 实读 0.50.53／181。未合 main、未打 tag。
+
+## §288 第 92 条销账：文档阅读面整形残余——对象已随 §259 整轨退役（2026-11-15；分支 fix/doc-reader-run-layer，基线 rel-05053@1fb07b3；全档＝oneday-design-review/doc-reader-run-layer-20261115.md；本节为本分支自编号，组版顺延以组版为准）
+
+**登记来源**：第 72 包报告 §六残余——DocumentReaderView.swift:440 仍以 `prettyWrapDocument` 文本层整形（解析前插 U+2060、同根类、非消息路）。该报告基线 rel-05049 上对象属实存在。
+**销账实证**：§259（28aac46，0.50.50 组版落地）已将 DocumentReaderView（936 行）与 SpreadsheetReaderView 整删、文本/表格预览并入 QuickLook 系统单轨——该面由系统组件排版、App 侧零整形，收口强于原拟的 run 层平移。登记与退役在不同基线交叉，本条基线（rel-05053）上对象不存在。
+**全仓复核（rel-05053 实查）**：`prettyWrap`/`prettyWrapDocument` 在 Sources 内除 VisualRules 本体定义外零生产调用点（仅 MarkdownMessage 一处旧序注释与测试存量钉测）；生产整形单源全走 `TextShaping.shapeRuns` 三处——解析 MarkdownMessage:110／呈现 ChatView:4792／量测 LayoutProductService:204，量测呈现同源；保留导出轨 FileTextExport 与 DocumentReading 内零整形调用。
+**处置**：零代码改动、不新造已删面断言（旧病三构造在消息路已由第 72 条 TextPipelineRunLayerTests 15 例钉死）；CI 沿用本基线 §284.1 终判绿实数（run 43680945034），文档提交不重跑。待办第 92 条据此划线。
