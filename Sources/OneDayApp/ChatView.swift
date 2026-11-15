@@ -4491,6 +4491,7 @@ struct ChatView: View {
                 openEchoSession(openableSessionID)
             }
         }
+        .odPressFeedback(openableSessionID != nil)
         .accessibilityElement(children: .combine)
     }
 
@@ -4721,6 +4722,7 @@ struct ChatView: View {
                                     )
                                 )
                             }
+                            .odPressFeedback()
                             // 0.43.0（A11Y-V2）：服务端图以
                             // 文件名为最低文本等价（A11yText
                             // 拼装）；动作与点按同一入口
@@ -4963,6 +4965,7 @@ struct ChatView: View {
                                 )
                             )
                         }
+                        .odPressFeedback()
                         // 0.43.0（A11Y-V2）：与用户侧同口
                         // 径——文件名最低文本等价＋同一
                         // 查看器入口
@@ -5054,6 +5057,7 @@ struct ChatView: View {
                                     )
                                 )
                             }
+                            .odPressFeedback()
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel(
                                 A11yText.imageLabel(
@@ -5244,6 +5248,7 @@ struct ChatView: View {
                 ChatImageViewerItem(source: .data(data))
             )
         }
+        .odPressFeedback()
         // 0.43.0（A11Y-V2）：本地图最低文本等价——
         // 发送时刻（A11yText 拼装、Core 钉测）；动
         // 作与点按同一入口（openImageViewer）
@@ -5824,6 +5829,7 @@ struct ChatView: View {
         // 0.17.0：回告卡点按与胶囊身份域同路——开枢纽
         // sheet（活动格撤销前的落点是切活动格）
         .onTapGesture { showHub = true }
+        .odPressFeedback()
     }
 
     /// 直播思考块（0.36.10 自 streamingRow 拆出）：

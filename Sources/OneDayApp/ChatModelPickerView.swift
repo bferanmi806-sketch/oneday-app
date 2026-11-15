@@ -203,6 +203,7 @@ struct ChatModelPickerView: View {
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { toggleGroup(display) }
+        .odPressFeedback()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(display.group.title)
         .accessibilityValue(collapsed ? "已折叠" : "已展开")

@@ -1108,6 +1108,7 @@ struct AssistantMediaImage: View {
                 == .exists {
                 ServerRemoteImage(path: path)
                     .onTapGesture { onOpen() }
+                    .odPressFeedback()
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(
                         A11yText.imageLabel(
