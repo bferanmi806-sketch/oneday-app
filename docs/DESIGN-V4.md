@@ -757,6 +757,18 @@ composerFocused（delegate 观察回写）切换、带动画。
 500、500→400、700→600）；TypeScale 的字体工厂在暗色
 环境下统一走映射——文字经 TypeScale/语义字体出入口
 收敛者全量生效；裸 .font 字重散点逐处改走工厂。
+**【作废注记（2026-11-15，第 88 条 BS-2 对账）】**：
+本条与 0.4.0「Font.Weight.od 整表废止」（Design-
+Tokens.swift 文件头注在案）口径冲突、多年未对账。
+裁决：**以废止为现行**——暗色字重全域降档自本注
+起不再是纪律；框架层口径从 0.4.0 注（不许 Font.
+system(size:) 写死文字、不许对正文 .weight() 覆
+写）。现行唯一保留的降档执行点＝NumberText.
+effectiveWeight（数字文本的个别处理，OneDay-
+Design/Components.swift），属个案、不属全域纪
+律。本条原文与落法只作沿革保留，不再据此施工。
+审计出处：standards-audit-color-material-
+20261115.md BS-2；对账全文见 §265。
 
 ### 条 4
 原文：「流式打字渐显：新字以 blur 6px 起、120ms 化开，
@@ -11738,6 +11750,7 @@ run 43548826736（头 af08cef）**§190 终判绿**：Build success、Package／
 - **改法**：新设抽屉专用令牌 `Palette.drawerSelectionFill`，`selectionFill` 本体与其余消费面（连接器/交付/动态/文件/通知，均不在材质面板上）零改动。浅档 **#E4E5E7**——压面板合成面 #F2F2F2 逐通道 Δ≈（14,13,11）≥10，与 Muse 自家「#EEEFF1 压 #FCFCFC」Δ≈13 同级；暗档挂 `tertiarySystemBackground`（解析 #2C2C2E）——抽屉面板暗档为材质压 systemBackground 的近似面（secondarySystemBackground #1C1C1E 级），Δ≈16，且与助手泡暗档同级语义、不新造暗值。减透明回退面（chatSurface #FCFCFC／#000）上两档 Δ 分别 ≈23／≈44，同等可辨。
 - **消费点**：DrawerView 三行选中垫（导航行 drawerNavRow／频道行 drawerChannelRow／旁聊当前行，三者同在面板材质上）由 `Palette.selectionFill` 换 `Palette.drawerSelectionFill`；圆角 fieldCorner 19 与全部几何不动。
 - **不走 (b) 大改**：面板 thinMaterial 是 0.36.3 用户点名定案，本包不碰材质本体，只动垫。
+- **材质口径对账（2026-11-15 补记，第 88 条 BS-1）**：本节「面板材质本体不动」与 2026-11-14 配色 U2 A 保守定版「玻璃只给浮动导航层、内容面不透明」此前未对过账。裁决：**抽屉面板属覆盖式导航层**（自屏幕边缘覆盖主面滑入的导航容器、非承载正文的内容面），其 thinMaterial 按导航层豁免 U2 A、保留 0.36.3 定案；U2 A 所指「内容面」＝列表/卡片/正文承载面，该面玻璃零消费的结论（审计 B 线实查）不变。对账全文见 §265。
 
 ### §225.2 AI 散文恢复气泡（推翻 2026-11-13 A1 撤泡口径）
 
@@ -12615,3 +12628,17 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+
+## §265 同物多制收口（2026-11-15；分支 feat/component-convergence，基线 rel-05048@3721c9a；待办第 88 条；审计 standards-audit-components-copy-20261115.md §1-1/§1-2/§4-1＋standards-audit-color-material-20261115.md BS-1/BS-2；全档＝oneday-design-review/component-convergence-20261115.md）
+
+**裁决（主线已定、本包执行）**：①分段控件＝系统件优先为默认、自制为例外；②搜索框＝系统 .searchable 为默认形态；③点按反馈约定自 Button 扩到 onTapGesture 手势面；④BS-1/BS-2 两处文档口径对账（只改文档不改码）。
+
+**落点一·分段**：迁系统 segmented 两面——通知筛选（全部/未读＋计数，NotificationsView.filterBar→Picker(.segmented)）、文件页（文件/影音内容，DeliverablesView.segmentControl→Picker(.segmented)）。形态差统一记：总高 48→系统约 32；轨道 surface 白＋发丝边→系统灰；选中垫 selectionFill→系统白拇指（自带微影）；字阶 .bodyText semibold→系统分段字；文件页左右边距 16（控件局部口径）→pageGutter 20；通知面计数由弱色独立段并入段题文字；切换 selection 触感两面保留；药丸 matchedGeometry 滑移由系统过渡替代。例外保留两面：枢纽分段（图标段＋hubSeg 几何、系统件四项几何不可达、有据在档，不动）；连接器页分段（0.36.10 实拍三宗错退役系统 segmented 的代码内定案在册——轨道灰/选中片白与定版语言正反、高约 31、留白不对版，属有据例外，本包不动、登记待主线复核）。SegmentedControlSpec 本体保留为几何档案＋数值钉测、头注已改（新面不许再消费）。
+
+**落点二·搜索**：迁 .searchable 两面——日志页（navigationBarDrawer 常显；服务端查询口径不变＝提交才查，另补 onChange 空值重查对齐旧清空钮「清字即重查」；审计 §4-2 清空钮缺 .odPressable 随自绘钮退役消解）、文件浏览器页（navigationBarDrawer 常显；本地实时过滤不变；字段不再随 listing 出现与否）。保留内嵌三面（逐个理由）：交付物页＝下拉露出搜索为 §4.2 规格形态（滚动偏移驱动展开/收起、字段在自家页头栈内），.searchable 挂导航栏抽屉无法复现页内落位与露出逻辑；记忆段内搜索＝段级作用域嵌复合页内，.searchable 是页级挂载、迁之冒充整页搜索——保留内嵌但画法收编单源件 FileSearchField（原自绘 odGroup 卡面退役）；抽屉底条＝底条一体件（玻璃胶囊条中段、无导航栈宿主），结构性不可迁。FileSearchField 通用化：占位文案参数化＋关自动大写/纠错（承记忆面旧口径），保留面单源。
+
+**落点三·点按反馈**：OneDayDesign 新增 PressFeedbackModifier＋View.odPressFeedback(enabled:)——视觉参数与 PressableButtonStyle 逐值一致（opacity 0.55／scale 0.985／MotionTokens.press）；按下感知走 simultaneous DragGesture(minimumDistance: 0)，指位移 ≥10pt 自动撤压（滚动不误亮），离手/离屏复位；enabled=false 惰性直通（不可点行不装可点）。接入 13 面：聊天回响行（仅可点达行启用、openableSessionID 判据）、聊天图片四处（用户远端图/助手远端图/整路径图/本地数据图）、回告卡、交付物文档行/网格卡/媒体行（与 contextMenu 共存）、交付图卡、动态帖标题、富内容媒体图、模型面分组头。豁免 2 面（手势基础设施、非点按面）：顶栏隔断吃点 spacer（ChatView 空 onTapGesture，§202.6 在案）、输入舱背景点按聚焦通道（其反馈即焦点/键盘本身、给舱面加压暗反成视觉缺陷）。Feed 帖标题另补可点指示：行尾弱色 chevron.right（宪法 §9；VO 侧原已齐、不动）。
+
+**落点四·文档对账（零代码）**：BS-1＝§225.1 补记（抽屉面板定性覆盖式导航层、thinMaterial 按导航层豁免 U2 A、0.36.3 定案保留；U2 A 的「内容面」＝列表/卡片/正文承载面）；BS-2＝§14 条 3 作废注记（以 0.4.0 整表废止为现行、暗色字重全域降档纪律作废；NumberText.effectiveWeight 为个案保留）。
+
+### §265.1 CI 判读（回填）
