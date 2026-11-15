@@ -2534,10 +2534,10 @@ struct ChatView: View {
                 dynamicTypeSize.contentSizeCategory
         )
         // §263：行高下限与正文同链——.body 的规格
-        // 行高走布局管理器默认行高链路（默认档 22），
-        // 与量测池量到的 pitch 同源；preferredFont
-        // 的 .lineHeight 是字体自然行高（20.29）、
-        // 不是规格值，不许拿它喂下限
+        // 行高由 specLineHeight 与量测池同栈实量
+        // （默认档 22），与量测池量到的 pitch 同源；
+        // preferredFont 的 .lineHeight 是字体自然
+        // 行高（20.29）、不是规格值，不许拿它喂下限
         let lineFloor = InlineTextFonts.specLineHeight(
             textStyle: .body,
             category: style.sizeCategory,
