@@ -33,7 +33,33 @@ final class EdgeEffectProbeTests: XCTestCase {
     /// §184：容器租约——见 SwiftDataTestMount（容器进进程级持有、永不释放）。
     private var swiftDataMount = SwiftDataTestMount()
 
+    /// §294（原生重建 R4 转默认）：本套件量测对象为
+    /// §257.1 旧面边缘效果探针形态（探针重指向新面归 R5 前置），浸泡期显式钉回旧面保既有签名——
+    /// setUp 存旧值并钉 false、tearDown 还原（R5
+    /// 旧面退役时随本套件一并处置）
+    private var nativeListFlagPrior: Any?
+
+    override func setUp() async throws {
+        nativeListFlagPrior = UserDefaults.standard.object(
+            forKey: ChatNativeListFeature.defaultsKey
+        )
+        UserDefaults.standard.set(
+            false, forKey: ChatNativeListFeature.defaultsKey
+        )
+        try await super.setUp()
+    }
+
     override func tearDown() async throws {
+        if let prior = nativeListFlagPrior {
+            UserDefaults.standard.set(
+                prior, forKey: ChatNativeListFeature.defaultsKey
+            )
+        } else {
+            UserDefaults.standard.removeObject(
+                forKey: ChatNativeListFeature.defaultsKey
+            )
+        }
+        nativeListFlagPrior = nil
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil

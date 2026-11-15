@@ -212,7 +212,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     private func launchDemoApp() -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = ["-odDemoMode"]
+        // §294（原生重建 R4 转默认）：本套件是旧面手势
+        // 仲裁基线，浸泡期显式钉回旧面保签名；原生面
+        // 同题同判据在 ChatGestureNativeSurfaceTests
+        app.launchArguments = [
+            "-odDemoMode", "-chat.list.native", "NO",
+        ]
         app.launch()
         return app
     }

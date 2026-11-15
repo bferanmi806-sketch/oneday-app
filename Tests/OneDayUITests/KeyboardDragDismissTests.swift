@@ -22,7 +22,11 @@ final class KeyboardDragDismissTests: XCTestCase {
     func testInteractiveDragDismissAcrossHosts() throws {
         var lines: [String] = []
         let app = XCUIApplication()
-        app.launchArguments = ["-odDemoMode"]
+        // §294（R4 转默认）：本例量测旧面交互消散形
+        // 态，浸泡期显式钉回旧面保签名
+        app.launchArguments = [
+            "-odDemoMode", "-chat.list.native", "NO",
+        ]
         app.launch()
         defer { app.terminate() }
 
