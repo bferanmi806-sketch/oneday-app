@@ -12947,3 +12947,7 @@ run 43674334927（workflow_dispatch @ feat/text-pipeline-run-layer 尖端），�
 **装车两包**：①第 81 条气泡排版四值对齐（feat/chat-type-scale-align@4349eda 五提交；本档 §282，原自编号 §263）——正文升 .body 17pt＋规格 leading 22＋段距 16＋助手文宽占屏比；②第 72/74 条文本管线根治（feat/text-pipeline-run-layer@e20de37 两提交；本档 §283，原自编号 §271）——整形后移 run 层＋装配真值断言＋表格封顶/>4 列降级。
 **冲突亲解两处**：StreamingText.swift——保第 82 条 StreamingTokenView 分层结构，81 的 .font(.callout)→.font(.body) 只落词元视图内部一行＋注释（逐字核对：相对 rel-05052 该文件仅此一 hunk）；DESIGN 撞尾三轮——两节整段接尾、节号顺延 §282/§283。余文件全自动合入后逐 hunk 核对：LayoutProductService 两包落点不同区（81＝coreKey/baseFont 字阶＋preheat/textWidth 单源；72＝用户量测路 shapeRuns），ChatView 用户气泡呈现面两包拼合（shapeRuns 装配＋textStyle .body 同函数共存），累积 diff 文件集恰为两包并集 14 文件、无一处覆盖回退。
 **预期量级**：Core 2130＋72 新测 15＝2145（81 Core 零增）；App 233＋81 新测 6＝239 注册；UI 10 例。CI 判读见 §284.1。
+
+### §284.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+run 43680945034（workflow_dispatch @ rel-05053 尖端 f2a0ad9），全日志本地核账：**Core Executed 2145/2145、0 failures**（2130 基线＋72 新测 15 精确对账，TextPipelineRunLayerTests 15/15 全过；81 Core 零增与预期一致）；**App 239 注册、238 得判词**（232 passed＋5 skipped 设计内跳＋1 failed；81 新测 ChatTypeScaleAlignTests 6/6 全过）；**UI 10/10**；VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS，BUILD SUCCEEDED、IPA 正常打包上传。登记两项（与两包改动零交集，不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族）；②§184 余崩同签名——`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（239 注册中唯一无判词例），BackingData:835 日志零命中。run 级 conclusion=failure 仅由①引起。IPA 13,911,163 字节、md5 `0c186b4b248fcc329b97dcaf4b90a1f3`，包内 Info.plist 实读 0.50.53／181。未合 main、未打 tag。
