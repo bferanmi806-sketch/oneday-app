@@ -88,7 +88,7 @@ final class StreamOverlapInstrumentTests: XCTestCase {
     /// 生产气泡同形（ChatView.assistantBubble 逐项同值）：
     /// HStack{ 内容＋内边距＋气泡底; Spacer(44) }
     private func bubbleView(
-        text: String, reduceMotion: Bool
+        text: String, killAnimations: Bool
     ) -> AnyView {
         let core = HStack(alignment: .top) {
             StreamingBlockText(text: text)
@@ -102,9 +102,15 @@ final class StreamOverlapInstrumentTests: XCTestCase {
                 )
             Spacer(minLength: OneDayMetrics.bubbleSideInset)
         }
-        if reduceMotion {
+        if killAnimations {
+            // 动画对照：事务级抑制本子树全部动画（等价
+            // 于把 streamIn 动画置 nil 且更强），stagger
+            // 延时显隐通道原样保留——两候选由此分开。
+            // 注：\.accessibilityReduceMotion 环境覆盖在
+            // iOS 26 SDK 下键路径为存在类型、无可用
+            // .environment 重载（实测编译红），故不用
             return AnyView(
-                core.environment(\.accessibilityReduceMotion, true)
+                core.transaction { $0.animation = nil }
             )
         }
         return AnyView(core)
@@ -129,7 +135,7 @@ final class StreamOverlapInstrumentTests: XCTestCase {
     }
 
     private func makeRows(
-        text: String, reduceMotion: Bool,
+        text: String, killAnimations: Bool,
         estimateOverride: CGFloat?
     ) -> [ChatCarrierRow] {
         var rows: [ChatCarrierRow] = (0..<settledCount).map { i in
@@ -154,7 +160,7 @@ final class StreamOverlapInstrumentTests: XCTestCase {
                     ?? provisionalEstimate(text: text),
                 makeView: {
                     self.bubbleView(
-                        text: text, reduceMotion: reduceMotion
+                        text: text, killAnimations: killAnimations
                     )
                 }
             )
@@ -163,13 +169,13 @@ final class StreamOverlapInstrumentTests: XCTestCase {
     }
 
     private func applyBeat(
-        _ beat: Int, text: String, reduceMotion: Bool = false,
+        _ beat: Int, text: String, killAnimations: Bool = false,
         estimateOverride: CGFloat? = nil
     ) {
         StreamOverlapProbe.beginBeat(beat)
         controller.apply(
             rows: makeRows(
-                text: text, reduceMotion: reduceMotion,
+                text: text, killAnimations: killAnimations,
                 estimateOverride: estimateOverride
             ),
             layout: testLayout,
@@ -399,7 +405,7 @@ final class StreamOverlapInstrumentTests: XCTestCase {
     /// 把全文字节拍喂入：每拍 apply→中段采样（+45ms 叶
     /// 帧）→落定（0.5s）→拍末快照＋跨拍判读
     private func runSequence(
-        tag: String, chunks: [String], reduceMotion: Bool = false,
+        tag: String, chunks: [String], killAnimations: Bool = false,
         estimates: [CGFloat]? = nil, sampleLeaves: Bool = true
     ) -> [BeatFrame] {
         var frames: [BeatFrame] = []
@@ -408,7 +414,7 @@ final class StreamOverlapInstrumentTests: XCTestCase {
             let beat = index + 1
             text += chunk
             applyBeat(
-                beat, text: text, reduceMotion: reduceMotion,
+                beat, text: text, killAnimations: killAnimations,
                 estimateOverride: estimates?[index]
             )
             drain(0.045)
@@ -497,12 +503,12 @@ final class StreamOverlapInstrumentTests: XCTestCase {
         )
     }
 
-    /// 对照：Reduce Motion（环境覆盖，与生产 env 读口
-    /// 同路）——同闭合序列，判读动画是否为必要条件
-    func testInstrumentBlockClosureReduceMotion() {
+    /// 对照：动画全关（事务级抑制，stagger 保留）——
+    /// 同闭合序列，判读动画是否为位移的必要条件
+    func testInstrumentBlockClosureNoAnim() {
         let frames = runSequence(
-            tag: "CLOSE-RM", chunks: closureChunks,
-            reduceMotion: true
+            tag: "CLOSE-NA", chunks: closureChunks,
+            killAnimations: true
         )
         XCTAssertEqual(frames.count, closureChunks.count)
     }
