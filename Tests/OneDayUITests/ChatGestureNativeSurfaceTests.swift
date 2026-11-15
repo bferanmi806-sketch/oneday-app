@@ -247,7 +247,11 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
             return
         }
         if !target.isHittable {
-            app.collectionViews.firstMatch.swipeUp()
+            // 抽屉开态内容层退出无障碍树（容器既定
+            // 行为）——集合视图此时不在树内，滑动走
+            // app 级（命中的是抽屉自己的滚动面）；
+            // 第一轮 CI 五件全卡于此、先修此一处
+            app.swipeUp()
         }
         target.tap()
         _ = app.buttons["topbar.modelCapsule"]
@@ -259,9 +263,10 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
            toBottom.isHittable {
             toBottom.tap()
         } else {
-            let list = app.collectionViews.firstMatch
+            // 抽屉刚关、内容层回树有动画时差——走
+            // app 级滑动不赌集合视图在树时刻
             for _ in 0..<6 {
-                list.swipeUp()
+                app.swipeUp()
             }
         }
         Thread.sleep(forTimeInterval: 1.5)

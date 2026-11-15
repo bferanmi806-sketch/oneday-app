@@ -543,9 +543,17 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
         )
         textView.selectedRange = numberRange
         delegate.textViewDidChangeSelection?(textView)
+        // 回报次数不作口径：程序化设选区自身回调
+        // 一回＋本例显式补调一回，第一轮 CI 实证
+        // [true, true]——只认末值 true 且无 false
+        // 混入（生产侧 noteTextSelection 幂等）
         XCTAssertEqual(
-            recorder.selectionEvents, [true],
+            recorder.selectionEvents.last, true,
             "选区形成须回报 true"
+        )
+        XCTAssertTrue(
+            recorder.selectionEvents.allSatisfy { $0 },
+            "选区形成前不许有 false 回报混入"
         )
         let gatedSpec = makeSpec(
             isUser: false, content: content,
