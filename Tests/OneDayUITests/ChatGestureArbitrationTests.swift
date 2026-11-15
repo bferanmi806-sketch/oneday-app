@@ -385,6 +385,15 @@ final class ChatGestureArbitrationTests: XCTestCase {
     /// 节点）。纠偏上限 3 次、总等上限约 15 秒；
     /// 超时未落定打 UNSETTLED 行、按旧行为返回
     /// （断言自会以真失败形态留痕、不放宽）
+    ///
+    /// 第二轮两补：①出口附加自洽条件——回底钮
+    /// 不在场（列表落底静止）才许放行；首轮实证
+    /// provoke 纠偏后列表停在离底态、五件手势全
+    /// 在离底状态下投递而灭。离底则点回底钮走生
+    /// 产路径回底、重新落定。②超时前全量重扫兜
+    /// 底——首轮电话阶段一句柄漂移到容器节点、
+    /// 纠偏耗尽后 UNSETTLED；弃旧句柄从全树重
+    /// 匹配一次、再给 6 秒落定窗，只此一次
     private func settle(
         _ element: XCUIElement, needle: String,
         in app: XCUIApplication
@@ -394,19 +403,49 @@ final class ChatGestureArbitrationTests: XCTestCase {
         var lastFrame = current.frame
         var stableReads = 0
         var provocations = 0
-        let deadline = Date().addingTimeInterval(15)
-        while Date() < deadline {
+        var finalRescanDone = false
+        var deadline = Date().addingTimeInterval(15)
+        while true {
+            if Date() >= deadline {
+                guard !finalRescanDone else { break }
+                finalRescanDone = true
+                print(
+                    "TEST-FINDER finalRescan needle="
+                        + needle
+                )
+                if let fresh = firstMatch(
+                    needle: needle, in: app
+                ) {
+                    current = fresh
+                }
+                lastFrame = current.frame
+                stableReads = 0
+                deadline = Date().addingTimeInterval(6)
+                continue
+            }
             let f = current.frame
             if f == lastFrame,
                framePlausible(f, in: win),
                current.isHittable {
                 stableReads += 1
                 if stableReads >= 2 {
-                    print(
-                        "TEST-FINDER settled needle="
-                            + needle + " frame=\(f)"
-                    )
-                    return current
+                    if !backToBottomPresent(in: app) {
+                        print(
+                            "TEST-FINDER settled needle="
+                                + needle + " frame=\(f)"
+                        )
+                        return current
+                    }
+                    // 帧已落定但列表离底：回底后重
+                    // 新落定，不在此出口放行
+                    returnToBottom(in: app)
+                    if let rematched = firstMatch(
+                        needle: needle, in: app
+                    ) {
+                        current = rematched
+                    }
+                    lastFrame = current.frame
+                    stableReads = 0
                 }
             } else if f != lastFrame {
                 lastFrame = f
@@ -415,7 +454,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
                 // 帧逐读不变但不合理：稳定地错
                 stableReads += 1
                 if stableReads >= 3 {
-                    guard provocations < 3 else { break }
+                    guard provocations < 3 else {
+                        // 纠偏耗尽不直接放弃：压到超
+                        // 时口走一次全量重扫兜底
+                        deadline = Date()
+                        continue
+                    }
                     provocations += 1
                     provokeRelayout(of: current, in: app)
                     if let rematched = firstMatch(
@@ -455,6 +499,13 @@ final class ChatGestureArbitrationTests: XCTestCase {
     /// 底部）——两轮 CI 实证真实滚动活动后 AX
     /// 帧自报真值（swipe 例二试、电话例 reveal
     /// 后各有纠正帧在案）
+    ///
+    /// 第二轮补收尾回底：首轮实证往返小滚只有
+    /// 下行一滚生效、上行回滚无合成记录，纠偏
+    /// 后列表停在离底态（落定帧偏高 ≈16pt、五
+    /// 件失败树全带回底钮）——往返后回底钮在场
+    /// 就点它走生产路径回底，与 openSeeded-
+    /// Thread 同口径，纠偏必须以落底静止收尾
     private func provokeRelayout(
         of element: XCUIElement, in app: XCUIApplication
     ) {
@@ -462,8 +513,32 @@ final class ChatGestureArbitrationTests: XCTestCase {
             let list = app.scrollViews.firstMatch
             list.swipeDown()
             list.swipeUp()
+            returnToBottom(in: app)
         } else if element.exists {
             reveal(element, in: app)
+        }
+    }
+
+    /// 回底钮（chevron.down）在场与否：生产口
+    /// 径该钮只在列表离底时进树（openSeeded-
+    /// Thread 同款），在场＝离底、缺席＝落底
+    /// 静止
+    private func backToBottomPresent(
+        in app: XCUIApplication
+    ) -> Bool {
+        app.buttons["chevron.down"].exists
+    }
+
+    /// 走生产路径回底：回底钮在场且可点才点，
+    /// 点后等滚动落定一拍
+    private func returnToBottom(
+        in app: XCUIApplication
+    ) {
+        let toBottom = app.buttons["chevron.down"]
+        if toBottom.exists, toBottom.isHittable {
+            toBottom.tap()
+            print("TEST-FINDER returnToBottom tapped")
+            Thread.sleep(forTimeInterval: 1.0)
         }
     }
 
