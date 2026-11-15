@@ -173,7 +173,7 @@ public enum MotionTokens {
     }
 }
 
-// MARK: - 分段控件落值（文件页 [文件｜影音内容]）
+// MARK: - 分段控件落值（保留自制件的几何档案）
 
 /// 自制分段控件的尺寸真源（0.36.2，体验三件规格
 /// §1.6；Muse 文件页实测口径）：总高 48、药丸高
@@ -182,6 +182,12 @@ public enum MotionTokens {
 /// 值、即胶囊）。旧口径「段高约 63 照图复刻」系目
 /// 测高估 15pt（总高曾达 60、药丸 52），自本版退
 /// 役；数值由 SegmentedControlSpecTests 钉死防回潮。
+/// 2026-11-15 第 88 条裁决后本表地位变更：系统
+/// segmented 为全 App 默认分段形态，通知筛选/文
+/// 件页已迁系统件、不再消费本表；本表只作保留自
+/// 制件（枢纽族几何口径）的档案与数值钉测，**新
+/// 面不许再消费本表自绘分段**——新面一律系统
+/// Picker(.segmented)，例外须主线裁决并在此登记。
 public enum SegmentedControlSpec {
     /// 控件总高
     public static let totalHeight: CGFloat = 48
