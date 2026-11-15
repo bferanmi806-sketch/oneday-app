@@ -46,11 +46,11 @@ enum StreamOverlapProbe {
     }
 
     private static let lock = NSLock()
-    private(set) static var currentBeat = 0
-    private(set) static var arrangements: [Arrangement] = []
-    private(set) static var textBeats: [TextBeat] = []
-    private(set) static var visibilities: [Visibility] = []
-    private(set) static var carrierEvents: [CarrierEvent] = []
+    private(set) nonisolated(unsafe) static var currentBeat = 0
+    private(set) nonisolated(unsafe) static var arrangements: [Arrangement] = []
+    private(set) nonisolated(unsafe) static var textBeats: [TextBeat] = []
+    private(set) nonisolated(unsafe) static var visibilities: [Visibility] = []
+    private(set) nonisolated(unsafe) static var carrierEvents: [CarrierEvent] = []
 
     static func reset() {
         lock.lock()
