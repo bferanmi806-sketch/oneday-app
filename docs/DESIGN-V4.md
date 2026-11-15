@@ -13138,3 +13138,25 @@ run 43735705687（workflow_dispatch @ rel-05057 尖端 206c7dd），全日志 21
 
 run 43746767854（workflow_dispatch @ rel-05058 尖端 0a9fca6），全日志 24,819 行本地核账：**Core 2163/2163、0 failures**；**R1 装配 7/7 续绿**；**R2 装配 ⑦⑨⑩ 续绿**；**R3 装配四例全过**（⑪双形态行高对拍、⑫原生装配本体、⑬混合间距 24、拼装资格）；**DataDetector 3/3 续绿**；App 红恰 §257.1 登记探针＋⑧（量测限制已登记）两件；UI 20 例 10 红、恰登记集——gen3 手势集 4 件（本轮边距带转绿）、新面五件 5 件（失败形态与 §295.1 同签名：命中帧漂移打中模型选择面、finder 丢元素、无产品反例）、键盘矩阵 rig 1 件；BackingData 零命中（§184 未现）；VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.58/OneDay-0.50.58-unsigned.ipa：**14,051,721 字节、md5 `c98a489e952669f089d09daafd8a1b25`**，解包验 CFBundleShortVersionString=0.50.58、CFBundleVersion=186、bundle id site.didichou.oneday。待办总表已落第 98 条 R3 落地行＋第 95 条 R3 收口，副本随交付目录；真机清单＝首组手势五件最终验收＋续组 .57 十二项。未合 main、未打 tag。
+
+## §297 聊天列表原生重建 R4（2026-11-16；分支 feat/chat-native-r4，基线 feat/chat-native-r3@51844ba；施工图 chat-native-rebuild-blueprint-20261115 §五 R4）
+
+**切片口径**：新面转默认＋浸泡期口径落地。本刀预制不组版（R3 已有条件判绿、.58 组版由主线并行），组 .59 归主线；旧面与三旗本体**不删**（退役归 R5 同刀）。
+
+**转默认（三处同口径、一处语义）**：`ChatNativeListFeature.isEnabled` 改缺省解析——键不存在＝true、显式存值优先；`ChatView`/`SettingsView` 两处 `@AppStorage(ChatNativeListFeature.defaultsKey)` 缺省字面改 true。语义后果逐项对账：未触碰过开关的用户（键缺省）自此走原生面；曾显式开（存 true）不变；曾显式关（存 false）被尊重、仍走现行面——转默认不覆盖任何人的显式选择。设置页实验组开关保留、文案改「默认开启……浸泡期回退口——关掉即回现行承载」：浸泡期缺省回滚＝把缺省改回 false 一行（施工图 §五 R4 旗与回滚口径）。旗的生命周期定位＝发布旗（release toggle）：R4 完成「平缺省 100%＋浸泡一整版」步，R5 在浸泡无承载级回退事件后删旧面与三旗本体（通行退役序，见 R4 报告 §一）。
+
+**浸泡期回归面（默认态复跑的落法）**：①既有装配套件 R1（六组）/R2（⑦–⑩）/R3（⑪–⑬）直构容器、不经旗，续跑即新面全量回归；②整页/仪器类套件中量测对象为旧面形态者**显式钉回旧面保签名**——App 层五件（ChatPageAssemblyRegressionTests §185/§186 整页组装、KeyboardFlowAcceptanceTests、KeyboardFlowDiagnosticTests、ChatPageDeviceConditionProbeTests、EdgeEffectProbeTests §257.1）在 setUp 钉 `chat.list.native=false`（存旧值、tearDown 还原），UI 层三件（ChatGestureArbitrationTests、KeyboardTapDismissMatrixTests、KeyboardDragDismissTests）启动参数加 `-chat.list.native NO`：它们找的是 HostingScrollView/§194 形态，转默认后若不钉会被测面被静默偷换、登记签名失去可比性；旧面在浸泡期仍是受支持的回退面，这批钉住的套件即回退面的常驻回归。§257.1 探针的重指向新面仍按施工图归 R5 前置、本刀只保签名不动口径。③抽屉/顶簇/设置页类 UI 套件量测对象不在列表面，不钉（背景面随缺省走新面、断言对象不变）。
+
+**新增默认态装配断言（`ChatNativeListR4AssemblyTests`，真壳、真实生产行内容、禁固定高占位）**：⑭缺省整页出原生面（旗键删除态下 RootView 整页装配、VC 树内 ChatRootViewController 在场）；⑮显式关回退在位（置 false 后整页不出原生面）；⑯开线程落底·新面帧口径（见下）。Core 侧加 `testNativeListFeatureDefaultsOnSinceR4`（键缺省→true、显式 false→false、显式 true→true、删键回缺省）。
+
+**冒烟门「开线程落底」例改指（R1 报告 §五指定，本刀落地）**：该例（chore/smoke-gate 分支 `testSmokeBackToBottomArrowEndToEnd`，未合 main）以旧面 AX 在场口径判落底，R1 已以帧级证据定性其为测试侧事实、非产品判决；转默认后旧面不再是缺省面，该口径就此退役——同命题改指新面帧口径常驻断言：R1 装配③（三数＋距底 ≤1＋帧口径 contentEndVisible）＋本刀⑯（选面先经 Core 缺省解析、40 行真实内容 apply 链落底、三数打印 `NATIVE-LANDING-R4` 留档）。smoke-gate 分支本体不在本刀文件面内：其箭头例的处置＝主线下次触碰/合入该分支时按本节口径删除或改指，登记在 R4 报告交主线事项。
+
+**验收门（施工图 §五 R4／§6.3）**：全矩阵真机 24 项＋千条 Instruments 对照（E1）归主线组 .59 执行、本刀不判；本刀判读面＝CI 两轮内 Core 全绿＋装配全套（R1–R4）绿＋钉面套件签名与基线逐项对齐。CI 判读见 §297.1（回填）。
+
+### §297.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+第一轮（run 43747061868@96c50a3）：**Core 2164/2164 全绿**（基线 2163＋本刀新例 1）；**R4 装配三例全过**（⑭缺省整页出原生面/⑮显式关回退在位/⑯落底帧口径，`NATIVE-LANDING-R4 contentSize=4156.0 offset=3352.0 distance=0.0 contentEndVisible=true`，与同轮 R1 ③ 的 NATIVE-LANDING 逐值相同）；R1/R2/R3 装配除 ⑧ 外全绿。钉面套件：整页组装/键盘验收/键盘诊断/设备条件探针四件全绿（钉旗生效）；EdgeEffectProbe 红但数值与基线逐值同签名（24/8/18/25…，探针帧实证其仍在旧面 HostingScrollView 上量测——钉旗按设计工作）。**唯一真新红＝DiscussQuoteAttachReproTests**：其聊天页在场门只认 ComposerGuideHostController，而原生面舱已由 ChatRootViewController 收编（R2）、该宿主不在树内——在场门在新缺省面恒假；该 rig 实质断言全在 AppState 待发引用生命周期、与列表面无关，属测试侧面假设、非产品反例（同轮其余 P 段未及执行）。UI 10 红＝仲裁 4＋原生面五件（第 95 条 AX 帧不稳登记族、与 R3 基线同签名；仲裁边距带本轮过）＋键盘矩阵 1（rig 快照无匹配 index 13——.55 以来登记的 rig 枚举不稳族、非 GAP 产品面）。§184：宿主重启 1 次、BackingData 零命中，登记签名内。修复一笔（cbaffdc）：DiscussQuote 在场门改双面（旧面认引导线宿主、原生面认 ChatRootViewController 本体）。
+
+第二轮（run 43751990853@cbaffdc）：**Core 2164/2164 复全绿；R4 装配三例复过、⑯ 三数与首轮逐值相同（4156/3352/0.0）**；**DiscussQuote 转绿**（20.1s，待发引用生命周期在新缺省面全程成立——浸泡面新增一份真实覆盖）；键盘矩阵转绿（首轮红坐实 rig 抖动族）。余红 11 件全为登记签名且与基线逐项同形态：⑧（「0≠1」量测不可达签名、主线已于 .57 按证据链放行）、EdgeEffectProbe（24/8/18/25 逐值同基线）、UI 仲裁 4＋原生面 5（第 95 条族、两轮间成员有涨落、无产品反例）。两轮红集无新面孔。**R4 判定：判绿**（预制面）——转默认三处同口径落码、缺省/回退双向装配证据齐、默认态回归面全量复跑成立；全矩阵真机 24 项＋千条 Instruments 对照（§6.3）归主线组 .59 验收门、本刀不判。
+>>>>>>> feat/chat-native-r4
+

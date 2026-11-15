@@ -37,7 +37,11 @@ final class KeyboardTapDismissMatrixTests: XCTestCase {
     func testTapBlankDismissMatrix() throws {
         var lines: [String] = []
         let app = XCUIApplication()
-        app.launchArguments = ["-odDemoMode"]
+        // §297（R4 转默认）：本矩阵的登记签名出旧面
+        // 键盘形态，浸泡期显式钉回旧面保签名
+        app.launchArguments = [
+            "-odDemoMode", "-chat.list.native", "NO",
+        ]
         app.launch()
         defer { app.terminate() }
 

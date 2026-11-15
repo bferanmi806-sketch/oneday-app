@@ -120,11 +120,20 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
         return condition()
     }
 
-    private func findComposerVC() -> ComposerGuideHostController? {
-        var found: ComposerGuideHostController?
+    /// 聊天页在场判据（§297 R4 改双面）：旧面认
+    /// ComposerGuideHostController（舱经引导线宿主
+    /// 在场）；原生面舱已由 ChatRootViewController
+    /// 收编（R2 §292）、引导线宿主不在树内——认原
+    /// 生容器本体。本 rig 的实质断言全在 AppState
+    /// 待发引用生命周期、与列表面无关，在场门须双
+    /// 面成立才不偷换被测面
+    private func findComposerVC() -> UIViewController? {
+        var found: UIViewController?
         func walk(_ vc: UIViewController) {
-            if let hit = vc as? ComposerGuideHostController {
-                found = hit
+            if vc is ComposerGuideHostController
+                || vc is ChatRootViewController
+            {
+                found = vc
             }
             for child in vc.children { walk(child) }
         }

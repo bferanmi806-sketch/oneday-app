@@ -487,13 +487,15 @@ struct ChatView: View {
     private var gen3CarrierEnabled = false
     @State private var carrierHandle = ChatListCarrierHandle()
     /// §291（原生重建 R1）：原生面特性开关（Core
-    /// ChatNativeListFeature，默认关；设置页实验区
-    /// 与本键同源）与原生面句柄（与 gen3 句柄同形
-    /// 态，见 ChatNativeList.swift）。三旗并存期分
-    /// 叉口径：原生面开时优先于 gen3/旧面（施工图
-    /// §5.2 缺省面始终只有一个）
+    /// ChatNativeListFeature；设置页实验区与本键同
+    /// 源）与原生面句柄（与 gen3 句柄同形态，见
+    /// ChatNativeList.swift）。三旗并存期分叉口径：
+    /// 原生面开时优先于 gen3/旧面（施工图 §5.2 缺
+    /// 省面始终只有一个）。§297（R4）：缺省改开
+    /// （与 Core isEnabled 同口径：键缺省＝true、
+    /// 显式 false 为浸泡期回退）
     @AppStorage(ChatNativeListFeature.defaultsKey)
-    private var nativeListEnabled = false
+    private var nativeListEnabled = true
     @State private var nativeHandle = ChatNativeListHandle()
 
     /// 当前面命令分发（§291 收口）：跟随/落定/锚
