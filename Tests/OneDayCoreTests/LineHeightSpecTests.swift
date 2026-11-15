@@ -31,7 +31,7 @@ final class LineHeightSpecTests: XCTestCase {
         let layoutManager = NSLayoutManager()
         let container = NSTextContainer(
             size: CGSize(
-                width: 2000, height: .greatestFiniteMagnitude
+                width: 2000, height: CGFloat.greatestFiniteMagnitude
             )
         )
         container.lineFragmentPadding = 0
