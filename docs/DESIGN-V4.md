@@ -12599,4 +12599,6 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 
 一轮（43602488358）Core 测试编译失败（本包测试 LayoutStyleKey 构造口径误写、一行修正）；二轮（43603461195）**Core 2044/2044**（基线 2033＋新增 11 精确对账）、UI 8/8，唯一失败为本包新 App 测试的宿主形态问题（窗口不布局致承载宽度恒 0），三轮（43606759313）以离屏直驱＋inset 同步泵重写后 **ChatCarrierSettleCarryTests passed、App 套件 passed**，全场唯一红为 UI 抽屉长按菜单等待超时（与本包无交集、同期热修线轮次全过，判既有 flake 登记）；四轮（43609551093）追加验收裁定：发布闸装配逐字保真 passed、呈现装配标题行保真以预期内实锤失败复现丢字（§九、run 转储与用户截图同形），守卫修复已落码、五轮（43612193816）已派发——终判与热修（fix/gen3-scroll-reentrancy）拣入后的终轮判读，因 GitHub 账号级 API 限流（403）暂阻，恢复后补跑回填。追加落点：Core `VisualRules.swift` prettyWrap 定界符守卫（§九 .3）与 `StreamingAssemblyFidelityTests` 3 条（闸保真/呈现保真/整形守卫），终轮预计 Core 2047。
 
+**五轮补读终局（2026-11-15 补读 run 43612193816，头 bcf16cf）**：completed / failure，exit 65——Build ✓、**Core 2047/2047**（0 failures，2044＋守卫回归 3 精确对账）、**UI 8/8**、全场断言失败 0。格式保真回归 3 条**全部 passed**（闸保真／呈现保真／整形守卫）。但 App 测试宿主 SwiftData 致命崩溃（`BackingData.swift:835`，UTC 16:28:33）打断 8 条测试无判词，含本包自有 `ChatCarrierSettleCarryTests` 2 条（三轮已 passed，本轮被打断）与 `DeleteCloseoutTests.testApplyLeavesUnboundThreadsAlone`，其余 5 条为 §184 常客。**五轮本身未终判绿**；热修拣入＋终轮 CI 仍待包 4 线后续。
+
 **节号顺延注记**：本节在本分支编号 §247；0.50.48 组版顺延为 **§263**（rel 线已用至 §262），文内与代码自指保留分支编号 §247、组版侧引用以 §263 为准。
