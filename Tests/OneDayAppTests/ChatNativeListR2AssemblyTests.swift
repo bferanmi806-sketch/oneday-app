@@ -219,21 +219,47 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
                !label.isEmpty {
                 out.append(label)
             }
-            walkContainer(element, depth: depth + 1)
+            walkContainer(of: element, depth: depth + 1)
         }
-        func walkContainer(_ object: Any, depth: Int) {
-            guard depth <= 6,
-                  let container = object
-                    as? UIAccessibilityContainer
+        // 容器协议的两型重载：UIAccessibility-
+        // Container 协议名在本工具链（iOS 26 SDK）
+        // 不可作类型引用（第二轮 CI 编译实证），
+        // 但其方法 accessibilityElementCount／
+        // accessibilityElement(at:) 在 UIView 与
+        // UIAccessibilityElement 两型上均可直调，
+        // 故按具体型分发、不点名协议
+        func walkContainer(of view: UIView, depth: Int) {
+            walkChildren(
+                count: view.accessibilityElementCount(),
+                childAt: {
+                    view.accessibilityElement(at: $0)
+                },
+                depth: depth
+            )
+        }
+        func walkContainer(
+            of element: UIAccessibilityElement,
+            depth: Int
+        ) {
+            walkChildren(
+                count: element
+                    .accessibilityElementCount(),
+                childAt: {
+                    element.accessibilityElement(at: $0)
+                },
+                depth: depth
+            )
+        }
+        func walkChildren(
+            count: Int,
+            childAt: (Int) -> Any?,
+            depth: Int
+        ) {
+            guard depth <= 6, count > 0,
+                  count < 100_000
             else { return }
-            let count = container
-                .accessibilityElementCount()
-            guard count > 0, count < 100_000 else {
-                return
-            }
             for index in 0..<count {
-                guard let child = container
-                    .accessibilityElement(at: index)
+                guard let child = childAt(index)
                 else { continue }
                 if let childView = child as? UIView {
                     walk(childView, depth: depth + 1)
@@ -273,7 +299,7 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
                     }
                 }
                 if !v.isAccessibilityElement {
-                    walkContainer(v, depth: depth + 1)
+                    walkContainer(of: v, depth: depth + 1)
                 }
                 v.subviews.forEach {
                     walk($0, depth: depth + 1)
