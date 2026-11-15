@@ -9,13 +9,18 @@ import UIKit
 /// （左标题、右「查看全部」蓝链）＋横滑缩略图条
 /// （首格相机、其后最近照片）；下半动作行「添加文
 /// 件／添加视频」。§152 修订（用户 19:47 对照截图点
-/// 名）：定高贴内容（宿主 detent 量本视图内容高、
-/// 见 AttachmentPanelLayout）、照片格放大近方形、
-/// 照片条改多选——点照片切换选中态（右上角勾选标
-/// 记），选了至少一张时动作行上方出「添加 N 张」
-/// 确认行，点之批量入待发附件条；未选时无确认行
-/// （与 Core addSelectedTitle 的 nil 同源）。单张快
-/// 选不回退：选 1 张点添加即走，与旧直达同效。
+/// 名）：定高贴内容、照片格放大近方形、照片条改
+/// 多选——点照片切换选中态（右上角勾选标记），选
+/// 了至少一张时动作行上方出「添加 N 张」确认行，
+/// 点之批量入待发附件条；未选时无确认行（与 Core
+/// addSelectedTitle 的 nil 同源）。单张快选不回
+/// 退：选 1 张点添加即走，与旧直达同效。
+/// §299（A-08 定高收口）：定高机制自 §152/§154 的
+/// 自造量测回路（本视图经 PreferenceKey 回报内容
+/// 高→宿主状态→Core 决策→.height detent）改走系
+/// 统 fitted 尺寸——高度由系统布局按内容理想尺寸
+/// 单源决定，量测回路整套退役；呈现口径单源在
+/// 本文件的 attachmentPanelPresentation()。
 ///
 /// 授权纪律：照片条只同步读 PHPhotoLibrary 现态
 /// （系统授权铁律：已决定绝不重走请求、未决定也不
@@ -42,6 +47,11 @@ struct AttachmentPanelView: View {
     /// 照片条多选选中集（§152）：面板本地态，关面
     /// 板即弃——入条只认确认动作，不留半截选择
     @State private var selectedIDs: Set<String> = []
+    /// 照片条取数代次（§299／A-24 顺带）：每次
+    /// loadStrip 自增；PHImageManager 回调无取消
+    /// 句柄，迟到回写按代次丢弃——面板快速开关/
+    /// 重载后旧代的低清图不许覆写新代结果
+    @State private var stripLoadGeneration = 0
 
     /// 照片条格边长（形态值，§152 修订：照 Muse 截
     /// 图近方形大格口径自 §147 的 76 放大；对屏宽约
@@ -79,12 +89,6 @@ struct AttachmentPanelView: View {
         }
         .padding(OneDayMetrics.spacingM)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(GeometryReader { proxy in
-            Color.clear.preference(
-                key: AttachmentPanelHeightKey.self,
-                value: proxy.size.height
-            )
-        })
         .task {
             loadStrip()
         }
@@ -262,6 +266,8 @@ struct AttachmentPanelView: View {
     /// 会式交付、先低清后高清同格替换
     private func loadStrip() {
         guard showsLibrary else { return }
+        stripLoadGeneration += 1
+        let generation = stripLoadGeneration
         let options = PHFetchOptions()
         options.sortDescriptors = [
             NSSortDescriptor(key: "creationDate", ascending: false)
@@ -290,9 +296,27 @@ struct AttachmentPanelView: View {
             ) { image, _ in
                 guard let image else { return }
                 Task { @MainActor in
+                    // A-24：代次已过（重载/快速开关后
+                    // 旧请求迟到）一律丢弃，不覆写新代
+                    guard generation == stripLoadGeneration
+                    else { return }
                     thumbnails[id] = image
                 }
             }
         }
+    }
+}
+
+extension View {
+    /// §299（A-08 定高收口）：附件面板呈现口径单
+    /// 源——系统 fitted 尺寸：sheet 高由系统布局
+    /// 按内容理想尺寸单源决定（资源库区有无、确
+    /// 认行增减同经布局自适应），不设 detent、不
+    /// 做任何自量测。ChatView 呈现点与装配测试共
+    /// 用本口径，不许在别处另抄一份
+    func attachmentPanelPresentation() -> some View {
+        self
+            .presentationSizing(.fitted)
+            .presentationDragIndicator(.visible)
     }
 }
