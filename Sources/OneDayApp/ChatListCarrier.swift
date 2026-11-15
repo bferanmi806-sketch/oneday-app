@@ -660,6 +660,14 @@ final class ChatListCarrierViewController: UIViewController,
                 contentView.addSubview(host.view)
                 host.didMove(toParent: self)
             }
+            // §89：行宿主不消费安全区——sizeThatFits
+            // 会把宿主视图当时的 safeAreaInsets 折进
+            // 量实高，贴底区行宿主带页面底部安全区
+            // （真机 83）时量实虚高、行距被撑到
+            // 24＋83＝107。行是滚动内容，安全区归页
+            // 面壳层（顶/底 inset 已单源喂入），宿主
+            // safeAreaRegions 清零后量实＝纯内容高。
+            host.safeAreaRegions = []
             host.view.frame = frame
             // 量实：托管后以真实拟合高回填（结构段
             // 与未覆盖行型的承载侧定高在此收口；
