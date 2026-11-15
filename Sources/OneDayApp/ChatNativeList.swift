@@ -33,8 +33,8 @@ import UIKit
 ///   contentSize／contentOffset／adjusted 标尺计
 ///   算，不缓存事实位。
 /// - 与 gen3 容器的关系：本面与 gen3 面共用同一
-///   句柄形态（ChatListCarrierHandle＋ChatList-
-///   SurfaceControlling）与同一批喂入（舱顶实测/
+///   句柄形态（同形不同型，见 ChatNativeList-
+///   Handle）与同一批喂入（舱顶实测/
 ///   回落种子/单点边距/键盘动画参数，§263 口径逐
 ///   值同源）；ChatView 跟随/锚链只认句柄、不为
 ///   本面再抄一份。键盘换代（keyboardLayoutGuide）
@@ -109,8 +109,41 @@ private final class ChatNativeHostingCell: UICollectionViewCell {
 
 // MARK: - 根容器
 
+/// 原生面句柄（§291）：与 gen3 句柄（ChatList-
+/// CarrierHandle）同形态——四读数＋四命令转发，
+/// 控制器为本面具体类型。两面句柄同形不同型：
+/// 抽协议存在类型曾试、CI 两轮实证与本仓 Swift 6
+/// 隔离形态冲突（协议标 @MainActor 则非隔离句柄
+/// 调用成错误、不标则两容器 witness 隔离不一致），
+/// 故 ChatView 链以四个分发器按当前面派发、链本
+/// 体仍只一份（见 ChatView surface* 分发器）
+final class ChatNativeListHandle {
+    var latestDistance: CGFloat = 0
+    var contentEndVisible = false
+    var containerHeight: CGFloat = 0
+    var bottomInset: CGFloat = 0
+
+    weak var controller: ChatRootViewController?
+
+    func scrollToBottom(animated: Bool) {
+        controller?.scrollToBottom(animated: animated)
+    }
+
+    func scrollToEntry(_ id: UUID, animated: Bool) {
+        controller?.scrollToEntry(id, animated: animated)
+    }
+
+    func captureAnchor() -> ChatListAnchor? {
+        controller?.captureAnchor()
+    }
+
+    func restore(_ anchor: ChatListAnchor) {
+        controller?.restore(anchor)
+    }
+}
+
 final class ChatRootViewController: UIViewController,
-    UICollectionViewDelegate, ChatListSurfaceControlling
+    UICollectionViewDelegate
 {
     let collectionView: UICollectionView
     /// 与布局提供者闭包捕获的是同一个实例（init
@@ -120,7 +153,7 @@ final class ChatRootViewController: UIViewController,
     private var dataSource:
         UICollectionViewDiffableDataSource<Int, String>!
 
-    var handle: ChatListCarrierHandle?
+    var handle: ChatNativeListHandle?
     var callbacks: ChatListCarrierCallbacks?
 
     /// 与 gen3 容器同口：两宿主的滚动边缘注册经共
@@ -733,7 +766,7 @@ final class ChatRootViewController: UIViewController,
         userInteracting = false
     }
 
-    // MARK: 命令口（ChatListSurfaceControlling）
+    // MARK: 命令口（句柄转发目标，与 gen3 容器同名同义）
 
     func scrollToBottom(animated: Bool) {
         landingIntent = true
@@ -1024,7 +1057,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     var keyboardAnimationDuration: TimeInterval
     var keyboardAnimationCurveRaw: Int
     var arrowView: AnyView?
-    var handle: ChatListCarrierHandle
+    var handle: ChatNativeListHandle
     var callbacks: ChatListCarrierCallbacks
     var edgeScrollHandle: ChatListScrollViewHandle
 

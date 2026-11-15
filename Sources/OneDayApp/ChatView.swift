@@ -487,14 +487,45 @@ struct ChatView: View {
     /// §5.2 缺省面始终只有一个）
     @AppStorage(ChatNativeListFeature.defaultsKey)
     private var nativeListEnabled = false
-    @State private var nativeHandle = ChatListCarrierHandle()
+    @State private var nativeHandle = ChatNativeListHandle()
 
-    /// 当前列表面的句柄（§291 收口）：跟随/落定/
-    /// 锚恢复链只认本派生——原生面在场走原生句
-    /// 柄、否则 gen3 句柄，链本体不为每个承载再抄
-    /// 一份（§257 的执行双胞胎到本口收口）
-    private var listHandle: ChatListCarrierHandle {
-        nativeListEnabled ? nativeHandle : carrierHandle
+    /// 当前面命令分发（§291 收口）：跟随/落定/锚
+    /// 恢复链只经本组分发器下达——原生面在场走原
+    /// 生句柄、否则 gen3 句柄，链本体不为每个承载
+    /// 再抄一份（§257 的执行双胞胎到本口收口）。
+    /// 两面句柄同形不同型（协议存在类型与本仓
+    /// Swift 6 隔离形态冲突、CI 两轮实证，见
+    /// ChatNativeListHandle 注），分发器即收口面
+    private func surfaceScrollToBottom(animated: Bool) {
+        if nativeListEnabled {
+            nativeHandle.scrollToBottom(animated: animated)
+        } else {
+            carrierHandle.scrollToBottom(animated: animated)
+        }
+    }
+
+    private func surfaceCaptureAnchor() -> ChatListAnchor? {
+        nativeListEnabled
+            ? nativeHandle.captureAnchor()
+            : carrierHandle.captureAnchor()
+    }
+
+    private func surfaceRestore(_ anchor: ChatListAnchor) {
+        if nativeListEnabled {
+            nativeHandle.restore(anchor)
+        } else {
+            carrierHandle.restore(anchor)
+        }
+    }
+
+    private func surfaceScrollToEntry(
+        _ id: UUID, animated: Bool
+    ) {
+        if nativeListEnabled {
+            nativeHandle.scrollToEntry(id, animated: animated)
+        } else {
+            carrierHandle.scrollToEntry(id, animated: animated)
+        }
     }
     /// §247（换代包 4）：流式呈现开关（Core Chat-
     /// StreamingFeature，缺省 true＝块级增量新
@@ -2305,7 +2336,7 @@ struct ChatView: View {
     /// 原生面列表：根容器（ChatNativeListView）＋
     /// 两宿主 overlay（与 gen3 面同式同层：输入舱
     /// 托管与顶簇托管不换）＋跟随处理链（与 gen3
-    /// 面同一条链——链内命令/读数经 listHandle 派
+    /// 面同一条链——链内命令经 surface* 分发器派
     /// 生到当前面，见各共享函数）。页面级修饰在
     /// chatSurface 链上共享，本面只管列表本体与回
     /// 底钮浮层
@@ -4309,7 +4340,7 @@ struct ChatView: View {
     private func performScrollToBottomCarrier(
         animated: Bool
     ) {
-        listHandle.scrollToBottom(animated: animated)
+        surfaceScrollToBottom(animated: animated)
     }
 
     /// 落定评估的新承载事件口：读数出自句柄引用匣
@@ -4435,7 +4466,7 @@ struct ChatView: View {
     ) {
         if let oldID, oldID != newID,
            threads.contains(where: { $0.id == oldID }) {
-            if let anchor = listHandle.captureAnchor() {
+            if let anchor = surfaceCaptureAnchor() {
                 ChatListAnchorStore.setAnchor(
                     anchor, for: oldID
                 )
@@ -4476,7 +4507,7 @@ struct ChatView: View {
                 guard currentThreadID == threadID else {
                     return
                 }
-                listHandle.restore(anchor)
+                surfaceRestore(anchor)
             }
             return
         }
@@ -4488,9 +4519,9 @@ struct ChatView: View {
             try? await Task.sleep(for: .milliseconds(120))
             guard currentThreadID == threadID else { return }
             if legacy.atBottom {
-                listHandle.scrollToBottom(animated: false)
+                surfaceScrollToBottom(animated: false)
             } else if let entryID = legacy.entryID {
-                listHandle.scrollToEntry(
+                surfaceScrollToEntry(
                     entryID, animated: false
                 )
             }
@@ -4509,7 +4540,7 @@ struct ChatView: View {
             guard currentThreadID == threadID,
                   isNearBottom
             else { return }
-            listHandle.scrollToBottom(animated: false)
+            surfaceScrollToBottom(animated: false)
         }
     }
 

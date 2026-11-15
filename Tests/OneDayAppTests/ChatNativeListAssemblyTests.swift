@@ -39,7 +39,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     private var window: UIWindow!
     private var controller: ChatRootViewController!
-    private var handle: ChatListCarrierHandle!
+    private var handle: ChatNativeListHandle!
     private var composerBar: UIView!
     private var composerBottom: NSLayoutConstraint!
     private var composerBottomOnKeyboard: NSLayoutConstraint!
@@ -66,7 +66,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         window.rootViewController = root
         window.makeKeyAndVisible()
 
-        handle = ChatListCarrierHandle()
+        handle = ChatNativeListHandle()
         controller = ChatRootViewController()
         controller.handle = handle
         controller.callbacks = ChatListCarrierCallbacks(
