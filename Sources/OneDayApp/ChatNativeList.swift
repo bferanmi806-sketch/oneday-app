@@ -196,8 +196,8 @@ final class ChatRootViewController: UIViewController,
     /// 落点意图（H6）：冷开/命令贴底置真；收敛后
     /// 距底 ≤0.5 或用户拖动接管即消
     private var landingIntent = false
-    /// 落点收敛重拍计数（有界 5，见 performSettle-
-    /// Beat 的尾差处理）
+    /// 落点收敛重拍计数（有界 8、延迟拍，见
+    /// performSettleBeat 的尾差处理）
     private var landingRetries = 0
     private var userInteracting = false
     /// 布局未就绪时到达的恢复命令（先记账、落定
@@ -514,13 +514,20 @@ final class ChatRootViewController: UIViewController,
 
     // MARK: 落定拍（§259 合并调度，与 gen3 同式）
 
-    private func scheduleSettle() {
+    private func scheduleSettle(delay: TimeInterval = 0) {
         guard !settleScheduled else { return }
         settleScheduled = true
-        DispatchQueue.main.async { [weak self] in
+        let work = { [weak self] in
             guard let self else { return }
             settleScheduled = false
             performSettleBeat()
+        }
+        if delay > 0 {
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + delay, execute: work
+            )
+        } else {
+            DispatchQueue.main.async(execute: work)
         }
     }
 
@@ -546,14 +553,18 @@ final class ChatRootViewController: UIViewController,
             if currentDistance() <= 0.5 {
                 landingIntent = false
                 landingRetries = 0
-            } else if landingRetries < 5 {
+            } else if landingRetries < 8 {
                 // 收敛尾差（H6）：自适应行高的迟到
                 // 修正会在钉底后改 contentSize、又不
                 // 必触发滚动回调——意图未消时有界重
-                // 拍（每拍先 layoutIfNeeded 逼修正落
-                // 地再重钉），收敛即停、不成环
+                // 拍。重拍必须带延迟（与 gen3 §259 落
+                // 定拍的 asyncAfter 同式）：零延迟连发
+                // 时修正所需的 display pass 插不进来、
+                // 次数先耗尽（CI 第五轮实证：回底后距
+                // 底恰 2.0 两轮同值）；延迟拍让修正落
+                // 地后再重钉，收敛即停、不成环
                 landingRetries += 1
-                scheduleSettle()
+                scheduleSettle(delay: 0.05)
             }
         }
         layoutArrow()
