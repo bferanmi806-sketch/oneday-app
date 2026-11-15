@@ -556,34 +556,72 @@ final class ChatListCarrierViewController: UIViewController,
     private func rebuildFrames() {
         let rowWidth = scrollView.bounds.width
             - layoutParams.horizontalPadding * 2
+        let heights = rows.map { resolvedHeight(for: $0) }
+        var naturalHeight = layoutParams.topPadding
+            + layoutParams.bottomPadding
+        for (index, height) in heights.enumerated() {
+            naturalHeight += height
+            if index < heights.count - 1 {
+                naturalHeight += layoutParams.rowSpacing
+            }
+        }
+        let fill = bottomAnchorFill(
+            naturalHeight: naturalHeight
+        )
         var frames: [CGRect] = []
         var ids: [UUID] = []
-        var y = layoutParams.topPadding
+        var y = layoutParams.topPadding + fill
         for (index, row) in rows.enumerated() {
-            let height = resolvedHeight(for: row)
             frames.append(
                 CGRect(
                     x: layoutParams.horizontalPadding,
-                    y: y, width: rowWidth, height: height
+                    y: y, width: rowWidth,
+                    height: heights[index]
                 )
             )
             ids.append(frameID(for: row))
-            y += height
+            y += heights[index]
             if index < rows.count - 1 {
                 y += layoutParams.rowSpacing
             }
         }
         rowFrames = frames
         frameIDs = ids
-        let contentHeight = rows.isEmpty
-            ? layoutParams.topPadding + layoutParams.bottomPadding
-            : y + layoutParams.bottomPadding
+        let contentHeight = naturalHeight + fill
         contentView.frame = CGRect(
             x: 0, y: 0,
             width: scrollView.bounds.width,
             height: contentHeight
         )
         scrollView.contentSize = contentView.frame.size
+    }
+
+    /// 底锚定填充（§274）：内容自然高不足有效视口
+    /// 高（V−顶 inset−底 inset）时，差额整笔垫在首
+    /// 行之上——内容高下限＝有效视口高，最大底偏
+    /// 移的 −顶 inset 钳制点恰与「末行底→舱顶＝
+    /// 底 padding＋边距」落点重合，短内容自此物理
+    /// 可达底（平台同构：SwiftUI defaultScroll-
+    /// Anchor 的 .alignment 底对齐／Android stack-
+    /// FromEnd 均为「内容不足时贴底」的官方机制，
+    /// 本承载是 UIScrollView 手工承载、以内容最小
+    /// 高等价实现）。填充量只吃实测：V 取本视图帧
+    /// 高、顶 inset 取记账实值、底 inset 须已入窗
+    /// 量得实测留位才许参与（measuredBottomSpace
+    /// 在场为门）——未量得的瞬态不填充：拿回落种
+    /// 子算填充＝拿派生值施工，§263 已退役此路。
+    /// 长内容填充恒 0，§270（二修）留位公式与落
+    /// 点逐值不变；填充随行高/落座每拍重算（流式
+    /// 增长时填充等量收、末行底落点不动）
+    private func bottomAnchorFill(
+        naturalHeight: CGFloat
+    ) -> CGFloat {
+        guard measuredBottomSpace != nil else { return 0 }
+        let viewportHeight = scrollView.bounds.height
+        guard viewportHeight > 0 else { return 0 }
+        let minContentHeight = viewportHeight
+            - appliedTopInset - effectiveBottomInset
+        return max(0, minContentHeight - naturalHeight)
     }
 
     /// 同拍一致性对齐：帧表与行集不同长时先纯数据
