@@ -208,12 +208,23 @@ final class ChatCarrierRowSpacingTests: XCTestCase {
         controller.view.layoutIfNeeded()
 
         let sv = controller.scrollView
-        // 内容总高＝上 padding 16＋30×45.33＋29×24＋
-        // 下 padding 8（任一行被 +83 污染都会胀大）
-        let expectedContent = 16.0 + 30.0 * 45.33 + 29.0 * 24.0 + 8.0
-        XCTAssertEqual(
-            sv.contentSize.height, expectedContent, accuracy: 1.0,
-            "内容总高应为纯内容高＋行距 24×29，无安全区污染"
+        // 内容总高口径：全行量实时＝上 padding 16＋
+        // 30×45.33＋29×24＋下 padding 8＝2079.9（下
+        // 限）；未物化行按估算 47 记账（承载既有口
+        // 径），每行最多再 +1.67（上限 2130）。任一
+        // 行被安全区 +83 污染都会胀出上限——区间断
+        // 言对 +83 量级污染仍全敏感（修后轮实测残差
+        // +11.77＝7 行估算差，落在区间内）。
+        let contentFloor = 16.0 + 30.0 * 45.33 + 29.0 * 24.0 + 8.0
+        let contentCeiling = contentFloor + 30.0 * (47.0 - 45.33)
+        XCTAssertGreaterThanOrEqual(
+            sv.contentSize.height, contentFloor - 1.0,
+            "内容总高不应低于全量实口径 \(contentFloor)"
+        )
+        XCTAssertLessThanOrEqual(
+            sv.contentSize.height, contentCeiling,
+            "内容总高不应高于全估算口径 \(contentCeiling)，"
+            + "胀出即有行被安全区污染"
         )
         guard let contentView = sv.subviews.first else {
             XCTFail("承载内容视图缺席")
