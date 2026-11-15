@@ -181,7 +181,21 @@ final class ChatGestureArbitrationTests: XCTestCase {
         target.tap()
         _ = app.buttons["topbar.modelCapsule"]
             .waitForExistence(timeout: 10)
-        Thread.sleep(forTimeInterval: 1.0)
+        // 跳到底部：列表初始停在顶部、LazyVStack 只
+        // 物化首屏行，末尾消息不在树里——走生产「回
+        // 到底部」钮（不在底部时才出现），无钮时以
+        // 列表上滑兜底；落底后末条消息物化且在屏内
+        let toBottom = app.buttons["chevron.down"]
+        if toBottom.waitForExistence(timeout: 3),
+           toBottom.isHittable {
+            toBottom.tap()
+        } else {
+            let list = app.scrollViews.firstMatch
+            for _ in 0..<6 {
+                list.swipeUp()
+            }
+        }
+        Thread.sleep(forTimeInterval: 1.5)
     }
 
     /// 末条用户消息的正文文本视图（演示种子末条
@@ -267,7 +281,6 @@ final class ChatGestureArbitrationTests: XCTestCase {
     ) -> [XCUIElement] {
         app.textViews.allElementsBoundByIndex
             + app.staticTexts.allElementsBoundByIndex
-            + app.otherElements.allElementsBoundByIndex
     }
 
     private func valueDigest(in app: XCUIApplication) -> String {
@@ -284,8 +297,9 @@ final class ChatGestureArbitrationTests: XCTestCase {
     private func reveal(
         _ element: XCUIElement, in app: XCUIApplication
     ) {
-        for _ in 0..<8 where !element.isHittable {
-            app.swipeUp()
+        let list = app.scrollViews.firstMatch
+        for _ in 0..<10 where !element.isHittable {
+            list.swipeUp()
         }
         XCTAssertTrue(
             element.isHittable,
