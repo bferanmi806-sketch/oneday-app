@@ -12604,3 +12604,12 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **终轮补读（2026-11-15，run 43656926502，头 41bbcae＝7b2b674＋反向拣入 §184 四提交＋§259 热修两提交）**：completed / failure（** TEST FAILED **）。Build ✓；**Core 2047/2047**（0 failures，2044＋保真 3 精确对账）；**UI 8/8**（OneDayUITests passed）；保真回归 3 条全 passed；热修 `ChatListCarrierReentrancyTests` 3/3 passed；§184 `SwiftDataHostLifetimeTests` 3/3 passed，宿主重启全场仅 **1** 次（`testFailedTraceMaterializesWithErrorSnapshot` 余崩打断、无判词——§184 已定性孤立项、只登记不判本包）；`PresentationLayerScenarios` 5 条 skipped（设计内）。**真红 2 条＝本包自有 `ChatCarrierSettleCarryTests` 2/2 failed**（4 处断言：期望量实高 180／260、实得估算 100／90，连首条基线量实断言即败）——三轮在热修前承载上 passed、五轮被宿主崩溃打断，本轮在拣入 §259 后首得终局即红：§259 落定拍合并调度（量测／materialize 延后一拍）与本测试三轮的离屏同步泵驱动口径相冲，量实未在断言前落定。**终判：未绿**——待主线裁定修法（测试驱动补落定拍泵 vs 承载量测时序），不在本线擅改。另 `EdgeEffectProbeTests.testEdgeEffectAttributionProbe` 失败为 §257.1 既有抖动签名（"6"＞"4"、617 行），登记不判本包。
 
 **节号顺延注记**：本节在本分支编号 §247；0.50.48 组版顺延为 **§263**（rel 线已用至 §262），文内与代码自指保留分支编号 §247、组版侧引用以 §263 为准。
+## §264 0.50.48 组版（2026-11-15；分支 rel-05048，基线 rel-05047@cb30f49）
+
+**装车两件**：①换代包 4 本体增量（feat/chat-gen4，只取包 4 增量、避开包2/包3 分叉）——54584d8 主提交＋0a1cbbc/5bcac51 CI 修＋9fa0a04/a95a972 保真追加＋bcf16cf/7b2b674/0b4c9a6 判读回填＋1e5ab37 SettleCarry 驱动对齐，共 9 提交 cherry-pick。§184 四提交与 §259 热修两提交经 patch-id 核对（非 DESIGN 部分与 rel 侧拣入件逐一同值）跳过。冲突处置：代码面（ChatView／ChatListCarrier／SettingsView）全数自动合入、共存实查通过（gen4 块级呈现＋§260 spacingM 喂入＋边缘句柄＋留高旗同在）；DESIGN 冲突四处亲解——§247 节顺延为 **§263**（见该节注记），另 54584d8 的一处 DESIGN hunk 误入 §258 段内，组版收口提交已清除误入段并将终轮判读归位 §263.1（§258／§259／§262 与 rel-05047 逐字一致已验）。新文件 5 件与 gen4 尖端字节一致已验。②A6 英文设置页修（fix/settings-sheet-en-locale）——整链 5 提交拣入（探针 5b38b58 加→759859a 删净、回归测试 ff0e895＋7e4accf 定稿、修法 0281599），净效果与判绿分支尖端一致（回归测试文件字节一致、A6PROBE 零残留已验）；只取任务书所列 1744bd3＋84457ef 两提交会落入测试定稿前版本，故整链拣入并在此记账。
+
+**计数对账（预期）**：Core 2081＋包 4 新增（StreamingBlockProductTests＋StreamingAssemblyFidelityTests，实数以 CI 为准）；UI 8＋A6 回归 2＝10；App 190＋SettleCarry 2＋HostLifetime 等已在 §184 拣入内（实数以 CI 为准）。
+
+**版号**：0.50.48／构建 176（Project.swift 四处与设置页版本串两行同改，旧号零残留已 grep 验）。
+
+### §264.1 CI 判读（待回填）
