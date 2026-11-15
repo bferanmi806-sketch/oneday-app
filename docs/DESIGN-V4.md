@@ -13093,3 +13093,17 @@ run 43684396656（workflow_dispatch @ rel-05054 尖端 7e8cebb），全日志本
 第一轮（run 43736709536@7d54678）：构建过；失败 13 例分账——我方 3 处（触感计数 6≠5＝原生 cell 新落点未登记；R3 装配⑫选区回报 [true, true]≠[true]＝TK2 回调次数期望过严；UI 五件全卡在抽屉开态滑集合视图——开态内容层退出无障碍树、集合视图不在树内、测试侧落点错），继承签名 10 例（R2 ⑧、EdgeEffectProbe、gen3 UI 四件——与 R2 基线轮 run 43731274199 逐项同签名对齐；DataDetector 两条基线红本轮转绿、环境 flake 实锤）。三修复（触感登记 5→6 双承载注、选区断言改末值口径、UI 抽屉态滑动改 app 级）提交 7b9b483。
 
 第二轮（run 43741309752@7b9b483）：**Core 2163/2163 全绿；R3 装配四例全过**（⑪双形态行高对拍、⑫原生装配本体、⑬混合间距 24、拼装资格）；R1 装配续绿、R2 装配 ⑦⑨⑩ 续绿；我方三修复全验通（触感计数过、⑫过）。余红全为继承签名：⑧（主线已于 .57 按「量测不可达」证据链定性放行、见 rel-05057 判读）、EdgeEffectProbe（基线同值）、gen3 UI 四件（基线同签名）。**UI 五件（原生面）本轮进了会话、跑了手势，仍未在 XCUITest  harness 内取得全绿证明**：同一元素跨轮命中帧在 y=32.7/70/702 间漂移（第 95 条 AX 帧不稳病在新承载同签名复现），长按/双击两件的手势被投递到漂移帧坐标、打中模型选择面（按钮树实证），右滑两轮同因未达，边距带首压落空、后续轮次 finder 丢失元素；电话件长按阶段以真实几何（帧 33,434.3）复现平台定性 (b)（菜单项 Copy/Look Up/Translate、整行菜单不出现），点按阶段卡在二次查找丢元素。五件全程**无产品反例**；交互链本体已由装配⑫在进程内全项证明（识别器真装集合视图＋合成位移触发链、菜单挂载面＋点位否决双向、T4 开集、链接出口拦截、选区回报与段身份短路）。按第 95 条收口约束帧落定机器未重建；五件的最终证明归真机 C 组（V12/V13、组 .58 主线执行）。**R3 判定：有条件判绿**——条件＝UI 五件真机复验（与 R2 ⑧ 的量测限制同科：harness 不可达、真机为最终验收）。
+
+## §294 聊天列表原生重建 R4（2026-11-16；分支 feat/chat-native-r4，基线 feat/chat-native-r3@51844ba；施工图 chat-native-rebuild-blueprint-20261115 §五 R4）
+
+**切片口径**：新面转默认＋浸泡期口径落地。本刀预制不组版（R3 已有条件判绿、.58 组版由主线并行），组 .59 归主线；旧面与三旗本体**不删**（退役归 R5 同刀）。
+
+**转默认（三处同口径、一处语义）**：`ChatNativeListFeature.isEnabled` 改缺省解析——键不存在＝true、显式存值优先；`ChatView`/`SettingsView` 两处 `@AppStorage(ChatNativeListFeature.defaultsKey)` 缺省字面改 true。语义后果逐项对账：未触碰过开关的用户（键缺省）自此走原生面；曾显式开（存 true）不变；曾显式关（存 false）被尊重、仍走现行面——转默认不覆盖任何人的显式选择。设置页实验组开关保留、文案改「默认开启……浸泡期回退口——关掉即回现行承载」：浸泡期缺省回滚＝把缺省改回 false 一行（施工图 §五 R4 旗与回滚口径）。旗的生命周期定位＝发布旗（release toggle）：R4 完成「平缺省 100%＋浸泡一整版」步，R5 在浸泡无承载级回退事件后删旧面与三旗本体（通行退役序，见 R4 报告 §一）。
+
+**浸泡期回归面（默认态复跑的落法）**：①既有装配套件 R1（六组）/R2（⑦–⑩）/R3（⑪–⑬）直构容器、不经旗，续跑即新面全量回归；②整页/仪器类套件中量测对象为旧面形态者**显式钉回旧面保签名**——App 层五件（ChatPageAssemblyRegressionTests §185/§186 整页组装、KeyboardFlowAcceptanceTests、KeyboardFlowDiagnosticTests、ChatPageDeviceConditionProbeTests、EdgeEffectProbeTests §257.1）在 setUp 钉 `chat.list.native=false`（存旧值、tearDown 还原），UI 层三件（ChatGestureArbitrationTests、KeyboardTapDismissMatrixTests、KeyboardDragDismissTests）启动参数加 `-chat.list.native NO`：它们找的是 HostingScrollView/§194 形态，转默认后若不钉会被测面被静默偷换、登记签名失去可比性；旧面在浸泡期仍是受支持的回退面，这批钉住的套件即回退面的常驻回归。§257.1 探针的重指向新面仍按施工图归 R5 前置、本刀只保签名不动口径。③抽屉/顶簇/设置页类 UI 套件量测对象不在列表面，不钉（背景面随缺省走新面、断言对象不变）。
+
+**新增默认态装配断言（`ChatNativeListR4AssemblyTests`，真壳、真实生产行内容、禁固定高占位）**：⑭缺省整页出原生面（旗键删除态下 RootView 整页装配、VC 树内 ChatRootViewController 在场）；⑮显式关回退在位（置 false 后整页不出原生面）；⑯开线程落底·新面帧口径（见下）。Core 侧加 `testNativeListFeatureDefaultsOnSinceR4`（键缺省→true、显式 false→false、显式 true→true、删键回缺省）。
+
+**冒烟门「开线程落底」例改指（R1 报告 §五指定，本刀落地）**：该例（chore/smoke-gate 分支 `testSmokeBackToBottomArrowEndToEnd`，未合 main）以旧面 AX 在场口径判落底，R1 已以帧级证据定性其为测试侧事实、非产品判决；转默认后旧面不再是缺省面，该口径就此退役——同命题改指新面帧口径常驻断言：R1 装配③（三数＋距底 ≤1＋帧口径 contentEndVisible）＋本刀⑯（选面先经 Core 缺省解析、40 行真实内容 apply 链落底、三数打印 `NATIVE-LANDING-R4` 留档）。smoke-gate 分支本体不在本刀文件面内：其箭头例的处置＝主线下次触碰/合入该分支时按本节口径删除或改指，登记在 R4 报告交主线事项。
+
+**验收门（施工图 §五 R4／§6.3）**：全矩阵真机 24 项＋千条 Instruments 对照（E1）归主线组 .59 执行、本刀不判；本刀判读面＝CI 两轮内 Core 全绿＋装配全套（R1–R4）绿＋钉面套件签名与基线逐项对齐。CI 判读见 §294.1（回填）。
