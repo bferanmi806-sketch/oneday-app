@@ -358,7 +358,7 @@ private final class InlineTextRenderCache: @unchecked Sendable {
 /// 其自然行高（≈1.19×字号）顶替了规格 leading
 /// （.callout 实测 pitch 19.0＜规格 21），是行距
 /// 偏紧的根。规格 leading 的读口在 specLineHeight
-/// （布局管理器默认行高链路），不在 font.lineHeight
+/// （与量测池同栈实量），不在 font.lineHeight
 /// （那是字体自然行高：.body 20.29≠规格 22，CI 实
 /// 测钉死、不许拿它冒充规格）
 enum InlineTextFonts {
@@ -385,18 +385,58 @@ enum InlineTextFonts {
 
     /// text style 规格行高（HIG Dynamic Type 表的
     /// leading：.body 默认档 22、XXL 档 26、.callout
-    /// 默认档 21）——只活在布局管理器对 text style
-    /// 字体的默认行高里，TextKit 量测/呈现的 pitch
-    /// 即此值；行高模型下限与单测断言都从这里读，
-    /// 与呈现同源（§263）
+    /// 默认档 21）。没有可直读的字体属性：font.line-
+    /// Height 是自然行高（20.29≠22），老读口 NSLay-
+    /// outManager.defaultLineHeight 在 iOS 26 SDK
+    /// 已无此成员（二轮 CI 编译实证）——故以与量
+    /// 测池/呈现同栈（TK2）同步实量一行的高为本体：
+    /// 定义即同源，行高模型下限与单测断言都从这
+    /// 里读（§263）。结果按（字阶×档×粗体）缓存
+    private static let specCacheLock = NSLock()
+    private static var specCache: [String: CGFloat] = [:]
+
     static func specLineHeight(
         textStyle: UIFont.TextStyle,
         category: UIContentSizeCategory,
         boldText: Bool
     ) -> CGFloat {
-        NSLayoutManager().defaultLineHeight(for: baseFont(
-            textStyle: textStyle, category: category, boldText: boldText
-        ))
+        let key = "\(textStyle.rawValue)|\(category.rawValue)|\(boldText)"
+        specCacheLock.lock()
+        let cached = specCache[key]
+        specCacheLock.unlock()
+        if let cached { return cached }
+        let assembled = SelectableInlineText.build(
+            paragraphs: [.plain("测")],
+            baseFont: baseFont(
+                textStyle: textStyle, category: category,
+                boldText: boldText
+            ),
+            overrideFont: { style in
+                baseFont(
+                    textStyle: style, category: category,
+                    boldText: boldText
+                )
+            },
+            textColor: .label,
+            dimmedColor: .secondaryLabel
+        )
+        let storage = NSTextContentStorage()
+        let layoutManager = NSTextLayoutManager()
+        let container = NSTextContainer()
+        container.lineFragmentPadding = 0
+        container.size = CGSize(
+            width: 10_000,
+            height: CGFloat.greatestFiniteMagnitude
+        )
+        layoutManager.textContainer = container
+        storage.addTextLayoutManager(layoutManager)
+        storage.attributedString = assembled
+        layoutManager.ensureLayout(for: storage.documentRange)
+        let height = layoutManager.usageBoundsForTextContainer.height
+        specCacheLock.lock()
+        specCache[key] = height
+        specCacheLock.unlock()
+        return height
     }
 
     /// 首行基线距视图顶（列表标记列 firstTextBase-

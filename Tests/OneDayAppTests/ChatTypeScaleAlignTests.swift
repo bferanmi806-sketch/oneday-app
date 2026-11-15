@@ -49,7 +49,7 @@ final class ChatTypeScaleAlignTests: XCTestCase {
         return assemble([.plain(text)])
     }
 
-    // MARK: - 字体链：规格 leading 在布局管理器默认行高里
+    // MARK: - 字体链：规格 leading 由 TK2 布局同栈交付
 
     func testBodyFontCarriesSpecLeading() {
         let body = InlineTextFonts.baseFont(
@@ -60,8 +60,8 @@ final class ChatTypeScaleAlignTests: XCTestCase {
         // 不是规格值——首轮 CI 实测钉死，防后人拿它
         // 冒充规格 leading
         XCTAssertEqual(body.lineHeight, 20.29, accuracy: 0.5)
-        // 苹果 HIG 表默认档 Body leading＝22，经布局
-        // 管理器默认行高链路（specLineHeight）读出
+        // 苹果 HIG 表默认档 Body leading＝22，经
+        // specLineHeight（与量测池同栈实量）读出
         XCTAssertEqual(
             InlineTextFonts.specLineHeight(
                 textStyle: .body, category: .large, boldText: false
