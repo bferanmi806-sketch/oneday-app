@@ -32,11 +32,14 @@ final class StreamOverlapInstrumentTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        installAssembly()
+        // XCTest 在主线程执行 setUp（既有装配测试同前
+        // 提）；assumeIsolated 让 @MainActor 装配方法可
+        // 在此直调（裸调触发 Swift 6 sending-self 红）
+        MainActor.assumeIsolated { installAssembly() }
     }
 
     override func tearDown() {
-        uninstallAssembly()
+        MainActor.assumeIsolated { uninstallAssembly() }
         super.tearDown()
     }
 
