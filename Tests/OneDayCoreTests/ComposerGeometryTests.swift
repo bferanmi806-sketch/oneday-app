@@ -68,9 +68,10 @@ final class ComposerGeometryTests: XCTestCase {
             caret.minX, ComposerTextMetrics.textOriginX,
             "光标应在文字之后，而非行首原点"
         )
-        // 光标高 20.0 是 16pt 字体的光标度量（比行高
-        // 19.17 多 0.83、顶偏 −1，CI 实测）——容差 1.5
-        // 覆盖这组字体度量差，不掩盖行级逃逸（≥19.17）
+        // 光标高约 21.3 是 17pt 字体的光标度量（16pt
+        // 时代 CI 实测 20.0／顶偏 −1 按字号线性缩放的
+        // 估计，本包 CI 复核）——容差 1.5 覆盖这组字
+        // 体度量差，不掩盖行级逃逸（≥20.37）
         XCTAssertLessThanOrEqual(caret.maxY, view.bounds.height + 1.5)
     }
 
