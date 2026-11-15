@@ -12845,13 +12845,13 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 
 **测试**：Core SessionLedgerTests 11 例（合并形态 3／规则↔层矩阵 1／抽屉两行集等值 2／合并序 1／管理页两段＋枢纽 1／频道含合并桶 1／归档列双源 1／标题两管线 1）；App SessionLedgerAppTests 5 例（真实装配链：脚本客户端＋SwiftData 容器租约＋store.load 真路——refresh 落位与 liveSet 完整交出、不完整闸 liveSet 形态＋线程不删、目录壳转发、收养读账本、可见段刷新投影）。SessionCatalogGuardTests 9 例断言读点随名单迁账本（语义不变）。
 
-**CI 判读**：见 §270.1。
+**CI 判读**：见 §278.1。
 
-### §270.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
+### §278.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
 
 两轮 workflow_dispatch：run 43670014909（主提交 adbb19a）编译红——SessionRecord 声明 Equatable 而 ServerSession 本体无 Equatable、合成失败；修提交 8048685 去 Equatable（行集比较一律走 ledgerID）。run 43670533023（分支头 8048685）：名义 failure，红因仅既有登记两项。**Core 2115/2115 精确**（2104 基线＋本包 11）；**App 208 注册、207 得判词**（201 passed＋5 skipped 设计内跳＋1 failed；201＝基线 196＋本包 5 精确）；**UI 10/10**。本包新测全过：SessionLedgerTests 11/11、SessionLedgerAppTests 5/5、SessionCatalogGuardTests 9/9。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／打包／上传 IPA 均 success。登记两项（与 rel-05049 同签名、不堵门）：①唯一 failed＝EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1，:617「6＞4」逐字同签名）；②宿主重启 1 次、testFailedTraceMaterializesWithErrorSnapshot 无判词（§184 余崩；BackingData:835 零命中）。未合 main、未打 tag。报告 oneday-design-review/session-ledger-1-20261115.md。
 
-## §271 会话账本包二：写路径收编＋私抄清零（2026-11-15；分支 feat/session-ledger-2，基线 feat/session-ledger-1@ef98cb2；待办第 67 条，施工图 oneday-design-review/session-ledger-prep-20261115.md §4.3/§4.4）
+## §279 会话账本包二：写路径收编＋私抄清零（2026-11-15；分支 feat/session-ledger-2，基线 feat/session-ledger-1@ef98cb2；待办第 67 条，施工图 oneday-design-review/session-ledger-prep-20261115.md §4.3/§4.4；本节原自编号 §271，组版 0.50.52 顺延为 §279）
 
 **私抄清零（残余两份分页实现退役）**：频道页 `HermesChannelStore` 内联分页整段删除——两频道页（Hermes/平台）名单改读账本 `channelList` 投影（分类在账本合并时统一算一次），store 只剩加载/失败态；拉取触发统一走账本 `refreshVisible`。清理面 `EmptyCleanupView.fetchAllSessions` 私抄整段删除——改走唯一装配核 `ServerSessionCatalog.fetchAll(archived:"include")`，候选生成前过 `EmptyCleanupScanGate` 完整性闸：名单不完整（截断/总数对不上/重行）不许生成候选、不进预览（人话原因上屏、留痕由装配核记），删后核验同闸（不完整留空不误报）；`emptySessionCount` 交叉核对保留。至此全 App 分页拉全只剩装配核一处实现（grep 清零证据见报告）。
 
@@ -12867,9 +12867,9 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 
 **测试**：Core 新增 SessionTitlePipelineTests 7 例（全序优先级＋快照空串直通＋resolvedTitle 等值）；App 新增 SessionLedgerPackage2Tests 4 例（清理闸三信号拦截 1＋完整放行 1、频道投影分流＋收养升层 1、删除经壳落账本引擎 1）；SessionCatalogGuardTests 9 例、DeleteOptimisticTests、DeleteCloseoutTests 断言语义不变必过。
 
-**CI 判读**：见 §271.1。
+**CI 判读**：见 §279.1。
 
-### §271.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
+### §279.1 CI 判读（2026-11-15 回填）——**§190 判绿（带既有登记两项）**
 
 一轮 workflow_dispatch：run 43673074950（分支头 55a84ac）：名义 failure，红因仅既有登记两项。**Core 2122/2122 精确对账**（2115 基线＋本包新增 7，0 failures）；**App 212 注册、211 得判词**（205 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed；212＝基线 208＋本包新增 4 精确）；**UI 10/10**。本包新测全过：SessionTitlePipelineTests 7/7、SessionLedgerPackage2Tests 4/4、**SessionCatalogGuardTests 9/9**（B-1 闸不回退硬证）、DeleteOptimisticTests/DeleteCloseoutTests 两套全过（删除引擎换归属后旧断言语义不变）。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／打包／上传 IPA 均 success。登记两项（与包一/rel-05049 同签名、不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针，:617「6＞4」逐字同签名）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 余崩孤立项；BackingData:835 日志零命中）。
 
@@ -12885,3 +12885,15 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 - **BC-6 角标白字压 danger 暗档 3.41**：Palette 新增角标填充专用 dangerFill（浅与 danger 同值 #AA4A45／暗深红 #D92B1F，白字 5.56/4.87）；ChatView 通知角标改用之，danger 本体（文字/图标职）不动。
 
 **节号顺延注记**：本节在本分支编号 §265；若组版时 rel 线已用过该号，按 §263 先例顺延、文内与代码自指保留本号。
+
+## §281 0.50.52 组版（2026-11-15；分支 rel-05052，基线 rel-05051@ab5ea06）
+
+**装车四件**（拣入序）：①第 67 条会话账本包一（feat/session-ledger-1，基线 rel-05049）——adbb19a 本体＋8048685 编译修＋ef98cb2 判读回填，共 3 提交；其 DESIGN 节顺延为 **§278**（含 §278.1）。②第 67 条会话账本包二（feat/session-ledger-2，叠包一）——55a84ac 本体＋c2b1955 判读回填，共 2 提交；其 DESIGN 节顺延为 **§279**（含 §279.1）。③第 85 条对比度硬伤收口（fix/contrast-hard-fixes，基线 rel-05048）——0b36927 令牌层＋0360c13 消费层，共 2 提交；其 DESIGN 节顺延为 **§280**（正文自指按该节顺延注记保留原号 §265）。④第 83 条命中域收口（fix/hit-area-44，基线 rel-05048）——544ab11 本体＋fc6a921 rig 修＋38286b1 撤 rig，共 3 提交（无 DESIGN 改动）。
+
+**冲突处置**：DESIGN 文末撞尾两处（账本包一 §270、对比度 §265）亲解——HEAD 全保留、来节顺延 §278/§280 追加文末；账本包二 §271 与对比度判读子节经上下文自动落入本节内，收口统一改号 §279/§279.1、§278.1。代码面三处：①AppState init 接线两轮同型冲突（账本包一/包二各一）——账本侧所携 `syncPerformer` 无名闭包是 rel-05049 旧基线原文，第 76 条（§272 已出货）已将其收编为具名协议口 `syncProvider`，组版只取账本新增接线行（`serverSessionCatalog.ledger`／`sessionDeletions.ledger`）、接线形态保 HEAD，旧闭包不许回退（grep `syncPerformer` 全仓零残留）；②NotificationsView 筛选条一处——第 88 条（§275 已出货）已将自制分段迁系统 Picker，对比度分支基线仍是旧分段实现，冲突区整取 HEAD；对比度在该文件余下 inkMuted→inkSecondary 各处自动合入，旧分段内计数文字一处随退役代码消解（HEAD Picker 段题无独立弱色计数位、无对应落点）；残余 inkMuted 3 处全为图标位、与对比度分支自身保留口径逐一对应。③对比度 ChatView 右滑武装盘 hunk 与 gen5 同区——gen5 未入本版，按现状自动合入、落点亲验（`armed ? Palette.primaryPale` 在位）。
+
+**计数对账（预期）**：Core **2130**（2111＋账本包一 11＋包二 7＋对比度闸⑥ 1；命中域 10 例在 App 目标、不入 Core；两树 `func test` 实测 2111→2130 互证）；UI **10**（不变）；App 注册预期 **233**（214＋账本包一 5＋包二 4＋命中域 10；函数计数 216→235、基线注册与函数差 2 沿旧例）。
+
+**版号**：0.50.52／构建 180（Project.swift 四值与设置页版本串两行同改，旧号全仓零残留已 grep 验）。
+
+### §281.1 CI 判读（待回填）
