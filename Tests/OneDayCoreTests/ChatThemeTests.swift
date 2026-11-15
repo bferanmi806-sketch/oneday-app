@@ -56,7 +56,10 @@ final class ChatThemeTests: XCTestCase {
         // 0.41.0（浅档专项）：accentLight 按 §66.1 候
         // 选 (a) 加深一档，与旧值脱钩是本钉的本意——
         // 回潮到 0x1473C8 会让对比闸④转红
-        XCTAssertEqual(theme.accentLight, 0x136FC1)
+        // 2026-11-15（第 85 条）：再深一档至 0x1268B8
+        // （压助手泡面 4.45 差线），回潮到 0x136FC1
+        // 会让对比闸⑥转红
+        XCTAssertEqual(theme.accentLight, 0x1268B8)
         XCTAssertEqual(theme.accentDark, 0x5EB1EF)
         XCTAssertEqual(theme.tintLight, 0xEDF7FD)
         XCTAssertEqual(theme.tintDark, 0x16242E)
@@ -254,6 +257,26 @@ extension ChatThemeTests {
             )
             XCTAssertGreaterThanOrEqual(
                 ratio, 4.5, "\(theme.id) 浅档强调对弱面对比 \(ratio)"
+            )
+        }
+    }
+
+    /// 对比闸⑥（2026-11-15，第 85 条对比度收口）：
+    /// 全款浅档强调对助手泡面（#EEEEF0＝Palette.
+    /// bubbleFill 浅档）≥4.5——泡内链接/强调字可读。
+    /// 立闸前实算：sangou 4.45／iceBlue 4.39 两款差
+    /// 线（审计原稿只报默认款），均已同色相深一档
+    /// （0x1268B8／0x1B6AB9）；余款本已过闸（最低
+    /// pink 4.51、peach 4.60）。暗档同组合由闸④
+    /// （对 #2C2C2E）辖，不在此重复
+    func testAccentContrastOnBubbleLightGate() {
+        for theme in ChatThemes.all {
+            let ratio = WCAGContrast.ratio(
+                hexForeground: theme.accentLight,
+                hexBackground: 0xEEEEF0
+            )
+            XCTAssertGreaterThanOrEqual(
+                ratio, 4.5, "\(theme.id) 浅档强调对助手泡面对比 \(ratio)"
             )
         }
     }

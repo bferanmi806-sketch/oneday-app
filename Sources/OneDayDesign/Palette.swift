@@ -324,8 +324,10 @@ public enum Palette {
     /// 接/图标/角标/光标的实色；暗色派生亮化 #5EB1EF）
     /// 0.26.0 起主题化：值自当前主题强调行——默认
     /// 「三狗」行浅档 0.41.0 起按浅档专项加深一档
-    /// （0x1473C8→0x136FC1，见 ChatTheme 注），与上
-    /// 述旧值脱钩是本意；暗档仍逐字相同。
+    /// （0x1473C8→0x136FC1，2026-11-15 第 85 条再深
+    /// 一档至 0x1268B8——压助手泡面 #EEEEF0 4.45 差
+    /// 线 0.05，见 ChatTheme 注），与上述旧值脱钩是
+    /// 本意；暗档仍逐字相同。
     public static var primary: Color {
         let theme = currentChatTheme
         return themedColor(
@@ -406,19 +408,25 @@ public enum Palette {
     /// 代码高亮三色（0.36.25，对话渲染补全包）：只分
     /// 关键词／字符串／数字三类着色＋注释走 inkSec-
     /// ondaryOnFill、正文走 bodyInk——克制口径，不设
-    /// 彩虹板。取值按代码面（浅 #FFFFFF 字段面／暗
-    /// #2C2C2E 三级面）实算对比：关键词紫浅 #A626A4
-    /// （对白 6.1:1）／暗 #C792EA（5.8:1）；字符串绿
-    /// 浅 #116329（7.4:1）／暗 #98C379（6.9:1）；数字
-    /// 蓝浅 #0550AE（7.6:1）／暗 #79B8FF（6.7:1），
-    /// 全过 4.5 小字线（WCAGContrast 同式心算，落法
-    /// 与 D3 派生档同机制：浅档字面、暗档 UIColor
-    /// 字面经 appleColor 解析）
+    /// 彩虹板。实算口径（2026-11-15 第 85 条收口回填，
+    /// WCAGContrast 同式）：浅档基面＝codeFill 实色
+    /// #E2E4E7——关键词 #A626A4 4.80／字符串 #116329
+    /// 5.80／数字 #0550AE 5.96；暗档基面＝codeFill
+    /// （secondarySystemFill α0.32）压所托面的合成色
+    /// ——压黑 (38,38,41)：7.47／7.49／7.27；压
+    /// #1C1C1E (57,57,61)：5.69／5.70／5.54；压
+    /// #2C2C2E (68,68,72)：4.80／4.81／4.67，全过
+    /// 4.5 小字线。旧注「对白 6.1／暗按 #2C2C2E 实色
+    /// 5.8」口径有误（浅档基面错位、暗档漏算 α 叠
+    /// 层——关键词旧值 #C792EA 在三级面合成上实算
+    /// 仅 4.03），本版一并纠正、关键词暗档同色相提
+    /// 亮至 #D0A6F0（落法与 D3 派生档同机制：浅档
+    /// 字面、暗档 UIColor 字面经 appleColor 解析）
     public static let codeKeyword = appleColor(
         light: 0xA626A4,
         dark: UIColor(
-            red: 0xC7 / 255.0, green: 0x92 / 255.0,
-            blue: 0xEA / 255.0, alpha: 1
+            red: 0xD0 / 255.0, green: 0xA6 / 255.0,
+            blue: 0xF0 / 255.0, alpha: 1
         )
     )
     /// 代码高亮·字符串绿
@@ -456,12 +464,44 @@ public enum Palette {
     /// 「提亮且保饱和」路线（对卡面实算 4.99:1）
     public static let success = Color(UIColor.systemGreen)
     public static let warning = Color(UIColor.systemOrange)
+    /// 状态文字绿（2026-11-15，第 85 条对比度收口）：
+    /// success 本职是状态点/图标色，浅档 systemGreen
+    /// 作可读文字仅 2.22:1——一切要读的状态字（「通
+    /// 过」「使用中」「已安装」等）走本令牌：浅档同
+    /// 色相深值 #1A7431（实算：对白 5.86／页底 5.71
+    /// ／设置底 5.25／tintGreen 面 5.09／success
+    /// α0.12 胶囊合成面 5.30，全过 4.5）；暗档随
+    /// success 同挂 systemGreen（对黑 10.39、本已
+    /// 达标）。状态点/纯图标位继续走 success、不动
+    public static let successText = appleColor(
+        light: 0x1A7431, dark: .systemGreen
+    )
+    /// 状态文字橙（同上收口）：浅档同色相深值
+    /// #9C5700（实算：对白 5.56／页底 5.42／设置
+    /// 底 4.98）；暗档随 warning 同挂 systemOrange
+    /// （对黑 10.22）。点/图标位继续走 warning
+    public static let warningText = appleColor(
+        light: 0x9C5700, dark: .systemOrange
+    )
     /// 0.43.0（A11Y-S5）：浅档高对比变体 #8C332C
     /// ——对卡面 8.00:1、对 errorSurface 7.11:1，
     /// 双面过 7:1；默认解析不变
     public static let danger = appleColor(
         light: 0xAA4A45, dark: .systemRed,
         lightHighContrast: 0x8C332C
+    )
+    /// 角标填充红（2026-11-15，第 85 条收口）：danger
+    /// 本职文字/图标色——暗档 systemRed 提亮保饱和，
+    /// 白字压之作角标填充仅 3.41:1；角标填充专用本
+    /// 令牌：浅档与 danger 同值 #AA4A45（白字实算
+    /// 5.56），暗档深红 #D92B1F（白字实算 4.87）。
+    /// danger 本体不动（作文字对 #1C1C1E 4.99 达标）
+    public static let dangerFill = appleColor(
+        light: 0xAA4A45,
+        dark: UIColor(
+            red: 0xD9 / 255.0, green: 0x2B / 255.0,
+            blue: 0x1F / 255.0, alpha: 1
+        )
     )
 
     /// 阴影基色：取 OpenMuse 浮动底栏阴影色 #132631
@@ -487,6 +527,27 @@ public enum Palette {
             return warning
         default:
             return inkMuted
+        }
+    }
+
+    /// 状态文字色（2026-11-15，第 85 条收口）：state-
+    /// Color 的文字位姊妹——状态点继续走 stateColor，
+    /// 状态词上屏走本函数：success/warning 换文字档
+    /// （successText/warningText，浅档 2.22/2.20 的
+    /// 不达标组合就此退出文字位），danger 作文字双
+    /// 档本已达标（5.56/4.99）直用，未知态回落
+    /// inkSecondary（stateColor 的 inkMuted 回落只
+    /// 许点位、不许文字位）
+    public static func stateTextColor(_ state: String?) -> Color {
+        switch state?.lowercased() {
+        case "connected", "running", "ok", "ready":
+            return successText
+        case "error", "failed", "disconnected", "stopped":
+            return danger
+        case "degraded", "warning", "restarting":
+            return warningText
+        default:
+            return inkSecondary
         }
     }
 }
