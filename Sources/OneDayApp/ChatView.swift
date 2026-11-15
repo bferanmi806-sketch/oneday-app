@@ -4675,7 +4675,12 @@ struct ChatView: View {
                 }
                 VStack(alignment: .trailing, spacing: OneDayMetrics.spacingXS) {
                     if let quote = entry.quote {
+                        // §265（S3）：引用块是纯 Text 铬
+                        // 件（无文本交互）——整行菜单挂载
+                        // 面之一（源引用块含可点按钮、不
+                        // 在此列，见 §265 报告登记）
                         quoteBlock(quote)
+                            .modifier(messageMenu(for: entry))
                     } else if let sourceQuote = entry.sourceQuote {
                         sourceQuoteBlock(sourceQuote)
                     }
@@ -4690,7 +4695,10 @@ struct ChatView: View {
                     // Entry.imageDatasData）
                     let localImageDatas = entry.allImageDatas
                     if !localImageDatas.isEmpty {
+                        // §265（S3）：图片行是铬件——整
+                        // 行菜单挂载面之一
                         localImageRow(localImageDatas, entry: entry)
+                            .modifier(messageMenu(for: entry))
                     }
                     // 0.8.0（P1）：历史导入的服务端图片
                     // （标记路径）——缩略经文件下载通道
@@ -4740,6 +4748,9 @@ struct ChatView: View {
                                     )
                                 )
                             }
+                            // §265（S3）：图片卡是铬件——
+                            // 整行菜单挂载面之一
+                            .modifier(messageMenu(for: entry))
                     }
                     if !entry.content.isEmpty {
                         // 条 8（§14）：段落渲染前过断行整形
@@ -4771,7 +4782,7 @@ struct ChatView: View {
                         )
                             .padding(.horizontal, OneDayMetrics.bubblePaddingH)
                             .padding(.vertical, OneDayMetrics.bubblePaddingV)
-                            .background(
+                            .background {
                                 // 0.3.4 去染色（§19 变/不变表）：
                                 // 用户气泡是表面容器、归中性，
                                 // primaryTint 染色撤销
@@ -4779,9 +4790,19 @@ struct ChatView: View {
                                 // 在 #FCFCFC 底上等于无气泡——
                                 // 换中性浅灰 userBubbleFill，与
                                 // 助手泡同家族拉开深浅、恒中性
-                                Palette.userBubbleFill,
-                                in: RoundedRectangle(cornerRadius: OneDayMetrics.bubbleCorner)
-                            )
+                                // §265（换代包 5·S3）：整行菜单
+                                // 挂载面下移到本背景层（气泡背
+                                // 景＋内边距带）——背景层不是文
+                                // 本视图的祖先，长按文本归
+                                // UITextView 原生选字＋编辑菜
+                                // 单；长按落在背景/边距带上仍
+                                // 出整行菜单（DESIGN §265）
+                                RoundedRectangle(
+                                    cornerRadius: OneDayMetrics.bubbleCorner
+                                )
+                                .fill(Palette.userBubbleFill)
+                                .modifier(messageMenu(for: entry))
+                            }
                     }
                     // 0.46.1（§116）：用户附件文件牌——
                     // 展开块剥出的非图片附件（导入/补缺
@@ -4812,6 +4833,9 @@ struct ChatView: View {
                                 }
                             }
                         }
+                        // §265（S3）：文件牌组是铬件——整
+                        // 行菜单挂载面之一
+                        .modifier(messageMenu(for: entry))
                     }
                     // 聊天可靠性包：待发条目的状态行——
                     // 消息留在原位不消失，状态只在气泡
@@ -4837,9 +4861,14 @@ struct ChatView: View {
                         .accessibilityLabel(
                             L10n.string("未发送 · 点按重发")
                         )
+                        // §265（S3）：状态行是铬件——整行
+                        // 菜单挂载面之一（点按仍走重发）
+                        .modifier(messageMenu(for: entry))
                     }
                 }
-                .modifier(messageMenu(for: entry))
+                // §265（S3）：整行菜单自此不在行根挂载
+                // （旧挂法罩住文本面、长按文本先出整行
+                // 菜单——已下移到各铬件面，见上）
                 .modifier(swipeReply(for: entry))
             }
         } else {
@@ -4989,6 +5018,8 @@ struct ChatView: View {
                 // 图，查无/查不成整行不显示、绝不露
                 // 标记原文）
                 ForEach(mediaSplit.imagePaths, id: \.self) { path in
+                    // §265（S3）：图片卡是铬件——整行菜单
+                    // 挂载面之一
                     AssistantMediaImage(path: path) {
                         openImageViewer(
                             ChatImageViewerItem(
@@ -4996,11 +5027,14 @@ struct ChatView: View {
                             )
                         )
                     }
+                    .modifier(messageMenu(for: entry))
                 }
                 // §143：裸路径图片行——与 MEDIA 行同
                 // 形态（AssistantMediaImage §130 定高
                 // 卡），存在性门在视图本体
                 ForEach(inlineImages, id: \.path) { ref in
+                    // §265（S3）：图片卡是铬件——整行菜单
+                    // 挂载面之一
                     AssistantMediaImage(path: ref.path) {
                         openImageViewer(
                             ChatImageViewerItem(
@@ -5008,6 +5042,7 @@ struct ChatView: View {
                             )
                         )
                     }
+                    .modifier(messageMenu(for: entry))
                 }
                 // §146（原分支 §142）：登记交付项——
                 // 呈现位与 §136 图片行同口径（正文摘
@@ -5019,6 +5054,8 @@ struct ChatView: View {
                 ForEach(
                     deliverySplit.deliveryIDs, id: \.self
                 ) { deliveryID in
+                    // §265（S3）：交付项是铬件——整行菜单
+                    // 挂载面之一
                     AssistantDeliveryItem(
                         id: deliveryID,
                         onOpenImage: { meta in
@@ -5032,6 +5069,7 @@ struct ChatView: View {
                             openChatFile(meta.path)
                         }
                     )
+                    .modifier(messageMenu(for: entry))
                 }
                 // 聊天可靠性包：整条裸路径的附件区——
                 // 呈现与 remoteImagePaths 行同口径（图
@@ -5073,13 +5111,19 @@ struct ChatView: View {
                                     )
                                 )
                             }
+                            // §265（S3）：整条裸路径图卡是
+                            // 铬件——整行菜单挂载面之一
+                            .modifier(messageMenu(for: entry))
                     } else {
+                        // §265（S3）：整条裸路径文件卡是
+                        // 铬件——整行菜单挂载面之一
                         BarePathFileCard(path: wholePathRef.path) {
                             openChatFile(
                                 wholePathRef.path,
                                 anchor: wholePathRef.anchor
                             )
                         }
+                        .modifier(messageMenu(for: entry))
                     }
                 }
                 // 正文只剩标记行被摘空时不渲染空气泡；
@@ -5093,7 +5137,7 @@ struct ChatView: View {
                         && inlineImages.isEmpty
                         && deliverySplit.deliveryIDs.isEmpty
                         && wholePathRef == nil) {
-                    assistantBubble {
+                    assistantBubble(menuEntry: entry) {
                         // §152：选区回报接行级记账（选
                         // 字期间关本行右滑引用）
                         MarkdownText(
@@ -5148,9 +5192,13 @@ struct ChatView: View {
                             }
                         }
                     }
+                    // §265（S3）：文件牌组是铬件——整行
+                    // 菜单挂载面之一
+                    .modifier(messageMenu(for: entry))
                 }
             }
-            .modifier(messageMenu(for: entry))
+            // §265（S3）：整行菜单自此不在行根挂载（已
+            // 下移到气泡背景层与各铬件面，见上）
             .modifier(swipeReply(for: entry))
         }
     }
@@ -5407,6 +5455,8 @@ struct ChatView: View {
     /// 气泡长按菜单挂载（0.4.1）：纯图片消息（正文空）
     /// 不挂——四项全是文本动作，空文本挂上只剩坏体验
     /// （引用摘要为空、复制/分享空串）
+    /// §265（S3）：本修饰符只许挂非文本面（气泡背景
+    /// 层与铬件），挂载点清单见 DESIGN §265
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
         let text = plainText(for: entry)
         return MessageMenuModifier(
@@ -5698,18 +5748,33 @@ struct ChatView: View {
     /// 异构件在本函数之外、不受影响。函数名沿旧名
     /// 以保调用点零改动与沿革可追。
     private func assistantBubble<Content: View>(
+        menuEntry: ChatEntry? = nil,
         @ViewBuilder _ content: () -> Content
     ) -> some View {
         HStack(alignment: .top) {
             content()
                 .padding(.horizontal, OneDayMetrics.bubblePaddingH)
                 .padding(.vertical, OneDayMetrics.bubblePaddingV)
-                .background(
-                    Palette.bubbleFill,
-                    in: RoundedRectangle(
-                        cornerRadius: OneDayMetrics.assistantBubbleCorner
+                .background {
+                    // §265（换代包 5·S3）：落定行传
+                    // menuEntry 时整行菜单挂本背景层
+                    // （气泡背景＋内边距带）——与用户泡
+                    // 同口径：背景层不是文本视图的祖
+                    // 先，长按文本归 UITextView 原生；
+                    // 流式泡不传（无菜单、形态逐字不变）
+                    let shape = RoundedRectangle(
+                        cornerRadius:
+                            OneDayMetrics.assistantBubbleCorner
                     )
-                )
+                    .fill(Palette.bubbleFill)
+                    if let menuEntry {
+                        shape.modifier(
+                            messageMenu(for: menuEntry)
+                        )
+                    } else {
+                        shape
+                    }
+                }
             Spacer(minLength: OneDayMetrics.bubbleSideInset)
         }
     }
@@ -10188,6 +10253,14 @@ private struct ComposerBarLayout: Layout {
 /// 走 ShareLink 系统分享单；选择打开纯文本 sheet。
 /// isEnabled=false（纯图片消息）时不挂菜单，见
 /// messageMenu(for:) 的口径注
+/// §265（换代包 5·S3）：挂载面自此只许落在非文本层
+/// ——气泡背景层（背景＋内边距带）与行内铬件（图
+/// 片卡/文件牌/交付项/引用块/状态行）；不许再挂
+/// 行内容根——根挂载的 UIContextMenuInteraction
+/// 是文本视图的祖先、长按文本先出整行菜单、压死
+/// UITextView 原生选字＋编辑菜单（审计 S3 定性）。
+/// 文本区长按自此归文本体系；「选择」sheet 降为
+/// 跨段选段的兜底口（仍挂菜单内、非文本区可达）
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
     let plainText: String
