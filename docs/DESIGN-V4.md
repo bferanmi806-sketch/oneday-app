@@ -13069,3 +13069,11 @@ run 43684396656（workflow_dispatch @ rel-05054 尖端 7e8cebb），全日志本
 **跟随供数对拍（施工图 R2 前置门）**：Core `ChatScrollSupply` 增 `replaySettleSequence`——规范化轨迹经新旧两式供数喂「协调者＋落定状态机」全链，四回合（落定收敛／键盘 inset 生长／用户离底／restick 续回合）裁决序列逐点对拍、距底逐点对地面真值。原生面三路输入（距底/可见集/内容高）沿 R1 已换的集合视图 delegate＋布局回调单源、判定逻辑（BottomStickCoordinator/BottomSettleMachine/StreamFollowGate）零改；流式跟随的目标 item＝打开段 item、命令链与拍位不变。
 
 **验收（CI 装配断言）**：R1 六组断言在新装配形态下续跑（舱改子托管、键盘座位改附加安全区顶起引导线、断言对象换容器内舱宿主实帧）；新增 `ChatNativeListR2AssemblyTests`（真壳、真实生产行内容、禁固定高占位）：⑦直播逐项独立 item＋间距单源 24；⑧块闭合单渲染（蓝图 §6.2⑤ 机器判据）——93 事故原文（4640/4643 两段＋工具边界）确定性序列注入，逐拍以可见 cell 渲染树（无障碍标签＋平台文本视图正文）断言任一段文字只出现在一个 item、封段后两段互斥；⑨引导线钉位结构直证（舱底＝guide 顶）＋派生 inset 直证（帧底−舱顶＋边距）＋顶起 60 后舱/inset/间距三数同步；⑩流式生长三拍跟随钉底（距底 ≤2.5＋末行→舱顶 24±1.5）。真机门（D 组全项＋93 回放真机一条＋A2/A3＋B2/B3/B6）归主线组 .57 执行、本刀不判。CI 判读见 §292.1（回填）。
+
+### §292.1 CI 判读回填（2026-11-16；两轮全量门用尽，如实记账）
+
+**第一轮**（run 43731274199，头 2df000b）：App 构建（no codesign）成功。**Core 2163/2163 全绿**（R1 基线 2159＋新增对拍 4 例全过——落定收敛／键盘生长／用户离底／restick 四回合裁决序列与预期逐点一致）。**R1 装配 7/7 全过**——含键盘闭/开间距断言在新引导线派生 inset 下续绿（装配层以附加安全区顶起引导线代键盘座位，舱底钉位、派生 inset 与间距三数同源成立）。**R2 装配 ⑦⑨⑩ 过、⑧ 红**：⑧ 四条断言失败形态一致——凡经 `StreamingText` 尾块呈现的文本（B 段两拍、封段后 A 段）在可见 cell 渲染树采集为 0，而经 `MarkdownText`（UITextView）的 A 段第一拍采集为 1；定因＝**测试侧采集口径**：`UIHostingConfiguration` 托管的 SwiftUI 内容不经 `accessibilityElements` 数组递出（其元素由 `UIAccessibilityContainer` 协议按需生成），产品侧反证在场——⑩ 三拍文本生长的真实排版高度变化与钉底成立、⑦ 逐项 item 与间距成立，即 B 段确在渲染并参与布局。App 侧其余红：`EdgeEffectProbeTests`（§257.1 既登记签名）、`DataDetectorPresentationTests` 两条——其路径（MarkdownText／SelectableInlineText／TextShaping）与本刀 diff 零交集（diff 文件清单可证）、在 R1 终轮同基线为绿、本轮失败形态为探测在 4 秒自旋内零产出，定性为环境/时序 flake 候选（未经第二轮复验，见下）。UI 红＝手势仲裁 4 件（.55／第 95 条既登记签名、归 R3 新承载复验）。
+
+**第二轮**（run 43734335459，头 15a3b5d）：⑧ 采集改双通道（新增容器协议通道＋按 cell 拼整串）后，**测试文件编译失败**——`UIAccessibilityContainer` 协议名在本工具链（iOS 26 SDK）不可作类型引用（`cannot find type 'UIAccessibilityContainer' in scope`），本轮无测试结果产出。App 本体构建已过（错误仅在测试目标）。两轮全量门至此用尽，按纪律不再点火。
+
+**收口处置（头 ccbba86，未经 CI 验证、明标）**：⑧ 采集的容器通道改两型重载——`accessibilityElementCount()`／`accessibilityElement(at:)` 在 `UIView` 与 `UIAccessibilityElement` 两型上直调分发、不点名协议；采集其余部分与全部断言未动。此提交随分支交主线，组 .57 的 CI 须将其作为首验对象：⑧ 转绿即 R2 装配门全过；⑧ 若仍红，先看日志内两拍「R2-⑧ 渲染树」打印定采集实况再动。DataDetector 两条同轮观察：转绿即 flake 销账、再红请另立线（与本刀无涉）。真机门（A2/A3＋D 组）与 §195 判读裁决仍归主线。
