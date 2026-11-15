@@ -44,10 +44,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
         let text = try lastUserTextView(in: app)
         // 气泡左内边距带中点：文本视图左缘外 8pt
         // （bubblePaddingH=16 的带宽一半处）
-        let frame = text.frame
-        let point = windowPoint(
-            in: app, x: frame.minX - 8, y: frame.midY
-        )
+        // 点位走元素自身坐标系：列表内元素的 frame
+        // 原点带内容偏移、窗口系换算会打到顶栏区
+        // （八轮实证——双击/长按两例用元素坐标已过）
+        let point = text.coordinate(
+            withNormalizedOffset: CGVector(dx: 0, dy: 0.5)
+        ).withOffset(CGVector(dx: -8, dy: 0))
         point.press(forDuration: 1.5)
         let item = app.buttons.matching(
             NSPredicate(
@@ -79,13 +81,12 @@ final class ChatGestureArbitrationTests: XCTestCase {
         let app = launchDemoApp()
         openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
-        let frame = text.frame
-        let start = windowPoint(
-            in: app, x: frame.minX + 12, y: frame.midY
-        )
-        let end = windowPoint(
-            in: app, x: frame.minX + 172, y: frame.midY
-        )
+        // 起拖点走元素坐标系（同边距例注记）：文本
+        // 左缘内 12 点起、横拖 160 点过触发线
+        let start = text.coordinate(
+            withNormalizedOffset: CGVector(dx: 0, dy: 0.5)
+        ).withOffset(CGVector(dx: 12, dy: 0))
+        let end = start.withOffset(CGVector(dx: 160, dy: 0))
         start.press(forDuration: 0.05, thenDragTo: end)
         let cancel = app.buttons["取消引用"]
         XCTAssertTrue(
@@ -294,26 +295,29 @@ final class ChatGestureArbitrationTests: XCTestCase {
         }.joined(separator: " | ")
     }
 
+    /// 双向 reveal：元素在视口上方（含帧退化——回
+    /// 底后较旧消息在视口上方、帧为 inf）下滑找，
+    /// 在下方上滑找（八轮实证：联系方式消息回底后
+    /// 帧退化、单向上滑永不命中）
     private func reveal(
         _ element: XCUIElement, in app: XCUIApplication
     ) {
         let list = app.scrollViews.firstMatch
-        for _ in 0..<10 where !element.isHittable {
-            list.swipeUp()
+        var attempts = 0
+        while !element.isHittable, attempts < 14 {
+            let frame = element.frame
+            if frame.isEmpty || !frame.minY.isFinite
+                || frame.minY < 130 {
+                list.swipeDown()
+            } else {
+                list.swipeUp()
+            }
+            attempts += 1
         }
         XCTAssertTrue(
             element.isHittable,
             "目标文本滚动后仍不可命中"
         )
-    }
-
-    /// 屏幕绝对坐标点（窗口坐标系原点＋点偏移）
-    private func windowPoint(
-        in app: XCUIApplication, x: CGFloat, y: CGFloat
-    ) -> XCUICoordinate {
-        app.windows.firstMatch.coordinate(
-            withNormalizedOffset: CGVector(dx: 0, dy: 0)
-        ).withOffset(CGVector(dx: x, dy: y))
     }
 
     // MARK: - 断言助手
