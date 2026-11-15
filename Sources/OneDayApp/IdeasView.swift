@@ -374,7 +374,6 @@ struct IdeaRowView: View {
                     Text(idea.detail)
                         .font(.body)
                         .foregroundStyle(Palette.inkSecondary)
-                        .lineSpacing(3)
                         .lineLimit(4)
                 }
                 if idea.source == .generated, !idea.evidence.isEmpty {
@@ -444,7 +443,6 @@ struct IdeaDetailView: View {
                                 Text(idea.detail)
                                     .font(.body)
                                     .foregroundStyle(Palette.bodyInk)
-                                    .lineSpacing(3)
                             }
                         }
                         if idea.source == .generated,

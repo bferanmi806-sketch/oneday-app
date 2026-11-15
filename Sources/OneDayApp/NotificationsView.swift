@@ -649,7 +649,6 @@ private struct NotificationDetailView: View {
                     Text(presentation.summary)
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
-                        .lineSpacing(6)
                         .padding(.top, OneDayMetrics.spacingM)
                 }
                 if !lines.isEmpty {
@@ -833,7 +832,6 @@ private struct NotificationDetailView: View {
             Text(note)
                 .font(.footnote)
                 .foregroundStyle(Palette.inkMuted)
-                .lineSpacing(4)
         }
         .padding(.top, OneDayMetrics.spacingM)
     }

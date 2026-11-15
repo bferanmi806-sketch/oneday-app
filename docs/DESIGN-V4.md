@@ -12615,3 +12615,17 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 ### §264.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43663260211（workflow_dispatch @ rel-05048，21m44s）：名义 failure，红因仅下述登记项。**Core 2095/2095 精确对账**（Executed 2095、0 failures＝rel-05047 的 2081＋包 4 新增 14：StreamingBlockProductTests 11＋StreamingAssemblyFidelityTests 3）；**UI 10/10 全过**（8＋A6 回归 2：英文例／中文对照例均 passed）；**App 192 注册、191 得判词**（185 passed＋5 skipped＋1 failed），新测全过——SettleCarry 2/2、保真 3/3（在 Core 侧）、HostLifetime 3/3、Reentrancy 3/3。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，与 .47 同签名、与本版改动零交集）；②宿主重启 **1 次**，`testFailedTraceMaterializesWithErrorSnapshot` 被余崩打断无判词（§184 已定性孤立项；BackingData:835 日志文本零命中）。IPA 解包亲验：0.50.48／176／site.didichou.oneday，13,140,512 字节，md5 `f2a59b7908ec3515fef9f8a908bb9656`，落 ~/workspace/your_files/oneday-v0.50.48/（附待办总表副本）。未合 main、未打 tag。
+
+## §265 第 84 条行高回规格包（2026-11-15；分支 fix/line-height-spec，基线 rel-05048@3721c9a）
+
+**依据**：全局标准审计 A 线对齐项（standards-audit-type-layout-20261115.md §2/§1-对1）＋待办第 84 条。标准＝苹果 HIG 字阶规格表（默认 Large 档 Body 17/22、Subheadline 15/20、Footnote 13/18），行高以 text style 规格 leading 为单源；第 81 条已按此修聊天面，本包收其余面。
+
+**落码四件**：①文档阅读页 `DocumentReaderView` 正文/引用/列表三处 `.lineSpacing(7/5/5)` 全摘——同面三值并存且 pitch ≈29/27/27 一并归零，pitch 回 Body 规格 22（PDF 导出的 paragraphStyle lineSpacing 5 是打印介质、审计排除，不动）；②点子 `IdeasView` 行内/详情两处 `.lineSpacing(3)` 摘除，pitch ≈25 → 22；③通知 `NotificationsView` 摘要 `.rowSubtitle`＋6、审批注 `.footnote`＋4 摘除，pitch ≈26/≈22 → 各自字阶规格 20/18；④输入框基准 `ComposerTextMetrics.basePointSize` 16 → 17（主线裁定与聊天正文 Body 同档），`ComposerLayout.lineHeight` 常数按同字体线性缩放 19.17×17/16＝20.37（0.2.9 的 16pt CI 帧实测为锚、字体度量随字号线性是内禀性质），派生随之：封顶 122.22、单行胶囊 46.37（文本侧 30.37 首超键侧 30 改由文本侧主导，差 0.37 在 Muse 基准带噪声内）。
+
+**只复核不改**：枢纽简介 `HubIdentitySection` 两处 `.body`＋lineSpacing(6)（pitch ≈28）属 §222 按 Muse 量测的有意偏离，本包只在施工报告给「保留偏离／回规格」两案量测对照，不落码、留废由主线裁。
+
+**钉测**：新增 `LineHeightSpecTests` 4 例——固定四行中文串经 TextKit 实排反推 pitch：三字阶规格锚（22/20/18，容差 1.0）＋输入舱锚（实排 pitch 合常数 20.37、容差 0.5，兼钉 basePointSize＝17）。既有钉测随派生改钉：ComposerLayoutTests（常数/封顶/胶囊/圆角）、ComposerTextMetricsTests（2 行 100.74、4 行 141.48、封顶胶囊 182.22 等）、AccessibilityPackageTests（基准 17、封顶 122.22、胶囊 46.37；行高派生断言改除 basePointSize 符号量），ComposerGeometryTests 光标度量注释按 17pt 缩放更新（断言未动）。
+
+**零交集声明**：不碰聊天呈现文件（LayoutProductService/SelectableTextView/ChatView 等）——`ChatView.swift:6145` 一带发送舱对位规格注释仍写 19.17/单行 46，本包按纪律未动，待聊天线或主线顺手更新为 20.37/46.37。与 feat/chat-type-scale-align（第 81 条）文件交集为零。
+
+### §265.1 CI 判读（待回填）

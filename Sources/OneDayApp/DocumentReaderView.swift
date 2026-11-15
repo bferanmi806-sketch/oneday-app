@@ -439,7 +439,6 @@ struct DocumentBlocksView: View {
         case .paragraph(let text):
             inlineText(TextShaping.prettyWrapDocument(text))
                 .font(.bodyText)
-                .lineSpacing(7)
                 .foregroundStyle(Palette.bodyInk)
                 .background {
                     // 锚点段落高亮：底色外扩不占布局，
@@ -502,7 +501,6 @@ struct DocumentBlocksView: View {
                 ) { _, line in
                     inlineText(line.text)
                         .font(.bodyText)
-                        .lineSpacing(5)
                         .foregroundStyle(Palette.bodyInk)
                         .padding(
                             .leading,
@@ -616,7 +614,6 @@ struct DocumentBlocksView: View {
                         .frame(width: 22, alignment: .trailing)
                     inlineText(item.text)
                         .font(.bodyText)
-                        .lineSpacing(5)
                         .foregroundStyle(Palette.bodyInk)
                 }
                 .padding(
