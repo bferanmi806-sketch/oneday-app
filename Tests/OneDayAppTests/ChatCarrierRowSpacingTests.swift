@@ -29,20 +29,28 @@ final class ChatCarrierRowSpacingTests: XCTestCase {
 
     private var window: UIWindow!
     private var container: UIViewController!
-    private var controller: ChatListCarrierController!
+    private var controller: ChatListCarrierViewController!
     private var handle: ChatListCarrierHandle!
 
     override func setUp() {
         super.setUp()
-        controller = ChatListCarrierController()
-        handle = ChatListCarrierHandle(controller: controller)
+        controller = ChatListCarrierViewController()
+        handle = ChatListCarrierHandle()
+        controller.handle = handle
+        controller.callbacks = ChatListCarrierCallbacks(
+            onScrollGeometry: {}, onTopVisibleEntry: { _ in },
+            onBlankTap: {}
+        )
+        handle.controller = controller
     }
 
     override func tearDown() {
+        window?.rootViewController = nil
+        window?.isHidden = true
+        window = nil
+        container = nil
         controller = nil
         handle = nil
-        container = nil
-        window = nil
         super.tearDown()
     }
 
