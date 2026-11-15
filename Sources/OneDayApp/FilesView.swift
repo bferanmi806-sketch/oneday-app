@@ -60,8 +60,17 @@ extension WorkspaceFileEntry {
 
 // MARK: - 共享小件（搜索/图标盒/上传）
 
+/// 内嵌搜索件（保留面单源，2026-11-15 第 88 条
+/// 对账）：系统 .searchable 是默认形态，能迁的面
+/// 已迁（日志页/文件浏览器页）；本件只留给无导航
+/// 栈宿主或形态绑定的面——交付物页下拉露出搜索
+/// （§4.2 规格）与记忆段内搜索（段级作用域、嵌
+/// 在复合页内）。保留面一律走本件、不许再自绘第
+/// 二种内嵌搜索
 struct FileSearchField: View {
     @Binding var query: String
+    /// 占位文案（默认文件名搜索；段内搜索传自家词）
+    var placeholder: String = "搜索文件名"
 
     var body: some View {
         HStack(spacing: OneDayMetrics.spacingS) {
@@ -69,9 +78,13 @@ struct FileSearchField: View {
                 .font(.footnote)
                 .foregroundStyle(Palette.inkMuted)
                 .accessibilityHidden(true)
-            TextField("搜索文件名", text: $query)
+            TextField(placeholder, text: $query)
                 .textFieldStyle(.plain)
                 .font(.callout)
+                // 搜索词是文件名/关键词：关自动首字母
+                // 大写与纠错（承记忆段内搜索旧口径）
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
             if !query.isEmpty {
                 Button {
                     query = ""
@@ -431,13 +444,25 @@ struct FilesBrowserView: View {
                 breadcrumbBar(listing: listing)
                     .padding(.horizontal, OneDayMetrics.pageGutter)
                 sortRow
-                FileSearchField(query: $query)
-                    .padding(.horizontal, OneDayMetrics.pageGutter)
-                    .padding(.bottom, OneDayMetrics.spacingS)
+                // 搜索（2026-11-15 第 88 条收口）：本面
+                // 内嵌 FileSearchField 迁系统 .searchable
+                // （挂法见 body 的 .searchable）；本地实
+                // 时过滤口径不变。FileSearchField 本体
+                // 留给下拉露出面（交付物页 §4.2）与记忆
+                // 段内搜索消费，见该件头注
             }
             content
         }
         .background(Palette.pageBG)
+        // 搜索挂导航栏抽屉常显（第 88 条）：位置自面
+        // 包屑/排序行之下移至标题栏下方、目录未加载
+        // 时也在（旧内嵌件随 listing 才出现），形态
+        // 差在报告记
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "搜索文件名"
+        )
         // 页头右 •••（§七三件套）：只放上传两项——上
         // 传文件／从相机胶卷上传（上传进当前目录）；
         // 目录未定位前禁用（无当前目录可言）

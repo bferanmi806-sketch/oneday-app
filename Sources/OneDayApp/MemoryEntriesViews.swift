@@ -137,31 +137,17 @@ struct MemoryEntriesSection: View {
         }
     }
 
+    /// 段内搜索（2026-11-15 第 88 条对账·保留内嵌）：
+    /// 本件是复合页（记忆页）内的一段，搜索作用域只
+    /// 限本段条目；系统 .searchable 是页级挂载，迁之
+    /// 会把段级搜索冒充整页搜索且字段脱离段上下文，
+    /// 故保留内嵌——但画法收编全 App 单源件 File-
+    /// SearchField（原自绘：无填充＋odGroup 卡面＋
+    /// 14pt 图标，与文件面同类件两制并存就此收口）；
+    /// 形态差：改 fieldFill 填充圆角面、字阶 .callout
     private var searchField: some View {
-        HStack(spacing: OneDayMetrics.spacingS) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 14))
-                .foregroundStyle(Palette.inkMuted)
-                .accessibilityHidden(true)
-            TextField("搜索记忆", text: $searchText)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-            if !searchText.isEmpty {
-                Button {
-                    searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(Palette.inkMuted)
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("清空搜索")
-            }
-        }
-        .padding(.horizontal, OneDayMetrics.spacingM)
-        .frame(minHeight: 40)
-        .odGroup()
-        .padding(.bottom, OneDayMetrics.spacingS)
+        FileSearchField(query: $searchText, placeholder: "搜索记忆")
+            .padding(.bottom, OneDayMetrics.spacingS)
     }
 
     /// 待批区：本会话提案（带落定状态）＋上一会话
