@@ -1786,13 +1786,17 @@ struct ChatView: View {
                         if overviewBadgeCount > 0 {
                             Text("\(overviewBadgeCount)")
                                 .font(.caption2.weight(.bold))
-                                // 角标坐在 danger 面上，字恒白
+                                // 角标坐在 dangerFill 面上，字恒白
                                 // （0.6.1：onPrimary 已改深字口径、
                                 // 不再借作白字）
+                                // 2026-11-15（第 85 条 BC-6）：填
+                                // 充改 dangerFill——danger 暗档
+                                // systemRed 白字压之仅 3.41，
+                                // dangerFill 暗档深红实算 4.87
                                 .foregroundStyle(Color.white)
                                 .padding(.horizontal, 4)
                                 .frame(minWidth: 18, minHeight: 18)
-                                .background(Palette.danger, in: Capsule())
+                                .background(Palette.dangerFill, in: Capsule())
                                 .offset(x: 4, y: -4)
                                 .accessibilityHidden(true)
                         }
@@ -2072,11 +2076,14 @@ struct ChatView: View {
                     if let badge = awayUnread.displayText {
                         Text(badge)
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
+                            // 第 85 条（BC-1）：角标改走主钮
+                            // 正道配对 primaryPale＋onPrimary
+                            // （旧白字压 primaryFill 暗档 2.33）
+                            .foregroundStyle(Palette.onPrimary)
                             .padding(.horizontal, 4)
                             .frame(minWidth: 17, minHeight: 17)
                             .background(
-                                Palette.primaryFill, in: Capsule()
+                                Palette.primaryPale, in: Capsule()
                             )
                             .offset(x: 5, y: -5)
                             .accessibilityHidden(true)
@@ -4317,12 +4324,12 @@ struct ChatView: View {
                     .foregroundStyle(Palette.inkMuted)
                 Text(entry.content)
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
                     .lineLimit(1)
                 Spacer()
                 Text("已失效")
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             .padding(.horizontal, OneDayMetrics.spacingM)
             .padding(.vertical, OneDayMetrics.spacingS)
@@ -4392,7 +4399,7 @@ struct ChatView: View {
                 .multilineTextAlignment(.center)
             Text(entry.createdAt, format: .dateTime.hour().minute())
                 .font(.caption2)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, OneDayMetrics.spacingXS)
@@ -10343,8 +10350,11 @@ struct SwipeReplyModifier: ViewModifier {
     }
 
     /// 左缘回复箭头：显形进度驱动透明度与缩放，过
-    /// 线武装态换主色盘（Palette.primary＋onPri-
-    /// mary 箭头）——武装与触发同刻（途中触发口径）
+    /// 线武装态换主色盘（Palette.primaryPale＋onPri-
+    /// mary 箭头——2026-11-15 第 85 条 BC-1 同类收
+    /// 口：onPrimary 的配对面恒是 primaryPale，旧
+    /// primary 盘暗档实算 2.33）——武装与触发同刻
+    /// （途中触发口径）
     private var replyArrow: some View {
         let progress = SwipeReplyMotion.revealProgress(
             offset: dragOffset
@@ -10359,7 +10369,7 @@ struct SwipeReplyModifier: ViewModifier {
             )
             .frame(width: 30, height: 30)
             .background(
-                armed ? Palette.primary : Palette.fieldFill,
+                armed ? Palette.primaryPale : Palette.fieldFill,
                 in: Circle()
             )
             .opacity(progress)

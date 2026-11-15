@@ -262,7 +262,7 @@ struct DeviceSyncSection: View {
             if let expiredLine {
                 Text(expiredLine)
                     .font(.footnote)
-                    .foregroundStyle(Palette.warning)
+                    .foregroundStyle(Palette.warningText)
             }
         }
     }

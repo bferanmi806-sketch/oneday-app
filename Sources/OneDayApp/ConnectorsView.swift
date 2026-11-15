@@ -509,7 +509,7 @@ struct ConnectorsView: View {
                 Text("\(connection.providerWording) · \(status.text)")
                     .font(.footnote)
                     .foregroundStyle(
-                        status.tone == .ok ? Palette.success
+                        status.tone == .ok ? Palette.successText
                             : status.tone == .bad ? Palette.danger
                             : Palette.inkSecondary
                     )

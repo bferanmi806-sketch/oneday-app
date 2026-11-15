@@ -173,7 +173,7 @@ struct SkillHubView: View {
                         if installedNames.contains(skill.installedName) {
                             Text("已安装")
                                 .font(.caption.weight(.semibold))
-                                .foregroundStyle(Palette.success)
+                                .foregroundStyle(Palette.successText)
                                 .padding(.horizontal, OneDayMetrics.rowInnerGap)
                                 .padding(.vertical, OneDayMetrics.spacingMicro)
                                 .background(
@@ -334,7 +334,7 @@ struct HubSkillDetailView: View {
             HStack(spacing: OneDayMetrics.spacingSM) {
                 Label("已安装", systemImage: "checkmark.circle.fill")
                     .font(.callout.weight(.semibold))
-                    .foregroundStyle(Palette.success)
+                    .foregroundStyle(Palette.successText)
                 Spacer()
                 Button("卸载", role: .destructive) {
                     confirmUninstall = true

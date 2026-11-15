@@ -299,7 +299,7 @@ struct GoalsView: View {
                     )
                     Text("\(goals.count)")
                         .font(.body)
-                        .foregroundStyle(Palette.inkMuted)
+                        .foregroundStyle(Palette.inkSecondary)
                     Spacer()
                     Image(systemName: showCompletedGroup
                           ? "chevron.up" : "chevron.down")
@@ -463,7 +463,7 @@ struct UngroupedTaskRowView: View {
                     .lineLimit(2)
                 Text(detail)
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Menu {
@@ -607,11 +607,14 @@ struct GoalIntroView: View {
                         } label: {
                             Text("开始吧")
                                 .font(.headline)
-                                .foregroundStyle(.white)
+                                // 第 85 条（BC-1）：主钮改走
+                                // primaryPale＋onPrimary 正道
+                                // （旧白字压 primary 暗档 2.33）
+                                .foregroundStyle(Palette.onPrimary)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 48)
                                 .background(
-                                    Palette.primary, in: Capsule()
+                                    Palette.primaryPale, in: Capsule()
                                 )
                         }
                         .buttonStyle(.odPressable)
@@ -665,7 +668,7 @@ struct GoalGroupHeader: View {
                 // 分段靠状态色与位置、不靠字重
                 .font(.body)
                 .foregroundStyle(
-                    completed ? Palette.inkSecondary : Palette.success
+                    completed ? Palette.inkSecondary : Palette.successText
                 )
         }
     }
@@ -1134,7 +1137,7 @@ struct GoalDetailView: View {
                     systemImage: "checkmark.circle"
                 )
                 .font(.footnote)
-                .foregroundStyle(Palette.success)
+                .foregroundStyle(Palette.successText)
             }
         }
     }
@@ -1183,7 +1186,7 @@ struct GoalDetailView: View {
                     if let note = activity.note {
                         Text(note)
                             .font(.footnote)
-                            .foregroundStyle(Palette.inkMuted)
+                            .foregroundStyle(Palette.inkSecondary)
                     }
                 }
             }
@@ -1227,7 +1230,7 @@ struct GoalDetailView: View {
                             .multilineTextAlignment(.leading)
                         Text(briefingDateLine(latest))
                             .font(.footnote)
-                            .foregroundStyle(Palette.inkMuted)
+                            .foregroundStyle(Palette.inkSecondary)
                     }
                     .padding(OneDayMetrics.cardPadding)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1376,7 +1379,7 @@ struct GoalDetailView: View {
             .odGroup()
             Text("把这个目标下的一件事放上任务板交给智能体办，并和这个目标关联起来；开始、办完或失败，都会记进这个目标的进展对话，进展里也会留一条。")
                 .font(.footnote)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .padding(.top, OneDayMetrics.spacingS)
         }
     }
@@ -1498,7 +1501,7 @@ struct GoalDetailView: View {
                     .multilineTextAlignment(.leading)
                 Text(detail)
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             Image(systemName: "chevron.right")
@@ -1575,7 +1578,7 @@ struct GoalDetailView: View {
                     )
                 )
                 .font(.footnote)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
             }
             Text(entry.body)
                 .font(.body)
@@ -1696,7 +1699,7 @@ struct GoalDetailView: View {
             }
             Text("子目标只分一层；完成子目标不会自动完成这个目标。")
                 .font(.footnote)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .padding(.top, OneDayMetrics.spacingS)
         }
     }
@@ -1753,7 +1756,7 @@ struct GoalStatusChip: View {
                 .font(.footnote)
                 .foregroundStyle(
                     goal.status == .completed
-                        ? Palette.inkSecondary : Palette.success
+                        ? Palette.inkSecondary : Palette.successText
                 )
         }
         .padding(.horizontal, 8)
@@ -1837,7 +1840,7 @@ struct GoalBriefingsView: View {
                                     "\(ChatTimeline.dividerText(for: Date(timeIntervalSince1970: briefing.createdAt), now: Date())) · \(briefing.period)"
                                 )
                                 .font(.footnote)
-                                .foregroundStyle(Palette.inkMuted)
+                                .foregroundStyle(Palette.inkSecondary)
                             }
                             .frame(
                                 maxWidth: .infinity,
@@ -1931,7 +1934,7 @@ struct GoalBriefingLetterView: View {
                     if let note = briefing.note {
                         Text(note)
                             .font(.footnote)
-                            .foregroundStyle(Palette.inkMuted)
+                            .foregroundStyle(Palette.inkSecondary)
                     }
                     // 落款行
                     HStack(spacing: OneDayMetrics.spacingS) {
@@ -1947,7 +1950,7 @@ struct GoalBriefingLetterView: View {
                         Text("OneDay 目标简报")
                     }
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
                 }
                 .padding(OneDayMetrics.cardPadding)
                 .frame(maxWidth: .infinity, alignment: .leading)

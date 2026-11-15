@@ -173,10 +173,10 @@ struct LedgerDetailView: View {
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(
                                 decision.isApproved
-                                    ? Palette.success
+                                    ? Palette.successText
                                     : decision.isRejected
                                         ? Palette.danger
-                                        : Palette.inkMuted
+                                        : Palette.inkSecondary
                             )
                         if decision.isRuleApproved {
                             Text("按规则放行")
@@ -249,7 +249,7 @@ struct LedgerDetailView: View {
                 if current.isReconciled {
                     Text("这条是对账时补记的：它开始时台账还没记上。")
                         .font(.footnote)
-                        .foregroundStyle(Palette.inkMuted)
+                        .foregroundStyle(Palette.inkSecondary)
                 }
             }
             .padding(.vertical, OneDayMetrics.spacingMicro)
@@ -368,14 +368,14 @@ struct LedgerDetailView: View {
                 NumberText(
                     LedgerClock.timeWithSeconds(entry.at), font: .footnote
                 )
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 Text(transitionText(entry))
                     .font(.subheadline)
                     .foregroundStyle(Palette.ink)
                 Spacer()
                 Text(LedgerText.actorWord(entry.by))
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             if entry.corrected {
                 tag("已纠正")
@@ -402,7 +402,7 @@ struct LedgerDetailView: View {
     private func tag(_ text: String) -> some View {
         Text(text)
             .font(.caption2)
-            .foregroundStyle(Palette.inkMuted)
+            .foregroundStyle(Palette.inkSecondary)
     }
 
     /// 技术信息：原始枚举与编号只进本区（排障用），

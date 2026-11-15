@@ -155,7 +155,7 @@ struct NotificationsView: View {
             }
             Text(subtitleText)
                 .font(.rowSubtitle)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .padding(.top, OneDayMetrics.spacingXS)
             if store.notificationsLoaded, !store.notificationsFailed,
                !store.historyNotifications.isEmpty {
@@ -219,7 +219,7 @@ struct NotificationsView: View {
             HStack(spacing: OneDayMetrics.spacingXS) {
                 Text(title)
                 Text("\(count)")
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
             }
             .font(.bodyText.weight(.semibold))
             .foregroundStyle(Palette.ink)
@@ -341,7 +341,7 @@ struct NotificationsView: View {
                 Section {
                     Text("只保留最近 200 条回告记录")
                         .font(.footnote)
-                        .foregroundStyle(Palette.inkMuted)
+                        .foregroundStyle(Palette.inkSecondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .listRowSeparator(.hidden)
                 }
@@ -364,7 +364,7 @@ struct NotificationsView: View {
     ) -> some View {
         Text(group.title)
             .font(.footnote)
-            .foregroundStyle(Palette.inkMuted)
+            .foregroundStyle(Palette.inkSecondary)
             .padding(.horizontal, ListRowSpec.horizontalPadding)
             .padding(.top, isFirst ? OneDayMetrics.spacingS : OneDayMetrics.spacingL)
             .padding(.bottom, OneDayMetrics.spacingS)
@@ -512,7 +512,7 @@ struct NotificationsView: View {
             }
             Text(metaText(item))
                 .font(.footnote)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .monospacedDigit()
         }
     }
@@ -639,7 +639,7 @@ private struct NotificationDetailView: View {
                     .foregroundStyle(Palette.ink)
                 Text(timeLine(current))
                     .font(.footnote)
-                    .foregroundStyle(Palette.inkMuted)
+                    .foregroundStyle(Palette.inkSecondary)
                     .padding(.top, OneDayMetrics.spacingXS)
                 if let outcome = NotificationDetail.outcome(for: current) {
                     outcomeChip(outcome)
@@ -770,7 +770,7 @@ private struct NotificationDetailView: View {
     private func sectionLabel(_ text: String) -> some View {
         Text(text)
             .font(.sectionLabel)
-            .foregroundStyle(Palette.inkMuted)
+            .foregroundStyle(Palette.inkSecondary)
             .padding(.top, OneDayMetrics.spacingL)
             .padding(.bottom, OneDayMetrics.spacingS)
     }
@@ -802,7 +802,7 @@ private struct NotificationDetailView: View {
                         if let identifier = line.identifier {
                             Text(identifier)
                                 .font(.footnote)
-                                .foregroundStyle(Palette.inkMuted)
+                                .foregroundStyle(Palette.inkSecondary)
                         }
                     }
                     Spacer(minLength: OneDayMetrics.spacingS)
@@ -832,7 +832,7 @@ private struct NotificationDetailView: View {
                 .padding(.top, 1)
             Text(note)
                 .font(.footnote)
-                .foregroundStyle(Palette.inkMuted)
+                .foregroundStyle(Palette.inkSecondary)
                 .lineSpacing(4)
         }
         .padding(.top, OneDayMetrics.spacingM)
@@ -899,7 +899,7 @@ private struct NotificationDetailView: View {
                 HStack {
                     Text("技术记录")
                         .font(.footnote)
-                        .foregroundStyle(Palette.inkMuted)
+                        .foregroundStyle(Palette.inkSecondary)
                     Spacer()
                     Image(systemName: technicalExpanded
                         ? "chevron.up" : "chevron.down")

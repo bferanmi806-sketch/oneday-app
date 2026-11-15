@@ -163,7 +163,10 @@ struct GatewayView: View {
                             Spacer()
                             Text(ServerLabels.platformState(platform.state))
                                 .font(.footnote)
-                                .foregroundStyle(Palette.stateColor(platform.state))
+                                // 第 85 条（BC-2）：状态词是文字
+                                // 位，走 stateTextColor；左侧点
+                                // 位仍走 stateColor
+                                .foregroundStyle(Palette.stateTextColor(platform.state))
                         }
                         .padding(.horizontal, OneDayMetrics.spacingM)
                         .frame(minHeight: OneDayMetrics.rowHeight)

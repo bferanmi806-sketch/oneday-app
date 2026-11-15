@@ -447,7 +447,7 @@ struct ConnectView: View {
                     case .done:
                         Text("通过")
                             .font(.footnote)
-                            .foregroundStyle(Palette.success)
+                            .foregroundStyle(Palette.successText)
                     case .failed:
                         Text("失败")
                             .font(.footnote)

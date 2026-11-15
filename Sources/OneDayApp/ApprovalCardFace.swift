@@ -81,11 +81,15 @@ struct ApprovalCardFace<DetailArea: View>: View {
             if let blockedReason = record.blockedReason {
                 Label {
                     Text("这条无法批准：\(blockedReason)")
+                        // 第 85 条（BC-2）：整句是可读文字，
+                        // 走 warningText（浅档 5.56）；图标
+                        // 仍走 warning 本色
+                        .foregroundStyle(Palette.warningText)
                 } icon: {
                     Image(systemName: "exclamationmark.triangle")
+                        .foregroundStyle(Palette.warning)
                 }
                 .font(.footnote)
-                .foregroundStyle(Palette.warning)
             }
 
             if let note {
@@ -156,8 +160,10 @@ struct ApprovalCardFace<DetailArea: View>: View {
 
 /// 审批卡裁决钮（自绘通栏胶囊）：标签 Text 在背景之
 /// 内层满宽——宽恒等于卡宽、三钮同高同宽，主次只差
-/// 填充与字色（主钮恒主题蓝实心＋白字、次钮浅灰填
-/// 充＋墨字；驳回不预红、确认走宿主既有
+/// 填充与字色（主钮恒主钮配色 primaryPale＋onPrimary
+/// ——2026-11-15 第 85 条 BC-1 收口：旧「primary 实
+/// 心＋白字」暗档仅 2.33:1，改走与发送钮同源的正道
+/// 配对；次钮浅灰填充＋墨字；驳回不预红、确认走宿主既有
 /// confirmationDialog，与参照「拒绝」中性灰同口径）
 private struct ApprovalCardButton: View {
     let action: ApprovalCardAction
@@ -168,13 +174,13 @@ private struct ApprovalCardButton: View {
             Text(action.title())
                 .font(.headline)
                 .foregroundStyle(
-                    action.isPrimary ? Color.white : Palette.ink
+                    action.isPrimary ? Palette.onPrimary : Palette.ink
                 )
                 .frame(maxWidth: .infinity)
                 .frame(height: ApprovalCardSpec.buttonHeight)
                 .background(
                     action.isPrimary
-                        ? Palette.primary : Palette.selectionFill,
+                        ? Palette.primaryPale : Palette.selectionFill,
                     in: Capsule()
                 )
                 .contentShape(Capsule())
