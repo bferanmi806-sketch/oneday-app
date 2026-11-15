@@ -342,11 +342,45 @@ struct MarkdownText: View {
 
     // MARK: - 表格
 
-    /// 表格：Grid 按内容定列宽，整体横向可滚（宽表不
-    /// 挤字）；表头 bold＋发丝线与行分隔（全 App 同一
-    /// 种分隔几何：整行贯通发丝线）；列对齐来自分隔
-    /// 行的 : 标记
+    /// 表格分流（§271，第 72 条；口径单源在 Core
+    /// MarkdownTablePresentation）：≤4 列走 Grid
+    /// （列宽封顶＋单元格折行、整体仍横向可滚）；
+    /// >4 列降级列表（逐行「表头标签＋值」，气泡
+    /// 宽内读全、不横拖）。表头 bold＋发丝线与行
+    /// 分隔（全 App 同一种分隔几何：整行贯通发丝
+    /// 线）；列对齐来自分隔行的 : 标记
+    @ViewBuilder
     private func tableView(
+        header: [String],
+        alignments: [MarkdownTableAlignment],
+        rows: [[String]]
+    ) -> some View {
+        Group {
+            if MarkdownTablePresentation.mode(
+                columnCount: header.count
+            ) == .list {
+                tableListView(header: header, rows: rows)
+            } else {
+                tableGridView(
+                    header: header,
+                    alignments: alignments,
+                    rows: rows
+                )
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // 右滑引用排除区（0.36.26 §95）：本区横滑归
+        // 表格横滚／列表纵滚，起始点落在此不触发本
+        // 行右滑引用
+        .swipeReplyExcluded()
+    }
+
+    /// Grid 形态：列宽封顶（Core maxColumnWidth）后
+    /// 单元格在列内折行——旧形态按内容理想宽定列、
+    /// 长文本单元格整行不折、3 列长文表也要横拖才
+    /// 看得全（格式显示诊断 §四）；封顶后宽表先折
+    /// 行、横滑只剩多列总宽仍超气泡宽时的余量
+    private func tableGridView(
         header: [String],
         alignments: [MarkdownTableAlignment],
         rows: [[String]]
@@ -373,10 +407,16 @@ struct MarkdownText: View {
                         // 27 起格内选段），不冒充同档
                         .textSelection(.enabled)
                         .frame(
-                            maxWidth: .infinity,
+                            maxWidth: CGFloat(
+                                MarkdownTablePresentation
+                                    .maxColumnWidth
+                            ),
                             alignment: Self.frameAlignment(
                                 alignments[column]
                             )
+                        )
+                        .fixedSize(
+                            horizontal: false, vertical: true
                         )
                         .multilineTextAlignment(
                             Self.textAlignment(alignments[column])
@@ -402,10 +442,17 @@ struct MarkdownText: View {
                             .foregroundStyle(Palette.bodyInk)
                             .textSelection(.enabled)
                             .frame(
-                                maxWidth: .infinity,
+                                maxWidth: CGFloat(
+                                    MarkdownTablePresentation
+                                        .maxColumnWidth
+                                ),
                                 alignment: Self.frameAlignment(
                                     alignments[column]
                                 )
+                            )
+                            .fixedSize(
+                                horizontal: false,
+                                vertical: true
                             )
                             .multilineTextAlignment(
                                 Self.textAlignment(
@@ -417,10 +464,56 @@ struct MarkdownText: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // 右滑引用排除区（0.36.26 §95）：本区横滑归
-        // 表格横滚，起始点落在此不触发本行右滑引用
-        .swipeReplyExcluded()
+    }
+
+    /// 列表降级形态（>4 列）：逐数据行成组、组内逐
+    /// 列一行「标签（表头，次墨小字）＋值」，组间发
+    /// 丝线分隔——与 Grid 形态同一分隔几何；值走同
+    /// 一行内渲染（粗体等标记同口径）、可选择
+    private func tableListView(
+        header: [String], rows: [[String]]
+    ) -> some View {
+        let entries = MarkdownTablePresentation.listEntries(
+            header: header, rows: rows
+        )
+        return VStack(
+            alignment: .leading,
+            spacing: OneDayMetrics.spacingSM
+        ) {
+            ForEach(
+                Array(entries.enumerated()), id: \.offset
+            ) { rowIndex, row in
+                if rowIndex > 0 {
+                    GroupDivider()
+                }
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingXS
+                ) {
+                    ForEach(
+                        Array(row.enumerated()), id: \.offset
+                    ) { _, entry in
+                        HStack(
+                            alignment: .firstTextBaseline,
+                            spacing: OneDayMetrics.spacingS
+                        ) {
+                            Text(entry.label)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(
+                                    Palette.inkSecondaryOnFill
+                                )
+                            inline(
+                                entry.value,
+                                strongFont: .callout.weight(.bold)
+                            )
+                            .font(.callout)
+                            .foregroundStyle(Palette.bodyInk)
+                            .textSelection(.enabled)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private static func frameAlignment(

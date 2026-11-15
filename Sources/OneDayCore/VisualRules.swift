@@ -102,4 +102,90 @@ public enum TextShaping {
             .map { prettyWrap($0) }
             .joined(separator: "\n")
     }
+
+    /// run 层整形（§271，第 72 条文本管线根治）：先解
+    /// 析、后整形——对行内解析已产出的语义 run 施加
+    /// 与 prettyWrap 同口径的尾行孤字绑定（逐行、尾
+    /// 2 字形／句末标点尾 3 字形）。连接符只落进普通
+    /// 文本 run 的字间，结构上不可能劈开定界符：成
+    /// 对定界符已被解析消费、run 文本里不存在待劈
+    /// 的对（文本层整形的病根——解析前插符劈开段尾
+    /// 闭合 `**`／链接尾 `)`／代码闭合反引号——整类
+    /// 消除）。两条豁免（同为真值保真、优先于防孤字）：
+    /// - 代码 run 相邻不插：代码文本逐字保真，连接
+    ///   符不进代码内容（文本层整形曾把符插进闭合
+    ///   反引号内侧、污染代码 run 文本）；
+    /// - 数字字之间不插：电话／时间／金额等检测令
+    ///   牌（NSDataDetector 口径）被零宽符从中劈开
+    ///   即识别失败（gen5 T4 探针实见 `1380013800⁠0`
+    ///   与 `13:0⁠0`，同根在此一并收）。
+    /// 链接 run 的可见标签文本可插（URL 属性不经文
+    /// 本、不受影响）。输入为空／无可绑行时原样返回
+    public static func shapeRuns(_ runs: [InlineRun]) -> [InlineRun] {
+        let fullText = runs.map(\.text).joined()
+        guard fullText.count > 2 else { return runs }
+        let chars = Array(fullText)
+        // run 起点字符下标（runs 文本拼接即全文）
+        var starts: [Int] = []
+        starts.reserveCapacity(runs.count)
+        var offset = 0
+        for run in runs {
+            starts.append(offset)
+            offset += run.text.count
+        }
+        func runIndex(containing charIndex: Int) -> Int {
+            var result = 0
+            for (index, start) in starts.enumerated() {
+                if start <= charIndex {
+                    result = index
+                } else {
+                    break
+                }
+            }
+            return result
+        }
+        // 逐行求插入点（在字符下标 i 之前插入连接符）
+        var insertions: Set<Int> = []
+        func collectLine(start: Int, end: Int) {
+            let count = end - start
+            guard count > 2 else { return }
+            let bindCount = closingPunctuation.contains(chars[end - 1])
+                ? 3 : 2
+            guard count > bindCount else { return }
+            for i in (end - bindCount + 1)..<end {
+                if chars[i - 1].isNumber, chars[i].isNumber {
+                    continue
+                }
+                if runs[runIndex(containing: i - 1)].code {
+                    continue
+                }
+                if runs[runIndex(containing: i)].code {
+                    continue
+                }
+                insertions.insert(i)
+            }
+        }
+        var lineStart = 0
+        for i in chars.indices where chars[i] == "\n" {
+            collectLine(start: lineStart, end: i)
+            lineStart = i + 1
+        }
+        collectLine(start: lineStart, end: chars.count)
+        guard !insertions.isEmpty else { return runs }
+        // 回填：插入符归 chars[i] 所在 run、落其本地
+        // 偏移（代码相邻点已在收集期豁免，不会落进
+        // 代码 run）
+        return runs.enumerated().map { index, run in
+            var text = ""
+            for (local, character) in run.text.enumerated() {
+                if insertions.contains(starts[index] + local) {
+                    text += wordJoiner
+                }
+                text.append(character)
+            }
+            var shaped = run
+            shaped.text = text
+            return shaped
+        }
+    }
 }

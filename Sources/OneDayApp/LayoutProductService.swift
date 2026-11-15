@@ -198,8 +198,12 @@ final class LayoutProductService: @unchecked Sendable {
         var structuralCount = 0
         if isUser {
             let attributed = assemble(
-                [.plain(
-                    TextShaping.prettyWrapDocument(renderedText)
+                // §271：与呈现侧（ChatView 用户气泡）
+                // 同一 run 层整形，量测与呈现不分家
+                [InlineTextParagraph(
+                    runs: TextShaping.shapeRuns(
+                        InlineRunBuilder.plainRuns(renderedText)
+                    )
                 )],
                 foreground: Palette.userBubbleText
             )

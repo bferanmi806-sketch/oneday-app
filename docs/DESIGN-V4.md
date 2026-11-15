@@ -12923,3 +12923,16 @@ run 43678345805（workflow_dispatch @ rel-05052 尖端 9f65ece）：名义 failu
 **CI 判读（四轮）**：一轮 run 43665123573——量测/段距/文宽三例先过，字体链三例红，实测钉死「preferredFont.lineHeight＝自然行高（.body 20.29／.callout 19.09）、规格 leading 在 TK2 布局行片段高里」，据此撤段落样式钉法、立 specLineHeight。二轮 run 43667774326——编译红：`NSLayoutManager.defaultLineHeight` 在 iOS 26 SDK 已无此成员，specLineHeight 改同栈实量。三轮 run 43670571216——编译红：静态可变字典过不了 Swift 6 并发检查，缓存改盒＋锁（LayoutMeasurePool 同形）。四轮 run 43672838934 终判（§190）：**新测 6/6 全过、Core 2081/2081 精确、UI 8/8、App 196 注册唯一红＝§257.1 EdgeEffect 像素探针（既有登记、不堵门）、§184 余崩本轮重跑得通过判词、BackingData:835 零命中**；run 级 failure 仅由该探针构成。
 
 **与 rel-05048 重叠面（组版对账用）**：本线基线 rel-05047；改动文件中与 gen4 分叉同名的只有 LayoutProductService.swift（gen4 分支有同名分叉版本）——本线在该文件只动 coreKey 字阶、build 的 baseFont 字阶与 preheat/textWidth 三处，组版重叠时逐处对账、不许整文件取舍。另：第 82 条叠字修（fix/gen4-stream-animation-scope）与本线同改 StreamingText.swift——本线在该文件只动 .font(.callout)→.font(.body) 一行＋注释，组版时同样逐处对账。余文件（SelectableTextView/MarkdownText/ChatView/Palette/LayoutProduct＋测试＋本节）gen4 与第 82 条均不碰。节号对账：本节落笔时为 §263，.48 组版已占 §264，后续组版若节号顺延以组版侧为准。
+## §271 文本管线根治：整形后移 run 层＋装配真值断言＋表格封顶降级（2026-11-15；分支 feat/text-pipeline-run-layer，基线 rel-05049@a516ba0；待办总表第 72 条；本节自编号 §271——§270 已由账本包一在另一分支占用，组版时如撞号按先例顺延）
+
+**病根（第 74 条定因的残余面）**：段落装配旧序「先 TextShaping.prettyWrapDocument 整形、后 InlineRunBuilder 解析」——整形在解析前把 U+2060 插进原文，§247 守卫只能堵「插点正落在同字定界符对中间」一孔；段尾链接目标 `)` 前的插点、代码闭合反引号内侧的插点、数字串内部的插点都不在守卫面内（链接 URL 被零宽符污染、代码 run 文本带符、电话/时间被劈开致 NSDataDetector 识别失败——gen5 T4 探针实见 `1380013800⁠0`／`13:0⁠0`，与星号劈开同根）。已完成消息路与流式落定路共用本装配，故 .47 真机仍见星号露出形态。
+
+**修法四件**：
+1. **整形后移 run 层**（Core `TextShaping.shapeRuns`）：装配段落分支改「原文 → InlineRunBuilder.runs → shapeRuns」；绑定口径与 prettyWrap 逐项同（逐行、尾 2 字形／句末标点尾 3 字形），连接符只落普通文本 run 字间——成对定界符已被解析消费、无对可劈，整类消除。两条豁免（真值保真优先于防孤字）：代码 run 相邻不插（代码文本逐字保真）、数字字之间不插（检测令牌完整性）。整形范围与旧路径同界：仅段落（标题／列表／引用不整形）。用户气泡与 LayoutProductService 用户量测路同改 shapeRuns(plainRuns)（用户文本不解析、但数字串豁免同受益；呈现与量测同源不分家）。prettyWrap/prettyWrapDocument 本体保留（DocumentReaderView 仍在消费，属另一呈现面、残余登记见报告）。
+2. **装配真值断言**（Core `MarkdownDelimiterAudit`）：纯函数核查「源文成对闭合的 `**`／`~~`／反引号必须被解析完整消费，产出可见文本只许留源文未闭合的那一份字面」（代码段遮罩、侧翼口径与解析层一致、未闭合字面是既定降级不算违规）；装配层段落分支在 DEBUG 下 assert、测试钉全 fixture 关键构造。
+3. **表格列宽封顶＋单元格折行**（Core `MarkdownTablePresentation.maxColumnWidth`＝168pt；MarkdownText Grid 单元格 frame 封顶＋fixedSize 折行）：列宽不再由最长单元格理想宽决定；宽表先折行、横滑只剩总宽超气泡宽的余量。
+4. **>4 列降级列表**（`MarkdownTablePresentation.mode`／`listEntries`）：超限表在 MarkdownText 改逐行「表头标签＋值」列表呈现，组间发丝线与 Grid 同一分隔几何，值走同一行内渲染可选择。
+
+**回归钉**：TextPipelineRunLayerTests 15 例（shapeRuns 口径/逐行/数字豁免/代码保真/链接干净/粗体与删除线段尾/未闭合字面口径/断言本体正反/代码段内定界符不计/表格模式阈值与条目配对/fixture 表格装配）。预期计数：Core 2104＋15＝2119；App/UI 不变（App 203 注册、UI 10）。
+
+**真机待验（归主线）**：①已完成长消息含粗体段尾一帧（无星号露出、粗体成形）；②含 3 列长文表格一帧（单元格折行、无需横拖读全）；③含电话号码长消息一帧（号码可点识别）；④>4 列表格一帧（列表形态、信息齐全）。
