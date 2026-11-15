@@ -29,11 +29,12 @@ struct LayoutStyleContext: Equatable {
     var sizeCategory: UIContentSizeCategory
     var boldText: Bool
 
-    /// 聊天正文统一字阶（§152/§168：气泡正文恒
-    /// .callout，用户泡与助手泡同档）
+    /// 聊天正文统一字阶（§152/§168 定单源；§263 升
+    /// .body：.callout 是次级字阶、不配作主阅读文本，
+    /// 用户泡与助手泡同档一起升、不拆两套）
     var coreKey: LayoutStyleKey {
         LayoutStyleKey(
-            textStyle: UIFont.TextStyle.callout.rawValue,
+            textStyle: UIFont.TextStyle.body.rawValue,
             sizeCategory: sizeCategory.rawValue,
             boldText: boldText
         )
@@ -110,15 +111,35 @@ final class LayoutProductService: @unchecked Sendable {
         var isUser: Bool
     }
 
+    /// 条目文本列宽单源（§263）：预热与承载行高估算
+    /// （ChatView.carrierRowEstimate 的缓存直读）共用
+    /// 本处，两处同键同宽、不许各算一份。用户泡沿旧
+    /// 账（屏宽−气泡内边距×2−侧让位，宽度口径不动）；
+    /// 助手正文＝屏宽×文宽占屏比（与气泡布局封顶同
+    /// 值，assistantBubble 消费 assistantTextWidth-
+    /// Fraction）
+    static func textWidth(
+        isUser: Bool, screenWidth: CGFloat
+    ) -> CGFloat {
+        isUser
+            ? screenWidth
+                - OneDayMetrics.bubblePaddingH * 2
+                - OneDayMetrics.bubbleSideInset
+            : screenWidth * OneDayMetrics.assistantTextWidthFraction
+    }
+
     func preheat(
         entries: [PreheatEntry],
-        width: CGFloat,
+        screenWidth: CGFloat,
         style: LayoutStyleContext
     ) {
         let capped = Array(entries.prefix(200))
-        guard !capped.isEmpty, width > 0 else { return }
+        guard !capped.isEmpty, screenWidth > 0 else { return }
         Task.detached(priority: .utility) { [self] in
             for entry in capped {
+                let width = Self.textWidth(
+                    isUser: entry.isUser, screenWidth: screenWidth
+                )
                 let key = LayoutProductKey(
                     entryID: entry.entryID,
                     content: entry.renderedText,
@@ -148,7 +169,7 @@ final class LayoutProductService: @unchecked Sendable {
         style: LayoutStyleContext
     ) async -> LayoutProduct {
         let baseFont = InlineTextFonts.baseFont(
-            textStyle: .callout,
+            textStyle: .body,
             category: style.sizeCategory,
             boldText: style.boldText
         )

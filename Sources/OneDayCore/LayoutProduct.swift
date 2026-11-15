@@ -43,8 +43,13 @@ public struct LayoutStyleKey: Hashable, Sendable {
     /// 段后距/标题字阶/列表标记几何）
     public var paragraphVersion: Int
 
-    public static let currentFontVersion = 1
-    public static let currentParagraphVersion = 1
+    /// 字体映射版本：v2＝§263 基字体改走 preferredFont
+    /// 本体（消费 text style 规格行高，不再拆 pointSize
+    /// 以 systemFont 重构丢 leading）＋正文字阶升 .body
+    public static let currentFontVersion = 2
+    /// 段落映射版本：v2＝§263 段间额外距 12→16（专用
+    /// 令牌 paragraphSpacing）＋段落样式钉规格行高
+    public static let currentParagraphVersion = 2
 
     public init(
         textStyle: String,

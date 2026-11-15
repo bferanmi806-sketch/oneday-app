@@ -83,7 +83,9 @@ struct InlineTextParagraph {
 /// 屏视图、不再在布局期改写承载文本。
 struct SelectableInlineText: View {
     var paragraphs: [InlineTextParagraph]
-    var textStyle: UIFont.TextStyle = .callout
+    /// 聊天正文字阶（§263 升 .body；旧 .callout 是次
+    /// 级字阶、且实测行距连其规格行高都没到）
+    var textStyle: UIFont.TextStyle = .body
     var foreground: Color = Palette.bodyInk
     /// §168：次级墨色解析源（dimmed 段与列表标记
     /// 用）；默认与引用块前景同档
@@ -210,6 +212,14 @@ struct SelectableInlineText: View {
             let style = NSMutableParagraphStyle()
             style.lineBreakMode = .byWordWrapping
             style.paragraphSpacing = paragraph.spaceAfter
+            // §263：行高消费 text style 规格 leading——
+            // 本段字体的 lineHeight（preferredFont 链路，
+            // 默认档 .body＝22pt）钉为最小/最大行高，
+            // 量测与呈现同值；不设 lineHeightMultiple
+            // （那是把规格值再乘一道、自设比冒充规格，
+            // 正是旧管线行距偏紧的病根之一）
+            style.minimumLineHeight = font.lineHeight
+            style.maximumLineHeight = font.lineHeight
             if let marker = paragraph.listMarker {
                 // 标记几何：首行自 levelIndent 起，
                 // \t 落右对齐制表位（标记收尾于列
@@ -338,31 +348,37 @@ private final class InlineTextRenderCache: @unchecked Sendable {
 }
 
 /// 字体构造单源（正文拼装与列表基线对齐共用）：
-/// 基字体＝系统字体按 Metrics 依字号档缩放；粗体
-/// 文本开启时基字重 semibold（BoldTextPolicy 根
-/// 口径＝未钉字重文本统一此档）
+/// 基字体＝preferredFont 本体按字号档直取——text
+/// style 的规格行高（HIG 表：.body 默认档 17/22、
+/// .callout 16/21）只活在 preferredFont 的字体度
+/// 量里，必须整字取用；粗体文本开启时基字重
+/// semibold（BoldTextPolicy 根口径＝未钉字重文本
+/// 统一此档），只换字重 trait、保留 text style
+/// 描述符（规格行高随之保留）。
+/// §263 定因：旧法只摘 preferredFont 的 pointSize、
+/// 再以 systemFont 重构——systemFont 的自然行高
+/// （≈1.19×字号）顶替了规格 leading（.callout 实
+/// 测 pitch 19.0＜规格 21），是行距偏紧的根
 enum InlineTextFonts {
     static func baseFont(
         textStyle: UIFont.TextStyle,
         category: UIContentSizeCategory,
         boldText: Bool
     ) -> UIFont {
-        let weight: UIFont.Weight = boldText ? .semibold : .regular
-        let standard = UIFont.preferredFont(
+        let preferred = UIFont.preferredFont(
             forTextStyle: textStyle,
-            compatibleWith: UITraitCollection(
-                preferredContentSizeCategory: .large
-            )
-        )
-        let unscaled = UIFont.systemFont(
-            ofSize: standard.pointSize, weight: weight
-        )
-        return UIFontMetrics(forTextStyle: textStyle).scaledFont(
-            for: unscaled,
             compatibleWith: UITraitCollection(
                 preferredContentSizeCategory: category
             )
         )
+        guard boldText else { return preferred }
+        let descriptor = preferred.fontDescriptor.addingAttributes([
+            UIFontDescriptor.AttributeName.traits: [
+                UIFontDescriptor.TraitKey.weight:
+                    UIFont.Weight.semibold.rawValue,
+            ],
+        ])
+        return UIFont(descriptor: descriptor, size: 0)
     }
 
     /// 首行基线距视图顶（列表标记列 firstTextBase-

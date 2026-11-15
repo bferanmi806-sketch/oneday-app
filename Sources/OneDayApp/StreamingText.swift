@@ -139,10 +139,11 @@ private struct StreamingTokenView: View {
     var body: some View {
         Text(token)
             // 0.4.4（§29）：流式行与落盘正文同
-            // 口径——16pt（.callout 语义载体）＋
-            // bodyInk 炭灰；0.3.8 第 29 条的
-            // 17 regular 角色随正文基准一并改
-            .font(.callout)
+            // 口径＋bodyInk 炭灰；§263（组版
+            // 0.50.53 顺延 §282）：正文基准升
+            // .body（17pt），流式同源跟随、
+            // 落盘不跳字号
+            .font(.body)
             .foregroundStyle(Palette.bodyInk)
             .blur(radius: shown || flat ? 0 : 6)
             .opacity(shown ? 1 : 0)

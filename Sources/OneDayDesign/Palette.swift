@@ -712,6 +712,16 @@ public enum OneDayMetrics {
     /// 气泡靠边让位：对侧 Spacer 的最小让宽（用户泡左让/
     /// 助手泡右让同值，0.2.5 对齐口径）
     public static let bubbleSideInset: CGFloat = 44
+    /// 助手正文段间额外距（§263：对齐 Muse 同机实测
+    /// 16pt；消费单源＝MarkdownText.proseParagraphs 的
+    /// 段后距，不再借间距梯队的 spacingSM）
+    public static let paragraphSpacing: CGFloat = 16
+    /// 助手正文左缘占屏比（§263：Muse 同机实测左缘
+    /// 33pt／402pt 屏宽；气泡布局与量测喂入同源消费）
+    public static let assistantTextLeadingFraction: CGFloat = 0.082
+    /// 助手正文文宽占屏比（§263：Muse 同机实测文宽
+    /// ≈309pt／402pt 屏宽；气泡列宽封顶与量测喂入同值）
+    public static let assistantTextWidthFraction: CGFloat = 0.769
 
     // —— 梯外具名值（审查 T-4 收编：光学/手势/设备驱动）——
     /// 流式词元流布局的词间/行间距（光学值，TokenFlow 用）

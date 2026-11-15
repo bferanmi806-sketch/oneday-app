@@ -12899,3 +12899,25 @@ run 43674383149（workflow_dispatch @ rel-05051 尖端）：名义 failure，红
 ### §281.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带登记两项）**
 
 run 43678345805（workflow_dispatch @ rel-05052 尖端 9f65ece）：名义 failure，红因仅下述登记项，全日志本地核账（19,040 行）。**Core 2130/2130 精确对账**（Executed 2130、0 failures＝.51 的 2111＋账本包一 11＋包二 7＋对比度闸⑥ 1，与 §281 预期逐项吻合；命中域 10 例在 App 目标、不入 Core）；**App 233 注册、232 得判词**（226 passed＋5 skipped＝PresentationLayerScenarios 设计内跳＋1 failed），注册数与预期逐项吻合（214＋账本包一 5＋包二 4＋命中域 10）；**UI 10/10 全过**（Executed 10、0 failures；抽屉长按菜单 flake 本轮未现）。四包新测全过：SessionLedgerTests 11/11、SessionTitlePipelineTests 7/7、SessionLedgerAppTests 5/5、SessionLedgerPackage2Tests 4/4、SessionCatalogGuardTests 9/9（B-1 闸不回退）、HitArea44Tests 10/10、ChatThemeTests 14 例全过（含对比闸⑥）、DeleteOptimisticTests／DeleteCloseoutTests 两套全过（删除引擎换归属后旧断言不退）。VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS；Build／Package／Upload 三步 success。登记两项（不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，:617 XCTAssertLessThanOrEqual，与 .47–.51 同签名、与本版改动零交集）；②宿主重启 **1 次**（05:02:02），`testFailedTraceMaterializesWithErrorSnapshot` started 无判词（§184 余崩孤立项；BackingData 日志零命中）。IPA 解包亲验：0.50.52／180／site.didichou.oneday，13,889,508 字节，md5 `ac317dae325f4311efaad51848216bab`，落 ~/workspace/your_files/oneday-v0.50.52/（附待办总表副本）。未合 main、未打 tag。
+## §263 气泡排版四值对齐苹果规格＋Muse 实测（2026-11-15；分支 feat/chat-type-scale-align，基线 rel-05047@cb30f49；全档＝oneday-design-review/chat-type-scale-align-20261115.md）
+
+**反馈**：用户 2026-11-15 发双图点题——咱家 .47 真机与同机 Muse 同屏对照，问气泡内字体大小/间距/排版/渲染是否合大厂标准。主线同机同屏量测（两图均 1206×2622、402pt 宽）定四值，数值即定值、不许另估。
+
+**三列对照（苹果表 vs Muse 实测 vs 咱家）**：
+
+| 项 | 苹果 HIG Dynamic Type 规格表（默认 Large 档，官方成对字号/行高） | Muse 同机实测 | 咱家现状（.47） | 改后定值 |
+|---|---|---|---|---|
+| 正文字号 | Body 17pt／Callout 16pt | ≈17pt | 16pt（正文用次级字阶 .callout） | **17pt（.body）** |
+| 行高 | Body leading 22pt／Callout leading 21pt | pitch 21.3pt（墨迹顶距量法，与规格 22 量级一致、差为量法差） | pitch 19.0pt（字体自然行高 ≈1.19×字号） | **22pt（规格 leading，随字号档按规格表缩放）** |
+| 段间额外距 | 无官方数 | 16pt（段间 pitch 37.3−行 pitch 21.3） | 12pt（借 spacingSM） | **16pt（专用令牌 paragraphSpacing）** |
+| AI 正文文宽 | 无官方数 | 左缘 33.0pt、宽 ≈309pt（402pt 屏） | 左缘 37.0pt、宽 ≈282pt（渲染列宽 W−116） | **左缘＝屏宽×0.082、文宽＝屏宽×0.769（按比例落值）** |
+
+**定因**：双重不合。①字阶错位：主阅读文本用次级字阶 Callout。②行距偏紧的根在字体构造——`InlineTextFonts.baseFont` 只摘 preferredFont 的 pointSize、再以 `UIFont.systemFont` 重构并 Metrics 缩放，text style 的规格 leading 只活在 preferredFont 的字体度量里、重构后被自然行高（≈1.19×字号）顶替：实测 pitch 19.0 连 Callout 自家规格行高 21 都没到。③段距借通用梯队令牌 spacingSM（12），无排版语义出处。④文宽：助手泡被 pageGutter 20×2＋气泡内边距 16×2＋侧让位 44 三层扣到 W−116；且量测喂入仍按旧账 W−76（两账差 40pt 是存量事实，本节只把助手侧按新口径对齐、用户侧旧账不动）。
+
+**修法（令牌/单源层改，不逐面打补丁）**：①正文字阶 .callout→.body 单源升：LayoutProductService 的 coreKey 与 baseFont、MarkdownText 三处呈现（散文/引用/任务列表＋基线对齐）、ChatView 用户泡、SelectableInlineText 默认值、StreamingText 流式行（其自注「与落盘正文同口径」）——用户/AI/流式同档一起升，不拆两套。②`InlineTextFonts.baseFont` 改走 preferredFont 本体按档直取；粗体文本（semibold）只换字重 trait、保留 text style 描述符（规格行高随之保留）。③`SelectableInlineText.build` 段落样式钉本段字体的规格行高（minimumLineHeight＝maximumLineHeight＝font.lineHeight）；**不设 lineHeightMultiple**（自设比冒充规格、正是病根之一，主线 09:41 修正定案）。④行高模型同源：ChatView 的 lineHeightFloor 喂入改 preferredFont(.body).lineHeight，与呈现钉值同为 22（默认档）；量测池实量与模型下限同值由新测钉死。⑤段距：proseParagraphs 非紧凑段 spaceAfter 改消费专用令牌 `OneDayMetrics.paragraphSpacing`＝16（紧凑段 list/quote 仍 spacingXS 不动）。⑥文宽：助手泡列宽以 maxWidth 封顶＝屏宽×0.769＋内边距，左缘差额（旧 36→新 33@402）以负 leading 按比例收；量测喂入收成 `LayoutProductService.textWidth` 单源（用户＝W−76 旧账逐值不变、助手＝屏宽×0.769），preheat 与 carrierRowEstimate 共用。⑦缓存键升版：LayoutStyleKey fontVersion 1→2、paragraphVersion 1→2（字体构造与段落口径双改，旧产物自然淘汰）。
+
+**标题层级核对（不许倒挂）**：headingTextStyle 映射不动——H1 .title2 22／H2 .title3 20／H3 .body 17／H4 .subheadline 15／H5+ .footnote 13（H6 起 dimmed）。正文升 17 后：H1/H2 仍在正文之上、H3 与正文同号（映射原状：旧口径 H3 17＞正文 16，现同号、靠段距与字重语境区分，不构成正文大于标题的倒挂）、H4 以下本就小于正文（旧口径同关系）。
+
+**验收**：新增 ChatTypeScaleAlignTests 6 例——字体链规格值（.body 17/22、semibold 不丢行高、.callout 对照 16/21）、量测池实量 pitch＝22（定行数差分＋长文整数倍）、段距映射值 16＋实量闭合（22＋16＋22＝60）、大字号档 pitch 随 preferredFont 规格链同涨、下限/字体链/实量三值同源、文宽比例值（402→309/33、用户 326 不变、430 按比缩放）。真机清单归主线：同段长文与 Muse 并排同档观感、每行字数接近、列表悬挂缩进不乱、AX 大字号档不炸。
+
+**与 rel-05048 重叠面（组版对账用）**：本线基线 rel-05047；改动文件中与 gen4 分叉同名的只有 LayoutProductService.swift（gen4 分支有同名分叉版本）——本线在该文件只动 coreKey 字阶、build 的 baseFont 字阶与 preheat/textWidth 三处，组版重叠时逐处对账、不许整文件取舍。余文件（SelectableTextView/MarkdownText/ChatView/StreamingText/Palette/LayoutProduct＋测试＋本节）gen4 不碰。
