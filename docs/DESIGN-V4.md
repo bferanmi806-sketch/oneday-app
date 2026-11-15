@@ -12708,3 +12708,7 @@ run 43666201830（workflow_dispatch @ rel-05049 尖端 dea25f7；先行一轮 43
 **回归钉**：TextPipelineRunLayerTests 15 例（shapeRuns 口径/逐行/数字豁免/代码保真/链接干净/粗体与删除线段尾/未闭合字面口径/断言本体正反/代码段内定界符不计/表格模式阈值与条目配对/fixture 表格装配）。预期计数：Core 2104＋15＝2119；App/UI 不变（App 203 注册、UI 10）。
 
 **真机待验（归主线）**：①已完成长消息含粗体段尾一帧（无星号露出、粗体成形）；②含 3 列长文表格一帧（单元格折行、无需横拖读全）；③含电话号码长消息一帧（号码可点识别）；④>4 列表格一帧（列表形态、信息齐全）。
+
+### §271.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
+
+run 43674334927（workflow_dispatch @ feat/text-pipeline-run-layer 尖端），全日志本地核账：**Core Executed 2119/2119、0 failures**（2104 基线＋本包新测 15 精确对账，TextPipelineRunLayerTests 15/15 全过）；**UI 10/10**；**App 203 注册、202 得判词**（196 passed＋5 skipped 设计内跳＋1 failed），VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS，BUILD SUCCEEDED、IPA 正常打包上传。登记两项（与 .49 同签名、与本包零交集，不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族）；②宿主重启 1 次，`testFailedTraceMaterializesWithErrorSnapshot` 无判词（§184 余崩观察项，BackingData:835 日志零命中）。run 级 conclusion=failure 仅由①引起。未合 main、未打 tag。
