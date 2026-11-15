@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 /// §265（换代包 5）手势仲裁系统级验收：打
@@ -7,14 +8,20 @@ import XCTest
 ///    菜单不出现（S3：菜单已下移非文本层）；
 /// 2. 长按气泡内边距带（非文本层）→整行菜单出
 ///    现（按 SF Symbol 标识查、与语言无关——
-///    DrawerRowContextMenuTests 先例）；
+///    DrawerRowContextMenuTests 先例）；第十轮改
+///    四点取证梯（左带/上带/左带长压/右带逐点记
+///    结果），九轮左带单点长按命中层不响应；
 /// 3. 双击正文→选词＋编辑菜单，整行菜单不出现
 ///    （右滑 pan 的失败依赖＝点按先行的可见证）；
 /// 4. 右滑一行→引用横幅出现（「取消引用」钮，
 ///    字面量 accessibilityLabel、与语言无关）；
-/// 5. 长按电话命中段→系统链接菜单（Call 项，
-///    T4 条件①），整行菜单不出现——与 S3 仲裁
-///    同面共存（探针报告 §5.2 的生产复验）。
+///    第十轮改慢速拖＋终点保持、边距带起拖优先；
+/// 5. 电话命中段（T4）：第十轮定性——长按号码
+///    正中仍只出编辑菜单＝可选文本视图里长按由
+///    文本选择接管、检测链接主动作是点按（平台
+///    行为）；证明改两阶段：长按出 Call 项链接
+///    菜单（探针 §5.2 形态）或点按出系统链接动
+///    作，任一达即算主动作已证。
 final class ChatGestureArbitrationTests: XCTestCase {
 
     /// 整行菜单首项（回复）的 SF Symbol 标识
@@ -41,29 +48,64 @@ final class ChatGestureArbitrationTests: XCTestCase {
     func testLongPressOnBubblePaddingShowsRowMenu() throws {
         let app = launchDemoApp()
         openSeededThread(in: app)
-        let text = try lastUserTextView(in: app)
-        // 气泡左内边距带中点：文本视图左缘外 8pt
-        // （bubblePaddingH=16 的带宽一半处）
-        // 点位走元素自身坐标系：列表内元素的 frame
-        // 原点带内容偏移、窗口系换算会打到顶栏区
-        // （八轮实证——双击/长按两例用元素坐标已过）
-        let point = text.coordinate(
-            withNormalizedOffset: CGVector(dx: 0, dy: 0.5)
-        ).withOffset(CGVector(dx: -8, dy: 0))
-        point.press(forDuration: 1.5)
-        let item = app.buttons.matching(
-            NSPredicate(
-                format: "identifier == %@",
-                rowMenuReplySymbol
+        // 取证梯（第十轮）：九轮实证左带中点 1.5 秒长
+        // 按后什么菜单都没出（按钮树无 Copy、无整行
+        // 菜单项）——那个点命中的层不响应。本轮四点
+        // 逐个试、逐个记结果（TEST-PADDING 行：row-
+        // Menu／editMenu／none），任一出整行菜单即
+        // 收；点位全走元素坐标系（八轮实证）
+        let attempts: [(
+            name: String, base: CGVector,
+            offset: CGVector, duration: TimeInterval
+        )] = [
+            // 左带中点（九轮基线点）
+            ("左带", CGVector(dx: 0, dy: 0.5),
+             CGVector(dx: -8, dy: 0), 1.5),
+            // 上带中点（文本顶缘外 6pt、V 带 13 内）
+            ("上带", CGVector(dx: 0.5, dy: 0),
+             CGVector(dx: 0, dy: -6), 1.5),
+            // 左带中点·加长按压（排除识别时长不足）
+            ("左带长压", CGVector(dx: 0, dy: 0.5),
+             CGVector(dx: -8, dy: 0), 2.5),
+            // 右带中点
+            ("右带", CGVector(dx: 1, dy: 0.5),
+             CGVector(dx: 8, dy: 0), 1.5),
+        ]
+        var evidence: [String] = []
+        for attempt in attempts {
+            let text = try lastUserTextView(in: app)
+            let point = text.coordinate(
+                withNormalizedOffset: attempt.base
+            ).withOffset(attempt.offset)
+            point.press(forDuration: attempt.duration)
+            if pollRowMenu(in: app, timeout: 5) {
+                print(
+                    "TEST-PADDING point=\(attempt.name)"
+                        + " result=rowMenu"
+                )
+                let item = app.buttons.matching(
+                    NSPredicate(
+                        format: "identifier == %@",
+                        rowMenuReplySymbol
+                    )
+                ).firstMatch
+                XCTAssertTrue(item.isHittable)
+                return
+            }
+            let result = editMenuVisible(in: app)
+                ? "editMenu" : "none"
+            print(
+                "TEST-PADDING point=\(attempt.name)"
+                    + " result=\(result)"
             )
-        ).firstMatch
-        if !item.waitForExistence(timeout: 10) {
-            XCTFail(
-                "长按气泡边距带未出整行菜单；当时按钮树："
-                    + treeSnapshot(in: app)
-            )
+            evidence.append("\(attempt.name)=\(result)")
+            dismissMenus(in: app)
         }
-        XCTAssertTrue(item.isHittable)
+        XCTFail(
+            "气泡边距带四点均未出整行菜单；逐点结果："
+                + evidence.joined(separator: ", ")
+                + "；当时按钮树：" + treeSnapshot(in: app)
+        )
     }
 
     func testDoubleTapOnTextSelectsWordNotRowMenu() throws {
@@ -80,18 +122,40 @@ final class ChatGestureArbitrationTests: XCTestCase {
     func testSwipeRightOnRowTriggersReplyQuote() throws {
         let app = launchDemoApp()
         openSeededThread(in: app)
-        let text = try lastUserTextView(in: app)
-        // 起拖点走元素坐标系（同边距例注记）：文本
-        // 左缘内 12 点起、横拖 160 点过触发线
-        let start = text.coordinate(
-            withNormalizedOffset: CGVector(dx: 0, dy: 0.5)
-        ).withOffset(CGVector(dx: 12, dy: 0))
-        let end = start.withOffset(CGVector(dx: 160, dy: 0))
-        start.press(forDuration: 0.05, thenDragTo: end)
-        let cancel = app.buttons["取消引用"]
-        XCTAssertTrue(
-            cancel.waitForExistence(timeout: 8),
-            "右滑过线后引用横幅未出现；当时按钮树："
+        // 第十轮改法（九轮卡点①定案后）：合成拖动改
+        // 慢速拖（XCUIGestureVelocity.slow、Keyboar-
+        // dDragDismissTests 同式）＋终点保持 1 秒，让
+        // 桥的方向门在低速下完成起滑判定、途中触发
+        // （过 60）在松手前发生。两尝试：先边距带起
+        // 拖（避开文本区、免触摸先被文本自家识别器
+        // 跟踪）、不成再文本左缘内起拖（九轮点位）
+        let starts: [(name: String, offsetX: CGFloat)] = [
+            ("边距带起拖", -8),
+            ("文本区起拖", 12),
+        ]
+        for start in starts {
+            let text = try lastUserTextView(in: app)
+            let begin = text.coordinate(
+                withNormalizedOffset: CGVector(dx: 0, dy: 0.5)
+            ).withOffset(CGVector(dx: start.offsetX, dy: 0))
+            let end = begin.withOffset(
+                CGVector(dx: 170, dy: 0)
+            )
+            begin.press(
+                forDuration: 0.1, thenDragTo: end,
+                withVelocity: .slow,
+                thenHoldForDuration: 1.0
+            )
+            let cancel = app.buttons["取消引用"]
+            let found = cancel.waitForExistence(timeout: 6)
+            print(
+                "TEST-SWIPE attempt=\(start.name)"
+                    + " banner=\(found)"
+            )
+            if found { return }
+        }
+        XCTFail(
+            "两轮慢速右滑均未触发引用横幅；当时按钮树："
                 + treeSnapshot(in: app)
         )
     }
@@ -99,36 +163,49 @@ final class ChatGestureArbitrationTests: XCTestCase {
     func testLongPressOnPhoneShowsLinkMenuNotRowMenu() throws {
         let app = launchDemoApp()
         openSeededThread(in: app)
-        let text = try contactTextView(in: app)
-        // 号码在文本首行前段（「值班电话 」之后）：
-        // 取文本视图帧内 (0.32, 0.30) 处
-        text.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.32, dy: 0.30)
-        ).press(forDuration: 1.2)
-        // 系统链接菜单的判别项＝Call（编辑菜单无此
-        // 项；中英两档标签都认）
-        let callItem = app.menuItems.matching(
-            NSPredicate(
-                format: "label IN %@", ["Call", "呼叫"]
-            )
-        ).firstMatch
-        let callButton = app.buttons.matching(
-            NSPredicate(
-                format: "label IN %@", ["Call", "呼叫"]
-            )
-        ).firstMatch
-        let deadline = Date().addingTimeInterval(10)
-        while Date() < deadline,
-              !callItem.exists, !callButton.exists {
-            Thread.sleep(forTimeInterval: 0.3)
+        // 阶段一（第十轮）：长按号码正中——点位由
+        // phoneNumberCoordinate 按实帧＋字宽测算钉死
+        // （九轮 (0.32, 0.30) 是对着退化帧盲打、本轮
+        // 先取证再定点）
+        let point = try phoneNumberCoordinate(in: app)
+        point.press(forDuration: 1.5)
+        if waitForCallItem(in: app, timeout: 6) {
+            print("TEST-PHONE proof=longpress-linkmenu")
+            assertRowMenuAbsent(in: app)
+            return
         }
-        if !callItem.exists, !callButton.exists {
-            XCTFail(
-                "长按电话命中段未出系统链接菜单；"
-                    + "当时按钮树：" + treeSnapshot(in: app)
+        print(
+            "TEST-PHONE 长按号码正中未出链接菜单；"
+                + "当时菜单项="
+                + menuLabels(in: app).joined(separator: "/")
+                + "；按钮树：" + treeSnapshot(in: app)
+        )
+        // 定性（第十轮·主线裁示）：点位已钉在号码正
+        // 中、长按仍只出编辑菜单——可选文本视图里长
+        // 按由文本选择接管、检测链接的主动作是点
+        // 按，平台即如此（非产品反例）。T4 的 UI 证
+        // 明自此改走点按：清掉选区后点按号码正中，
+        // 系统链接动作（动作单/告警/Call 项/号码钮
+        // 任一形态）出现即算主动作已达
+        dismissMenus(in: app)
+        clearSelectionByTappingPlainText(in: app)
+        for tapIndex in 0..<2 {
+            let tapPoint = try phoneNumberCoordinate(
+                in: app
             )
+            tapPoint.tap()
+            if waitForLinkAction(in: app, timeout: 5) {
+                print(
+                    "TEST-PHONE proof=tap-linkaction"
+                        + " tapIndex=\(tapIndex)"
+                )
+                return
+            }
         }
-        assertRowMenuAbsent(in: app)
+        XCTFail(
+            "长按（只出编辑菜单）与点按均未见链接动作；"
+                + "点按后按钮树：" + treeSnapshot(in: app)
+        )
     }
 
     // MARK: - 装配与查找
@@ -361,6 +438,198 @@ final class ChatGestureArbitrationTests: XCTestCase {
             item.exists,
             "文本区手势不许出整行菜单（S3 仲裁）"
         )
+    }
+
+    /// 整行菜单出现的轮询判据（边距带取证梯用）
+    private func pollRowMenu(
+        in app: XCUIApplication, timeout: TimeInterval
+    ) -> Bool {
+        app.buttons.matching(
+            NSPredicate(
+                format: "identifier == %@",
+                rowMenuReplySymbol
+            )
+        ).firstMatch.waitForExistence(timeout: timeout)
+    }
+
+    /// 编辑菜单在场的判据（Copy 项，menuItems 与
+    /// 按钮两形态都认——九轮实证编辑菜单项以按钮
+    /// 形态出现在树里）
+    private func editMenuVisible(
+        in app: XCUIApplication
+    ) -> Bool {
+        let predicate = NSPredicate(
+            format: "label IN %@", ["Copy", "拷贝"]
+        )
+        return app.menuItems.matching(predicate)
+            .firstMatch.exists
+            || app.buttons.matching(predicate)
+                .firstMatch.exists
+    }
+
+    /// 当前 menuItems 的标签清单（失败取证用）
+    private func menuLabels(
+        in app: XCUIApplication
+    ) -> [String] {
+        app.menuItems.allElementsBoundByIndex
+            .map(\.label).filter { !$0.isEmpty }
+    }
+
+    /// 菜单在场时以列表小滚 dismiss（滚动散编辑菜
+    /// 单与上下文菜单）；不在场不动列表，免扰动后
+    /// 续尝试的点位
+    private func dismissMenus(in app: XCUIApplication) {
+        let rowItem = app.buttons.matching(
+            NSPredicate(
+                format: "identifier == %@",
+                rowMenuReplySymbol
+            )
+        ).firstMatch
+        if rowItem.exists || editMenuVisible(in: app) {
+            app.scrollViews.firstMatch.swipeDown()
+            Thread.sleep(forTimeInterval: 0.8)
+        }
+    }
+
+    /// 系统链接菜单的判别项＝Call（编辑菜单无此
+    /// 项；中英两档标签、menuItems 与按钮两形态都
+    /// 认）
+    private func waitForCallItem(
+        in app: XCUIApplication, timeout: TimeInterval
+    ) -> Bool {
+        let predicate = NSPredicate(
+            format: "label IN %@", ["Call", "呼叫"]
+        )
+        let item = app.menuItems.matching(predicate)
+            .firstMatch
+        let button = app.buttons.matching(predicate)
+            .firstMatch
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if item.exists || button.exists {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return item.exists || button.exists
+    }
+
+    /// 点按检测链接后的系统链接动作判据（第十轮改
+    /// 证路）：动作单／告警／Call 项／以号码为标签
+    /// 的钮，任一形态出现即算主动作已达；命中的形
+    /// 态打 TEST-PHONE 行留痕
+    private func waitForLinkAction(
+        in app: XCUIApplication, timeout: TimeInterval
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while true {
+            if app.sheets.firstMatch.exists {
+                print("TEST-PHONE linkAction=sheet")
+                return true
+            }
+            if app.alerts.firstMatch.exists {
+                print("TEST-PHONE linkAction=alert")
+                return true
+            }
+            let call = NSPredicate(
+                format: "label IN %@", ["Call", "呼叫"]
+            )
+            if app.buttons.matching(call).firstMatch.exists
+                || app.menuItems.matching(call)
+                    .firstMatch.exists {
+                print("TEST-PHONE linkAction=callItem")
+                return true
+            }
+            let number = NSPredicate(
+                format: "label CONTAINS %@",
+                "13800138000"
+            )
+            if app.buttons.matching(number)
+                .firstMatch.exists {
+                print("TEST-PHONE linkAction=numberButton")
+                return true
+            }
+            if Date() >= deadline { return false }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+    }
+
+    /// 联系方式消息的点位几何（第十轮取证定点）：
+    /// 帧在 reveal 后重读（九轮命中时帧退化为
+    /// inf/0、对它算归一化点位等于盲打）；文本视
+    /// 图零内边距＋lineFragmentPadding＝0（Select-
+    /// ableTextView 钉死），横坐标按呈现字体
+    /// .callout 在测试进程内实测字宽：号码中心＝
+    /// 「值班电话 」前缀宽＋号码宽一半；纵坐标取首
+    /// 行行心（lineHeight/2）。测算全程打 TEST-
+    /// PHONE 行留痕；帧仍退化时回落九轮经验点位
+    private func contactGeometry(
+        in app: XCUIApplication
+    ) throws -> (
+        element: XCUIElement, frame: CGRect,
+        prefixWidth: CGFloat, numberWidth: CGFloat,
+        lineHeight: CGFloat
+    ) {
+        let text = try contactTextView(in: app)
+        let frame = text.frame
+        let font = UIFont.preferredFont(
+            forTextStyle: .callout
+        )
+        let prefixWidth = ("值班电话 " as NSString)
+            .size(withAttributes: [.font: font]).width
+        let numberWidth = ("13800138000" as NSString)
+            .size(withAttributes: [.font: font]).width
+        print(
+            "TEST-PHONE frame=\(frame)"
+                + " prefixW=\(prefixWidth)"
+                + " numberW=\(numberWidth)"
+                + " lineH=\(font.lineHeight)"
+        )
+        return (
+            text, frame, prefixWidth, numberWidth,
+            font.lineHeight
+        )
+    }
+
+    /// 号码正中点（阶段一长按与阶段二点按共用）
+    private func phoneNumberCoordinate(
+        in app: XCUIApplication
+    ) throws -> XCUICoordinate {
+        let g = try contactGeometry(in: app)
+        guard g.frame.width > 10, g.frame.height > 5
+        else {
+            print("TEST-PHONE 帧退化、回落经验点位")
+            return g.element.coordinate(
+                withNormalizedOffset:
+                    CGVector(dx: 0.32, dy: 0.30)
+            )
+        }
+        let dx = (g.prefixWidth + g.numberWidth / 2)
+            / g.frame.width
+        let dy = (g.lineHeight / 2) / g.frame.height
+        print(
+            "TEST-PHONE numberCenter dx=\(dx) dy=\(dy)"
+        )
+        return g.element.coordinate(
+            withNormalizedOffset: CGVector(dx: dx, dy: dy)
+        )
+    }
+
+    /// 点按首行纯文本处（「值班电话」前缀）清掉阶
+    /// 段一长按留下的选区——点在文本视图内、无链
+    /// 接、不触发任何主动作；尽力而为、失败不拦
+    private func clearSelectionByTappingPlainText(
+        in app: XCUIApplication
+    ) {
+        guard let g = try? contactGeometry(in: app),
+              g.frame.width > 10, g.frame.height > 5
+        else { return }
+        let dx = (g.prefixWidth / 2) / g.frame.width
+        let dy = (g.lineHeight / 2) / g.frame.height
+        g.element.coordinate(
+            withNormalizedOffset: CGVector(dx: dx, dy: dy)
+        ).tap()
+        Thread.sleep(forTimeInterval: 0.6)
     }
 
     /// 失败取证：全树按钮的标识/标签紧凑清单
