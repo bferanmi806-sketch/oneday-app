@@ -457,11 +457,12 @@ struct SettingsView: View {
 
     /// §291（原生重建 R1）原生面开关（Core Chat-
     /// NativeListFeature，与 ChatView 同键同源）：
-    /// 默认关；开后消息列表换 UICollectionView 原
-    /// 生承载（落定行集），关掉即回现行面、无数据
-    /// 迁移。R4 转默认前本开关即回滚口
+    /// 消息列表换 UICollectionView 原生承载，关掉
+    /// 即回现行面、无数据迁移。§294（R4）：默认改
+    /// 开，本开关自此为浸泡期回退口（R5 随三旗本
+    /// 体一并退役）
     @AppStorage(ChatNativeListFeature.defaultsKey)
-    private var nativeListEnabled = false
+    private var nativeListEnabled = true
 
     private var labSection: some View {
         Section {
@@ -499,7 +500,7 @@ struct SettingsView: View {
                     Text(L10n.string("聊天列表原生重建"))
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
-                    Text(L10n.string("实验开关：开启后消息列表换用系统集合视图承载（原生重建 R1），出问题关掉即回现行承载。"))
+                    Text(L10n.string("默认开启：消息列表用系统集合视图承载（原生重建）；浸泡期回退口——关掉即回现行承载。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
