@@ -12553,3 +12553,11 @@ run 43602076559：名义 failure 仅 §184。实数：断言失败 **0**（全�
 **第八轮终判（run 43674200469）**：13 例绿 9／红 4／无终局 0；Core 2081/2081 精确。红＝A6／gen3 两例（预期内、修未合入本分支，单独标注）＋长列表。长列表内容侧全清（位移双向精确、首行普查命中＋帧相交过），失败点后移至箭头步（:461，scene＋双通道 5 秒仍 nil）；§184 宿主重启 1 次、BackingData:835 零命中，照常登记。
 
 **翻盘口径达成 → 翻产品侧查箭头**：UITextView 普查 ✓＋位移全 ✓＋箭头仍不可激活 ✓ 三项齐备，按 r8 定因报告口径翻产品侧，落点 ChatView.swift:2053 起 `scrollToBottomButton` 的离底状态判定与渲染条件。登记两点：末行本轮未测（箭头步先败挡住、非测得失败）；整树为空仍可完全解释箭头进程内不可见，翻产品侧是查渲染/可见性条件、非断言产品有罪，产品线先分清「未渲染」与「树未生成致不可达」。
+
+## §260 出厂冒烟门第九轮：箭头改 inset 判别量——无台阶、喂入环嫌疑（2026-11-15；分支 chore/smoke-gate@7029b5a，基线 chore/smoke-gate@3e7e675；本节为分支内编号，组版时顺延；全档＝oneday-design-review/smoke-gate-report-20261114.md 第九轮两节＋产品侧核查 oneday-design-review/smoke-arrow-check-20261115.md）
+
+**第九轮修法（只改测试一文件 SmokeGateLongListScrollTests.swift）**：承箭头核查第二档定案（判定全链代码闭合、进程内不可达只因 AX 树整棵未生成），箭头验证改判别量口径——贴底稳态采基线 adjustedContentInset.bottom、滚顶稳态后轮询 6 秒看 ≈+52pt 台阶（箭头行进布局流→pocketHeight→bottomSpace→列表底 contentMargins 的传导指纹）；末行步与箭头解耦（编程滚底＋UITextView 普查、落点对现行 maxOffset 逐采样判）；AX 激活降为非阻断观察项（只打印），其等价验证迁 XCUIApplication UI 测形态为后续。
+
+**第九轮终判（run 43677742986）**：13 例绿 9／红 4／无终局 0；Core 2081/2081 精确、UI 16 例 3 败全为预期内（A6／gen3 两例，修未合入本分支，单独标注）。长列表内容侧首次全清：位移双向精确、首行普查命中＋帧相交过、**末行首次被测且通过**（tail offset=8949.0＝现行 max，解耦实证——判别量先败未连坐末行）。
+
+**判别量否定 → 喂入环嫌疑成立**：insetStep baseline=197.0 settled=197.0 peak=197.0 **delta=0.0**——6 秒轮询峰值一步未动，台阶完全未出现（非擦边）。按预注册口径（smoke-arrow-check §四第 1 条），唯一未直证环节落入嫌疑侧：`onScrollGeometryChange` 在进程内托管下是否把编程偏移读数送进派生点存疑；候选分界三者（回调未触发／已触发但 ComposerGuideHost 量测未重跑／翻转但 contentMargins 未达平台面）本轮证据不分、不代断。本线只改测试边界未破、无台阶分支下未动产品码；下一步归主线立**产品侧仪表线**查该回调在进程内托管下的触发实况。AX 不可达定案不变（census2 axProp=0 复证、arrowAX 观察项 found=false 如设计）。
