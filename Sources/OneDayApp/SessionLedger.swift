@@ -14,14 +14,21 @@ import SwiftData
 /// 存活集只许连完整性一并交出（liveSet）：complete
 /// 才可用于对账删除判定，incomplete 只可留痕/呈现。
 ///
-/// 写路径本包只开同步（refresh/refreshVisible）：删
-/// 除/归档/改名仍走现行各面→协调器/动作层（包二再
-/// 收归属）。ServerSessionCatalog 自本包起降为转发
-/// 壳（publish/remove/refreshIfCold 转本店），外部
-/// 调用方（删除协调器/收口件/既有测试）一字不改。
+/// 写路径：包一只开同步（refresh/refreshVisible）；
+/// 包二起删除引擎（SessionDeletionEngine）归本店
+/// 持有——删除走账本单管线，SessionDeletionCoordi-
+/// nator 降为转发壳；归档/改名仍走动作层写穿（调
+/// 用方改读账本）。ServerSessionCatalog 自包一起
+/// 降为转发壳（publish/remove/refreshIfCold 转本
+/// 店），外部调用方一字不改。
 @MainActor
 @Observable
 final class SessionLedger {
+    /// 删除引擎（包二归属）：待删队列/墓碑/后台围
+    /// 栏删/落定收口/失败恢复全在此一台，队列是待
+    /// 删集的唯一真相（各面过滤只读本队列，经本店
+    /// 构建名单时一处过滤）
+    let deletions = SessionDeletionEngine()
     /// 可见段展示名单（archived=exclude 拉全、待删
     /// 集已过滤——与旧 ServerSessionCatalog.visible-
     /// Sessions 逐字同义，目录壳转发读本列）
@@ -65,8 +72,7 @@ final class SessionLedger {
                 mainServerSessionID: appState.sideChats
                     .mainServerSessionID,
                 archivedKeys: appState.sideChats.archivedKeys,
-                pendingDeletionIDs: appState.sessionDeletions
-                    .queue.sessionIDs,
+                pendingDeletionIDs: deletions.queue.sessionIDs,
                 firstUserMessages: appState.sessionTitles
                     .firstUserMessages
             )
@@ -125,11 +131,14 @@ final class SessionLedger {
 
     /// 全量刷新（管理页 load 的收编）：两段拉全→合
     /// 并落位→完整时对账回收（B-1 闸：任一段不完整
-    /// 跳过对账并留痕，宁可不清、不可误清）→§233
-    /// 归档缓存对齐（包二退役）→主线兜底单查→标题
-    /// 回落素材。时序与旧 AllConversationsStore.load
-    /// 逐拍一致：可见段拉成即落位（不被归档段失败连
-    /// 坐）；任一段 throw 由调用方转人话错误
+    /// 跳过对账并留痕，宁可不清、不可误清）→主线兜
+    /// 底单查→标题回落素材。§233 归档缓存回写已退
+    /// 役（包二）：归档态直接读记录归档列（过回写
+    /// 闸的绑定以服务端段为准、余者以本地键为准，
+    /// archiveSource 如实分列），不再把服务端态反
+    /// 向改写本地键。时序与旧 AllConversationsStore
+    /// .load 逐拍一致：可见段拉成即落位（不被归档
+    /// 段失败连坐）；任一段 throw 由调用方转人话错误
     func refresh(
         appState: AppState, localThreads: [ChatThread],
         modelContext: ModelContext
@@ -141,8 +150,7 @@ final class SessionLedger {
         // 有其行，不过滤会被重拉带回）；对账存活集
         // 用未过滤全集（待删会话在服务端尚存活，其
         // 墓碑线程不许被对账误清）
-        let pendingDeletions = appState.sessionDeletions
-            .queue.sessionIDs
+        let pendingDeletions = deletions.queue.sessionIDs
         visibleSessions = visible.filter {
             !pendingDeletions.contains($0.id)
         }
@@ -183,14 +191,6 @@ final class SessionLedger {
                     + "），本地线程本轮不动"
             )
         }
-        // §233 归档单真相·读面对账（包二退役：归档
-        // 列单源化后本步整步删除）
-        syncDrawerArchiveCache(
-            localThreads: localThreads,
-            archivedIDs: Set(archived.map(\.id)),
-            visibleIDs: Set(visible.map(\.id)),
-            appState: appState
-        )
         if let mainID = appState.sideChats.mainServerSessionID,
            !visible.contains(where: { $0.id == mainID }),
            !archived.contains(where: { $0.id == mainID }) {
@@ -204,10 +204,6 @@ final class SessionLedger {
             mainFallback = nil
         }
         hasLoadedFull = true
-        shadowReconcile(
-            appState: appState, localThreads: localThreads,
-            unfilteredVisible: visible, fullRefresh: true
-        )
         // 标题回落素材：无服务端标题者才拉消息派生
         await appState.sessionTitles.ensureTitles(
             for: visible + archived, appState: appState,
@@ -215,32 +211,35 @@ final class SessionLedger {
         )
     }
 
-    /// 可见段刷新（抽屉触发点的收编）：旧抽屉 load-
-    /// DrawerData 每开必拉第一页喂 source/标题映射；
-    /// 本路改拉可见段全量落账本（现存规模下与一页
-    /// 同价），source/标题改读记录列。只喂显示、不
-    /// 驱动任何删除——名单不完整也照常落位（防护闸
-    /// 只拦以名单为存活集的删除/回收）
+    /// 可见段刷新（抽屉/频道页触发点的收编）：旧抽
+    /// 屉 loadDrawerData 每开必拉第一页喂 source/标
+    /// 题映射；本路改拉可见段全量落账本（现存规模
+    /// 下与一页同价），source/标题改读记录列。只喂
+    /// 显示、不驱动任何删除——名单不完整也照常落
+    /// 位（防护闸只拦以名单为存活集的删除/回收）。
+    /// 标题回落素材补拉同在本路（包二：名单面的标
+    /// 题补拉只许在账本内发生）。返回是否拉到名单
+    /// （频道页据此呈现失败态）
+    @discardableResult
     func refreshVisible(
         appState: AppState, localThreads: [ChatThread]
-    ) async {
-        guard !isRefreshingVisible else { return }
+    ) async -> Bool {
+        guard !isRefreshingVisible else { return false }
         isRefreshingVisible = true
         defer { isRefreshingVisible = false }
-        if let result = try? await ServerSessionCatalog
-            .fetchAll(appState: appState, archived: "exclude") {
-            let pending = appState.sessionDeletions
-                .queue.sessionIDs
-            visibleSessions = result.sessions.filter {
-                !pending.contains($0.id)
-            }
-            hasLoaded = true
-            shadowReconcile(
-                appState: appState, localThreads: localThreads,
-                unfilteredVisible: result.sessions,
-                fullRefresh: false
-            )
+        guard let result = try? await ServerSessionCatalog
+            .fetchAll(appState: appState, archived: "exclude")
+        else { return false }
+        let pending = deletions.queue.sessionIDs
+        visibleSessions = result.sessions.filter {
+            !pending.contains($0.id)
         }
+        hasLoaded = true
+        await appState.sessionTitles.ensureTitles(
+            for: result.sessions, appState: appState,
+            budget: 12
+        )
+        return true
     }
 
     /// 冷缓存补拉（目录壳 refreshIfCold 的收编）：
@@ -293,137 +292,42 @@ final class SessionLedger {
         if mainFallback?.id == sessionID { mainFallback = nil }
     }
 
-    // MARK: - §233 归档缓存对账（包二退役）
+    // MARK: - 标题读点（包二：冲突处理归账本一处）
 
-    /// 以服务端两段名单为准，把过回写闸的绑定线程
-    /// 的本地归档键对齐到服务端归档态——本地键只
-    /// 是呈现缓存、不是第二真相。主线/合并桶绑定不
-    /// 在闸内（其本地键是呈现口径，不被服务端名单
-    /// 反向改写）。自 AllConversationsStore 原样迁
-    /// 入，口径一字不变
-    private func syncDrawerArchiveCache(
-        localThreads: [ChatThread], archivedIDs: Set<String>,
-        visibleIDs: Set<String>, appState: AppState
-    ) {
-        let sideChats = appState.sideChats
-        for thread in localThreads {
-            guard let sessionID = thread.serverSessionID,
-                  SideChatLink.mayWriteThroughToServer(
-                      sessionID: sessionID,
-                      mainSessionID: sideChats.mainServerSessionID
-                  ) else { continue }
-            if archivedIDs.contains(sessionID) {
-                sideChats.archive(localThreadID: thread.id)
-            } else if visibleIDs.contains(sessionID) {
-                sideChats.unarchive(localThreadID: thread.id)
-            }
-        }
+    /// 服务端行标题的唯一读点：存量本地覆盖（迁移
+    /// 未排空的遗留改名）优先，其后统一管线（服务
+    /// 端标题＞派生＞人话名）。管理页/频道页行标题
+    /// 都经本口，不许各面再直读覆盖表与解析器
+    func title(
+        for session: ServerSession, appState: AppState
+    ) -> String {
+        appState.sideChats.titleOverrides[session.id]
+            ?? appState.sessionTitles.title(for: session)
     }
 
-    // MARK: - 影子对账（包一同行、包二移除）
+    // MARK: - 删除落定收口（包二：收口归账本门面）
 
-    /// 影子对账（R1 缓解）：账本投影与旧实现行集逐
-    /// 面 diff，只有 diff 非空才留痕（连续多轮零
-    /// diff＝日志沉默）。旧行集在本方法内以旧口径
-    /// 现算：抽屉本地行（墓碑＋归档键＋DrawerSide-
-    /// ChatFilter，source 取未过滤第一页映射——旧
-    /// loadDrawerData 的原样输入）、未收养行（目录
-    /// ＋第一页并集现算）、管理页两段（展示名单本
-    /// 体）
-    private func shadowReconcile(
-        appState: AppState, localThreads: [ChatThread],
-        unfilteredVisible: [ServerSession], fullRefresh: Bool
+    /// 单条落定收口（转发 §223 共享收口实现）：服
+    /// 务端删除已回查落定后清侧账＋账本摘行＋删绑
+    /// 定线程。删除引擎的落定段与名单对账都经账本
+    /// 内部路径至此，外部面不许再直调收口件
+    func closeoutDeletedSession(
+        sessionID: String, appState: AppState,
+        threads: [ChatThread], modelContext: ModelContext
     ) {
-        let sideChats = appState.sideChats
-        let records = records(
-            appState: appState, localThreads: localThreads
-        )
-        // 抽屉本地行
-        let firstPageSources = Dictionary(
-            uniqueKeysWithValues: Array(
-                unfilteredVisible.prefix(100)
-            ).map { ($0.id, $0.source ?? "") }
-        )
-        let legacyLocal = localThreads.filter { thread in
-            !thread.isPendingDeletion
-                && !SideChatArchive.isArchived(
-                    localThreadID: thread.id,
-                    archivedKeys: sideChats.archivedKeys
-                )
-        }.filter { thread in
-            DrawerSideChatFilter.threadListed(
-                isMainThread: SideChatClassifier.isMain(
-                    localThreadID: thread.id,
-                    linkedServerSessionID: thread.serverSessionID,
-                    mainThreadID: sideChats.mainThreadID,
-                    mainServerSessionID: sideChats
-                        .mainServerSessionID
-                ),
-                isLocallyArchived: false,
-                linkedSource: thread.serverSessionID.flatMap {
-                    firstPageSources[$0]
-                }
-            )
-        }.map { $0.id.uuidString }
-        let newLocal = LedgerProjection.drawerLocalRows(records)
-            .compactMap { $0.localThreadID?.uuidString }
-        shadowDiff(
-            surface: "抽屉本地行",
-            legacy: legacyLocal, current: newLocal
-        )
-        // 抽屉未收养行
-        let legacyUnadopted = DrawerUnadoptedSideChats.sessions(
-            catalog: visibleSessions,
-            latestPage: Array(unfilteredVisible.prefix(100)),
-            mainServerSessionID: sideChats.mainServerSessionID,
-            linkedThreadSessionIDs: ThreadLinkage
-                .nonMainLinkedSessionIDs(
-                    threads: localThreads, sideChats: sideChats
-                )
-        ).map(\.id)
-        let newUnadopted = LedgerProjection
-            .drawerUnadoptedRows(records)
-            .compactMap(\.serverSessionID)
-        shadowDiff(
-            surface: "抽屉未收养行",
-            legacy: legacyUnadopted, current: newUnadopted
-        )
-        guard fullRefresh else { return }
-        // 管理页两段（展示名单本体即旧行集）
-        shadowDiff(
-            surface: "管理页可见段",
-            legacy: visibleSessions.map(\.id),
-            current: LedgerProjection
-                .managementVisible(records).map(\.id)
-        )
-        shadowDiff(
-            surface: "管理页已归档段",
-            legacy: archivedSessions.map(\.id),
-            current: LedgerProjection
-                .managementArchived(records).map(\.id)
+        DeletedSessionCloseout.apply(
+            sessionID: sessionID, appState: appState,
+            threads: threads, modelContext: modelContext
         )
     }
 
-    private func shadowDiff(
-        surface: String, legacy: [String], current: [String]
+    /// 点开已消失会话的防御收口（转发 §223）：清侧
+    /// 账＋账本摘行，行即消失
+    func noteOpenedSessionMissing(
+        sessionID: String, appState: AppState
     ) {
-        let legacySet = Set(legacy)
-        let currentSet = Set(current)
-        guard legacySet != currentSet || legacy != current
-        else { return }
-        let onlyLegacy = legacy.filter {
-            !currentSet.contains($0)
-        }
-        let onlyCurrent = current.filter {
-            !legacySet.contains($0)
-        }
-        ChatDiagTrace.record(
-            "影子对账·\(surface) 行集不一致："
-                + "仅旧实现 \(onlyLegacy.count) 条"
-                + "\(onlyLegacy.isEmpty ? "" : "（\(onlyLegacy.joined(separator: ","))）")"
-                + "；仅账本 \(onlyCurrent.count) 条"
-                + "\(onlyCurrent.isEmpty ? "" : "（\(onlyCurrent.joined(separator: ","))）")"
-                + "；顺序\(legacySet == currentSet ? "不同" : "一致性见上")"
+        DeletedSessionCloseout.handleOpenedSessionMissing(
+            sessionID: sessionID, appState: appState
         )
     }
 }

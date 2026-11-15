@@ -259,12 +259,10 @@ struct AllConversationsView: View {
                 segment = .mine
             }
         }
-        // §232：乐观删除最终失败的恢复信号——协调
-        // 器已解墓碑/恢复目录，本页名单重拉对齐服
-        // 务端现状（被恢复的行回到名单）
-        .onChange(of: appState.sessionDeletions.restoreRevision) {
-            Task { await reload() }
-        }
+        // §232 恢复回行：本页名单读账本投影——删除
+        // 引擎恢复时已解墓碑＋把名单回行落账本，本
+        // 页随投影自动对齐，不再需要恢复信号重拉
+        // （第 67 条包二，restoreRevision 监听退役）
         // 0.36.29：频道段 Hermes 行的频道页（本页内呈
         // 现，与抽屉入口同一 HermesChannelView）；页
         // 内打开会话先关频道页、再走宿主既有续聊通道
@@ -757,11 +755,12 @@ struct AllConversationsView: View {
         .contentShape(Rectangle())
     }
 
-    /// 行标题：与抽屉同口径——存量本地覆盖（迁移未
-    /// 完前）优先，其后统一管线 resolvedTitle
+    /// 行标题：与抽屉同口径，经账本标题读点（存量
+    /// 本地覆盖优先，其后统一管线）
     private func rowTitle(_ session: ServerSession) -> String {
-        appState.sideChats.titleOverrides[session.id]
-            ?? appState.sessionTitles.title(for: session)
+        appState.sessionLedger.title(
+            for: session, appState: appState
+        )
     }
 
     /// 迁移留痕区：有失败项才出现，逐项人话（哪条、

@@ -95,7 +95,7 @@ public enum LedgerSegment: Sendable, Equatable {
 
 /// 账本记录（一行一会话）。不声明 Equatable：
 /// ServerSession 本体无 Equatable，行集比较一律
-/// 走 ledgerID（影子对账与测试同口径）
+/// 走 ledgerID（测试同口径）
 public struct SessionRecord: Sendable, Identifiable {
     /// 本地线程在：local:<uuid>；未收养：server:<id>
     /// （与现归档键命名空间同形，迁移零翻译）
@@ -107,9 +107,10 @@ public struct SessionRecord: Sendable, Identifiable {
     public var origin: SessionLayer
     /// 出生证明明细：命中规则号（R0/R2/R3/R3b…）
     public var birthRule: String
-    /// 标题（现行管线结果：本地线程行走 Drawer-
-    /// ThreadTitle 口径、服务端行走 resolvedTitle
-    /// 口径——两管线合一是包二的活，本包只收归属）
+    /// 标题（标题单管线结果：第 67 条包二起两段入
+    /// 参适配同一 SessionTitlePipeline 核心——本地
+    /// 线程行喂手改名/服务端标题/本地快照，服务端
+    /// 行喂服务端标题/派生/人话名）
     public var title: String
     public var archived: Bool
     public var archiveSource: LedgerArchiveSource
@@ -361,10 +362,9 @@ public enum SessionLedgerMerge {
             origin = .mine
             rule = "R2"
         }
-        // 标题：本地线程行现行管线（DrawerThread-
-        // Title：手改名＞服务端标题＞本地快照）逐字
-        // 沿用——派生素材层并入是包二标题单管线的
-        // 活，本包只收归属、不改呈现
+        // 标题：本地线程行入参适配（手改名＞服务端
+        // 标题＞本地快照）喂标题单管线，优先级实现
+        // 在 SessionTitlePipeline 一处（包二合一）
         let title = DrawerThreadTitle.resolve(
             localTitle: thread.title,
             titleIsManual: thread.titleIsManual,
