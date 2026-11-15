@@ -377,3 +377,161 @@ extension ChatCarrierSpacingProbeTests {
         }
     }
 }
+
+/// §89 探针 4/5（同文件追加）：真机独有变量＝真实安
+/// 全区。测试宿主窗口 safeAreaInsets 恒 0，真机页面
+/// 底部安全区＝83（§186 冻结几何：坞/标签栏 49＋小
+/// 横条 34）、顶部 59。经父 VC additionalSafeAreaInsets
+/// 注入 (59,0,83,0) 复现：
+/// 探针 4——手动宿主（与承载同式：子控制器＋视图挂
+/// 进带 inset 的滚动内容视图）在注入环境下量
+/// sizeThatFits＋safeAreaInsets；并对同一批宿主设
+/// safeAreaRegions=[] 后复量（候选修法验证）。
+/// 探针 5——真实承载在注入环境下装配，打印行帧。
+extension ChatCarrierSpacingProbeTests {
+
+    private func injectDeviceSafeArea() {
+        container.additionalSafeAreaInsets = UIEdgeInsets(
+            top: 59, left: 0, bottom: 83, right: 0
+        )
+    }
+
+    func testProbeMeasureWithDeviceSafeArea() {
+        window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        container = UIViewController()
+        window.rootViewController = container
+        window.makeKeyAndVisible()
+        injectDeviceSafeArea()
+
+        let scrollView = UIScrollView(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.contentInset = UIEdgeInsets(
+            top: 122, left: 0, bottom: 153, right: 0
+        )
+        scrollView.contentSize = CGSize(width: 402, height: 2000)
+        container.view.addSubview(scrollView)
+        let contentView = UIView(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 2000)
+        )
+        scrollView.addSubview(contentView)
+        container.view.layoutIfNeeded()
+
+        print(
+            "PROBE89 sa window=\(window.safeAreaInsets) "
+            + "containerView=\(container.view.safeAreaInsets) "
+            + "scrollView=\(scrollView.safeAreaInsets)"
+        )
+        let proposal = CGSize(
+            width: 362, height: CGFloat.greatestFiniteMagnitude
+        )
+        var hosts: [(CGFloat, UIHostingController<AnyView>)] = []
+        for y in [100.0, 600.0, 1200.0, 1800.0] {
+            let hc = UIHostingController(
+                rootView: AnyView(userRowView(withSwipe: true))
+            )
+            container.addChild(hc)
+            contentView.addSubview(hc.view)
+            hc.view.frame = CGRect(
+                x: 20, y: y, width: 362, height: 47
+            )
+            hc.didMove(toParent: container)
+            hosts.append((y, hc))
+        }
+        for offset in [0.0, 1279.0] {
+            scrollView.contentOffset = CGPoint(x: 0, y: offset)
+            drainRunLoop(seconds: 0.3)
+            container.view.layoutIfNeeded()
+            for (y, hc) in hosts {
+                print(
+                    "PROBE89 sa pos y=\(y) offset=\(offset) "
+                    + "sizeThatFits=\(hc.sizeThatFits(in: proposal)) "
+                    + "safeArea=\(hc.view.safeAreaInsets) "
+                    + "windowFrame=\(hc.view.convert(hc.view.bounds, to: nil))"
+                )
+            }
+        }
+        // 候选修法：宿主 safeAreaRegions 清零后复量
+        for (_, hc) in hosts { hc.safeAreaRegions = [] }
+        drainRunLoop(seconds: 0.3)
+        container.view.layoutIfNeeded()
+        for (y, hc) in hosts {
+            print(
+                "PROBE89 sa-fixed pos y=\(y) "
+                + "sizeThatFits=\(hc.sizeThatFits(in: proposal)) "
+                + "safeArea=\(hc.view.safeAreaInsets)"
+            )
+        }
+    }
+
+    func testProbeCarrierWithDeviceSafeArea() {
+        installInWindow()
+        injectDeviceSafeArea()
+        container.view.layoutIfNeeded()
+        let rows: [ChatCarrierRow] = [
+            ChatCarrierRow(
+                key: "user-swipe", version: "v1",
+                estimatedHeight: 47
+            ) { AnyView(userRowView(withSwipe: true)) },
+            ChatCarrierRow(
+                key: "assistant", version: "v1",
+                estimatedHeight: 230
+            ) { AnyView(assistantRowView()) },
+            ChatCarrierRow(
+                key: "user-plain", version: "v1",
+                estimatedHeight: 47
+            ) { AnyView(userRowView(withSwipe: false)) },
+        ]
+        controller.apply(
+            rows: rows,
+            layout: ChatListCarrierLayout(
+                horizontalInset: 20,
+                topPadding: 16,
+                bottomPadding: 8,
+                rowSpacing: 24,
+                topInset: 122,
+                bottomInset: 153,
+                bottomSpace: 137
+            ),
+            arrowView: nil
+        )
+        controller.view.layoutIfNeeded()
+        drainRunLoop(seconds: 1.5)
+        controller.view.layoutIfNeeded()
+        let sv = controller.scrollView
+        print(
+            "PROBE89 sa carrier contentSize=\(sv.contentSize) "
+            + "offset=\(sv.contentOffset)"
+        )
+        guard let content = sv.subviews.first else {
+            print("PROBE89 sa carrier NO contentView")
+            return
+        }
+        for host in content.subviews.sorted(
+            by: { $0.frame.minY < $1.frame.minY }
+        ) {
+            print(
+                "PROBE89 sa host frame=\(host.frame) "
+                + "safeArea=\(host.safeAreaInsets)"
+            )
+        }
+        controller.scrollToBottom(animated: false)
+        drainRunLoop(seconds: 0.5)
+        controller.view.layoutIfNeeded()
+        print(
+            "PROBE89 sa carrier afterBottom contentSize=\(sv.contentSize) "
+            + "offset=\(sv.contentOffset)"
+        )
+        for host in content.subviews.sorted(
+            by: { $0.frame.minY < $1.frame.minY }
+        ) {
+            print(
+                "PROBE89 sa afterBottom host frame=\(host.frame) "
+                + "safeArea=\(host.safeAreaInsets)"
+            )
+        }
+    }
+}
