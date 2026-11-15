@@ -15,16 +15,21 @@ import XCTest
 /// 测试宿主里窗口不布局、VC 宽度恒 0、layout-
 /// Content 被守卫挡下（contentSize 恒 0）；改
 /// 离屏直驱：loadViewIfNeeded＋定帧＋layout-
-/// IfNeeded 触发 viewDidLayoutSubviews 定宽，
-/// 量实回填的观测不用 runloop 等待——以 inset
-/// 切换作同步泵（apply 在 insetChanged 时同
-/// 步重跑 layoutContent、按已记量实重算帧），
-/// 全程无异步等待、免宿主龟速下的 spin 超时
+/// IfNeeded 触发 viewDidLayoutSubviews 定宽。
+///
+/// 驱动口径（§259 对齐）：量实只在落定拍里由
+/// materialize 记下——apply 同步段只做量实移
+/// 交与帧表重建，托管/量测/回填重排全排到
+/// DispatchQueue.main.async 的合并落定拍。
+/// 故断言读高前须先 drain 主 runloop 把落定
+/// 拍泵到落定（拍一记量实→回填拍重建帧表），
+/// 与 §259 热修自有 ReentrancyTests 同式；旧
+/// 形态的 inset 切换同步泵只重算帧表、量实从
+/// 未落定，读到的恒是估算值（终轮 CI 实证）。
 @MainActor
 final class ChatCarrierSettleCarryTests: XCTestCase {
 
     private var controller: ChatListCarrierViewController!
-    private var pumpInset: CGFloat = 0
 
     private let layout = ChatCarrierLayout(
         horizontalPadding: 20, topPadding: 16,
@@ -71,20 +76,24 @@ final class ChatCarrierSettleCarryTests: XCTestCase {
     private func apply(_ row: ChatCarrierRow) {
         controller.apply(
             rows: [row], layout: layout,
-            topInset: pumpInset, bottomInset: 0, bottomSpace: 0,
+            topInset: 0, bottomInset: 0, bottomSpace: 0,
             keyboardAnimationDuration: 0,
             keyboardAnimationCurveRaw: 0, arrowView: nil
         )
     }
 
-    /// 同步泵：同行集换 inset 再 apply 一次——
-    /// insetChanged 触发 layoutContent 同步重
-    /// 算（帧高按已记量实解析），把 materialize
-    /// 在上一 apply 内已同步记下的量实反映到
-    /// contentSize，不靠异步重排的时序
-    private func pump(_ row: ChatCarrierRow) {
-        pumpInset = pumpInset == 0 ? 0.5 : 0
-        apply(row)
+    /// 落定拍泵：drain 主 runloop，把 §259 合并
+    /// 调度排定的落定拍泵到落定——拍一 materialize
+    /// 托管并记量实、量实回填再排一拍重建帧表，
+    /// 两拍都在本次 drain 内跑完，返回时帧高已按
+    /// 量实落定（与 ReentrancyTests 的 drainRunLoop
+    /// 同式同参）
+    private func drainRunLoop(
+        seconds: TimeInterval = 0.5
+    ) {
+        RunLoop.main.run(
+            until: Date().addingTimeInterval(seconds)
+        )
     }
 
     private var contentRowHeight: CGFloat {
@@ -92,28 +101,29 @@ final class ChatCarrierSettleCarryTests: XCTestCase {
     }
 
     func testSettleCarryKeepsMeasuredHeightAcrossVersionChange() {
-        // 流式期：估算 100、托管量实 180——apply
-        // 内 materialize 同步记量实，泵后帧高按
-        // 量实落定
+        // 流式期：估算 100、托管量实 180——落定拍
+        // materialize 记量实、回填重排后帧高按量
+        // 实落定
         let streaming = fixedRow(
             version: 1, estimated: 100, viewHeight: 180,
             carry: false)
         apply(streaming)
-        pump(streaming)
+        drainRunLoop()
         XCTAssertEqual(contentRowHeight, 180, accuracy: 0.6)
 
         // 落定帧：同键、版本变、带旗、新内容实高
-        // 260、估算 90——apply 同步帧高须仍按移交
-        // 的量实 180 连续（不回落估算、不抢跳新高）
+        // 260、估算 90——apply 同步段移交量实并按
+        // 180 重建帧表，落定拍到达前读高须仍为
+        // 180（不回落估算、不抢跳新高）
         let settled = fixedRow(
             version: 2, estimated: 90, viewHeight: 260,
             carry: true)
         apply(settled)
         XCTAssertEqual(contentRowHeight, 180, accuracy: 0.6)
 
-        // 托管已在落定 apply 内记下新量实 260，
-        // 泵后纠偏到 260（量实回填覆盖）
-        pump(settled)
+        // 落定拍托管重测记下新量实 260、回填重排
+        // 后纠偏到 260（量实回填覆盖移交值）
+        drainRunLoop()
         XCTAssertEqual(contentRowHeight, 260, accuracy: 0.6)
     }
 
@@ -122,7 +132,7 @@ final class ChatCarrierSettleCarryTests: XCTestCase {
             version: 1, estimated: 100, viewHeight: 180,
             carry: false)
         apply(streaming)
-        pump(streaming)
+        drainRunLoop()
         XCTAssertEqual(contentRowHeight, 180, accuracy: 0.6)
 
         // 无旗：版本变即弃量实、同步回估算 90
