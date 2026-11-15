@@ -2707,12 +2707,10 @@ struct ChatView: View {
     /// 原生面行集组装：落定行全集与 carrierRows()
     /// 同源同序（渲染计划条目/工具组→直播区→回
     /// 告卡→审批区→空状态）、估算与版本口径逐项
-    /// 复用 gen3 行构建（产物层单源）。唯一形态
-    /// 差：直播区在 R1 不开流式行——liveRender-
-    /// Items 逐项仍在，但整段以旧面 liveZone 一块
-    /// 不透明 item 入快照（估算＝逐项估算和＋项间
-    /// 距，版本＝逐项版本指纹），R2 再收编为快照
-    /// 直播 item（施工图 §五 R1/R2 切分）
+    /// 复用 gen3 行构建（产物层单源）。直播区自
+    /// R2 起逐项入快照（§292，见 nativeLiveRow）；
+    /// R1 期曾整段一块以 live-zone 不透明 item 喂
+    /// 入，该形态自此退役
     private func nativeRows() -> [ChatNativeRow] {
         var rows: [ChatNativeRow] = []
         if let thread = currentThread {
@@ -2744,42 +2742,13 @@ struct ChatView: View {
                 }
             }
         }
-        let liveItems = liveRenderItems()
-        if !liveItems.isEmpty {
-            let liveCarrierRows = liveItems.map {
-                carrierLiveRow($0)
-            }
-            let version = liveCarrierRows.reduce(
-                liveCarrierRows.count
-            ) { $0 &* 31 &+ $1.version }
-            let estimate = liveCarrierRows
-                .map(\.estimatedHeight)
-                .reduce(0, +)
-                + CGFloat(
-                    max(0, liveCarrierRows.count - 1)
-                ) * OneDayMetrics.spacingL
-            rows.append(
-                ChatNativeRow(
-                    key: "live-zone",
-                    entryID: nil,
-                    version: version,
-                    estimatedHeight: estimate,
-                    makeView: {
-                        AnyView(
-                            VStack(
-                                alignment: .leading,
-                                spacing: OneDayMetrics.spacingL
-                            ) {
-                                liveZone
-                            }
-                            .frame(
-                                maxWidth: .infinity,
-                                alignment: .leading
-                            )
-                        )
-                    }
-                )
-            )
+        // §292（原生重建 R2）：直播区收编——不再整
+        // 段一块，liveRenderItems 逐项成快照 item
+        // （思考/封存段/打开段/工具卡各自独立身份，
+        // 与 gen3 逐项行同源同序；打开段单 cell 同
+        // 步渲染、块闭合构造互斥，见 nativeLiveRow）
+        for item in liveRenderItems() {
+            rows.append(nativeLiveRow(item))
         }
         if let overviewStore {
             for item in ReportCardPolicy.cards(
@@ -2887,6 +2856,85 @@ struct ChatView: View {
                 )
             }
         )
+    }
+
+    /// §292（原生重建 R2）原生面直播行：与 gen3
+    /// carrierLiveRow 同源同序（liveRenderItems
+    /// 单口）、同键同版本——思考/工具/工具组三类
+    /// 直接转 gen3 行描述（无流式分叉）；正文两类
+    /// （打开段/封存段）在本面走单渲染路径：内容
+    /// 只由装配器快照的段文本一次同步渲染（Stre-
+    /// amingBlockText 闭合前缀＋尾块同拍派生），
+    /// gen4 关的全文回落路（streamingBubble 全文
+    /// 逐词路）不在本面设——施工图 §五 R2「gen4
+    /// 关回落路在新面不设」；估算恒走块产物组合
+    /// 口径（与落定行同口、落定不跳高）
+    private func nativeLiveRow(
+        _ item: LiveRenderItem
+    ) -> ChatNativeRow {
+        switch item {
+        case .reasoning, .tool, .toolGroup:
+            let row = carrierLiveRow(item)
+            return ChatNativeRow(
+                key: row.key,
+                entryID: row.entryID,
+                version: row.version,
+                estimatedHeight: row.estimatedHeight,
+                makeView: row.makeView
+            )
+        case .text:
+            let text = streamingText ?? ""
+            let blocks = StreamingBlockSegmenter.blocks(
+                for: text
+            )
+            return ChatNativeRow(
+                key: currentStreamRowKey(),
+                entryID: nil,
+                version: text.count &* 31 &+ blocks.count,
+                estimatedHeight:
+                    carrierStreamRowEstimate(text: text),
+                makeView: {
+                    AnyView(
+                        self.nativeStreamingContent(text)
+                    )
+                }
+            )
+        case .sealedText(let index, let text):
+            return ChatNativeRow(
+                key: "\(currentStreamRowKey())#seg\(index)",
+                entryID: nil,
+                version: text.count,
+                estimatedHeight:
+                    carrierStreamRowEstimate(text: text),
+                makeView: {
+                    AnyView(
+                        self.nativeStreamingContent(text)
+                    )
+                }
+            )
+        }
+    }
+
+    /// 原生面流式段内容（单渲染路径，H4）：非空
+    /// 文本恒走块级呈现——StreamingBlockText 按同
+    /// 一份不可变段文本同拍派生闭合前缀（静态）与
+    /// 尾块（动效），同一段文字在任一帧只存在于本
+    /// item 的一次渲染内；封段拍由快照 diff 把段
+    /// 文移入封存段 item、打开段 item 同拍换新段
+    /// 文本，两 item 构造互斥、不靠时序合并。空文
+    /// 本＝等待态（等待点/上传进度走既有等待形
+    /// 态，非 gen4 回落路）
+    @ViewBuilder
+    private func nativeStreamingContent(
+        _ text: String
+    ) -> some View {
+        if text.isEmpty {
+            streamingBubble(text)
+        } else {
+            assistantBubble {
+                StreamingBlockText(text: text)
+            }
+        }
     }
 
     /// §247（包 4）直播区逐项行：思考/单工具/工
@@ -3076,9 +3124,13 @@ struct ChatView: View {
     /// 块经产物服务异步补产（派生 id 入同一缓
     /// 存）——闭合块内容冻结、补产一次后恒命中，
     /// 每拍新增催产只剩尾块（单拍成本有界的执
-    /// 行侧）；只在新承载＋新路时工作，旧路不产
+    /// 行侧）；只在新承载＋新路时工作，旧路不产。
+    /// §292（R2）：原生面恒走块级路径（不设 gen4
+    /// 关回落），其在场本身即催产资格——放行条件
+    /// ＝（gen3＋gen4）∨ 原生面
     private func kickStreamingBlockProducts(for text: String) {
-        guard gen3CarrierEnabled, gen4StreamingEnabled
+        guard (gen3CarrierEnabled && gen4StreamingEnabled)
+            || nativeListEnabled
         else { return }
         let style = LayoutStyleContext(
             sizeCategory: dynamicTypeSize.contentSizeCategory,

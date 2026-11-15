@@ -184,6 +184,98 @@ final class ChatListCarrierCoreTests: XCTestCase {
         )
     }
 
+    // MARK: - 落定序列对拍（R2 供数换源门）
+
+    /// 规范化状态速记：距底由 travel 反推（distance
+    /// ＝H＋T＋B−V−travel）
+    private func settleState(
+        distance: Double,
+        contentHeight: Double = 3000,
+        bottomInset: Double = 70,
+        contentEndVisible: Bool = false
+    ) -> ChatScrollSupply.CanonicalState {
+        let topInset: Double = 122
+        let viewport: Double = 788
+        return ChatScrollSupply.CanonicalState(
+            contentHeight: contentHeight,
+            topInset: topInset,
+            bottomInset: bottomInset,
+            viewportHeight: viewport,
+            travel: contentHeight + topInset + bottomInset
+                - viewport - distance,
+            contentEndVisible: contentEndVisible
+        )
+    }
+
+    func testSettleSequenceParityLandingEpisode() {
+        // 落定回合：距底 120→60→25→8→3 逐拍收敛，
+        // 末拍 ≤7 判 settled；两路序列逐点相等
+        let trace = [120.0, 60, 25, 8, 3].map {
+            settleState(distance: $0)
+        }
+        let replay = ChatScrollSupply.replaySettleSequence(
+            trace: trace
+        )
+        XCTAssertTrue(replay.distancesMatch)
+        XCTAssertEqual(replay.legacy, replay.uiKit)
+        XCTAssertEqual(
+            replay.legacy,
+            [.continue, .continue, .continue, .continue,
+             .settled]
+        )
+    }
+
+    func testSettleSequenceParityKeyboardGrowthEpisode() {
+        // 键盘升起回合（R2 键盘换代的供数形态）：底
+        // inset 70→345 逐拍生长、行程同拍跟进、距底
+        // 恒 0——首拍即 settled，两路同值
+        let trace: [ChatScrollSupply.CanonicalState] = [
+            settleState(distance: 0, bottomInset: 70),
+            settleState(distance: 0, bottomInset: 150),
+            settleState(distance: 0, bottomInset: 250),
+            settleState(distance: 0, bottomInset: 345),
+        ]
+        let replay = ChatScrollSupply.replaySettleSequence(
+            trace: trace
+        )
+        XCTAssertTrue(replay.distancesMatch)
+        XCTAssertEqual(replay.legacy, replay.uiKit)
+        XCTAssertEqual(replay.legacy, [.settled])
+    }
+
+    func testSettleSequenceParityUserLeavesEpisode() {
+        // 用户离底回合：距底 40→300→320（停在远
+        // 处）——第二拍判 exhausted、不拽回
+        let trace = [40.0, 300, 320].map {
+            settleState(distance: $0)
+        }
+        let replay = ChatScrollSupply.replaySettleSequence(
+            trace: trace
+        )
+        XCTAssertTrue(replay.distancesMatch)
+        XCTAssertEqual(replay.legacy, replay.uiKit)
+        XCTAssertEqual(
+            replay.legacy, [.continue, .exhausted]
+        )
+    }
+
+    func testSettleSequenceParityRestickEpisode() {
+        // 复贴回合：距底 60→58（运动）→58（停稳、
+        // 未达标）触发唯一一次 restick，续回合 2 落定
+        let trace = [60.0, 58, 58, 2].map {
+            settleState(distance: $0)
+        }
+        let replay = ChatScrollSupply.replaySettleSequence(
+            trace: trace
+        )
+        XCTAssertTrue(replay.distancesMatch)
+        XCTAssertEqual(replay.legacy, replay.uiKit)
+        XCTAssertEqual(
+            replay.legacy,
+            [.continue, .continue, .restick, .settled]
+        )
+    }
+
     // MARK: - 行高组合模型
 
     private func baseInput(

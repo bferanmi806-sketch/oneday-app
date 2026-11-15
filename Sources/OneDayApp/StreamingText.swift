@@ -33,21 +33,100 @@ struct StreamingText: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var tokens: [String] = []
-    @State private var visible: Set<Int> = []
+
+    /// 词元稳定身份（原生重建 R2／H4，叠字静态定案
+    /// 候选②的处置）：身份＝（代次，文内字符偏移）。
+    /// 字符偏移是内容地址——文本追加时既有词元的偏
+    /// 移恒不变（分词的前缀性质：追加只许末尾拉丁词
+    /// 元原地生长或新增词元），与数组下标的「第几个」
+    /// 在文本被替换时指错对象本质不同。代次在文本非
+    /// 延续（封段后尾段重置／重连换文／回退）时 +1：
+    /// 旧代次的入场记账与在途延时任务一并作废，不许
+    /// 按旧身份给新词元点入场
+    private struct TokenKey: Hashable {
+        let generation: Int
+        let offset: Int
+    }
+
+    /// 词元切片：视图身份取字符偏移（内容地址），
+    /// TokenFlow 按序落位、身份只管动画记账对位
+    private struct TokenSlice: Identifiable {
+        let text: String
+        let offset: Int
+        var id: Int { offset }
+    }
+
+    @State private var visible: Set<TokenKey> = []
     /// 大批量增量中的词元：退化为纯 opacity 入场（无 blur）
-    @State private var noBlur: Set<Int> = []
+    @State private var noBlur: Set<TokenKey> = []
+    @State private var generation = 0
+    @State private var lastText = ""
+
+    /// 文本延续判定：新文本以上拍文本为前缀＝同代
+    /// 次追加；否则（替换/回退）＝换代。渲染拍（本
+    /// 属性）与事件拍（onChange 推进存储代次）用同
+    /// 一规则、两处同值，不分叉
+    private static func isContinuation(
+        from old: String, to new: String
+    ) -> Bool {
+        new.hasPrefix(old)
+    }
+
+    /// 本拍代次：存储代次＋（与 lastText 比对的换代
+    /// 增量）——onChange 落账前后的两拍读数一致
+    private var displayGeneration: Int {
+        generation
+            + (Self.isContinuation(from: lastText, to: text)
+                ? 0 : 1)
+    }
+
+    /// 词元切分（同步派生）：分词结果与其文内字符
+    /// 偏移——词元全序拼接恒等于原文（分词的完备
+    /// 性），偏移由累加词元长得出、是内容真值
+    private static func slices(
+        for text: String
+    ) -> [TokenSlice] {
+        var result: [TokenSlice] = []
+        var offset = 0
+        for token in tokenize(text) {
+            result.append(
+                TokenSlice(text: token, offset: offset)
+            )
+            offset += token.count
+        }
+        return result
+    }
 
     var body: some View {
-        TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
-            ForEach(Array(tokens.enumerated()), id: \.offset) { index, token in
+        // 词元每拍由当前 text 同步派生、不经 @State
+        // 滞后（R2／H4）：块闭合的那一拍，前缀（父
+        // 级 MarkdownText）与本尾块由同一份文本同拍
+        // 换代——旧形态 @State 词元晚一拍更新，闭合
+        // 块在两层各出现一份是构造必然（叠字定案候
+        // 选③）；同步派生后尾块词元同拍消失，构造上
+        // 不存在同帧两份。滞后的只剩入场记账（visi-
+        // ble/noBlur），它只管浓淡、不管有无
+        let gen = displayGeneration
+        let slices = Self.slices(for: text)
+        return TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
+            ForEach(slices) { slice in
                 // 第 82 条：被 TokenFlow 落位的是
                 // StreamingTokenView——它自身不挂动画，
                 // 入场动画收在其内部视觉层（见该类型注）
                 StreamingTokenView(
-                    token: token,
-                    shown: visible.contains(index),
-                    flat: noBlur.contains(index)
+                    token: slice.text,
+                    shown: visible.contains(
+                        TokenKey(
+                            generation: gen,
+                            offset: slice.offset
+                        )
+                    ),
+                    flat: noBlur.contains(
+                        TokenKey(
+                            generation: gen,
+                            offset: slice.offset
+                        )
+                    )
                 )
             }
             StreamingCaret()
@@ -61,28 +140,60 @@ struct StreamingText: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
         .onChange(of: text, initial: true) { _, newText in
-            let newTokens = Self.tokenize(newText)
-            let oldCount = tokens.count
-            tokens = newTokens
-            let batch = newTokens.count - oldCount
-            guard batch > 0 else { return }
-            if batch > 8 {
-                noBlur.formUnion(oldCount..<newTokens.count)
-            }
-            // Reduce Motion：新词元整段直显，不排 stagger
-            if reduceMotion {
-                visible.formUnion(oldCount..<newTokens.count)
-                return
-            }
-            // 旧词元保持已入场；新词元按批内序号错开入场，
-            // 总时长封顶 240ms（大批量时步进等比压缩）
-            let step = batch > 8 ? 0.24 / Double(batch) : 0.03
-            for index in oldCount..<newTokens.count {
-                let delay = min(Double(index - oldCount) * step, 0.24)
-                Task {
-                    try? await Task.sleep(for: .seconds(delay))
-                    visible.insert(index)
-                }
+            reconcile(newText)
+        }
+    }
+
+    /// 入场记账对账（文本每变一拍）：推进代次、清
+    /// 旧代次账、给未入场词元排入场。延时任务带代
+    /// 次校验——在途期间文本被替换（代次已进）则
+    /// 任务作废，不许把旧身份的入场点到新词元头上
+    private func reconcile(_ newText: String) {
+        let delta = Self.isContinuation(
+            from: lastText, to: newText
+        ) ? 0 : 1
+        let newGeneration = generation + delta
+        generation = newGeneration
+        lastText = newText
+        visible = visible.filter {
+            $0.generation == newGeneration
+        }
+        noBlur = noBlur.filter {
+            $0.generation == newGeneration
+        }
+        let pending = Self.slices(for: newText).filter {
+            !visible.contains(
+                TokenKey(
+                    generation: newGeneration,
+                    offset: $0.offset
+                )
+            )
+        }
+        guard !pending.isEmpty else { return }
+        let keys = pending.map {
+            TokenKey(
+                generation: newGeneration, offset: $0.offset
+            )
+        }
+        if pending.count > 8 {
+            noBlur.formUnion(keys)
+        }
+        // Reduce Motion：新词元整段直显，不排 stagger
+        if reduceMotion {
+            visible.formUnion(keys)
+            return
+        }
+        // 旧词元保持已入场；新词元按批内序号错开入场，
+        // 总时长封顶 240ms（大批量时步进等比压缩）
+        let step = pending.count > 8
+            ? 0.24 / Double(pending.count) : 0.03
+        for (index, key) in keys.enumerated() {
+            let delay = min(Double(index) * step, 0.24)
+            Task {
+                try? await Task.sleep(for: .seconds(delay))
+                guard generation == newGeneration
+                else { return }
+                visible.insert(key)
             }
         }
     }
