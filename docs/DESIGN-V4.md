@@ -12995,3 +12995,14 @@ run 43680945034（workflow_dispatch @ rel-05053 尖端 f2a0ad9），全日志本
 ### §287.1 CI 判读（2026-11-15 回填）——**§190 终判绿（带既有登记两项）**
 
 run 43684396656（workflow_dispatch @ rel-05054 尖端 7e8cebb），全日志本地核账（19,345 行）：**Core Executed 2149/2149、0 failures**（2145 基线＋行高 LineHeightSpecTests 4 精确对账，4/4 全过；贴底包 Core 零增与预期一致）；**App 244 注册、243 得判词**（237 passed＋5 skipped 设计内跳＋1 failed；贴底 BottomGap **11/11** 全过＝原 6＋新短内容 5，SettleCarry／Reentrancy 两套件 passed 不退）；**UI 10/10**；VERDICT／MATRIX-VERDICT／HUB-LAYOUT-VERDICT 三连 PASS。登记两项（与两包改动零交集，不堵门）：①唯一 failed＝`EdgeEffectProbeTests.testEdgeEffectAttributionProbe`（§257.1 像素探针抖动族，.47–.53 同签名）；②§184 余崩同签名——宿主在 `testFailedTraceMaterializesWithErrorSnapshot` 处 unexpected exit 后重启 1 次（06:29:22），该例无判词（244 注册中唯一），BackingData 日志零命中。run 级 conclusion=failure 仅由①引起。IPA 解包亲验：0.50.54／182／site.didichou.oneday，13,910,733 字节，md5 `7529228711e17c6c9a7374ccf251e911`，落 ~/workspace/your_files/oneday-v0.50.54/（附待办总表副本）。未合 main、未打 tag。
+
+## §288 流式分段装配（2026-11-15；分支 fix/stream-segment-carryover，基线 rel-05052@0c3c303；待办第 93 条；本节原自编号 §282，组版 0.50.55 顺延为 §288）
+
+**定案**：服务端无罪——主会话落库一段一条消息（4640 助理段 73 字→4641/4642 工具结果→4643 助理段 50 字，各存一次，主线服务端取证）。病在客户端流式装配无段维度：①`StreamPublishGate`（§32）是整轮单缓冲，`offer` 只追加、全轮只在 run 开始/恢复两处 reset；②`followRunEvents` 的 `.toolStarted/.toolCompleted` 分支从不触碰正文闸——而工具事件正是线上的段边界信号（runs events 的正文增量不带消息标识，段界只由工具事件给出，与服务端一段一条消息的切分同构）；③呈现单槽（`liveOrder` 只有一个无身份的 `.text` 标记、gen3 承载只有一行流式行），新段没有自己的缓冲与气泡，只能长进上一段。放大成截图形态的最后一环：`persistRunPartials` 把闸内累计全文落盘成真条目后闸不清零，events 重挂后下一段增量继续拼在上一段全文之后——已落盘的上一段条目与「上段全文＋新段」的直播气泡同屏，上段双份呈现、新段从未单独出现。
+
+**修法（单一数据源：段以服务端事件序为身份）**：Core 新增 `StreamSegmentAssembler`（Sources/OneDayCore/StreamSegmentAssembler.swift）——封存段全文列＋当前段一只独立 `StreamPublishGate`（段内发布节流与 §32 逐字同制、段内拼接行为零变更）；`sealCurrentSegment` 在工具边界 flush 取精确全文封段、新段从空缓冲起步（首增量立即发布不被上段窗口拖住）；`fullSegments` 供按段落盘；`mergedFullText` 以 `"\n\n"` 连接各段，与 `RunTranscriptSettle` 对 transcript 的落定拼接逐字同制。ChatView 接线：`followRunEvents` 在 `.toolStarted` 先封段再落卡；封存段经 `liveOrder` 的 `.sealedText(段序)` 标记原位只读呈现（封段时 `.text` 标记原位换名、段的事件位不动；新段首增量另记 `.text` 于新事件位），旧承载 liveZone 与新承载 carrier 行共用 `liveRenderItems` 单口、封存段行键＝流式行键＋`#seg<段序>` 后缀；`streamingText` 自此只承载当前打开段（gen4 块级呈现「只动画最新块、已出段落静态」由此在装配层成立）；`persistRunPartials` 按段成条、按 liveOrder 事件序与工具卡交错落盘（时序即回填段序凭据），思考仍挂第一条助理条目不按段拆；`resumeRunIfNeeded` 按时序重建段——时序最末的助理段为打开段（后续增量只许拼进它）、其余封存，旧版落盘的单条合并半截整条作打开段（与旧行为一致）；状态 output 兜底落定改走 `mergedFullText`。呈现侧附带变化（有意）：工具执行期间，打开段的空位气泡（等待点）落在工具卡之后——即新段的事件位，首增量到达即原位换成正文。
+
+**回放钉测**：`StreamSegmentAssemblerTests` 8 例（Tests/OneDayCoreTests）——事故原文（4640/4643 两段全文）分片回放断言当前段只含 B、A 只在封存列出现一次、合并全文与落定逐字一致；段内拼接与单闸同行为、新段首增量立即发布、空段不产出（工具先行/并行工具连发边界）、三段事件序、封段 flush 尾巴精确、巡查只推当前段、恢复往返、整器归零。先行提交（5786437，仅测试）CI 应红（基线无此类型），实现提交（4d4fb9b）转绿，判读见 §288.1。
+
+**不许回退面**：段内增量拼接（StreamPublishGateTests 9 例原样）、工具卡直播拼装、落定与落库逐字一致（transcript 路径未动）、gen4 块级呈现（打开段走 carrierStreamRow 原路、封存段走同口估高的静态行）。未合 main、未打 tag。
+>>>>>>> 6e571f6 (§282 流式分段装配回填（第 93 条定案/修法/回放钉测；CI 判读待两轮实数补 §282.1）)
