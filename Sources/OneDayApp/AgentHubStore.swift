@@ -684,7 +684,7 @@ final class AgentHubStore {
         // 记录，批准路径在 store 层同样不开口——卡面
         // 已不给批准钮，这里防其他调用方绕过卡面；
         // 驳回不受影响（死单的唯一出路）。B-05
-        // （§299）：提示行经 Core reasonLine 单读口；
+        // （§300）：提示行经 Core reasonLine 单读口；
         // isBlocked 蕴含 reason 非空、行恒有值，万一
         // 不然守卫仍不开口（防呆优先于提示完整）
         if approve, record.isBlocked {
@@ -734,7 +734,7 @@ final class AgentHubStore {
                 // 通道），替代泛化红字——旧文案让用户
                 // 以为重开详情再批就能过，实为确定性
                 // 失败时纯属误导（生产个案 62927061）。
-                // B-05（§299）：经 Core reasonLine 单
+                // B-05（§300）：经 Core reasonLine 单
                 // 读口取行（回执 reason＋execution 阶段）
                 if let reasonLine = ApprovalCardCopy.reasonLine(for: response) {
                     cardNotes[record.id] = reasonLine
@@ -797,7 +797,7 @@ final class AgentHubStore {
         // 防呆守卫（§245）：「总是允许」＝立即批准＋
         // 立规则，批不了的死单两步都无意义——不建规
         // 则、不批准，只留原因（与 decide 同口径、
-        // 同一 reasonLine 单读口，§299）
+        // 同一 reasonLine 单读口，§300）
         if record.isBlocked {
             cardNotes[record.id] = ApprovalCardCopy.reasonLine(for: record)
             return

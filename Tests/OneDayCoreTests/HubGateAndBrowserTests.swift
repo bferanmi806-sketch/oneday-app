@@ -56,7 +56,7 @@ final class HubGateAndBrowserTests: XCTestCase {
         XCTAssertEqual(record.originLabel(locale: Locale(identifier: "zh-Hans")), "智能体工具调用")
     }
 
-    /// §245 立项／B-05（§299）单字段契约：reason＋
+    /// §245 立项／B-05（§300）单字段契约：reason＋
     /// reason_phase 解码——带预检原因即防呆态
     /// （isBlocked），可裁决性本身不变（驳回仍开）；
     /// 无字段/空白串都按无结论；阶段标未知时防呆
@@ -118,7 +118,7 @@ final class HubGateAndBrowserTests: XCTestCase {
         XCTAssertFalse(legacy.isBlocked)
     }
 
-    /// §245 立项／B-05（§299）：回执 reason＋
+    /// §245 立项／B-05（§300）：回执 reason＋
     /// reason_phase 解码——失败回执带结构化原因
     /// （阶段恒 execution）；桥解析不出时 reason 键
     /// 带 null、同按无原因；成功回执恒无原因；旧

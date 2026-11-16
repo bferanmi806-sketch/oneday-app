@@ -24,7 +24,7 @@ import SwiftUI
 /// 射，对标参照卡的工具图标位）；②防呆呈现合成一
 /// 套——预检原因上卡面＋只给驳回，裁决回执原因经
 /// 宿主 cardNotes 同槽呈现，原因都走「上卡面」一
-/// 条通道。B-05（§299）：桥字段已合并为 reason＋
+/// 条通道。B-05（§300）：桥字段已合并为 reason＋
 /// reason_phase，卡面只经 Core
 /// ApprovalCardCopy.reasonLine 单读口取行，不再
 /// 直读记录字段拼句。
@@ -80,7 +80,7 @@ struct ApprovalCardFace<DetailArea: View>: View {
             // （措辞与伴生查案报告定案一致），动作区
             // 只给驳回（见 actionArea）——与裁决失败
             // 回执原因共用「原因上卡面」这一条通道，
-            // 不许两套并存。B-05（§299）：整行只经
+            // 不许两套并存。B-05（§300）：整行只经
             // Core reasonLine 单读口（reason＋阶段标
             // 拼句），本面不直读字段
             if let reasonLine = ApprovalCardCopy.reasonLine(for: record) {

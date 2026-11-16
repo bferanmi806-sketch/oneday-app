@@ -261,7 +261,7 @@ final class ApprovalCopyTests: XCTestCase {
         )
     }
 
-    // MARK: - 原因行单读口（B-05，§299）
+    // MARK: - 原因行单读口（B-05，§300）
 
     /// 卡面呈现对拍：同一 reason 串，阶段决定前缀
     /// 句式——记录面预检＝「这条无法批准：…」、回
