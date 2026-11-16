@@ -538,6 +538,11 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             .layoutFrame
         let ci = cv.contentInset
         let ai = cv.adjustedContentInset
+        let maxByInset = cv.contentSize.height + ci.bottom
+            - cv.bounds.height
+        let maxByRuler = cv.contentSize.height
+            + handle.bottomInset - cv.bounds.height
+        let trail = cv.contentSize.height - last.maxY
         print(
             "DECOMP \(tag)"
                 + " contentSize=\(cv.contentSize.height)"
@@ -558,18 +563,14 @@ final class ChatNativeListAssemblyTests: XCTestCase {
                 + " distance=\(handle.latestDistance)"
                 + " endVisible=\(handle.contentEndVisible)"
                 + " lastMaxY=\(last.maxY)"
-                + " trail=\(cv.contentSize.height - last.maxY)"
+                + " trail=\(trail)"
                 + " hostWin minY\(hostInWindow.minY)"
                 + " maxY\(hostInWindow.maxY)"
                 + " h\(hostInWindow.height)"
                 + " guide minY\(guide.minY)"
                 + " maxY\(guide.maxY)"
-                + " maxByInset="
-                + "\(cv.contentSize.height + ci.bottom"
-                + " - cv.bounds.height)"
-                + " maxByRuler="
-                + "\(cv.contentSize.height + handle.bottomInset"
-                + " - cv.bounds.height)"
+                + " maxByInset=\(maxByInset)"
+                + " maxByRuler=\(maxByRuler)"
         )
     }
 
