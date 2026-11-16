@@ -364,6 +364,11 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                 "attachmentPanel.fit"
             )
         private var lastFingerprint: Int?
+        /// §317 过渡守卫的延后补跑在途旗与次数（见
+        /// apply 的过渡分支）：防同一过渡内叠排多次
+        /// 补跑；补跑上限后落回全量断言（旧行为兜底）
+        private var deferredApplyPending = false
+        private var deferredApplyCount = 0
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
@@ -379,6 +384,28 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
             guard let host = enclosingViewController(),
                   let sheet = host.sheetPresentationController
             else { return }
+            // §317（诊断 P2 守卫）：sheet 呈现/收起过
+            // 渡期不重断言——过渡中改 additionalSafe-
+            // AreaInsets 或因指纹 invalidateDetents，
+            // 会在动画中途触发 detent 重解、拉长或扰
+            // 动收起过程，喂大文件桥的呈现竞速窗口。
+            // detent 首装不在守卫内（定高本体：未装时
+            // sheet 无从定高，落点与稳态一致）；其余
+            // 断言延后补跑（scheduleDeferredApply，
+            // apply 幂等、稳态行为与数值口径不变）
+            let transitioning = host.isBeingPresented
+                || host.isBeingDismissed
+                || host.transitionCoordinator != nil
+            if transitioning, deferredApplyCount < 8 {
+                if sheet.detents.first?.identifier
+                    != Self.detentID
+                {
+                    installDetents(sheet: sheet, host: host)
+                }
+                scheduleDeferredApply(fingerprint: fingerprint)
+                return
+            }
+            deferredApplyCount = 0
             // §303.2 候选②（候选①实测不净后换）：
             // 托管视图底部安全区源头归零——§303.1/
             // §303.2 量测律：in-sheet 量测计入底部
@@ -400,42 +427,71 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                     - totalBottom
             }
             if sheet.detents.first?.identifier != Self.detentID {
-                sheet.detents = [
-                    .custom(identifier: Self.detentID) {
-                        [weak host] context in
-                        guard let host else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        let width = host.view.bounds.width > 0
-                            ? host.view.bounds.width
-                            : (host.view.window?.bounds.width
-                                ?? 0)
-                        guard width > 0 else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        let fit = host.view.sizeThatFits(
-                            CGSize(
-                                width: width,
-                                height: .greatestFiniteMagnitude
-                            )
-                        ).height
-                        guard fit > 0 else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        return min(
-                            fit, context.maximumDetentValue
-                        )
-                    },
-                ]
-                sheet.selectedDetentIdentifier = Self.detentID
-                sheet.invalidateDetents()
+                installDetents(sheet: sheet, host: host)
             }
             if lastFingerprint != fingerprint {
                 lastFingerprint = fingerprint
                 sheet.invalidateDetents()
+            }
+        }
+
+        /// §303 定高本体：custom detent 整组安装（解
+        /// 析器在呈现控制器内以 sizeThatFits 单源求
+        /// 解，口径自 §303 未动）。稳态路由 apply 直
+        /// 调、§317 过渡守卫内亦放行首装——两路共用
+        /// 本体，不许分叉出第二套定高写法
+        private func installDetents(
+            sheet: UISheetPresentationController,
+            host: UIViewController
+        ) {
+            sheet.detents = [
+                .custom(identifier: Self.detentID) {
+                    [weak host] context in
+                    guard let host else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    let width = host.view.bounds.width > 0
+                        ? host.view.bounds.width
+                        : (host.view.window?.bounds.width
+                            ?? 0)
+                    guard width > 0 else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    let fit = host.view.sizeThatFits(
+                        CGSize(
+                            width: width,
+                            height: .greatestFiniteMagnitude
+                        )
+                    ).height
+                    guard fit > 0 else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    return min(
+                        fit, context.maximumDetentValue
+                    )
+                },
+            ]
+            sheet.selectedDetentIdentifier = Self.detentID
+            sheet.invalidateDetents()
+        }
+
+        /// §317：过渡期被守卫拦下的 apply 在过渡落定
+        /// 后补跑一次（0.35s 后复查，仍在过渡则由
+        /// apply 的守卫分支再延，次数上限在 apply
+        /// 内）；在途只排一份，防叠排
+        private func scheduleDeferredApply(fingerprint: Int) {
+            guard !deferredApplyPending else { return }
+            deferredApplyPending = true
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.35
+            ) { [weak self] in
+                guard let self else { return }
+                self.deferredApplyPending = false
+                self.deferredApplyCount += 1
+                self.apply(fingerprint: fingerprint)
             }
         }
 

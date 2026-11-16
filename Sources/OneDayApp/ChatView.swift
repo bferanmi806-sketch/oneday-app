@@ -408,6 +408,12 @@ struct ChatView: View {
     // PhotosUI 选图器（视频过滤、与图片选图器分开
     // 两套绑定，互不串扰）
     @State private var showAttachPanel = false
+    /// §317：面板行动作的收起后接力槽——afterAttach-
+    /// PanelDismiss 只登记、sheet 的 onDismiss（收起
+    /// 真完成信号）才执行（废 §147 固定 450ms 睡眠
+    /// 竞速，见 afterAttachPanelDismiss 注）
+    @State private var attachPanelPendingAction:
+        (() -> Void)?
     // §303（A-08 收口）：面板定高改走呈现控制器
     // custom detent 单源求解（见 sheet 本体注），
     // §152 的内容实测高状态与 §154 的宿主真高回
@@ -1283,7 +1289,17 @@ struct ChatView: View {
         // 套退役：PreferenceKey 回报、宿主实测高/真
         // 高两状态、Core 定高决策（可信下限＋75%
         // 钳顶）、fixedSize 保真一并删除
-        .sheet(isPresented: $showAttachPanel) {
+        .sheet(
+            isPresented: $showAttachPanel,
+            onDismiss: {
+                // §317：收起真完成信号——登记的面板行
+                // 动作在此刻才执行，呈现型动作（相机/
+                // 选图/文件桥）不再与收起动画竞速
+                let action = attachPanelPendingAction
+                attachPanelPendingAction = nil
+                action?()
+            }
+        ) {
             AttachmentPanelView(
                 onCamera: {
                     afterAttachPanelDismiss { showCamera = true }
@@ -1297,9 +1313,17 @@ struct ChatView: View {
                 },
                 onAddFile: {
                     afterAttachPanelDismiss {
-                        DocumentPickerBridge.present { urls in
-                            loadPickedFiles(urls: urls)
-                        }
+                        DocumentPickerBridge.present(
+                            onPick: { urls in
+                                loadPickedFiles(urls: urls)
+                            },
+                            onFailure: {
+                                showNotice(
+                                    "文件选择器没能打开，请再试一次。",
+                                    tier: .extended
+                                )
+                            }
+                        )
                     }
                 },
                 onAddVideo: {
@@ -7923,18 +7947,23 @@ private struct ComposerBarLayout: Layout {
         .accessibilityLabel("添加附件")
     }
 
-    /// §147：附件面板内动作的统一收尾——先收面板、
-    /// 隔一拍再执行呈现型动作（相机全屏盖/选图器/
-    /// 文件桥），不与 sheet 收起动画同帧抢呈现上下
-    /// 文（同 DocumentPickerBridge 的延拍口径）
+    /// §147→§317：附件面板内动作的统一收尾——登记
+    /// 动作并收面板，动作由 sheet 的 onDismiss 在收
+    /// 起动画真完成后执行（呈现点见 chatSurface 的
+    /// sheet 注）。旧形态（§147）写死睡 450ms 猜收
+    /// 起完成：iOS 26 sheet 收起时长非常量，睡醒时
+    /// 收起未完、对 dismissing 中的 VC 调 present
+    /// 被 UIKit 静默丢弃——「添加文件」面板收了选
+    /// 择器永不来（诊断 attach-noresponse-diagno-
+    /// sis-20261117 定案，病自 0.36.31 换桥即在）。
+    /// 相机/选图两行同走本口：其 SwiftUI 状态旗原靠
+    /// 框架排队呈现，改由完成信号驱动时序更确凿、
+    /// 行为不变
     private func afterAttachPanelDismiss(
         _ action: @escaping () -> Void
     ) {
+        attachPanelPendingAction = action
         showAttachPanel = false
-        Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 450_000_000)
-            action()
-        }
     }
 
     /// 待发附件条：图片出缩略图、文件出名牌，都可单独

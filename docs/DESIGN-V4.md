@@ -13579,3 +13579,18 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 第一轮（run 43862539943@c5c1565，全日志 25,213 行本地核账）：**Core 2152/2152、0 failures**——合并账逐项闭合：.63 基线 2148＋抽屉 +4（DrawerMotionTests +3、DrawerSpringTimingTests +1）＋账本 0（不增删 Core 测，TailClose +3 为 App 测）＋查看器 0（SafeArea +3 为 App 测）。点名测全绿：抽屉锁步 testDrawerLayerLockstepsWithForeground、深色 testDarkStyleClearsDrawerShadow、账本 SessionLedgerTailCloseTests 3/3、查看器 ImageViewerHostSafeAreaTests 3/3。.61 键盘正面证据复跑不退：⑨ 打印 kbTopWin 随通知帧逐拍跟进（545→541→539→538…），⑨ 唯一失败断言为动画中段在途帧采样（登记量测限制）。落底对账：LANDING/LANDING-R4 两探针 contentSize 4156.0、距底 3.667／3.333——均在 §302.3 分解带（3.0–4.0）内，属第 100 条 ③⑯ 登记已知项。红集 14 件：App 5 件（③⑯ 已知项 2＋⑧ 量测限制＋⑨ 中段采样＋§257.1 探针）＋UI 9 件（第 95 条族：仲裁 4＋原生面 5）。VERDICT／HUB-LAYOUT-VERDICT／MATRIX-VERDICT 三 PASS（键盘矩阵绿）。§184 签名内：BackingData 零命中、无宿主崩溃新签名。
 第二轮（run 43869328357@c5c1565，同提交零改动，全日志 24,694 行）：**Core 2152/2152 复全绿**；红集恰 14 件与首轮逐件同构；点名测复绿（锁步/深色/TailClose/SafeArea）；落底距底 3.0／3.333 复在带内、contentSize 4156.0；kbTopWin 打印分布与首轮逐值同；三 VERDICT 复 PASS；BackingData 零命中。**签名外新红零。**
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.64/OneDay-0.50.64-unsigned.ipa：**14,032,621 字节、md5 `0504d91eebf58caf6bbc278dc74dfc4e`**，解包验 CFBundleShortVersionString=0.50.64、CFBundleVersion=192、bundle id site.didichou.oneday。待办总表已落：第 78 条（抽屉＋A-21 查看器半边）／第 90 条（账本收尾）各包已划线、本版补组版出货注记（定号 §313／§315／§314），副本随交付目录；真机清单 42 项＝本版新增 11 项（抽屉 6＋账本 4＋查看器 1）＋.63 未回 36 项原样带入（键盘组为浸泡主验；仅原第 29 项版号字面 .63→.64）。浸泡链第四版（.61 起算），本版不计 R5 开门。未合 main、未打 tag。
+
+## §317 文件选择器呈现竞速修复（2026-11-17；分支 feat/docpicker-present-fix，基线 rel-05064@f900c17；节号本分支自选，组版合裁改号）
+
+**依据**：诊断 attach-noresponse-diagnosis-20261117——用户真机录屏实报点附件面板「添加文件」无反应。逐帧定案：面板呈现本体正常（静止帧高 ≈316pt、与 A-08 定高口径吻合、无双重呈现），真故障在收起之后的呈现链：`afterAttachPanelDismiss`（ChatView）写死睡 450ms 猜 sheet 收起完成，iOS 26 收起时长非常量，收起未完时 `DocumentPickerBridge.present` 对 dismissing 中的 VC 调 present 被 UIKit 静默丢弃（面板收了、选择器永不来）；桥内无 completion、无重试、无日志，失败不留痕。病自 0.36.31 换桥即在、与 A-08 无关；A-08 detent 桥在过渡期重断言为加重项（P2）；topmost 取空静默 return 为待消灭项（P3）。
+
+**落码**：
+1. **废固定睡眠、改完成信号**：ChatView.afterAttachPanelDismiss 改登记制——动作存 `attachPanelPendingAction` 槽并收面板，附件 sheet 加 `onDismiss`，收起动画真完成才执行登记动作。相机/查看全部/添加视频三行同走本口（原靠 SwiftUI 框架排队呈现，改完成信号驱动、行为不变）；确认照片行是终结动作不经本口、不变。
+2. **桥呈现驱动（第二道门）**：DocumentPickerBridge 新增 `Snapshot` 值型判定（有呈现者＋在窗＋非 isBeingDismissed/isBeingPresented＋无在飞 transitionCoordinator 才就绪）与 `drivePresentation` 循环——就绪才 present；未就绪每 150ms 复查，上限 12 次（含首次，覆盖 ≈1.65s），超限落放弃留痕并回调 onFailure。聊天页 onFailure 走 showNotice（.extended）「文件选择器没能打开，请再试一次。」；呈现带 completion 落「已呈现（第 N 次尝试）」。
+3. **全出口留痕、消灭静默**：已呈现/已选定（带个数）/用户取消/呈现放弃（带原因与尝试次数）各落 ChatDiagTrace 一条，延后复查走 os 日志；旧 guard 取空静默 return 删除——取空归放弃出口、原因「无呈现者」事后可分晓（P3 消灭）。
+4. **文件页第二入口同修**：FileUploadPickerModifier 的 `.fileImporter` 退役（聊天页当年因同症删掉的机制），`isPresented` 降为触发旗（onChange 消费即复位），改走同一座桥、单一呈现路径；`allowsMultipleSelection: false` 保本入口旧单选口径（聊天页多选不变）；桥 asCopy 副本直读，handlePicked 删安全作用域起停配对；桥放弃时经 onFinished 出同文案提示。
+5. **P2 守卫**：AttachmentSheetDetentBridge.apply 加呈现状态守卫——host 过渡中（isBeingPresented/isBeingDismissed/transitionCoordinator 在场）不改 additionalSafeAreaInsets、不因指纹 invalidateDetents；detent 首装放行（定高本体抽 `installDetents` 稳态/守卫两路共用）；被拦断言 0.35s 后补跑（在途只排一份、补跑 8 次后落回全量断言兜底）。A-08 已验稳态高度口径与面板内容未动。
+
+**验证面**：新增 DocumentPickerPresentTimingTests 6 例——收起中三查全拦＋落定第 4 查呈现恰一次／就绪首查即呈现／呈现中两查拦＋第 3 查呈现／超限（上限 4）present 零发出＋放弃回调恰一次（原因「呈现者收起中」）／nil 呈现者快照未就绪（原因「无呈现者」）／无窗呈现者快照未就绪。ATTACH-FIT 既有装配测续证 A-08 稳态不退。真机终验（随 .65 热修清单）：深色＋悬浮底栏形态下新旧两面各点「添加文件」必出选择器、连试 5 次全过，文件页上传入口同验，对照相机/查看全部/添加视频三行不退化。
+
+**验收**：全量门两轮（§190 全日志核账）；Core 与基线 rel-05064 逐数对账（本包不增删 Core 测，预期 2152/2152 不变；App 侧净增 6 例）；红只认登记签名族（§257.1、R2 ⑧、第 95 条 UI 族、键盘矩阵 rig、§184 签名内、第 100 条 ③⑯ 已知项）；落底三数与键盘正面证据不退。CI 判读见 §317.1（回填）。
