@@ -9,13 +9,15 @@ import UIKit
 ///
 /// **交付物口径（用户原话：用户让做的东西做好之后
 /// 放里面的，如 PPT——不是服务器全部文件）**：数据
-/// 沿 P8（0.14.0）产出聚合通道——/api/files（根锁
-/// /opt/data）扫产出根（递归 ≤3 层、600 封顶）＋根
-/// 目录散文件，全量先过 DeliverableAdmission 准入
-/// （0.22.0 去污）与敏感名单第二道（单源 Sensitive-
-/// FilePolicy.protectedNames，0.36.31 并源）。服务端
-/// 文件全量浏览不在本页（••• 菜单组3「系统文件」与
-/// 设置「管理」共用 FilesBrowserView）。
+/// 自 A-06（伴生 1.0.66）起走文件库聚合读面（GET
+/// /api/oneday-bridge/file-library）单流下发——产出
+/// 根走查、准入（0.22.0 去污形态拦截＋根散白名单＋
+/// 敏感名单第二道）、去重、排序全在服务端，单一事
+/// 实源在 oneday_seg_filelibrary.py。P8（0.14.0）起
+/// 的客户端爬 /api/files 目录树聚合（8 根硬编码、
+/// 递归 ≤3 层、600 静默截断、客户端准入）已退役。
+/// 服务端文件全量浏览不在本页（••• 菜单组3「系统
+/// 文件」与设置「管理」共用 FilesBrowserView）。
 ///
 /// **0.36.31 文件页 v2（规格 files-page-design-
 /// 20261110 §4＋两附记）**：右上搜索钮撤除、改 •••
@@ -39,6 +41,9 @@ struct DeliverablesView: View {
     @Environment(AppState.self) private var appState
     // 动效走令牌＋resolved 出口（0.25.0 起本面口径）
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 文件库聚合读面客户端（A-06）：聚合集唯一来源
+    private let bridgeClient = OneDayBridgeClient()
 
     /// 0＝文件、1＝影音内容
     @State private var segment = 0
@@ -1316,77 +1321,40 @@ struct DeliverablesView: View {
         }
     }
 
-    // MARK: - 聚合与动作（P8 通道沿用）
+    // MARK: - 聚合与动作（A-06 服务端读面）
 
-    /// 聚合各产出根（每根递归 ≤3 层、全局条目上限保
-    /// 护）＋根目录散文件；全部条目先过 Deliverable-
-    /// Admission 准入（0.22.0 去污：形态拦截全来源、
-    /// 根散另过扩展名白名单），根散再过敏感名单第二
-    /// 道（单源 SensitiveFilePolicy，0.36.31 并源）。
+    /// 聚合集只从伴生文件库读面单流消费（GET /file-
+    /// library，伴生 1.0.66）：产出根走查、准入、去重、
+    /// mtime 倒序全在服务端（oneday_seg_filelibrary
+    /// 为单一事实源），本函数只做条目映射。0.50.60 前
+    /// 的客户端 BFS 爬 /api/files（8 根硬编码、深度 3、
+    /// 600 静默截断、客户端准入）已整套退役。
     /// 排序不在此处定案——视图层按页级排序状态走
-    /// LibraryOrdering（本函数只负责聚合集本身）
+    /// LibraryOrdering（本函数只负责聚合集本身）。
+    /// 失败口径：首拉失败给错误态；已有数据时刷新失败
+    /// 保留旧集不清屏（回响链同口径）
     private func collect() async {
-        var found: [Deliverable] = []
-        var seenPaths = Set<String>()
-        func absorb(_ entry: WorkspaceFileEntry, source: String) {
-            guard !entry.isDirectory,
-                  DeliverableAdmission.isAdmitted(
-                      name: entry.name, isRootLooseFile: false
-                  ),
-                  seenPaths.insert(entry.path).inserted else { return }
-            found.append(Deliverable(entry: entry, source: source))
-        }
-        for root in Self.outputRoots {
-            var queue: [(path: String, depth: Int)] = [(root.path, 0)]
-            var visited = 0
-            while !queue.isEmpty {
-                let (path, depth) = queue.removeFirst()
-                guard let listing = try? await appState.performAdmin(
-                    { client, config in
-                        try await client.files(config: config, path: path)
-                    }
-                ) else { continue }
-                visited += listing.entries.count
-                for entry in listing.entries {
-                    if entry.isDirectory {
-                        if depth < 3 {
-                            queue.append((entry.path, depth + 1))
-                        }
-                    } else {
-                        absorb(entry, source: root.label)
-                    }
-                }
-                if visited >= 600 { break }
-            }
-        }
-        if let rootListing = try? await appState.performAdmin(
-            { client, config in
-                try await client.files(config: config, path: nil)
-            }
-        ) {
-            for entry in rootListing.entries where !entry.isDirectory {
-                guard DeliverableAdmission.isAdmitted(
-                          name: entry.name, isRootLooseFile: true
-                      ),
-                      !SensitiveFilePolicy.protectedNames
-                          .contains(entry.name)
-                else { continue }
-                absorb(entry, source: "工作区根目录")
-            }
-        }
-        if found.isEmpty && deliverables == nil {
-            let probe = try? await appState.performAdmin { client, config in
-                try await client.files(config: config, path: nil)
-            }
-            if probe == nil {
+        guard let config = appState.config else {
+            if deliverables == nil {
                 loadError = "产出目录没读出来，可能是网络或服务暂时没响应"
             }
+            return
         }
-        deliverables = found.sorted {
-            ($0.entry.mtime ?? 0) > ($1.entry.mtime ?? 0)
-        }
-        if loadError != nil && !(deliverables?.isEmpty ?? true) {
-            loadError = nil
+        do {
+            let page = try await bridgeClient.fileLibrary(
+                config: config
+            )
+            deliverables = page.items.map {
+                Deliverable(entry: $0.entry, source: $0.source)
+            }
+            if !(deliverables?.isEmpty ?? true) {
+                loadError = nil
+            }
+        } catch {
+            if deliverables == nil {
+                loadError = "产出目录没读出来，可能是网络或服务暂时没响应"
+            }
+            return
         }
         // 聚合落定后补消费定位请求（请求先于数据到达
         // 时 onChange 已触发过、那时 deliverables 为空
@@ -1448,22 +1416,4 @@ struct Deliverable: Identifiable {
         return [source, size, date]
             .compactMap { $0 }.joined(separator: " · ")
     }
-}
-
-extension DeliverablesView {
-    /// 产出根（路径, 来源名）——P8 实查口径起，0.22.0
-    /// 按审计 F1 策展规格收紧为七；0.36.31 新增
-    /// attachments（聊天发送的文件副本落点，0.36.29
-    /// 文件真发送通道）：服务端副本无自动过期，本面
-    /// 呈现＋既有删除通道即其生命周期出口
-    fileprivate static let outputRoots: [(path: String, label: String)] = [
-        ("/opt/data/uploads", "App 上传"),
-        ("/opt/data/attachments", "聊天发送"),
-        ("/opt/data/cache/images", "生成图片"),
-        ("/opt/data/cache/documents", "生成文档"),
-        ("/opt/data/cache/screenshots", "浏览器截图"),
-        ("/opt/data/cache/videos", "生成的视频"),
-        ("/opt/data/cache/audio", "生成的音频"),
-        ("/opt/data/cron/output", "定时任务产出"),
-    ]
 }

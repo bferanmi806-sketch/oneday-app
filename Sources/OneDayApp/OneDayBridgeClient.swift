@@ -505,6 +505,22 @@ final class OneDayBridgeClient: @unchecked Sendable {
         return data
     }
 
+    // MARK: - 文件库聚合（A-06，伴生 1.0.66）
+
+    /// GET /file-library：文件页聚合读面——产出根走查、
+    /// 准入、去重、排序全在服务端，客户端只消费单流
+    /// （取代 0.50.60 前客户端 BFS 爬 /api/files 目录树
+    /// 的聚合形态）。默认整集下发；total 为准入全量、
+    /// truncated 恒 false（无静默截断）
+    func fileLibrary(
+        config: ServerConfig
+    ) async throws -> FileLibraryPage {
+        try await get(
+            config: config, path: "/file-library",
+            endpoint: L10n.string("文件库"), collection: false
+        )
+    }
+
     // MARK: - 留痕回响（P0/P2，2026-11-13）
 
     /// GET /traces：AI 内部动作留痕（最新在前）。主线

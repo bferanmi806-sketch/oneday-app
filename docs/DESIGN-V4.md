@@ -13427,3 +13427,31 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 第一轮（run 43820849968@149c4bf，workflow_dispatch，全日志 24,455 行本地核账）：**Core 2152/2152、0 failures**——与预期逐项对账一致（.61 基线 2150＋A-03 0＋A-05 −4＋第 104 条 +2＋A-04 +4；四包与 .61 的 Core 测试文件零交叉）。键盘机制正面证据复跑不退：⑨ 打印 kbTopWin 随通知帧逐拍跟进（545→541→539→538…）、引导线采样恒 874 只作对照；落底 NATIVE-LANDING ③ 距底 3.667／R4 ⑯ 3.333、末行完整可见（§302.3 分解带 3.0–4.0 内、第 100 条已知项）。App 红 5 件全登记：③⑯ 已知项 2＋⑧ 量测限制＋⑨ 唯一失败断言＝动画中段在途帧采样（量测限制登记、机制断言余项全过）＋§257.1 探针。UI 红 9 件恰第 95 条族（仲裁 4＋原生面 5）。VERDICT／HUB-LAYOUT-VERDICT／MATRIX-VERDICT 三 PASS（键盘矩阵本轮绿）。§184 签名内：宿主重启 1 次、BackingData 零命中。
 第二轮（run 43826686474@149c4bf，零改动同提交，全日志 24,988 行）：**Core 2152/2152 复全绿、与首轮逐数相同**；落底 ③ 3.333／⑯ 3.667（带内涨落、与首轮互换）；⑨ 同为中段采样单断言、kbTopWin 逐拍跟进复同。App 红同 5 件同签名、UI 红同 9 件同构成；三 VERDICT 复 PASS（矩阵复绿）。§184 同签名（重启 1、BackingData 零命中）。两轮签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.62/OneDay-0.50.62-unsigned.ipa：**14,035,482 字节、md5 `6a4f5713bc25134dfb4de01ec4e2e939`**，解包验 CFBundleShortVersionString=0.50.62、CFBundleVersion=190、bundle id site.didichou.oneday。待办总表已落：第 102／103／104／105 条划线（各注组版顺延定号 §305／§306／§307／§308），副本随交付目录；真机清单 31 项＝本版新增 6 项（A-04 目标安排/回响＋未归类归组易位、第 104 条到达瞬间观感＋打字动画开关、A-05 首个监测变化目验（生产现无监测、非阻塞）、A-03 导航落点抽查）＋.61 未回 25 项原样带入（键盘组为浸泡主验；仅原第 18 项版号字面 .61→.62）。未合 main、未打 tag。
+
+## §310 横扫 A-06 文件聚合服务端化（2026-11-16；分支 feat/files-server-aggregation，基线 rel-05060@5f77967；原自编号 §307，组版 0.50.63 顺延为 §310）
+
+**病灶（横扫登记 nonstandard-sweep-ui-20261115.md A-06）**：文件页聚合集由客户端递归爬目录拼装——DeliverablesView.collect() 对 8 个硬编码产出根 outputRoots 走 BFS（每根深度 ≤3、visited≥600 静默截断只 break 无提示），逐目录串行调 GET /api/files，客户端过 DeliverableAdmission 准入＋seenPaths 去重＋mtime 排序，根散文件另过扩展名白名单＋SensitiveFilePolicy.protectedNames 第二道；刷新靠 AppState.fileLibraryRevision 全局修订号触发全量重爬。打开文件页＝数十次串行目录请求；根清单三代收紧（P8 十根→0.22.0 F1 七根→0.36.31 加 attachments 八根）全靠改客户端，服务端始终没有「交付物」读面；600 截断是静默丢数据。
+
+**标准做法（登记口径）**：文件类产品由服务端/提供方给出已索引的单一列表读面、客户端只分页消费（iOS File Provider 官方文档模型：NSFileProviderEnumerator 由提供方枚举，Files App 不爬目录树）；硬编码路径清单＋客户端递归枚举无同行出处。
+
+**修法（聚合整层上收服务端、客户端只消费单流）**：
+- 伴生新增聚合读面 `GET /api/oneday-bridge/file-library`（新段 modules/oneday_seg_filelibrary.py，桥核心只加段加载＋路由＋分发方法）：8 产出根（相对 FILE_LIBRARY_ROOT、标签逐字沿客户端旧表）＋根目录散文件在服务端走查——深度 ≤3（与客户端 BFS 同界、准入集不变）、准入（DeliverableAdmission 逐行移植：隐藏全拒、内部后缀/主干形态全来源拒、根散扩展名白名单＋protectedNames 原样大小写集精确匹配第二道——大小写怪癖按对等原则原样保留、只登记不顺手改）、seenPaths 去重（根序优先、根散最后，与客户端 absorb 顺序一致）、mtime 倒序（缺失记 0、同客户端键）。条目与 /api/files entries 同形（name/path/is_directory/size/mtime/mime_type，mime 改由服务端按扩展名推导——客户端 mediaKind 本就以扩展名兜底、口径不降）＋source 标签。
+- **无计数上限、永不静默截断**：回执 {items,total,offset,limit,truncated:false}，total 恒报准入全量；offset/limit 分页是调用方自选（默认整集下发），600 封顶随爬树退役。
+- App：DeliverablesView.collect() 改单次 bridgeClient.fileLibrary 映射条目（BFS/outputRoots/客户端准入/去重/排序全删）；Core 新增 FileLibraryModels（条目复用 WorkspaceFileEntry 解码＋source、回执契约钉测 2 例）；Core DeliverableAdmission.swift 与其测试退役（准入单一事实源移服务端、污染样本 9 名＋形态变体由伴生自测钉死）。fileLibraryRevision 保留为刷新触发（语义降为「单次重拉」：改名落点 FileOpenView  bump 不变、成本由全量重爬降为一次请求）。失败口径：首拉失败给错误态（原文案不变）、已有数据时刷新失败保留旧集不清屏（与回响链「拉取失败不清空」同口径，严于旧形态的全失败置空）。
+- 删除/下载/打开等动作面不动（仍走 Hermes /api/files 单文件面）；服务端文件全量浏览（FilesBrowserView）不在本包。
+
+**存量兼容与删除门**：新读面纯新增，Hermes /api/files 与桥既有面零改动——伴生 1.0.66 先上线，生产 .60 旧 App 照旧爬树可用（已回读 goals/ledger/monitors 200 实证）。兼容面＝Hermes /api/files 目录列表形态中被旧聚合依赖的部分，其删除门＝新 App（消费 /file-library 的版本）出场＋nginx 日志对旧聚合调用形态零命中满一周期后另立收口（本包只登记门、不动 Hermes）。
+
+**伴生侧验证**：新增 tests/oneday_filelibrary_selftest.py 16 例全过（鉴权、聚合集与顺序/来源、条目同形、污染 9 名＋形态变体＋隐藏＋受保护名全拒、深度 3 收/深度 4 拒、根内跳过扩展名白名单、分页切片/total 恒全量/越界空页、负 offset 与非整数 limit 400、POST 405），已注册进 run_bridge_selftests.sh；全量自测改后与改前基线逐 suite 同签名（24 OK＋新 suite OK；既有红 3 件逐字不变：p3 时界 1 例、p9 暂存环境缺 scripts 路径、fileproc rendition 本地环境 503）。
+
+**伴生 1.0.66 已上线验活（2026-11-16）**：镜像 oneday/companion:1.0.66（构建目录 /root/companion-1066-build），只 recreate companion、Hermes 未动；回滚基线 /root/companion-1066-backup/（companion.env.pre、docker-compose.yml.pre、image-1.0.65.txt——compose 改回 1.0.65 重拉起即回滚，本版无 state 变更）。回读：内存 53.5%（动手前 53.7%、红线 80% 未触）；桥 /health ok、台账 940 条与 1.0.65 基线逐数不变、collector lag 6.2s；cron 恰 4 个全启用（jobs.json 实查）；GET /file-library 生产实查 200、total 49、truncated false、污染名零漏出、来源分布与磁盘实查逐项对上（生成文档 22／根散准入 18／定时任务产出 4／聊天发送 4／生成图片 1）；旧面 goals/ledger/monitors 均 200；公网 /api/oneday-bridge/file-library 无钥 401（路由达桥、鉴权门在应答）。
+
+**与登记的出入（如实登记）**：①登记处置写「支持增量/分页」——分页已落（offset/limit）；「增量」未做服务端增量协议：文件集无服务端变更账，诚实形态是整集一次下发（生产 49 条、KB 级），revision 触发重拉全量即其增量语义，不另造假增量协议。②准入 protectedNames 按客户端原样大小写精确匹配移植（小写变体 soul.md 等在旧客户端同样不被此门拦、靠形态/白名单其他层处理），大小写口径如需收紧另立小项、不在本包顺手改。③mime_type 由服务端 mimetypes 推导（旧链走 Hermes 回执、实测多为 null 靠客户端扩展名兜底）——新面 mime 更全，mediaKind 判定口径不变。
+
+### §310.1 A-06 CI 判读（2026-11-16 回填）——两轮逐项同值、判绿
+
+第一轮（run 43806827315@b12d52a，workflow_dispatch，全日志 25,318 行本地核账）：**Core 2149/2149、0 failures**——基线 rel-05060 的 2153 减退役 DeliverableAdmissionTests 6 例、加 FileLibraryModelsTests 2 例，账面闭合（2153−6+2=2149）；新测 2/2 过。App 红恰 2 件登记签名：§257.1 探针（EdgeEffectProbe）＋R2 装配 ⑧（量测限制）。UI 红 9 件恰第 95 条族（仲裁 4＋原生面 5、AX 帧不稳同签名、无产品反例）；键盘矩阵本轮绿。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。§184：BackingData 零命中。落底续证 NATIVE-LANDING／NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0，与基线逐值相同。
+
+第二轮（run 43811401965@b12d52a，零改动同提交，全日志 24,770 行）：**Core 2149/2149 复全绿**；红集与首轮逐件相同（App 2＋UI 9、成员零涨落）；新测 2/2 复过；三 VERDICT 复 PASS；§184 零命中；落底两数复同值。
+
+**§310 判定：判绿**（预制面，不组版）——聚合上收与客户端退役落码见 §310 正文；行为等价靠三重对账：准入规则逐行移植＋伴生自测以客户端旧测试样本钉死（污染 9 名/形态变体/根散白名单/深度界）、生产读面实查 49 条与磁盘逐类对上、App 契约解码钉测双轮过。待主线组版；真机验收点见待办总表第 107 条（原登记第 106 条、与 A-11 重号，0.50.63 组版顺延，见待办总表该条注记）。
