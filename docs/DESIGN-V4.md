@@ -13227,3 +13227,11 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 **行为对拍（呈现逐项不变）**：活动行——kind=monitor 的图标（眼标不打勾）、副题（「监测变化 · 时刻」）、分组/定序（LedgerMerge.sorted 同一排序）均由既有呈现层按 kind 驱动、与数据来源无关；行点达——link.kind=monitor → MonitorDetailView 不变；通知深链聚焦——id 式同为 monitor-change: 不变；页首计数与进展胶囊——只数 active/状态口径，监测条目恒 completed、与旧制（合成账本就不入 items）等效；已耗时秒级跳动——只对 active 条目，监测条目不入；僵尸失联阶梯——只作用于 active 服务端条目、逻辑零改动；详情面——监测条目仍不走台账详情（识别改 id 契约），工作条目详情不变。
 
 **验收**：伴生 ledger_selftest 新增 Part D（种子变化回填＋规范形逐字段＋空摘要回落＋幂等＋实火 check 变化经钩入账＋summary 不冒充进行中）；App 两轮全量门 §190 核账，Core 基线以 rel-05060 为准（2153 减退役合成测试 8 例＋新增契约测试 4 例＝预期 2149，判读时逐项对账）；红只认登记签名族。真机面：首个真实监测变化出现时在活动段目验一行（标题＝变化摘要、副题＝监测变化 · 时刻、点达监测详情）——生产当前无监测，此项挂组版清单顺带，不单独催验。
+
+### §303.1 判绿与部署记录（2026-11-16）
+
+**App 判绿（第一轮全量门即达）**：分支 feat/ledger-single-stream@1f23b86，CI run 43790474498（workflow_dispatch 点火）。§190 全日志核账：OneDayCore **2149/2149 全绿**——与预期逐项闭合（rel-05060 基线 2153 − 退役合成测试 8 ＋ 新契约测试 LedgerMonitorChangeTests 4/4 全过）。失败共 11 例、全部落在登记签名族内：R2 ⑧ 量测限制 1 例（ChatNativeListR2AssemblyTests.testBlockClosureKeepsSegmentInExactlyOneItem，渲染树计数 0 vs 1＝托管文本不可达形态、与登记签名同形，兄弟装配例全过）；§257.1 探针红 1 例（EdgeEffectProbeTests）；第 95 条 UI AX 帧族 9 例（ChatGestureArbitrationTests 4＋ChatGestureNativeSurfaceTests 5、双面同签名、最终验收归真机清单首组）。§184 签名零命中（BackingData 0、宿主崩溃/重启标记 0）。签名外新红为零，本包 diff 不触任何失败面（仅台账数据流），第一轮即判绿、不启用第二轮。
+
+**伴生 1.0.64 已上线**：镜像 oneday/companion:1.0.64（sha256:022fc96c…），构建目录 /root/build-1.0.64，关键文件 md5 与本地逐一一致（oneday_seg_ledger.py d7ca9573…）；上线前镜像内装配预检过（桥模块导入＋_ledger_monitor_item 规范形断言＋空摘要回落）。ledger_selftest 全套 66/66（含 Part D 六段）。回滚基线 /root/companion-1064-backup/（docker-compose.yml.pre、companion.env.pre、image-1.0.63.txt；1.0.63 镜像仍在机）。上线回读：容器镜像与 COMPANION_VERSION 均 1.0.64；部署码含新写钩与对账环（grep 实证）；日志 Traceback 0；oneday 桥 /health ok、degraded=false、台账 940 条（部署前基线 937＋采集事件 3、无丢失无虚增）、collector lag 3.2s；各模块端口应答（8643/8644 401 鉴权在、8646–8649 200、8650 前台应答）；Hermes cron 恰 4 个系统轮全启用未动；内存 53.6%（部署前 53.9%、红线 80% 未触）。生产监测仍为 0——首个真实监测变化的活动行目验挂组版真机清单顺带（见 §303 验收节）。
+
+**待办登记**：user-demand-checklist.md 第 103 条。
