@@ -1,6 +1,6 @@
 import Foundation
 
-/// 任务的 goalId 字段（DESIGN §304 单轨）：目标↔看板
+/// 任务的 goalId 字段（DESIGN §306 单轨）：目标↔看板
 /// 任务关联的唯一真值。桥是目标域属主——Hermes 看板卡
 /// 是固定列 schema、没有 goalId 也没有通用元数据槽，
 /// 字段只能落在桥侧任务属性账里（taskId → 一条归属，
@@ -55,7 +55,7 @@ public struct BridgeTaskGoalWrite: Encodable, Sendable {
     }
 }
 
-/// POST /goals/{id}/delegate 请求体（§304）：一次调用
+/// POST /goals/{id}/delegate 请求体（§306）：一次调用
 /// 里桥建卡＋写 goalId 字段，取代旧「App 直连看板建卡
 /// → 再回桥补关联」的两步两账。idempotencyKey 透传给
 /// 看板建卡的幂等键、同时作桥侧委派键：同键重试直接
@@ -100,7 +100,7 @@ public struct BridgeGoalDelegateResponse: Decodable, Equatable, Sendable {
 /// 关联段拼装（纯函数，单测钉死）：三路都只读桥/任务板
 /// 现值——点子按 goalId 过滤（idea.goalId 是桥字段）、
 /// 监测按 goalId 过滤（monitor.goalId 同）、任务只认
-/// GD-2 行自带的 goalId 字段（§304 单轨），行序即归属
+/// GD-2 行自带的 goalId 字段（§306 单轨），行序即归属
 /// 落字序，再与任务板现值拼标题与状态；任务板没取到
 /// 时标题/状态如实落 nil（呈现层给兜底文案），不拿
 /// 归属行脑补

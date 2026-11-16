@@ -1279,7 +1279,7 @@ struct GoalDetailView: View {
                 lastFailureError: task.lastFailureError
             ).label
         } ?? "任务"
-        // 最近变化时刻就在归属行上（GD-2 面一，§304 后
+        // 最近变化时刻就在归属行上（GD-2 面一，§306 后
         // 行与关联同为一物，不再跨面回查）
         guard let updatedAt = linked.row.updatedAt
         else { return status }
@@ -1332,7 +1332,7 @@ struct GoalDetailView: View {
 
     /// 目标下直接委派：入口开 GoalDelegateView 表单，提交
     /// 走 GoalsStore.delegateTask（桥一次调用建卡＋写
-    /// goalId 字段＋回读确认，§304 单轨）。任务办完后
+    /// goalId 字段＋回读确认，§306 单轨）。任务办完后
     /// 桥会在进展里自动记一条事实（来源「智能体记的」）
     private func delegationSection(_ goal: BridgeGoal) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -2323,7 +2323,7 @@ struct GoalCreateView: View {
 
 /// 委派表单（sheet，0.40.0）：一件事的标题＋可挂的里程
 /// 碑；提交走 GoalsStore.delegateTask（桥一次调用建卡
-/// ＋写 goalId 字段→回读确认，§304 单轨），确认落定才
+/// ＋写 goalId 字段→回读确认，§306 单轨），确认落定才
 /// 关表单，失败原因留表单内——与新建目标同一纪律
 struct GoalDelegateView: View {
     @Environment(AppState.self) private var appState

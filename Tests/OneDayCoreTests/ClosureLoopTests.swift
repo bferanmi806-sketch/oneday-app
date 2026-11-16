@@ -9,7 +9,7 @@ final class ClosureLoopTests: XCTestCase {
 
     // MARK: - H1 GoalEcho
 
-    /// §304 单轨后回响的输入是 GD-2 归属行：completion
+    /// §306 单轨后回响的输入是 GD-2 归属行：completion
     /// 戳在行上（桥回声账的投影），身份就是任务本身
     private func row(
         _ taskId: String, completionEntryAt: Double? = nil
@@ -145,7 +145,7 @@ final class ClosureLoopTests: XCTestCase {
         )
     }
 
-    // MARK: - §304 归属字段契约
+    // MARK: - §306 归属字段契约
 
     func testTaskGoalAssignmentDecodesFullAndCleared() throws {
         let decoder = JSONDecoder()

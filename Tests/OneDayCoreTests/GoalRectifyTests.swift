@@ -94,7 +94,7 @@ final class GoalRectifyTests: XCTestCase {
         XCTAssertEqual(GoalActivityState.idle.title, "闲置")
     }
 
-    // MARK: - GD-1b 归属行解码（§304：停滞戳不再过线，
+    // MARK: - GD-1b 归属行解码（§306：停滞戳不再过线，
     // 完成戳以行派生字段下发；旧行形状须容忍解码）
 
     func testGoalTaskRowDecodesFullAndSparse() throws {
@@ -112,7 +112,7 @@ final class GoalRectifyTests: XCTestCase {
         XCTAssertEqual(row.goalId, "g_1")
         XCTAssertEqual(row.completionEntryAt, 1794300000.0)
         XCTAssertEqual(row.id, "t_1")
-        // §304 前的行没有 goalId/assignedAt/completion 字段：
+        // §306 前的行没有 goalId/assignedAt/completion 字段：
         // 容忍解码为 nil，不许整行解码失败
         let sparse = """
         {"taskId": "t_2", "linkId": "gl_2", "title": "乙",

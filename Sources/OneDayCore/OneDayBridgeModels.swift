@@ -1143,12 +1143,12 @@ public struct BridgeBriefing: Decodable, Equatable, Identifiable, Sendable {
 /// goalId 字段与任务板现况拼好下发：归属/题/原生状态/
 /// 状态分桶/最近变化时刻）。status 为 nil＝任务不在
 /// 当前任务板上；updatedAt 为 nil＝桥没有观察到过它的
-/// 状态变化，两者都如实留空、不猜。§304 单轨后行身份
+/// 状态变化，两者都如实留空、不猜。§306 单轨后行身份
 /// 就是任务本身：linkId/linkedAt 是 1.0.65 前链接记录
 /// 的合成兼容字段，只容忍解码、不再作身份
 public struct BridgeGoalTask: Decodable, Equatable, Identifiable, Sendable {
     public let taskId: String
-    /// §304：行自带的归属真值（任务的 goalId 字段投影）
+    /// §306：行自带的归属真值（任务的 goalId 字段投影）
     public let goalId: String?
     /// 兼容字段（桥合成 "gt_<taskId>"，旧行才有真值）
     public let linkId: String?
@@ -1158,7 +1158,7 @@ public struct BridgeGoalTask: Decodable, Equatable, Identifiable, Sendable {
     public let updatedAt: Double?
     /// 兼容字段：与 assignedAt 同值（旧链接的 createdAt）
     public let linkedAt: Double?
-    /// §304：归属落字时刻（epoch 秒）
+    /// §306：归属落字时刻（epoch 秒）
     public let assignedAt: Double?
     /// 桥侧完成落戳（epoch 秒）：桥的事实进展条目写下
     /// 后才有值，回响规划的完成判定只认它（§123 纪律

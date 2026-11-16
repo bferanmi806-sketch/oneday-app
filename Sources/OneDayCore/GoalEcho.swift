@@ -10,7 +10,7 @@ import Foundation
 /// - 完成只认桥侧落戳：BridgeGoalTask.completionEntryAt
 ///   非空——它是桥回声账的只读投影，桥是在任务板状态
 ///   落进完成集、事实进展条目写下后才落这条戳的，与
-///   App 本地推测无关（§304 单轨后载体从链接记录换成
+///   App 本地推测无关（§306 单轨后载体从链接记录换成
 ///   GD-2 行的派生字段，判定口径不变）；
 /// - 开始/等你回答/失败认任务板现值经
 ///   KanbanStatusPresentation.resolve 的呈现判定
@@ -47,7 +47,7 @@ public enum GoalEcho {
     }
 
     /// 去重键（落盘在 ChatEntry.echoKey，跨启动稳定）。
-    /// §304 起键材料是任务本身——旧链接 id 键从未在生产
+    /// §306 起键材料是任务本身——旧链接 id 键从未在生产
     /// 落过盘（存量链接为零），无迁移负担
     public static func key(taskID: String, kind: Kind) -> String {
         "goalTask:\(taskID):\(kind.rawValue)"

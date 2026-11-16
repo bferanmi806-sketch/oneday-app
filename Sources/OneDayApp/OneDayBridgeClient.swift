@@ -165,7 +165,7 @@ final class OneDayBridgeClient: @unchecked Sendable {
         )
     }
 
-    /// POST /goals/{id}/delegate（§304 单轨）：一次调用
+    /// POST /goals/{id}/delegate（§306 单轨）：一次调用
     /// 里桥建卡＋写任务的 goalId 字段，取代旧「App 直连
     /// 看板建卡 → 再回桥补关联」的两步两账；
     /// idempotencyKey 同键重试回原归属、不重复建卡
@@ -181,7 +181,7 @@ final class OneDayBridgeClient: @unchecked Sendable {
         )
     }
 
-    /// PUT /tasks/{taskId}/goal（§304）：任务 goalId
+    /// PUT /tasks/{taskId}/goal（§306）：任务 goalId
     /// 字段的独立写面——归入/移交/清除（goalId 传 nil
     /// ＝清除归属，编码显式送 null）
     func setTaskGoal(
