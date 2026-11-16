@@ -859,6 +859,7 @@ final class ChatRootViewController: UIViewController,
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        let csAtEntry = collectionView.contentSize.height
         // §299：本拍先做位置常量同步——窗口未解
         // 析（入窗前）或回落态（标签栏随呈现时序
         // 迟到）在此补解析、找到即退出回落；常量
@@ -894,6 +895,16 @@ final class ChatRootViewController: UIViewController,
             if currentDistance() <= 0.5 {
                 landingIntent = false
             }
+        }
+        if collectionView.contentSize.height != csAtEntry {
+            print(
+                "PINTRACE lps cs \(csAtEntry)->"
+                    + "\(collectionView.contentSize.height)"
+                    + " off=\(collectionView.contentOffset.y)"
+                    + " dist=\(currentDistance())"
+                    + " intent=\(landingIntent)"
+                    + " wasAt=\(wasAtBottom)"
+            )
         }
         layoutArrow()
     }
@@ -1069,6 +1080,12 @@ final class ChatRootViewController: UIViewController,
         } else if landingIntent && !userInteracting {
             pinToBottom()
             if currentDistance() <= 0.5 {
+                print(
+                    "PINTRACE consume cs="
+                        + "\(collectionView.contentSize.height)"
+                        + " off=\(collectionView.contentOffset.y)"
+                        + " dist=\(currentDistance())"
+                )
                 landingIntent = false
             } else if CACurrentMediaTime()
                 - landingIntentSince < 2.0 {
@@ -1199,8 +1216,17 @@ final class ChatRootViewController: UIViewController,
     }
 
     private func pinToBottom() {
+        let csBefore = collectionView.contentSize.height
+        let offBefore = collectionView.contentOffset.y
+        let target = maxOffsetY()
         collectionView.contentOffset = CGPoint(
-            x: 0, y: maxOffsetY()
+            x: 0, y: target
+        )
+        print(
+            "PINTRACE pin cs=\(csBefore)"
+                + " offBefore=\(offBefore) set=\(target)"
+                + " offAfter=\(collectionView.contentOffset.y)"
+                + " intent=\(landingIntent)"
         )
     }
 
