@@ -51,11 +51,17 @@ final class GoalsTailTests: XCTestCase {
     // MARK: - GD-2 读面解码
 
     func testGoalTasksDecodeLiveAndOffBoardRows() throws {
+        // §306：行身份就是任务本身（id == taskId）；第一
+        // 行是 1.0.65 新线形（带 goalId/assignedAt/
+        // completionEntryAt），第二行是旧线形（只有
+        // linkId/linkedAt）——须容忍解码、新字段为 nil
         let r = try decode(BridgeGoalTasksResponse.self, """
         {"items":[
-          {"taskId":"t_1","linkId":"gl_1","title":"关联任务",
+          {"taskId":"t_1","goalId":"g_1","linkId":"gt_t_1",
+           "title":"关联任务",
            "status":"running","bucket":"running",
            "updatedAt":1700000800.0,"linkedAt":1700000000.0,
+           "assignedAt":1700000000.0,"completionEntryAt":null,
            "milestoneId":null},
           {"taskId":"t_gone","linkId":"gl_2","title":"已下板任务",
            "status":null,"bucket":null,"updatedAt":null,
@@ -65,10 +71,14 @@ final class GoalsTailTests: XCTestCase {
         XCTAssertEqual(r.items.count, 2)
         XCTAssertEqual(r.items[0].status, "running")
         XCTAssertEqual(r.items[0].updatedAt, 1_700_000_800.0)
-        XCTAssertEqual(r.items[0].id, "gl_1")
+        XCTAssertEqual(r.items[0].id, "t_1")
+        XCTAssertEqual(r.items[0].goalId, "g_1")
+        XCTAssertEqual(r.items[0].assignedAt, 1_700_000_000.0)
         XCTAssertNil(r.items[1].status)
         XCTAssertNil(r.items[1].updatedAt)
         XCTAssertEqual(r.items[1].milestoneId, "m_1")
+        XCTAssertNil(r.items[1].goalId)
+        XCTAssertNil(r.items[1].assignedAt)
     }
 
     func testUngroupedTasksDecodeBothOrigins() throws {
