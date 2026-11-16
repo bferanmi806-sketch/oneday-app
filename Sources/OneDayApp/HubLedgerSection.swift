@@ -102,10 +102,11 @@ struct HubLedgerSection: View {
 
     /// 通知落点聚焦消费（§123 置位—消费—清零同式）：
     /// 审批聚焦字段换算成台账条目 id 后清零；监测深
-    /// 链带变化 id 时换算成合成条目 id——monitor-
-    /// DeepLink 本体不清零（监测详情页还要靠它对号
-    /// 推变化详情，与原监测段口径同），只在目标监
-    /// 测已不存在时按旧段口径清掉防陈年链复活
+    /// 链带变化 id 时按 id 契约（LedgerMonitorChange）
+    /// 换算成台账条目 id——monitorDeepLink 本体不清
+    /// 零（监测详情页还要靠它对号推变化详情，与原监
+    /// 测段口径同），只在目标监测已不存在时按旧段口
+    /// 径清掉防陈年链复活
     private func consumeFocusFields() {
         if let id = appState.hubApprovalFocusID {
             focusItemID = "appr:\(id)"
@@ -116,7 +117,7 @@ struct HubLedgerSection: View {
                monitorsStore.loadState == .ready {
                 appState.monitorDeepLink = nil
             } else if let changeID = deepLink.changeID {
-                focusItemID = LedgerMonitorSynthesis.itemID(
+                focusItemID = LedgerMonitorChange.itemID(
                     changeID: changeID
                 )
             }
@@ -270,11 +271,11 @@ struct HubLedgerSection: View {
         }
     }
 
-    /// 行下钻分发（§217）：监测合成条目的「详情」就
-    /// 是监测详情本体（变化对号、控制动作都在那
-    /// 里），不走台账详情读面（服务端没有合成条目
-    /// 的详情可读）；其余条目一律台账详情（任务/
-    /// 审批的补齐在详情内续行）
+    /// 行下钻分发（§217）：监测条目（服务端直供
+    /// kind=monitor）的「详情」就是监测详情本体（变
+    /// 化对号、控制动作都在那里），不走台账详情读
+    /// 面；其余条目一律台账详情（任务/审批的补齐在
+    /// 详情内续行）
     @ViewBuilder
     private func destination(for item: LedgerItem) -> some View {
         if item.link?.kind == "monitor",
@@ -394,9 +395,10 @@ struct HubLedgerSection: View {
 
     @ViewBuilder
     private func boxContent(_ item: LedgerItem) -> some View {
-        // §217：监测变化是事件不是工作——合成条目的
-        // 占位状态是 .completed，但图标不许打勾冒充
-        // 「做完了」，直给监测眼标（与段图标同形）
+        // §217：监测变化是事件不是工作——监测条目
+        // 的状态恒为 .completed 占位，但图标不许打
+        // 勾冒充「做完了」，直给监测眼标（与段图标
+        // 同形）
         if item.kind == .monitor {
             Image(systemName: "eye")
                 .font(.system(size: 16, weight: .regular))
