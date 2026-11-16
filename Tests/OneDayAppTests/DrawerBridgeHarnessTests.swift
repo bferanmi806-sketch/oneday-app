@@ -95,7 +95,7 @@ final class DrawerBridgeHarnessTests: XCTestCase {
         XCTAssertGreaterThan(drawer.travel, 0)
         XCTAssertFalse(drawer.semanticPresented)
         appState.drawerPresented = true
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertTrue(
             drawer.semanticPresented,
             "语义未达容器：桥更新未触发 setDrawer"

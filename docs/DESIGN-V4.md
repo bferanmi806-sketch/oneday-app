@@ -13211,3 +13211,29 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+
+## §308 抽屉变换包（2026-11-16；分支 feat/drawer-transform，基线 rel-05060@5f77967；第 78 条＋横扫 A-01/A-02/A-21 抽屉半边）
+
+**依据**：drawer-transform-prep-20261114.md（用户 Muse 录屏 720×1566/30fps/290 帧逐帧量测）＋横扫 nonstandard-sweep-ui-20261115.md A-01/A-02/A-21 三条机制清单。筹备稿基线 rel-05045 与本包基线 rel-05060 间抽屉容器零改动（608 行逐字同），盘点直接沿用；蓝图 A5 真机手感门按包序顺延真机清单（装配＋CI 先行、手感终验归组版真机清单）。
+
+**D1 抽屉层锁步（主改动）**：抽屉层与主面改同一刚性平移——Core 新增 `DrawerMotion.drawerOffset(offset:travel:) = offset − travel`（不钳制、橡皮筋段双层同量越界）；容器 applyOffset 同拍写双层 transform（前景 offset、抽屉 offset−travel）。合态抽屉整体左移一个 travel 藏于主面之后、开态归 0。抽屉帧改 bounds＋center 写未变换几何（frame setter 按 transform 反解 center 的 0.50.18 同族坑：合态布局一趟即把显示位补偿回 x=0）；travel 变化且无拖无动画时按当前 offset 重派生（开态跟新 travel、关态钉新 −travel），合态不变量「抽屉恒在 −travel」首次布局后即成立。抽屉根视图重建时机/宽度口径不变（根视图不知 transform）。
+
+**D2 travel**：`DrawerCardGeometry.travel(containerWidth:) = 宽×0.75`、无 cap；旧口径 min(宽×0.79, 400) 作废。393pt 屏 310.4→294.8、402pt 屏 317.6→301.5（与 Muse 实测 301 合）；DrawerView 面板宽同源（容器以 travel 建根视图）。
+
+**D3 弹簧定版单源**：`DrawerSpringTiming` 改定版单源——response 1.4/ζ 1.2（派生 stiffness ≈20.1、damping ≈10.8），取值依据 prep §2.5（iOS 26 UISpringTimingParameters 同构时序对 Muse 点按开曲线实测 ζ≈1.13、可见时长 ≈1.51s、snappy 同级；旧值 0.34/0.86 作废）。`MotionTokens.drawerSpring` 改同字面值镜像（新壳层无 SwiftUI 消费方、只供令牌册完整性），两处由 DrawerSpringTimingTests 逐项对钉；「双口径换算等价」表述与换算层就此退役。连带量测事实：动画落定断言等待统一放宽 3.5s（2.0s 时过阻尼残余 ≈3pt 超 1.0 精度——定版手感的量测事实、非产品退步；DrawerContainerControllerTests/DrawerBridgeHarnessTests/ComposerGuideHostTests 抽屉关向一处同改）。
+
+**D4 阴影双口径**：浅色保留 §202 定值（峰值 0.22/radius 18/x −4）；深色归零——Core `DrawerMotion.shadowOpacity(progress:appearance:)`（.dark 恒 0），容器按 traitCollection 派生、traitCollectionDidChange 时以当前 offset 经唯一呈现口重派生。双口径各待一次真机对账（归组版真机清单）。
+
+**A-01 内部收敛**：位移只剩 offset 一个事实源、applyOffset 为唯一呈现写口（stopAnimatorCapturingPresentation 的呈现位回写改走 applyOffset，不再有第二处写 transform）；柔影迁 clip 本层（CALayer 按本层 alpha 形状投射、clipsToBounds 只裁子层——阴影不被自裁），shadowPath 手写双写点（layout 期＋applyOffset 期）整删、§182.2「路径跟随圆角」由图层语义结构性成立；clip 帧反向补偿（宿主原点 −inset/高不变）保留不动（舱底 −4pt 事故防线）。
+
+**A-02 处置**：手势保留 UIPan 本体＋方向锁定＋失败依赖（UIKit 正道不换）；几何四组值（travel 比例/圆角/内嵌/阴影）收进 Core `DrawerCardGeometry` 单源结构体并逐项注明拟合出处，DrawerMotion 同名白名单改转发；弹簧换算层退役（见 D3）。
+
+**A-21 抽屉半边**：drawerHost/contentHost 两宿主 `safeAreaRegions = []`（H2 纪律落码，无豁免）。**查看器半边未随本包**：ImageViewerView.swift:539 ZoomHostingController 同项未置 []——横扫原归属为重建 R 刀接合面、R1–R4 已出货未含此项，本包边界（只动抽屉呈现/结构层）不扩面，登记待主线另行收口（一行改动＋查看器全幅不变验证）。
+
+**不动清单**：圆角 54.5/纵向内嵌 2（§202 定值、第 78 条复测 ≈57pt 同档不改）、跟手 1:1＋方向锁定、点窄条关、打开先收键盘、内容交互穿透防护（§186.8/§186.11 映射不变）、a11y 树切换、触感吸附例外、DrawerView 呈现与频道区形态、抽屉收成会话与状态一面等既定结论——零触碰。
+
+**与 A-03（feat/appstate-router，待组版 .62）接触面**：①AppState 字段零增删改、只读 drawerPresented；②DrawerContainer 的 presented 入参形态不变（Bool），AppRouter 迁移后由组版线把喂入源换成 router 投影、本包代码不预改；③ContentView 只改一行注释（DrawerView 宽口径注实际落在 DrawerView.swift），其 body/装配零改动；④DrawerView 的 currentDrawerObject/drawerThreadSelection 只消费不写；⑤AppRoutes.swift 零触碰。合并期冲突按 AppRouter 口径解（简报既定）。
+
+**验收**：Core 两轮全量门（§190 核账）＋呈现对拍表（报告 drawer-transform-20261116.md）；落底三数不属本包改动面、组版轮续证为准。本节节号 §308 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§307），合并时主线合裁顺延并同步代码注释。
+
+### §308.1 CI 判读回填（待两轮全量门后回填）

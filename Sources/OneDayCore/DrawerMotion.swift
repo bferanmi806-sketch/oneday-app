@@ -13,6 +13,10 @@ import Foundation
 /// 卡退役，cornerRadius/shadowOpacity 自此无呈现层调
 /// 用、保留作数据与回归钉；新增 scrimOpacity 承担覆
 /// 盖形态的蒙层派生。位移三件（锁定/跟手/吸附）不变。
+/// §308（第 78 条＋横扫 A-01/A-02）：几何定值单源迁
+/// DrawerCardGeometry（本枚举同名白名单改转发）、新
+/// 增 drawerOffset 锁步派生与深色阴影归零口径；位移
+/// 三件与 scrim 化石保留不变。
 public enum DrawerMotion {
     /// S2 方向锁定：累计横向位移达到此值前手势不接管、
     /// 不写任何位移状态（纵滚零干扰）
@@ -28,8 +32,10 @@ public enum DrawerMotion {
     public static let settleFraction: CGFloat = 0.3
     /// S3 圆角一步到位阈值：progress 过此值圆角直接到
     /// 定值、拖动期不插值（逐帧改裁切半径＝整卡离屏
-    /// 重合成，是 0.6.1 拖动卡顿主因之一，§1.5-2）
-    public static let cornerStepProgress: CGFloat = 0.02
+    /// 重合成，是 0.6.1 拖动卡顿主因之一，§1.5-2）。
+    /// §308 起定值单源在 DrawerCardGeometry、本处只转发
+    public static let cornerStepProgress: CGFloat =
+        DrawerCardGeometry.cornerStepProgress
     /// 前景卡圆角定值（§202 对 Muse 新参照图重新拟
     /// 合定版：量测脚本 docs/drawer-edge-measurements/
     /// fit_corners.py——沿前景/底层亮度突变点采样做圆
@@ -39,27 +45,36 @@ public enum DrawerMotion {
     /// 嵌走同心口径：r＋inset＝56.5pt，落在社区设备角
     /// 半径表 55–62pt 内。此前 43pt 是 §182.2 旧世代参
     /// 照（127d193a…jpg、393 逻辑宽、上角 132px）的拟
-    /// 合值，随参照换代作废）
-    public static let cardCornerRadius: CGFloat = 54.5
+    /// 合值，随参照换代作废）。§308 起定值单源在
+    /// DrawerCardGeometry、本处只转发
+    public static let cardCornerRadius: CGFloat =
+        DrawerCardGeometry.cornerRadius
     /// 纵向内嵌定值（§202 K1）：开态前景卡上/下各内嵌
     /// 此值、整卡浮置于抽屉面上，两弧连同顶/底短边完整
     /// 露出。参照图拟合顶 2.7pt/底 1.7pt（同上脚本），
-    /// 对称取 2.0pt
-    public static let cardVerticalInset: CGFloat = 2
+    /// 对称取 2.0pt。§308 起定值单源在 DrawerCard-
+    /// Geometry、本处只转发
+    public static let cardVerticalInset: CGFloat =
+        DrawerCardGeometry.verticalInset
     /// 柔影定值（§202 回宽）：§3.4 灰柱处方（radius 10
     /// /x −4、总宽约 20pt）的前提是平色近色面＋单条直
     /// 边、强阴影会摊成灰柱；K1/K2 后接缝主体是 54.5pt
     /// 大弧、要浮置必须有阴影绕角包裹，前提消失故回
     /// 宽——radius 18（定版区间 16–20，取中值偏上给大
-    /// 弧留包裹宽度）
-    public static let shadowRadius: CGFloat = 18
-    public static let shadowX: CGFloat = -4
+    /// 弧留包裹宽度）。§308 起定值单源在 DrawerCard-
+    /// Geometry、本处只转发
+    public static let shadowRadius: CGFloat =
+        DrawerCardGeometry.shadowRadius
+    public static let shadowX: CGFloat =
+        DrawerCardGeometry.shadowX
     /// 柔影峰值 alpha（progress=1 时）：§202 定 0.22
     /// （区间 0.18–0.25；开源同形态实现 eos 的 0.35×
     /// progress 是深底面参照，本 App 抽屉面浅色、取偏
     /// 低档）。拖动期 radius 与 x 冻结、只有 opacity 随
-    /// progress 变（S3）
-    public static let shadowMaxOpacity: Double = 0.22
+    /// progress 变（S3）。§308 起定值单源在 DrawerCard-
+    /// Geometry、本处只转发
+    public static let shadowMaxOpacity: Double =
+        DrawerCardGeometry.shadowMaxOpacity
     /// 蒙层峰值 alpha（0.17.0 覆盖式抽屉）：页卡退役
     /// 后内容层静止不动，抽屉与内容的分离感改由滑入
     /// 抽屉下方的整屏蒙层承担（调研报告 Q4 结构 A）
@@ -84,6 +99,19 @@ public enum DrawerMotion {
     public static func progress(offset: CGFloat, travel: CGFloat) -> CGFloat {
         guard travel > 0 else { return 0 }
         return min(max(offset / travel, 0), 1)
+    }
+
+    /// 抽屉层锁步位移（第 78 条 D1/§308）：抽屉层与主
+    /// 面是同一个刚性平移——关闭态抽屉整体左移恰好
+    /// 一个 travel 藏于主面之后，开合全程抽屉位移＝
+    /// 主面位移 − travel（Muse 录屏五帧拟合 D(p)＝
+    /// −travel·(1−p)，与 travel 全等，drawer-
+    /// transform-prep-20261114.md §2.3）。不钳制：橡
+    /// 皮筋越界段双层同量越界、刚性不破
+    public static func drawerOffset(
+        offset: CGFloat, travel: CGFloat
+    ) -> CGFloat {
+        offset - travel
     }
 
     /// S2 跟手位移：接管后写入值扣除锁定段（消除旧实
@@ -151,9 +179,31 @@ public enum DrawerMotion {
     }
 
     /// S3/§3.4 阴影不透明度：白名单内唯一随 progress
-    /// 变的阴影属性
+    /// 变的阴影属性（浅色口径；深色见下方带外观参数
+    /// 的重载）
     public static func shadowOpacity(progress: CGFloat) -> Double {
         shadowMaxOpacity * Double(min(max(progress, 0), 1))
+    }
+
+    /// 阴影外观（第 78 条 D4）：Muse 录屏深色帧段无
+    /// 可量测阴影（缘口 1–2px 抗锯齿内完成亮度跳变、
+    /// 无柔影带），深色口径归零；浅色保留 §202 定值
+    /// （双口径各待一次真机对账）
+    public enum ShadowAppearance {
+        case light
+        case dark
+    }
+
+    /// 带外观的阴影不透明度：深色恒 0、浅色走 S3 口径
+    public static func shadowOpacity(
+        progress: CGFloat, appearance: ShadowAppearance
+    ) -> Double {
+        switch appearance {
+        case .dark:
+            return 0
+        case .light:
+            return shadowOpacity(progress: progress)
+        }
     }
 
     /// 蒙层不透明度（0.17.0）：随 progress 线性、两端
