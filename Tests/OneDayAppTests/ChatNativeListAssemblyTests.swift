@@ -479,6 +479,100 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         )
     }
 
+    // MARK: - 诊断探针（③⑯ 落底 4.0 逐项分解；临时，量完删除）
+
+    func testLandingDecompositionProbe() throws {
+        assemble()
+        var rows: [ChatNativeRow] = []
+        for index in 0..<40 {
+            let long = index % 5 == 4
+            let text = long
+                ? "第 \(index + 1) 条是一段较长的回复：原生承载用系统集合视图与组合布局，行高由内容自适应决定，滚动几何只认布局实测——这一段故意写长，好让行高明显超过占位估算，检验落定拍在估算收敛后仍把末行钉到真底。"
+                : "第 \(index + 1) 条短回复。"
+            rows.append(
+                index % 2 == 0
+                    ? assistantRow(
+                        "long-\(index)", text,
+                        entryID: UUID()
+                    )
+                    : userRow(
+                        "long-\(index)", text,
+                        entryID: UUID()
+                    )
+            )
+        }
+        apply(rows: rows)
+        drain(0.4)
+        try dumpLandingDecomp(tag: "T0", rowCount: rows.count)
+        drain(1.2)
+        try dumpLandingDecomp(tag: "T1", rowCount: rows.count)
+        let cv = controller.collectionView
+        let rulerMax = cv.contentSize.height
+            + handle.bottomInset - cv.bounds.height
+        cv.setContentOffset(
+            CGPoint(x: 0, y: rulerMax), animated: false
+        )
+        print(
+            "DECOMP-PROBE setTo=\(rulerMax)"
+                + " immediateOffset=\(cv.contentOffset.y)"
+        )
+        window.layoutIfNeeded()
+        print(
+            "DECOMP-PROBE afterLayout"
+                + " offset=\(cv.contentOffset.y)"
+        )
+        drain(0.5)
+        try dumpLandingDecomp(tag: "T2", rowCount: rows.count)
+    }
+
+    private func dumpLandingDecomp(
+        tag: String, rowCount: Int
+    ) throws {
+        let cv = controller.collectionView
+        let last = try frame(at: rowCount - 1)
+        let host = try XCTUnwrap(controller.composerHost)
+        let hostInWindow = host.view.convert(
+            host.view.bounds, to: nil
+        )
+        let guide = controller.view.keyboardLayoutGuide
+            .layoutFrame
+        let ci = cv.contentInset
+        let ai = cv.adjustedContentInset
+        print(
+            "DECOMP \(tag)"
+                + " contentSize=\(cv.contentSize.height)"
+                + " offset=\(cv.contentOffset.y)"
+                + " bounds=\(cv.bounds.width)x\(cv.bounds.height)"
+                + " cvFrame=\(cv.frame)"
+                + " inset T\(ci.top) B\(ci.bottom)"
+                + " adjInset T\(ai.top) B\(ai.bottom)"
+                + " behavior="
+                + "\(cv.contentInsetAdjustmentBehavior.rawValue)"
+                + " cvSafe T\(cv.safeAreaInsets.top)"
+                + " B\(cv.safeAreaInsets.bottom)"
+                + " viewSafe B"
+                + "\(controller.view.safeAreaInsets.bottom)"
+                + " winSafe T\(window.safeAreaInsets.top)"
+                + " B\(window.safeAreaInsets.bottom)"
+                + " ruler=\(handle.bottomInset)"
+                + " distance=\(handle.latestDistance)"
+                + " endVisible=\(handle.contentEndVisible)"
+                + " lastMaxY=\(last.maxY)"
+                + " trail=\(cv.contentSize.height - last.maxY)"
+                + " hostWin minY\(hostInWindow.minY)"
+                + " maxY\(hostInWindow.maxY)"
+                + " h\(hostInWindow.height)"
+                + " guide minY\(guide.minY)"
+                + " maxY\(guide.maxY)"
+                + " maxByInset="
+                + "\(cv.contentSize.height + ci.bottom"
+                + " - cv.bounds.height)"
+                + " maxByRuler="
+                + "\(cv.contentSize.height + handle.bottomInset"
+                + " - cv.bounds.height)"
+        )
+    }
+
     // MARK: - ④ 跳中段：距底现测＋锚一致
 
     func testMiddleJumpDistanceAndAnchorAgree() throws {
