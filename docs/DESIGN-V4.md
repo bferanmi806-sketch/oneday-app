@@ -13224,4 +13224,10 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 
 **行为对拍**：新增 `AppRouterTests` 11 例——requestHubDestination 七 case 字段落点＋返回值逐项对旧实现、意图独立槽同置不互扰、待发引用两表独立＋后入覆盖；既有 DiscussQuoteAttachReproTests（§210 待发引用 rig）、DeleteCloseoutTests、DrawerBridgeHarnessTests、TabBarFloatTests 随改挂继续钉。入口落点逐项（抽屉/深链/通知点达/频道/会话切换）由既有装配与 UI 签名族覆盖、本包零页面结构与视觉改动。
 
-### §302.1 CI 判读回填（待 CI 后回填）
+### §302.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+第一轮（run 43780880188@356672e，全日志 24,728 行本地核账）：**Core 2153/2153、0 failures**——与 rel-05060 基线逐数一致（本包 Core 零改动、计数不变，账面闭合）。新增 AppRouterTests 11/11 全过；§210 待发引用 rig（DiscussQuoteAttachReproTests）过，引用表换挂端到端成立。App 红恰 2 件同基线签名：§257.1（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」量测限制）。UI 红 10：第 95 条族原生面 5＋仲裁 4＋键盘矩阵 1（失败串明文「GAP 未成格（rig 定位失效）」，登记 rig 签名）。落底 NATIVE-LANDING 两组 4156.0/3352.0/0.0 与 .59/.60 逐值相同。§184 签名内（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=FAIL（rig 红带动）。
+
+第二轮（run 43784701560@356672e，零改动同提交，全日志 25,042 行）：**Core 2153/2153 复全绿、逐数同首轮**；AppRouterTests 11/11 复过；§210 rig 复过。App 红仍恰 2 件同签名。UI 红 9：第 95 条族原生面 5＋仲裁 4；**键盘矩阵本轮转绿**（MATRIX-VERDICT=PASS）——首轮 rig 红坐实涨落族成员、非本包产品反例（本包对键盘面零改动）。落底三数复同值。§184 同签名（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=PASS。签名外新红两轮均零。
+
+**§302 判定：判绿**（预制面，不组版）——信箱群收口落码与对账见 §302 正文；行为对拍两轮全绿（拆包七 case、独立槽、引用表、§210 端到端 rig、落底三数）；全部红属登记签名族且无一落在本包改动面（导航状态的 CI 覆盖＝AppRouterTests＋既有装配/UI 签名族，均按基线形态出现）。真机面无新增验收点（零页面结构/视觉改动），各入口落点随下一组版真机清单顺带目验即可。
