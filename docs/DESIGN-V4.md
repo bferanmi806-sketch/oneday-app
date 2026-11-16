@@ -13236,4 +13236,12 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 
 **验收**：Core 两轮全量门（§190 核账）＋呈现对拍表（报告 drawer-transform-20261116.md）；落底三数不属本包改动面、组版轮续证为准。本节节号 §308 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§307），合并时主线合裁顺延并同步代码注释。
 
-### §308.1 CI 判读回填（待两轮全量门后回填）
+### §308.1 CI 判读（§190 全日志核账，判绿）
+
+落码提交 f968f95（12 文件，+509/−153）；测试侧两处 harness 修正后定版提交 **f1b1b5d**。五轮实录：
+
+- **R1 run 43816222984（f968f95）**：Core **2157/2157、0 failures**（基线 rel-05060 的 2153＋本包净增 4＝DrawerMotionTests +3、DrawerSpringTimingTests 4 例代旧 3 例 +1，逐项闭合）；落底双探针 4156/3352/0.0 不退；VERDICT/HUB/MATRIX 三判 PASS；§184 签名内（BackingData 0、宿主重启 1）。红仅两类登记签名（App §257.1 探针＋R2 ⑧ 量测限制；UI 第 95 条手势族 9）＋**本包新测 testDarkStyleClearsDrawerShadow 一红**：深色断言读得 0.22——裸窗 overrideUserInterfaceStyle 赋值后容器 trait 未更新。
+- **R2 run 43822056613（862ef28，测试加泵 runloop 0.3s）**：逐数同 R1，深色测仍红同值——证伪「传播只需一拍」：宿主单测裸窗的 override 不达根控制器 trait（harness 通道问题、非生产码：生产窗在真场景 trait 树内）。
+- **R3 run 43827149289（ecf4b72，测试改父级 setOverrideTraitCollection 子级覆写）**：测试目标编译红——iOS 26 SDK 该 API 已改名 `setOverrideTraitCollection(_:forChild:)`，7 分钟早停（构建本体 BUILD SUCCEEDED、无测试数）。
+- **R4 run 43830968493＋R5 run 43837493536（f1b1b5d，定版两轮）**：逐数一致——Core **2157/2157、0 failures** 两轮；新增装配两测（锁步 testDrawerLayerLockstepsWithForeground、深色 testDarkStyleClearsDrawerShadow）两轮点名 passed；落底 4156/3352/0.0 两轮不退；App 红仅 §257.1＋R2 ⑧ 两签名；UI 红＝第 95 条手势族 9 两轮＋R4 键盘矩阵 rig 1 红（R5 MATRIX-VERDICT=PASS，rig 间歇签名内）；VERDICT/HUB 两轮 PASS；§184 签名内两轮（BackingData 0、重启 1）。**签名外新红零 → 本包判绿（未组版）。**
+- 连带登记：慢弹簧落定等待 3.5s 的量测事实已随 D3 落测试注；深色 trait 的 harness 通道结论（裸窗 override 不达根控制器、父级覆写为确定性通道）已写入测试注释，后续外观类装配测试照此办理。
