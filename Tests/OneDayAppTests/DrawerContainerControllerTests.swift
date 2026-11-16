@@ -417,9 +417,15 @@ extension DrawerContainerControllerTests {
     /// §308 深色阴影归零（第 78 条 D4）：深色外观下
     /// 开态 clip 阴影 opacity 恒 0（Muse 深色帧段无
     /// 可量测阴影）；切回浅色恢复 0.22（trait 变化经
-    /// 唯一呈现口重派生）
+    /// 唯一呈现口重派生）。注：裸窗 harness 里
+    /// overrideUserInterfaceStyle 的 trait 传播要过
+    /// 一拍 runloop 才达容器（首轮实测：赋值后同步读
+    /// trait 仍为旧值、阴影按浅色落 0.22），故每段先
+    /// 泵一拍再动作/断言——生产窗的 trait 传播走系统
+    /// 同一通道、traitCollectionDidChange 承接
     func testDarkStyleClearsDrawerShadow() {
         window.overrideUserInterfaceStyle = .dark
+        spinRunLoop(seconds: 0.3)
         let clip = controller.view.subviews[1].subviews[0]
         controller.setDrawer(true, animated: false)
         controller.view.layoutIfNeeded()
@@ -427,8 +433,8 @@ extension DrawerContainerControllerTests {
             clip.layer.shadowOpacity, 0, accuracy: 0.01,
             "深色开态阴影应归零")
         window.overrideUserInterfaceStyle = .light
-        controller.view.layoutIfNeeded()
         spinRunLoop(seconds: 0.3)
+        controller.view.layoutIfNeeded()
         XCTAssertEqual(
             clip.layer.shadowOpacity, 0.22, accuracy: 0.01,
             "切回浅色后阴影应按当前 offset 重派生恢复")
