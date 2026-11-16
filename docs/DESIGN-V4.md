@@ -13337,3 +13337,27 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 第二轮（run 43784701560@356672e，零改动同提交，全日志 25,042 行）：**Core 2153/2153 复全绿、逐数同首轮**；AppRouterTests 11/11 复过；§210 rig 复过。App 红仍恰 2 件同签名。UI 红 9：第 95 条族原生面 5＋仲裁 4；**键盘矩阵本轮转绿**（MATRIX-VERDICT=PASS）——首轮 rig 红坐实涨落族成员、非本包产品反例（本包对键盘面零改动）。落底三数复同值。§184 同签名（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=PASS。签名外新红两轮均零。
 
 **§305 判定：判绿**（预制面，不组版）——信箱群收口落码与对账见 §305 正文；行为对拍两轮全绿（拆包七 case、独立槽、引用表、§210 端到端 rig、落底三数）；全部红属登记签名族且无一落在本包改动面（导航状态的 CI 覆盖＝AppRouterTests＋既有装配/UI 签名族，均按基线形态出现）。真机面无新增验收点（零页面结构/视觉改动），各入口落点随下一组版真机清单顺带目验即可。
+
+## §306 台账单流（2026-11-16；分支 feat/ledger-single-stream，基线 rel-05060；横扫 A-05；原自编号 §303，组版 0.50.62 顺延为 §306）
+
+**定性**：台账数据面收敛为服务端单流——同一件事只许一个账。病灶三层（nonstandard-sweep-ui-20261115.md A-05）：①§217 因服务端台账采集器无监测源，客户端把 /monitors 变化合成同形条目（LedgerMonitorSynthesis），临时桥成永久层；②合成账与服务端账分开持有（LedgerStore.monitorItems）、每次拉取整体重算防「互相污染」；③刷新是 N+1 串行拉取（逐个有变化的监测再拉 monitorChanges）＋10 秒轮询＋snapshotSeq 增量合并＋clockOffset 校准，自成一套双源新鲜度机器；页首计数靠 headerCounts 只认服务端账人工维持。
+
+**改前先搜对账**：成熟产品活动流均为服务端聚合后的单流 API、客户端不拼源——GitHub 官方文档（REST Activity/Events：「GitHub events power the various activity streams」、事件面以 ETag＋X-Poll-Interval 供轮询消费，服务端时间线单出口）；Stream 官方文档（activity feeds 为服务端 feed、客户端只查询）；Linear 的 Issue History 为服务端实体经 API 下发（第三方复制文档旁证）。持续更新的推送/长连接（APNs、WebSocket）为官方增强通道、轮询＋游标是通行兜底。本包与处方一致：服务端补源＋单流下发＋客户端 since 增量轮询保留为兜底，不新造推送通道（超出本包范围）。
+
+**现状差异（如实登记）**：横扫称「服务端无监测源」已不全准——伴生 oneday_seg_monitors 的变化折叠（_record_check_locked）是变化记录的唯一写路，其内已有写时钩 _ledger_monitor_change 在记账，但形状错位：kind=job（活动行会以「已完成的工作」呈现、与 §217 事件口径相悖）、标题「监测变化 · 监测名」丢变化摘要、id 为 job:monitor: 前缀（通知深链聚焦按 monitor-change: 式换算落点会对不上）。即双账并存的不是「有没有源」，而是「源的形状不对＋客户端又合成一份」。生产实查（2026-11-16）：监测 0 个、变化 0 条、账内 job:monitor 条目 0——双账尚未在生产数据里相撞，本包是在首个监测出现前把单流立正。
+
+**伴生改法（1.0.64）**：①写钩改产规范形 _ledger_monitor_item——与退役合成逐字段同形：id `monitor-change:<变化 id>`、kind=monitor、source=bridge、title=变化摘要（去空白后为空才回落监测名）、titleSource=monitor_change、status=completed、startedAt=endedAt=lastEvidenceAt=detectedAt、origin=bridge_self、link={monitor, 监测 id}。②采集器补监测源 _ledger_monitor_reconcile：挂台账采集器同一节拍（LEDGER_COLLECTOR_SECONDS），对桥自身变化账（_db["changes"]）逐条 create_or_merge 补行——治钩子异常吞没的漏记与服务端源出现前的存量变化；幂等（同 id 折叠、无变化不落事件）。③ledger.py 本体零改动（Collector 不接新 provider，收敛在桥段内完成，与 C-4「采集器只摄入事件文件」不冲突：监测源是桥内自产事件、走桥段对账环）。
+
+**App 改法**：①LedgerStore 删 monitorItems 分账、refreshMonitorItems（N+1 拉取链）与专用 bridgeClient；allItems = 服务端单流定序；load/poll 只剩 /ledger 单流（全量＋since 增量）＋summary 尽力而为，10 秒可见轮询与 clockOffset/snapshotSeq 保留——它们自此只是单流的增量与时钟口径，不再是双源机器。②LedgerMonitorSynthesis.swift 整文件退役、专属测试随删；其批量窗口（逐监测 20／总量 50）是客户端拉取面口径、随合成退役——服务端账按台账自身留存（变化账上限逐监测 100＋台账 compact 留存）记全量事件，口径差异在此登记。③id 契约迁 Core LedgerMonitorChange（itemID/isMonitorChange，前缀 monitor-change:）：HubLedgerSection 深链聚焦换算与 LedgerDetailView「监测条目不走台账详情面」识别改挂本契约，语义逐项不变。④新 Core 测试 LedgerMonitorChangeTests：id 契约＋kind 解码/词＋副题事件口径＋服务端线形夹具（审批＋任务＋监测同流同列，监测条目以 _ledger_monitor_item 产出形入载荷、列表面无 history 键）。
+
+**行为对拍（呈现逐项不变）**：活动行——kind=monitor 的图标（眼标不打勾）、副题（「监测变化 · 时刻」）、分组/定序（LedgerMerge.sorted 同一排序）均由既有呈现层按 kind 驱动、与数据来源无关；行点达——link.kind=monitor → MonitorDetailView 不变；通知深链聚焦——id 式同为 monitor-change: 不变；页首计数与进展胶囊——只数 active/状态口径，监测条目恒 completed、与旧制（合成账本就不入 items）等效；已耗时秒级跳动——只对 active 条目，监测条目不入；僵尸失联阶梯——只作用于 active 服务端条目、逻辑零改动；详情面——监测条目仍不走台账详情（识别改 id 契约），工作条目详情不变。
+
+**验收**：伴生 ledger_selftest 新增 Part D（种子变化回填＋规范形逐字段＋空摘要回落＋幂等＋实火 check 变化经钩入账＋summary 不冒充进行中）；App 两轮全量门 §190 核账，Core 基线以 rel-05060 为准（2153 减退役合成测试 8 例＋新增契约测试 4 例＝预期 2149，判读时逐项对账）；红只认登记签名族。真机面：首个真实监测变化出现时在活动段目验一行（标题＝变化摘要、副题＝监测变化 · 时刻、点达监测详情）——生产当前无监测，此项挂组版清单顺带，不单独催验。
+
+### §306.1 判绿与部署记录（2026-11-16）
+
+**App 判绿（第一轮全量门即达）**：分支 feat/ledger-single-stream@1f23b86，CI run 43790474498（workflow_dispatch 点火）。§190 全日志核账：OneDayCore **2149/2149 全绿**——与预期逐项闭合（rel-05060 基线 2153 − 退役合成测试 8 ＋ 新契约测试 LedgerMonitorChangeTests 4/4 全过）。失败共 11 例、全部落在登记签名族内：R2 ⑧ 量测限制 1 例（ChatNativeListR2AssemblyTests.testBlockClosureKeepsSegmentInExactlyOneItem，渲染树计数 0 vs 1＝托管文本不可达形态、与登记签名同形，兄弟装配例全过）；§257.1 探针红 1 例（EdgeEffectProbeTests）；第 95 条 UI AX 帧族 9 例（ChatGestureArbitrationTests 4＋ChatGestureNativeSurfaceTests 5、双面同签名、最终验收归真机清单首组）。§184 签名零命中（BackingData 0、宿主崩溃/重启标记 0）。签名外新红为零，本包 diff 不触任何失败面（仅台账数据流），第一轮即判绿、不启用第二轮。
+
+**伴生 1.0.64 已上线**：镜像 oneday/companion:1.0.64（sha256:022fc96c…），构建目录 /root/build-1.0.64，关键文件 md5 与本地逐一一致（oneday_seg_ledger.py d7ca9573…）；上线前镜像内装配预检过（桥模块导入＋_ledger_monitor_item 规范形断言＋空摘要回落）。ledger_selftest 全套 66/66（含 Part D 六段）。回滚基线 /root/companion-1064-backup/（docker-compose.yml.pre、companion.env.pre、image-1.0.63.txt；1.0.63 镜像仍在机）。上线回读：容器镜像与 COMPANION_VERSION 均 1.0.64；部署码含新写钩与对账环（grep 实证）；日志 Traceback 0；oneday 桥 /health ok、degraded=false、台账 940 条（部署前基线 937＋采集事件 3、无丢失无虚增）、collector lag 3.2s；各模块端口应答（8643/8644 401 鉴权在、8646–8649 200、8650 前台应答）；Hermes cron 恰 4 个系统轮全启用未动；内存 53.6%（部署前 53.9%、红线 80% 未触）。生产监测仍为 0——首个真实监测变化的活动行目验挂组版真机清单顺带（见 §306 验收节）。
+
+**待办登记**：user-demand-checklist.md 第 103 条。

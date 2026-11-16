@@ -78,9 +78,11 @@ struct LedgerDetailView: View {
         .navigationTitle("工作详情")
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            // 监测合成条目在服务端没有详情面，不许拿
-            // 合成 id 去拉（会误报「记录已不在」）
-            if !LedgerMonitorSynthesis.isSynthetic(itemID: item.id) {
+            // 监测条目不走台账详情面：它的详情本体是
+            // 监测详情（枢纽行下钻直达），本页只服务
+            // 工作条目（按 id 契约识别，见
+            // LedgerMonitorChange）
+            if !LedgerMonitorChange.isMonitorChange(itemID: item.id) {
                 await store.loadDetail(appState: appState, id: item.id)
             }
         }
