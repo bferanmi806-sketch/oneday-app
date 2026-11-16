@@ -13211,3 +13211,21 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+
+## §306 目标↔Kanban 单轨包（2026-11-16；分支 feat/goal-kanban-single，基线 rel-05060@5f77967；横扫 A-04；伴生 1.0.65）
+
+**病灶**：目标与看板任务的关联有两本账——桥侧 goalTaskLinks 链接集合（App 判定真源）＋ GD-2 读面行（呈现真源），App 委派是两步两账（直连 Dashboard 建卡→回桥 POST 补链接），中途失败留「卡在、关联不在」的半成品；回响完成戳挂在链接记录上、与任务本体分离。
+
+**改前先搜（市面成熟做法，分级）**：Linear（官方文档级）——Issue 自带 projectId 单值字段，create/update 时设定，项目进展＝其下 Issue 状态的读时派生，没有第二本关联账；Notion（官方文档级）——Relation 是长在记录上的属性、双向关系是服务端维护的同一关系的两个投影，Rollup 计数读时派生。与处方对账一致：关联＝任务实体上的单值字段＋反查读时派生。
+
+**字段落点（与横扫报告的出入，实查定版）**：报告设想 goalId 落 Hermes 看板卡本体——生产实查 Hermes kanban tasks 表为固定列 schema（title/body/assignee/status/priority/project_id/tenant…，无 goalId、无通用 metadata 列），且 Hermes 是上游镜像不可改。字段落**伴生侧任务属性账**（伴生是目标域属主、补 API 不加桥）：`_db["taskGoals"]`＝{taskId: {goalId, milestoneId, assignedAt, delegateKey?}}，字典键天然单值。回声 exactly-once 账独立为 `_db["goalEchoState"]`（桥轮询私有、永不下发，只经 GD-2 行 completionEntryAt 只读投影给 App 回响规划）。
+
+**服务端（伴生 1.0.65）**：①迁移 `_migrate_goal_task_links()` 挂 _load 成功路径末尾自带容错：存量链接按 createdAt 升序折叠、最早者赢、同任务多目标余者计 conflicts、死目标链接计 dropped、完成/停滞戳播种 echoState、meta.taskGoalMigration 留计数账；失败只记日志、链接保留下轮重试，绝不进降级路径。生产实数：目标 1、链接 0 条——迁移零行（实现与自测合成数据对账为准）。②新写面：`PUT /tasks/{taskId}/goal`（goalId 必填键、null＝清除并清回声账；里程碑不属该目标 400、目标不存在 404）与 `POST /goals/{id}/delegate`（桥经 Dashboard 通道建卡——卡体与旧 App 直连同形：assignee "default"、body 由桥按目标标题自拼、idempotency_key 透传——催派 best-effort，字段落字在网络往返外短锁完成；带 delegateKey 的同键重试先查已有归属直接返回、不重复建卡；建卡失败 502 且不落归属）。③兼容投影一周期：GET/POST /goals/{id}/task-links 保留为字段之上的薄投影（合成 link id＝"gt_"+taskId、戳记按 echoState 且 goalId 匹配时下发；POST 写穿字段——注意语义差异：任务已属他目标时是**移动**而非旧集合的双行共存），删除门＝新 App 出场＋日志零命中（仿桥-2 先例），理由：1.0.65 先于新 App 上线、生产 .60 App 仍调此面，先破后立不可接受。④读面全改读字段：GD-2 行加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 合成同值续发；GD-1 活动派生 wire 字段名全保留；未归类面排除集改字段键集（kanbanBindings 自带 goalId 的行排除逻辑不动）；删目标级联改清字段＋回声账；automation 建卡带 goalId 改写字段。⑤自测：新增 goalsingle 32 例（迁移折叠/幂等、PUT 置/移/清＋400/404、delegate 桩测建卡体与同键重试不重复建卡、兼容投影形状、删目标级联、迁移戳挡回声重发）；既有 gd1b/p6 戳记断言改读 echoState；全套红与改前基线逐字相同（p3 时界＋fileproc 本地环境），零新红。
+
+**App**：Core 删 GoalTaskLinks.swift（链接三件套＋旧 GoalAssociations），新增 GoalTaskAssignment.swift（BridgeTaskGoalAssignment／BridgeTaskGoalWrite——goalId 显式 null 编码，桥靠键在不在区分清除与漏传／BridgeGoalDelegate 请求与回执／新 GoalAssociations 行驱动拼装：只认行 goalId、同任务只出一次）；BridgeGoalTask 加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 转容忍解码、id 改 taskId；GoalEcho 完成判定改读行戳（口径不变：桥事实条目落下后才有戳）、回响键改 "goalTask:<taskId>:<kind>"（生产链接为零、旧键从未落盘、无迁移负担）。客户端删 goalTaskLinks/createGoalTaskLink，加 delegateGoalTask/setTaskGoal。GoalsStore：删 taskLinksByGoal、loadDetail 四路改三路、delegateTask 单调用＋回读目标任务面确认行出现（旧「任务板未开通」探板前置步消失、失败文案归并一处）、assignUngroupedTask 改 setTaskGoal＋双面回读，乐观摘行/失败放回纪律不变。GoalsView：关联段与回响物化改读 goalTasksByGoal 行、行身份改 taskId、最近变化时刻直读行 updatedAt。
+
+**行为对拍（硬口径）**：目标页分组（行序＝归属落字升序＝旧链接 createdAt 升序）、任务归属显示、里程碑挂靠、GD-1 进展计数、回响五类与文案、未归类面构成——逐项同旧。差异登记四处：①字段落伴生而非卡本体（上游 schema 约束）；②兼容 POST 的移动语义（单值字段的必然结果，与「一件事只归一个目标」的产品口径一致）；③delegate 失败文案归并（探板步消失）；④演示态下 delegate 由「桥调用处失败」变为「单调用失败留人话 note」（失败形态等价）。
+
+**未搭载**：A-11（GoalsView 拆分＋条目流 LazyVStack）不在本包——简报口径全为 goalId 项，拆 2452 行巨型视图放大爆炸半径、危及呈现对拍，建议另立结构包。
+
+### §306.1 CI 判读回填（待 CI 两轮后回填）
