@@ -8,16 +8,20 @@ import XCTest
 /// TokenFlow 落位的词元视图整体上，换行边界词元的
 /// 原点翻动被 120ms easeOut 插值成纵向滑移）。
 ///
-/// 两组断言：
+/// 三组断言：
 /// ① 动画作用域（源码守护，与 ChatCarrierEdgeEffect-
 /// Tests 同式：截取有限片段、去注释后核结构）——被
 /// 落位的视图（StreamingTokenView）自身不挂动画修饰，
 /// 入场动画只许出现在其内部视觉层、且只以 shown 为
 /// 值；旧形态（动画直挂 ForEach 词元链）两条皆红。
+/// 第 104 条续订：入场只许 opacity（blur 已退役）、
+/// 调度层不许再有逐词元错开机器（整批计划单点）。
 /// ② TokenFlowArranger 缓存语义（纯值引擎）——纯追
 /// 加命中前缀复用、宽度变/前缀尺寸变失效重排；任何
 /// 增量路径的排版结果必须与无缓存整表排版逐点相等
 /// （不许陈旧排版）。
+/// ③ 打字动画开关落位（第 104 条）：外观页「回复
+/// 呈现」节持有、键走 Core 单一事实源。
 final class StreamingTokenScopeTests: XCTestCase {
 
     // MARK: - ① 动画作用域源码守护
@@ -66,9 +70,10 @@ final class StreamingTokenScopeTests: XCTestCase {
     }
 
     /// 入场动画只许活在 StreamingTokenView 内部视觉层：
-    /// blur/opacity 与 .animation(streamIn, value: shown)
+    /// opacity 与 .animation(streamIn, value: shown)
     /// 同处一层，值只许是 shown（浓淡），不许掺入任何
-    /// 与位置/序号挂钩的量
+    /// 与位置/序号挂钩的量。第 104 条：blur 已随逐词
+    /// 元错开一并退役——视觉层不许再出现 .blur(
     func testEntranceAnimationConfinedToTokenVisualLayer() throws {
         let raw = try streamingTextSource()
         let typeRange = try XCTUnwrap(
@@ -78,7 +83,10 @@ final class StreamingTokenScopeTests: XCTestCase {
             raw[typeRange.lowerBound...].prefix(3_000)
         )
         let code = Self.stripComments(segment)
-        XCTAssertTrue(code.contains(".blur("), "视觉层应承载 blur")
+        XCTAssertFalse(
+            code.contains(".blur("),
+            "第 104 条：入场 blur 已退役，视觉层不许再挂 .blur("
+        )
         XCTAssertTrue(code.contains(".opacity("), "视觉层应承载 opacity")
         XCTAssertTrue(
             code.contains(".animation("),
@@ -91,6 +99,55 @@ final class StreamingTokenScopeTests: XCTestCase {
         XCTAssertTrue(
             code.contains("value: shown"),
             "动画值只许是 shown（入场浓淡），位置永不进动画事务"
+        )
+    }
+
+    /// 第 104 条：入场调度不许再有逐词元错开机器——
+    /// reconcile 只许按 Core 入场计划整批显形：文件
+    /// 内不许出现延时排程（Task.sleep）、不许出现旧
+    /// 退化档记账（noBlur）；计划入口与打字动画键的
+    /// 消费必须在场
+    func testEntranceSchedulingHasNoStaggerMachinery() throws {
+        let code = Self.stripComments(try streamingTextSource())
+        XCTAssertFalse(
+            code.contains("Task.sleep"),
+            "逐词元错开的延时排程已退役"
+        )
+        XCTAssertFalse(
+            code.contains("noBlur"),
+            "大批量退化档记账已退役"
+        )
+        XCTAssertTrue(
+            code.contains("StreamingEntrance.plan("),
+            "入场必须经 Core 计划单点裁定"
+        )
+        XCTAssertTrue(
+            code.contains("StreamingTypewriterFeature.defaultsKey"),
+            "打字动画开关必须以 Core 键消费"
+        )
+    }
+
+    /// 第 104 条：打字动画开关落位——外观页含「回复
+    /// 呈现」节、Toggle 绑 Core 键的 AppStorage；聊天
+    /// 侧不得另立同义键字面量（单一事实源）
+    func testTypewriterSwitchLivesInAppearanceReplySection() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appearanceURL = root
+            .appendingPathComponent(
+                "Sources/OneDayApp/AppearanceView.swift")
+        let appearance = Self.stripComments(
+            try String(contentsOf: appearanceURL, encoding: .utf8))
+        XCTAssertTrue(appearance.contains("replyPresentationSection"))
+        XCTAssertTrue(appearance.contains(
+            "StreamingTypewriterFeature.defaultsKey"))
+        XCTAssertTrue(appearance.contains("打字动画"))
+        let streaming = Self.stripComments(try streamingTextSource())
+        XCTAssertFalse(
+            streaming.contains("\"chat.streaming.typewriter\""),
+            "键名字面量只许出现在 Core 定义处"
         )
     }
 

@@ -41,7 +41,10 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 /// 空态形象）④模式（三行勾选行，复用既有
 /// preferredColorScheme 链）。§145 续加 ⑤语言四档
 /// （勾选行与 ④ 同构、区脚注明系统托管面仍随系统
-/// 语言，见 languageSection）。全页遵 0.24.0 定版：
+/// 语言，见 languageSection）；第 104 条在模式与
+/// 语言之间续加 ⑤回复呈现（打字动画开关，见
+/// replyPresentationSection，语言顺延 ⑥）。全页
+/// 遵 0.24.0 定版：
 /// List(.insetGrouped)＋settingsBG、行题 Body 17
 /// regular（rowTitleL）、分区头 Footnote 13
 /// （sectionLabel）＋inkSecondary、行高 settingsRow-
@@ -67,6 +70,12 @@ struct AppearanceView: View {
     /// .id 整树重建，即时生效不重启）
     @AppStorage(LanguageStorageKeys.appLanguage)
     private var appLanguageRaw = AppLanguagePreference.system.rawValue
+    /// 打字动画（第 104 条）：键 chat.streaming.-
+    /// typewriter（Core StreamingTypewriterFeature
+    /// 单一事实源），本页写、聊天页 StreamingText
+    /// 读；缺省开
+    @AppStorage(StreamingTypewriterFeature.defaultsKey)
+    private var typewriterEnabled = true
 
     private var languagePreference: AppLanguagePreference {
         AppLanguagePreference(rawValue: appLanguageRaw) ?? .system
@@ -109,6 +118,7 @@ struct AppearanceView: View {
             themeSection
             avatarSection
             modeSection
+            replyPresentationSection
             languageSection
         }
         .listStyle(.insetGrouped)
@@ -399,7 +409,33 @@ struct AppearanceView: View {
         .listRowInsets(rowInsets)
     }
 
-    // MARK: - ⑤ 语言（§145）
+    // MARK: - ⑤ 回复呈现（第 104 条）
+
+    /// 打字动画开关行：开＝流式回复的新一批文字带
+    /// 单次轻渐显（首批恒直显）；关＝整批直接显示。
+    /// Reduce Motion 的优先关系不在本行表达——它在
+    /// 入场计划层（Core StreamingEntrance）恒压过本
+    /// 开关，区脚只如实注明结果
+    private var replyPresentationSection: some View {
+        Section {
+            Toggle(isOn: $typewriterEnabled) {
+                Text(L10n.string("打字动画"))
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
+        } header: {
+            appearanceHeader(L10n.string("回复呈现"))
+        } footer: {
+            Text(L10n.string("关闭后，回复文字整批直接显示，不再逐批渐显。系统开启减弱动态效果时，始终直接显示。"))
+                .font(.footnote)
+                .foregroundStyle(Palette.inkSecondary)
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(rowInsets)
+    }
+
+    // MARK: - ⑥ 语言（§145）
 
     /// 语言四档勾选行（形态与 ④ 模式同构）：档名
     /// 经 L10n 按当前界面语言取词（切档瞬间整树重

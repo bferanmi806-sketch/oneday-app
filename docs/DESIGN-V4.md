@@ -13361,3 +13361,29 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 **伴生 1.0.64 已上线**：镜像 oneday/companion:1.0.64（sha256:022fc96c…），构建目录 /root/build-1.0.64，关键文件 md5 与本地逐一一致（oneday_seg_ledger.py d7ca9573…）；上线前镜像内装配预检过（桥模块导入＋_ledger_monitor_item 规范形断言＋空摘要回落）。ledger_selftest 全套 66/66（含 Part D 六段）。回滚基线 /root/companion-1064-backup/（docker-compose.yml.pre、companion.env.pre、image-1.0.63.txt；1.0.63 镜像仍在机）。上线回读：容器镜像与 COMPANION_VERSION 均 1.0.64；部署码含新写钩与对账环（grep 实证）；日志 Traceback 0；oneday 桥 /health ok、degraded=false、台账 940 条（部署前基线 937＋采集事件 3、无丢失无虚增）、collector lag 3.2s；各模块端口应答（8643/8644 401 鉴权在、8646–8649 200、8650 前台应答）；Hermes cron 恰 4 个系统轮全启用未动；内存 53.6%（部署前 53.9%、红线 80% 未触）。生产监测仍为 0——首个真实监测变化的活动行目验挂组版真机清单顺带（见 §306 验收节）。
 
 **待办登记**：user-demand-checklist.md 第 103 条。
+
+## §307 第 104 条 到达瞬间动画减法（2026-11-16；分支 feat/arrival-motion-slim，基线 rel-05060@5f77967；原自编号 §305，组版 0.50.62 顺延为 §307）
+
+> 节号避让：施工时按并行分支占用取号——§301（B-05 写闸原因）、§302（A-03 router 收口）、§303（A-05 台账单流）、§304 预留 A-04，本条取 §305。组版 0.50.62 合并后全树定号为 §301 写闸／§302 键盘热修／§303 附件定高／§304 0.50.61 组版／§305 router 收口／§306 台账单流／§308 目标单轨，本节顺延为 §307，本注记按定号校正。
+
+**起因**：用户 2026-11-16 10:54 真机录屏实报「消息出来，怎么感觉不对劲，动画太多了」。录屏环境＝旧面 gen3 承载（用户今晨已关原生重建开关）＋gen4 块级流式，呈现层两面共用，本条修复全落共用层。定因与逐帧证据见报告 arrival-motion-slim-20261116.md。
+
+**定因（到达瞬间四重同拍叠加）**：①指示器换装＋气泡宽度两跳——等待点点与正文同在 ChatView `streamingBubble` 的同一气泡内按 text 空/非空换装，无显式转场，但 TokenFlow 按含未入场词元的全量文本落位：首批到达时内容不可见而占位已全宽，视觉＝点点药丸→仅光标小药丸→全宽泡两跳。②词元 stagger blur 扫过（主犯）——StreamingText 每词元 blur 6→0＋opacity、逐词元错开 30ms、批封顶 240ms，增量持续到达使扫过近乎全程持续。③块闭合换渲染器微闪——尾块 StreamingText 与闭合前缀 MarkdownText 同拍换代、布局引擎不同。④跟随贴底逐拍——承载在底时逐布局拍无动画钉底（`animated:false`／contentOffset 直钉），观感上的持续上滑＝行高逐拍生长＋逐拍钉底的合成，非独立滚动动画。**重影定因**：原生分辨率逐帧复核无任一帧文本双渲染（旧文单绘；闭合前缀与尾块构造互斥，§247／R2 H4 静态定案在案）；「一帧混乱」＝旧气泡首行被顶簇磨砂背板 blur 溶化涂抹＋30fps 录屏对运动文字的采样/HEVC 涂抹＋四重运动同窗叠加的合成观感，非双渲染缺陷。
+
+**改前先搜（对账口径）**：公开文档级——ChatGPT 逐块即时落字、无逐字 fade，平滑来自投递节奏＋滚动贴合（第三方 iOS UX 规格实测记录）；Claude 块略大、光标弱化；iMessage 指示泡与消息泡同槽、消息泡原位取代点点、不交叉叠演。苹果官方原文级无 AI 流式呈现规范（HIG 未覆盖），按公开文档级登记。
+
+**修法（到达瞬间只许一个主动画）**：
+- Core 新增 `StreamingTypewriterFeature`（键 `chat.streaming.typewriter`、缺省开）＋`StreamingEntrance.plan(typewriterEnabled:reduceMotion:isFirstBatchOfGeneration:)` 纯函数：首批（本代次尚无已显词元，含指示器换装拍与换代重发）→`.instant` 整批直显；开关关或 Reduce Motion→`.instant`（Reduce Motion 优先）；其余批次→`.batchFade` 整批同拍单次渐显。
+- StreamingText.reconcile 重写：删逐词元 stagger 任务循环与 noBlur 退化档记账；pending 按 plan——instant 同拍 formUnion、batchFade 只起一个无延时任务整批翻 visible（代次守卫保留）。StreamingTokenView 删 blur 与 flat——只剩 opacity＋`.animation(resolved(streamIn), value: shown)`：单次轻渐显＝最新批 opacity 120ms 齐发。**§14 条 4 的 blur 6px＋30ms stagger 定版据本条退役**，文件头注释同步改口径。
+- 落底不改：现状即无动画钉底（两面皆然）；改动画追随＝与内容生长叠成第二主动画（0.4.1 前无限重启追逐旧病），成熟口径为投递节奏＋贴合。
+- 开关落位：设置→外观新增「回复呈现」节（模式之后、语言之前）——Toggle「打字动画」绑 `@AppStorage(StreamingTypewriterFeature.defaultsKey)`，区脚注明关后整批直显与 Reduce Motion 恒优先；StreamingText 以同键 @AppStorage 消费，键名单一事实源在 Core。
+
+**测试**：Core 新增 2 例（开关缺省/显式回读＋键名钉死；plan 五格真值表），Core 基线 2153→预期 2155。App 侧 StreamingTokenScopeTests：词元视觉层断言改钉新语义（不许含 `.blur(`、opacity＋streamIn＋value: shown 在场）；新增源码守护两例（reconcile 路径无 Task.sleep／无 noBlur＋须消费 StreamingEntrance 与 Core 键；外观页开关落位＋键名字面量不许在聊天侧复写）。TokenFlowArranger 缓存语义组不动。
+
+**真机验收点**（组版清单带入）：发一条回复看到达瞬间——无药丸跳宽、无扫过感、列表不追逐；关「打字动画」后整批直显。
+
+### §307.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+提交 8ab2ac1。第一轮 run 43795970815（全日志 24,592 行）、第二轮 run 43800526217（零改动同提交，24,981 行）：**Core 两轮均 2155/2155、0 failures**——基线 2153 恰加本条新增 2 例（开关回读＋plan 真值表），账面闭合；App 侧改钉/新增 3 例（视觉层 opacity-only、调度无 stagger 机器、开关落位）两轮全过。App 红两轮恰 2 件同签名：§257.1 探针＋R2 装配 ⑧（量测限制）。UI 红两轮恰 10 件：第 95 条族 9（仲裁 4＋原生面 5）＋键盘矩阵 1（第二轮失败串为登记原文「GAP 未成格（rig 定位失效）」；第一轮同件为快照元素定位失败，同 rig 族涨落、无产品断言触发；MATRIX-VERDICT 第二轮=FAIL 由其带动、与 .55 以来同形态）。落底续证两轮逐值不变：NATIVE-LANDING 与 R4 均 4156.0/3352.0/0.0。§184 签名内（BackingData 两轮零命中、teardown 标记 true）。VERDICT 两轮=PASS、HUB=PASS。签名外新红零。
+
+**§307 判定：判绿**（预制面，不组版）——真机验收点归主线组版清单：发一条回复看到达瞬间无药丸跳宽、无扫过感、列表不追逐；关「打字动画」后整批直显。

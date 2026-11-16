@@ -266,6 +266,60 @@ final class StreamingBlockProductTests: XCTestCase {
                 defaults: defaults))
     }
 
+    /// 第 104 条：打字动画开关——键名定版、缺省开、
+    /// 显式关/开如实回读（与 gen4 开关同式隔离套件）
+    func testTypewriterFeatureDefaultsToEnabled() {
+        XCTAssertEqual(
+            StreamingTypewriterFeature.defaultsKey,
+            "chat.streaming.typewriter")
+        let suite = "typewriter-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertTrue(
+            StreamingTypewriterFeature.isEnabled(
+                defaults: defaults))
+        defaults.set(false, forKey: StreamingTypewriterFeature.defaultsKey)
+        XCTAssertFalse(
+            StreamingTypewriterFeature.isEnabled(
+                defaults: defaults))
+        defaults.set(true, forKey: StreamingTypewriterFeature.defaultsKey)
+        XCTAssertTrue(
+            StreamingTypewriterFeature.isEnabled(
+                defaults: defaults))
+    }
+
+    /// 第 104 条：入场计划真值表——只有「开关开＋
+    /// Reduce Motion 关＋非首批」才许整批渐显，其余
+    /// 一律直显（首批直显保指示器同拍换装、Reduce
+    /// Motion 优先于开关）
+    func testEntrancePlanMatrix() {
+        XCTAssertEqual(
+            StreamingEntrance.plan(
+                typewriterEnabled: true, reduceMotion: false,
+                isFirstBatchOfGeneration: false),
+            .batchFade)
+        XCTAssertEqual(
+            StreamingEntrance.plan(
+                typewriterEnabled: true, reduceMotion: false,
+                isFirstBatchOfGeneration: true),
+            .instant)
+        XCTAssertEqual(
+            StreamingEntrance.plan(
+                typewriterEnabled: true, reduceMotion: true,
+                isFirstBatchOfGeneration: false),
+            .instant)
+        XCTAssertEqual(
+            StreamingEntrance.plan(
+                typewriterEnabled: false, reduceMotion: false,
+                isFirstBatchOfGeneration: false),
+            .instant)
+        XCTAssertEqual(
+            StreamingEntrance.plan(
+                typewriterEnabled: false, reduceMotion: true,
+                isFirstBatchOfGeneration: true),
+            .instant)
+    }
+
     func testBlockIdentityIsContentAddressed() {
         let first = StreamingBlockSegmenter.blocks(
             for: "同一段\n\n甲")

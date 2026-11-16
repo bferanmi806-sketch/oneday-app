@@ -57,6 +57,57 @@ public enum ChatStreamingFeature {
     }
 }
 
+// MARK: - 打字动画开关与入场计划（第 104 条）
+
+/// 打字动画开关（2026-11-15 流式块级口径拍板时备好
+/// 的规格、2026-11-16 第 104 条落地）：设置→外观
+/// 「回复呈现」节的「打字动画」。UserDefaults 布尔
+/// 键，**缺省 true**＝流式新词元带单次轻渐显；显式
+/// false＝整批直显。Reduce Motion 不读本键——它在
+/// 入场计划层优先于本开关（见 StreamingEntrance），
+/// 本键只表达用户口味、不表达无障碍需求
+public enum StreamingTypewriterFeature {
+    public static let defaultsKey = "chat.streaming.typewriter"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard defaults.object(forKey: defaultsKey) != nil
+        else { return true }
+        return defaults.bool(forKey: defaultsKey)
+    }
+}
+
+/// 流式词元入场计划（第 104 条到达减法，纯函数单点
+/// 裁定）：到达瞬间只许一个主动画——
+///
+/// - 首批（本代次尚无任一词元已显形，含指示器退场
+///   的换装拍与换代重发）：**整批直显**。指示器与正
+///   文同拍交接、不许出现「内容不可见而占位已全
+///   宽」的光标药丸帧，正文以最终落位静态出现
+/// - 开关关或 Reduce Motion：全程整批直显（Reduce
+///   Motion 优先于开关）
+/// - 其余批次：整批同拍单次轻渐显（batchFade）——
+///   同批词元共享一次 opacity 渐显，不逐词元错开、
+///   不带 blur；已显形词元永不重演
+public enum StreamingEntrance {
+    public enum Plan: Equatable, Sendable {
+        case instant
+        case batchFade
+    }
+
+    public static func plan(
+        typewriterEnabled: Bool,
+        reduceMotion: Bool,
+        isFirstBatchOfGeneration: Bool
+    ) -> Plan {
+        guard typewriterEnabled, !reduceMotion,
+              !isFirstBatchOfGeneration
+        else { return .instant }
+        return .batchFade
+    }
+}
+
 // MARK: - 块模型
 
 /// 流式块类：与 MarkdownBlock 一一对应，分「文本
