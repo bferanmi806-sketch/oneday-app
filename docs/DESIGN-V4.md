@@ -13223,3 +13223,7 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 **验收**：全量门两轮（§190 全日志核账）：Core 与基线 rel-05060 逐数对账（预期 2153/2153 不变——本包不增删 Core 测；App 侧净增 3 例全绿）；红只认登记签名族（§257.1、R2 ⑧、第 95 条 UI 族、键盘矩阵 rig、§184 签名内）。CI 判读见 §309.1（回填）。
 
 **节号**：§309 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§308），组版合并时主线合裁顺延改号并同步代码注释。
+
+### §309.1 CI 判读（§190 全日志核账，判绿）
+
+两轮 workflow_dispatch @ feat/viewer-safearea-close 尖端 012a84e、同提交零改动：run 43844471440（全日志 24,643 行）＋run 43852668372（25,071 行），逐数一致——**Core 两轮均 2153/2153、0 failures，与基线 rel-05060 逐数一致**（本包不增删 Core 测，账面闭合）；新增 ImageViewerHostSafeAreaTests 3 例两轮全绿。**落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 两轮均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .60 逐值同、不退。App 红两轮恰 2 件、与基线登记逐项同签名：§257.1 探针（EdgeEffectProbeTests）＋R2 装配 ⑧（testBlockClosureKeepsSegmentInExactlyOneItem，量测限制已登记）。UI 红两轮恰 10 件：第 95 条族 9 件（ChatGestureNativeSurfaceTests 5＋ChatGestureArbitrationTests 4，AX 帧不稳同签名）＋键盘矩阵 rig 1 件（KeyboardTapDismissMatrixTests，本轮未出 MATRIX-VERDICT、与 .61 组版轮登记同形态、rig 涨落族内）。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS 两轮均在。§184 签名内：宿主重启 1 次/轮、BackingData 两轮零命中。**签名外新红零。判绿，待组版。**
