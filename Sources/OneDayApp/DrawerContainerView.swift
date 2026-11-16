@@ -73,7 +73,7 @@ import UIKit
 ///   screenChanged（开→抽屉面、关→内容面；回触发
 ///   钮本体的精确落点真机验）。
 ///
-/// 语义开合：AppState.drawerPresented 仍是各入口的
+/// 语义开合：AppState.router.drawerPresented 仍是各入口的
 /// 写入面——ContentView 在 body 里读它并以 presented
 /// 入参喂本桥（观察在 ContentView 层成立），桥在更
 /// 新时与容器语义对账执行；容器侧手势/点按改变开
@@ -100,8 +100,8 @@ struct DrawerContainer<Content: View>: UIViewControllerRepresentable {
         let controller = DrawerContainerController()
         let appState = appState
         controller.onPresentedChange = { newValue in
-            if appState.drawerPresented != newValue {
-                appState.drawerPresented = newValue
+            if appState.router.drawerPresented != newValue {
+                appState.router.drawerPresented = newValue
             }
         }
         apply(to: controller)
@@ -158,7 +158,7 @@ struct DrawerContainer<Content: View>: UIViewControllerRepresentable {
 final class DrawerContainerController: UIViewController,
     UIGestureRecognizerDelegate
 {
-    /// 开合语义（与 AppState.drawerPresented 对账的
+    /// 开合语义（与 AppState.router.drawerPresented 对账的
     /// 容器侧副本；setDrawer 是唯一写口）
     private(set) var semanticPresented = false
     /// 推开量（min(容器宽×0.79, 400)，方案起点值＝

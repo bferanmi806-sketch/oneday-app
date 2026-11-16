@@ -72,8 +72,8 @@ struct CronJobsView: View {
         .task { await load() }
         .onAppear {
             // 总览快捷动作深链：消费「新建」请求
-            if appState.cronCreateRequested {
-                appState.cronCreateRequested = false
+            if appState.router.cronCreateRequested {
+                appState.router.cronCreateRequested = false
                 showCreate = true
             }
         }
@@ -444,7 +444,7 @@ struct CronJobDetailView: View {
         // 0.4.0（§3.4）：运行记录点按改道聊天页续聊（运行
         // 记录本体即服务端会话），不再进只读详情页
         Button {
-            appState.pendingChatSessionID = run.id
+            appState.router.pendingChatSessionID = run.id
         } label: {
             HStack(spacing: OneDayMetrics.spacingSM) {
                 VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {

@@ -131,9 +131,9 @@ struct IdeasView: View {
             // 此消费（清零先行防重入），落点判定走
             // resolveIdeaOpen（在名单开详情、名单就绪
             // 而查无给诚实提示、未就绪挂起等名单）
-            .onChange(of: appState.ideaOpenRequest) { _, id in
+            .onChange(of: appState.router.ideaOpenRequest) { _, id in
                 if let id {
-                    appState.ideaOpenRequest = nil
+                    appState.router.ideaOpenRequest = nil
                     pendingIdeaOpenID = id
                     resolveIdeaOpen()
                 }
@@ -750,10 +750,10 @@ struct IdeaDetailView: View {
         }
         // §219：引用直写目标线程的待发状态（落点决定
         // 与引用写入同动作完成），不再经种子消费
-        appState.pendingSourceQuotesByThread[thread.id] =
+        appState.pendingQuotes.sourceQuotesByThread[thread.id] =
             .idea(IdeaQuote(idea: idea))
-        appState.drawerThreadSelection = thread.id
-        appState.mainTabSwitchRequest = .chat
+        appState.router.drawerThreadSelection = thread.id
+        appState.router.mainTabSwitchRequest = .chat
         dismiss()
     }
 

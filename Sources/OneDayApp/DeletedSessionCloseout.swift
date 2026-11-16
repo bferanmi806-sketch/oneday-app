@@ -118,7 +118,7 @@ enum DeletedSessionCloseout {
         modelContext: ModelContext
     ) {
         if isCurrentThread(thread, appState: appState) {
-            appState.drawerDeletedThreadID = thread.id
+            appState.router.drawerDeletedThreadID = thread.id
         }
         modelContext.delete(thread)
         try? modelContext.save()
@@ -130,7 +130,7 @@ enum DeletedSessionCloseout {
     static func isCurrentThread(
         _ thread: ChatThread, appState: AppState
     ) -> Bool {
-        switch appState.currentDrawerObject {
+        switch appState.router.currentDrawerObject {
         case .side(let id) where id == thread.id:
             return true
         case .main:
@@ -147,7 +147,7 @@ enum DeletedSessionCloseout {
             break
         }
         if let sessionID = thread.serverSessionID,
-           sessionID == appState.channelViewingOrigin?.sessionID {
+           sessionID == appState.router.channelViewingOrigin?.sessionID {
             return true
         }
         return false

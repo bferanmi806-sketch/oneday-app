@@ -149,10 +149,10 @@ struct GoalsView: View {
         let fresh = ChatThread()
         modelContext.insert(fresh)
         try? modelContext.save()
-        appState.pendingSourceQuotesByThread[fresh.id] =
+        appState.pendingQuotes.sourceQuotesByThread[fresh.id] =
             .goal(GoalQuote(category: category))
-        appState.drawerThreadSelection = fresh.id
-        appState.mainTabSwitchRequest = .chat
+        appState.router.drawerThreadSelection = fresh.id
+        appState.router.mainTabSwitchRequest = .chat
         createSheet = nil
     }
 
@@ -992,8 +992,8 @@ struct GoalDetailView: View {
     private func openGoalThread() {
         guard let threadID = appState.sideChats
             .threadID(forGoalID: goalID) else { return }
-        appState.drawerThreadSelection = threadID
-        appState.mainTabSwitchRequest = .chat
+        appState.router.drawerThreadSelection = threadID
+        appState.router.mainTabSwitchRequest = .chat
     }
 
     var body: some View {

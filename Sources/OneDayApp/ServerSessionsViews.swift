@@ -223,7 +223,7 @@ struct ServerSessionsView: View {
                 // 0.4.0（§3.4）：点会话改道聊天页续聊；本页
                 // 只保留管理面（选择/批量删/清空）
                 Button {
-                    appState.pendingChatSessionID = session.id
+                    appState.router.pendingChatSessionID = session.id
                 } label: {
                     rowContent(session, selecting: false)
                 }
@@ -306,7 +306,7 @@ struct ServerSessionsView: View {
     private func searchHitRow(_ hit: SessionSearchHit) -> some View {
         Button {
             // 与正表同路：交聊天页按服务端会话续聊
-            appState.pendingChatSessionID = hit.sessionID
+            appState.router.pendingChatSessionID = hit.sessionID
         } label: {
             HStack(spacing: OneDayMetrics.spacingSM) {
                 VStack(alignment: .leading, spacing: OneDayMetrics.stackGap) {

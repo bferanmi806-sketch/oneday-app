@@ -32,7 +32,7 @@ final class WeakAppStateBox: @unchecked Sendable {
 }
 
 /// （§210：FeedDiscussSeed 已随种子机制退役——待发
-/// 引用改挂 AppState.pendingFeedQuotesByThread 按线
+/// 引用改挂 AppState.pendingQuotes.feedQuotesByThread 按线
 /// 程寻址，见该字段注与定因报告）
 
 /// 连接状态单点：持有当前服务器配置与客户端，负责
@@ -718,181 +718,20 @@ final class AppState {
         )
     }
 
-    /// 跨页深链（总览 → 智能体格/设置格二级页）：目标页消费后置 nil
-    var pendingAgentRoute: AgentRoute?
-    var pendingSettingsRoute: SettingsRoute?
-    /// 设置 sheet 打开请求（0.20.0）：抽屉齿轮置位，
-    /// ContentView 消费呈现根级设置 sheet 后置 false。
-    /// 0.6.0 的 pendingAppsPage 通道随应用格退役一并
-    /// 删除——应用格页面已各有新家（总览/电脑/服务器
-    /// 文件进设置「管理」组、文件格升底栏），不再有
-    /// 「切格落位」这回事
-    var settingsSheetRequested = false
-    /// 底栏切格请求（0.29.0）：设置内页面（如连接器目
-    /// 录的本机服务详情）要把用户送到目标/点子底栏格
-    /// 时置位，ContentView 消费后关设置 sheet 并切格
-    /// 并清零——置位—消费—清零与 settingsSheet-
-    /// Requested 同式；目标格枚举与底栏本体同源
-    /// （ContentView.MainTab），不另立第二套格名
-    var mainTabSwitchRequest: ContentView.MainTab?
-    /// 文件页定位请求（§131，D8「在文件页中打开」）：
-    /// 打开页动作置位目标路径并同行置 mainTabSwitch-
-    /// Request=.files 切格，DeliverablesView 消费后
-    /// 滚动定位＋高亮该行并清零——置位—消费—清零与
-    /// pendingChatSessionID 同式
-    var fileRevealPath: String?
+    /// 全 App 唯一导航真值（§301，横扫 A-03）：跨页
+    /// 路由信箱群（0.4.0–§219 六代、约 20 字段）已整
+    /// 组迁入 AppRouter，本类不再自持任何导航请求字
+    /// 段——消费方一律经 appState.router 读写（字段
+    /// 名与置位—消费—清零协议逐项不变、只换持有者）
+    let router = AppRouter()
+    /// 线程待发引用（§301）：草稿数据非导航，自顶层
+    /// 迁出独立持有（见 PendingThreadQuotes），不随
+    /// 路由走；写入/消费口径逐项不变
+    let pendingQuotes = PendingThreadQuotes()
     /// 文件库内容修订号（§131）：打开页改名成功后递
     /// 增，文件页以此为 .task(id:) 键重聚合——改名
     /// 结果不在文件页留旧名残影
     var fileLibraryRevision = 0
-    /// 待续聊的服务端会话 id（0.4.0，审计 §3.4）：四处
-    /// 入口（抽屉／服务端会话页／状态页／定时运行记录）
-    /// 置位，ContentView 据此切聊天格、ChatView 消费后
-    /// 导入历史并置 nil。不再走设置格的只读详情页
-    var pendingChatSessionID: String?
-    /// 待续聊会话的频道来源标记（0.36.29，频道规格
-    /// §10.3）：频道页点行时与 pendingChatSessionID
-    /// 同行置位（先标记、后置 id），ChatView 消费时
-    /// 据此把抽屉当前对象置为 .channel 并落频道观
-    /// 看出处；其他入口打开会话不置此标记，消费口
-    /// 径据「无标记」清旧出处。消费后清零
-    var pendingChatChannelID: String?
-    /// 频道观看出处（0.36.29，§10.2）：当前线程是
-    /// 从哪个频道的哪条会话打开的——ChatView 当前
-    /// 线程同步据此维持 .channel 对象引用（导入线
-    /// 程渲染期间不派生成 .side）；线程切离该会话
-    /// 或从旁聊区/主线行重进同一条时由各置位点清
-    /// 除。只存呈现出处、不参与分类（分类归属与选
-    /// 择归属是两件事）
-    var channelViewingOrigin: ChannelViewingOrigin?
-    /// 总览快捷动作「新建定时任务」：定时页消费后自动拉起新建表单
-    var cronCreateRequested = false
-    /// 点子底栏角标已整套退役（§177，用户 2026-11-12
-    /// 亲定点子不出现「待阅」呈现——分区/状态字/角标
-    /// 一并下线）：§123 M3 的 ideasUnread 计数、已见
-    /// 水位落盘与刷新/清零方法随角标删除，Core
-    /// IdeasBadge 同步退役；旧落盘键 ideas.seenWatermark
-    /// 不再读写（残值无害、不做迁移）
-
-    /// 通知落点请求（§123 H2）：通知中心点条目时置位
-    /// （落点解析在 Core NotificationDestination），
-    /// AgentHubView 开枢纽时消费段位、对应段消费各自
-    /// 的聚焦字段，消费后清零——置位—消费—清零与
-    /// hubOpenRequested 同式
-    var hubDestinationRequest: NotificationDestination?
-    /// 审批段聚焦的已决记录 id（approvalDecision 携带来）
-    var hubApprovalFocusID: String?
-    /// 监测段深链：直达的监测 id 与变化 id（变化 id 为
-    /// nil 时只达监测详情）
-    var monitorDeepLink: (monitorID: String, changeID: String?)?
-    /// 锚点点达请求（§165）：枢纽记录行/通知回执命中本
-    /// 机锚时置位——目标线程＋锚定键（键为 nil＝只切线
-    /// 程不定位）；ChatView 消费（切线程→滚动定位→点
-    /// 亮→清零），与 hubDestinationRequest 分家：锚点
-    /// 落点不在枢纽里、不经枢纽开启接力
-    var approvalAnchorRequest: (
-        threadID: UUID, approvalKey: String?
-    )?
-
-    /// 通知条目落点分发：把落点拆成各消费方能消费的
-    /// 字段；返回 false 表示无落点（调用方不导航）。
-    /// §165：锚点落点（approvalAnchor/approvalThread）
-    /// 不进 hubDestinationRequest——它由通知页直接切聊
-    /// 天格＋置 approvalAnchorRequest，ChatView 消费；
-    /// 返回 true 表示落点成立（调用方关通知页即可，不
-    /// 走枢纽接力）
-    @discardableResult
-    func requestHubDestination(
-        _ destination: NotificationDestination
-    ) -> Bool {
-        switch destination {
-        case .approvalDecision(let id):
-            hubApprovalFocusID = id
-        case .monitorChange(let monitorID, let changeID):
-            monitorDeepLink = (monitorID, changeID)
-        case .approvalAnchor(let threadID, let key):
-            approvalAnchorRequest = (threadID, key)
-            return destination.hasDestination
-        case .approvalThread(let threadID):
-            approvalAnchorRequest = (threadID, nil)
-            return destination.hasDestination
-        case .approvalHome, .monitorsHome, .none:
-            break
-        }
-        guard destination.hasDestination else { return false }
-        hubDestinationRequest = destination
-        return true
-    }
-    /// 抽屉「枢纽」导航行的开枢纽请求（0.19.0）：抽屉置
-    /// 位（先切聊天格再置位），ChatView 消费后开枢纽
-    /// sheet 并清零——置位—消费—清零与 cronCreate-
-    /// Requested 同式。枢纽 sheet 本体长在聊天页（胶囊
-    /// 入口同处），不在抽屉另立第二份承载
-    var hubOpenRequested = false
-    /// 聊天抽屉开合的语义状态（0.2.2 立；0.4.5 改口径，
-    /// §30）：壳层 ContentView 是执行者（覆盖式动画与跟手
-    /// 状态在壳层），任何视图想开/关抽屉只写这里、壳层
-    /// onChange 执行；DrawerView 据此在打开时补拉服
-    /// 务端会话 source 映射（0.19.0 返工瘦身：只喂旁
-    /// 聊行显的来源过滤判定，不再拉名单成行——名单
-    /// 本体是本地线程）。（0.2.2–0.4.4 的旧注「Con-
-    /// tentView 据此隐藏自绘底栏」随自绘底栏与覆盖式
-    /// 抽屉一并作废）
-    var drawerPresented = false
-    /// 抽屉与 ChatView 之间的通道（0.4.5，抽屉提到
-    /// 壳层后立；模式与 pendingChatSessionID 一致：置位
-    /// 方写、消费方读后清零）
-    /// 抽屉当前对象引用（0.36.7，频道规格 §10.2/§10.3）：
-    /// 全抽屉唯一选择源——写入点只有导航动作（抽屉主
-    /// 线行→.main、旁聊行→.side）与 ChatView 的当前线
-    /// 程同步（落点/切换/新建/导入都经它派生）；抽屉
-    /// 胶囊只许问 Core DrawerSelectionPolicy，不许再
-    /// 私读页签或线程 id 自画。页签切走不清、回切恢
-    /// 复。0.4.5 的 activeThreadID 随本引用落地退役
-    /// （其消费面——胶囊判定与删当前线程判定——已全
-    /// 部改读本引用经政策解析）
-    var currentDrawerObject: DrawerCurrentObject?
-    /// 动态讨论待发引用（§208 立制、§210 改挂）：按
-    /// 线程寻址存放——引用挂在目标线程自己的待发
-    /// 状态上（与 Telegram 草稿按 peer 存、Stream
-    /// composer 长在 channel 上的主流形态同构），
-    /// FeedView.discuss 在落点决定的同一动作内直写
-    /// 本表，ChatView 按 currentThreadID 派生呈现：
-    /// 不经全局种子事件消费、不依赖视图存亡与事件
-    /// 顺序（§210 定因，见 discuss-quote-attach-
-    /// report-20261113）。不经草稿账（setDraft 只许
-    /// 亲笔，见 SideChatStore 隔离铁律）。只活在内
-    /// 存：进程死亡即亡，与引用本身的生命周期一致
-    /// （引用不落盘恢复，规格 §3.3）
-    var pendingFeedQuotesByThread: [UUID: FeedPostQuote] = [:]
-    /// 点子／文件待发引用（§219）：与上表同型——按
-    /// 线程寻址存放，IdeasView.openIdeaChat 与 File-
-    /// OpenView.requestResend 在落点决定的同一动作内
-    /// 直写本表，ChatView 按 currentThreadID 派生呈
-    /// 现。载荷是 SourceQuote 统一枚举，本表只承载
-    /// .idea／.file 两族（.feed 族沿上表 §210 既有通
-    /// 道，不在此重复存放）；槽位单一在场、后入覆盖
-    /// 的互斥由 ChatView 呈现侧收口函数对两表交叉清
-    /// 理兑现。只活在内存、进程死亡即亡（同上表）
-    var pendingSourceQuotesByThread: [UUID: SourceQuote] = [:]
-    /// 动态原帖回跳请求（§208）：聊天里点消息的动态
-    /// 引用块时置位帖 id 并同行置 mainTabSwitch-
-    /// Request=.feed 切格，FeedView 消费后定位原帖
-    /// （查无此帖给诚实提示）并清零——置位—消费—
-    /// 清零与 fileRevealPath 同式
-    var feedOpenPostRequest: String?
-    /// 点子回跳请求（§219）：聊天里点消息的点子引
-    /// 用块时置位点子 id 并同行置 mainTabSwitch-
-    /// Request=.ideas 切格，IdeasView 消费后开该点
-    /// 子详情（查无此点子给诚实提示）并清零——与
-    /// feedOpenPostRequest 同式
-    var ideaOpenRequest: String?
-    /// 抽屉点选/新建的线程 id（DrawerView 写，ChatView
-    /// 消费后切 currentThreadID 并清零）
-    var drawerThreadSelection: UUID?
-    /// 抽屉刚删掉的线程 id（DrawerView 写，ChatView 若
-    /// 正显示该线程则置空 currentThreadID 并清零）
-    var drawerDeletedThreadID: UUID?
 
     /// 业务成功信号代次（0.36.20，§86.2）：HermesClient
     /// 任一业务请求收到 HTTP 响应即经回调递增，壳层观

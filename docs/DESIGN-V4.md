@@ -13211,3 +13211,17 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+
+## §301 AppState router 收口包（2026-11-16；分支 feat/appstate-router，基线 rel-05060@5f77967；横扫 A-03＋A-28 附带）
+
+**定性**：导航状态收口、行为逐项不变。病灶（横扫 A-03）：AppState 顶层散着 0.4.0–§219 六代「置位—消费—清零」信箱（约 20 字段各自为政、消费方各写 onChange 猜时序），`AppRoutes.swift` 自始只有两个路由枚举、信箱本体从未并入——汇编审计收口序 #8 在 .54 未执行、繁殖至今。
+
+**标准做法对账（施工前核查，详见包报告 §一）**：官方形态＝`NavigationStack(path:)` 绑定可编码类型化路由集合＋`navigationDestination(for:)` 统一解析（Apple Developer Documentation）——面内栈本仓已合规（设置页 `@State path: [SettingsRoute]`＋navigationDestination 全量映射，不动）；跨面深达的通行形态＝单个 @Observable Router 对象持有路由栈＋底栏格＋sheet 呈现槽、视图只发意图、深链解析后经同一 router 落地（社区通行实现多源一致）。本 App 是 TabView 壳＋各格自有栈，全局单 NavigationStack 须改页面结构（本包禁区），故落「Router 对象」一半：跨面一层收归唯一 AppRouter，面内栈维持各面自有。
+
+**收口清单**：①新立 `AppRouter`（@MainActor @Observable）：AppState 原 722–895 信箱段整组迁入——pendingAgentRoute/pendingSettingsRoute（跨页深链）、settingsSheetRequested（设置 sheet 槽）、mainTabSwitchRequest（底栏格）、fileRevealPath、pendingChatSessionID＋pendingChatChannelID（续聊落点，先标记后置 id 协议不变）、channelViewingOrigin（频道观看出处）、cronCreateRequested、hubDestinationRequest＋hubApprovalFocusID＋monitorDeepLink＋approvalAnchorRequest＋`requestHubDestination` 拆包函数（§123/§165 原样）、hubOpenRequested（枢纽 sheet 槽）、drawerPresented＋currentDrawerObject（抽屉呈现与当前对象）、feedOpenPostRequest/ideaOpenRequest（回跳）、drawerThreadSelection/drawerDeletedThreadID（抽屉↔聊天通道）。字段名、类型、置位—消费—清零协议逐项沿旧制，只换持有者；消费方约 25 文件 133 处 `appState.X` 机械改挂 `appState.router.X`。②`AppRoutes.swift` 删除，AgentRoute/SettingsRoute 两枚举迁入 AppRouter.swift——「仅枚举」文件退役。③A-28 顺带：`ManageSheet` 自 SettingsView 内部枚举上移 AppRouter.swift 公共层，WorkspaceHubView 不再反向借 `SettingsView.ManageSheet`。④草稿数据不随路由走（处方明示）：pendingFeedQuotesByThread/pendingSourceQuotesByThread 迁出为独立持有者 `PendingThreadQuotes`（AppState.pendingQuotes），按线程寻址/后入覆盖/只活内存口径逐项不变，17 处改挂。
+
+**与处方的差异（如实登记）**：处方「约 18 个字段收为路由 case」未落成单一枚举槽——现状各意图是独立并发通道（续聊落点与抽屉选择、回跳与切格请求常同帧并存，ContentView/ChatView 双消费方分工明确），并成单槽会引入今日不存在的覆盖竞态、即行为变更；落实为「单对象持有＋既有类型化落点枚举（AgentRoute/SettingsRoute/NotificationDestination）＋独立槽保留」，收口目标（单一真值、单一持有者、拆包逻辑归 router）达成，槽形从现状。fileLibraryRevision（§131 数据修订号、A-06 议题）与 drawerRefreshTick 非导航，未动。
+
+**行为对拍**：新增 `AppRouterTests` 11 例——requestHubDestination 七 case 字段落点＋返回值逐项对旧实现、意图独立槽同置不互扰、待发引用两表独立＋后入覆盖；既有 DiscussQuoteAttachReproTests（§210 待发引用 rig）、DeleteCloseoutTests、DrawerBridgeHarnessTests、TabBarFloatTests 随改挂继续钉。入口落点逐项（抽屉/深链/通知点达/频道/会话切换）由既有装配与 UI 签名族覆盖、本包零页面结构与视觉改动。
+
+### §301.1 CI 判读回填（待 CI 后回填）

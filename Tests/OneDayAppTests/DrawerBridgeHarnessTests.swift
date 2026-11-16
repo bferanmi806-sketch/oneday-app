@@ -15,7 +15,7 @@ private struct DrawerBridgeHarness: View {
     var body: some View {
         DrawerContainer(
             selection: $selection,
-            presented: appState.drawerPresented,
+            presented: appState.router.drawerPresented,
             onOpenChannel: { _ in }
         ) {
             Text("content替身")
@@ -94,7 +94,7 @@ final class DrawerBridgeHarnessTests: XCTestCase {
         )
         XCTAssertGreaterThan(drawer.travel, 0)
         XCTAssertFalse(drawer.semanticPresented)
-        appState.drawerPresented = true
+        appState.router.drawerPresented = true
         spinRunLoop(seconds: 2.0)
         XCTAssertTrue(
             drawer.semanticPresented,

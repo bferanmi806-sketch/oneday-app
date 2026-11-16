@@ -518,10 +518,10 @@ struct FileOpenContent: View {
             let thread = ChatThread()
             modelContext.insert(thread)
             try? modelContext.save()
-            appState.pendingSourceQuotesByThread[thread.id] =
+            appState.pendingQuotes.sourceQuotesByThread[thread.id] =
                 .file(quote)
-            appState.drawerThreadSelection = thread.id
-            appState.mainTabSwitchRequest = .chat
+            appState.router.drawerThreadSelection = thread.id
+            appState.router.mainTabSwitchRequest = .chat
         }
         dismiss()
     }
@@ -639,9 +639,9 @@ struct FileOpenContent: View {
         case .openInFiles:
             // 回指文件页：先置定位请求、再切格、本页
             // 退场——DeliverablesView 消费后滚动高亮
-            // （跨面通道口径见 AppState.fileRevealPath）
-            appState.fileRevealPath = target.path
-            appState.mainTabSwitchRequest = .files
+            // （跨面通道口径见 AppState.router.fileRevealPath）
+            appState.router.fileRevealPath = target.path
+            appState.router.mainTabSwitchRequest = .files
             dismiss()
         case .copyText, .exportPDF, .share, .download:
             performSecondary(action)

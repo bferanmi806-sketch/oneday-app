@@ -59,10 +59,9 @@ struct SettingsView: View {
     // 体在详情页内复用（AgentAvatarEditorView／
     // AgentNameEditorView 全仓一份不变）
 
-    enum ManageSheet: String, Identifiable {
-        case overview, computer, serverFiles
-        var id: String { rawValue }
-    }
+    // （ManageSheet 枚举已于 §301 随 A-03/A-28 上移
+    // AppRouter.swift 公共层——呈现槽枚举归呈现协调
+    // 方，WorkspaceHubView 不再反向借用本页内部类型）
 
     @Environment(AppState.self) private var appState
     @State private var path: [SettingsRoute] = []
@@ -173,10 +172,10 @@ struct SettingsView: View {
             .onAppear {
                 consumePendingRoutes()
             }
-            .onChange(of: appState.pendingSettingsRoute) { _, _ in
+            .onChange(of: appState.router.pendingSettingsRoute) { _, _ in
                 consumePendingRoutes()
             }
-            .onChange(of: appState.pendingAgentRoute) { _, _ in
+            .onChange(of: appState.router.pendingAgentRoute) { _, _ in
                 consumePendingRoutes()
             }
             .navigationDestination(for: SettingsRoute.self) { route in
@@ -544,7 +543,7 @@ struct SettingsView: View {
                 onOpenChatSession: { id in
                     manageSheet = nil
                     onClose?()
-                    appState.pendingChatSessionID = id
+                    appState.router.pendingChatSessionID = id
                 },
                 onOpenSettings: { route in
                     manageSheet = nil
@@ -929,13 +928,13 @@ struct SettingsView: View {
     /// 深链消费：设置内路由直接落位；智能体详情类路由垫一层
     /// 列表页，返回键才有落点（沿 0.2.0 智能体格口径）
     private func consumePendingRoutes() {
-        if let route = appState.pendingSettingsRoute {
-            appState.pendingSettingsRoute = nil
+        if let route = appState.router.pendingSettingsRoute {
+            appState.router.pendingSettingsRoute = nil
             path = [route]
             return
         }
-        guard let route = appState.pendingAgentRoute else { return }
-        appState.pendingAgentRoute = nil
+        guard let route = appState.router.pendingAgentRoute else { return }
+        appState.router.pendingAgentRoute = nil
         switch route {
         case .serverSessionDetail:
             path = [.agent(.serverSessions), .agent(route)]

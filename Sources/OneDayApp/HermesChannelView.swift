@@ -188,9 +188,9 @@ struct HermesChannelView: View {
     /// 普通行点按续聊：先置频道来源标记、再走宿主
     /// 续聊通道（标记与 pendingChatSessionID 同行，
     /// ChatView 消费口据此落频道出处与收养提示，
-    /// 见 AppState.pendingChatChannelID 注）
+    /// 见 AppState.router.pendingChatChannelID 注）
     private func openSession(_ session: ServerSession) {
-        appState.pendingChatChannelID = ChannelRegistry.hermesChannelID
+        appState.router.pendingChatChannelID = ChannelRegistry.hermesChannelID
         onOpenSession(session.id)
     }
 

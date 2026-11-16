@@ -170,7 +170,7 @@ final class SessionDeletionEngine {
             if DeletedSessionCloseout.isCurrentThread(
                 thread, appState: appState
             ) {
-                appState.drawerDeletedThreadID = thread.id
+                appState.router.drawerDeletedThreadID = thread.id
             }
             if !thread.isPendingDeletion {
                 thread.isPendingDeletion = true

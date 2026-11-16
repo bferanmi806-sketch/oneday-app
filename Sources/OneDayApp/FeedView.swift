@@ -155,9 +155,9 @@ struct FeedView: View {
             // 求在此消费（清零先行防重入），落点判定走
             // resolveFeedOpen（在名单直达详情、名单就
             // 绪而查无给诚实提示、未就绪挂起等名单）
-            .onChange(of: appState.feedOpenPostRequest) { _, id in
+            .onChange(of: appState.router.feedOpenPostRequest) { _, id in
                 if let id {
-                    appState.feedOpenPostRequest = nil
+                    appState.router.feedOpenPostRequest = nil
                     pendingFeedOpenPostID = id
                     resolveFeedOpen()
                 }
@@ -622,10 +622,10 @@ struct FeedView: View {
         }
         // §210：引用直写目标线程的待发状态（落点决定
         // 与引用写入同动作完成），不再经全局种子
-        appState.pendingFeedQuotesByThread[thread.id] =
+        appState.pendingQuotes.feedQuotesByThread[thread.id] =
             FeedPostQuote(post: post)
-        appState.drawerThreadSelection = thread.id
-        appState.mainTabSwitchRequest = .chat
+        appState.router.drawerThreadSelection = thread.id
+        appState.router.mainTabSwitchRequest = .chat
     }
 
     /// 按 id 取本地线程（点子流 fetchThread 同形）

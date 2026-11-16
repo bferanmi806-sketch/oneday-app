@@ -226,7 +226,7 @@ struct LedgerDetailView: View {
     private func goToAnchor(
         _ request: (threadID: UUID, approvalKey: String?)
     ) {
-        appState.approvalAnchorRequest = (
+        appState.router.approvalAnchorRequest = (
             request.threadID, request.approvalKey
         )
         dismiss()
