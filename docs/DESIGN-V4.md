@@ -13211,3 +13211,21 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+
+## §308 账本收尾包（2026-11-16；分支 feat/ledger-tail-close，基线 rel-05060 尖端；待办第 90 条余三件＋横扫 B-07 删壳）
+
+> 节号说明：§301–§307 已被并行分支占用（A-03 §301／A-05／第 104 条／A-04／A-06 与 A-11 各占 §307 等），本包顺延 §308；组版合并时如再冲突，按组版线口径顺延改号、本节内容不变。
+
+**范围与口径**：第 90 条余三件（施工图 §4.3、包二报告 §三登记）＋B-07（nonstandard-sweep-data B-07 节：装配核归账本、删壳、删除协调器/收口件/测试改直连账本）。不组版、无服务端改动、不碰 A-05 台账单流契约（allItems 服务端单流、monitor 规范形——A-05 改面为 LedgerStore/LedgerModels/HubLedgerSection 等工作台账文件，与本包文件面零交集，实查对账见交卷报告接触面清单）。
+
+**① 迁移挂载点迁账本**：迁移执行本体（runMigration 五步）与 migrationFailures 留痕自 AllConversationsStore 迁入 SessionLedger；触发点自管理页首开 .task 改挂账本 refresh() 尾步——refresh 同步完成事件（hasLoadedFull 置真＋ensureTitles 之后）经 runMigrationIfNeeded 触发；runMigration 自带 isRunningMigration 在飞守卫（尾步重拉的 refresh 不自触发，失败再试留下轮外部刷新）；迁移全程 ctxOverride 注入形态、五步语义、回读对账、清本地口径逐字保留。管理页迁移失败区改直读 appState.sessionLedger.migrationFailures，页脚文案改「下次打开本页刷新名单时会自动再试」。**语义差登记**：旧形态 load() 失败仍跑迁移（do/catch 吞错后无条件续跑）；新形态 refresh 在归档段拉取抛错时本轮不触发迁移、留下轮——按施工图「挂载点＝同步完成事件」口径取此形态，差异如实登记、真机验收点覆盖（见报告）。
+
+**② 主线钦定与三张关联表持有迁账本**：SessionLedger 新增 init(persisted:) 与 UserDefaults 持有面，键名全部沿用 sideChats.* 原键（含历史键 sideChats.goalThreadIDs——goalThreadIDs 的盘上键名原样保留，不改名不断链）。主线钦定五键（mainThreadID/mainServerSessionID＋三 setter）与三张关联表（ideaThreadIDs/goalThreadIDs/feedDiscussPostIDs＋全部读写方法）自 SideChatStore 迁入账本；purgeServerSessionRecords 迁入账本（标题覆盖清理仍归 SideChatStore、经 appState 注入清项）；SideChatStore 瘦身至标题覆盖/草稿/滚动锚点/lastThreadID 与两清扫函数（清扫的关联表输入改 links: 参数注入，FeedStore/IdeasStore 调用点传账本关联集）。
+
+**③ 归档键持有迁账本（双轨回写）**：archivedKeys/failedArchiveSessionIDs 与 archive/unarchive/note/clear 全套迁入账本；写路径仍回写原键 sideChats.archivedKeys（＋.failed）——双轨保回滚，读面自账本出。
+
+**B-07 删壳**：ServerSessionCatalog.swift 整件删除；其 IncompleteReason/FetchResult/fetchAll/fetchAllPages 逐字迁入 SessionLedger（静态面）；AppState 删 serverSessionCatalog 属性与接线、sessionLedger 改 init 内按 !demoMode.isDemo 赋值；消费方（SessionDeletionEngine/EmptyCleanupView/EmptyCleanupScanGate/DeletedSessionCloseout）改直连账本（publishVisible/removeSession）。测试面 8 文件机械改直连，新增 SessionLedgerTailCloseTests 3 例（refresh 触发迁移且落定清本地／迁移失败留痕且本地保留／账本原键同值双轨钉测）；脚本客户端补 scriptedSessions 单查与写回执记录器（SessionUpdateRecorder，锁＋@unchecked Sendable）。
+
+**CI 判读（两轮全量门，§190 全日志本地核账）**：有效轮一 run 43824475804（全日志 24,648 行）：**Core 2153/2153、0 failures**——与 rel-05060 基线逐数一致（本包不增删 Core 测；新增 3 例为 App 测）；App 侧本包相关全绿（TailClose 3/3、SessionCatalogGuard 9/9、SessionLedgerApp 5/5）；红 13 件全属登记签名族：R2 ⑧×1、§257.1 探针族×2（DeviceConditionProbe＋EdgeEffectProbe）、第 95 条 UI 族×9、键盘矩阵 rig×1（MATRIX-VERDICT=FAIL 随之）；HUB-LAYOUT-VERDICT=PASS、VERDICT=PASS；BackingData 零命中。有效轮二 run 43830036468（同提交 0f0bb90 复跑，全日志 25,360 行）：**Core 2153/2153 复全绿**；红 11 件同签名族（R2 ⑧×1、§257.1×1、第 95 条 UI 族×9；键盘矩阵本轮 PASS——rig 签名内涨落）；本包相关测试复绿；BackingData 零命中。两轮签名外新红零。此前三轮为编译红迭代（跨行读点漏网 9 处／记录器 Sendable／新测缺 try），均本包改面内、已逐一修复并如实登记于交卷报告。
+
+**判定：判绿**（预制面，不组版）。待办第 90 条划线；B-07 在横扫报告侧的登记由组版线随待办副本一并销账。真机验收点见交卷报告 ledger-tail-close-20261116.md §五。
