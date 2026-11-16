@@ -1,27 +1,32 @@
+import OneDayCore
 import OneDayDesign
 import SwiftUI
 
-/// 流式打字渐显（0.3.0，DESIGN-V4 §14 条 4）：流式回复
-/// 的新字以 blur 6px 起、120ms 化开，同批增量内的字
-/// 依次错开 30ms 入场；已入场字符静止不重演。落盘后
-/// 的成品消息改走 MarkdownText 静态渲染，本组件只活
-/// 在流式进行中。
+/// 流式呈现（0.3.0 初版为逐词元 blur 渐显，DESIGN-V4
+/// §14 条 4；2026-11-16 第 104 条到达减法改版）：入场
+/// 计划由 Core StreamingEntrance 单点裁定——首批整批
+/// 直显（指示器同拍换装、不留光标药丸帧），后续批次
+/// 整批同拍单次轻渐显（opacity、MotionTokens.streamIn
+/// 120ms，无 blur、无逐词元错开）；「打字动画」开关
+/// （chat.streaming.typewriter，设置→外观）关或
+/// Reduce Motion 时全程直显，Reduce Motion 优先。
+/// 已入场字符静止不重演。落盘后的成品消息改走
+/// MarkdownText 静态渲染，本组件只活在流式进行中。
 ///
 /// 词元口径：CJK 逐字成元（任意位置可断行）、拉丁字母
 /// 按词成元（词不拆断）；词元以 TokenFlow 换行布局排
 /// 布，流式光标作为末尾词元同流排布。
 ///
-/// 动效纪律（0.3.2，DESIGN-V4 §17）：入场动画统一走
-/// MotionTokens.streamIn＋resolved 出口（Reduce Motion
-/// 开启时整段直显、无 stagger）；stagger 批级封顶——
-/// 单批增量 >8 词元时步进压缩至总时长 240ms 且退化为
-/// 纯 opacity（无 blur），断线重连的全量补发不被动画
-/// 扣留（审查 M-2/E-4）。
+/// 历史纪律（0.3.2，DESIGN-V4 §17）：入场动画统一走
+/// MotionTokens.streamIn＋resolved 出口；断线重连的
+/// 全量补发不被动画扣留（审查 M-2/E-4）——第 104 条
+/// 下由「换代首批直显」承接。
 ///
 /// 动画作用域（第 82 条，2026-11-15）：入场动画只许
-/// 动 blur＋opacity，词元位置永不进动画事务——动画
-/// 收在 StreamingTokenView 内部视觉层，被 TokenFlow
-/// 落位的视图自身不挂动画。定因与帧证据见
+/// 动 opacity（初版含 blur、第 104 条退役），词元
+/// 位置永不进动画事务——动画收在 StreamingTokenView
+/// 内部视觉层，被 TokenFlow 落位的视图自身不挂动画。
+/// 定因与帧证据见
 /// gen4-stream-overlap-diagnosis-20261115.md（旧形态
 /// 动画挂在被落位视图整体上，换行边界词元的原点翻
 /// 动被插值成纵向滑移＝真机叠字）。
@@ -33,6 +38,10 @@ struct StreamingText: View {
     }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 打字动画开关（第 104 条）：设置→外观「回复
+    /// 呈现」节写、本组件读；缺省开。关＝全程直显
+    @AppStorage(StreamingTypewriterFeature.defaultsKey)
+    private var typewriterEnabled = true
 
     /// 词元稳定身份（原生重建 R2／H4，叠字静态定案
     /// 候选②的处置）：身份＝（代次，文内字符偏移）。
@@ -57,8 +66,6 @@ struct StreamingText: View {
     }
 
     @State private var visible: Set<TokenKey> = []
-    /// 大批量增量中的词元：退化为纯 opacity 入场（无 blur）
-    @State private var noBlur: Set<TokenKey> = []
     @State private var generation = 0
     @State private var lastText = ""
 
@@ -105,7 +112,7 @@ struct StreamingText: View {
         // 块在两层各出现一份是构造必然（叠字定案候
         // 选③）；同步派生后尾块词元同拍消失，构造上
         // 不存在同帧两份。滞后的只剩入场记账（visi-
-        // ble/noBlur），它只管浓淡、不管有无
+        // ble），它只管浓淡、不管有无
         let gen = displayGeneration
         let slices = Self.slices(for: text)
         return TokenFlow(spacing: OneDayMetrics.tokenFlowSpacing) {
@@ -116,12 +123,6 @@ struct StreamingText: View {
                 StreamingTokenView(
                     token: slice.text,
                     shown: visible.contains(
-                        TokenKey(
-                            generation: gen,
-                            offset: slice.offset
-                        )
-                    ),
-                    flat: noBlur.contains(
                         TokenKey(
                             generation: gen,
                             offset: slice.offset
@@ -145,9 +146,10 @@ struct StreamingText: View {
     }
 
     /// 入场记账对账（文本每变一拍）：推进代次、清
-    /// 旧代次账、给未入场词元排入场。延时任务带代
-    /// 次校验——在途期间文本被替换（代次已进）则
-    /// 任务作废，不许把旧身份的入场点到新词元头上
+    /// 旧代次账、按入场计划（Core StreamingEntrance）
+    /// 给未入场词元显形。渐显任务带代次校验——在途
+    /// 期间文本被替换（代次已进）则任务作废，不许把
+    /// 旧身份的入场点到新词元头上
     private func reconcile(_ newText: String) {
         let delta = Self.isContinuation(
             from: lastText, to: newText
@@ -156,9 +158,6 @@ struct StreamingText: View {
         generation = newGeneration
         lastText = newText
         visible = visible.filter {
-            $0.generation == newGeneration
-        }
-        noBlur = noBlur.filter {
             $0.generation == newGeneration
         }
         let pending = Self.slices(for: newText).filter {
@@ -175,25 +174,24 @@ struct StreamingText: View {
                 generation: newGeneration, offset: $0.offset
             )
         }
-        if pending.count > 8 {
-            noBlur.formUnion(keys)
-        }
-        // Reduce Motion：新词元整段直显，不排 stagger
-        if reduceMotion {
+        // 第 104 条到达减法：计划单点裁定——首批
+        // （本代次尚无已显词元，含指示器换装拍与换
+        // 代重发）整批直显；开关关／Reduce Motion
+        // 直显；其余批次整批同拍渐显（一个任务翻
+        // 全批、无逐词元错开）。旧词元保持已入场
+        let plan = StreamingEntrance.plan(
+            typewriterEnabled: typewriterEnabled,
+            reduceMotion: reduceMotion,
+            isFirstBatchOfGeneration: visible.isEmpty
+        )
+        switch plan {
+        case .instant:
             visible.formUnion(keys)
-            return
-        }
-        // 旧词元保持已入场；新词元按批内序号错开入场，
-        // 总时长封顶 240ms（大批量时步进等比压缩）
-        let step = pending.count > 8
-            ? 0.24 / Double(pending.count) : 0.03
-        for (index, key) in keys.enumerated() {
-            let delay = min(Double(index) * step, 0.24)
+        case .batchFade:
             Task {
-                try? await Task.sleep(for: .seconds(delay))
                 guard self.generation == newGeneration
                 else { return }
-                self.visible.insert(key)
+                self.visible.formUnion(keys)
             }
         }
     }
@@ -226,9 +224,9 @@ struct StreamingText: View {
 
 /// 词元视觉层（第 82 条）：TokenFlow 落位的就是本视
 /// 图，它自身不挂任何动画修饰——父 Layout 赋予的
-/// origin 变更永远直跳、不进动画事务。入场动画
-/// （blur＋opacity）只挂在 body 内的 Text 上：动画
-/// 域仅限本视图内部的视觉属性，够不到外层落位。
+/// origin 变更永远直跳、不进动画事务。入场动画只
+/// 挂在 body 内的 Text 上：动画域仅限本视图内部的
+/// 视觉属性，够不到外层落位。
 ///
 /// 病根回溯（gen4-stream-overlap-diagnosis-20261115）：
 /// 旧形态把 .animation(streamIn, value:) 直接挂在被
@@ -236,14 +234,17 @@ struct StreamingText: View {
 /// 图一切可动画属性一并过渡」，TokenFlow 每拍重排
 /// 时换行边界词元的原点翻动被 120ms easeOut 插值
 /// 成纵向滑移、压住本行字形（真机叠字）。落定字形
-/// 与行中追加字的现有观感（只有浓淡、无位移）由本
-/// 分层原样保持：shown/flat 语义与旧链逐项同值。
+/// 与行中追加字的观感（只有浓淡、无位移）由本分层
+/// 保持。
+///
+/// 第 104 条：入场只剩 opacity 一项——blur 随逐词
+/// 元错开一并退役（到达瞬间动画叠加的用户实报），
+/// 显形节奏由 reconcile 的整批计划决定，本层只管
+/// 单次浓淡过渡
 private struct StreamingTokenView: View {
     let token: String
     /// 已入场（visible 含本词元序号）
     let shown: Bool
-    /// 大批量退化档：纯 opacity 入场（无 blur）
-    let flat: Bool
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -256,7 +257,6 @@ private struct StreamingTokenView: View {
             // 落盘不跳字号
             .font(.body)
             .foregroundStyle(Palette.bodyInk)
-            .blur(radius: shown || flat ? 0 : 6)
             .opacity(shown ? 1 : 0)
             .animation(
                 MotionTokens.resolved(
