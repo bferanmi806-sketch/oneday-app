@@ -13549,3 +13549,21 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 
 **组版注（0.50.64）**：节号顺延 §314（代码面零自指、无同步项）；AppState 两处接线（删 serverSessionCatalog 属性、sessionLedger init 赋值）经自动合并按 A-03 结构落位、对账无误；GoalsView 5 处持有者改动因 A-11 已拆分，移植至 GoalDetailView（3 处）／GoalFormViews（2 处），GoalsView.swift 本体与 .63 逐字一致；DrawerView 冲突解＝账本持有 mainThreadID＋router drawerThreadSelection 两取。
 
+## §315 A-21 查看器半边收口（2026-11-16；分支 feat/viewer-safearea-close，基线 rel-05060@5f77967；原自编号 §309，组版 0.50.64 顺延为 §315）
+
+**依据**：横扫 nonstandard-sweep-ui-20261115.md A-21——GuideHost 纪律（第 89 条 H2：一切托管宿主 safeAreaRegions 清零）在聊天外未贯彻，抽屉双宿主已由抽屉变换包（§308）收口，查看器宿主 ZoomHostingController（ImageViewerView.swift）漏网，R1–R4 已出货未含此项，主线另行派本包单独收口。
+
+**落码**：ZoomHostingController.viewDidLoad 首行 `safeAreaRegions = []`（含 A-21/H2 注释，与抽屉半边 DrawerContainerView viewDidLoad 落码形态一致，不另创写法）。口径成立依据：查看器内容根两处 `.ignoresSafeArea()` 自排全幅，宿主派生安全区只构成双源叠加隐患、无内容依赖（横扫 A-21 风险定级同此）。连带一处可见性修饰：ZoomHostingController 去 `private`（类本体零改动），供 App 测试直构断言——与 A-11 判绿先例（goalActivityDotColor 去 private 供逐字节对拍）同形态。
+
+**验证面**：新增 ImageViewerHostSafeAreaTests 3 例——对照组（裸 UIHostingController 默认 safeAreaRegions＝.all，证断言非平台默认空转）／本体（ZoomHostingController loadViewIfNeeded 后 safeAreaRegions＝[]）／全幅不变（装窗布局后宿主视图帧＝窗口帧、清零仍在）。缩放/双击本体在 ZoomableImageView（本包未动），全幅/缩放/手势既有套件全绿担。落底三数不属本包改动面、组版轮续证为准。
+
+**验收**：全量门两轮（§190 全日志核账）：Core 与基线 rel-05060 逐数对账（预期 2153/2153 不变——本包不增删 Core 测；App 侧净增 3 例全绿）；红只认登记签名族（§257.1、R2 ⑧、第 95 条 UI 族、键盘矩阵 rig、§184 签名内）。CI 判读见 §315.1（回填）。
+
+**节号**：§315 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§308），组版合并时主线合裁顺延改号并同步代码注释。
+
+### §315.1 CI 判读（§190 全日志核账，判绿）
+
+两轮 workflow_dispatch @ feat/viewer-safearea-close 尖端 012a84e、同提交零改动：run 43844471440（全日志 24,643 行）＋run 43852668372（25,071 行），逐数一致——**Core 两轮均 2153/2153、0 failures，与基线 rel-05060 逐数一致**（本包不增删 Core 测，账面闭合）；新增 ImageViewerHostSafeAreaTests 3 例两轮全绿。**落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 两轮均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .60 逐值同、不退。App 红两轮恰 2 件、与基线登记逐项同签名：§257.1 探针（EdgeEffectProbeTests）＋R2 装配 ⑧（testBlockClosureKeepsSegmentInExactlyOneItem，量测限制已登记）。UI 红两轮恰 10 件：第 95 条族 9 件（ChatGestureNativeSurfaceTests 5＋ChatGestureArbitrationTests 4，AX 帧不稳同签名）＋键盘矩阵 rig 1 件（KeyboardTapDismissMatrixTests，本轮未出 MATRIX-VERDICT、与 .61 组版轮登记同形态、rig 涨落族内）。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS 两轮均在。§184 签名内：宿主重启 1 次/轮、BackingData 两轮零命中。**签名外新红零。判绿，待组版。**
+
+**组版注（0.50.64）**：节号顺延 §315/§315.1，代码自指 2 处（ImageViewerView.swift 注释、ImageViewerHostSafeAreaTests 头注）同步改号。
+
