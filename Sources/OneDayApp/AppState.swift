@@ -718,13 +718,13 @@ final class AppState {
         )
     }
 
-    /// 全 App 唯一导航真值（§301，横扫 A-03）：跨页
+    /// 全 App 唯一导航真值（§302，横扫 A-03）：跨页
     /// 路由信箱群（0.4.0–§219 六代、约 20 字段）已整
     /// 组迁入 AppRouter，本类不再自持任何导航请求字
     /// 段——消费方一律经 appState.router 读写（字段
     /// 名与置位—消费—清零协议逐项不变、只换持有者）
     let router = AppRouter()
-    /// 线程待发引用（§301）：草稿数据非导航，自顶层
+    /// 线程待发引用（§302）：草稿数据非导航，自顶层
     /// 迁出独立持有（见 PendingThreadQuotes），不随
     /// 路由走；写入/消费口径逐项不变
     let pendingQuotes = PendingThreadQuotes()

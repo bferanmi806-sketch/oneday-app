@@ -5,7 +5,7 @@ import SwiftUI
 /// 跨页深链路由（IA v3）：总览的指标行/最近会话/快捷动作要把
 /// 用户直接送进智能体格或设置格的某个二级页，路由经 AppRouter
 /// 的 pending 字段传递，目标页消费后清空。
-/// （§301 前本文件名为 AppRoutes.swift、只有两个枚举——信箱
+/// （§302 前本文件名为 AppRoutes.swift、只有两个枚举——信箱
 /// 本体从未并入；A-03 收口后枚举与信箱同归 AppRouter 一处。）
 enum AgentRoute: Hashable {
     case memory
@@ -62,14 +62,14 @@ enum SettingsRoute: Hashable {
 
 /// 「工作区」组三页的 sheet 呈现槽枚举（原定义在
 /// SettingsView 内部、WorkspaceHubView 反向借用——
-/// §301 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
+/// §302 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
 /// 协调方，本枚举自此与 AppRouter 同文件公共层）
 enum ManageSheet: String, Identifiable {
     case overview, computer, serverFiles
     var id: String { rawValue }
 }
 
-/// 全 App 唯一导航真值（§301，横扫 A-03 router-unify）：
+/// 全 App 唯一导航真值（§302，横扫 A-03 router-unify）：
 /// 0.4.0–§219 六代「置位—消费—清零」信箱原散在 AppState
 /// （约 20 个字段各自为政、消费方各写 onChange 猜时序），
 /// 本类整组收口为唯一持有者——跨页路由意图、底栏格、

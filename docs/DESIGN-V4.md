@@ -13212,7 +13212,7 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
 
-## §301 AppState router 收口包（2026-11-16；分支 feat/appstate-router，基线 rel-05060@5f77967；横扫 A-03＋A-28 附带）
+## §302 AppState router 收口包（2026-11-16；分支 feat/appstate-router，基线 rel-05060@5f77967；横扫 A-03＋A-28 附带）
 
 **定性**：导航状态收口、行为逐项不变。病灶（横扫 A-03）：AppState 顶层散着 0.4.0–§219 六代「置位—消费—清零」信箱（约 20 字段各自为政、消费方各写 onChange 猜时序），`AppRoutes.swift` 自始只有两个路由枚举、信箱本体从未并入——汇编审计收口序 #8 在 .54 未执行、繁殖至今。
 
@@ -13224,4 +13224,4 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 
 **行为对拍**：新增 `AppRouterTests` 11 例——requestHubDestination 七 case 字段落点＋返回值逐项对旧实现、意图独立槽同置不互扰、待发引用两表独立＋后入覆盖；既有 DiscussQuoteAttachReproTests（§210 待发引用 rig）、DeleteCloseoutTests、DrawerBridgeHarnessTests、TabBarFloatTests 随改挂继续钉。入口落点逐项（抽屉/深链/通知点达/频道/会话切换）由既有装配与 UI 签名族覆盖、本包零页面结构与视觉改动。
 
-### §301.1 CI 判读回填（待 CI 后回填）
+### §302.1 CI 判读回填（待 CI 后回填）

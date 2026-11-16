@@ -2,7 +2,7 @@ import XCTest
 @testable import OneDayApp
 @testable import OneDayCore
 
-/// AppRouter 收口对拍（§301，横扫 A-03 router-unify）：
+/// AppRouter 收口对拍（§302，横扫 A-03 router-unify）：
 /// 信箱群自 AppState 迁入唯一 router 后，逐项钉住迁
 /// 移前行为——①通知落点拆包（requestHubDestination）
 /// 七个 case 的字段落点与返回值与旧 AppState 实现逐

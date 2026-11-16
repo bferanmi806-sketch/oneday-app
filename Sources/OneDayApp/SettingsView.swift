@@ -59,7 +59,7 @@ struct SettingsView: View {
     // 体在详情页内复用（AgentAvatarEditorView／
     // AgentNameEditorView 全仓一份不变）
 
-    // （ManageSheet 枚举已于 §301 随 A-03/A-28 上移
+    // （ManageSheet 枚举已于 §302 随 A-03/A-28 上移
     // AppRouter.swift 公共层——呈现槽枚举归呈现协调
     // 方，WorkspaceHubView 不再反向借用本页内部类型）
 
