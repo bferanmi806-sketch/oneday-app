@@ -233,7 +233,7 @@ enum ApprovalAnchorSupport {
     }
 
     /// 点达落点：解析出线程（带锚定键时连条目）→
-    /// 返回要落 AppState.approvalAnchorRequest 的值；
+    /// 返回要落 AppState.router.approvalAnchorRequest 的值；
     /// .none 返回 nil（调用方不出手）
     static func anchorRequest(
         index: Index, subsystem: WriteGateSubsystem,

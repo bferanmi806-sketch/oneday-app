@@ -898,7 +898,7 @@ private enum NotificationDestinationFlow {
         appState: AppState,
         dismiss: DismissAction
     ) {
-        guard appState.requestHubDestination(destination)
+        guard appState.router.requestHubDestination(destination)
         else { return }
         dismiss()
     }

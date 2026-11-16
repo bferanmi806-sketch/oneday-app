@@ -177,22 +177,22 @@ final class DeleteCloseoutTests: XCTestCase {
         let otherSID = "oneday-side-closeout-background"
         let current = try makeThread(sessionID: currentSID)
         _ = try makeThread(sessionID: otherSID)
-        appState.currentDrawerObject = .side(current.id)
+        appState.router.currentDrawerObject = .side(current.id)
 
         DeletedSessionCloseout.apply(
             sessionID: otherSID, appState: appState,
             threads: try fetchThreads(),
             modelContext: context
         )
-        XCTAssertNil(appState.drawerDeletedThreadID)
+        XCTAssertNil(appState.router.drawerDeletedThreadID)
 
         DeletedSessionCloseout.apply(
             sessionID: currentSID, appState: appState,
             threads: try fetchThreads(),
             modelContext: context
         )
-        XCTAssertEqual(appState.drawerDeletedThreadID, current.id)
-        appState.drawerDeletedThreadID = nil
+        XCTAssertEqual(appState.router.drawerDeletedThreadID, current.id)
+        appState.router.drawerDeletedThreadID = nil
     }
 
     // MARK: - ② 名单对账

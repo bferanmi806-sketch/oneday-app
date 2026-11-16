@@ -346,7 +346,7 @@ struct DrawerView: View {
         // 行为词残留到下次打开、入口直接落在上次的
         // 过滤态，与「重开呈默认态」不是一个状态；
         // 收敛后入口状态只许一个（全量名单＋空框）
-        .onChange(of: appState.drawerPresented) { wasPresented, presented in
+        .onChange(of: appState.router.drawerPresented) { wasPresented, presented in
             if presented {
                 Task { await loadDrawerData() }
                 // 身份呈现跟随（末写胜包）：抽屉页头就
@@ -556,15 +556,15 @@ struct DrawerView: View {
                 // 未落定时只切页签，ChatView 落点解析会
                 // 以主线兜底
                 if let mainID = appState.sideChats.mainThreadID {
-                    appState.drawerThreadSelection = mainID
+                    appState.router.drawerThreadSelection = mainID
                 }
                 // 0.36.7（§10.3 置位纪律）：导航动作显
                 // 式写当前对象引用，胶囊随点按即归主线
                 // 0.36.29：回主线即离频道出处（§10.3
                 // 置位点清零），防残留出处把后续同步带
                 // 回 .channel
-                appState.channelViewingOrigin = nil
-                appState.currentDrawerObject = .main
+                appState.router.channelViewingOrigin = nil
+                appState.router.currentDrawerObject = .main
                 onSelectTab(.chat)
             }
             // 枢纽行已删（0.36.5，用户 19:24 点名）：
@@ -911,7 +911,7 @@ struct DrawerView: View {
         DrawerSelectionPolicy.resolve(
             currentTab: currentTab,
             chatTab: .chat,
-            currentObject: appState.currentDrawerObject,
+            currentObject: appState.router.currentDrawerObject,
             landingThreadID: nil,
             mainThreadID: appState.sideChats.mainThreadID
         )
@@ -1023,7 +1023,7 @@ struct DrawerView: View {
             session: session,
             title: session.resolvedTitle(firstUserMessage: nil),
             onOpen: {
-                appState.pendingChatSessionID = session.id
+                appState.router.pendingChatSessionID = session.id
                 onClose()
             },
             onChanged: { Task { await loadDrawerData() } },
@@ -1107,7 +1107,7 @@ struct DrawerView: View {
         // 看这条旁聊时胶囊只归本行、主线聊天行无胶囊
         let isCurrent = drawerSelection == .side(thread.id)
         return Button {
-            appState.drawerThreadSelection = thread.id
+            appState.router.drawerThreadSelection = thread.id
             // 0.36.7（§10.3 置位纪律）：导航动作显式
             // 写当前对象引用
             // 0.36.29（§10.4-⑤）：从旁聊区进入即离频
@@ -1115,8 +1115,8 @@ struct DrawerView: View {
             // 条线程，胶囊也随入口归旁聊行，出处必须
             // 在此清零（否则 ChatView 同步会按残留出
             // 处又把引用派生回 .channel）
-            appState.channelViewingOrigin = nil
-            appState.currentDrawerObject = .side(thread.id)
+            appState.router.channelViewingOrigin = nil
+            appState.router.currentDrawerObject = .side(thread.id)
             onClose()
         } label: {
             // §157③④：标题与行尾两件先成件、再按字号
@@ -1618,7 +1618,7 @@ struct DrawerView: View {
                 systemName: "gearshape",
                 label: "设置"
             ) {
-                appState.settingsSheetRequested = true
+                appState.router.settingsSheetRequested = true
             }
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: "magnifyingglass")
@@ -1713,7 +1713,7 @@ struct DrawerView: View {
         let thread = ChatThread()
         modelContext.insert(thread)
         try? modelContext.save()
-        appState.drawerThreadSelection = thread.id
+        appState.router.drawerThreadSelection = thread.id
     }
 }
 

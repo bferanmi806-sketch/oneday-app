@@ -216,8 +216,8 @@ struct ChatView: View {
                 .font(.callout)
                 .foregroundStyle(Palette.inkSecondary)
                 Button("去设置") {
-                    appState.pendingSettingsRoute = .models
-                    appState.settingsSheetRequested = true
+                    appState.router.pendingSettingsRoute = .models
+                    appState.router.settingsSheetRequested = true
                 }
                 .font(.callout)
                 .foregroundStyle(Palette.primary)
@@ -590,16 +590,16 @@ struct ChatView: View {
     private var pendingFeedQuote: FeedPostQuote? {
         get {
             currentThreadID.flatMap {
-                appState.pendingFeedQuotesByThread[$0]
+                appState.pendingQuotes.feedQuotesByThread[$0]
             }
         }
         nonmutating set {
             guard let currentThreadID else { return }
             if let newValue {
-                appState.pendingFeedQuotesByThread[currentThreadID] =
+                appState.pendingQuotes.feedQuotesByThread[currentThreadID] =
                     newValue
             } else {
-                appState.pendingFeedQuotesByThread
+                appState.pendingQuotes.feedQuotesByThread
                     .removeValue(forKey: currentThreadID)
             }
         }
@@ -617,16 +617,16 @@ struct ChatView: View {
     private var pendingSourceQuote: SourceQuote? {
         get {
             currentThreadID.flatMap {
-                appState.pendingSourceQuotesByThread[$0]
+                appState.pendingQuotes.sourceQuotesByThread[$0]
             }
         }
         nonmutating set {
             guard let currentThreadID else { return }
             if let newValue {
-                appState.pendingSourceQuotesByThread[currentThreadID] =
+                appState.pendingQuotes.sourceQuotesByThread[currentThreadID] =
                     newValue
             } else {
-                appState.pendingSourceQuotesByThread
+                appState.pendingQuotes.sourceQuotesByThread
                     .removeValue(forKey: currentThreadID)
             }
         }
@@ -833,12 +833,12 @@ struct ChatView: View {
             }
         }
         // 0.19.0：抽屉「枢纽」导航行的开枢纽请求通道
-        //（AppState.hubOpenRequested 置位—消费—清零，
+        //（AppState.router.hubOpenRequested 置位—消费—清零，
         // 与 cronCreateRequested 同式）：抽屉先切聊天格
         // 再置位，本页在场消费、开枢纽 sheet
-        .onChange(of: appState.hubOpenRequested) { _, requested in
+        .onChange(of: appState.router.hubOpenRequested) { _, requested in
             if requested {
-                appState.hubOpenRequested = false
+                appState.router.hubOpenRequested = false
                 showHub = true
             }
         }
@@ -946,10 +946,10 @@ struct ChatView: View {
             // （§208 种子制下清理是全局的、落位后任一
             // 再变更即误杀，定因见 §210 报告）
             if let oldID, oldID != newID {
-                appState.pendingFeedQuotesByThread
+                appState.pendingQuotes.feedQuotesByThread
                     .removeValue(forKey: oldID)
                 // §219：点子／文件待发引用同律定点作废
-                appState.pendingSourceQuotesByThread
+                appState.pendingQuotes.sourceQuotesByThread
                     .removeValue(forKey: oldID)
             }
             // 0.7.0（M4）：分流种子经 pendingForkQuote 暂存
@@ -986,9 +986,9 @@ struct ChatView: View {
         // 0.4.5：消费抽屉的线程选择（DrawerView 点行/
         // 新建时置位；与 pendingChatSessionID 同模式：
         // 消费即清零，防重入）
-        .onChange(of: appState.drawerThreadSelection) { _, id in
+        .onChange(of: appState.router.drawerThreadSelection) { _, id in
             if let id {
-                appState.drawerThreadSelection = nil
+                appState.router.drawerThreadSelection = nil
                 currentThreadID = id
             }
         }
@@ -997,21 +997,21 @@ struct ChatView: View {
         // 在场就收口呈现侧动作——人已在目标线程内
         // 时写入即聚焦，不等切换事件（§208 种子制的
         // 本处理已随种子退役）
-        .onChange(of: appState.pendingFeedQuotesByThread) { _, _ in
+        .onChange(of: appState.pendingQuotes.feedQuotesByThread) { _, _ in
             applyPendingFeedQuoteIfNeeded()
         }
         // §219：点子／文件待发引用表变化时同式收口
         // （点子/文件写入都经此表）——人已在目标线程
         // 内时写入即聚焦，不等切换事件
-        .onChange(of: appState.pendingSourceQuotesByThread) { _, _ in
+        .onChange(of: appState.pendingQuotes.sourceQuotesByThread) { _, _ in
             applyPendingSourceQuoteIfNeeded()
         }
         // 0.4.5：抽屉删掉的正是当前线程时置空（计算属
         // 性随之落到最近线程，与旧版 deleteThread 内
         // 直改 currentThreadID 的语义一致）
-        .onChange(of: appState.drawerDeletedThreadID) { _, id in
+        .onChange(of: appState.router.drawerDeletedThreadID) { _, id in
             if let id {
-                appState.drawerDeletedThreadID = nil
+                appState.router.drawerDeletedThreadID = nil
                 // 0.7.0：被删线程的草稿与滚动锚一并清掉，
                 // 不在轻保活账上留死键
                 appState.sideChats.setDraft("", for: id)
@@ -1325,9 +1325,9 @@ struct ChatView: View {
             .ignoresSafeArea()
         }
         // 0.4.0（§3.4）：消费待续聊会话（四处入口经
-        // AppState.pendingChatSessionID 置位、ContentView
+        // AppState.router.pendingChatSessionID 置位、ContentView
         // 切聊天格，本页导入历史后进聊天续聊）
-        .onChange(of: appState.pendingChatSessionID) { _, id in
+        .onChange(of: appState.router.pendingChatSessionID) { _, id in
             if let id {
                 Task { await consumePendingChatSession(id) }
             }
@@ -1337,7 +1337,7 @@ struct ChatView: View {
         // 页消费：切线程（与抽屉切线同字段）→等条目
         // 进渲染→滚动定位＋点亮→清零；目标线程/条目
         // 找不到如实落空（不滚、不亮），不许假定位
-        .onChange(of: appState.approvalAnchorRequest?.threadID) {
+        .onChange(of: appState.router.approvalAnchorRequest?.threadID) {
             _, _ in
             consumeApprovalAnchorRequest()
         }
@@ -1502,10 +1502,10 @@ struct ChatView: View {
             // 0.4.5：同理补消费抽屉线程选择（从其他格开
             // 抽屉选线程切过来时，本页可能尚未挂载、
             // onChange 不重放）
-            if let id = appState.drawerThreadSelection {
-                appState.drawerThreadSelection = nil
+            if let id = appState.router.drawerThreadSelection {
+                appState.router.drawerThreadSelection = nil
                 currentThreadID = id
-            } else if appState.pendingChatSessionID == nil {
+            } else if appState.router.pendingChatSessionID == nil {
                 // 0.30.0（用户 12:56 录屏点名 Muse 模
                 // 型，取代 0.7.0「冷启永远先落主线」）：
                 // 落点走 Core ChatLandingResolution——
@@ -1536,7 +1536,7 @@ struct ChatView: View {
             syncDrawerObjectFromCurrentThread()
             // 本页首次出现时若已有待续聊会话（如从其他格
             // 首次切入），onChange 可能先于挂载发生、在此补消费
-            if let id = appState.pendingChatSessionID {
+            if let id = appState.router.pendingChatSessionID {
                 Task { await consumePendingChatSession(id) }
             }
             // 0.27.0：主线链接预热（未链才走；失败原因
@@ -1631,10 +1631,10 @@ struct ChatView: View {
         // 页消费请求切线程定位（onChange/onAppear 双触
         // 发，此处补第三路防 sheet 关闭吞掉变更）
         .sheet(isPresented: $showNotifications, onDismiss: {
-            if appState.approvalAnchorRequest != nil {
+            if appState.router.approvalAnchorRequest != nil {
                 consumeApprovalAnchorRequest()
-            } else if appState.hubDestinationRequest != nil {
-                appState.hubOpenRequested = true
+            } else if appState.router.hubDestinationRequest != nil {
+                appState.router.hubOpenRequested = true
             }
         }) {
             if let overviewStore {
@@ -1737,7 +1737,7 @@ struct ChatView: View {
             ProgressCapsuleView(
                 currentSessionID: currentThread?.serverSessionID,
                 onOpenSession: { sessionID in
-                    appState.pendingChatSessionID = sessionID
+                    appState.router.pendingChatSessionID = sessionID
                 }
             )
         }
@@ -1762,7 +1762,7 @@ struct ChatView: View {
                     // 0.4.5：开抽屉只写语义状态，壳层据
                     // drawerPresented 执行推式动画（并先
                     // 收键盘，见 ContentView.setDrawer）
-                    appState.drawerPresented = true
+                    appState.router.drawerPresented = true
                 } label: {
                     Image(systemName: "line.3.horizontal")
                         // 两钮共用 HeaderButtonSpec（直径 40／
@@ -5054,11 +5054,11 @@ struct ChatView: View {
     /// 如实落空：停在该线程顶部附近、不滚不亮。请求
     /// 无键（threadOnly）只切线程
     private func consumeApprovalAnchorRequest() {
-        guard let request = appState.approvalAnchorRequest
+        guard let request = appState.router.approvalAnchorRequest
         else { return }
-        appState.approvalAnchorRequest = nil
-        if appState.drawerThreadSelection != request.threadID {
-            appState.drawerThreadSelection = request.threadID
+        appState.router.approvalAnchorRequest = nil
+        if appState.router.drawerThreadSelection != request.threadID {
+            appState.router.drawerThreadSelection = request.threadID
         }
         guard let key = request.approvalKey,
               let thread = threads.first(
@@ -5217,7 +5217,7 @@ struct ChatView: View {
     /// 入/切换（与管理页/频道页同路）
     private func openEchoSession(_ sessionID: String) {
         if sessionID != currentThread?.serverSessionID {
-            appState.pendingChatSessionID = sessionID
+            appState.router.pendingChatSessionID = sessionID
         }
     }
 
@@ -6132,7 +6132,7 @@ struct ChatView: View {
         // 态引用在场收口时，同线程的点子／文件待发引
         // 用一并让位（两表分存、互斥靠收口交叉清理）
         if let currentThreadID {
-            appState.pendingSourceQuotesByThread
+            appState.pendingQuotes.sourceQuotesByThread
                 .removeValue(forKey: currentThreadID)
         }
         composerFocusHandle.focus()
@@ -6277,8 +6277,8 @@ struct ChatView: View {
     /// 本块快照内容不受影响仍可读）
     private func feedQuoteBlock(_ quote: FeedPostQuote) -> some View {
         Button {
-            appState.feedOpenPostRequest = quote.postID
-            appState.mainTabSwitchRequest = .feed
+            appState.router.feedOpenPostRequest = quote.postID
+            appState.router.mainTabSwitchRequest = .feed
         } label: {
             HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                 Rectangle()
@@ -6336,8 +6336,8 @@ struct ChatView: View {
     /// 照内容不受影响仍可读）
     private func ideaQuoteBlock(_ quote: IdeaQuote) -> some View {
         Button {
-            appState.ideaOpenRequest = quote.ideaID
-            appState.mainTabSwitchRequest = .ideas
+            appState.router.ideaOpenRequest = quote.ideaID
+            appState.router.mainTabSwitchRequest = .ideas
         } label: {
             HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                 Rectangle()
@@ -6411,7 +6411,7 @@ struct ChatView: View {
     /// 自然还没有它，本块快照内容不受影响仍可读）
     private func goalQuoteBlock(_ quote: GoalQuote) -> some View {
         Button {
-            appState.mainTabSwitchRequest = .goals
+            appState.router.mainTabSwitchRequest = .goals
         } label: {
             HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                 Rectangle()
@@ -8713,15 +8713,15 @@ private struct ComposerBarLayout: Layout {
     /// 按先行清零，本函数随之派生 .side，不在此处
     /// 特殊处理
     private func syncDrawerObjectFromCurrentThread() {
-        if let origin = appState.channelViewingOrigin,
+        if let origin = appState.router.channelViewingOrigin,
            currentThread?.serverSessionID == origin.sessionID {
-            appState.currentDrawerObject = .channel(origin.channelID)
+            appState.router.currentDrawerObject = .channel(origin.channelID)
             return
         }
-        if appState.channelViewingOrigin != nil {
-            appState.channelViewingOrigin = nil
+        if appState.router.channelViewingOrigin != nil {
+            appState.router.channelViewingOrigin = nil
         }
-        appState.currentDrawerObject =
+        appState.router.currentDrawerObject =
             DrawerSelectionPolicy.object(
                 forThreadID: currentThread?.id,
                 mainThreadID: appState.sideChats.mainThreadID
@@ -8739,10 +8739,10 @@ private struct ComposerBarLayout: Layout {
     /// （呈现层拼装、不写入任何会话，沿回告卡 D4
     /// 红线精神）
     private func consumePendingChatSession(_ id: String) async {
-        guard appState.pendingChatSessionID == id else { return }
-        appState.pendingChatSessionID = nil
-        let channelID = appState.pendingChatChannelID
-        appState.pendingChatChannelID = nil
+        guard appState.router.pendingChatSessionID == id else { return }
+        appState.router.pendingChatSessionID = nil
+        let channelID = appState.router.pendingChatChannelID
+        appState.router.pendingChatChannelID = nil
         await runImport(sessionID: id, channelID: channelID)
     }
 
@@ -8756,7 +8756,7 @@ private struct ComposerBarLayout: Layout {
         importRetryContext = nil
         // 出处先行落位：导入途中 currentThreadID 变
         // 更触发的同步据此把对象引用派生成 .channel
-        appState.channelViewingOrigin = channelID.map {
+        appState.router.channelViewingOrigin = channelID.map {
             ChannelViewingOrigin(channelID: $0, sessionID: id)
         }
         let outcome = await openServerSession(id)
@@ -8765,7 +8765,7 @@ private struct ComposerBarLayout: Layout {
             case .switchedExisting, .importedNew:
                 // 落点已定：对象引用归频道行（导入途
                 // 中的同步可能已派生过，此处收尾钉死）
-                appState.currentDrawerObject = .channel(channelID)
+                appState.router.currentDrawerObject = .channel(channelID)
                 if outcome == .importedNew {
                     showNotice("已转入我的对话")
                 }
@@ -8773,7 +8773,7 @@ private struct ComposerBarLayout: Layout {
                 // 没打开成（仍停在原线程）：出处作废、
                 // 对象引用按当前线程回派，不许把胶囊
                 // 挂到没在看的频道行上
-                appState.channelViewingOrigin = nil
+                appState.router.channelViewingOrigin = nil
                 syncDrawerObjectFromCurrentThread()
             }
         }

@@ -176,15 +176,15 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
             )
             thread = fresh
         }
-        appState.pendingFeedQuotesByThread[thread.id] =
+        appState.pendingQuotes.feedQuotesByThread[thread.id] =
             FeedPostQuote(post: post)
-        appState.drawerThreadSelection = thread.id
-        appState.mainTabSwitchRequest = .chat
+        appState.router.drawerThreadSelection = thread.id
+        appState.router.mainTabSwitchRequest = .chat
         return thread.id
     }
 
     private func pendingQuote(for threadID: UUID) -> FeedPostQuote? {
-        appState.pendingFeedQuotesByThread[threadID]
+        appState.pendingQuotes.feedQuotesByThread[threadID]
     }
 
     // MARK: - 五段全程（单装配）
@@ -197,7 +197,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
             "聊天页未在壳层内呈现"
         )
         // 进场在动态格（复刻用户点讨论时的在场状态）
-        appState.mainTabSwitchRequest = .feed
+        appState.router.mainTabSwitchRequest = .feed
         spinRunLoop(seconds: 1.0)
         mark("on-feed-tab")
 
@@ -228,7 +228,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
             XCTFail("主线程 id 缺席，P2 无法执行")
             return
         }
-        appState.drawerThreadSelection = mainID
+        appState.router.drawerThreadSelection = mainID
         XCTAssertTrue(
             spinUntil(timeout: 8) { pendingQuote(for: t1) == nil },
             "P2：切离 T1 后其待发引用未作废（残留/串带）"

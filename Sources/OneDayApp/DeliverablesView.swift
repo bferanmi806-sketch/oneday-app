@@ -200,7 +200,7 @@ struct DeliverablesView: View {
             .task(id: appState.fileLibraryRevision) {
                 await collect()
             }
-            .onChange(of: appState.fileRevealPath) { _, _ in
+            .onChange(of: appState.router.fileRevealPath) { _, _ in
                 consumeRevealIfReady()
             }
             .modifier(
@@ -250,7 +250,7 @@ struct DeliverablesView: View {
         ZStack {
             HStack {
                 Button {
-                    appState.drawerPresented = true
+                    appState.router.drawerPresented = true
                 } label: {
                     headerCircleButton("line.3.horizontal")
                 }
@@ -1285,9 +1285,9 @@ struct DeliverablesView: View {
     /// 的文件（任意服务器路径）落系统文件浏览器父
     /// 目录＋文件名高亮，不假装它在文件页收录里
     private func consumeRevealIfReady() {
-        guard let path = appState.fileRevealPath else { return }
+        guard let path = appState.router.fileRevealPath else { return }
         guard deliverables != nil else { return }
-        appState.fileRevealPath = nil
+        appState.router.fileRevealPath = nil
         systemFilesRoute = nil
         previewEntry = nil
         viewerRoute = nil

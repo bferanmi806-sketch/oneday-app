@@ -107,14 +107,14 @@ struct HubLedgerSection: View {
     /// 推变化详情，与原监测段口径同），只在目标监
     /// 测已不存在时按旧段口径清掉防陈年链复活
     private func consumeFocusFields() {
-        if let id = appState.hubApprovalFocusID {
+        if let id = appState.router.hubApprovalFocusID {
             focusItemID = "appr:\(id)"
-            appState.hubApprovalFocusID = nil
+            appState.router.hubApprovalFocusID = nil
         }
-        if let deepLink = appState.monitorDeepLink {
+        if let deepLink = appState.router.monitorDeepLink {
             if monitorsStore.monitor(id: deepLink.monitorID) == nil,
                monitorsStore.loadState == .ready {
-                appState.monitorDeepLink = nil
+                appState.router.monitorDeepLink = nil
             } else if let changeID = deepLink.changeID {
                 focusItemID = LedgerMonitorSynthesis.itemID(
                     changeID: changeID

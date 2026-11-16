@@ -125,7 +125,7 @@ final class TabBarFloatTests: XCTestCase {
             if productionPlacement {
                 DrawerContainer(
                     selection: $selection,
-                    presented: appState.drawerPresented,
+                    presented: appState.router.drawerPresented,
                     onOpenChannel: { _ in }
                 ) {
                     TabStandIn(box: box)
@@ -134,7 +134,7 @@ final class TabBarFloatTests: XCTestCase {
             } else {
                 DrawerContainer(
                     selection: $selection,
-                    presented: appState.drawerPresented,
+                    presented: appState.router.drawerPresented,
                     onOpenChannel: { _ in }
                 ) {
                     TabStandIn(box: box)

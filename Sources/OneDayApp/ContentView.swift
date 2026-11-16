@@ -113,7 +113,7 @@ import UIKit
 /// 役、第一版不缩放。位移三件与弹簧口径全部沿用
 /// （DrawerMotion 纯逻辑＋DrawerSpringTiming 换算
 /// MotionTokens.drawerSpring），本层只剩 presented
-/// 入参对账（appState.drawerPresented 在 body 读出
+/// 入参对账（appState.router.drawerPresented 在 body 读出
 /// 喂桥、观察成立）。三轮验收与行为差异清单见
 /// DESIGN §156。
 struct ContentView: View {
@@ -177,7 +177,7 @@ struct ContentView: View {
         let id: String
     }
     /// 设置 sheet 呈现（0.20.0 第六条）：抽屉齿轮经
-    /// AppState.settingsSheetRequested 置位、本层消费
+    /// AppState.router.settingsSheetRequested 置位、本层消费
     /// 呈现；设置页本体内带大标题＋圆 X 头（照 Muse
     /// 设置页图形态）
     /// 2026-11-13（用户 15:52 亲令）：自抽屉点设置时
@@ -192,7 +192,7 @@ struct ContentView: View {
     var body: some View {
         DrawerContainer(
             selection: $selection,
-            presented: appState.drawerPresented,
+            presented: appState.router.drawerPresented,
             onOpenChannel: { channelRoute = ChannelRoute(id: $0) }
         ) {
             tabView
@@ -223,7 +223,7 @@ struct ContentView: View {
                     // 聊通道（ChatView 消费导入）
                     showAllConversations = false
                     selection = .chat
-                    appState.pendingChatSessionID = id
+                    appState.router.pendingChatSessionID = id
                 },
                 onClose: { showAllConversations = false }
             )
@@ -240,7 +240,7 @@ struct ContentView: View {
                     onOpenSession: { id in
                         channelRoute = nil
                         selection = .chat
-                        appState.pendingChatSessionID = id
+                        appState.router.pendingChatSessionID = id
                     },
                     onClose: { channelRoute = nil }
                 )
@@ -252,7 +252,7 @@ struct ContentView: View {
                     onOpenSession: { id in
                         channelRoute = nil
                         selection = .chat
-                        appState.pendingChatSessionID = id
+                        appState.router.pendingChatSessionID = id
                     },
                     onClose: { channelRoute = nil }
                 )
@@ -260,13 +260,13 @@ struct ContentView: View {
         }
         // 0.4.5：抽屉里点选/新建线程 → 落到聊天格
         // （ChatView 侧消费切换；含从其他格开抽屉的情形）
-        .onChange(of: appState.drawerThreadSelection) { _, id in
+        .onChange(of: appState.router.drawerThreadSelection) { _, id in
             if id != nil { selection = .chat }
         }
         // 0.4.0（§3.4）：任一入口置位待续聊会话 → 切聊天格
         // （ChatView 侧消费导入；已在聊天格时 onChange 同样
         // 触发、由 ChatView 直接消费）
-        .onChange(of: appState.pendingChatSessionID) { _, id in
+        .onChange(of: appState.router.pendingChatSessionID) { _, id in
             if id != nil {
                 selection = .chat
                 // 2026-11-13：置位即「现在就去看这个
@@ -278,31 +278,31 @@ struct ContentView: View {
                 // onOpenSession、枢纽下钻）触发时抽屉
                 // 已由各自行 onClose 收过、或本就关
                 // 着，写 false 只是无副作用对账
-                appState.drawerPresented = false
+                appState.router.drawerPresented = false
             }
         }
         // 0.20.0：抽屉齿轮置位设置请求 → 呈现根级设置
         // sheet（0.6.0 的 pendingAppsPage 切格落位通道
         // 随应用格退役删除）
-        .onChange(of: appState.settingsSheetRequested) { _, requested in
+        .onChange(of: appState.router.settingsSheetRequested) { _, requested in
             if requested {
-                appState.settingsSheetRequested = false
+                appState.router.settingsSheetRequested = false
                 showSettings = true
             }
         }
         // 0.29.0：设置内页面置位的切格请求（连接器目
         // 录本机服务详情的「目标/点子」入口）→关设置
         // 并切到目标格，消费后清零
-        .onChange(of: appState.mainTabSwitchRequest) { _, tab in
+        .onChange(of: appState.router.mainTabSwitchRequest) { _, tab in
             if let tab {
-                appState.mainTabSwitchRequest = nil
+                appState.router.mainTabSwitchRequest = nil
                 showSettings = false
                 selection = tab
                 // 2026-11-13：切格是「跳走」出口——自
                 // 抽屉进设置时抽屉还开着，一并收回，
                 // 落点格才看得见（口径见 showSettings
                 // 声明注）；抽屉本关着时为无副作用对账
-                appState.drawerPresented = false
+                appState.router.drawerPresented = false
             }
         }
         .sheet(isPresented: $showSettings, onDismiss: {
@@ -323,7 +323,7 @@ struct ContentView: View {
                     // 一并收回，聊天面才看得见（口径见
                     // showSettings 声明注）；抽屉本关着
                     // 时为无副作用对账
-                    appState.drawerPresented = false
+                    appState.router.drawerPresented = false
                 },
                 onRequestAllConversations: {
                     showAllConversationsAfterSettings = true

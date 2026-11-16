@@ -117,7 +117,7 @@ struct PlatformChannelView: View {
     }
 
     private func openSession(_ session: ServerSession) {
-        appState.pendingChatChannelID = channel.id
+        appState.router.pendingChatChannelID = channel.id
         onOpenSession(session.id)
     }
 

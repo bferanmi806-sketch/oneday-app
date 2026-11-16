@@ -577,7 +577,7 @@ struct OverviewView: View {
                 }
                 GroupDivider()
                 actionRow(title: "新建定时任务", icon: "plus.circle") {
-                    appState.cronCreateRequested = true
+                    appState.router.cronCreateRequested = true
                     onOpenAgent(.cron)
                 }
                 GroupDivider()

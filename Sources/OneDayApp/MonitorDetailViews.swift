@@ -37,9 +37,9 @@ struct MonitorDetailView: View {
             // 且变化确在账上才继续推变化详情，消费即清
             // AppState（防下次手动进本页时旧链复活）；
             // 对不上/变化已滚没了就停在本页，如实降级
-            if let deepLink = appState.monitorDeepLink,
+            if let deepLink = appState.router.monitorDeepLink,
                deepLink.monitorID == monitorID {
-                appState.monitorDeepLink = nil
+                appState.router.monitorDeepLink = nil
                 if let changeID = deepLink.changeID,
                    store.changes[monitorID]?.contains(
                        where: { $0.id == changeID }

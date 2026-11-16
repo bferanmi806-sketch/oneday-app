@@ -270,7 +270,7 @@ struct AgentHubView: View {
             // 单点映射：原任务/审核/监测落点全部落活
             // 动段，聚焦字段（hubApprovalFocusID/
             // monitorDeepLink）由活动段对号消费
-            if let destination = appState.hubDestinationRequest {
+            if let destination = appState.router.hubDestinationRequest {
                 switch destination {
                 case .approvalAnchor, .approvalThread:
                     // §165：锚点落点不在枢纽（在原对话
@@ -282,7 +282,7 @@ struct AgentHubView: View {
                 default:
                     segment = Self.segment(for: destination)
                 }
-                appState.hubDestinationRequest = nil
+                appState.router.hubDestinationRequest = nil
             }
         }
     }
@@ -693,7 +693,7 @@ struct AgentHubView: View {
             // 合成条目——共享 hubStore 一并注入（规则
             // 与锚点数据在 store 里，与聊天就地卡同源）
             HubLedgerSection(hubStore: store, onOpenSession: { sessionID in
-                appState.pendingChatSessionID = sessionID
+                appState.router.pendingChatSessionID = sessionID
                 if mode == .sheet {
                     dismiss()
                 }
