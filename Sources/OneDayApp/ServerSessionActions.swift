@@ -99,7 +99,7 @@ enum ServerSessionActions {
                 return .failed(L10n.string("没归档成：服务器上这条还是未归档的样子，稍后再试一次。"))
             }
             if !archived {
-                appState.sideChats.unarchive(serverSessionID: id)
+                appState.sessionLedger.unarchive(serverSessionID: id)
             }
             return .verified
         } catch {

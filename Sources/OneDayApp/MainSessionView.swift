@@ -43,9 +43,9 @@ struct MainSessionView: View {
                 .listRowBackground(Palette.surface)
 
                 // 会话 ID 行（已链接时显示）
-                if let sessionID = appState.sideChats.mainServerSessionID,
-                   appState.sideChats.mainServerConfirmed,
-                   appState.sideChats.mainServerSeeded {
+                if let sessionID = appState.sessionLedger.mainServerSessionID,
+                   appState.sessionLedger.mainServerConfirmed,
+                   appState.sessionLedger.mainServerSeeded {
                     LabeledContent {
                         HStack(spacing: OneDayMetrics.spacingSM) {
                             Text(sessionID)
@@ -136,7 +136,7 @@ struct MainSessionView: View {
 
     /// 主线会话状态文案（监工纠正②：复用现行 mainSessionStatusText 逻辑）
     private var statusText: String {
-        let store = appState.sideChats
+        let store = appState.sessionLedger
         if store.mainServerConfirmed, store.mainServerSeeded,
            store.mainServerSessionID != nil {
             return "已链接"

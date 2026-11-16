@@ -122,7 +122,7 @@ final class SessionLedgerAppTests: XCTestCase {
         )
         // 目录壳转发读同源
         XCTAssertEqual(
-            appState.serverSessionCatalog.visibleSessions
+            appState.sessionLedger.visibleSessions
                 .map(\.id),
             ["s-1", "s-2"]
         )
@@ -154,25 +154,22 @@ final class SessionLedgerAppTests: XCTestCase {
         )
     }
 
-    // MARK: - 目录壳转发
+    // MARK: - 名单写回面（原目录壳转发，第 90 条收尾删壳后直连账本）
 
-    func testCatalogShellForwardsToLedger() throws {
+    func testLedgerPublishAndRemoveVisible() throws {
         let appState = makeAppState(pages: [:])
         let session = try JSONDecoder().decode(
             ServerSession.self,
             from: Data("{\"id\":\"s-x\"}".utf8)
         )
-        appState.serverSessionCatalog.publish(visible: [session])
+        appState.sessionLedger.publishVisible([session])
         XCTAssertEqual(
             appState.sessionLedger.visibleSessions.map(\.id),
             ["s-x"]
         )
-        XCTAssertTrue(appState.serverSessionCatalog.hasLoaded)
-        appState.serverSessionCatalog.remove(sessionID: "s-x")
+        XCTAssertTrue(appState.sessionLedger.hasLoaded)
+        appState.sessionLedger.removeSession(sessionID: "s-x")
         XCTAssertTrue(appState.sessionLedger.visibleSessions.isEmpty)
-        XCTAssertTrue(
-            appState.serverSessionCatalog.visibleSessions.isEmpty
-        )
     }
 
     // MARK: - 收养读账本

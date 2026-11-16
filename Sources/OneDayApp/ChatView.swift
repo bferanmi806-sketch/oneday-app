@@ -711,7 +711,7 @@ struct ChatView: View {
     /// 「旁聊」标识已于 0.19.0 随用户点名删除）
     private var isCurrentMainThread: Bool {
         guard let thread = currentThread,
-              let mainID = appState.sideChats.mainThreadID else { return false }
+              let mainID = appState.sessionLedger.mainThreadID else { return false }
         return SideChatClassifier.zone(localThreadID: thread.id, mainThreadID: mainID) == .main
     }
 
@@ -753,8 +753,8 @@ struct ChatView: View {
             threadServerSessionID: thread?.serverSessionID,
             threadID: thread?.id,
             isMainThread: thread != nil
-                && thread?.id == appState.sideChats.mainThreadID,
-            mainServerSessionID: appState.sideChats.mainServerSessionID
+                && thread?.id == appState.sessionLedger.mainThreadID,
+            mainServerSessionID: appState.sessionLedger.mainServerSessionID
         )
     }
 
@@ -8417,7 +8417,7 @@ private struct ComposerBarLayout: Layout {
     /// ensureMainLink 异步链接，本函数纯本地
     @discardableResult
     private func ensureMainThread() -> UUID? {
-        let store = appState.sideChats
+        let store = appState.sessionLedger
         switch MainThreadDesignation.resolve(
             storedID: store.mainThreadID, existingIDs: threads.map(\.id)
         ) {
@@ -8652,7 +8652,7 @@ private struct ComposerBarLayout: Layout {
     /// 时现取主线全量条目（彼时无发送在飞）
     @discardableResult
     private func ensureMainLink(seedSnapshot: [SeedEntry]? = nil) async -> Bool {
-        let store = appState.sideChats
+        let store = appState.sessionLedger
         if store.mainServerConfirmed, store.mainServerSeeded {
             return true
         }
@@ -8765,7 +8765,7 @@ private struct ComposerBarLayout: Layout {
         appState.currentDrawerObject =
             DrawerSelectionPolicy.object(
                 forThreadID: currentThread?.id,
-                mainThreadID: appState.sideChats.mainThreadID
+                mainThreadID: appState.sessionLedger.mainThreadID
             )
     }
 
@@ -9005,7 +9005,7 @@ private struct ComposerBarLayout: Layout {
     /// 句）才返回帖 id；关联在但已有用户条目＝首句
     /// 时机已过（信号只认首句，过期不补发）
     private func feedDiscussSignalTarget(thread: ChatThread) -> String? {
-        guard let postID = appState.sideChats.feedDiscussPostID(
+        guard let postID = appState.sessionLedger.feedDiscussPostID(
             forThreadID: thread.id
         ) else { return nil }
         guard !thread.sortedEntries.contains(where: {
@@ -9028,7 +9028,7 @@ private struct ComposerBarLayout: Layout {
     private func fireFeedDiscussSignal(
         postID: String, threadID: UUID, firstText: String
     ) {
-        appState.sideChats.clearFeedDiscuss(forThreadID: threadID)
+        appState.sessionLedger.clearFeedDiscuss(forThreadID: threadID)
         // FA-2：种子帖不在桥上，讨论信号短路（不拿本地
         // id 打桥的 /feed/{id}/signal）
         guard !FeedSeedPosts.isSeed(postID),
@@ -9133,7 +9133,7 @@ private struct ComposerBarLayout: Layout {
         // 0.7.0（M3）：主线标题恒「主线」、不被首条消息
         // 派生覆盖——主线线程标题在钦定落位时即为「主线」
         // 本就不进本分支，此守卫是双保险
-        if thread.title == "新会话", thread.id != appState.sideChats.mainThreadID {
+        if thread.title == "新会话", thread.id != appState.sessionLedger.mainThreadID {
             thread.title = text.isEmpty ? "图片消息" : String(text.prefix(20))
         }
         thread.updatedAt = Date()
@@ -9911,7 +9911,7 @@ private struct ComposerBarLayout: Layout {
         thread: ChatThread, fullContext: [ChatMessage],
         seedEntries: [SeedEntry]
     ) async throws -> (messages: [ChatMessage], sessionID: String?) {
-        let store = appState.sideChats
+        let store = appState.sessionLedger
         let isMain = thread.id == store.mainThreadID
         let plan = isMain
             ? SideChatLink.sendPlan(
@@ -10867,7 +10867,7 @@ private struct ComposerBarLayout: Layout {
             // 标题回流触发（0.21.0 沿用）：已链接旁聊
             // 一轮完整落地后顶刷新令牌等服务端 AI 标题
             if thread.serverSessionID != nil,
-               thread.id != appState.sideChats.mainThreadID {
+               thread.id != appState.sessionLedger.mainThreadID {
                 appState.noteLinkedSideChatTurnFinished()
             }
         } else if phase == .cancelled {

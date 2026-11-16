@@ -607,7 +607,7 @@ struct FeedView: View {
     private func discuss(_ post: BridgeFeedPost) {
         markRead(post)
         let thread: ChatThread
-        if let linkedID = appState.sideChats.threadID(
+        if let linkedID = appState.sessionLedger.threadID(
             forFeedDiscussPostID: post.id
         ), let existing = fetchThread(linkedID) {
             thread = existing
@@ -615,7 +615,7 @@ struct FeedView: View {
             let fresh = ChatThread()
             modelContext.insert(fresh)
             try? modelContext.save()
-            appState.sideChats.linkFeedDiscussThread(
+            appState.sessionLedger.linkFeedDiscussThread(
                 fresh.id, postID: post.id
             )
             thread = fresh

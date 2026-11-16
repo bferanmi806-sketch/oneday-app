@@ -123,7 +123,8 @@ final class IdeasStore {
             // 格核验的时点；判定从严、亲笔零误伤，
             // 与 FeedStore 的动态清扫同式）
             appState.sideChats.purgeLegacyIdeaDrafts(
-                ideas: ideas
+                ideas: ideas,
+                links: appState.sessionLedger.ideaThreadIDs
             )
         } catch let error as OneDayBridgeError {
             if loadState == .ready { return }

@@ -70,7 +70,6 @@ struct AllConversationsView: View {
     @State private var showBatchArchiveConfirm = false
     @State private var showPruneConfirm = false
     @State private var pruneDaysText = "90"
-    @State private var migrationStarted = false
 
     enum Segment: String {
         case main = "主线"
@@ -96,7 +95,7 @@ struct AllConversationsView: View {
     }
 
     private var mainSessionID: String? {
-        appState.sideChats.mainServerSessionID
+        appState.sessionLedger.mainServerSessionID
     }
 
     /// 0.27.0：批量选择里是否含已判死的合并桶——含
@@ -131,7 +130,7 @@ struct AllConversationsView: View {
             sessions: ledgerVisibleSessions,
             mainServerSessionID: mainSessionID,
             linkedThreadSessionIDs: ThreadLinkage.nonMainLinkedSessionIDs(
-                threads: threads, sideChats: appState.sideChats
+                threads: threads, ledger: appState.sessionLedger
             )
         )
     }
@@ -238,16 +237,10 @@ struct AllConversationsView: View {
         }
         .task {
             await reload()
-            // 存量迁移：首开执行一次（计划为空即无事）；
-            // 失败留痕留在 store、页顶呈现，重开本页会
-            // 再试（本地值未退役者仍在计划内）
-            if !migrationStarted {
-                migrationStarted = true
-                await store.runMigration(
-                    appState: appState, localThreads: threads,
-                    modelContext: modelContext
-                )
-            }
+            // 存量迁移：挂载点已迁账本（第 90 条收
+            // 尾）——全量刷新（reload→账本 refresh）
+            // 归档段同步完成即触发，失败留痕在账本、
+            // 下方迁移区呈现，本页不再自持触发
         }
         .task(id: searchText) {
             await runSearch()
@@ -767,17 +760,17 @@ struct AllConversationsView: View {
     /// 哪件、为什么没落定）＋本地值保留的说明
     @ViewBuilder
     private var migrationSection: some View {
-        if !store.migrationFailures.isEmpty {
+        if !appState.sessionLedger.migrationFailures.isEmpty {
             Section("存量迁移未完成") {
                 ForEach(
-                    Array(store.migrationFailures.enumerated()),
+                    Array(appState.sessionLedger.migrationFailures.enumerated()),
                     id: \.offset
                 ) { _, line in
                     Text(line)
                         .font(.captionText)
                         .foregroundStyle(Palette.inkSecondary)
                 }
-                Text("没改成的项先按你改的样子显示，下次打开本页会自动再试。")
+                Text("没改成的项先按你改的样子显示，下次打开本页刷新名单时会自动再试。")
                     .font(.captionText)
                     .foregroundStyle(Palette.inkSecondary)
             }
@@ -982,10 +975,12 @@ struct AllConversationsView: View {
 /// 管理页数据层（0.18.0 立、第 67 条包一瘦身）：
 /// 自持名单退役——两段名单/主线兜底/对账/归档缓
 /// 存对齐全归账本（SessionLedger），本店只剩本页
-/// UI 态（加载/错误/提示/迁移留痕/prune 预演数）
-/// 与存量迁移执行。load 只做触发与错误转译，拉取
-/// 本体在账本 refresh（§223：本页所有重拉点仍统
-/// 一走 reload → 本 load，不许漏对账）
+/// UI 态（加载/错误/提示/prune 预演数）。存量迁
+/// 移执行与失败留痕第 90 条收尾迁账本（触发挂账
+/// 本 refresh 归档段同步完成点）。load 只做触发
+/// 与错误转译，拉取本体在账本 refresh（§223：本
+/// 页所有重拉点仍统一走 reload → 本 load，不许
+/// 漏对账）
 @MainActor
 @Observable
 final class AllConversationsStore {
@@ -993,8 +988,6 @@ final class AllConversationsStore {
     var loadError: String?
     /// 批量/清理结果人话条
     var notice: String?
-    /// 迁移失败留痕（逐项人话行）
-    var migrationFailures: [String] = []
     /// prune 预演回的将删条数（确认弹窗文案用）
     var pruneDryRunCount: Int?
 
@@ -1019,61 +1012,4 @@ final class AllConversationsStore {
         isLoading = false
     }
 
-    /// 存量迁移执行（管理页首开）：计划走 Core 纯函数
-    /// （SessionMigration.plan），逐项经动作层回写＋
-    /// 回读对账；折叠后成功项清本地（覆盖表删项、归
-    /// 档键删项），失败项逐项留痕＋本地值保留。迁移
-    /// 后名单重拉（归档项的服务端状态已变）
-    func runMigration(
-        appState: AppState, localThreads: [ChatThread],
-        modelContext: ModelContext
-    ) async {
-        let sideChats = appState.sideChats
-        let overrides = sideChats.titleOverrides
-        let keys = sideChats.archivedKeys
-        let plan = SessionMigration.plan(
-            titleOverrides: overrides, archivedKeys: keys
-        )
-        guard !plan.isEmpty else { return }
-        var failureReasons: [SessionMigration.Item: String] = [:]
-        for item in plan {
-            let outcome: ServerSessionActions.Outcome
-            switch item.kind {
-            case .rename(let title):
-                outcome = await ServerSessionActions.rename(
-                    appState: appState, id: item.sessionID, title: title
-                )
-            case .archive:
-                outcome = await ServerSessionActions.setArchived(
-                    appState: appState, id: item.sessionID, archived: true
-                )
-            }
-            if case .failed(let reason) = outcome {
-                failureReasons[item] = reason
-            }
-        }
-        let outcome = SessionMigration.fold(
-            plan: plan, failureReasons: failureReasons,
-            titleOverrides: overrides, archivedKeys: keys
-        )
-        // 退役成功项：本地只删「计划内且已落定」的键
-        for id in overrides.keys
-        where outcome.remainingTitleOverrides[id] == nil {
-            sideChats.setTitleOverride(nil, for: id)
-        }
-        for key in keys
-        where !outcome.remainingArchivedKeys.contains(key)
-            && key.hasPrefix("server:") {
-            sideChats.unarchive(
-                serverSessionID: String(key.dropFirst("server:".count))
-            )
-        }
-        migrationFailures = outcome.failures.map { failure in
-            "「\(failure.item.sessionID)」\(failure.item.actionLabel)没改成：\(failure.reason)"
-        }
-        await load(
-            appState: appState, localThreads: localThreads,
-            modelContext: modelContext
-        )
-    }
 }

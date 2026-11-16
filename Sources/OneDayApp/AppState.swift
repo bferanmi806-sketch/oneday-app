@@ -105,7 +105,7 @@ final class AppState {
         let effectiveStored: ChatModelChoice?
         if let serverSessionID,
            !serverSessionID.isEmpty,
-           serverSessionID == sideChats.mainServerSessionID,
+           serverSessionID == sessionLedger.mainServerSessionID,
            let serverModel = sessionLedger.visibleSessions
                 .first(where: { $0.id == serverSessionID })?.model {
             effectiveStored = SessionModelAccount.effectiveStored(
@@ -335,21 +335,18 @@ final class AppState {
     /// 会话派生标题解析器（0.6.1）：抽屉行/活动行共用
     /// 的首条消息缓存与预算拉取，全 App 只此一份
     let sessionTitles = SessionTitleResolver()
-    /// 服务端会话全量目录（§198）：全部对话页分页拉
-    /// 全的可见集共享缓存，全 App 只此一份——抽屉频
-    /// 道显行闸改读它判显隐（与管理页频道段同源），
-    /// 不再共用开抽屉的 100 条名单窗口
-    let serverSessionCatalog = ServerSessionCatalog()
-
     /// 会话账本（第 67 条包一，2026-11-15）：「我有
     /// 哪些会话」的单店——全 App 唯一拉取者与合并
-    /// 名单持有者；上方目录自本版起是它的转发壳
-    /// （init 内接线），管理页自持名单与抽屉自拉第
-    /// 一页同批退役
-    let sessionLedger = SessionLedger()
+    /// 名单持有者，管理页自持名单与抽屉自拉第一页
+    /// 同批退役。第 90 条收尾起兼持主线钦定/归档列/
+    /// 三张关联表与分页装配核，原 ServerSession-
+    /// Catalog 转发壳整件删除（B-07）
+    let sessionLedger: SessionLedger
 
-    /// 旁聊语义状态（0.7.0）：主线钦定/归档/标题覆盖/轻保活，
-    /// 演示模式纯内存不落盘（见 SideChatStore）
+    /// 旁聊呈现保活状态（0.7.0）：标题覆盖/落点记忆/
+    /// 草稿/滚动锚，演示模式纯内存不落盘（见
+    /// SideChatStore）；主线钦定/归档/关联三账已迁
+    /// 账本（第 90 条收尾）
     let sideChats: SideChatStore
     /// 未落定 run 账本（0.31.0）：生成中切后台/杀进程
     /// 后靠它恢复对账（ChatView 驱动消费）
@@ -918,14 +915,11 @@ final class AppState {
         self.client = client
         isDemo = demoMode.isDemo
         sideChats = SideChatStore(persisted: !demoMode.isDemo)
+        sessionLedger = SessionLedger(persisted: !demoMode.isDemo)
         runLedger = RunLedgerStore(persisted: !demoMode.isDemo)
         deviceSession = DeviceSessionController()
         deviceSync = DeviceSyncController()
         deviceSync.dispatcher = deviceSession.dispatcher
-        // 第 67 条包一：目录壳接线账本本体（全部存储
-        // 属性初始化完成后才许接线，同本 init 其余接
-        // 线口径）
-        serverSessionCatalog.ledger = sessionLedger
         // 第 67 条包二：删除协调器壳接线账本引擎——
         // 删除自此走账本单管线
         sessionDeletions.ledger = sessionLedger

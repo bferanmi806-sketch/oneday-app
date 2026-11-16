@@ -119,12 +119,12 @@ final class SessionLedgerPackage2Tests: XCTestCase {
             id: "s-empty", messageCount: 0
         )
         for reason in [
-            ServerSessionCatalog.IncompleteReason
+            SessionLedger.IncompleteReason
                 .pageCapReached,
             .totalMismatch(reported: 1500, fetched: 1000),
             .duplicateRows(count: 3),
         ] {
-            let result = ServerSessionCatalog.FetchResult(
+            let result = SessionLedger.FetchResult(
                 sessions: [empty], incompleteReason: reason
             )
             XCTAssertNil(
@@ -141,7 +141,7 @@ final class SessionLedgerPackage2Tests: XCTestCase {
         let busy = makeSession(
             id: "s-busy", messageCount: 5
         )
-        let result = ServerSessionCatalog.FetchResult(
+        let result = SessionLedger.FetchResult(
             sessions: [empty, busy], incompleteReason: nil
         )
         XCTAssertEqual(
@@ -212,8 +212,7 @@ final class SessionLedgerPackage2Tests: XCTestCase {
             demoMode: .connected
         )
         let session = makeSession(id: "s-del")
-        appState.serverSessionCatalog.publish(
-            visible: [session]
+        appState.sessionLedger.publishVisible([session]
         )
         let thread = ChatThread(title: "待删线程")
         thread.serverSessionID = "s-del"

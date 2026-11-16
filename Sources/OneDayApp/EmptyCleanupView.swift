@@ -270,13 +270,13 @@ struct EmptyCleanupSheet: View {
     // MARK: - 扫描与执行
 
     /// 全量拉取（第 67 条包二收编）：私抄分页整段
-    /// 退役——走账本同源的唯一装配核（ServerSession-
-    /// Catalog.fetchAll，archived=include 两段合拉），
-    /// 完整性判定与 B-1 防护同源。清理是删除向：名
-    /// 单不完整不许生成候选（闸在 scan）
+    /// 退役——走账本同源的唯一装配核（SessionLedger
+    /// .fetchAll，archived=include 两段合拉），完整
+    /// 性判定与 B-1 防护同源。清理是删除向：名单不
+    /// 完整不许生成候选（闸在 scan）
     private func fetchAllSessions() async throws
-        -> ServerSessionCatalog.FetchResult {
-        try await ServerSessionCatalog.fetchAll(
+        -> SessionLedger.FetchResult {
+        try await SessionLedger.fetchAll(
             appState: appState, archived: "include"
         )
     }
@@ -369,7 +369,7 @@ struct EmptyCleanupSheet: View {
 /// 候选判定。单测直驱本闸钉死
 enum EmptyCleanupScanGate {
     static func candidates(
-        from result: ServerSessionCatalog.FetchResult
+        from result: SessionLedger.FetchResult
     ) -> [ServerSession]? {
         guard result.isComplete else { return nil }
         return EmptySessionCleanup.candidates(

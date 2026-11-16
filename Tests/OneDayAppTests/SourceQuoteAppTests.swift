@@ -27,37 +27,43 @@ final class SourceQuoteAppTests: XCTestCase {
 
     func testIdeaPurgeClearsVerbatimMachineDraft() {
         let store = SideChatStore(persisted: false)
+        let ledger = SessionLedger(persisted: false)
         let thread = UUID()
         let target = idea()
-        store.linkThread(thread, forIdeaID: "i_1")
+        ledger.linkThread(thread, forIdeaID: "i_1")
         store.setDraft(
             IdeaChatPrefill.make(idea: target), for: thread
         )
         let cleared = store.purgeLegacyIdeaDrafts(
-            ideas: [target]
+            ideas: [target], links: ledger.ideaThreadIDs
         )
         XCTAssertEqual(cleared, 1)
         XCTAssertNil(store.draft(for: thread))
         // 幂等：复跑恒 0、点子关联本体保留不动
         XCTAssertEqual(
-            store.purgeLegacyIdeaDrafts(ideas: [target]), 0
+            store.purgeLegacyIdeaDrafts(
+                ideas: [target], links: ledger.ideaThreadIDs
+            ), 0
         )
         XCTAssertEqual(
-            store.threadID(forIdeaID: "i_1"), thread
+            ledger.threadID(forIdeaID: "i_1"), thread
         )
     }
 
     func testIdeaPurgeKeepsEditedDraft() {
         // 用户改过一字＝亲笔，清扫不许动
         let store = SideChatStore(persisted: false)
+        let ledger = SessionLedger(persisted: false)
         let thread = UUID()
         let target = idea()
-        store.linkThread(thread, forIdeaID: "i_1")
+        ledger.linkThread(thread, forIdeaID: "i_1")
         let edited = IdeaChatPrefill.make(idea: target)
             .replacingOccurrences(of: "一张表", with: "两张表")
         store.setDraft(edited, for: thread)
         XCTAssertEqual(
-            store.purgeLegacyIdeaDrafts(ideas: [target]), 0
+            store.purgeLegacyIdeaDrafts(
+                ideas: [target], links: ledger.ideaThreadIDs
+            ), 0
         )
         XCTAssertEqual(store.draft(for: thread), edited)
     }
@@ -66,14 +72,17 @@ final class SourceQuoteAppTests: XCTestCase {
         // 亲笔保活零误伤：点子线程里的亲笔、无关联
         // 线程的亲笔，都不是机器预填、都不许清
         let store = SideChatStore(persisted: false)
+        let ledger = SessionLedger(persisted: false)
         let ideaThread = UUID()
         let plainThread = UUID()
         let target = idea()
-        store.linkThread(ideaThread, forIdeaID: "i_1")
+        ledger.linkThread(ideaThread, forIdeaID: "i_1")
         store.setDraft("我自己写了一半的话", for: ideaThread)
         store.setDraft("另一条线的亲笔草稿", for: plainThread)
         XCTAssertEqual(
-            store.purgeLegacyIdeaDrafts(ideas: [target]), 0
+            store.purgeLegacyIdeaDrafts(
+                ideas: [target], links: ledger.ideaThreadIDs
+            ), 0
         )
         XCTAssertEqual(
             store.draft(for: ideaThread), "我自己写了一半的话"
@@ -87,14 +96,15 @@ final class SourceQuoteAppTests: XCTestCase {
         // 原点子已不在名单（删除/过期）：无从逐字核
         // 验，不清
         let store = SideChatStore(persisted: false)
+        let ledger = SessionLedger(persisted: false)
         let thread = UUID()
-        store.linkThread(thread, forIdeaID: "i_gone")
+        ledger.linkThread(thread, forIdeaID: "i_gone")
         let machine = IdeaChatPrefill.make(idea: idea())
         store.setDraft(machine, for: thread)
         XCTAssertEqual(
             store.purgeLegacyIdeaDrafts(ideas: [
                 idea(id: "i_other", title: "别的点子"),
-            ]),
+            ], links: ledger.ideaThreadIDs),
             0
         )
         XCTAssertEqual(store.draft(for: thread), machine)
@@ -102,12 +112,13 @@ final class SourceQuoteAppTests: XCTestCase {
 
     func testIdeaPurgeEmptyListIsNoOp() {
         let store = SideChatStore(persisted: false)
+        let ledger = SessionLedger(persisted: false)
         let thread = UUID()
-        store.linkThread(thread, forIdeaID: "i_1")
+        ledger.linkThread(thread, forIdeaID: "i_1")
         store.setDraft(
             IdeaChatPrefill.make(idea: idea()), for: thread
         )
-        XCTAssertEqual(store.purgeLegacyIdeaDrafts(ideas: []), 0)
+        XCTAssertEqual(store.purgeLegacyIdeaDrafts(ideas: [], links: ledger.ideaThreadIDs), 0)
         XCTAssertNotNil(store.draft(for: thread))
     }
 }

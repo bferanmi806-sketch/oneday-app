@@ -36,16 +36,18 @@ enum DeletedSessionCloseout {
         // 钦定主线会话 id 递进来＝整件不动（侧账/目
         // 录/线程全不碰）：主线在任何删除面都没有入
         // 口，此为收口内的最后兜底
-        guard sessionID != appState.sideChats.mainServerSessionID
+        guard sessionID != appState.sessionLedger.mainServerSessionID
         else { return }
-        appState.sideChats.purgeServerSessionRecords(sessionID)
-        appState.serverSessionCatalog.remove(sessionID: sessionID)
+        appState.sessionLedger.purgeServerSessionRecords(
+            sessionID, appState: appState
+        )
+        appState.sessionLedger.removeSession(sessionID: sessionID)
         for thread in threads
         where thread.serverSessionID == sessionID {
             guard !SideChatClassifier.isMain(
                 localThreadID: thread.id,
                 linkedServerSessionID: thread.serverSessionID,
-                mainThreadID: appState.sideChats.mainThreadID,
+                mainThreadID: appState.sessionLedger.mainThreadID,
                 mainServerSessionID: appState.sideChats
                     .mainServerSessionID
             ) else { continue }
@@ -99,8 +101,10 @@ enum DeletedSessionCloseout {
         sessionID: String,
         appState: AppState
     ) {
-        appState.sideChats.purgeServerSessionRecords(sessionID)
-        appState.serverSessionCatalog.remove(sessionID: sessionID)
+        appState.sessionLedger.purgeServerSessionRecords(
+            sessionID, appState: appState
+        )
+        appState.sessionLedger.removeSession(sessionID: sessionID)
     }
 
     /// 删本地线程本体（自抽屉 deleteLocalThread 提
@@ -137,7 +141,7 @@ enum DeletedSessionCloseout {
             if SideChatClassifier.isMain(
                 localThreadID: thread.id,
                 linkedServerSessionID: thread.serverSessionID,
-                mainThreadID: appState.sideChats.mainThreadID,
+                mainThreadID: appState.sessionLedger.mainThreadID,
                 mainServerSessionID: appState.sideChats
                     .mainServerSessionID
             ) {

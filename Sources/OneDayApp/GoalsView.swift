@@ -1359,7 +1359,7 @@ struct GoalDetailView: View {
                 // §123（H1）：已绑进展对话时给入口——回响
                 // 落在对话里，用户得有路点进去（新面准
                 // 入四问①：有落点必须有入口）
-                if appState.sideChats.threadID(forGoalID: goal.id) != nil {
+                if appState.sessionLedger.threadID(forGoalID: goal.id) != nil {
                     GroupDivider()
                     Button {
                         openGoalThread()
@@ -2423,14 +2423,14 @@ struct GoalDelegateView: View {
     /// 身由目标详情的物化点按真源补落（GoalEcho），这
     /// 里只立绑定，不预写任何状态
     private func ensureGoalThread() {
-        if appState.sideChats.threadID(forGoalID: goal.id) != nil {
+        if appState.sessionLedger.threadID(forGoalID: goal.id) != nil {
             return
         }
         let thread = ChatThread(title: goal.title)
         thread.titleIsManual = true
         modelContext.insert(thread)
         try? modelContext.save()
-        appState.sideChats.linkThread(thread.id, forGoalID: goal.id)
+        appState.sessionLedger.linkThread(thread.id, forGoalID: goal.id)
     }
 
     private func submit() async {

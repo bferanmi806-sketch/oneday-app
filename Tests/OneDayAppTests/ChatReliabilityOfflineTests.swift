@@ -250,7 +250,7 @@ final class ChatReliabilityOfflineTests: XCTestCase {
         let appState = AppState(
             client: FailingHermesClient(), demoMode: .connected
         )
-        appState.sideChats.designateMainThread(seeded.main.id)
+        appState.sessionLedger.designateMainThread(seeded.main.id)
         appState.sideChats.setLastThreadID(seeded.main.id)
         mountOffline(container: container, appState: appState)
 
@@ -285,7 +285,7 @@ final class ChatReliabilityOfflineTests: XCTestCase {
         let appState = AppState(
             client: FailingHermesClient(), demoMode: .connected
         )
-        appState.sideChats.designateMainThread(seeded.main.id)
+        appState.sessionLedger.designateMainThread(seeded.main.id)
         appState.sideChats.setLastThreadID(seeded.side.id)
         mountOffline(container: container, appState: appState)
 
@@ -353,7 +353,7 @@ final class ChatReliabilityOfflineTests: XCTestCase {
         let appState = AppState(
             client: FailingHermesClient(), demoMode: .connected
         )
-        appState.sideChats.designateMainThread(seeded.main.id)
+        appState.sessionLedger.designateMainThread(seeded.main.id)
         appState.sideChats.setLastThreadID(seeded.main.id)
         mountOffline(container: container, appState: appState)
 
@@ -391,7 +391,7 @@ final class ChatReliabilityOfflineTests: XCTestCase {
         let appState = AppState(
             client: FailingHermesClient(), demoMode: .connected
         )
-        appState.sideChats.designateMainThread(seeded.main.id)
+        appState.sessionLedger.designateMainThread(seeded.main.id)
         appState.sideChats.setLastThreadID(seeded.main.id)
         mountOffline(container: container, appState: appState)
 
