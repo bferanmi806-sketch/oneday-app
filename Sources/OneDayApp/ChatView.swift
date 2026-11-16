@@ -408,16 +408,11 @@ struct ChatView: View {
     // PhotosUI 选图器（视频过滤、与图片选图器分开
     // 两套绑定，互不串扰）
     @State private var showAttachPanel = false
-    // §152 修订二：附件面板内容实测高（面板经
-    // PreferenceKey 回报），sheet detent 贴内容用
-    @State private var attachPanelContentHeight: CGFloat = 0
-    // §154 热修：detent 钳顶用的宿主真高——本页根
-    // 层 onGeometryChange 回写（sheet 之外的呈现方
-    // 几何）。§152 误用 sheet 内容内 GeometryReader
-    // 所量（那是 detent 驱动的 sheet 自身高），钳顶
-    // 按 0.75 倍自噬塌陷、面板等于没出现，自此只
-    // 认本值；未回写（0）时 detent 决策回落默认档
-    @State private var hostViewHeight: CGFloat = 0
+    // §303（A-08 收口）：面板定高改走呈现控制器
+    // custom detent 单源求解（见 sheet 本体注），
+    // §152 的内容实测高状态与 §154 的宿主真高回
+    // 写随量测回路一并退役、本页不再持有任何面
+    // 板高度状态
     // §186（2026-11-12，承载换代）：输入舱顶→窗口底
     // 距离的实测回报（ComposerGuideHost 在布局拍回
     // 写）——消息列表底 contentMargins ＝本值＋
@@ -813,15 +808,6 @@ struct ChatView: View {
                 importingOverlay
                     .transition(.opacity)
             }
-        }
-        // §154 热修：宿主真高回写（附件面板 detent
-        // 钳顶的唯一屏高来源，见 hostViewHeight 注；
-        // 本页根几何独立于任何 sheet 呈现，不随
-        // detent 变化）
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.height
-        } action: { _, newHeight in
-            hostViewHeight = newHeight
         }
         // R1（修正）：键盘帧更新包到达即整包入快照
         // ——动画以通知参数原值推进（曲线映射见
@@ -1286,22 +1272,18 @@ struct ChatView: View {
         // mentPanelView）；面板内各动作先收面板、隔一
         // 拍再呈现下一层（相机/选图器/文件桥），不与
         // sheet 收起同帧抢呈现（同 DocumentPicker-
-        // Bridge 延拍口径）。§152 修订二：detent 自
-        // .medium 改内容实测高（面板经 Preferen-
-        // ceKey 回报、AttachmentPanelLayout 钳顶），
-        // 高度贴内容不留死空；未授权态与确认行增减
-        // 都经同一量测自适应。确认入条是终结动作不
+        // Bridge 延拍口径）。确认入条是终结动作不
         // 呈现下一层，直接收面板后批量取数入条（多
-        // 选逐张走单张同一取数路，§152）。§154 热
-        // 修：钳顶屏高与量测保真两处已改（见下方
-        // sheet 本体的 §154 注），§152 的贴高/多选
-        // 收益不动
-        .sheet(isPresented: $showAttachPanel, onDismiss: {
-            // §154 热修：收面板即清量测——下次打开恒
-            // 自 .medium 兜底起、量到再贴合，不留跨
-            // 次陈值喂 detent
-            attachPanelContentHeight = 0
-        }) {
+        // 选逐张走单张同一取数路，§152）。
+        // §303（A-08 定高收口）：定高自 §152 的内容
+        // 实测 detent 改走 UIKit custom detent 在呈
+        // 现控制器内单源求解（面板内 Attachment-
+        // SheetDetentBridge，未授权态与确认行增减
+        // 经指纹触发重解）；§152/§154 的量测回路整
+        // 套退役：PreferenceKey 回报、宿主实测高/真
+        // 高两状态、Core 定高决策（可信下限＋75%
+        // 钳顶）、fixedSize 保真一并删除
+        .sheet(isPresented: $showAttachPanel) {
             AttachmentPanelView(
                 onCamera: {
                     afterAttachPanelDismiss { showCamera = true }
@@ -1324,25 +1306,7 @@ struct ChatView: View {
                     afterAttachPanelDismiss { showVideoPicker = true }
                 }
             )
-            // §154 热修：量测取理想高——面板根挂
-            // fixedSize 纵向保真，内容高不随 detent
-            // 的提案伸缩（§152 旧构里横滑条会被撑满
-            // 回灌与 sheet 等高的伪量测）
-            .fixedSize(horizontal: false, vertical: true)
-            .onPreferenceChange(AttachmentPanelHeightKey.self) { height in
-                attachPanelContentHeight = height
-            }
-            // §154 热修：钳顶屏高改喂宿主真高（本页
-            // 根层 onGeometryChange 回写，独立于
-            // sheet）；未回写（0）时决策回落默认档，
-            // 面板照常打开。§152 旧构把 Geometry-
-            // Reader 套在 sheet 内容里量「屏高」——
-            // 量到的是 sheet 自身高，钳顶自噬塌陷、
-            // 点「+」等于没反应（0.50.16 真机报障）
-            .presentationDetents(
-                attachPanelDetents(screenHeight: hostViewHeight)
-            )
-            .presentationDragIndicator(.visible)
+            .attachmentPanelPresentation()
         }
         // 0.36.31（件二）：.fileImporter 已删——侧载
         // 设备类上其 coordinator 会死在被拆的呈现上
@@ -7957,24 +7921,6 @@ private struct ComposerBarLayout: Layout {
         }
         .buttonStyle(.odPressable)
         .accessibilityLabel("添加附件")
-    }
-
-    /// §152 修订二：附件面板 sheet 的 detent 集——
-    /// 内容高已量得时单档贴内容；尚未量得（首帧）回
-    /// 落 .medium 过渡，量到即换贴合高。§154 热修：
-    /// screenHeight 只许传宿主真高（根层回写值），
-    /// 且决策含可信下限——量测链任何一环坏掉都回
-    /// 落 .medium 照常开，绝不再现塌陷
-    private func attachPanelDetents(
-        screenHeight: CGFloat
-    ) -> Set<PresentationDetent> {
-        if let height = AttachmentPanelLayout.detentHeight(
-            measured: attachPanelContentHeight,
-            screenHeight: screenHeight
-        ) {
-            return [.height(height)]
-        }
-        return [.medium]
     }
 
     /// §147：附件面板内动作的统一收尾——先收面板、
