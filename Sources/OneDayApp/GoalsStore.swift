@@ -34,15 +34,11 @@ final class GoalsStore {
     /// 桥的现值，本地不另立账（审计 R 档口径）
     private(set) var entriesByGoal: [String: [BridgeGoalEntry]] = [:]
     private(set) var briefingsByGoal: [String: [BridgeBriefing]] = [:]
-    /// 详情面关联任务（0.40.0）：目标↔任务的桥侧关联记录，
-    /// 与条目/简报同纪律——进详情时拉、委派写后回读刷新，
-    /// 本地不另立账
-    private(set) var taskLinksByGoal:
-        [String: [BridgeGoalTaskLink]] = [:]
-    /// 详情面关联任务实时行（GD-2 读面一）：桥把关联
-    /// 记录与任务板现况拼好的行，与 taskLinksByGoal
-    /// 同纪律进详情时拉；关联判定仍读 taskLinksByGoal
-    /// （回响物化口径不动），此面只供状态/更新时间呈现
+    /// 详情面关联任务实时行（GD-2 读面一）：桥把任务的
+    /// goalId 字段与任务板现况拼好的行，与条目/简报同
+    /// 纪律进详情时拉、写后回读刷新，本地不另立账；
+    /// §304 起关联判定只读行自带的 goalId（单轨真值），
+    /// 回响物化与关联段呈现都读这一面
     private(set) var goalTasksByGoal:
         [String: [BridgeGoalTask]] = [:]
     /// 未归类任务（GD-2 读面二）：用户发起类（点子
@@ -447,24 +443,17 @@ final class GoalsStore {
         async let briefingsFetch = client.goalBriefings(
             config: config, goalID: goalID
         )
-        async let linksFetch = client.goalTaskLinks(
-            config: config, goalID: goalID
-        )
         async let tasksFetch = client.goalTasks(
             config: config, goalID: goalID
         )
         let entries = try? await entriesFetch
         let briefings = try? await briefingsFetch
-        let links = try? await linksFetch
         let tasks = try? await tasksFetch
         if let entries {
             entriesByGoal[goalID] = entries
         }
         if let briefings {
             briefingsByGoal[goalID] = briefings
-        }
-        if let links {
-            taskLinksByGoal[goalID] = links
         }
         if let tasks {
             goalTasksByGoal[goalID] = tasks
@@ -474,14 +463,14 @@ final class GoalsStore {
         }
     }
 
-    private func refetchTaskLinks(
+    private func refetchGoalTasks(
         appState: AppState, goalID: String
     ) async {
         guard let config = appState.config else { return }
-        if let fetched = try? await client.goalTaskLinks(
+        if let fetched = try? await client.goalTasks(
             config: config, goalID: goalID
         ) {
-            taskLinksByGoal[goalID] = fetched
+            goalTasksByGoal[goalID] = fetched
         }
     }
 
@@ -555,7 +544,7 @@ final class GoalsStore {
     }
 
     /// 一键归组（GD-2）：乐观先行——行先从未归类面
-    /// 摘下，后台写关联；失败把行原样放回＋人话提示
+    /// 摘下，后台写归属字段；失败把行原样放回＋人话提示
     /// （总纲时序口径）。成功后静默回读两面收口真值
     func assignUngroupedTask(
         appState: AppState, taskID: String, toGoalID goalID: String
@@ -571,14 +560,12 @@ final class GoalsStore {
         guard let row = applyOptimisticUngroup(taskID: taskID)
         else { return }
         do {
-            _ = try await client.createGoalTaskLink(
-                config: config, goalID: goalID,
-                request: BridgeGoalTaskLinkCreateRequest(
-                    taskId: taskID, milestoneId: nil
-                )
+            _ = try await client.setTaskGoal(
+                config: config, taskID: taskID,
+                request: BridgeTaskGoalWrite(goalId: goalID)
             )
             await refreshUngrouped(appState: appState)
-            await refetchTaskLinks(appState: appState, goalID: goalID)
+            await refetchGoalTasks(appState: appState, goalID: goalID)
         } catch let error as OneDayBridgeError {
             restoreUngrouped(row)
             ungroupedNote = Self.message(for: error)
@@ -625,17 +612,17 @@ final class GoalsStore {
         }
     }
 
-    // MARK: - 委派「安排一件事」（0.40.0）
+    // MARK: - 委派「安排一件事」（0.40.0，§304 单轨改形）
 
-    /// 流程与点子采纳同形：先让 KanbanStore 探板（未开通
-    /// →如实提示、不往下走）→ createTaskReturningID（建卡
-    /// →催派→回板确认并回任务 id）→ POST 回写桥关联
-    /// （goal_task_links，可挂里程碑）→ 回读确认关联出现
-    /// 才算完成。回写失败时任务已在板上、关联未记：如实
-    /// 留在 notes，不假成功、也不回滚任务
+    /// §304 前是两步两账：App 直连任务板建卡、再回桥补
+    /// 关联，中途失败就留「卡在、关联不在」的半成品。
+    /// 现在一次调用走完：桥的 delegate 在同一操作里建卡
+    /// ＋写任务的 goalId 字段（桥是目标域属主、补 API
+    /// 不加桥），App 回读目标任务面确认新行出现才算
+    /// 完成；失败桥侧不落归属，如实留 notes，不假成功
     func delegateTask(
         appState: AppState, goalID: String, title: String,
-        milestoneId: String?, kanban: KanbanStore
+        milestoneId: String?
     ) async -> Bool {
         guard !actingIDs.contains(goalID) else { return false }
         guard let config = appState.config else {
@@ -645,63 +632,32 @@ final class GoalsStore {
         actingIDs.insert(goalID)
         notes.removeValue(forKey: goalID)
         defer { actingIDs.remove(goalID) }
-
-        await kanban.load(appState: appState)
-        switch kanban.loadState {
-        case .unavailable:
-            notes[goalID] = L10n.string("任务板未开通，暂时不能安排任务。")
-            return false
-        case .failed(let message):
-            notes[goalID] = message
-            return false
-        case .loading:
-            notes[goalID] = L10n.string("任务板状态还没确认好，请稍后再试。")
-            return false
-        case .ready:
-            break
-        }
-        let taskID = await kanban.createTaskReturningID(
-            appState: appState,
-            title: title.trimmingCharacters(
-                in: .whitespacesAndNewlines
-            ),
-            body: delegateBody(goalID: goalID)
-        )
-        guard let taskID else {
-            notes[goalID] = kanban.createError
-                ?? L10n.string("任务没有确认建成，请到枢纽任务段核对（聊天页点顶部胶囊打开）。")
-            return false
-        }
         do {
-            let link = try await client.createGoalTaskLink(
+            let created = try await client.delegateGoalTask(
                 config: config, goalID: goalID,
-                request: BridgeGoalTaskLinkCreateRequest(
-                    taskId: taskID, milestoneId: milestoneId
+                request: BridgeGoalDelegateRequest(
+                    title: title.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    ),
+                    milestoneId: milestoneId,
+                    idempotencyKey: UUID().uuidString
                 )
             )
-            await refetchTaskLinks(appState: appState, goalID: goalID)
-            if taskLinksByGoal[goalID]?.contains(
-                where: { $0.id == link.id && $0.taskId == taskID }
+            await refetchGoalTasks(appState: appState, goalID: goalID)
+            if goalTasksByGoal[goalID]?.contains(
+                where: { $0.taskId == created.taskId }
             ) == true {
                 return true
             }
-            notes[goalID] = L10n.string("任务已建在任务板上，但与目标的关联回写后没确认上，请刷新核对。")
+            notes[goalID] = L10n.string("任务没有确认建成，请到枢纽任务段核对（聊天页点顶部胶囊打开）。")
             return false
         } catch let error as OneDayBridgeError {
-            notes[goalID] = L10n.string("任务已建在任务板上，但关联回写失败：")
-                + Self.message(for: error)
+            notes[goalID] = Self.message(for: error)
             return false
         } catch {
-            notes[goalID] = L10n.string("任务已建在任务板上，但关联回写失败，请刷新核对。")
+            notes[goalID] = L10n.string("安排失败，请稍后再试。")
             return false
         }
-    }
-
-    /// 委派任务的卡面正文：只写事实（为哪个目标安排的），
-    /// 让任务板上单看这张卡也知道出处
-    private func delegateBody(goalID: String) -> String {
-        guard let goal = goal(id: goalID) else { return "" }
-        return L10n.format("为目标《%@》安排的一件事。", goal.title)
     }
 
     /// 删一条进展纠错（DELETE→回读确认消失才算完成）

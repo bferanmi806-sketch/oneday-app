@@ -1139,35 +1139,53 @@ public struct BridgeBriefing: Decodable, Equatable, Identifiable, Sendable {
     }
 }
 
-/// GD-2 读面一：一个目标的关联任务实时行（桥把关联
-/// 记录与任务板现况拼好下发：题/原生状态/状态分桶/
-/// 最近变化时刻）。status 为 nil＝任务不在当前任务板
-/// 上；updatedAt 为 nil＝桥没有观察到过它的状态变化，
-/// 两者都如实留空、不猜
+/// GD-2 读面一：一个目标的关联任务实时行（桥把任务的
+/// goalId 字段与任务板现况拼好下发：归属/题/原生状态/
+/// 状态分桶/最近变化时刻）。status 为 nil＝任务不在
+/// 当前任务板上；updatedAt 为 nil＝桥没有观察到过它的
+/// 状态变化，两者都如实留空、不猜。§304 单轨后行身份
+/// 就是任务本身：linkId/linkedAt 是 1.0.65 前链接记录
+/// 的合成兼容字段，只容忍解码、不再作身份
 public struct BridgeGoalTask: Decodable, Equatable, Identifiable, Sendable {
     public let taskId: String
-    public let linkId: String
+    /// §304：行自带的归属真值（任务的 goalId 字段投影）
+    public let goalId: String?
+    /// 兼容字段（桥合成 "gt_<taskId>"，旧行才有真值）
+    public let linkId: String?
     public let title: String
     public let status: String?
     public let bucket: String?
     public let updatedAt: Double?
-    public let linkedAt: Double
+    /// 兼容字段：与 assignedAt 同值（旧链接的 createdAt）
+    public let linkedAt: Double?
+    /// §304：归属落字时刻（epoch 秒）
+    public let assignedAt: Double?
+    /// 桥侧完成落戳（epoch 秒）：桥的事实进展条目写下
+    /// 后才有值，回响规划的完成判定只认它（§123 纪律
+    /// 不变，只是载体从链接记录换成行的派生字段）
+    public let completionEntryAt: Double?
     public let milestoneId: String?
 
-    public var id: String { linkId }
+    public var id: String { taskId }
 
     public init(
-        taskId: String, linkId: String, title: String,
+        taskId: String, goalId: String? = nil,
+        linkId: String? = nil, title: String,
         status: String?, bucket: String?, updatedAt: Double?,
-        linkedAt: Double, milestoneId: String?
+        linkedAt: Double? = nil, assignedAt: Double? = nil,
+        completionEntryAt: Double? = nil,
+        milestoneId: String?
     ) {
         self.taskId = taskId
+        self.goalId = goalId
         self.linkId = linkId
         self.title = title
         self.status = status
         self.bucket = bucket
         self.updatedAt = updatedAt
         self.linkedAt = linkedAt
+        self.assignedAt = assignedAt
+        self.completionEntryAt = completionEntryAt
         self.milestoneId = milestoneId
     }
 }

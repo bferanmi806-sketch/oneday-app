@@ -94,27 +94,37 @@ final class GoalRectifyTests: XCTestCase {
         XCTAssertEqual(GoalActivityState.idle.title, "闲置")
     }
 
-    // MARK: - GD-1b 关联记录解码
+    // MARK: - GD-1b 归属行解码（§304：停滞戳不再过线，
+    // 完成戳以行派生字段下发；旧行形状须容忍解码）
 
-    func testTaskLinkStoppedEntryDecodes() throws {
+    func testGoalTaskRowDecodesFullAndSparse() throws {
         let full = """
-        {"id": "gl_1", "goalId": "g_1", "taskId": "t_1",
-         "milestoneId": null, "createdAt": 1794200000.0,
-         "completionEntryAt": null,
-         "stoppedEntryAt": 1794290000.0}
+        {"taskId": "t_1", "goalId": "g_1", "linkId": "gt_t_1",
+         "title": "甲", "status": "done", "bucket": "done",
+         "updatedAt": 1794290000.0, "linkedAt": 1794200000.0,
+         "assignedAt": 1794200000.0,
+         "completionEntryAt": 1794300000.0,
+         "milestoneId": null}
         """
-        let link = try decoder.decode(
-            BridgeGoalTaskLink.self, from: Data(full.utf8)
+        let row = try decoder.decode(
+            BridgeGoalTask.self, from: Data(full.utf8)
         )
-        XCTAssertEqual(link.stoppedEntryAt, 1794290000.0)
+        XCTAssertEqual(row.goalId, "g_1")
+        XCTAssertEqual(row.completionEntryAt, 1794300000.0)
+        XCTAssertEqual(row.id, "t_1")
+        // §304 前的行没有 goalId/assignedAt/completion 字段：
+        // 容忍解码为 nil，不许整行解码失败
         let sparse = """
-        {"id": "gl_2", "goalId": "g_1", "taskId": "t_2",
-         "createdAt": 1794200000.0}
+        {"taskId": "t_2", "linkId": "gl_2", "title": "乙",
+         "status": null, "bucket": null, "updatedAt": null,
+         "linkedAt": 1794200000.0, "milestoneId": null}
         """
         let old = try decoder.decode(
-            BridgeGoalTaskLink.self, from: Data(sparse.utf8)
+            BridgeGoalTask.self, from: Data(sparse.utf8)
         )
-        XCTAssertNil(old.stoppedEntryAt)
+        XCTAssertNil(old.goalId)
+        XCTAssertNil(old.assignedAt)
+        XCTAssertNil(old.completionEntryAt)
     }
 
     // MARK: - GA-1/GA-2 目标创建引用

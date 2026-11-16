@@ -165,28 +165,33 @@ final class OneDayBridgeClient: @unchecked Sendable {
         )
     }
 
-    /// GET /goals/{id}/task-links（0.40.0）：目标↔任务
-    /// 关联记录（createdAt 升序）；目标不在 → recordGone
-    func goalTaskLinks(
-        config: ServerConfig, goalID: String
-    ) async throws -> [BridgeGoalTaskLink] {
-        let response: BridgeGoalTaskLinksResponse = try await get(
-            config: config, path: "/goals/\(goalID)/task-links",
-            endpoint: L10n.string("目标关联任务"), collection: false
+    /// POST /goals/{id}/delegate（§304 单轨）：一次调用
+    /// 里桥建卡＋写任务的 goalId 字段，取代旧「App 直连
+    /// 看板建卡 → 再回桥补关联」的两步两账；
+    /// idempotencyKey 同键重试回原归属、不重复建卡
+    func delegateGoalTask(
+        config: ServerConfig, goalID: String,
+        request body: BridgeGoalDelegateRequest
+    ) async throws -> BridgeGoalDelegateResponse {
+        try await send(
+            config: config, path: "/goals/\(goalID)/delegate",
+            method: "POST", body: body,
+            endpoint: L10n.string("委派任务"),
+            collection: false
         )
-        return response.items
     }
 
-    /// POST /goals/{id}/task-links（0.40.0）：委派建卡后
-    /// 回写关联（与点子采纳回写 taskId 同形）；桥侧对
-    /// (goalId, taskId) 重复回写幂等
-    func createGoalTaskLink(
-        config: ServerConfig, goalID: String,
-        request body: BridgeGoalTaskLinkCreateRequest
-    ) async throws -> BridgeGoalTaskLink {
+    /// PUT /tasks/{taskId}/goal（§304）：任务 goalId
+    /// 字段的独立写面——归入/移交/清除（goalId 传 nil
+    /// ＝清除归属，编码显式送 null）
+    func setTaskGoal(
+        config: ServerConfig, taskID: String,
+        request body: BridgeTaskGoalWrite
+    ) async throws -> BridgeTaskGoalAssignment {
         try await send(
-            config: config, path: "/goals/\(goalID)/task-links",
-            method: "POST", body: body, endpoint: L10n.string("关联任务"),
+            config: config, path: "/tasks/\(taskID)/goal",
+            method: "PUT", body: body,
+            endpoint: L10n.string("任务归属"),
             collection: false
         )
     }

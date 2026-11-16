@@ -159,22 +159,23 @@ final class GoalCategoryTests: XCTestCase {
     }
 
     func testLinkedTasksResolveAgainstBoard() {
-        let links = [
-            BridgeGoalTaskLink(
-                id: "gl_1", goalId: "g_1", taskId: "t_1",
-                createdAt: 1
+        let rows = [
+            BridgeGoalTask(
+                taskId: "t_1", goalId: "g_1", title: "打印发言稿",
+                status: "done", bucket: "done", updatedAt: nil,
+                milestoneId: nil
             ),
-            BridgeGoalTaskLink(
-                id: "gl_2", goalId: "g_1", taskId: "t_gone",
-                milestoneId: "ms_1", createdAt: 2,
-                completionEntryAt: 3
+            BridgeGoalTask(
+                taskId: "t_gone", goalId: "g_1", title: "",
+                status: nil, bucket: nil, updatedAt: nil,
+                completionEntryAt: 3, milestoneId: "ms_1"
             ),
         ]
         let tasks = [
             KanbanTask(id: "t_1", title: "打印发言稿", status: "done")
         ]
         let resolved = GoalAssociations.linkedTasks(
-            links: links, tasks: tasks
+            goalID: "g_1", rows: rows, tasks: tasks
         )
         XCTAssertEqual(resolved.count, 2)
         XCTAssertEqual(resolved[0].title, "打印发言稿")
@@ -183,8 +184,8 @@ final class GoalCategoryTests: XCTestCase {
         XCTAssertNil(resolved[1].task)
         XCTAssertNil(resolved[1].title)
         XCTAssertNil(resolved[1].status)
-        XCTAssertEqual(resolved[1].link.milestoneId, "ms_1")
-        XCTAssertEqual(resolved[1].link.completionEntryAt, 3)
+        XCTAssertEqual(resolved[1].row.milestoneId, "ms_1")
+        XCTAssertEqual(resolved[1].row.completionEntryAt, 3)
     }
 
     func testAssociationsEmptyCheck() {
@@ -199,29 +200,27 @@ final class GoalCategoryTests: XCTestCase {
         )
     }
 
-    // MARK: - 关联记录与监测的解码
+    // MARK: - 归属字段与监测的解码
 
-    func testTaskLinkDecodesFullAndSparse() throws {
+    func testTaskGoalAssignmentDecodesFullAndSparse() throws {
         let full = """
-        {"id": "gl_1", "goalId": "g_1", "taskId": "t_1",
-         "milestoneId": "ms_1", "createdAt": 1794200000.0,
-         "completionEntryAt": 1794300000.0}
+        {"taskId": "t_1", "goalId": "g_1",
+         "milestoneId": "ms_1", "assignedAt": 1794200000.0}
         """
-        let link = try decoder.decode(
-            BridgeGoalTaskLink.self, from: Data(full.utf8)
+        let a = try decoder.decode(
+            BridgeTaskGoalAssignment.self, from: Data(full.utf8)
         )
-        XCTAssertEqual(link.milestoneId, "ms_1")
-        XCTAssertEqual(link.completionEntryAt, 1794300000.0)
+        XCTAssertEqual(a.milestoneId, "ms_1")
+        XCTAssertEqual(a.assignedAt, 1794200000.0)
 
         let sparse = """
-        {"id": "gl_2", "goalId": "g_1", "taskId": "t_2",
-         "createdAt": 1794200000.0}
+        {"taskId": "t_2", "goalId": null}
         """
-        let link2 = try decoder.decode(
-            BridgeGoalTaskLink.self, from: Data(sparse.utf8)
+        let b = try decoder.decode(
+            BridgeTaskGoalAssignment.self, from: Data(sparse.utf8)
         )
-        XCTAssertNil(link2.milestoneId)
-        XCTAssertNil(link2.completionEntryAt)
+        XCTAssertNil(b.goalId)
+        XCTAssertNil(b.milestoneId)
     }
 
     func testMonitorGoalIdDecodes() throws {
