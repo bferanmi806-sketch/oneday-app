@@ -434,7 +434,7 @@ extension DrawerContainerControllerTests {
         controller.didMove(toParent: parent)
         parent.setOverrideTraitCollection(
             UITraitCollection(userInterfaceStyle: .dark),
-            forChildViewController: controller)
+            forChild: controller)
         let clip = controller.view.subviews[1].subviews[0]
         controller.setDrawer(true, animated: false)
         controller.view.layoutIfNeeded()
@@ -443,7 +443,7 @@ extension DrawerContainerControllerTests {
             "深色开态阴影应归零")
         parent.setOverrideTraitCollection(
             UITraitCollection(userInterfaceStyle: .light),
-            forChildViewController: controller)
+            forChild: controller)
         controller.view.layoutIfNeeded()
         XCTAssertEqual(
             clip.layer.shadowOpacity, 0.22, accuracy: 0.01,
