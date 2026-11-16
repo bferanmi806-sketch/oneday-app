@@ -275,9 +275,9 @@ final class ChatRootViewController: UIViewController,
     /// 点，见 performSettleBeat 的尾差处理）
     private var landingIntentSince: CFTimeInterval = 0
     /// §299.3 意图消费的几何稳定账：上一落定拍的
-    /// contentSize——与本拍逐值同才算几何静止（迟
-    /// 到布局回调落地后跨拍不变），意图置真/消解
-    /// 时清零
+    /// contentSize——与本拍逐值同才算几何静止；消
+    /// 费另须本拍钉前已在底（上一钉熬过整拍布局
+    /// 冲刷、迟到回调未现形），意图置真/消解时清零
     private var landingSettleContentSize: CGFloat?
     private var userInteracting = false
     /// 布局未就绪时到达的恢复命令（先记账、落定
@@ -1076,21 +1076,25 @@ final class ChatRootViewController: UIViewController,
             pendingAnchor = nil
             executeRestore(anchor)
         } else if landingIntent && !userInteracting {
+            let prePinDistance = currentDistance()
             pinToBottom()
             let csNow = collectionView.contentSize.height
-            if currentDistance() <= 0.5
+            if prePinDistance <= 0.5
+                && currentDistance() <= 0.5
                 && landingSettleContentSize == csNow {
-                // §299.3 消费判据＝达标＋几何跨拍稳
-                // 定：距底 ≤0.5 且 contentSize 与上
-                // 一落定拍逐值同，才许消费意图。定
-                // 因（§299.3 量测）：落定链可达算术
+                // §299.3 消费判据＝上一钉熬过整拍：
+                // 本拍开口（布局冲刷后、钉前）已在
+                // 底＋钉后仍在底＋contentSize 与上一
+                // 落定拍逐值同，才许消费意图。定因
+                // （§299.3 量测）：落定链可达算术
                 // max 且落点稳定（直设 3352 三读不
-                // 动），4.0 残差是末钉之后、意图已被
-                // 瞬时达标消费之后，集合视图内部布
-                // 局拍迟到回调 offset −4（composi-
+                // 动），残差是末钉之后集合视图内部
+                // 布局拍迟到回调 offset（composi-
                 // tional 锚点保全、R1 期 ≤2pt 残差
-                // 同族）——瞬时达标不作数，须等几
-                // 何静止后由后续拍重钉收口
+                // 同族；回调量随收敛几何走 3.3–4）——
+                // 回调在本拍开口布局落地即现形于
+                // prePinDistance、不许消费，须由后
+                // 续拍重钉且整拍无回调才收口
                 landingIntent = false
                 landingSettleContentSize = nil
             } else if CACurrentMediaTime()
