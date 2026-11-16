@@ -13211,3 +13211,15 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+
+## §309 A-21 查看器半边收口（2026-11-16；分支 feat/viewer-safearea-close，基线 rel-05060@5f77967）
+
+**依据**：横扫 nonstandard-sweep-ui-20261115.md A-21——GuideHost 纪律（第 89 条 H2：一切托管宿主 safeAreaRegions 清零）在聊天外未贯彻，抽屉双宿主已由抽屉变换包（§308）收口，查看器宿主 ZoomHostingController（ImageViewerView.swift）漏网，R1–R4 已出货未含此项，主线另行派本包单独收口。
+
+**落码**：ZoomHostingController.viewDidLoad 首行 `safeAreaRegions = []`（含 A-21/H2 注释，与抽屉半边 DrawerContainerView viewDidLoad 落码形态一致，不另创写法）。口径成立依据：查看器内容根两处 `.ignoresSafeArea()` 自排全幅，宿主派生安全区只构成双源叠加隐患、无内容依赖（横扫 A-21 风险定级同此）。连带一处可见性修饰：ZoomHostingController 去 `private`（类本体零改动），供 App 测试直构断言——与 A-11 判绿先例（goalActivityDotColor 去 private 供逐字节对拍）同形态。
+
+**验证面**：新增 ImageViewerHostSafeAreaTests 3 例——对照组（裸 UIHostingController 默认 safeAreaRegions＝.all，证断言非平台默认空转）／本体（ZoomHostingController loadViewIfNeeded 后 safeAreaRegions＝[]）／全幅不变（装窗布局后宿主视图帧＝窗口帧、清零仍在）。缩放/双击本体在 ZoomableImageView（本包未动），全幅/缩放/手势既有套件全绿担。落底三数不属本包改动面、组版轮续证为准。
+
+**验收**：全量门两轮（§190 全日志核账）：Core 与基线 rel-05060 逐数对账（预期 2153/2153 不变——本包不增删 Core 测；App 侧净增 3 例全绿）；红只认登记签名族（§257.1、R2 ⑧、第 95 条 UI 族、键盘矩阵 rig、§184 签名内）。CI 判读见 §309.1（回填）。
+
+**节号**：§309 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§308），组版合并时主线合裁顺延改号并同步代码注释。

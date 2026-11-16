@@ -535,7 +535,7 @@ struct ZoomTransitionCover<Content: View>:
     }
 }
 
-private final class ZoomHostingController<Content: View>:
+final class ZoomHostingController<Content: View>:
     UIHostingController<Content> {
     private let sourceID: String?
 
@@ -551,6 +551,11 @@ private final class ZoomHostingController<Content: View>:
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        // A-21/H2：宿主安全区派生清零（查看器全幅由
+        // 内容根 .ignoresSafeArea 自排，宿主不许再派
+        // 生安全区内边距与全幅几何叠加；与抽屉双宿
+        // 主同口径，§309）
+        safeAreaRegions = []
         // 裁决在呈现定型时问一次 Core 策略：Reduce
         // Motion 时不设 zoom；源可用性由提供者在转场
         // 发生时实时查表（登记随滚动生灭，定型时快照
