@@ -13567,3 +13567,9 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 
 **组版注（0.50.64）**：节号顺延 §315/§315.1，代码自指 2 处（ImageViewerView.swift 注释、ImageViewerHostSafeAreaTests 头注）同步改号。
 
+## §316 0.50.64 组版（2026-11-16；分支 rel-05064，基线 rel-05063@6d3edd4）
+
+**装车三包**：①抽屉变换（feat/drawer-transform@183d1fb；本档 §313）——第 78 条 D1–D4（锁步单源/travel 0.75/弹簧定版 1.4·ζ1.2/阴影双口径）＋横扫 A-01/A-02/A-21 抽屉半边；②账本收尾（feat/ledger-tail-close@774fa2d；本档 §314）——第 90 条余三件（迁移挂 refresh 尾步/主线钦定与三关联表持有/归档键双轨）＋B-07 删壳；③A-21 查看器半边收口（feat/viewer-safearea-close@c878a6d；本档 §315）——ZoomHostingController safeAreaRegions 清零一行。
+**合并处置**：三包自编号 §308（抽屉）／§308（账本）／§309（查看器）与本档既有节撞号，按后合顺延例亲解——按装车序顺延为 §313／§314／§315，各节标题注原自编号、代码自指全量同步（抽屉 9 文件 38 处、查看器 2 处、账本代码面零自指）。抽屉包与 A-03 接触面经组版核验：AppState 字段零增删改、presented 入参仍 Bool、喂入源已为 router 投影（A-03 于 .62 落实，ContentView `presented: appState.router.drawerPresented`），组版线无再改；DrawerBridgeHarnessTests 冲突解＝router 形＋弹簧定版 3.5s 落定等待两取。账本包与 A-03 在 AppState 两处接线（删 serverSessionCatalog 属性、sessionLedger init 内按 !demoMode.isDemo 赋值）经自动合并按 A-03 结构落位、对账无误；其 GoalsView 5 处持有者改动因 A-11 已拆分，移植至 GoalDetailView（3 处）／GoalFormViews（2 处），GoalsView.swift 本体与 .63 逐字一致；DrawerView 冲突解＝账本持有 mainThreadID＋router drawerThreadSelection 两取。合并后逐文件定向对账：各包改动集定向闭合（账本 19 文件与分支逐字一致、余差异全为 HEAD 侧 .61–.63 演进；查看器与分支差异仅节号 token 2 处）。**修复登记**：前两合并的 DESIGN 冲突解误丢尾部既有节（冲突 HEAD 侧整段被分支节覆盖），已在组版修复提交中按 rel-05063 原文＋§313 定稿全量恢复（+318 行纯增、代码零影响），§315 合并时已改按保留 HEAD 全文＋追加解。
+**版号**：0.50.64／构建 192（Project.swift 四值与设置页版本串两行同改，旧号在改动文件内零残留已 grep 验）。
+**判定依据**：三包各自判绿（§313.1／§314 CI 判读／§315.1）。CI 判读见 §316.1（回填）。
