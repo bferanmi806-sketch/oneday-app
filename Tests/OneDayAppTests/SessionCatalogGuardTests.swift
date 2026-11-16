@@ -360,9 +360,25 @@ final class SessionCatalogGuardTests: XCTestCase {
 // MARK: - 脚本客户端（机械变换自 FailingHermesClient）
 
 /// 写回执记录器（第 90 条收尾）：脚本客户端是值型，
-/// 调用记录须落在引用型盒里才跨拷贝存活
-final class SessionUpdateRecorder {
-    var calls: [(id: String, title: String?, pinned: Bool?, archived: Bool?)] = []
+/// 调用记录须落在引用型盒里才跨拷贝存活；协议面
+/// Sendable——锁护存储、@unchecked 认领
+final class SessionUpdateRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [(id: String, title: String?, pinned: Bool?, archived: Bool?)] = []
+
+    var calls: [(id: String, title: String?, pinned: Bool?, archived: Bool?)] {
+        lock.withLock { storage }
+    }
+
+    func record(
+        id: String, title: String?, pinned: Bool?, archived: Bool?
+    ) {
+        lock.withLock {
+            storage.append(
+                (id: id, title: title, pinned: pinned, archived: archived)
+            )
+        }
+    }
 }
 
 struct ScriptedSessionsClient: HermesClientProtocol {
@@ -618,8 +634,8 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         guard let updateRecorder else {
             throw HermesError.unreachable("离线桩")
         }
-        updateRecorder.calls.append(
-            (id: id, title: title, pinned: pinned, archived: archived)
+        updateRecorder.record(
+            id: id, title: title, pinned: pinned, archived: archived
         )
     }
 
