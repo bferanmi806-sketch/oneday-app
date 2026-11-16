@@ -245,11 +245,26 @@ final class DrawerMotionTests: XCTestCase {
         XCTAssertEqual(DrawerMotion.drawerOffset(offset: 320, travel: travel), 0)
         // 中途：与主面同刚体（位移差恒为 travel）
         XCTAssertEqual(DrawerMotion.drawerOffset(offset: 160, travel: travel), -160)
-        // 橡皮筋越界不钳制：双层同量越界、刚性不破
-        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 400, travel: travel), 80)
-        XCTAssertEqual(DrawerMotion.drawerOffset(offset: -30, travel: travel), -350)
         // travel 未量得：抽屉不动
         XCTAssertEqual(DrawerMotion.drawerOffset(offset: 0, travel: 0), 0)
+    }
+
+    /// §317 越界钳制（诊断 F2）：§313「橡皮筋越界不
+    /// 钳制、双层同量越界」在真机录屏实证露底（开向
+    /// 过冲抽屉左缘离屏左约 52pt 露容器底色），自此
+    /// 越界段钳制到 [−travel, 0]、界内公式不变（界
+    /// 内逐值由上例把守）
+    func testDrawerOffsetClampsOvershootToPanelBounds() {
+        // 开向过冲：抽屉钉死 0、面板左缘不离屏左
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 400, travel: travel), 0)
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 320.5, travel: travel), 0)
+        // 关向过冲：抽屉停在 −travel、整份藏好不深追
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: -30, travel: travel), -320)
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: -400, travel: travel), -320)
+        // travel 未量得：任何 offset 恒 0（容器「未量
+        // 得不动」口径的结构性成立）
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 100, travel: 0), 0)
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: -100, travel: 0), 0)
     }
 
     // MARK: - §313 阴影外观口径（第 78 条 D4）
