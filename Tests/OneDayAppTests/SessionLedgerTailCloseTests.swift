@@ -78,7 +78,7 @@ final class SessionLedgerTailCloseTests: XCTestCase {
         appState.sideChats.setTitleOverride("新标题", for: "s-mig")
         appState.sessionLedger.archive(serverSessionID: "s-old")
 
-        await appState.sessionLedger.refresh(
+        try await appState.sessionLedger.refresh(
             appState: appState, localThreads: [],
             modelContext: context
         )
@@ -117,7 +117,7 @@ final class SessionLedgerTailCloseTests: XCTestCase {
         let appState = AppState(client: client, demoMode: .connected)
         appState.sideChats.setTitleOverride("新标题", for: "s-mig")
 
-        await appState.sessionLedger.refresh(
+        try await appState.sessionLedger.refresh(
             appState: appState, localThreads: [],
             modelContext: context
         )
