@@ -1271,7 +1271,7 @@ struct DrawerView: View {
         guard let sessionID = thread.serverSessionID,
               SideChatLink.mayWriteThroughToServer(
                   sessionID: sessionID,
-                  mainSessionID: appState.sideChats
+                  mainSessionID: appState.sessionLedger
                       .mainServerSessionID
               ) else { return }
         Task {
@@ -1302,7 +1302,7 @@ struct DrawerView: View {
         guard let sessionID = thread.serverSessionID,
               SideChatLink.mayWriteThroughToServer(
                   sessionID: sessionID,
-                  mainSessionID: appState.sideChats
+                  mainSessionID: appState.sessionLedger
                       .mainServerSessionID
               ) else { return }
         Task {

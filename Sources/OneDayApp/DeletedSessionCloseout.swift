@@ -48,7 +48,7 @@ enum DeletedSessionCloseout {
                 localThreadID: thread.id,
                 linkedServerSessionID: thread.serverSessionID,
                 mainThreadID: appState.sessionLedger.mainThreadID,
-                mainServerSessionID: appState.sideChats
+                mainServerSessionID: appState.sessionLedger
                     .mainServerSessionID
             ) else { continue }
             deleteLocalThread(
@@ -80,7 +80,7 @@ enum DeletedSessionCloseout {
                   seen.insert(sessionID).inserted,
                   SideChatLink.mayHardDeleteOnThreadDelete(
                       sessionID: sessionID,
-                      mainSessionID: appState.sideChats
+                      mainSessionID: appState.sessionLedger
                           .mainServerSessionID
                   )
             else { continue }
@@ -142,7 +142,7 @@ enum DeletedSessionCloseout {
                 localThreadID: thread.id,
                 linkedServerSessionID: thread.serverSessionID,
                 mainThreadID: appState.sessionLedger.mainThreadID,
-                mainServerSessionID: appState.sideChats
+                mainServerSessionID: appState.sessionLedger
                     .mainServerSessionID
             ) {
                 return true

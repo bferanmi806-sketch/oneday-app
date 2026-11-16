@@ -957,7 +957,7 @@ struct GoalDetailView: View {
     /// 延迟同级约束，§123 记账）；没绑线程的目标（没在
     /// 这里安排过事）直接跳过，不为看一眼详情就建线程
     private func materializeGoalEchoes() {
-        guard let threadID = appState.sideChats
+        guard let threadID = appState.sessionLedger
             .threadID(forGoalID: goalID) else { return }
         let descriptor = FetchDescriptor<ChatThread>(
             predicate: #Predicate { $0.id == threadID }
@@ -990,7 +990,7 @@ struct GoalDetailView: View {
     /// 打开这个目标的进展对话（绑定线程）：与点子采纳
     /// 开旁聊同一条切格通道
     private func openGoalThread() {
-        guard let threadID = appState.sideChats
+        guard let threadID = appState.sessionLedger
             .threadID(forGoalID: goalID) else { return }
         appState.drawerThreadSelection = threadID
         appState.mainTabSwitchRequest = .chat
