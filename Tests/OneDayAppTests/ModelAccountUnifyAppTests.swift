@@ -59,7 +59,7 @@ final class ModelAccountUnifyAppTests: XCTestCase {
             "id": id, "model": model
         ])
         let session = try JSONDecoder().decode(ServerSession.self, from: data)
-        state.serverSessionCatalog.publish(visible: [session])
+        state.sessionLedger.publishVisible([session])
     }
 
     // MARK: - Read-time fossil rule
@@ -68,7 +68,7 @@ final class ModelAccountUnifyAppTests: XCTestCase {
         let state = makeState()
         await state.refreshModelCatalog()
         let mainID = "oneday-main-fossil"
-        state.sideChats.setMainServerSessionID(mainID)
+        state.sessionLedger.setMainServerSessionID(mainID)
         state.selectSessionModel(
             ChatModelChoice(model: "deepseek-flash", providerField: nil),
             serverSessionID: mainID, threadID: nil
@@ -85,7 +85,7 @@ final class ModelAccountUnifyAppTests: XCTestCase {
         let state = makeState()
         await state.refreshModelCatalog()
         let mainID = "oneday-main-fossil"
-        state.sideChats.setMainServerSessionID(mainID)
+        state.sessionLedger.setMainServerSessionID(mainID)
         state.selectSessionModel(
             ChatModelChoice(model: "deepseek-v4-pro", providerField: "custom"),
             serverSessionID: mainID, threadID: nil
@@ -103,7 +103,7 @@ final class ModelAccountUnifyAppTests: XCTestCase {
         await state.refreshModelCatalog()
         let mainID = "oneday-main-fossil"
         let sideID = "oneday-side-fossil"
-        state.sideChats.setMainServerSessionID(mainID)
+        state.sessionLedger.setMainServerSessionID(mainID)
         state.selectSessionModel(
             ChatModelChoice(model: "deepseek-v4-pro", providerField: "custom"),
             serverSessionID: sideID, threadID: nil

@@ -505,12 +505,12 @@ struct AgentHubView: View {
     /// 取钦定主线线程的实际绑定；有当前会话时与胶囊
     /// 同键同账（当前＝主线时退化为 §227 同键定理），
     /// 无当前会话时回落主线派生、行为与 §227 一字不
-    /// 变；SideChatStore 的钦定 id 只作线程未落位时
+    /// 变；账本的钦定 id 只作线程未落位时
     /// 的回落缓存，不再独立成账
     private var hubModelAccountIDs:
         (serverSessionID: String?, threadID: UUID?)
     {
-        let store = appState.sideChats
+        let store = appState.sessionLedger
         let mainThread = store.mainThreadID.flatMap { id in
             threads.first { $0.id == id }
         }

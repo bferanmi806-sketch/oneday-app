@@ -21,9 +21,95 @@ import SwiftData
 /// 用方改读账本）。ServerSessionCatalog 自包一起
 /// 降为转发壳（publish/remove/refreshIfCold 转本
 /// 店），外部调用方一字不改。
+///
+/// 第 90 条收尾（账本余三件＋B-07）：①存量迁移挂
+/// 载点迁入——runMigration 触发改挂本店 refresh
+/// 归档段同步完成点，执行本体与失败留痕归本店；
+/// ②主线钦定（五键）与三张关联表（点子/目标/动
+/// 态讨论）持有迁入——同键读写、持有者换人，草
+/// 稿/滚动锚/lastThreadID 不并入（留 SideChat-
+/// Store）；③归档键持有迁入——原键读入、写路径
+/// 仍回写原键（双轨一版保回滚：旧版 App 读同键
+/// 即恢复全功能），归档失败留痕随归档列收编；
+/// B-07：分页装配核（fetchAll/fetchAllPages＋完
+/// 整性判定）迁入本店，ServerSessionCatalog 转
+/// 发壳整件删除、调用方改直连本店。
 @MainActor
 @Observable
 final class SessionLedger {
+    /// 侧账落盘口（第 90 条收尾）：与 SideChatStore
+    /// 同口径——演示模式纯内存（persisted=false），
+    /// 不污染真实档案；键名全部沿用 sideChats.* 原
+    /// 键（持有者换人、键不变，升级/回滚零翻译）
+    private let defaults: UserDefaults?
+
+    private enum Key {
+        static let mainThreadID = "sideChats.mainThreadID"
+        static let mainServerSessionID =
+            "sideChats.mainServerSessionID"
+        static let mainServerConfirmed =
+            "sideChats.mainServerConfirmed"
+        static let mainServerSeeded = "sideChats.mainServerSeeded"
+        static let mainLinkLastError =
+            "sideChats.mainLinkLastError"
+        static let archivedKeys = "sideChats.archivedKeys"
+        static let failedArchiveSessionIDs =
+            "sideChats.failedArchiveSessionIDs"
+        static let ideaThreadIDs = "sideChats.ideaThreadIDs"
+        static let goalThreadIDs = "sideChats.goalThreadIDs"
+        static let feedDiscussPostIDs =
+            "sideChats.feedDiscussPostIDs"
+    }
+
+    init(persisted: Bool = true) {
+        defaults = persisted ? .standard : nil
+        guard let defaults else { return }
+        if let raw = defaults.string(forKey: Key.mainThreadID) {
+            mainThreadID = UUID(uuidString: raw)
+        }
+        mainServerSessionID = defaults.string(
+            forKey: Key.mainServerSessionID
+        )
+        mainServerConfirmed = defaults.bool(
+            forKey: Key.mainServerConfirmed
+        )
+        mainServerSeeded = defaults.bool(
+            forKey: Key.mainServerSeeded
+        )
+        mainLinkLastError = defaults.string(
+            forKey: Key.mainLinkLastError
+        )
+        archivedKeys = Set(
+            defaults.stringArray(forKey: Key.archivedKeys) ?? []
+        )
+        failedArchiveSessionIDs = Self.decode(
+            [String].self, defaults, Key.failedArchiveSessionIDs
+        ) ?? []
+        ideaThreadIDs = Self.decode(
+            [String: String].self, defaults, Key.ideaThreadIDs
+        ) ?? [:]
+        goalThreadIDs = Self.decode(
+            [String: String].self, defaults, Key.goalThreadIDs
+        ) ?? [:]
+        feedDiscussPostIDs = Self.decode(
+            [String: String].self, defaults,
+            Key.feedDiscussPostIDs
+        ) ?? [:]
+    }
+
+    private static func decode<T: Decodable>(
+        _ type: T.Type, _ defaults: UserDefaults, _ key: String
+    ) -> T? {
+        guard let data = defaults.data(forKey: key) else {
+            return nil
+        }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private func persist<T: Encodable>(_ value: T, _ key: String) {
+        guard let defaults else { return }
+        defaults.set(try? JSONEncoder().encode(value), forKey: key)
+    }
     /// 删除引擎（包二归属）：待删队列/墓碑/后台围
     /// 栏删/落定收口/失败恢复全在此一台，队列是待
     /// 删集的唯一真相（各面过滤只读本队列，经本店
@@ -55,6 +141,217 @@ final class SessionLedger {
     /// 可见段刷新在飞标记（多路触发合并成一轮）
     private var isRefreshingVisible = false
 
+    // MARK: - 主线钦定（第 90 条收尾：持有迁入，同键）
+
+    private(set) var mainThreadID: UUID?
+    private(set) var mainServerSessionID: String?
+    private(set) var mainServerConfirmed = false
+    /// 主线种子已落位（0.27.0）：主线本地历史已导入
+    /// 钦定会话——确认位与种子位由 markMainLinked
+    /// 一并置真（链接流程把「会话存在」与「历史已
+    /// 导入」一次做完，不再分两段各确认一半）
+    private(set) var mainServerSeeded = false
+    /// 主线最近一次链接失败原因（0.27.0）：链接失败
+    /// 不许再静默——原文落此、设置页「服务器与连接」
+    /// 区如实展示，链接成功即清
+    private(set) var mainLinkLastError: String?
+
+    func designateMainThread(_ id: UUID) {
+        mainThreadID = id
+        defaults?.set(id.uuidString, forKey: Key.mainThreadID)
+    }
+
+    /// 主线的服务端会话 id：首次由 App 生成并持久化，
+    /// 之后以服务端回执为准（服务端若改派 id 以回执改存）
+    func ensureMainServerSessionID() -> String {
+        if let mainServerSessionID { return mainServerSessionID }
+        let generated = "oneday-main-\(UUID().uuidString.lowercased())"
+        setMainServerSessionID(generated)
+        return generated
+    }
+
+    func setMainServerSessionID(_ id: String) {
+        mainServerSessionID = id
+        defaults?.set(id, forKey: Key.mainServerSessionID)
+    }
+
+    func confirmMainServer() {
+        mainServerConfirmed = true
+        defaults?.set(true, forKey: Key.mainServerConfirmed)
+    }
+
+    /// 主线链接落定（0.27.0）：会话存在＋种子已落
+    /// 一并确认、失败留痕清零——发送计划只认这组
+    /// 合（confirmed && seeded）进会话模式
+    func markMainLinked() {
+        confirmMainServer()
+        mainServerSeeded = true
+        defaults?.set(true, forKey: Key.mainServerSeeded)
+        mainLinkLastError = nil
+        defaults?.removeObject(forKey: Key.mainLinkLastError)
+    }
+
+    /// 主线链接失败留痕（0.27.0）：原因原文落盘，
+    /// 设置页展示；不置任何确认位，下次进页/发送
+    /// 重试链接
+    func noteMainLinkError(_ message: String) {
+        mainLinkLastError = message
+        defaults?.set(message, forKey: Key.mainLinkLastError)
+    }
+
+    // MARK: - 归档列（第 90 条收尾：持有迁入＋双轨回写）
+
+    /// 本地归档键集（`local:<uuid>` 与 `server:<id>`
+    /// 双命名空间共用一集）：账本读入建归档列，写
+    /// 路径仍回写原键 sideChats.archivedKeys——双轨
+    /// 一版保回滚（旧版 App 读同键即恢复全功能），
+    /// 停写/清键归下一大版本
+    private(set) var archivedKeys: Set<String> = []
+    /// 删除归档失败留痕（0.21.0）：本地线程已删、关
+    /// 联服务端会话归档 PATCH 失败待对账的会话 id
+    /// 集（口径见 noteFailedSessionArchive）——随归
+    /// 档列收编（施工图 §4.2）
+    private(set) var failedArchiveSessionIDs: [String] = []
+
+    func archive(localThreadID: UUID) {
+        archivedKeys.insert(SideChatArchive.localKey(localThreadID))
+        persistArchived()
+    }
+
+    func archive(serverSessionID: String) {
+        archivedKeys.insert(SideChatArchive.serverKey(serverSessionID))
+        persistArchived()
+    }
+
+    func unarchive(localThreadID: UUID) {
+        archivedKeys.remove(SideChatArchive.localKey(localThreadID))
+        persistArchived()
+    }
+
+    func unarchive(serverSessionID: String) {
+        archivedKeys.remove(SideChatArchive.serverKey(serverSessionID))
+        persistArchived()
+    }
+
+    private func persistArchived() {
+        defaults?.set(Array(archivedKeys), forKey: Key.archivedKeys)
+    }
+
+    /// 抽屉删本地线程时关联服务端会话做归档（PATCH
+    /// archived:true）——本地删除不被服务端动作阻
+    /// 塞、归档尽力而为；失败不许静默吞：会话 id 落
+    /// 此账留痕，该会话在管理页未归档段仍可见、可
+    /// 手动归档收尾；日后归档成功（本表对账）由
+    /// clearFailedSessionArchive 销账
+    func noteFailedSessionArchive(_ sessionID: String) {
+        guard !failedArchiveSessionIDs.contains(sessionID) else {
+            return
+        }
+        failedArchiveSessionIDs.append(sessionID)
+        persist(failedArchiveSessionIDs, Key.failedArchiveSessionIDs)
+    }
+
+    func clearFailedSessionArchive(_ sessionID: String) {
+        guard failedArchiveSessionIDs.contains(sessionID) else {
+            return
+        }
+        failedArchiveSessionIDs.removeAll { $0 == sessionID }
+        persist(failedArchiveSessionIDs, Key.failedArchiveSessionIDs)
+    }
+
+    /// 真删落定后的本地清账（0.50.30）：服务端会话已
+    /// 回查确认不存在，按其 id 挂在本地的账一并清掉
+    /// ——标题覆盖、服务端形态归档键、归档失败留痕，
+    /// 不留残影（id 若日后重现也不许被旧账染指）。
+    /// 第 90 条收尾随归档列迁入本店：标题覆盖仍归
+    /// SideChatStore 持有，经 appState 清项
+    func purgeServerSessionRecords(
+        _ sessionID: String, appState: AppState
+    ) {
+        appState.sideChats.setTitleOverride(nil, for: sessionID)
+        unarchive(serverSessionID: sessionID)
+        clearFailedSessionArchive(sessionID)
+    }
+
+    // MARK: - 关联表（第 90 条收尾：持有迁入，同键）
+
+    /// 点子→旁聊关联（0.48.0，§122）：采纳时建的旁聊
+    /// 线程 id 按点子 id 落盘，「打开对话」回同一条；
+    /// 线程被删后关联失效、点按时补建并改写本表
+    private(set) var ideaThreadIDs: [String: String] = [:]
+    /// 目标→旁聊绑定（§123 H1）：目标 id → 线程 id 串。
+    /// 用户在目标里「安排一件事」时创建/复用并落盘，
+    /// 委派任务的进展与完成回响落进这个线程（绑定模式
+    /// 与点子采纳的 ideaThreadIDs 同形，§122）
+    private(set) var goalThreadIDs: [String: String] = [:]
+    /// 动态讨论待发信号（FA-1）：线程 id → 帖 id。
+    /// 点「讨论」建旁聊时落盘；该线程第一条用户消息
+    /// 发出后 ChatView 据此发一记 discuss 信号并销
+    /// 账——信号只认首句（note 取首句自述偏好句），
+    /// 漏发/永不发送的关联留着无副作用（下次该线程
+    /// 首发仍是首句）
+    private(set) var feedDiscussPostIDs: [String: String] = [:]
+
+    func threadID(forIdeaID id: String) -> UUID? {
+        ideaThreadIDs[id].flatMap { UUID(uuidString: $0) }
+    }
+
+    func linkThread(_ threadID: UUID, forIdeaID id: String) {
+        ideaThreadIDs[id] = threadID.uuidString
+        persist(ideaThreadIDs, Key.ideaThreadIDs)
+    }
+
+    /// 目标绑定的旁聊线程 id；未绑（还没在这个目标里
+    /// 安排过事）为 nil
+    func threadID(forGoalID goalID: String) -> UUID? {
+        goalThreadIDs[goalID].flatMap(UUID.init(uuidString:))
+    }
+
+    func linkThread(_ threadID: UUID, forGoalID goalID: String) {
+        goalThreadIDs[goalID] = threadID.uuidString
+        persist(goalThreadIDs, Key.goalThreadIDs)
+    }
+
+    /// 讨论建聊时登记：线程的第一条用户消息要替这
+    /// 篇帖发一记 discuss 信号
+    func linkFeedDiscussThread(_ threadID: UUID, postID: String) {
+        // 一帖一线程：同帖改挂新线程（旧线程已删后
+        // 补建）时先摘其他线程的同帖关联，否则反查
+        // 会捞回已删线程、discuss 每次都新建（去重
+        // 失效、空会话堆积复发）
+        for key in feedDiscussPostIDs
+            .filter({ $0.value == postID }).map(\.key)
+            where key != threadID.uuidString {
+            feedDiscussPostIDs.removeValue(forKey: key)
+        }
+        feedDiscussPostIDs[threadID.uuidString] = postID
+        persist(feedDiscussPostIDs, Key.feedDiscussPostIDs)
+    }
+
+    func feedDiscussPostID(forThreadID threadID: UUID) -> String? {
+        feedDiscussPostIDs[threadID.uuidString]
+    }
+
+    /// 反查（§208 讨论去重）：这篇帖已有的讨论线程
+    /// ——discuss() 先查本口，有则复用、不再堆空会话
+    /// （与点子流「先查 link」同形）；关联在但线程
+    /// 已删时由调用方校验存在性后决定补建
+    func threadID(forFeedDiscussPostID postID: String) -> UUID? {
+        feedDiscussPostIDs.first(where: {
+            $0.value == postID
+        }).flatMap { UUID(uuidString: $0.key) }
+    }
+
+    /// 信号发出即销账：一线程只报一次，note 只认
+    /// 首句——销账先行于网络调用，失败不补发第二句
+    func clearFeedDiscuss(forThreadID threadID: UUID) {
+        guard feedDiscussPostIDs[threadID.uuidString] != nil else {
+            return
+        }
+        feedDiscussPostIDs[threadID.uuidString] = nil
+        persist(feedDiscussPostIDs, Key.feedDiscussPostIDs)
+    }
+
     // MARK: - 读口
 
     /// 合并名单：账本段名单＋注入的本地线程现场重
@@ -68,10 +365,9 @@ final class SessionLedger {
             archived: archivedSessions,
             localThreads: localThreads.map(LedgerLocalThread.init),
             inputs: SessionLedgerMerge.Inputs(
-                mainThreadID: appState.sideChats.mainThreadID,
-                mainServerSessionID: appState.sideChats
-                    .mainServerSessionID,
-                archivedKeys: appState.sideChats.archivedKeys,
+                mainThreadID: mainThreadID,
+                mainServerSessionID: mainServerSessionID,
+                archivedKeys: archivedKeys,
                 pendingDeletionIDs: deletions.queue.sessionIDs,
                 firstUserMessages: appState.sessionTitles
                     .firstUserMessages
@@ -143,7 +439,7 @@ final class SessionLedger {
         appState: AppState, localThreads: [ChatThread],
         modelContext: ModelContext
     ) async throws {
-        let visibleFetch = try await ServerSessionCatalog
+        let visibleFetch = try await Self
             .fetchAll(appState: appState, archived: "exclude")
         let visible = visibleFetch.sessions
         // §232：待删集不进展示与目录（服务端此刻仍
@@ -155,7 +451,7 @@ final class SessionLedger {
             !pendingDeletions.contains($0.id)
         }
         hasLoaded = true
-        let archivedFetch = try await ServerSessionCatalog
+        let archivedFetch = try await Self
             .fetchAll(appState: appState, archived: "only")
         let archived = archivedFetch.sessions
         archivedSessions = archived.filter {
@@ -191,7 +487,7 @@ final class SessionLedger {
                     + "），本地线程本轮不动"
             )
         }
-        if let mainID = appState.sideChats.mainServerSessionID,
+        if let mainID = mainServerSessionID,
            !visible.contains(where: { $0.id == mainID }),
            !archived.contains(where: { $0.id == mainID }) {
             mainFallback = try? await appState.performAdmin {
@@ -208,6 +504,15 @@ final class SessionLedger {
         await appState.sessionTitles.ensureTitles(
             for: visible + archived, appState: appState,
             budget: 12
+        )
+        // 存量迁移挂载点（第 90 条收尾）：归档段同步
+        // 完成即触发点——触发从管理页首开迁到此处，
+        // 此后每次全量刷新完成都会顺带跑一次（计划
+        // 为空即无事；失败项留痕＋本地值保留，下轮
+        // 刷新再试）
+        await runMigrationIfNeeded(
+            appState: appState, localThreads: localThreads,
+            modelContext: modelContext
         )
     }
 
@@ -227,7 +532,7 @@ final class SessionLedger {
         guard !isRefreshingVisible else { return false }
         isRefreshingVisible = true
         defer { isRefreshingVisible = false }
-        guard let result = try? await ServerSessionCatalog
+        guard let result = try? await Self
             .fetchAll(appState: appState, archived: "exclude")
         else { return false }
         let pending = deletions.queue.sessionIDs
@@ -269,12 +574,12 @@ final class SessionLedger {
                 seen.insert($0.id).inserted
             }
         }
-        return try? await ServerSessionCatalog.fetchAll(
+        return try? await Self.fetchAll(
             appState: appState, archived: "include"
         ).sessions
     }
 
-    // MARK: - 目录壳转发面（旧 Catalog 语义逐字）
+    // MARK: - 名单写回面（旧 Catalog.publish/remove 语义逐字）
 
     /// 写回（旧 publish）：调用方已付分页代价且已过
     /// 待删过滤，同份可见集落本店
@@ -328,6 +633,223 @@ final class SessionLedger {
     ) {
         DeletedSessionCloseout.handleOpenedSessionMissing(
             sessionID: sessionID, appState: appState
+        )
+    }
+
+    // MARK: - 存量迁移（第 90 条收尾：挂载点迁入）
+
+    /// 迁移失败留痕（逐项人话行）：管理页迁移区直
+    /// 读本列呈现；成功落定后由下一轮迁移结果覆盖
+    private(set) var migrationFailures: [String] = []
+    /// 迁移在飞标记：迁移尾步的重拉（refresh）会再
+    /// 到触发点，靠本标记防自触发重入
+    private var isRunningMigration = false
+
+    /// 归档段同步完成事件的挂载口（refresh 尾步调
+    /// 用）：每次全量刷新完成都顺带执行一次待迁计
+    /// 划；迁移本体自带在飞守卫防自触发重入
+    private func runMigrationIfNeeded(
+        appState: AppState, localThreads: [ChatThread],
+        modelContext: ModelContext
+    ) async {
+        await runMigration(
+            appState: appState, localThreads: localThreads,
+            modelContext: modelContext
+        )
+    }
+
+    /// 存量迁移执行（自管理页 AllConversationsStore
+    /// 迁入，语义逐字）：计划走 Core 纯函数
+    /// （SessionMigration.plan），逐项经动作层回写＋
+    /// 回读对账；折叠后成功项清本地（覆盖表删项、
+    /// 归档键删项），失败项逐项留痕＋本地值保留。
+    /// 迁移后名单重拉（归档项的服务端状态已变）；
+    /// 尾步重拉的 refresh 会再到挂载点，靠在飞守
+    /// 卫挡下（失败项的再试留给下一轮外部刷新，不
+    /// 在本轮内自旋）
+    func runMigration(
+        appState: AppState, localThreads: [ChatThread],
+        modelContext: ModelContext
+    ) async {
+        guard !isRunningMigration else { return }
+        isRunningMigration = true
+        defer { isRunningMigration = false }
+        let sideChats = appState.sideChats
+        let overrides = sideChats.titleOverrides
+        let keys = archivedKeys
+        let plan = SessionMigration.plan(
+            titleOverrides: overrides, archivedKeys: keys
+        )
+        guard !plan.isEmpty else { return }
+        var failureReasons: [SessionMigration.Item: String] = [:]
+        for item in plan {
+            let outcome: ServerSessionActions.Outcome
+            switch item.kind {
+            case .rename(let title):
+                outcome = await ServerSessionActions.rename(
+                    appState: appState, id: item.sessionID, title: title
+                )
+            case .archive:
+                outcome = await ServerSessionActions.setArchived(
+                    appState: appState, id: item.sessionID, archived: true
+                )
+            }
+            if case .failed(let reason) = outcome {
+                failureReasons[item] = reason
+            }
+        }
+        let outcome = SessionMigration.fold(
+            plan: plan, failureReasons: failureReasons,
+            titleOverrides: overrides, archivedKeys: keys
+        )
+        // 退役成功项：本地只删「计划内且已落定」的键
+        for id in overrides.keys
+        where outcome.remainingTitleOverrides[id] == nil {
+            sideChats.setTitleOverride(nil, for: id)
+        }
+        for key in keys
+        where !outcome.remainingArchivedKeys.contains(key)
+            && key.hasPrefix("server:") {
+            unarchive(
+                serverSessionID: String(key.dropFirst("server:".count))
+            )
+        }
+        migrationFailures = outcome.failures.map { failure in
+            "「\(failure.item.sessionID)」\(failure.item.actionLabel)没改成：\(failure.reason)"
+        }
+        try? await refresh(
+            appState: appState, localThreads: localThreads,
+            modelContext: modelContext
+        )
+    }
+
+    // MARK: - 分页装配核（B-07：自转发壳迁入）
+
+    /// 名单不完整的判定原因（B-1 防护，2026-11-14
+    /// 同类横扫定案）：三类信号任一出现即判不完整
+    enum IncompleteReason: Equatable {
+        /// 10 页上限走满仍未见名单尽头——旧形态在
+        /// 此静默截断，尾部整段无声消失
+        case pageCapReached
+        /// 服务端报的总数与实拉唯一行数对不上（含
+        /// 拉取途中总数漂移：多页报数互不一致）
+        case totalMismatch(reported: Int, fetched: Int)
+        /// 页内/跨页出现重复行——offset 位移的指纹
+        /// （拉取途中名单增删）：有重必有漏
+        case duplicateRows(count: Int)
+
+        /// 留痕用人话短句（不带状态码原文）
+        var traceLabel: String {
+            switch self {
+            case .pageCapReached:
+                return "分页上限走满、名单未见尽头"
+            case .totalMismatch(let reported, let fetched):
+                return "总数对不上（服务端报 \(reported)、实拉 \(fetched)）"
+            case .duplicateRows(let count):
+                return "分页出现重复行 \(count) 条"
+            }
+        }
+    }
+
+    /// 拉全结果：名单本体＋完整性判定。完整性是防
+    /// 护闸的唯一凭据——以名单为存活集做删除/回收
+    /// 的消费点必须先查 isComplete，不完整即跳过动
+    /// 作并留痕（宁可不清、不可误清）；只喂显示的
+    /// 消费点可直接取 sessions
+    struct FetchResult {
+        var sessions: [ServerSession]
+        var incompleteReason: IncompleteReason?
+        var isComplete: Bool { incompleteReason == nil }
+    }
+
+    /// 分页拉全：limit 100 逐页至不足一页或达 total，
+    /// 上限 10 页（防服务端分页异常时无界拉取）——
+    /// 本函数是全 App 唯一实现，两处不许再各抄一份。
+    /// B-1 防护（2026-11-14）：旧形态 append 累加、
+    /// 无去重、无对账、上限处静默截断，下游对账以
+    /// 此名单为存活集清本地线程——截断/漏行会被误
+    /// 判「服务端已删」造成数据丢失。本形态：装配
+    /// 时去重（保首现序）、全程对账，任一不完整信
+    /// 号（上限走满/总数对不上或漂移/出现重行）即
+    /// 在结果上打标并留痕，删除向消费点据标跳过
+    static func fetchAll(
+        appState: AppState, archived: String
+    ) async throws -> FetchResult {
+        let result = try await appState.performAdmin {
+            client, config in
+            try await Self.fetchAllPages { offset in
+                try await client.serverSessionsPage(
+                    config: config, limit: 100,
+                    offset: offset, archived: archived
+                )
+            }
+        }
+        if let reason = result.incompleteReason {
+            ChatDiagTrace.record(
+                "会话名单不完整（archived=\(archived)）："
+                    + reason.traceLabel
+                    + "——以名单为存活集的删除/回收本轮跳过"
+            )
+        }
+        return result
+    }
+
+    /// 分页装配核（页取口注入，单测以脚本页直驱）：
+    /// 与 fetchAll 同一实现，不许另抄一份。offset 按
+    /// 原始页行数推进（与服务端分页口径一致）；唯
+    /// 一行集保首现序去重
+    static func fetchAllPages(
+        fetchPage: (Int) async throws -> SessionsPage
+    ) async throws -> FetchResult {
+        var all: [ServerSession] = []
+        var seen = Set<String>()
+        var duplicateCount = 0
+        var reportedTotals = Set<Int>()
+        var lastReportedTotal: Int?
+        var offset = 0
+        var ranOutOfPages = true
+        for _ in 0..<10 {
+            let page = try await fetchPage(offset)
+            if let total = page.total {
+                reportedTotals.insert(total)
+                lastReportedTotal = total
+            }
+            for session in page.sessions {
+                if seen.insert(session.id).inserted {
+                    all.append(session)
+                } else {
+                    duplicateCount += 1
+                }
+            }
+            if page.sessions.count < 100 {
+                ranOutOfPages = false
+                break
+            }
+            if let total = page.total, all.count >= total {
+                ranOutOfPages = false
+                break
+            }
+            offset += 100
+        }
+        let reason: IncompleteReason?
+        if duplicateCount > 0 {
+            reason = .duplicateRows(count: duplicateCount)
+        } else if reportedTotals.count > 1 {
+            reason = .totalMismatch(
+                reported: lastReportedTotal ?? all.count,
+                fetched: all.count
+            )
+        } else if let total = lastReportedTotal, total != all.count {
+            reason = .totalMismatch(
+                reported: total, fetched: all.count
+            )
+        } else if ranOutOfPages {
+            reason = .pageCapReached
+        } else {
+            reason = nil
+        }
+        return FetchResult(
+            sessions: all, incompleteReason: reason
         )
     }
 }

@@ -111,7 +111,7 @@ final class DeleteOptimisticTests: XCTestCase {
     }
 
     private func catalogContains(_ sessionID: String) -> Bool {
-        appState.serverSessionCatalog.visibleSessions
+        appState.sessionLedger.visibleSessions
             .contains { $0.id == sessionID }
     }
 
@@ -133,8 +133,7 @@ final class DeleteOptimisticTests: XCTestCase {
     func testBeginHidesImmediatelyThenSuccessFinalizes() async throws {
         let sid = "oneday-delete-optimistic-success"
         let thread = try makeThread(sessionID: sid)
-        appState.serverSessionCatalog.publish(
-            visible: [makeSession(id: sid)]
+        appState.sessionLedger.publishVisible([makeSession(id: sid)]
         )
         coordinator.deleteAction = { _, _ in .verified }
 
@@ -169,7 +168,7 @@ final class DeleteOptimisticTests: XCTestCase {
         let sid = "oneday-delete-optimistic-failure"
         let session = makeSession(id: sid)
         let thread = try makeThread(sessionID: sid)
-        appState.serverSessionCatalog.publish(visible: [session])
+        appState.sessionLedger.publishVisible([session])
         coordinator.deleteAction = { _, _ in .failed("桩失败原因") }
         coordinator.catalogRefresher = { _ in [session] }
 
@@ -205,8 +204,7 @@ final class DeleteOptimisticTests: XCTestCase {
     func testResumeAfterRelaunchFinalizes() async throws {
         let sid = "oneday-delete-optimistic-resume-ok"
         let thread = try makeThread(sessionID: sid)
-        appState.serverSessionCatalog.publish(
-            visible: [makeSession(id: sid)]
+        appState.sessionLedger.publishVisible([makeSession(id: sid)]
         )
         // 第一程模拟「删除在飞时进程被杀」：执行口
         // 长睡不回，队列与墓碑留在盘上
@@ -247,7 +245,7 @@ final class DeleteOptimisticTests: XCTestCase {
         // 列已落盘（用第一程协调器起手＋长睡执行口
         // 复刻，见上一法注释）
         let thread = try makeThread(sessionID: sid)
-        appState.serverSessionCatalog.publish(visible: [session])
+        appState.sessionLedger.publishVisible([session])
         coordinator.deleteAction = { _, _ in
             try? await Task.sleep(for: .seconds(600))
             return .verified
@@ -281,10 +279,9 @@ final class DeleteOptimisticTests: XCTestCase {
 
     func testBeginLeavesMainlineCompletelyUntouched() throws {
         let mainSID = "oneday-main-optimistic-test"
-        appState.sideChats.setMainServerSessionID(mainSID)
+        appState.sessionLedger.setMainServerSessionID(mainSID)
         let thread = try makeThread(sessionID: mainSID)
-        appState.serverSessionCatalog.publish(
-            visible: [makeSession(id: mainSID)]
+        appState.sessionLedger.publishVisible([makeSession(id: mainSID)]
         )
         coordinator.deleteAction = { _, _ in .verified }
 

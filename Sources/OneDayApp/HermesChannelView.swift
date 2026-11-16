@@ -14,7 +14,7 @@ import SwiftUI
 enum ThreadLinkage {
     @MainActor
     static func nonMainLinkedSessionIDs(
-        threads: [ChatThread], sideChats: SideChatStore
+        threads: [ChatThread], ledger: SessionLedger
     ) -> Set<String> {
         var ids = Set<String>()
         for thread in threads {
@@ -23,8 +23,8 @@ enum ThreadLinkage {
             if SideChatClassifier.isMain(
                 localThreadID: thread.id,
                 linkedServerSessionID: sessionID,
-                mainThreadID: sideChats.mainThreadID,
-                mainServerSessionID: sideChats.mainServerSessionID
+                mainThreadID: ledger.mainThreadID,
+                mainServerSessionID: ledger.mainServerSessionID
             ) {
                 continue
             }

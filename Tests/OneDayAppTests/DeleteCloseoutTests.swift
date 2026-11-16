@@ -103,7 +103,7 @@ final class DeleteCloseoutTests: XCTestCase {
         let other = "oneday-side-closeout-bystander"
         let victim = try makeThread(sessionID: sid)
         let bystander = try makeThread(sessionID: other)
-        appState.serverSessionCatalog.publish(visible: [
+        appState.sessionLedger.publishVisible([
             makeSession(id: sid), makeSession(id: other),
         ])
         appState.sideChats.setTitleOverride("旧标题", for: sid)
@@ -117,11 +117,11 @@ final class DeleteCloseoutTests: XCTestCase {
         XCTAssertFalse(try threadExists(victim.id))
         XCTAssertTrue(try threadExists(bystander.id))
         XCTAssertFalse(
-            appState.serverSessionCatalog.visibleSessions
+            appState.sessionLedger.visibleSessions
                 .contains { $0.id == sid }
         )
         XCTAssertTrue(
-            appState.serverSessionCatalog.visibleSessions
+            appState.sessionLedger.visibleSessions
                 .contains { $0.id == other }
         )
         XCTAssertNil(appState.sideChats.titleOverrides[sid])
@@ -145,9 +145,9 @@ final class DeleteCloseoutTests: XCTestCase {
     /// 递时的最后防线）
     func testApplyProtectsMainlineSessionCompletely() throws {
         let mainSID = "oneday-main-closeout-test"
-        appState.sideChats.setMainServerSessionID(mainSID)
+        appState.sessionLedger.setMainServerSessionID(mainSID)
         let mainThread = try makeThread(sessionID: mainSID)
-        appState.serverSessionCatalog.publish(visible: [
+        appState.sessionLedger.publishVisible([
             makeSession(id: mainSID),
         ])
         appState.sideChats.setTitleOverride("主线名", for: mainSID)
@@ -160,7 +160,7 @@ final class DeleteCloseoutTests: XCTestCase {
 
         XCTAssertTrue(try threadExists(mainThread.id))
         XCTAssertTrue(
-            appState.serverSessionCatalog.visibleSessions
+            appState.sessionLedger.visibleSessions
                 .contains { $0.id == mainSID }
         )
         XCTAssertEqual(
@@ -202,7 +202,7 @@ final class DeleteCloseoutTests: XCTestCase {
     /// 会话绑定、主线绑定全部保留
     func testReconcilePurgesOnlyDeadOwnSideChats() throws {
         let mainSID = "oneday-main-closeout-reconcile"
-        appState.sideChats.setMainServerSessionID(mainSID)
+        appState.sessionLedger.setMainServerSessionID(mainSID)
         let dead = try makeThread(
             sessionID: "oneday-side-closeout-dead"
         )
@@ -259,7 +259,7 @@ final class DeleteCloseoutTests: XCTestCase {
     /// 清掉，行不会再被点第二次
     func testHandleOpenedSessionMissingClearsCatalogAndSideRecords() {
         let sid = "oneday-side-closeout-ghost"
-        appState.serverSessionCatalog.publish(visible: [
+        appState.sessionLedger.publishVisible([
             makeSession(id: sid),
         ])
         appState.sideChats.setTitleOverride("残留名", for: sid)
@@ -269,7 +269,7 @@ final class DeleteCloseoutTests: XCTestCase {
         )
 
         XCTAssertFalse(
-            appState.serverSessionCatalog.visibleSessions
+            appState.sessionLedger.visibleSessions
                 .contains { $0.id == sid }
         )
         XCTAssertNil(appState.sideChats.titleOverrides[sid])

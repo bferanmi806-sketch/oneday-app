@@ -127,7 +127,8 @@ final class FeedStore {
             // 严格核验的时点；清扫幂等、逐字不符一
             // 字不动（判定与留痕在 SideChatStore）
             appState.sideChats.purgeLegacyFeedDiscussDrafts(
-                posts: posts
+                posts: posts,
+                links: appState.sessionLedger.feedDiscussPostIDs
             )
         } catch let error as OneDayBridgeError {
             if loadState == .ready { return }

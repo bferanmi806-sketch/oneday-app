@@ -120,7 +120,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             "exclude|0": makePage(ids: ids(1...100), total: 150),
             "exclude|100": makePage(ids: ids(101...150), total: 150),
         ])
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertTrue(result.isComplete)
@@ -135,7 +135,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             "exclude|0": makePage(ids: ids(1...100), total: nil),
             "exclude|100": makePage(ids: ids(101...130), total: nil),
         ])
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertTrue(result.isComplete)
@@ -156,7 +156,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             )
         }
         let appState = makeAppState(pages: pages)
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertEqual(result.sessions.count, 1000)
@@ -179,7 +179,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             )
         }
         let appState = makeAppState(pages: pages)
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertEqual(result.sessions.count, 1000)
@@ -200,7 +200,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             "exclude|0": makePage(ids: ids(1...100), total: 150),
             "exclude|100": makePage(ids: ids(51...150), total: 150),
         ])
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertFalse(result.isComplete)
@@ -217,7 +217,7 @@ final class SessionCatalogGuardTests: XCTestCase {
             "exclude|0": makePage(ids: ids(1...100), total: 120),
             "exclude|100": makePage(ids: ids(101...120), total: 130),
         ])
-        let result = try await ServerSessionCatalog.fetchAll(
+        let result = try await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         )
         XCTAssertEqual(result.sessions.count, 120)
@@ -359,6 +359,28 @@ final class SessionCatalogGuardTests: XCTestCase {
 
 // MARK: - 脚本客户端（机械变换自 FailingHermesClient）
 
+/// 写回执记录器（第 90 条收尾）：脚本客户端是值型，
+/// 调用记录须落在引用型盒里才跨拷贝存活；协议面
+/// Sendable——锁护存储、@unchecked 认领
+final class SessionUpdateRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [(id: String, title: String?, pinned: Bool?, archived: Bool?)] = []
+
+    var calls: [(id: String, title: String?, pinned: Bool?, archived: Bool?)] {
+        lock.withLock { storage }
+    }
+
+    func record(
+        id: String, title: String?, pinned: Bool?, archived: Bool?
+    ) {
+        lock.withLock {
+            storage.append(
+                (id: id, title: title, pinned: pinned, archived: archived)
+            )
+        }
+    }
+}
+
 struct ScriptedSessionsClient: HermesClientProtocol {
     /// 页脚本（键＝"archived|offset"）：只 serverSessionsPage
     /// 查它，其余方法恒抛 unreachable（与 FailingHermesClient
@@ -367,6 +389,13 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     /// 报错兜底）；原桩本体是 C-13 冻结面，不许给它长行为，
     /// 故脚本行为只活在本文件
     var scriptedPages: [String: SessionsPage] = [:]
+    /// 单查行脚本（第 90 条收尾迁移触发测用）：server-
+    /// Session(id) 查它，缺席仍抛 unreachable
+    var scriptedSessions: [String: ServerSession] = [:]
+    /// 写回执记录器（引用型，跨值拷贝存活）：update-
+    /// ServerSession 的每次调用落此，缺席时仍抛
+    /// unreachable（旧测试口径不变）
+    var updateRecorder: SessionUpdateRecorder?
 
     func health(config: ServerConfig) async throws -> HealthResponse {
         throw HermesError.unreachable("离线桩")
@@ -539,6 +568,7 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     }
 
     func serverSession(config: ServerConfig, id: String) async throws -> ServerSession {
+        if let row = scriptedSessions[id] { return row }
         throw HermesError.unreachable("离线桩")
     }
 
@@ -601,7 +631,12 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         config: ServerConfig, id: String,
         title: String?, pinned: Bool?, archived: Bool?
     ) async throws {
-        throw HermesError.unreachable("离线桩")
+        guard let updateRecorder else {
+            throw HermesError.unreachable("离线桩")
+        }
+        updateRecorder.record(
+            id: id, title: title, pinned: pinned, archived: archived
+        )
     }
 
     func pruneSessions(

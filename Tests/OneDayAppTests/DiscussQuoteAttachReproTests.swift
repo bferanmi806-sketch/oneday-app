@@ -163,7 +163,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
     @discardableResult
     private func performDiscussWrites(post: BridgeFeedPost) -> UUID {
         let thread: ChatThread
-        if let linkedID = appState.sideChats.threadID(
+        if let linkedID = appState.sessionLedger.threadID(
             forFeedDiscussPostID: post.id
         ), let existing = fetchThread(linkedID) {
             thread = existing
@@ -171,7 +171,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
             let fresh = ChatThread()
             context.insert(fresh)
             try? context.save()
-            appState.sideChats.linkFeedDiscussThread(
+            appState.sessionLedger.linkFeedDiscussThread(
                 fresh.id, postID: post.id
             )
             thread = fresh
@@ -224,7 +224,7 @@ final class DiscussQuoteAttachReproTests: XCTestCase {
 
         // P2：切去主线程——离开 T1，其待发引用按规格
         // §3.3 作废（定点清离开者）
-        guard let mainID = appState.sideChats.mainThreadID else {
+        guard let mainID = appState.sessionLedger.mainThreadID else {
             XCTFail("主线程 id 缺席，P2 无法执行")
             return
         }

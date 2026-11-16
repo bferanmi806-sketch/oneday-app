@@ -735,7 +735,7 @@ struct IdeaDetailView: View {
     /// 两道，挂引用不动该线程已有的亲笔草稿
     private func openIdeaChat(_ idea: BridgeIdea) {
         let thread: ChatThread
-        if let linkedID = appState.sideChats.threadID(
+        if let linkedID = appState.sessionLedger.threadID(
             forIdeaID: idea.id
         ), let existing = fetchThread(linkedID) {
             thread = existing
@@ -743,7 +743,7 @@ struct IdeaDetailView: View {
             let fresh = ChatThread()
             modelContext.insert(fresh)
             try? modelContext.save()
-            appState.sideChats.linkThread(
+            appState.sessionLedger.linkThread(
                 fresh.id, forIdeaID: idea.id
             )
             thread = fresh

@@ -50,13 +50,13 @@ final class SessionDeletionEngine {
                 appState: appState, id: id
             )
         }
-    /// 目录恢复重拉口（默认＝目录全量拉取；测试替
-    /// 身）。目录只喂显示与回行、不驱动删除，名单
+    /// 目录恢复重拉口（默认＝账本全量拉取；测试替
+    /// 身）。名单只喂显示与回行、不驱动删除，名单
     /// 不完整也照常取 sessions（B-1 防护闸只拦存
-    /// 活集删除/回收，见 ServerSessionCatalog）
+    /// 活集删除/回收，见 SessionLedger 装配核）
     var catalogRefresher: (AppState) async -> [ServerSession]? = {
         appState in
-        (try? await ServerSessionCatalog.fetchAll(
+        (try? await SessionLedger.fetchAll(
             appState: appState, archived: "exclude"
         ))?.sessions
     }
@@ -93,7 +93,7 @@ final class SessionDeletionEngine {
         sessionID: String, title: String,
         appState: AppState, modelContext: ModelContext
     ) {
-        guard sessionID != appState.sideChats.mainServerSessionID
+        guard sessionID != appState.sessionLedger.mainServerSessionID
         else { return }
         if queue.enqueue(PendingSessionDeletion(
             sessionID: sessionID, title: title, enqueuedAt: Date()
@@ -156,15 +156,15 @@ final class SessionDeletionEngine {
         sessionID: String, appState: AppState,
         modelContext: ModelContext
     ) {
-        appState.serverSessionCatalog.remove(sessionID: sessionID)
+        appState.sessionLedger.removeSession(sessionID: sessionID)
         var changed = false
         for thread in fetchThreads(modelContext)
         where thread.serverSessionID == sessionID {
             guard !SideChatClassifier.isMain(
                 localThreadID: thread.id,
                 linkedServerSessionID: thread.serverSessionID,
-                mainThreadID: appState.sideChats.mainThreadID,
-                mainServerSessionID: appState.sideChats
+                mainThreadID: appState.sessionLedger.mainThreadID,
+                mainServerSessionID: appState.sessionLedger
                     .mainServerSessionID
             ) else { continue }
             if DeletedSessionCloseout.isCurrentThread(
@@ -202,8 +202,8 @@ final class SessionDeletionEngine {
         Task {
             if let sessions = await catalogRefresher(appState) {
                 let pending = queue.sessionIDs
-                appState.serverSessionCatalog.publish(
-                    visible: sessions.filter {
+                appState.sessionLedger.publishVisible(
+                    sessions.filter {
                         !pending.contains($0.id)
                     }
                 )

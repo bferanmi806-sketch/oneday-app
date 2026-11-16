@@ -55,8 +55,9 @@ import SwiftUI
 ///   拉取；频道行不给计数徽标（口径见 drawerChannel-
 ///   Row 注）。
 /// - §198（抽屉包）三题：①频道显行闸改全量同源——
-///   计数改读共享全量目录（ServerSessionCatalog，
-///   与全部对话页频道段同份可见集），0.36.29 的窗
+///   计数改读共享全量目录（原 ServerSessionCatalog、
+///   第 90 条收尾后归 SessionLedger 本体，与全部
+///   对话页频道段同份可见集），0.36.29 的窗
 ///   口共用口径退役（该闸已于频道扩展一期整体退
 ///   役，见 sectionGates 注）；
 ///   ②管理行并入选项卡组作第六行＋新建分区管理面
@@ -556,7 +557,7 @@ struct DrawerView: View {
                 // 话，见 ChatLandingResolution）。钦定尚
                 // 未落定时只切页签，ChatView 落点解析会
                 // 以主线兜底
-                if let mainID = appState.sideChats.mainThreadID {
+                if let mainID = appState.sessionLedger.mainThreadID {
                     appState.router.drawerThreadSelection = mainID
                 }
                 // 0.36.7（§10.3 置位纪律）：导航动作显
@@ -914,7 +915,7 @@ struct DrawerView: View {
             chatTab: .chat,
             currentObject: appState.router.currentDrawerObject,
             landingThreadID: nil,
-            mainThreadID: appState.sideChats.mainThreadID
+            mainThreadID: appState.sessionLedger.mainThreadID
         )
     }
 
@@ -1271,7 +1272,7 @@ struct DrawerView: View {
         guard let sessionID = thread.serverSessionID,
               SideChatLink.mayWriteThroughToServer(
                   sessionID: sessionID,
-                  mainSessionID: appState.sideChats
+                  mainSessionID: appState.sessionLedger
                       .mainServerSessionID
               ) else { return }
         Task {
@@ -1298,11 +1299,11 @@ struct DrawerView: View {
     /// 本地账（合并桶的服务端归档须走管理页带牵连
     /// 说明的二次确认，抽屉菜单不许绕过）
     private func performArchiveThread(_ thread: ChatThread) {
-        appState.sideChats.archive(localThreadID: thread.id)
+        appState.sessionLedger.archive(localThreadID: thread.id)
         guard let sessionID = thread.serverSessionID,
               SideChatLink.mayWriteThroughToServer(
                   sessionID: sessionID,
-                  mainSessionID: appState.sideChats
+                  mainSessionID: appState.sessionLedger
                       .mainServerSessionID
               ) else { return }
         Task {
@@ -1310,7 +1311,7 @@ struct DrawerView: View {
                 appState: appState, id: sessionID, archived: true
             )
             if case .failed(let reason) = outcome {
-                appState.sideChats.unarchive(
+                appState.sessionLedger.unarchive(
                     localThreadID: thread.id
                 )
                 archiveFailureReason = reason
@@ -1369,7 +1370,7 @@ struct DrawerView: View {
         if let linkedSessionID = thread.serverSessionID,
            SideChatLink.mayHardDeleteOnThreadDelete(
                sessionID: linkedSessionID,
-               mainSessionID: appState.sideChats.mainServerSessionID
+               mainSessionID: appState.sessionLedger.mainServerSessionID
            ) {
             appState.sessionDeletions.begin(
                 sessionID: linkedSessionID,

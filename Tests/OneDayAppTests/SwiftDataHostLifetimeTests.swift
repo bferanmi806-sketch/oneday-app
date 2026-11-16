@@ -117,7 +117,7 @@ final class SwiftDataHostLifetimeTests: XCTestCase {
         let appState = AppState(
             client: DemoHermesClient(), demoMode: .connected
         )
-        appState.sideChats.designateMainThread(seeded.main.id)
+        appState.sessionLedger.designateMainThread(seeded.main.id)
         appState.sideChats.setLastThreadID(seeded.main.id)
         var host: UIHostingController<AnyView>? =
             await mountRootView(container: container, appState: appState)

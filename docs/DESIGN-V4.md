@@ -13211,39 +13211,23 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
 
-## §313 抽屉变换包（2026-11-16；分支 feat/drawer-transform，基线 rel-05060@5f77967；第 78 条＋横扫 A-01/A-02/A-21 抽屉半边；原自编号 §308，组版 0.50.64 顺延为 §313）
+## §314 账本收尾包（2026-11-16；分支 feat/ledger-tail-close，基线 rel-05060 尖端；待办第 90 条余三件＋横扫 B-07 删壳；原自编号 §308，组版 0.50.64 顺延为 §314）
 
-**依据**：drawer-transform-prep-20261114.md（用户 Muse 录屏 720×1566/30fps/290 帧逐帧量测）＋横扫 nonstandard-sweep-ui-20261115.md A-01/A-02/A-21 三条机制清单。筹备稿基线 rel-05045 与本包基线 rel-05060 间抽屉容器零改动（608 行逐字同），盘点直接沿用；蓝图 A5 真机手感门按包序顺延真机清单（装配＋CI 先行、手感终验归组版真机清单）。
+> 节号说明：§301–§307 已被并行分支占用（A-03 §301／A-05／第 104 条／A-04／A-06 与 A-11 各占 §307 等），本包顺延 §314；组版合并时如再冲突，按组版线口径顺延改号、本节内容不变。
 
-**D1 抽屉层锁步（主改动）**：抽屉层与主面改同一刚性平移——Core 新增 `DrawerMotion.drawerOffset(offset:travel:) = offset − travel`（不钳制、橡皮筋段双层同量越界）；容器 applyOffset 同拍写双层 transform（前景 offset、抽屉 offset−travel）。合态抽屉整体左移一个 travel 藏于主面之后、开态归 0。抽屉帧改 bounds＋center 写未变换几何（frame setter 按 transform 反解 center 的 0.50.18 同族坑：合态布局一趟即把显示位补偿回 x=0）；travel 变化且无拖无动画时按当前 offset 重派生（开态跟新 travel、关态钉新 −travel），合态不变量「抽屉恒在 −travel」首次布局后即成立。抽屉根视图重建时机/宽度口径不变（根视图不知 transform）。
+**范围与口径**：第 90 条余三件（施工图 §4.3、包二报告 §三登记）＋B-07（nonstandard-sweep-data B-07 节：装配核归账本、删壳、删除协调器/收口件/测试改直连账本）。不组版、无服务端改动、不碰 A-05 台账单流契约（allItems 服务端单流、monitor 规范形——A-05 改面为 LedgerStore/LedgerModels/HubLedgerSection 等工作台账文件，与本包文件面零交集，实查对账见交卷报告接触面清单）。
 
-**D2 travel**：`DrawerCardGeometry.travel(containerWidth:) = 宽×0.75`、无 cap；旧口径 min(宽×0.79, 400) 作废。393pt 屏 310.4→294.8、402pt 屏 317.6→301.5（与 Muse 实测 301 合）；DrawerView 面板宽同源（容器以 travel 建根视图）。
+**① 迁移挂载点迁账本**：迁移执行本体（runMigration 五步）与 migrationFailures 留痕自 AllConversationsStore 迁入 SessionLedger；触发点自管理页首开 .task 改挂账本 refresh() 尾步——refresh 同步完成事件（hasLoadedFull 置真＋ensureTitles 之后）经 runMigrationIfNeeded 触发；runMigration 自带 isRunningMigration 在飞守卫（尾步重拉的 refresh 不自触发，失败再试留下轮外部刷新）；迁移全程 ctxOverride 注入形态、五步语义、回读对账、清本地口径逐字保留。管理页迁移失败区改直读 appState.sessionLedger.migrationFailures，页脚文案改「下次打开本页刷新名单时会自动再试」。**语义差登记**：旧形态 load() 失败仍跑迁移（do/catch 吞错后无条件续跑）；新形态 refresh 在归档段拉取抛错时本轮不触发迁移、留下轮——按施工图「挂载点＝同步完成事件」口径取此形态，差异如实登记、真机验收点覆盖（见报告）。
 
-**D3 弹簧定版单源**：`DrawerSpringTiming` 改定版单源——response 1.4/ζ 1.2（派生 stiffness ≈20.1、damping ≈10.8），取值依据 prep §2.5（iOS 26 UISpringTimingParameters 同构时序对 Muse 点按开曲线实测 ζ≈1.13、可见时长 ≈1.51s、snappy 同级；旧值 0.34/0.86 作废）。`MotionTokens.drawerSpring` 改同字面值镜像（新壳层无 SwiftUI 消费方、只供令牌册完整性），两处由 DrawerSpringTimingTests 逐项对钉；「双口径换算等价」表述与换算层就此退役。连带量测事实：动画落定断言等待统一放宽 3.5s（2.0s 时过阻尼残余 ≈3pt 超 1.0 精度——定版手感的量测事实、非产品退步；DrawerContainerControllerTests/DrawerBridgeHarnessTests/ComposerGuideHostTests 抽屉关向一处同改）。
+**② 主线钦定与三张关联表持有迁账本**：SessionLedger 新增 init(persisted:) 与 UserDefaults 持有面，键名全部沿用 sideChats.* 原键（含历史键 sideChats.goalThreadIDs——goalThreadIDs 的盘上键名原样保留，不改名不断链）。主线钦定五键（mainThreadID/mainServerSessionID＋三 setter）与三张关联表（ideaThreadIDs/goalThreadIDs/feedDiscussPostIDs＋全部读写方法）自 SideChatStore 迁入账本；purgeServerSessionRecords 迁入账本（标题覆盖清理仍归 SideChatStore、经 appState 注入清项）；SideChatStore 瘦身至标题覆盖/草稿/滚动锚点/lastThreadID 与两清扫函数（清扫的关联表输入改 links: 参数注入，FeedStore/IdeasStore 调用点传账本关联集）。
 
-**D4 阴影双口径**：浅色保留 §202 定值（峰值 0.22/radius 18/x −4）；深色归零——Core `DrawerMotion.shadowOpacity(progress:appearance:)`（.dark 恒 0），容器按 traitCollection 派生、traitCollectionDidChange 时以当前 offset 经唯一呈现口重派生。双口径各待一次真机对账（归组版真机清单）。
+**③ 归档键持有迁账本（双轨回写）**：archivedKeys/failedArchiveSessionIDs 与 archive/unarchive/note/clear 全套迁入账本；写路径仍回写原键 sideChats.archivedKeys（＋.failed）——双轨保回滚，读面自账本出。
 
-**A-01 内部收敛**：位移只剩 offset 一个事实源、applyOffset 为唯一呈现写口（stopAnimatorCapturingPresentation 的呈现位回写改走 applyOffset，不再有第二处写 transform）；柔影迁 clip 本层（CALayer 按本层 alpha 形状投射、clipsToBounds 只裁子层——阴影不被自裁），shadowPath 手写双写点（layout 期＋applyOffset 期）整删、§182.2「路径跟随圆角」由图层语义结构性成立；clip 帧反向补偿（宿主原点 −inset/高不变）保留不动（舱底 −4pt 事故防线）。
+**B-07 删壳**：ServerSessionCatalog.swift 整件删除；其 IncompleteReason/FetchResult/fetchAll/fetchAllPages 逐字迁入 SessionLedger（静态面）；AppState 删 serverSessionCatalog 属性与接线、sessionLedger 改 init 内按 !demoMode.isDemo 赋值；消费方（SessionDeletionEngine/EmptyCleanupView/EmptyCleanupScanGate/DeletedSessionCloseout）改直连账本（publishVisible/removeSession）。测试面 8 文件机械改直连，新增 SessionLedgerTailCloseTests 3 例（refresh 触发迁移且落定清本地／迁移失败留痕且本地保留／账本原键同值双轨钉测）；脚本客户端补 scriptedSessions 单查与写回执记录器（SessionUpdateRecorder，锁＋@unchecked Sendable）。
 
-**A-02 处置**：手势保留 UIPan 本体＋方向锁定＋失败依赖（UIKit 正道不换）；几何四组值（travel 比例/圆角/内嵌/阴影）收进 Core `DrawerCardGeometry` 单源结构体并逐项注明拟合出处，DrawerMotion 同名白名单改转发；弹簧换算层退役（见 D3）。
+**CI 判读（两轮全量门，§190 全日志本地核账）**：有效轮一 run 43824475804（全日志 24,648 行）：**Core 2153/2153、0 failures**——与 rel-05060 基线逐数一致（本包不增删 Core 测；新增 3 例为 App 测）；App 侧本包相关全绿（TailClose 3/3、SessionCatalogGuard 9/9、SessionLedgerApp 5/5）；红 13 件全属登记签名族：R2 ⑧×1、§257.1 探针族×2（DeviceConditionProbe＋EdgeEffectProbe）、第 95 条 UI 族×9、键盘矩阵 rig×1（MATRIX-VERDICT=FAIL 随之）；HUB-LAYOUT-VERDICT=PASS、VERDICT=PASS；BackingData 零命中。有效轮二 run 43830036468（同提交 0f0bb90 复跑，全日志 25,360 行）：**Core 2153/2153 复全绿**；红 11 件同签名族（R2 ⑧×1、§257.1×1、第 95 条 UI 族×9；键盘矩阵本轮 PASS——rig 签名内涨落）；本包相关测试复绿；BackingData 零命中。两轮签名外新红零。此前三轮为编译红迭代（跨行读点漏网 9 处／记录器 Sendable／新测缺 try），均本包改面内、已逐一修复并如实登记于交卷报告。
 
-**A-21 抽屉半边**：drawerHost/contentHost 两宿主 `safeAreaRegions = []`（H2 纪律落码，无豁免）。**查看器半边未随本包**：ImageViewerView.swift:539 ZoomHostingController 同项未置 []——横扫原归属为重建 R 刀接合面、R1–R4 已出货未含此项，本包边界（只动抽屉呈现/结构层）不扩面，登记待主线另行收口（一行改动＋查看器全幅不变验证）。
+**判定：判绿**（预制面，不组版）。待办第 90 条划线；B-07 在横扫报告侧的登记由组版线随待办副本一并销账。真机验收点见交卷报告 ledger-tail-close-20261116.md §五。
 
-**不动清单**：圆角 54.5/纵向内嵌 2（§202 定值、第 78 条复测 ≈57pt 同档不改）、跟手 1:1＋方向锁定、点窄条关、打开先收键盘、内容交互穿透防护（§186.8/§186.11 映射不变）、a11y 树切换、触感吸附例外、DrawerView 呈现与频道区形态、抽屉收成会话与状态一面等既定结论——零触碰。
-
-**与 A-03（feat/appstate-router，待组版 .62）接触面**：①AppState 字段零增删改、只读 drawerPresented；②DrawerContainer 的 presented 入参形态不变（Bool），AppRouter 迁移后由组版线把喂入源换成 router 投影、本包代码不预改；③ContentView 只改一行注释（DrawerView 宽口径注实际落在 DrawerView.swift），其 body/装配零改动；④DrawerView 的 currentDrawerObject/drawerThreadSelection 只消费不写；⑤AppRoutes.swift 零触碰。合并期冲突按 AppRouter 口径解（简报既定）。
-
-**验收**：Core 两轮全量门（§190 核账）＋呈现对拍表（报告 drawer-transform-20261116.md）；落底三数不属本包改动面、组版轮续证为准。本节节号 §308 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§307），组版 0.50.64 合裁顺延为 §313、代码自指全量同步。
-
-### §313.1 CI 判读（§190 全日志核账，判绿）
-
-落码提交 f968f95（12 文件，+509/−153）；测试侧两处 harness 修正后定版提交 **f1b1b5d**。五轮实录：
-
-- **R1 run 43816222984（f968f95）**：Core **2157/2157、0 failures**（基线 rel-05060 的 2153＋本包净增 4＝DrawerMotionTests +3、DrawerSpringTimingTests 4 例代旧 3 例 +1，逐项闭合）；落底双探针 4156/3352/0.0 不退；VERDICT/HUB/MATRIX 三判 PASS；§184 签名内（BackingData 0、宿主重启 1）。红仅两类登记签名（App §257.1 探针＋R2 ⑧ 量测限制；UI 第 95 条手势族 9）＋**本包新测 testDarkStyleClearsDrawerShadow 一红**：深色断言读得 0.22——裸窗 overrideUserInterfaceStyle 赋值后容器 trait 未更新。
-- **R2 run 43822056613（862ef28，测试加泵 runloop 0.3s）**：逐数同 R1，深色测仍红同值——证伪「传播只需一拍」：宿主单测裸窗的 override 不达根控制器 trait（harness 通道问题、非生产码：生产窗在真场景 trait 树内）。
-- **R3 run 43827149289（ecf4b72，测试改父级 setOverrideTraitCollection 子级覆写）**：测试目标编译红——iOS 26 SDK 该 API 已改名 `setOverrideTraitCollection(_:forChild:)`，7 分钟早停（构建本体 BUILD SUCCEEDED、无测试数）。
-- **R4 run 43830968493＋R5 run 43837493536（f1b1b5d，定版两轮）**：逐数一致——Core **2157/2157、0 failures** 两轮；新增装配两测（锁步 testDrawerLayerLockstepsWithForeground、深色 testDarkStyleClearsDrawerShadow）两轮点名 passed；落底 4156/3352/0.0 两轮不退；App 红仅 §257.1＋R2 ⑧ 两签名；UI 红＝第 95 条手势族 9 两轮＋R4 键盘矩阵 rig 1 红（R5 MATRIX-VERDICT=PASS，rig 间歇签名内）；VERDICT/HUB 两轮 PASS；§184 签名内两轮（BackingData 0、重启 1）。**签名外新红零 → 本包判绿（未组版）。**
-- 连带登记：慢弹簧落定等待 3.5s 的量测事实已随 D3 落测试注；深色 trait 的 harness 通道结论（裸窗 override 不达根控制器、父级覆写为确定性通道）已写入测试注释，后续外观类装配测试照此办理。
-
-**组版注（0.50.64）**：节号顺延 §313/§313.1，代码自指（9 文件 38 处）全量同步；接触面②喂入源经组版核验已为 router 投影（A-03 于 .62 落实，ContentView `presented: appState.router.drawerPresented`、入参仍 Bool），组版线无再改；DrawerBridgeHarnessTests 合并冲突解＝router 形＋弹簧定版 3.5s 落定等待两取。
+**组版注（0.50.64）**：节号顺延 §314（代码面零自指、无同步项）；AppState 两处接线（删 serverSessionCatalog 属性、sessionLedger init 赋值）经自动合并按 A-03 结构落位、对账无误；GoalsView 5 处持有者改动因 A-11 已拆分，移植至 GoalDetailView（3 处）／GoalFormViews（2 处），GoalsView.swift 本体与 .63 逐字一致；DrawerView 冲突解＝账本持有 mainThreadID＋router drawerThreadSelection 两取。
 

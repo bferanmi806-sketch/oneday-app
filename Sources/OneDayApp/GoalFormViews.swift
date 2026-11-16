@@ -438,14 +438,14 @@ struct GoalDelegateView: View {
     /// 身由目标详情的物化点按真源补落（GoalEcho），这
     /// 里只立绑定，不预写任何状态
     private func ensureGoalThread() {
-        if appState.sideChats.threadID(forGoalID: goal.id) != nil {
+        if appState.sessionLedger.threadID(forGoalID: goal.id) != nil {
             return
         }
         let thread = ChatThread(title: goal.title)
         thread.titleIsManual = true
         modelContext.insert(thread)
         try? modelContext.save()
-        appState.sideChats.linkThread(thread.id, forGoalID: goal.id)
+        appState.sessionLedger.linkThread(thread.id, forGoalID: goal.id)
     }
 
     private func submit() async {
