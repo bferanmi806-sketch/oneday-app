@@ -12,29 +12,56 @@ import UIKit
 /// 形态：侧栏在后静止、**完整主页面整体右移**露出
 /// 侧栏，右侧留一条明亮窄条，点窄条/左拖关闭，第
 /// 一版不缩放。
+/// §313（第 78 条＋横扫 A-01/A-02/A-21）在此形态上
+/// 做变换对齐与内部收敛：抽屉层改与主面锁步同行、
+/// travel 改宽×0.75、弹簧改慢阻尼定版、深色阴影归
+/// 零；位移单源、阴影单写、几何/弹簧单源与宿主
+/// safeAreaRegions 清零逐项见下结构注。
 ///
 /// 结构（两个长期存在的 UIHostingController，开关
 /// 抽屉从不重建——聊天滚动位/输入草稿/导航栈/生成
 /// 中回复全靠它保住）：
-/// - 底层 drawerHost：DrawerView，宽 travel、静止；
-/// - 前景 wrapper（阴影层）→ clip（圆角裁切层）→
-///   contentHost（现有 TabView）：主页面恒按容器全
-///   尺寸布局，位移只写 wrapper.transform 的
-///   translationX，拖动期不改任何宽高约束、不逐帧
-///   动安全区（0.6.1/0.17.0 两代「外层包裹扰动
-///   TabView 安全区、底栏下沉」的病根正是变换/量测
-///   加在 TabView 本人身上；本代变换只落在本容器自
-///   有的普通 UIView 上，TabView 在宿主内仍是零修
-///   饰根级安放）。
-/// - 阴影与裁切分层：wrapper 只挂阴影（DrawerMotion
-///   §202 定值 radius 18/x −4、alpha 随 progress、峰
-///   值 0.22）、clip 只管圆角裁切（DrawerMotion.
-///   cornerRadius 一步到位口径：progress>0.02 即
-///   54.5pt——§202 对 Muse 新参照图量测拟合定值，
-///   出处见 DrawerMotion 常量注；本注释早年写的 28pt
-///   是更旧一版定值、早已作废），阴影不被裁、圆角不
-///   带影；开态 clip 帧另按 DrawerMotion.vertical-
-///   Inset 纵向内嵌（§202 K1）、整卡浮置。
+/// - 底层 drawerHost：DrawerView，宽 travel；§313
+///   起与前景锁步同行（第 78 条 D1）——关闭态整体
+///   左移一个 travel 藏于主面之后（offset −travel），
+///   开合时只写它自己的 transform.translationX＝
+///   offset − travel，与前景构成同一刚性平移（Muse
+///   录屏五帧拟合与 travel 全等，prep §2.3）。§156
+///   初版「抽屉静止、前景右移露出（帘幕式）」就此
+///   变更，抽屉根视图重建时机与帧口径（x 0/宽
+///   travel）不变。
+/// - 前景 wrapper → clip（圆角裁切层）→ contentHost
+///   （现有 TabView）：主页面恒按容器全尺寸布局，
+///   位移只写 wrapper.transform 的 translationX，
+///   拖动期不改任何宽高约束、不逐帧动安全区
+///   （0.6.1/0.17.0 两代「外层包裹扰动 TabView 安全
+///   区、底栏下沉」的病根正是变换/量测加在 TabView
+///   本人身上；本代变换只落在本容器自有的普通
+///   UIView 上，TabView 在宿主内仍是零修饰根级
+///   安放）。容器唯一位移事实源是 offset 一值：前景/
+///   抽屉两层 transform 与全部呈现派生只在
+///   applyOffset 一处写（A-01 收敛）。
+/// - 阴影与裁切同层（§313 A-01 收敛）：柔影改挂
+///   clip 本人（CALayer 语义：阴影按本层 alpha 形
+///   状投射、clipsToBounds 只裁子层——阴影在裁切
+///   区域之外、不被自裁），shadowPath 不再手写
+///   （§182.2 的路径跟随圆角改由图层形状自动成
+///   影，layout/applyOffset 双写点整删）；圆角仍走
+///   DrawerMotion.cornerRadius 一步到位口径
+///   （progress>0.02 即 54.5pt——§202 对 Muse 新参
+///   照图量测拟合定值，出处见 DrawerCardGeometry
+///   注；第 78 条录屏复测 ≈57pt 同档）；开态 clip
+///   帧另按 DrawerMotion.verticalInset 纵向内嵌
+///   （§202 K1）、整卡浮置。阴影 alpha 口径：第 78
+///   条 D4——浅色按 §202 定值（峰值 0.22）、深色
+///   归零（Muse 深色帧段无可量测阴影），派生走
+///   DrawerMotion.shadowOpacity(progress:
+///   appearance:) 单点。
+/// - 宿主安全区（横扫 A-21/H2 纪律）：drawerHost/
+///   contentHost 两宿主 safeAreaRegions 置 []——宿
+///   主帧由容器手排、内容安全区由 TabView 内真宿
+///   主（ComposerGuideHost 等已清零者）自理，本层
+///   不许再派生第二份安全区内边距与手排几何叠加。
 /// - 强黑蒙层整套退役（覆盖形态的分离手段）；分离
 ///   感由页卡圆角＋柔影＋窄条明亮承担。
 ///
@@ -64,10 +91,11 @@ import UIKit
 ///   当前 tx 接管，无跳变帧。
 /// - 归位动画：UIViewPropertyAnimator＋UISpring-
 ///   TimingParameters（参数出 OneDayCore.Drawer-
-///   SpringTiming，与 MotionTokens.drawerSpring 的
-///   response 0.34/ζ 0.86 换算等价、单测回算钉死）；
-///   松手速度按相对位移换算作初速交接；Reduce
-///   Motion 时瞬时归位。
+///   SpringTiming 定版单源——§313 起 response 1.4/
+///   ζ 1.2 慢阻尼档，MotionTokens.drawerSpring 只
+///   以同字面值镜像、单测对钉；旧「双口径换算等
+///   价」表述随换算层退役作废）；松手速度按相对位
+///   移换算作初速交接；Reduce Motion 时瞬时归位。
 /// - 打开先收键盘（旧纪律沿用）；VoiceOver：开态
 ///   抽屉出 a11y 树、内容退出，关态反之，切换时发
 ///   screenChanged（开→抽屉面、关→内容面；回触发
@@ -161,8 +189,9 @@ final class DrawerContainerController: UIViewController,
     /// 开合语义（与 AppState.router.drawerPresented 对账的
     /// 容器侧副本；setDrawer 是唯一写口）
     private(set) var semanticPresented = false
-    /// 推开量（min(容器宽×0.79, 400)，方案起点值＝
-    /// 现行壳层 §30 量测口径，未随令牌 0.75/340 改）
+    /// 推开量（§313：第 78 条 D2——容器宽×0.75、无
+    /// cap，派生单源 DrawerCardGeometry.travel；旧
+    /// 口径 min(宽×0.79, 400) 作废）
     private(set) var travel: CGFloat = 0
     /// Reduce Motion（桥注入；true 时归位瞬时）
     var reduceMotion = false
@@ -188,15 +217,19 @@ final class DrawerContainerController: UIViewController,
     private let contentHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
     )
-    /// 前景阴影层（只挂阴影、不裁切）
+    /// 前景变换层（只承 transform 与窄条手势；§313
+    /// 起不再挂阴影——阴影已随裁切层同层收敛）
     private let foreground = UIView()
-    /// 前景裁切层（只管圆角、不挂阴影）
+    /// 前景裁切层（圆角裁切＋柔影同层：阴影按本层
+    /// alpha 形状自动投射、不被自裁，§313 A-01）
     private let clipView = UIView()
     /// 关闭态左缘热区（24pt；开态隐藏不挡抽屉）
     private let edgeView = UIView()
 
     /// 当前呈现位移（0…travel，橡皮筋段可越界；跟手
-    /// 与动画的唯一事实源，与旧壳 S1 口径同构）
+    /// 与动画的唯一事实源，与旧壳 S1 口径同构）——
+    /// 前景/抽屉双层 transform 与圆角/阴影/命中/a11y
+    /// 派生只许经 applyOffset 由本值写出（§313 A-01）
     private var offset: CGFloat = 0
     private var animator: UIViewPropertyAnimator?
     /// 手势会话：接管起点位移＋锁定段（nil＝未锁定）
@@ -233,21 +266,32 @@ final class DrawerContainerController: UIViewController,
         // 覆盖形态下抽屉糊到的内容底色同族
         view.backgroundColor = UIColor(Palette.pageBG)
 
+        // A-21/H2：两宿主安全区派生清零（帧由容器手
+        // 排、内容安全区归 TabView 内真宿主自理）
+        drawerHost.safeAreaRegions = []
+        contentHost.safeAreaRegions = []
+
         addChild(drawerHost)
         drawerHost.view.backgroundColor = .clear
         view.addSubview(drawerHost.view)
         drawerHost.didMove(toParent: self)
         drawerHost.view.isHidden = true
 
-        foreground.layer.shadowColor = UIColor(Palette.shadowBase).cgColor
-        foreground.layer.shadowRadius = DrawerMotion.shadowRadius
-        foreground.layer.shadowOffset = CGSize(
-            width: DrawerMotion.shadowX, height: 0
-        )
-        foreground.layer.shadowOpacity = 0
         view.addSubview(foreground)
         clipView.clipsToBounds = true
         clipView.layer.cornerCurve = .continuous
+        // §313 A-01：柔影与裁切同层——阴影挂 clip 本
+        // 人、按其 alpha 形状（圆角＋内嵌帧）自动投
+        // 射，shadowPath 不设（手写路径双写点退役）；
+        // radius/offset 定值出 DrawerCardGeometry 单
+        // 源（经 DrawerMotion 转发），opacity 只在
+        // applyOffset 随 progress 与外观派生
+        clipView.layer.shadowColor = UIColor(Palette.shadowBase).cgColor
+        clipView.layer.shadowRadius = DrawerMotion.shadowRadius
+        clipView.layer.shadowOffset = CGSize(
+            width: DrawerMotion.shadowX, height: 0
+        )
+        clipView.layer.shadowOpacity = 0
         foreground.addSubview(clipView)
         addChild(contentHost)
         contentHost.view.backgroundColor = .clear
@@ -265,18 +309,20 @@ final class DrawerContainerController: UIViewController,
 
     /// 当前 progress 的前景裁切几何：圆角半径＋纵向内
     /// 嵌帧（§202 K1/K2）。layout 与 applyOffset 两写点
-    /// 共用这一处派生——§182.2 的教训是阴影路径双写必
-    /// 须同拍同口径，几何再多一个事实源就会打架：clip
-    /// 帧＝前景 bounds 纵向内嵌 verticalInset(progress)
+    /// 共用这一处派生——几何再多一个事实源就会打架：
+    /// clip 帧＝前景 bounds 纵向内嵌 verticalInset(progress)
     /// （合态 0、开态满值、随 progress 线性行进）、半
     /// 径＝cornerRadius(progress)（一步到位、K4 不插值）。
     /// 内容宿主反向补偿：原点 −inset、高恒 bounds 高——
     /// 宿主在前景空间内的几何与 §202 之前逐值一致，浮
-    /// 置只是裁切窗与阴影的事，内容布局/安全区/栏位冻
-    /// 结几何一概不惊动（初版令宿主随 clip 同缩，CI
+    /// 置只是裁切窗的事，内容布局/安全区/栏位冻结几何
+    /// 一概不惊动（初版令宿主随 clip 同缩，CI
     /// run 43384697181 生产同构实测：抽屉关落定后输入
     /// 舱底 maxY −4pt 不复原，定因即宿主高被改写引发
-    /// 托管树几何重排，故改补偿式）
+    /// 托管树几何重排，故改补偿式）。§313：阴影不再
+    /// 由本派生出手写路径——挂 clip 本人按其帧与半径
+    /// 的 alpha 形状自动成影（§182.2 的「路径必须跟
+    /// 随圆角」由图层语义结构性成立、双写点退役）
     private func clipGeometry(progress: CGFloat)
         -> (clipFrame: CGRect, contentFrame: CGRect, radius: CGFloat)
     {
@@ -294,17 +340,31 @@ final class DrawerContainerController: UIViewController,
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         let bounds = view.bounds
-        let newTravel = min(bounds.width * 0.79, 400)
+        let newTravel = DrawerCardGeometry.travel(
+            containerWidth: bounds.width
+        )
         let travelChanged = newTravel != travel
         travel = newTravel
-        drawerHost.view.frame = CGRect(
-            x: 0, y: 0, width: travel, height: bounds.height
+        // 抽屉未变换几何口径不变（原点 0/宽 travel/
+        // 全高）：锁步靠 transform 承担（applyOffset
+        // 写 offset−travel）。§313 起抽屉层同带
+        // transform——与前景同一纪律：布局只准以
+        // bounds＋center 写未变换几何，**不许写 frame**
+        // （frame setter 会按当前 transform 反解
+        // center：合态布局一趟就能把抽屉显示位补偿回
+        // x=0、下次打开整体错位一个 travel）
+        drawerHost.view.bounds = CGRect(
+            origin: .zero,
+            size: CGSize(width: travel, height: bounds.height)
         )
-        // 前景是全容器唯一带 transform 的视图：transform
-        // 非 identity 时 frame 未定义（Apple 文档明文），
-        // 布局只准以 bounds＋center 写「未变换几何」、位
-        // 移全部由 transform 承担。旧写法在此以 frame 重
-        // 设——animator 已把 model transform 承诺到目标
+        drawerHost.view.center = CGPoint(
+            x: travel / 2, y: bounds.midY
+        )
+        // 前景同纪律：transform 非 identity 时 frame
+        // 未定义（Apple 文档明文），布局只准以 bounds
+        // ＋center 写「未变换几何」、位移全部由
+        // transform 承担。旧写法在此以 frame 重设——
+        // animator 已把 model transform 承诺到目标
         // 值，frame setter 按当前 transform 反解 center，
         // 一次布局往返就把视觉位置补偿回原位（0.50.18
         // 真机抽屉打不开的定案主因：动画只剩布局触发前
@@ -312,21 +372,16 @@ final class DrawerContainerController: UIViewController,
         // testAnimatedOpenSurvivesMidFlightResize）
         foreground.bounds = CGRect(origin: .zero, size: bounds.size)
         foreground.center = CGPoint(x: bounds.midX, y: bounds.midY)
-        // §182.2 阴影路径跟随圆角：shadowPath 必须与
-        // clipView 的圆角半径一致，否则直角矩形阴影会
-        // 在圆角区域外露、视觉上圆角「不显」（用户真机
-        // 报无弧的定案主因）。§202 起帧与路径同走
-        // clipGeometry 单点派生（帧含纵向内嵌）。进度读
-        // 当前 offset 实算，不读语义 presented（布局期
-        // 可能先于手势/动画）
+        // 帧派生同走 clipGeometry 单点（进度读当前
+        // offset 实算，不读语义 presented——布局期可能
+        // 先于手势/动画）。§313：本处不再写任何阴影
+        // 路径——§182.2 的路径跟随圆角已由阴影挂 clip
+        // 本人的图层语义结构性承担（帧/半径一变、影
+        // 随形变），布局期只管帧
         let currentProgress = DrawerMotion.progress(
             offset: offset, travel: travel
         )
         let geometry = clipGeometry(progress: currentProgress)
-        foreground.layer.shadowPath = UIBezierPath(
-            roundedRect: geometry.clipFrame,
-            cornerRadius: geometry.radius
-        ).cgPath
         clipView.frame = geometry.clipFrame
         contentHost.view.frame = geometry.contentFrame
         edgeView.frame = CGRect(
@@ -336,12 +391,15 @@ final class DrawerContainerController: UIViewController,
         )
         if travelChanged {
             rebuildDrawerRoot()
-            // 旋转/尺寸变：开态无拖无动画时位移跟到新
-            // travel（主页面仍完整露出同一比例）
-            if semanticPresented, animator == nil,
-               dragLockTranslation == nil
-            {
-                offset = travel
+            // 旋转/尺寸变：无拖无动画时按当前 offset 重
+            // 派生一遍——开态位移跟到新 travel（主页面仍
+            // 完整露出同一比例）；关态同理把抽屉锁步位
+            // 钉到新 −travel（§313：合态抽屉恒藏于主面
+            // 之后一个 travel、首次布局后即成立）
+            if animator == nil, dragLockTranslation == nil {
+                if semanticPresented {
+                    offset = travel
+                }
                 applyOffset(offset)
             }
         }
@@ -352,14 +410,39 @@ final class DrawerContainerController: UIViewController,
         drawerHost.rootView = drawerBuilder(travel)
     }
 
+    /// 外观（浅/深）切换：阴影口径随外观分叉（第 78
+    /// 条 D4），以当前 offset 经唯一呈现口重派生一次
+    /// （offset 不变、只换阴影口径；动画在途时 model
+    /// 值已是目标值、重派生与飞行呈现同值不打架）
+    override func traitCollectionDidChange(
+        _ previousTraitCollection: UITraitCollection?
+    ) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        if traitCollection.userInterfaceStyle
+            != previousTraitCollection?.userInterfaceStyle {
+            applyOffset(offset)
+        }
+    }
+
     // MARK: - 位移呈现
 
-    /// 位移唯一呈现口：只写前景 transform（主页面布
-    /// 局尺寸恒不变）＋圆角/阴影/命中/a11y 派生
+    /// 位移唯一呈现口：只写双层 transform（主页面布
+    /// 局尺寸恒不变）＋圆角/阴影/命中/a11y 派生——全
+    /// 容器不许有第二处写 transform 或阴影（§313
+    /// A-01 单源收敛）
     private func applyOffset(_ newOffset: CGFloat) {
         offset = newOffset
         foreground.transform = CGAffineTransform(
             translationX: newOffset, y: 0
+        )
+        // 第 78 条 D1 锁步：抽屉层同刚体平移——位移＝
+        // offset − travel（合态 −travel 藏于主面之后、
+        // 开态 0 归位）；travel 未量得（0）时恒 0 不动
+        drawerHost.view.transform = CGAffineTransform(
+            translationX: DrawerMotion.drawerOffset(
+                offset: newOffset, travel: travel
+            ),
+            y: 0
         )
         let progress = DrawerMotion.progress(
             offset: newOffset, travel: travel
@@ -368,14 +451,17 @@ final class DrawerContainerController: UIViewController,
         clipView.layer.cornerRadius = geometry.radius
         clipView.frame = geometry.clipFrame
         contentHost.view.frame = geometry.contentFrame
-        // §182.2 阴影路径跟随圆角；§202 起路径矩形＝内
-        // 缩后的 clip 帧（与布局期同走 clipGeometry 派生）
-        foreground.layer.shadowPath = UIBezierPath(
-            roundedRect: geometry.clipFrame,
-            cornerRadius: geometry.radius
-        ).cgPath
-        foreground.layer.shadowOpacity = Float(
-            DrawerMotion.shadowOpacity(progress: progress)
+        // §313：阴影只在此写 opacity 一项——形状由
+        // clip 本人的帧与半径自动成影（无手写路径）；
+        // 外观口径第 78 条 D4：浅色走 §202 定值、深
+        // 色归零，读容器当前 trait（随 trait 变化由
+        // traitCollectionDidChange 以当前 offset 重派生）
+        clipView.layer.shadowOpacity = Float(
+            DrawerMotion.shadowOpacity(
+                progress: progress,
+                appearance: traitCollection.userInterfaceStyle == .dark
+                    ? .dark : .light
+            )
         )
         // 穿透防护：只要离开合位，内容本体不接触摸
         // （窄条的点/拖由前景手势承接）；全合位恢复。
@@ -497,9 +583,10 @@ final class DrawerContainerController: UIViewController,
         animator.stopAnimation(false)
         animator.finishAnimation(at: .current)
         self.animator = nil
-        foreground.transform = CGAffineTransform(
-            translationX: offset, y: 0
-        )
+        // 呈现位回写走唯一呈现口（§313：transform 不
+        // 许有第二写点；animator 已清零、交互派生按
+        // 捕获位成立，随后 setDrawer/手势流程再行对账）
+        applyOffset(offset)
     }
 
     // MARK: - 手势

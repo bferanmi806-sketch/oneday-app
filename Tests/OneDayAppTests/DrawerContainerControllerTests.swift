@@ -46,7 +46,39 @@ final class DrawerContainerControllerTests: XCTestCase {
     }
 
     func testTravelEstablishedFromLayout() {
-        XCTAssertEqual(controller.travel, min(393 * 0.79, 400), accuracy: 0.5)
+        // §313：第 78 条 D2——宽×0.75、无 cap（单源
+        // DrawerCardGeometry.travel）
+        XCTAssertEqual(controller.travel, 393 * 0.75, accuracy: 0.5)
+    }
+
+    /// 抽屉宿主视图＝容器 view 的第一个子视图（底层
+    /// drawerHost，viewDidLoad 装配序）
+    private var drawerTx: CGFloat {
+        let subviews = controller.view.subviews
+        guard subviews.count >= 1 else { return .nan }
+        return subviews[0].transform.tx
+    }
+
+    /// §313 锁步（第 78 条 D1）：抽屉层与前景同一刚
+    /// 性平移——合态抽屉恒在 −travel（藏于主面之后、
+    /// 首次布局后即成立）、开态归 0、关回 −travel；
+    /// 动画路径 model 值同口径（动画闭包以目标值调
+    /// applyOffset、双层同拍落位）
+    func testDrawerLayerLockstepsWithForeground() {
+        XCTAssertEqual(drawerTx, -controller.travel, accuracy: 0.5)
+        XCTAssertEqual(foregroundTx, 0, accuracy: 0.5)
+        controller.setDrawer(true, animated: false)
+        XCTAssertEqual(drawerTx, 0, accuracy: 0.5)
+        XCTAssertEqual(foregroundTx, controller.travel, accuracy: 0.5)
+        controller.setDrawer(false, animated: false)
+        XCTAssertEqual(drawerTx, -controller.travel, accuracy: 0.5)
+        controller.setDrawer(true, animated: true)
+        XCTAssertEqual(
+            drawerTx, 0, accuracy: 0.5,
+            "打开动画起始拍抽屉 model 位移应已落目标值（与前景同拍提交）")
+        spinRunLoop(seconds: 3.5)
+        XCTAssertEqual(drawerTx, 0, accuracy: 1.0)
+        XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
 
     func testInstantOpenAppliesFullTravel() {
@@ -56,10 +88,15 @@ final class DrawerContainerControllerTests: XCTestCase {
     }
 
     /// 裸动画：无任何干扰，弹簧动画必须自己走完到
-    /// travel（真机症状是停在约 9.5% travel）
+    /// travel（真机症状是停在约 9.5% travel）。
+    /// §313 注：弹簧换慢阻尼定版（response 1.4/ζ
+    /// 1.2、可见时长 ≈1.5s）后，本类动画落定断言的
+    /// 等待统一放宽到 3.5s（2.0s 时残余位移 ≈3pt、
+    /// 超 1.0 断言精度——是定版手感的量测事实、非
+    /// 产品退步）
     func testAnimatedOpenCompletesWithoutInterference() {
         controller.setDrawer(true, animated: true)
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertTrue(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
@@ -74,7 +111,7 @@ final class DrawerContainerControllerTests: XCTestCase {
             controller.view.layoutIfNeeded()
             spinRunLoop(seconds: 0.05)
         }
-        spinRunLoop(seconds: 1.0)
+        spinRunLoop(seconds: 2.5)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
 
@@ -88,14 +125,14 @@ final class DrawerContainerControllerTests: XCTestCase {
             controller.contentRoot = AnyView(Text("content"))
             spinRunLoop(seconds: 0.05)
         }
-        spinRunLoop(seconds: 1.0)
+        spinRunLoop(seconds: 2.5)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
 
     func testAnimatedCloseReturnsToZero() {
         controller.setDrawer(true, animated: false)
         controller.setDrawer(false, animated: true)
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertFalse(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, 0, accuracy: 1.0)
     }
@@ -198,7 +235,7 @@ extension DrawerContainerControllerTests {
 
     func testAnimatedOpenDisplayedOriginReachesTravel() {
         controller.setDrawer(true, animated: true)
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
         XCTAssertEqual(
             foregroundDisplayedOriginX, controller.travel, accuracy: 1.0,
@@ -247,7 +284,7 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(
             contentHostView?.isUserInteractionEnabled, false,
             "关闭动画起始帧内容即恢复可点（呈现层还在移动）")
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertEqual(foregroundTx, 0, accuracy: 1.0)
         XCTAssertEqual(
             contentHostView?.isUserInteractionEnabled, true,
@@ -289,7 +326,7 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(
             contentHostView?.isUserInteractionEnabled, false,
             "打开动画起始帧内容应即刻不可点")
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
         XCTAssertEqual(
             contentHostView?.isUserInteractionEnabled, false,
@@ -325,7 +362,7 @@ extension DrawerContainerControllerTests {
         spinRunLoop(seconds: 0.15)
         window.frame = CGRect(x: 0, y: 0, width: 393, height: 852)
         controller.view.layoutIfNeeded()
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         XCTAssertTrue(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
         XCTAssertEqual(
@@ -335,11 +372,15 @@ extension DrawerContainerControllerTests {
     }
 
     /// §202 K1/K2 边缘几何：开态 clip 帧纵向内嵌 2pt、
-    /// 半径 54.5、阴影路径包围盒与 clip 帧同矩形；内容
-    /// 宿主反向补偿（原点 −2、高不变——前景空间内几何
-    /// 与 §202 前逐值一致、落定零残差）；合态回全幅；
-    /// 开态改窗口尺寸后内嵌保持（resize 回归）
+    /// 半径 54.5；内容宿主反向补偿（原点 −2、高不变
+    /// ——前景空间内几何与 §202 前逐值一致、落定零残
+    /// 差）；合态回全幅；开态改窗口尺寸后内嵌保持
+    /// （resize 回归）。§313：阴影断言随 A-01 收敛改
+    /// 判——阴影挂 clip 本人按形状自动成影：两层
+    /// shadowPath 恒 nil（手写路径退役）、clip 阴影
+    /// 定值 radius 18/x −4、浅色开态 opacity 0.22
     func testOpenStateClipGeometryInsetsRadiusAndShadowPath() {
+        window.overrideUserInterfaceStyle = .light
         let foreground = controller.view.subviews[1]
         let clip = foreground.subviews[0]
         let content = clip.subviews[0]
@@ -352,11 +393,14 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(content.frame.origin.y, -2, accuracy: 0.5)
         XCTAssertEqual(content.frame.height, 852, accuracy: 0.5)
         XCTAssertEqual(clip.layer.cornerRadius, 54.5, accuracy: 0.5)
-        let pathBox = foreground.layer.shadowPath?.boundingBox
-        XCTAssertEqual(pathBox?.origin.x ?? -1, 0, accuracy: 0.5)
-        XCTAssertEqual(pathBox?.origin.y ?? -1, 2, accuracy: 0.5)
-        XCTAssertEqual(pathBox?.width ?? -1, 393, accuracy: 0.5)
-        XCTAssertEqual(pathBox?.height ?? -1, 852 - 4, accuracy: 0.5)
+        XCTAssertNil(foreground.layer.shadowPath)
+        XCTAssertNil(clip.layer.shadowPath)
+        XCTAssertEqual(clip.layer.shadowRadius, 18, accuracy: 0.5)
+        XCTAssertEqual(clip.layer.shadowOffset.width, -4, accuracy: 0.5)
+        XCTAssertEqual(clip.layer.shadowOffset.height, 0, accuracy: 0.5)
+        XCTAssertEqual(
+            clip.layer.shadowOpacity, 0.22, accuracy: 0.01,
+            "浅色开态柔影峰值（§202 定值、D4 浅色保留口径）")
 
         window.frame = CGRect(x: 0, y: 0, width: 852, height: 393)
         controller.view.layoutIfNeeded()
@@ -367,5 +411,42 @@ extension DrawerContainerControllerTests {
         controller.view.layoutIfNeeded()
         XCTAssertEqual(clip.frame, foreground.bounds)
         XCTAssertEqual(content.frame, foreground.bounds)
+        XCTAssertEqual(clip.layer.shadowOpacity, 0, accuracy: 0.01)
+    }
+
+    /// §313 深色阴影归零（第 78 条 D4）：深色外观下
+    /// 开态 clip 阴影 opacity 恒 0（Muse 深色帧段无
+    /// 可量测阴影）；切回浅色恢复 0.22（trait 变化经
+    /// 唯一呈现口重派生）。注：宿主单测的裸窗
+    /// overrideUserInterfaceStyle 不达根控制器 trait
+    /// （两轮实测：赋值＋泵 runloop 后容器 trait 仍
+    /// 读旧值、阴影按浅色落 0.22），故本例改走父级
+    /// setOverrideTraitCollection 子级覆写——UIKit
+    /// 确定性通道；生产窗（真场景根控制器）的外观
+    /// 传播走系统 trait 树、同一 traitCollection 读口
+    func testDarkStyleClearsDrawerShadow() {
+        let parent = UIViewController()
+        parent.view.frame = window.bounds
+        window.rootViewController = parent
+        parent.addChild(controller)
+        parent.view.addSubview(controller.view)
+        controller.view.frame = parent.view.bounds
+        controller.didMove(toParent: parent)
+        parent.setOverrideTraitCollection(
+            UITraitCollection(userInterfaceStyle: .dark),
+            forChild: controller)
+        let clip = controller.view.subviews[1].subviews[0]
+        controller.setDrawer(true, animated: false)
+        controller.view.layoutIfNeeded()
+        XCTAssertEqual(
+            clip.layer.shadowOpacity, 0, accuracy: 0.01,
+            "深色开态阴影应归零")
+        parent.setOverrideTraitCollection(
+            UITraitCollection(userInterfaceStyle: .light),
+            forChild: controller)
+        controller.view.layoutIfNeeded()
+        XCTAssertEqual(
+            clip.layer.shadowOpacity, 0.22, accuracy: 0.01,
+            "切回浅色后阴影应按当前 offset 重派生恢复")
     }
 }

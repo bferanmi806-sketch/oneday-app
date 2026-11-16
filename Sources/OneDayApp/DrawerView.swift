@@ -99,8 +99,9 @@ import SwiftUI
 ///   0.36.27 再订正：底条浮置＋霜层退役、改注册名
 ///   单 safeAreaBar 走纯系统朦胧，见 body 内注。）
 struct DrawerView: View {
-    /// 面板宽＝壳层量测给（录屏量测 0.79×屏宽、上限
-    /// 400，见 ContentView 壳层注）
+    /// 面板宽＝容器量测给（§313：第 78 条 D2 录屏实
+    /// 测 0.75×容器宽、无上限，单源 DrawerCard-
+    /// Geometry.travel；旧口径 0.79×屏宽/上限 400 作废）
     let width: CGFloat
     /// 当前底栏格（壳层回写，导航行选中垫用）
     let currentTab: ContentView.MainTab

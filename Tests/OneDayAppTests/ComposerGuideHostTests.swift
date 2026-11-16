@@ -694,7 +694,7 @@ final class ComposerGuideHostTests: XCTestCase {
         XCTAssertFalse(
             isDescendant(midHit, of: hostView),
             "关闭动画途中命中落进了正在移动的输入舱")
-        spinRunLoop(seconds: 2.0)
+        spinRunLoop(seconds: 3.5)
         settle(0.4)
         guard let closedBar = liveBarFrame() else {
             XCTFail("抽屉关后舱活量帧丢失")

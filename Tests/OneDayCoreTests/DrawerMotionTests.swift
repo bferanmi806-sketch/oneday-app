@@ -206,4 +206,69 @@ final class DrawerMotionTests: XCTestCase {
             previous = value
         }
     }
+
+    // MARK: - §313 几何单源转发（横扫 A-02）
+
+    func testGeometryConstantsForwardFromSingleSource() {
+        // DrawerMotion 白名单与 DrawerCardGeometry 单
+        // 源逐项同值——任一处私改一值即红
+        XCTAssertEqual(
+            DrawerMotion.cardCornerRadius,
+            DrawerCardGeometry.cornerRadius
+        )
+        XCTAssertEqual(
+            DrawerMotion.cardVerticalInset,
+            DrawerCardGeometry.verticalInset
+        )
+        XCTAssertEqual(
+            DrawerMotion.cornerStepProgress,
+            DrawerCardGeometry.cornerStepProgress
+        )
+        XCTAssertEqual(DrawerMotion.shadowRadius, DrawerCardGeometry.shadowRadius)
+        XCTAssertEqual(DrawerMotion.shadowX, DrawerCardGeometry.shadowX)
+        XCTAssertEqual(
+            DrawerMotion.shadowMaxOpacity,
+            DrawerCardGeometry.shadowMaxOpacity
+        )
+        // 推开量派生：第 78 条 D2——宽×0.75、无 cap
+        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 402), 301.5, accuracy: 0.001)
+        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 393), 294.75, accuracy: 0.001)
+        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 0), 0)
+    }
+
+    // MARK: - §313 锁步派生（第 78 条 D1）
+
+    func testDrawerOffsetLockstepsWithForeground() {
+        // 合态：抽屉整体左移一个 travel 藏于主面之后
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 0, travel: travel), -320)
+        // 开态：抽屉归位 0
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 320, travel: travel), 0)
+        // 中途：与主面同刚体（位移差恒为 travel）
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 160, travel: travel), -160)
+        // 橡皮筋越界不钳制：双层同量越界、刚性不破
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 400, travel: travel), 80)
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: -30, travel: travel), -350)
+        // travel 未量得：抽屉不动
+        XCTAssertEqual(DrawerMotion.drawerOffset(offset: 0, travel: 0), 0)
+    }
+
+    // MARK: - §313 阴影外观口径（第 78 条 D4）
+
+    func testShadowOpacityDarkAppearanceIsZero() {
+        // 深色恒 0（Muse 深色帧段无可量测阴影）
+        XCTAssertEqual(
+            DrawerMotion.shadowOpacity(progress: 1, appearance: .dark), 0
+        )
+        XCTAssertEqual(
+            DrawerMotion.shadowOpacity(progress: 0.5, appearance: .dark), 0
+        )
+        // 浅色与无参口径逐值一致（S3 老口径不分叉）
+        for p: CGFloat in [0, 0.25, 0.5, 1, 2] {
+            XCTAssertEqual(
+                DrawerMotion.shadowOpacity(progress: p, appearance: .light),
+                DrawerMotion.shadowOpacity(progress: p),
+                accuracy: 0.0001
+            )
+        }
+    }
 }

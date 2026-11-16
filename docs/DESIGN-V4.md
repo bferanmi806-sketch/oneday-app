@@ -13210,285 +13210,40 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
-## §301 写闸 reason 单字段契约 App 半边收口（2026-11-16；feat/writegate-reason-app，基线 rel-05059@9619b61）
 
-**背景**：横扫 B-05 服务端半边已随伴生 1.0.63 上线（2026-11-16 05:18）——写闸桥把 blocked_reason（待批记录·预检）与 failure_reason（裁决回执·执行）合并为单字段 `reason`＋阶段标 `reason_phase`（`pre-check`／`execution`），模块内旧字段零残留。本节是 App 半边：切到新契约、审批卡改单读口。伴生报告对 App 现状的自述（「尚未解码两字段」）系沿用 2026-11-11 旧报告、与现行代码不符——§245 一代 App 已解码两旧字段并上卡面（WriteApprovalModels／ApprovalCardFace／AgentHubStore 三处实证）；1.0.63 上线后旧字段无产出，现行 .59 的防呆呈现实际已静默失效（解码恒 nil），本包即修复此窗口。
+## §313 抽屉变换包（2026-11-16；分支 feat/drawer-transform，基线 rel-05060@5f77967；第 78 条＋横扫 A-01/A-02/A-21 抽屉半边；原自编号 §308，组版 0.50.64 顺延为 §313）
 
-**迁移裁决：直接切换、不留双解**。理由：①服务端只有一台伴生且已迁移验活，旧字段无任何生产者，双解读的是死字段；②B-05 的病根本身是「呈现方须先知道读哪个」，App 留双读口等于病留一半，与单源收口相悖；③本仓惯例为读时收敛（§235 化石读时作废、迁移装置退役），且模型解码全程 decodeIfPresent 宽容式——版本错位（旧 App 对新桥／新 App 对旧桥）只降级为原因不显、永不崩。旧载荷解码断言把此口径钉进测试（旧字段在场 → reason=nil、不崩）。
+**依据**：drawer-transform-prep-20261114.md（用户 Muse 录屏 720×1566/30fps/290 帧逐帧量测）＋横扫 nonstandard-sweep-ui-20261115.md A-01/A-02/A-21 三条机制清单。筹备稿基线 rel-05045 与本包基线 rel-05060 间抽屉容器零改动（608 行逐字同），盘点直接沿用；蓝图 A5 真机手感门按包序顺延真机清单（装配＋CI 先行、手感终验归组版真机清单）。
 
-**改动面**：
-- Core `WriteGateRecord`：删 `blockedReason`／`blocked_reason`，增 `reason`＋`reasonPhase`（新枚举 `WriteGateReasonPhase`：preCheck/execution；未知/缺失阶段解为 nil、无原因时阶段一并作废，与桥「命中才带字段」同口径）。`isBlocked` 口径改：有 reason 且阶段非 execution——记录面 reason 的唯一产出阶段是预检，阶段标丢失不许把死单防呆弄丢。
-- Core `WriteGateDecisionResponse`：删 `failureReason`／`failure_reason`，增 `reason`＋`reasonPhase`（回执面恒 execution；桥解析不出时 reason 键带 null、同按无原因解码）。
-- Core `ApprovalCardCopy.reasonLine`（新，呈现单读口）：记录面与回执面各一入口共用实现——只读 reason，阶段决定前缀句式：预检＝「这条无法批准：…」、执行＝「裁决未生效：…」（§245 定案文案两句、目录键既有，本包只收口读法不改措辞）；阶段缺失按载体缺省（记录＝预检、回执＝执行，与桥两面唯一产出阶段同口径）。
-- App `ApprovalCardFace`：防呆行改经 reasonLine 取整行，不再直读字段拼句。App `AgentHubStore`：decide／decideAlways 两道防呆守卫改以 isBlocked 为闸、提示行经 reasonLine；decide 失败分支改经 reasonLine(for: response) 取行、无原因回落既有泛化句。
-- 不动：WriteGateDecisionRecord（已决历史不带 reason 字段、桥 /decisions 载荷无此面）、SessionMigration 的 failureReasons（同名异物、会话迁移计划局部量）。
+**D1 抽屉层锁步（主改动）**：抽屉层与主面改同一刚性平移——Core 新增 `DrawerMotion.drawerOffset(offset:travel:) = offset − travel`（不钳制、橡皮筋段双层同量越界）；容器 applyOffset 同拍写双层 transform（前景 offset、抽屉 offset−travel）。合态抽屉整体左移一个 travel 藏于主面之后、开态归 0。抽屉帧改 bounds＋center 写未变换几何（frame setter 按 transform 反解 center 的 0.50.18 同族坑：合态布局一趟即把显示位补偿回 x=0）；travel 变化且无拖无动画时按当前 offset 重派生（开态跟新 travel、关态钉新 −travel），合态不变量「抽屉恒在 −travel」首次布局后即成立。抽屉根视图重建时机/宽度口径不变（根视图不知 transform）。
 
-**测试**：Core 解码钉测改写＋扩围（HubGateAndBrowserTests 两法：新载荷记录/回执各一、旧载荷各一、空白串、阶段未知、回执 reason=null）；呈现对拍新法（ApprovalCopyTests.testReasonLinePresentation：同 reason 串两面句式对拍＋阶段缺失缺省＋无原因恒 nil）。Core 净计数变化以 CI 实数为准（预期 2164＋新断言分布于既有 2 法改写与新 1 法，总法数 2165）。红只认登记签名族（§257.1／R2 ⑧量测限制／第 95 条 AX 帧不稳／键盘矩阵 rig／§184 签名内）。CI 判读见 §301.1（回填）。
-**待办账**：新增第 101 条（B-05 App 半边落地行）。编号顺延记账：本节原拟 §299，施工期间并行线先行占用——§299 已被听写瘦身包占用并随 rel-05060 入链、§300 为 0.50.60 组版节（待办第 100 条亦已被键盘热修条目占用），按后合顺延例本节改 §301、待办改第 101 条，代码自指已全量同步。
+**D2 travel**：`DrawerCardGeometry.travel(containerWidth:) = 宽×0.75`、无 cap；旧口径 min(宽×0.79, 400) 作废。393pt 屏 310.4→294.8、402pt 屏 317.6→301.5（与 Muse 实测 301 合）；DrawerView 面板宽同源（容器以 travel 建根视图）。
 
-### §301.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）——判绿
+**D3 弹簧定版单源**：`DrawerSpringTiming` 改定版单源——response 1.4/ζ 1.2（派生 stiffness ≈20.1、damping ≈10.8），取值依据 prep §2.5（iOS 26 UISpringTimingParameters 同构时序对 Muse 点按开曲线实测 ζ≈1.13、可见时长 ≈1.51s、snappy 同级；旧值 0.34/0.86 作废）。`MotionTokens.drawerSpring` 改同字面值镜像（新壳层无 SwiftUI 消费方、只供令牌册完整性），两处由 DrawerSpringTimingTests 逐项对钉；「双口径换算等价」表述与换算层就此退役。连带量测事实：动画落定断言等待统一放宽 3.5s（2.0s 时过阻尼残余 ≈3pt 超 1.0 精度——定版手感的量测事实、非产品退步；DrawerContainerControllerTests/DrawerBridgeHarnessTests/ComposerGuideHostTests 抽屉关向一处同改）。
 
-第一轮（run 43771388646@a059463）：**Core 2165/2165 全绿**（基线 2164＋本包新法 1，与静态预期逐值对上）；本包三法全过（testRecordBlockedReasonDecode／testDecisionResponseFailureReasonDecode／testReasonLinePresentation）。App 263 例 3 红：§257.1 探针（失败值 24/8/18…与基线逐值同签名）、⑧（「0≠1」量测限制签名逐字）、DataDetectorPresentationTests.testDetectorsSurviveAssistantPresentationPath（整形后电话未识成 tel: 链接；与本包改动面零交叠、该套件有 flake 前科，待二轮定性）。UI 20 例 9 红＝原生面五件＋仲裁 4 件（第 95 条登记族、边距带本轮过）。键盘矩阵绿；VERDICT／HUB-LAYOUT／MATRIX 三 PASS；§184 宿主重启 1 次、BackingData 零命中。
+**D4 阴影双口径**：浅色保留 §202 定值（峰值 0.22/radius 18/x −4）；深色归零——Core `DrawerMotion.shadowOpacity(progress:appearance:)`（.dark 恒 0），容器按 traitCollection 派生、traitCollectionDidChange 时以当前 offset 经唯一呈现口重派生。双口径各待一次真机对账（归组版真机清单）。
 
-第二轮（run 43774895881@a059463）：**Core 2165/2165 复全绿、本包三法复过**；**DataDetector 3/3 转绿**——一轮红定性为该套件已知环境 flake（NSDataDetector 电话识别对 runner 环境敏感），与本包无关、不作产品反例。App 264 例 2 红（§257.1 探针 24/8/18/25 逐值同签名＋⑧「0≠1」）；UI 9 红与一轮同族同员；键盘矩阵复绿；三 VERDICT 复 PASS；§184 宿主重启 1 次、BackingData 零命中。两轮红集除 DataDetector flake 外无新面孔、签名外新红零。
+**A-01 内部收敛**：位移只剩 offset 一个事实源、applyOffset 为唯一呈现写口（stopAnimatorCapturingPresentation 的呈现位回写改走 applyOffset，不再有第二处写 transform）；柔影迁 clip 本层（CALayer 按本层 alpha 形状投射、clipsToBounds 只裁子层——阴影不被自裁），shadowPath 手写双写点（layout 期＋applyOffset 期）整删、§182.2「路径跟随圆角」由图层语义结构性成立；clip 帧反向补偿（宿主原点 −inset/高不变）保留不动（舱底 −4pt 事故防线）。
 
-**判定：判绿**——新契约解码＋单读口呈现两轮全量复证，旧载荷不崩钉测在位。不组版：交主线随后续组版装车（真机验收点＝待批死单卡面出「这条无法批准：…」＋只给驳回、裁决失败卡面出结构化原因，随组版真机清单带）。
-## §302 第 100 条新面键盘跟随热修（2026-11-16；分支 feat/native-kb-follow-fix，基线 rel-05059@9619b61；定因 keyboard-rise-diagnosis-20261116）
+**A-02 处置**：手势保留 UIPan 本体＋方向锁定＋失败依赖（UIKit 正道不换）；几何四组值（travel 比例/圆角/内嵌/阴影）收进 Core `DrawerCardGeometry` 单源结构体并逐项注明拟合出处，DrawerMotion 同名白名单改转发；弹簧换算层退役（见 D3）。
 
-**切片口径**：阻断级热修单包，只修新面键盘跟随（定因 K1/K2），不动浸泡账（主线已裁：跟随失效构成承载级回退、修复版经真机验过后重算 .59 浸泡、R5 继续关门；账在待办总表由组版线记）。旧面 §194/§195 路径与行为一字不动；本面包判绿后由主线按热修单包组版。
+**A-21 抽屉半边**：drawerHost/contentHost 两宿主 `safeAreaRegions = []`（H2 纪律落码，无豁免）。**查看器半边未随本包**：ImageViewerView.swift:539 ZoomHostingController 同项未置 []——横扫原归属为重建 R 刀接合面、R1–R4 已出货未含此项，本包边界（只动抽屉呈现/结构层）不扩面，登记待主线另行收口（一行改动＋查看器全幅不变验证）。
 
-**修法①落位回 §194 形态（治 K1）**：`ChatRootViewController` 内自持键盘通知订阅（selector 式，willShow/willHide 定翻转、willChangeFrame 供逐帧跟随，与 ComposerGuideHostController 同纪律）；舱底恒钉自有位置引导线 `bottomGuide.topAnchor`（约束永不切换），其 top 常量只由 `syncBottomConstant` 一个函数算——键盘态＝通知结束帧顶（window.convert 转窗口坐标存账）、静息态＝坞实测顶（窗口层级找 UITabBar 本体/类名兜底、只读帧不被约束引用，`layoutSpaceMinY` 累加口径与 §194 同式）、无坞回落窗口安全区底；翻转与帧变化以通知动画参数原值推进布局（时长 0 的逐帧事件直接布局、不包动画）。锚解析触发点＝入窗/显形/键盘收起/回落态布局拍自愈（与 §194 同式）。`keyboardLayoutGuide` 退出驱动位：只在翻转拍采样其顶值记入 ChatDiagTrace 自述与通知帧顶同帧对账（预期仍停静息值、即 K1 根因本人的持续留证），不再作任何落位依据。
+**不动清单**：圆角 54.5/纵向内嵌 2（§202 定值、第 78 条复测 ≈57pt 同档不改）、跟手 1:1＋方向锁定、点窄条关、打开先收键盘、内容交互穿透防护（§186.8/§186.11 映射不变）、a11y 树切换、触感吸附例外、DrawerView 呈现与频道区形态、抽屉收成会话与状态一面等既定结论——零触碰。
 
-**修法②kbSnapshot 供数同源收口（治 K2）**：同一通知解析点在驱动舱常量的同拍组装 `KeyboardFrameUpdate`（停靠判定/动画参数与 §194 reportKeyboardFrame 同式），经 `ChatRootViewController.onKeyboardFrameChange`→representable 桥接→ChatView 的 `$kbFrameUpdate` 绑定（事件拍直写＋等值守卫，与 ComposerGuideHost 桥同纪律）。快照本体恒 ChatView 的 `kbSnapshot` 一份、根 onChange 整包写入不分面——`isKeyboardUp`／chatSurface 聚焦藏坞（`.toolbar(.hidden, for: .tabBar)`）在新面恢复触发。解析点按面收口：三面互斥在场、同一时刻只有一个解析点在写，不许第二套快照。
+**与 A-03（feat/appstate-router，待组版 .62）接触面**：①AppState 字段零增删改、只读 drawerPresented；②DrawerContainer 的 presented 入参形态不变（Bool），AppRouter 迁移后由组版线把喂入源换成 router 投影、本包代码不预改；③ContentView 只改一行注释（DrawerView 宽口径注实际落在 DrawerView.swift），其 body/装配零改动；④DrawerView 的 currentDrawerObject/drawerThreadSelection 只消费不写；⑤AppRoutes.swift 零触碰。合并期冲突按 AppRouter 口径解（简报既定）。
 
-**迟滞（L1/L2）处置**：不预设修法、不加任何机制。L2 代码面排查结论＝无实证、不动：第一响应者路径两面共用同一 ComposerTextView/bottomBar、无面别分支；聚焦边沿 ChatView 的工作量新面是旧面的子集（旧面另有 anchorToBottomAfterKeyboard* 挂账链在聚焦＋WillChangeFrame/DidChangeFrame 两拍运行、新面 §293 起无此链）；新面 apply() 的 O(行数) 记账在每次 ChatView 重建时发生（流式拍同频）、不独占点按→首帧窗口，且与旧面 SwiftUI 列表 diff 同量级。录屏 ≈1.2s 列表一过性位移在代码面无候选机制、无实证，登记备查。迟滞最终判别归真机复验（新面内收起后立即再点是否秒起→L1 冷启动坐实/出局），本包不为迟滞落码。
+**验收**：Core 两轮全量门（§190 核账）＋呈现对拍表（报告 drawer-transform-20261116.md）；落底三数不属本包改动面、组版轮续证为准。本节节号 §308 为本分支自选（基线树止于 §300.1；并行分支已占 §301–§307），组版 0.50.64 合裁顺延为 §313、代码自指全量同步。
 
-**装配换代（验收面）**：R2 装配 ⑨ 改写为通知驱动版 `testComposerNotificationFollowAndSnapshotFeed`——静息回落座、willShow 后舱底＝通知帧顶＋供数同拍同值（top/时长/曲线原值）、引导线全程未动（驱动者是通知的结构直证）、willChangeFrame 时长 0 逐帧对账（640/580/541 逐值）、0.5s 动画中段 presentation 帧在途对账（541→474 严格在途样本）、willHide 回座＋供数 nil；底 inset 舱实测派生恒等式与键盘位末行→舱顶 24 保留。R1 装配的键盘座位（seatComposer）由附加安全区顶引导线改为投递键盘通知本体（生产驱动即通知、无模拟层），② 升起态补座位绝对值断言（舱顶＝通知帧顶−舱高，防自洽量静默失效）。安全区模拟自此只许作结构证据、不得作跟随出货证据（定因报告 §七.4）；跟随终验归真机（真键盘动画中段帧舱底与键盘顶同拍对账＋迟滞判别一并）。
+### §313.1 CI 判读（§190 全日志核账，判绿）
 
-**验收门**：至多两轮全量门、§190 全日志核账；Core 基线 2164（rel-05059 口径，新增测试另计）；红只认登记签名族（§257.1 探针、R2 ⑧ 量测限制、第 95 条 AX 帧不稳族、键盘矩阵 rig 红、§184 签名内）。CI 判读见 §302.1（回填）。
+落码提交 f968f95（12 文件，+509/−153）；测试侧两处 harness 修正后定版提交 **f1b1b5d**。五轮实录：
 
-### §302.1 CI 判读回填（2026-11-16；两轮全量门用尽，判读守 §190）——未判绿，续作事项已登记
+- **R1 run 43816222984（f968f95）**：Core **2157/2157、0 failures**（基线 rel-05060 的 2153＋本包净增 4＝DrawerMotionTests +3、DrawerSpringTimingTests 4 例代旧 3 例 +1，逐项闭合）；落底双探针 4156/3352/0.0 不退；VERDICT/HUB/MATRIX 三判 PASS；§184 签名内（BackingData 0、宿主重启 1）。红仅两类登记签名（App §257.1 探针＋R2 ⑧ 量测限制；UI 第 95 条手势族 9）＋**本包新测 testDarkStyleClearsDrawerShadow 一红**：深色断言读得 0.22——裸窗 overrideUserInterfaceStyle 赋值后容器 trait 未更新。
+- **R2 run 43822056613（862ef28，测试加泵 runloop 0.3s）**：逐数同 R1，深色测仍红同值——证伪「传播只需一拍」：宿主单测裸窗的 override 不达根控制器 trait（harness 通道问题、非生产码：生产窗在真场景 trait 树内）。
+- **R3 run 43827149289（ecf4b72，测试改父级 setOverrideTraitCollection 子级覆写）**：测试目标编译红——iOS 26 SDK 该 API 已改名 `setOverrideTraitCollection(_:forChild:)`，7 分钟早停（构建本体 BUILD SUCCEEDED、无测试数）。
+- **R4 run 43830968493＋R5 run 43837493536（f1b1b5d，定版两轮）**：逐数一致——Core **2157/2157、0 failures** 两轮；新增装配两测（锁步 testDrawerLayerLockstepsWithForeground、深色 testDarkStyleClearsDrawerShadow）两轮点名 passed；落底 4156/3352/0.0 两轮不退；App 红仅 §257.1＋R2 ⑧ 两签名；UI 红＝第 95 条手势族 9 两轮＋R4 键盘矩阵 rig 1 红（R5 MATRIX-VERDICT=PASS，rig 间歇签名内）；VERDICT/HUB 两轮 PASS；§184 签名内两轮（BackingData 0、重启 1）。**签名外新红零 → 本包判绿（未组版）。**
+- 连带登记：慢弹簧落定等待 3.5s 的量测事实已随 D3 落测试注；深色 trait 的 harness 通道结论（裸窗 override 不达根控制器、父级覆写为确定性通道）已写入测试注释，后续外观类装配测试照此办理。
 
-第一轮（run 43772029355@77fecfe）：生产靶 **BUILD SUCCEEDED**；测试靶编译 7 红全在本包新写 ⑨（断言消息插值内 `try`、XCTUnwrap 链式接 `.view`），测试未及运行。修法＝先取值再断言＋解包两句式（8880ca1），无产品码改动。
+**组版注（0.50.64）**：节号顺延 §313/§313.1，代码自指（9 文件 38 处）全量同步；接触面②喂入源经组版核验已为 router 投影（A-03 于 .62 落实，ContentView `presented: appState.router.drawerPresented`、入参仍 Bool），组版线无再改；DrawerBridgeHarnessTests 合并冲突解＝router 形＋弹簧定版 3.5s 落定等待两取。
 
-第二轮（run 43773022588@8880ca1）全日志 25,202 行本地核账：**Core 2164/2164、0 failures**（基线逐值）；**VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS**；§184 签名内（宿主重启 1 次、BackingData 零命中）；R3 装配全过、DataDetector 续绿、DiscussQuote 双面门绿；R1 ② 双键盘态绿（含新增座位绝对值断言：升起态舱顶＝通知帧顶−舱高）；R2 ⑦⑩ 续绿。**新面键盘机制的结构证据成立**：⑨ 的静息回落座、willShow 后舱底＝通知帧顶 541、供数同拍同值（top 541／时长 0.25／曲线 7 原值）、引导线全程未动、willChangeFrame 时长 0 逐帧对账（640/580/541 逐值）、动画落定 474、willHide 回座＋供数 nil 全部通过；日志自述行 `[kbShow] kbTopWin=541.0 guideTopWin=874.0`（新面采样对照如设计工作：通知帧顶 541、引导线停 874 静息值——K1 根因本人在新链下持续留证）。UI 10 红全登记族（仲裁 4＋原生面五件＋键盘矩阵 rig 1，MATRIX-VERDICT=FAIL 随 rig 红、与 .59 差异仅 rig 本轮未自愈）；§257.1 探针红、数值 25/8/18/26 系对基线 24/8/18/25 的 +1 漂移（该探针历轮有 ±2 漂移前科、归属不变）。
-
-**未判绿的两项（均非登记签名、两轮已用尽、按 A-08 先例交续作线）**：
-1. **⑨ 动画中段采样未采到在途帧**（XCTAssertNotNil 一条）：定因为测试方法缺陷——`pollMidAnimationBottom` 以 `RunLoop.main.run(mode:before:)` 30ms 切片自旋等动画，无输入源时该调用即时返回、自旋饿死显示链接推进，采样恒读起点值；落定值 474 与逐帧段全过证明动画本体成立。续作修法：采样改 expectation 节拍（与 drain 同式：asyncAfter 30ms＋wait），在途判据不变（严格起讫之间）。
-2. **R1 ③／R4 ⑯ 落底残差 0.0→4.0**（距底 4.0、末行→舱顶 20.0，两例同值）：舱位与留位逐值无变（NATIVE-LANDING contentSize=4156/bottomInset=70 与基线同、仅 offset 3348 vs 3352）——差在集合视图可达落点的收敛残差。本轮整体时序 hostile（⑧ 第二拍渲染树为空、UI 套件单组 300–1000s、总时长约 36 分钟）且 ⑧ 的零计数断言由登记的 1 条涨到 4 条（同族、程度涨落）。候选机制（未证实）：无坞回落态下本包布局拍自愈每拍走 `findDockAnchor` 全窗层级遍历（回落壳内恒回落→每拍全遍历），可能扰动落定收敛时序；生产有坞时首拍即解析、无此面。续作修法：回落态布局拍重解析加节流（窗口变化或距上次尝试 ≥0.3s 才走，离散触发点不变），与修法 1 同轮验证 ③⑯⑧⑨ 四例。
-
-**判定：未判绿**——产品修法本体（落位＋供数）已由装配结构证据正面成立、Core 与旧面零扰动，但 ③⑯ 落底残差未归因不许放行（落底是浸泡四类之一）。续作线落上述两修后跑一轮确认门（四例转绿＋其余签名不扩大即判绿），再由主线按热修单包组版；跟随终验仍归真机（真键盘中段帧对账＋迟滞判别），组版前不称交付。
-
-### §302.2 确认轮判读回填（2026-11-16；续作两修落地＋一轮全量确认门，判读守 §190）——仍未判绿，两候选机制均被证伪、证据已交主线
-
-续作两修已落地（09b7d85）：①⑨ 采样改 expectation 节拍（asyncAfter 30ms＋wait、与 drain 同式，在途判据不变）；②回落态布局拍重解析加 0.3s 节流（`lastFallbackResolveAt` 闸只在 viewDidLayoutSubviews 的回落自愈支路，窗口变化立即走、离散触发点直调 resolveAnchors 不变、生产有坞路径行为不变）。修法本体（落位＋供数）未动。
-
-确认轮（run 43777387464@09b7d85）全日志 24,876 行本地核账：**Core 2164/2164、0 failures**（基线逐值）；**VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS**；§184 签名内（宿主重启 1 次、BackingData 零命中）；日志自述 `[kbShow] kbTopWin=541.0 guideTopWin=874.0` 复现（机制自证在位）。失败用例共 15 例、全数有归属：§257.1 探针 1（四值 25/8/18/25，登记漂移带内）；UI 10 红与上轮同构成（仲裁 4＋原生面 5＋键盘矩阵 rig 1，矩阵失败形态＝snapshot 匹配不到元素、系 rig 签名）；⑧ 1 例 4 条断言（0≠1 三条＋封存段 cell 缺席一条）——与上轮同数（4 条）、按确认轮口径不算扩大；R3 装配、DataDetector、DiscussQuote 双面门续绿。**四例目标只有 ⑧ 达标（不扩大），③⑯⑨ 未转绿**：
-
-1. **③⑯ 残差逐值未动、候选机制证伪**：两例仍距底 4.0／末行→舱顶 20.0；NATIVE-LANDING 与 NATIVE-LANDING-R4 双行同值——contentSize=4156.0、offset=3348.0、bottomInset=70.0、distance=4.0、contentEndVisible=true，与上轮逐字相同。节流把全窗遍历从每布局拍降到 ≤1 次/0.3s 后残差逐位不变——「遍历扰动收敛时序」若成立，干预必移数值；两轮时序环境迥异（上轮 hostile）而四数全同，**时序扰动族归因出局**。新证据指向结构性常量差：两处失败量同为恰 4.0（距底超限 4.0、间距短缺恰 4.0），且 contentEndVisible=true（末行完整可见、非内容被裁）——差在「算术最大 offset（3352）vs 集合视图可达落点（3348）」之间一个恒定 4.0 项。下一线方向（未证实、本轮不落码）：逐项对可达落点与算术口径的差额构成（adjustedContentInset 与 contentInset 之差／compositional 段底内边距计入 contentSize 而不计入 offset 域之类固定项），先量后改；断言容差未动、不许放宽。
-2. **⑨ 中段采样仍未采到、采样饿死说证伪**：失败仍只一条（XCTAssertNotNil，行 626），⑨ 其余断言（静息回落座／541 落位／供数同拍同值／引导线未动／逐帧 640·580·541／落定 474／回座＋nil）连续两轮全过。expectation 节拍以 30ms 步进泵满 0.45s 窗后仍零在途样本——若 presentation 帧存在约 4pt/30ms 步进的在途值，此节拍必命中；**「采样法饿死」不再是充分解释**。证据形态与 R2 ⑧ 量测限制同族：托管单测宿主内该约束驱动的帧变化不产生可采的 presentation 在途帧（动画在层级上 effectively 瞬时落定），中段帧在本 harness 内可能根本不可量。处置建议交主线裁（本线不自裁）：(a) 按 ⑧ 先例登记 ⑨ 中段为量测限制——证据链＝两轮两采样法＋逐帧段（时长 0）逐值＋落定值逐值＋真机中段帧对账为终验（原即定终验口径）；或 (b) 另开探针线试 CADisplayLink 采样／动画层位置直采再判。断言未放宽、未删。
-
-**判定：仍未判绿**——③⑯⑨ 未达确认轮口径（四例转绿），本线按纪律停手：两修的干预结果本身即归因证据（两候选机制双双证伪），后续定性（⑨ 量测限制登记与否、③⑯ 结构差逐项量测线）归主线。产品修法本体正面证据不变（⑨ 主体两轮全过、Core 2164 逐值、旧面零改动）；浸泡重算仍以真机终验为准、组版前不称交付。
-
-### §302.3 ③⑯ 落底残差逐项量测与判据修法两轮（2026-11-16 量测线交卷；分支 feat/native-kb-follow-fix@210a3e7）——量测分解闭合、定因成立，判据修法未达 ≤1.0，交主线裁
-
-主线已裁 ⑨ 中段采样按 R2 ⑧ 先例登记量测限制，本节只办 ③⑯。量测（两分支同装配例对打，探针三轮＋逐钉追踪一轮，量完即撤、生产树与测试树零残留）：
-
-- **静态分量全零差**：adjustedContentInset T122/B70＝contentInset（behavior=.never）两分支逐值同；根视图/集合视图/窗口 safeAreaInsets 全 0（宿主裸窗）；compositional 段底 inset 计入 contentSize 的量 trail=8.0（section.contentInsets.bottom＝bottomPadding 8，两分支同、且已含在算术 max 口径内）；舱座（静息回落座）host 窗口帧 minY820/maxY874/h54、keyboardLayoutGuide 874 两分支同（回落源 window.safeAreaInsets.bottom=0）；集合视图帧 402×874 两分支同；maxByInset＝maxByRuler＝3352。
-- **直设实验**（与 ③ 完全同路、落定后直设 contentOffset=3352）：setter 即受、无钳制，落定拍后/再布局后三读恒 3352/dist=0.0——可达落点＝算术 max 且稳定，钳制说与「落定后布局锚点回调」说证伪，缺口在落定链终止时序。
-- **逐钉追踪定因**（PINTRACE 临时打点，run 43794344870）：`pin cs=4160 set=3356` → `pin cs=4156 set=3352`（意图于此被布局拍钉后判读消费）→ `lps cs 4160->4156 dist=0.0 wasAt=true` → 最终读数 off=3348/dist=4.0（cs 未变、无任何 pin）。落定链到达过 3352/dist=0.0；末钉之后集合视图内部一次布局拍迟到回调 offset −4.0（compositional 锚点保全、R1 期 ≤2pt 残差同族），此后 wasAtBottom 按新距 4.0 判假、无再钉路径，残差冻结。基线同环境探针轮（run 43788762502）两例精确 3352.0/0.0 通过——非环境漂移、确为本分支收敛交错引入（校正在基线末钉前耗尽、在本分支落在末钉后）。
-- **分解账（闭合）**：adjustedContentInset 差 0＋contentInset 差 0＋安全区差 0＋section 尾部差 0（两边同含）＋舱座常量差 0＋CV 帧高差 0＋**末钉后迟到布局回调 3.0–4.0**（量随收敛几何/时序漂移）＝残差 3.0–4.0 ✔。
-
-修法两轮（源头判据、不动断言容差、不加落点补偿常量）：①消费判据加几何稳定——落定拍距底 ≤0.5 且 contentSize 与上一落定拍逐值同才消费，布局拍只钉不消费意图（0a1612b，run 43799900568）：距底 4.0→**3.333**；②强化为「上一钉熬过整拍」——钉前已在底＋钉后在底＋跨拍同值（210a3e7，run 43805353689）：③ **3.0**／⑯ **3.333**。仍未 ≤1.0：校正可落在验证冲刷本身的最后一拍、其后无任何生产代码在读数前运行，判据类修法至此穷尽，本线按纪律停手交裁（简报第 2 条后项口径）。
-
-两轮共同面（§190 全日志核账）：**Core 2164/2164、0 failures**；**VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS**；BackingData 零命中；⑨ 主体不退（失败仍只中段采样一条、已登记量测限制）；失败清单＝登记签名族（⑧、§257.1 探针、UI 10 红同构成）＋③⑯。另 run 43799900568 出现一例签名外红 ChatPageDeviceConditionProbeTests.testAnchoredBarsSurviveGrowthAndFramePollution——失败形态为其自身前置条件超时（trait 8 秒未达 AX5、测试自述「量测链未进入、锚定断言无意义」），前两轮（run 43788758483/43794344870）同例 passed、run 43805353689 亦转绿，属探针前置时序 flake、与本包改动面（新面落点意图消费）无交集，如实登记待主线过目。
-
-**生产影响（如实）**：末行恒完整可见（contentEndVisible=true 每轮成立），间距实测 20–21 对定版 24；但落点后 wasAtBottom 为假——用户停在该近底位置时新消息到达将走增长锚定分支而非自动跟随，与基线行为有细微差，非纯测试伪影。**交主线裁**：(A) 接受现状态（210a3e7），③⑯ 残差登记为本分支已知项、随键盘热修出货；(B) 热修暂缓、另立收敛次序线——令本分支冷开收敛在末钉前耗尽校正（收敛交错重排，非本线范围）；断言容差口径归主线、本线未动。量测 scratch 分支 probe/landing-decomp{,-base} 已删（本地＋远端）。
-## §303 附件面板定高收口（2026-11-16；横扫 A-08；分支 feat/attachment-height，基线 rel-05059 尖端 9619b61，只预制不合并、版本等主线组版）
-
-- 病灶（横扫 A-08）：附件面板定高自造量测回路 3 代叠加——§152 立 PreferenceKey 回报内容高→宿主状态→Core `AttachmentPanel.detentHeight`（可信下限 120＋屏高 75% 钳顶）→`.presentationDetents([.height(h)])`；§154 热修本体就是这条回路的自噬塌陷（0.50.16 真机点「+」面板等于没出现），现行三道防线（可信下限／屏高只许来自 sheet 外／量测取理想高）全是为回路打的补丁、回路仍在产。
-- 市面成熟做法核查（改前先搜，详 attachment-height-20261116.md 第一节）：横扫报告「内容贴合高度官方无 SwiftUI 原语」的前提一半过时——iOS 18 起 SwiftUI 有 `.presentationSizing(.fitted)`，本包首轮先行采用，但装配实测（§303.1）其在 iPhone 底部 sheet 上不改变高度（sheet 恒全高、内容理想高被无视），故不取；定高正路用横扫原处方②的 UIKit `UISheetPresentationController.Detent.custom(resolver:)`（呈现控制器内以系统布局取内容理想高、钳顶只认 context.maximumDetentValue）。
-- 施工：①定高落点＝面板内 `AttachmentSheetDetentBridge`（UIViewRepresentable）：以内容指纹（资源库区有无／确认行有无）驱动——detent 集未断言时以 custom resolver 断言（量测走托管视图 sizeThatFits 无界高查询、与当前 detent 无自指），指纹变才 invalidateDetents 重解，被呈现层重置时按 identifier 自愈；ChatView sheet 只留 `.attachmentPanelPresentation()`（口径单源：`presentationDragIndicator(.visible)`，定义在 AttachmentPanelView.swift，呈现点与装配测试共用）；删 `.presentationDetents(attachPanelDetents(...))`、`.fixedSize(vertical:true)` 保真、`.onPreferenceChange` 回写、onDismiss 清量测。②删宿主两状态 `attachPanelContentHeight`/`hostViewHeight` 与根层 `onGeometryChange` 真高回写（其唯一消费方即本回路）。③删 `AttachmentPanelLayout.swift` 整文件（AttachmentPanelHeightKey＋转发层）。④Core `AttachmentPanel` 删定高决策整节（detentHeight/detentMaxScreenFraction/detentMinimumPlausibleHeight），Core 定高钉测四件随删；授权政策/照片条拼装/多选/命名等其余口径不动。⑤A-24 顺带：`loadStrip` 加取数代次，PHImageManager 迟到回调按代次丢弃（无取消句柄的既有形态下防旧代低清图覆写新代）。
-- 外部行为对拍：面板形态（资源库条＋动作行）不翻；展开高仍贴内容（系统 fitted 与旧实测贴合等效、无 .medium 首帧过渡跳变）；确认行增减经系统布局跟随变高；各入口（相机/确认入条/查看全部/添加文件/添加视频）与收面板延拍链（afterAttachPanelDismiss）一字未动；键盘链零改动（呈现路由仍 SwiftUI sheet、键盘由系统随呈现收起，ChatView 键盘几何仍只走 keyboardLayoutGuide 通道、本包 diff 不含任何键盘代码）。
-- 验收：新装配断言 AttachmentPanelFitAssemblyTests（真窗口真呈现：面板在场＋sheet 高与独立托管 sizeThatFits 理想高对账＋不回 .medium 档＋不进塌陷带；同口径同构内容增行跟随）＋CI 全量门（判读见 §303.1 回填）。
-
-### §303.1 CI 判读回填（2026-11-16；两轮全量门用尽）
-
-首轮（run 43763594395，fitted 路）：装配实测 `ATTACH-FIT sheet=874.0 ideal=136.67`——`.presentationSizing(.fitted)` 在 iPhone 底部 sheet 上不改变高度（内容理想高被无视、增行无从跟随），按预设回退条件改判 UIKit custom detent；同轮 Core 2153（DictationPreheatTimingTests 整套未被发现、次轮恢复互证为发现抖动）、余红全在登记签名内（§257.1／R2 ⑧／§184 宿主重启 1 次＋BackingData 零命中／第 95 条 UI 族＋键盘矩阵 rig）。
-第二轮（run 43767699160，custom detent 路）：**Core 2160/2160、0 failures**（恰基线 2164−实删 4）；**增行跟随逐值成立**（ATTACH-FIT-GROWTH 156.67→224.67、恰 +68＝增行 52＋间距 16）；面板在场成立（presentedIdeal 测得面板内容）。**签名外红 1 件**：sheet 帧高 204.67＝内容理想高 136.67＋恒定 68（2×底部安全区 34）——resolver 量测（in-sheet sizeThatFits 计入安全区 +34）与帧关系叠加双计，真机呈面板高 68pt（动作行下死空）、非事故但不合贴合精度，待修（修向三候选见 attachment-height-20261116.md 第五节，需再一轮验）。余红全签名内（App §257.1＋⑧；UI 第 95 条族 9＋键盘矩阵 rig 1；VERDICT/HUB=PASS、MATRIX=FAIL 同签名）。分支止于 499fc46（＋本回填），未合 main、未打 tag、未组版。
-
-### §303.2 +68 安全区双计修复（2026-11-16；续作线，判绿）
-
-量测律（三轮 8 个数据点全自洽，定案）：**帧高＝detent 返回值＋窗口底部安全区带（34）**——detent 坐标自安全区底边起算、sheet 帧恒延伸至屏幕底边，此带是坐标系固有几何（退役 `.height(h)` 的 h 同在此坐标系、旧出货帧同为 h＋34）；病灶只在量测项：in-sheet 托管视图 sizeThatFits 计入托管视图自身底部安全区 +34、返回值虚高一计、内容区内形成死空。候选①（run 43771255622：resolver 返回值减托管视图实测安全区）：sheet=170.67、presentedIdeal 仍 170.67——量测项改由返回值侧抵消、帧带不动，双计变单计但 presentedIdeal 与 ideal 仍差 34，**不净**；同轮增行 collapsed 帧恰等于内容高（该窗安全区带未及传播、带为 0），佐证帧带跟随窗口安全区而非内容。候选②（run 43775386020）：托管视图底部安全区**源头归零**——落点修正：`safeAreaRegions` 是 UIHostingController 类型化 API、本桥经响应链只得 SwiftUI 所建 sheet 宿主的 UIViewController 泛型面（首试 run 43775014811 编译实证不可达），改走 UIViewController `additionalSafeAreaInsets` 反向补偿（按实测总量反推区域分量抵消、不写死数值、重入不累加）。实测：**presentedIdeal=136.67＝ideal 逐值相等、safeBottom=0.0**、sheet=170.67＝ideal＋帧带 34（装配容差 48 内、与旧 `.height()` 出货几何一致）、装配两例全过；增行帧差 102 系装配第二窗安全区带中途到达的 harness 假象（内容增量逐值 +68、带恒定时帧差即 68，第二轮双带在场读数已证），机制（指纹→invalidate→重解）不变。**全账**：Core 2160/2160、0 failures；红 11 件全签名内（App §257.1＋R2 ⑧；UI 第 95 条族 9）；VERDICT／HUB-LAYOUT／MATRIX 三 PASS（键盘矩阵 rig 本轮绿）；§184 宿主重启 1 次、BackingData 零命中；**签名外红零**。A-08 至此判绿，未组版（进 .61）。
-
-## §304 0.50.61 组版（2026-11-16；分支 rel-05061，基线 rel-05060@5f77967）
-
-**版号**：0.50.61／构建 189（Project.swift 四值与设置页版本串两行同改，旧号在改动文件内零残留已 grep 验）。
-**装车三包**：①第 100 条新面键盘跟随热修（feat/native-kb-follow-fix@9a3f49e；本档 §302）——新面舱落位回 §194 通知帧顶单常量＋同参动画、kbSnapshot 同源收口（ChatRootViewController 自持通知订阅、syncBottomConstant 单点算、同源同拍供数），旧面零改动；②横扫 A-08 附件面板定高收口（feat/attachment-height@b1a32e9；本档 §303）——三代量测回路退役、UIKit Detent.custom(resolver:) 定高，+68 安全区双计经候选②（additionalSafeAreaInsets 反向补偿）收口判绿（§303.2）；③横扫 B-05 写闸 reason 单字段契约 App 半边（feat/writegate-reason-app@820f434；本档 §301）——模型直切 reason＋reason_phase、呈现单读口 ApprovalCardCopy.reasonLine，修复伴生 1.0.63 上线后审批卡防呆呈现静默失效的窗口。无数据迁移；服务端无改动（B-05 服务端半边已随伴生 1.0.63 在线）。
-**合并处置**：三包均自 rel-05059@9619b61 分叉、DESIGN 节号同拟 §299，按后合顺延例亲解——写闸节保留其自顺延 §301、键盘节顺延 §302（§302.1–§302.3）、附件节顺延 §303（§303.1–§303.2），三包代码自指全量同步；重编号后与各分支版逐文件对账，差异仅节号 token（ChatView 唯一实质差异＝听写瘦身已删的 DictationStageDiagnosticLine 调用点不复活、系合并正确取舍）。杂项清理：DESIGN §297.1 上方遗留冲突标记行（`>>>>>>> feat/chat-native-r4`，随 R4 合并误入）随本版清除（仅删该一行）；待办总表第 100 条长/短重号合并为一条（见待办账）。
-**主线裁定（第 100 条 ③⑯ 落底残差）**：接受为**登记已知项**随本版出货——量测分解已闭合（§302.3：静态分量两分支全零差，残差＝落定末钉后集合视图内部迟到 compositional 布局回调 3.0–4.0、与 R1 期 ≤2pt 残差同族；末行恒完整可见、末行→舱顶间距 20–21 对定版 24；落点后 wasAtBottom 为假、新消息走增长锚定分支为细微行为差），判据类修法两轮已尽（4.0→③ 3.0／⑯ 3.333），断言容差未动。③⑯ 在本版 CI 判读中按已知项登记、不作签名外红论；终验归真机（落底后发新消息看自动跟随贴底如常）。
-**浸泡口径**：.59 浸泡已因第 100 条裁定作废；本版即修复版，浸泡自本版起重算——本版真机验过（键盘组主验）且满一整版无承载级回退事件，R5 方可开门，本版不计 R5。
-**判定依据**：三包各自判绿（§301.1／§302.1–§302.3＋上主线裁定／§303.2）。
-**预期计数**：Core 2150/2150（基线 2153＋写闸新法 1−附件删定高钉测 4＋键盘 0，逐项对账）；键盘装配 ⑨ 机制正面证据复跑不退（舱底＝通知帧顶逐值、逐帧对账全过；中段采样为例行量测限制登记）；③⑯ 距底 3.0–3.333 已知项；App 红仅 §257.1 探针＋R2 装配 ⑧ 量测限制；UI 红仅第 95 条 AX 帧不稳族＋键盘矩阵 rig；§184 宿主重启 ≤1 次、BackingData 零命中。签名外新红停手报主线。CI 判读见 §304.1（回填）。
-**待办账**：第 100 条长/短重号合并为一条并划线（注 ③⑯ 残差已知项与浸泡重算口径、终验归真机键盘组）；99b 条 A-08 划线（已判绿、随本版组版）；第 101 条 B-05 划线（已判绿、随本版组版）；其余未完成条目原样保留带入。
-
-### §304.1 0.50.61 组版 CI 判读（2026-11-16 回填）——签名全合、已出货
-
-第一轮（run 43811159226@fa0996f，workflow_dispatch，全日志 24,485 行本地核账）：**Core 2150/2150、0 failures**——与预期逐项对账一致（基线 2153＋写闸新法 1−附件删定高钉测 4＋键盘 0）。键盘机制正面证据复跑不退：⑨ 装配打印 kbTopWin 随通知帧逐拍跟进（545→541→539→538…）、引导线采样恒 874 只作对照；ATTACH-FIT 复跑逐值同 §303.2（sheet=170.67、ideal=136.67、presentedIdeal=136.67 逐值相等、safeBottom=0.0）。App 红 5 件全登记：③ 距底 3.333＋末行→舱顶 20.667、⑯ 距底 3.667＋20.333（③⑯ 已知项，§302.3 分解带 3.0–4.0／间距带 20–21 内；§304 预期文案「3.0–3.333」为判据修法两轮读数、 判读带以 §302.3 分解账为准，特此对账）、⑧「0≠1」×3 量测限制签名、⑨ 唯一失败断言＝动画中段在途帧采样（量测限制登记、机制断言余项全过）、§257.1 探针（25/8/18/25、登记漂移带内）。UI 红 9 件恰第 95 条族（仲裁 4＋原生面 5）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS）。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。§184 签名内：宿主重启 1 次、BackingData 零命中。
-第二轮（run 43815787509@fa0996f，零改动同提交，全日志 24,916 行）：**Core 2150/2150 复全绿、与首轮逐数相同**；ATTACH-FIT 逐值复同。App 红同 5 件同签名：③⑯ 本轮距底同为 3.667、间距 20.333（已知项带内）、⑧/⑨/§257.1（24/8/18…）逐项同形态。UI 红 10 件＝第 95 条族 9＋键盘矩阵 1，矩阵失败串为登记原文「GAP 未成格（rig 定位失效）」（MATRIX-VERDICT=FAIL 由 rig 红带动，与 .55 以来同形态、首轮绿次轮红的涨落坐实 rig 不稳族、非 GAP 产品面）。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。§184 同签名（重启 1、BackingData 零命中）。两轮签名外新红零。
-**出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.61/OneDay-0.50.61-unsigned.ipa：**14,036,751 字节、md5 `ba9f2eae64dc69860b61dcb6c6cb9b6b`**，解包验 CFBundleShortVersionString=0.50.61、CFBundleVersion=189、bundle id site.didichou.oneday。待办总表已落：第 100 条长/短重号合并为一条并划线（注 ③⑯ 残差已知项与浸泡自 .61 重算口径）、99b 条 A-08 划线、第 101 条 B-05 划线，副本随交付目录；真机清单 25 项＝键盘组主验 6 项（跟随落位／中段帧对账／迟滞判别／底栏退场／落底后跟随贴底／升起流式不跳）＋附件观感与写闸原因行 2 项＋.60 未回 17 项原样带入（听写组 4＋手势五件 5＋续组 8）。未合 main、未打 tag。
-
-## §305 AppState router 收口包（2026-11-16；分支 feat/appstate-router，基线 rel-05060@5f77967；横扫 A-03＋A-28 附带；原自编号 §302，组版 0.50.62 顺延为 §305）
-
-**定性**：导航状态收口、行为逐项不变。病灶（横扫 A-03）：AppState 顶层散着 0.4.0–§219 六代「置位—消费—清零」信箱（约 20 字段各自为政、消费方各写 onChange 猜时序），`AppRoutes.swift` 自始只有两个路由枚举、信箱本体从未并入——汇编审计收口序 #8 在 .54 未执行、繁殖至今。
-
-**标准做法对账（施工前核查，详见包报告 §一）**：官方形态＝`NavigationStack(path:)` 绑定可编码类型化路由集合＋`navigationDestination(for:)` 统一解析（Apple Developer Documentation）——面内栈本仓已合规（设置页 `@State path: [SettingsRoute]`＋navigationDestination 全量映射，不动）；跨面深达的通行形态＝单个 @Observable Router 对象持有路由栈＋底栏格＋sheet 呈现槽、视图只发意图、深链解析后经同一 router 落地（社区通行实现多源一致）。本 App 是 TabView 壳＋各格自有栈，全局单 NavigationStack 须改页面结构（本包禁区），故落「Router 对象」一半：跨面一层收归唯一 AppRouter，面内栈维持各面自有。
-
-**收口清单**：①新立 `AppRouter`（@MainActor @Observable）：AppState 原 722–895 信箱段整组迁入——pendingAgentRoute/pendingSettingsRoute（跨页深链）、settingsSheetRequested（设置 sheet 槽）、mainTabSwitchRequest（底栏格）、fileRevealPath、pendingChatSessionID＋pendingChatChannelID（续聊落点，先标记后置 id 协议不变）、channelViewingOrigin（频道观看出处）、cronCreateRequested、hubDestinationRequest＋hubApprovalFocusID＋monitorDeepLink＋approvalAnchorRequest＋`requestHubDestination` 拆包函数（§123/§165 原样）、hubOpenRequested（枢纽 sheet 槽）、drawerPresented＋currentDrawerObject（抽屉呈现与当前对象）、feedOpenPostRequest/ideaOpenRequest（回跳）、drawerThreadSelection/drawerDeletedThreadID（抽屉↔聊天通道）。字段名、类型、置位—消费—清零协议逐项沿旧制，只换持有者；消费方约 25 文件 133 处 `appState.X` 机械改挂 `appState.router.X`。②`AppRoutes.swift` 删除，AgentRoute/SettingsRoute 两枚举迁入 AppRouter.swift——「仅枚举」文件退役。③A-28 顺带：`ManageSheet` 自 SettingsView 内部枚举上移 AppRouter.swift 公共层，WorkspaceHubView 不再反向借 `SettingsView.ManageSheet`。④草稿数据不随路由走（处方明示）：pendingFeedQuotesByThread/pendingSourceQuotesByThread 迁出为独立持有者 `PendingThreadQuotes`（AppState.pendingQuotes），按线程寻址/后入覆盖/只活内存口径逐项不变，17 处改挂。
-
-**与处方的差异（如实登记）**：处方「约 18 个字段收为路由 case」未落成单一枚举槽——现状各意图是独立并发通道（续聊落点与抽屉选择、回跳与切格请求常同帧并存，ContentView/ChatView 双消费方分工明确），并成单槽会引入今日不存在的覆盖竞态、即行为变更；落实为「单对象持有＋既有类型化落点枚举（AgentRoute/SettingsRoute/NotificationDestination）＋独立槽保留」，收口目标（单一真值、单一持有者、拆包逻辑归 router）达成，槽形从现状。fileLibraryRevision（§131 数据修订号、A-06 议题）与 drawerRefreshTick 非导航，未动。
-
-**行为对拍**：新增 `AppRouterTests` 11 例——requestHubDestination 七 case 字段落点＋返回值逐项对旧实现、意图独立槽同置不互扰、待发引用两表独立＋后入覆盖；既有 DiscussQuoteAttachReproTests（§210 待发引用 rig）、DeleteCloseoutTests、DrawerBridgeHarnessTests、TabBarFloatTests 随改挂继续钉。入口落点逐项（抽屉/深链/通知点达/频道/会话切换）由既有装配与 UI 签名族覆盖、本包零页面结构与视觉改动。
-
-### §305.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
-
-第一轮（run 43780880188@356672e，全日志 24,728 行本地核账）：**Core 2153/2153、0 failures**——与 rel-05060 基线逐数一致（本包 Core 零改动、计数不变，账面闭合）。新增 AppRouterTests 11/11 全过；§210 待发引用 rig（DiscussQuoteAttachReproTests）过，引用表换挂端到端成立。App 红恰 2 件同基线签名：§257.1（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」量测限制）。UI 红 10：第 95 条族原生面 5＋仲裁 4＋键盘矩阵 1（失败串明文「GAP 未成格（rig 定位失效）」，登记 rig 签名）。落底 NATIVE-LANDING 两组 4156.0/3352.0/0.0 与 .59/.60 逐值相同。§184 签名内（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=FAIL（rig 红带动）。
-
-第二轮（run 43784701560@356672e，零改动同提交，全日志 25,042 行）：**Core 2153/2153 复全绿、逐数同首轮**；AppRouterTests 11/11 复过；§210 rig 复过。App 红仍恰 2 件同签名。UI 红 9：第 95 条族原生面 5＋仲裁 4；**键盘矩阵本轮转绿**（MATRIX-VERDICT=PASS）——首轮 rig 红坐实涨落族成员、非本包产品反例（本包对键盘面零改动）。落底三数复同值。§184 同签名（重启 1、BackingData 零命中）。VERDICT=PASS、HUB=PASS、MATRIX=PASS。签名外新红两轮均零。
-
-**§305 判定：判绿**（预制面，不组版）——信箱群收口落码与对账见 §305 正文；行为对拍两轮全绿（拆包七 case、独立槽、引用表、§210 端到端 rig、落底三数）；全部红属登记签名族且无一落在本包改动面（导航状态的 CI 覆盖＝AppRouterTests＋既有装配/UI 签名族，均按基线形态出现）。真机面无新增验收点（零页面结构/视觉改动），各入口落点随下一组版真机清单顺带目验即可。
-
-## §306 台账单流（2026-11-16；分支 feat/ledger-single-stream，基线 rel-05060；横扫 A-05；原自编号 §303，组版 0.50.62 顺延为 §306）
-
-**定性**：台账数据面收敛为服务端单流——同一件事只许一个账。病灶三层（nonstandard-sweep-ui-20261115.md A-05）：①§217 因服务端台账采集器无监测源，客户端把 /monitors 变化合成同形条目（LedgerMonitorSynthesis），临时桥成永久层；②合成账与服务端账分开持有（LedgerStore.monitorItems）、每次拉取整体重算防「互相污染」；③刷新是 N+1 串行拉取（逐个有变化的监测再拉 monitorChanges）＋10 秒轮询＋snapshotSeq 增量合并＋clockOffset 校准，自成一套双源新鲜度机器；页首计数靠 headerCounts 只认服务端账人工维持。
-
-**改前先搜对账**：成熟产品活动流均为服务端聚合后的单流 API、客户端不拼源——GitHub 官方文档（REST Activity/Events：「GitHub events power the various activity streams」、事件面以 ETag＋X-Poll-Interval 供轮询消费，服务端时间线单出口）；Stream 官方文档（activity feeds 为服务端 feed、客户端只查询）；Linear 的 Issue History 为服务端实体经 API 下发（第三方复制文档旁证）。持续更新的推送/长连接（APNs、WebSocket）为官方增强通道、轮询＋游标是通行兜底。本包与处方一致：服务端补源＋单流下发＋客户端 since 增量轮询保留为兜底，不新造推送通道（超出本包范围）。
-
-**现状差异（如实登记）**：横扫称「服务端无监测源」已不全准——伴生 oneday_seg_monitors 的变化折叠（_record_check_locked）是变化记录的唯一写路，其内已有写时钩 _ledger_monitor_change 在记账，但形状错位：kind=job（活动行会以「已完成的工作」呈现、与 §217 事件口径相悖）、标题「监测变化 · 监测名」丢变化摘要、id 为 job:monitor: 前缀（通知深链聚焦按 monitor-change: 式换算落点会对不上）。即双账并存的不是「有没有源」，而是「源的形状不对＋客户端又合成一份」。生产实查（2026-11-16）：监测 0 个、变化 0 条、账内 job:monitor 条目 0——双账尚未在生产数据里相撞，本包是在首个监测出现前把单流立正。
-
-**伴生改法（1.0.64）**：①写钩改产规范形 _ledger_monitor_item——与退役合成逐字段同形：id `monitor-change:<变化 id>`、kind=monitor、source=bridge、title=变化摘要（去空白后为空才回落监测名）、titleSource=monitor_change、status=completed、startedAt=endedAt=lastEvidenceAt=detectedAt、origin=bridge_self、link={monitor, 监测 id}。②采集器补监测源 _ledger_monitor_reconcile：挂台账采集器同一节拍（LEDGER_COLLECTOR_SECONDS），对桥自身变化账（_db["changes"]）逐条 create_or_merge 补行——治钩子异常吞没的漏记与服务端源出现前的存量变化；幂等（同 id 折叠、无变化不落事件）。③ledger.py 本体零改动（Collector 不接新 provider，收敛在桥段内完成，与 C-4「采集器只摄入事件文件」不冲突：监测源是桥内自产事件、走桥段对账环）。
-
-**App 改法**：①LedgerStore 删 monitorItems 分账、refreshMonitorItems（N+1 拉取链）与专用 bridgeClient；allItems = 服务端单流定序；load/poll 只剩 /ledger 单流（全量＋since 增量）＋summary 尽力而为，10 秒可见轮询与 clockOffset/snapshotSeq 保留——它们自此只是单流的增量与时钟口径，不再是双源机器。②LedgerMonitorSynthesis.swift 整文件退役、专属测试随删；其批量窗口（逐监测 20／总量 50）是客户端拉取面口径、随合成退役——服务端账按台账自身留存（变化账上限逐监测 100＋台账 compact 留存）记全量事件，口径差异在此登记。③id 契约迁 Core LedgerMonitorChange（itemID/isMonitorChange，前缀 monitor-change:）：HubLedgerSection 深链聚焦换算与 LedgerDetailView「监测条目不走台账详情面」识别改挂本契约，语义逐项不变。④新 Core 测试 LedgerMonitorChangeTests：id 契约＋kind 解码/词＋副题事件口径＋服务端线形夹具（审批＋任务＋监测同流同列，监测条目以 _ledger_monitor_item 产出形入载荷、列表面无 history 键）。
-
-**行为对拍（呈现逐项不变）**：活动行——kind=monitor 的图标（眼标不打勾）、副题（「监测变化 · 时刻」）、分组/定序（LedgerMerge.sorted 同一排序）均由既有呈现层按 kind 驱动、与数据来源无关；行点达——link.kind=monitor → MonitorDetailView 不变；通知深链聚焦——id 式同为 monitor-change: 不变；页首计数与进展胶囊——只数 active/状态口径，监测条目恒 completed、与旧制（合成账本就不入 items）等效；已耗时秒级跳动——只对 active 条目，监测条目不入；僵尸失联阶梯——只作用于 active 服务端条目、逻辑零改动；详情面——监测条目仍不走台账详情（识别改 id 契约），工作条目详情不变。
-
-**验收**：伴生 ledger_selftest 新增 Part D（种子变化回填＋规范形逐字段＋空摘要回落＋幂等＋实火 check 变化经钩入账＋summary 不冒充进行中）；App 两轮全量门 §190 核账，Core 基线以 rel-05060 为准（2153 减退役合成测试 8 例＋新增契约测试 4 例＝预期 2149，判读时逐项对账）；红只认登记签名族。真机面：首个真实监测变化出现时在活动段目验一行（标题＝变化摘要、副题＝监测变化 · 时刻、点达监测详情）——生产当前无监测，此项挂组版清单顺带，不单独催验。
-
-### §306.1 判绿与部署记录（2026-11-16）
-
-**App 判绿（第一轮全量门即达）**：分支 feat/ledger-single-stream@1f23b86，CI run 43790474498（workflow_dispatch 点火）。§190 全日志核账：OneDayCore **2149/2149 全绿**——与预期逐项闭合（rel-05060 基线 2153 − 退役合成测试 8 ＋ 新契约测试 LedgerMonitorChangeTests 4/4 全过）。失败共 11 例、全部落在登记签名族内：R2 ⑧ 量测限制 1 例（ChatNativeListR2AssemblyTests.testBlockClosureKeepsSegmentInExactlyOneItem，渲染树计数 0 vs 1＝托管文本不可达形态、与登记签名同形，兄弟装配例全过）；§257.1 探针红 1 例（EdgeEffectProbeTests）；第 95 条 UI AX 帧族 9 例（ChatGestureArbitrationTests 4＋ChatGestureNativeSurfaceTests 5、双面同签名、最终验收归真机清单首组）。§184 签名零命中（BackingData 0、宿主崩溃/重启标记 0）。签名外新红为零，本包 diff 不触任何失败面（仅台账数据流），第一轮即判绿、不启用第二轮。
-
-**伴生 1.0.64 已上线**：镜像 oneday/companion:1.0.64（sha256:022fc96c…），构建目录 /root/build-1.0.64，关键文件 md5 与本地逐一一致（oneday_seg_ledger.py d7ca9573…）；上线前镜像内装配预检过（桥模块导入＋_ledger_monitor_item 规范形断言＋空摘要回落）。ledger_selftest 全套 66/66（含 Part D 六段）。回滚基线 /root/companion-1064-backup/（docker-compose.yml.pre、companion.env.pre、image-1.0.63.txt；1.0.63 镜像仍在机）。上线回读：容器镜像与 COMPANION_VERSION 均 1.0.64；部署码含新写钩与对账环（grep 实证）；日志 Traceback 0；oneday 桥 /health ok、degraded=false、台账 940 条（部署前基线 937＋采集事件 3、无丢失无虚增）、collector lag 3.2s；各模块端口应答（8643/8644 401 鉴权在、8646–8649 200、8650 前台应答）；Hermes cron 恰 4 个系统轮全启用未动；内存 53.6%（部署前 53.9%、红线 80% 未触）。生产监测仍为 0——首个真实监测变化的活动行目验挂组版真机清单顺带（见 §306 验收节）。
-
-**待办登记**：user-demand-checklist.md 第 103 条。
-
-## §307 第 104 条 到达瞬间动画减法（2026-11-16；分支 feat/arrival-motion-slim，基线 rel-05060@5f77967；原自编号 §305，组版 0.50.62 顺延为 §307）
-
-> 节号避让：施工时按并行分支占用取号——§301（B-05 写闸原因）、§302（A-03 router 收口）、§303（A-05 台账单流）、§304 预留 A-04，本条取 §305。组版 0.50.62 合并后全树定号为 §301 写闸／§302 键盘热修／§303 附件定高／§304 0.50.61 组版／§305 router 收口／§306 台账单流／§308 目标单轨，本节顺延为 §307，本注记按定号校正。
-
-**起因**：用户 2026-11-16 10:54 真机录屏实报「消息出来，怎么感觉不对劲，动画太多了」。录屏环境＝旧面 gen3 承载（用户今晨已关原生重建开关）＋gen4 块级流式，呈现层两面共用，本条修复全落共用层。定因与逐帧证据见报告 arrival-motion-slim-20261116.md。
-
-**定因（到达瞬间四重同拍叠加）**：①指示器换装＋气泡宽度两跳——等待点点与正文同在 ChatView `streamingBubble` 的同一气泡内按 text 空/非空换装，无显式转场，但 TokenFlow 按含未入场词元的全量文本落位：首批到达时内容不可见而占位已全宽，视觉＝点点药丸→仅光标小药丸→全宽泡两跳。②词元 stagger blur 扫过（主犯）——StreamingText 每词元 blur 6→0＋opacity、逐词元错开 30ms、批封顶 240ms，增量持续到达使扫过近乎全程持续。③块闭合换渲染器微闪——尾块 StreamingText 与闭合前缀 MarkdownText 同拍换代、布局引擎不同。④跟随贴底逐拍——承载在底时逐布局拍无动画钉底（`animated:false`／contentOffset 直钉），观感上的持续上滑＝行高逐拍生长＋逐拍钉底的合成，非独立滚动动画。**重影定因**：原生分辨率逐帧复核无任一帧文本双渲染（旧文单绘；闭合前缀与尾块构造互斥，§247／R2 H4 静态定案在案）；「一帧混乱」＝旧气泡首行被顶簇磨砂背板 blur 溶化涂抹＋30fps 录屏对运动文字的采样/HEVC 涂抹＋四重运动同窗叠加的合成观感，非双渲染缺陷。
-
-**改前先搜（对账口径）**：公开文档级——ChatGPT 逐块即时落字、无逐字 fade，平滑来自投递节奏＋滚动贴合（第三方 iOS UX 规格实测记录）；Claude 块略大、光标弱化；iMessage 指示泡与消息泡同槽、消息泡原位取代点点、不交叉叠演。苹果官方原文级无 AI 流式呈现规范（HIG 未覆盖），按公开文档级登记。
-
-**修法（到达瞬间只许一个主动画）**：
-- Core 新增 `StreamingTypewriterFeature`（键 `chat.streaming.typewriter`、缺省开）＋`StreamingEntrance.plan(typewriterEnabled:reduceMotion:isFirstBatchOfGeneration:)` 纯函数：首批（本代次尚无已显词元，含指示器换装拍与换代重发）→`.instant` 整批直显；开关关或 Reduce Motion→`.instant`（Reduce Motion 优先）；其余批次→`.batchFade` 整批同拍单次渐显。
-- StreamingText.reconcile 重写：删逐词元 stagger 任务循环与 noBlur 退化档记账；pending 按 plan——instant 同拍 formUnion、batchFade 只起一个无延时任务整批翻 visible（代次守卫保留）。StreamingTokenView 删 blur 与 flat——只剩 opacity＋`.animation(resolved(streamIn), value: shown)`：单次轻渐显＝最新批 opacity 120ms 齐发。**§14 条 4 的 blur 6px＋30ms stagger 定版据本条退役**，文件头注释同步改口径。
-- 落底不改：现状即无动画钉底（两面皆然）；改动画追随＝与内容生长叠成第二主动画（0.4.1 前无限重启追逐旧病），成熟口径为投递节奏＋贴合。
-- 开关落位：设置→外观新增「回复呈现」节（模式之后、语言之前）——Toggle「打字动画」绑 `@AppStorage(StreamingTypewriterFeature.defaultsKey)`，区脚注明关后整批直显与 Reduce Motion 恒优先；StreamingText 以同键 @AppStorage 消费，键名单一事实源在 Core。
-
-**测试**：Core 新增 2 例（开关缺省/显式回读＋键名钉死；plan 五格真值表），Core 基线 2153→预期 2155。App 侧 StreamingTokenScopeTests：词元视觉层断言改钉新语义（不许含 `.blur(`、opacity＋streamIn＋value: shown 在场）；新增源码守护两例（reconcile 路径无 Task.sleep／无 noBlur＋须消费 StreamingEntrance 与 Core 键；外观页开关落位＋键名字面量不许在聊天侧复写）。TokenFlowArranger 缓存语义组不动。
-
-**真机验收点**（组版清单带入）：发一条回复看到达瞬间——无药丸跳宽、无扫过感、列表不追逐；关「打字动画」后整批直显。
-
-### §307.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
-
-提交 8ab2ac1。第一轮 run 43795970815（全日志 24,592 行）、第二轮 run 43800526217（零改动同提交，24,981 行）：**Core 两轮均 2155/2155、0 failures**——基线 2153 恰加本条新增 2 例（开关回读＋plan 真值表），账面闭合；App 侧改钉/新增 3 例（视觉层 opacity-only、调度无 stagger 机器、开关落位）两轮全过。App 红两轮恰 2 件同签名：§257.1 探针＋R2 装配 ⑧（量测限制）。UI 红两轮恰 10 件：第 95 条族 9（仲裁 4＋原生面 5）＋键盘矩阵 1（第二轮失败串为登记原文「GAP 未成格（rig 定位失效）」；第一轮同件为快照元素定位失败，同 rig 族涨落、无产品断言触发；MATRIX-VERDICT 第二轮=FAIL 由其带动、与 .55 以来同形态）。落底续证两轮逐值不变：NATIVE-LANDING 与 R4 均 4156.0/3352.0/0.0。§184 签名内（BackingData 两轮零命中、teardown 标记 true）。VERDICT 两轮=PASS、HUB=PASS。签名外新红零。
-
-**§307 判定：判绿**（预制面，不组版）——真机验收点归主线组版清单：发一条回复看到达瞬间无药丸跳宽、无扫过感、列表不追逐；关「打字动画」后整批直显。
-
-## §308 目标↔Kanban 单轨包（2026-11-16；分支 feat/goal-kanban-single，基线 rel-05060@5f77967；横扫 A-04；伴生 1.0.65；原自编号 §306，组版 0.50.62 顺延为 §308）
-
-**病灶**：目标与看板任务的关联有两本账——桥侧 goalTaskLinks 链接集合（App 判定真源）＋ GD-2 读面行（呈现真源），App 委派是两步两账（直连 Dashboard 建卡→回桥 POST 补链接），中途失败留「卡在、关联不在」的半成品；回响完成戳挂在链接记录上、与任务本体分离。
-
-**改前先搜（市面成熟做法，分级）**：Linear（官方文档级）——Issue 自带 projectId 单值字段，create/update 时设定，项目进展＝其下 Issue 状态的读时派生，没有第二本关联账；Notion（官方文档级）——Relation 是长在记录上的属性、双向关系是服务端维护的同一关系的两个投影，Rollup 计数读时派生。与处方对账一致：关联＝任务实体上的单值字段＋反查读时派生。
-
-**字段落点（与横扫报告的出入，实查定版）**：报告设想 goalId 落 Hermes 看板卡本体——生产实查 Hermes kanban tasks 表为固定列 schema（title/body/assignee/status/priority/project_id/tenant…，无 goalId、无通用 metadata 列），且 Hermes 是上游镜像不可改。字段落**伴生侧任务属性账**（伴生是目标域属主、补 API 不加桥）：`_db["taskGoals"]`＝{taskId: {goalId, milestoneId, assignedAt, delegateKey?}}，字典键天然单值。回声 exactly-once 账独立为 `_db["goalEchoState"]`（桥轮询私有、永不下发，只经 GD-2 行 completionEntryAt 只读投影给 App 回响规划）。
-
-**服务端（伴生 1.0.65）**：①迁移 `_migrate_goal_task_links()` 挂 _load 成功路径末尾自带容错：存量链接按 createdAt 升序折叠、最早者赢、同任务多目标余者计 conflicts、死目标链接计 dropped、完成/停滞戳播种 echoState、meta.taskGoalMigration 留计数账；失败只记日志、链接保留下轮重试，绝不进降级路径。生产实数：目标 1、链接 0 条——迁移零行（实现与自测合成数据对账为准）。②新写面：`PUT /tasks/{taskId}/goal`（goalId 必填键、null＝清除并清回声账；里程碑不属该目标 400、目标不存在 404）与 `POST /goals/{id}/delegate`（桥经 Dashboard 通道建卡——卡体与旧 App 直连同形：assignee "default"、body 由桥按目标标题自拼、idempotency_key 透传——催派 best-effort，字段落字在网络往返外短锁完成；带 delegateKey 的同键重试先查已有归属直接返回、不重复建卡；建卡失败 502 且不落归属）。③兼容投影一周期：GET/POST /goals/{id}/task-links 保留为字段之上的薄投影（合成 link id＝"gt_"+taskId、戳记按 echoState 且 goalId 匹配时下发；POST 写穿字段——注意语义差异：任务已属他目标时是**移动**而非旧集合的双行共存），删除门＝新 App 出场＋日志零命中（仿桥-2 先例），理由：1.0.65 先于新 App 上线、生产 .60 App 仍调此面，先破后立不可接受。④读面全改读字段：GD-2 行加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 合成同值续发；GD-1 活动派生 wire 字段名全保留；未归类面排除集改字段键集（kanbanBindings 自带 goalId 的行排除逻辑不动）；删目标级联改清字段＋回声账；automation 建卡带 goalId 改写字段。⑤自测：新增 goalsingle 32 例（迁移折叠/幂等、PUT 置/移/清＋400/404、delegate 桩测建卡体与同键重试不重复建卡、兼容投影形状、删目标级联、迁移戳挡回声重发）；既有 gd1b/p6 戳记断言改读 echoState；全套红与改前基线逐字相同（p3 时界＋fileproc 本地环境），零新红。
-
-**App**：Core 删 GoalTaskLinks.swift（链接三件套＋旧 GoalAssociations），新增 GoalTaskAssignment.swift（BridgeTaskGoalAssignment／BridgeTaskGoalWrite——goalId 显式 null 编码，桥靠键在不在区分清除与漏传／BridgeGoalDelegate 请求与回执／新 GoalAssociations 行驱动拼装：只认行 goalId、同任务只出一次）；BridgeGoalTask 加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 转容忍解码、id 改 taskId；GoalEcho 完成判定改读行戳（口径不变：桥事实条目落下后才有戳）、回响键改 "goalTask:<taskId>:<kind>"（生产链接为零、旧键从未落盘、无迁移负担）。客户端删 goalTaskLinks/createGoalTaskLink，加 delegateGoalTask/setTaskGoal。GoalsStore：删 taskLinksByGoal、loadDetail 四路改三路、delegateTask 单调用＋回读目标任务面确认行出现（旧「任务板未开通」探板前置步消失、失败文案归并一处）、assignUngroupedTask 改 setTaskGoal＋双面回读，乐观摘行/失败放回纪律不变。GoalsView：关联段与回响物化改读 goalTasksByGoal 行、行身份改 taskId、最近变化时刻直读行 updatedAt。
-
-**行为对拍（硬口径）**：目标页分组（行序＝归属落字升序＝旧链接 createdAt 升序）、任务归属显示、里程碑挂靠、GD-1 进展计数、回响五类与文案、未归类面构成——逐项同旧。差异登记四处：①字段落伴生而非卡本体（上游 schema 约束）；②兼容 POST 的移动语义（单值字段的必然结果，与「一件事只归一个目标」的产品口径一致）；③delegate 失败文案归并（探板步消失）；④演示态下 delegate 由「桥调用处失败」变为「单调用失败留人话 note」（失败形态等价）。
-
-**未搭载**：A-11（GoalsView 拆分＋条目流 LazyVStack）不在本包——简报口径全为 goalId 项，拆 2452 行巨型视图放大爆炸半径、危及呈现对拍，建议另立结构包。
-
-### §308.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
-
-第一轮（run 43797017399@e68ce56，全日志 25,292 行本地核账）：**Core 2157 执行、1 红**——基线 2153＋本包新增 4 例（归属解码/显式 null 编码/委派请求编码/只认行 goalId）＝2157 逐项闭合；唯一红＝GoalsTailTests `testGoalTasksDecodeLiveAndOffBoardRows` 仍断言旧行身份（id == linkId），属本包契约变更面，已按新契约修（行身份＝taskId、夹具新旧线形各一行钉容忍解码）。App 红恰 2 件登记签名（§257.1 探针＋R2 装配 ⑧ 量测限制）；UI 红 9 件恰第 95 条手势族（原生面 5＋仲裁 4、AX 帧不稳同签名、无产品反例）；键盘矩阵本轮绿。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。§184 签名内：BackingData 零命中。
-
-第二轮（run 43801092767@bf03c28，全日志 25,045 行）：**Core 2157/2157、0 failures**，与首轮逐数一致、GoalsTail 转绿。App 红恰 2 件同签名（§257.1＋⑧）；UI 红 9 件同族同构成；VERDICT/HUB/MATRIX 三 PASS。§184 BackingData 零命中。签名外新红零。
-
-**§308 判定：判绿**（预制面，不组版）——行为对拍由 Core 钉测（回响五类口径、关联拼装只认字段、行解码新旧线形）＋伴生自测 748 过（红与改前基线逐字相同）双面覆盖；伴生 1.0.65 已部署（见交卷报告 goal-kanban-single-20261116.md 的上线回读账）；待办总表登记第 105 条（未划、待组版）。真机验收点随组版清单：目标里安排一件事→任务面出现＋办完后目标进展与绑定旁聊各落一条；未归类任务一键归组后从未归类面消失、目标关联段出现。
-
-## §309 0.50.62 组版（2026-11-16；分支 rel-05062，基线 rel-05061@7f32ea4）
-
-**版号**：0.50.62／构建 190（Project.swift 四值与设置页版本串两行同改，旧号在改动文件内零残留已 grep 验）。
-**装车四包**：①横扫 A-03 AppState router 收口（feat/appstate-router@8074b53；本档 §305）——信箱段整组迁入唯一 AppRouter、AppRoutes.swift 删除、A-28 ManageSheet 上移公共层、待发引用表迁出独立 PendingThreadQuotes；②横扫 A-05 台账单流（feat/ledger-single-stream@2367b91；本档 §306）——App 删 LedgerMonitorSynthesis 合成层与 monitorItems 分账、allItems 只剩服务端单流（伴生 1.0.64 已上线）；③第 104 条到达瞬间动画减法（feat/arrival-motion-slim@2875bf2；本档 §307）——首批整批直显、流式仅最新批单次轻渐显、stagger blur 退役、「打字动画」开关落地（键 chat.streaming.typewriter、默认开、Reduce Motion 优先）；④横扫 A-04 目标↔Kanban 单轨（feat/goal-kanban-single@cb0c9c8；本档 §308）——任务 goalId 字段作唯一关联真值、委派单调用、存量链接折叠迁移（伴生 1.0.65 已上线）。无新数据迁移；服务端无改动。
-**合并处置**：四包均自 rel-05060@5f77967 分叉、自编号 §302／§303／§305／§306（与 rel-05061 既有 §302 键盘／§303 附件及彼此撞号），按后合顺延例亲解——按装车序顺延为 §305（A-03）／§306（A-05）／§307（第 104 条）／§308（A-04），各节标题注原自编号、代码自指全量同步（A-03 代码 8 行、A-04 代码 21 行按分支行内容限定范围重编号，A-05／第 104 条代码面零自指）；重编号后逐文件对账：非重叠文件与分支版（token 替换后）逐字一致，重叠文件（A-03×.61 的 ChatView、A-03×A-05 的 HubLedgerSection/LedgerDetailView、A-03×A-04 的 GoalsView）以「合并增量＝该包改动集」定向对账全合；第 104 条 §307 的「节号避让」注记按合并后全树定号校正（原文保留施工时取号史）。各包既定口径未动（AppRouter 单对象持有形态、goalId 单轨、StreamingEntrance.plan 纯函数口径均为定版原样）。
-**判定依据**：四包各自判绿（§305.1／§306.1／§307.1／§308.1）。
-**预期计数**：Core 2152/2152（.61 基线 2150＋A-03 0＋A-05 −4（退役合成测试 8−新契约 4）＋第 104 条 +2＋A-04 +4，逐项对账；四包与 .61 的 Core 测试文件零交叉）；.61 键盘正面证据复跑不退（⑨ kbTopWin 逐拍跟进、舱底＝通知帧顶；中段采样为例行量测限制登记）；③⑯ 距底 3.0–4.0 带内已知项（§302.3 分解账）；落底三数与各包判绿值对账（NATIVE-LANDING 4156.0/3352.0/0.0）；App 红仅 §257.1 探针＋R2 装配 ⑧ 量测限制＋③⑯ 已知项＋⑨ 中段采样断言；UI 红仅第 95 条 AX 帧不稳族＋键盘矩阵 rig；§184 宿主重启 ≤1 次、BackingData 零命中。签名外新红停手报主线。CI 判读见 §309.1（回填）。
-**浸泡口径**：.61 起重算不变——本版真机验过且满一整版无承载级回退，R5 方可开门；本版键盘组仍为浸泡主验（.61 清单未回项原样带入）。
-**待办账**：第 102 条（A-03）／第 103 条（A-05）／第 104 条（动画减法）／第 105 条（A-04）划线（均已判绿、随本版组版）；其余未完成条目原样保留带入。
-
-### §309.1 0.50.62 组版 CI 判读（2026-11-16 回填）——签名全合、已出货
-
-第一轮（run 43820849968@149c4bf，workflow_dispatch，全日志 24,455 行本地核账）：**Core 2152/2152、0 failures**——与预期逐项对账一致（.61 基线 2150＋A-03 0＋A-05 −4＋第 104 条 +2＋A-04 +4；四包与 .61 的 Core 测试文件零交叉）。键盘机制正面证据复跑不退：⑨ 打印 kbTopWin 随通知帧逐拍跟进（545→541→539→538…）、引导线采样恒 874 只作对照；落底 NATIVE-LANDING ③ 距底 3.667／R4 ⑯ 3.333、末行完整可见（§302.3 分解带 3.0–4.0 内、第 100 条已知项）。App 红 5 件全登记：③⑯ 已知项 2＋⑧ 量测限制＋⑨ 唯一失败断言＝动画中段在途帧采样（量测限制登记、机制断言余项全过）＋§257.1 探针。UI 红 9 件恰第 95 条族（仲裁 4＋原生面 5）。VERDICT／HUB-LAYOUT-VERDICT／MATRIX-VERDICT 三 PASS（键盘矩阵本轮绿）。§184 签名内：宿主重启 1 次、BackingData 零命中。
-第二轮（run 43826686474@149c4bf，零改动同提交，全日志 24,988 行）：**Core 2152/2152 复全绿、与首轮逐数相同**；落底 ③ 3.333／⑯ 3.667（带内涨落、与首轮互换）；⑨ 同为中段采样单断言、kbTopWin 逐拍跟进复同。App 红同 5 件同签名、UI 红同 9 件同构成；三 VERDICT 复 PASS（矩阵复绿）。§184 同签名（重启 1、BackingData 零命中）。两轮签名外新红零。
-**出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.62/OneDay-0.50.62-unsigned.ipa：**14,035,482 字节、md5 `6a4f5713bc25134dfb4de01ec4e2e939`**，解包验 CFBundleShortVersionString=0.50.62、CFBundleVersion=190、bundle id site.didichou.oneday。待办总表已落：第 102／103／104／105 条划线（各注组版顺延定号 §305／§306／§307／§308），副本随交付目录；真机清单 31 项＝本版新增 6 项（A-04 目标安排/回响＋未归类归组易位、第 104 条到达瞬间观感＋打字动画开关、A-05 首个监测变化目验（生产现无监测、非阻塞）、A-03 导航落点抽查）＋.61 未回 25 项原样带入（键盘组为浸泡主验；仅原第 18 项版号字面 .61→.62）。未合 main、未打 tag。
-
-## §310 横扫 A-06 文件聚合服务端化（2026-11-16；分支 feat/files-server-aggregation，基线 rel-05060@5f77967；原自编号 §307，组版 0.50.63 顺延为 §310）
-
-**病灶（横扫登记 nonstandard-sweep-ui-20261115.md A-06）**：文件页聚合集由客户端递归爬目录拼装——DeliverablesView.collect() 对 8 个硬编码产出根 outputRoots 走 BFS（每根深度 ≤3、visited≥600 静默截断只 break 无提示），逐目录串行调 GET /api/files，客户端过 DeliverableAdmission 准入＋seenPaths 去重＋mtime 排序，根散文件另过扩展名白名单＋SensitiveFilePolicy.protectedNames 第二道；刷新靠 AppState.fileLibraryRevision 全局修订号触发全量重爬。打开文件页＝数十次串行目录请求；根清单三代收紧（P8 十根→0.22.0 F1 七根→0.36.31 加 attachments 八根）全靠改客户端，服务端始终没有「交付物」读面；600 截断是静默丢数据。
-
-**标准做法（登记口径）**：文件类产品由服务端/提供方给出已索引的单一列表读面、客户端只分页消费（iOS File Provider 官方文档模型：NSFileProviderEnumerator 由提供方枚举，Files App 不爬目录树）；硬编码路径清单＋客户端递归枚举无同行出处。
-
-**修法（聚合整层上收服务端、客户端只消费单流）**：
-- 伴生新增聚合读面 `GET /api/oneday-bridge/file-library`（新段 modules/oneday_seg_filelibrary.py，桥核心只加段加载＋路由＋分发方法）：8 产出根（相对 FILE_LIBRARY_ROOT、标签逐字沿客户端旧表）＋根目录散文件在服务端走查——深度 ≤3（与客户端 BFS 同界、准入集不变）、准入（DeliverableAdmission 逐行移植：隐藏全拒、内部后缀/主干形态全来源拒、根散扩展名白名单＋protectedNames 原样大小写集精确匹配第二道——大小写怪癖按对等原则原样保留、只登记不顺手改）、seenPaths 去重（根序优先、根散最后，与客户端 absorb 顺序一致）、mtime 倒序（缺失记 0、同客户端键）。条目与 /api/files entries 同形（name/path/is_directory/size/mtime/mime_type，mime 改由服务端按扩展名推导——客户端 mediaKind 本就以扩展名兜底、口径不降）＋source 标签。
-- **无计数上限、永不静默截断**：回执 {items,total,offset,limit,truncated:false}，total 恒报准入全量；offset/limit 分页是调用方自选（默认整集下发），600 封顶随爬树退役。
-- App：DeliverablesView.collect() 改单次 bridgeClient.fileLibrary 映射条目（BFS/outputRoots/客户端准入/去重/排序全删）；Core 新增 FileLibraryModels（条目复用 WorkspaceFileEntry 解码＋source、回执契约钉测 2 例）；Core DeliverableAdmission.swift 与其测试退役（准入单一事实源移服务端、污染样本 9 名＋形态变体由伴生自测钉死）。fileLibraryRevision 保留为刷新触发（语义降为「单次重拉」：改名落点 FileOpenView  bump 不变、成本由全量重爬降为一次请求）。失败口径：首拉失败给错误态（原文案不变）、已有数据时刷新失败保留旧集不清屏（与回响链「拉取失败不清空」同口径，严于旧形态的全失败置空）。
-- 删除/下载/打开等动作面不动（仍走 Hermes /api/files 单文件面）；服务端文件全量浏览（FilesBrowserView）不在本包。
-
-**存量兼容与删除门**：新读面纯新增，Hermes /api/files 与桥既有面零改动——伴生 1.0.66 先上线，生产 .60 旧 App 照旧爬树可用（已回读 goals/ledger/monitors 200 实证）。兼容面＝Hermes /api/files 目录列表形态中被旧聚合依赖的部分，其删除门＝新 App（消费 /file-library 的版本）出场＋nginx 日志对旧聚合调用形态零命中满一周期后另立收口（本包只登记门、不动 Hermes）。
-
-**伴生侧验证**：新增 tests/oneday_filelibrary_selftest.py 16 例全过（鉴权、聚合集与顺序/来源、条目同形、污染 9 名＋形态变体＋隐藏＋受保护名全拒、深度 3 收/深度 4 拒、根内跳过扩展名白名单、分页切片/total 恒全量/越界空页、负 offset 与非整数 limit 400、POST 405），已注册进 run_bridge_selftests.sh；全量自测改后与改前基线逐 suite 同签名（24 OK＋新 suite OK；既有红 3 件逐字不变：p3 时界 1 例、p9 暂存环境缺 scripts 路径、fileproc rendition 本地环境 503）。
-
-**伴生 1.0.66 已上线验活（2026-11-16）**：镜像 oneday/companion:1.0.66（构建目录 /root/companion-1066-build），只 recreate companion、Hermes 未动；回滚基线 /root/companion-1066-backup/（companion.env.pre、docker-compose.yml.pre、image-1.0.65.txt——compose 改回 1.0.65 重拉起即回滚，本版无 state 变更）。回读：内存 53.5%（动手前 53.7%、红线 80% 未触）；桥 /health ok、台账 940 条与 1.0.65 基线逐数不变、collector lag 6.2s；cron 恰 4 个全启用（jobs.json 实查）；GET /file-library 生产实查 200、total 49、truncated false、污染名零漏出、来源分布与磁盘实查逐项对上（生成文档 22／根散准入 18／定时任务产出 4／聊天发送 4／生成图片 1）；旧面 goals/ledger/monitors 均 200；公网 /api/oneday-bridge/file-library 无钥 401（路由达桥、鉴权门在应答）。
-
-**与登记的出入（如实登记）**：①登记处置写「支持增量/分页」——分页已落（offset/limit）；「增量」未做服务端增量协议：文件集无服务端变更账，诚实形态是整集一次下发（生产 49 条、KB 级），revision 触发重拉全量即其增量语义，不另造假增量协议。②准入 protectedNames 按客户端原样大小写精确匹配移植（小写变体 soul.md 等在旧客户端同样不被此门拦、靠形态/白名单其他层处理），大小写口径如需收紧另立小项、不在本包顺手改。③mime_type 由服务端 mimetypes 推导（旧链走 Hermes 回执、实测多为 null 靠客户端扩展名兜底）——新面 mime 更全，mediaKind 判定口径不变。
-
-### §310.1 A-06 CI 判读（2026-11-16 回填）——两轮逐项同值、判绿
-
-第一轮（run 43806827315@b12d52a，workflow_dispatch，全日志 25,318 行本地核账）：**Core 2149/2149、0 failures**——基线 rel-05060 的 2153 减退役 DeliverableAdmissionTests 6 例、加 FileLibraryModelsTests 2 例，账面闭合（2153−6+2=2149）；新测 2/2 过。App 红恰 2 件登记签名：§257.1 探针（EdgeEffectProbe）＋R2 装配 ⑧（量测限制）。UI 红 9 件恰第 95 条族（仲裁 4＋原生面 5、AX 帧不稳同签名、无产品反例）；键盘矩阵本轮绿。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。§184：BackingData 零命中。落底续证 NATIVE-LANDING／NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0，与基线逐值相同。
-
-第二轮（run 43811401965@b12d52a，零改动同提交，全日志 24,770 行）：**Core 2149/2149 复全绿**；红集与首轮逐件相同（App 2＋UI 9、成员零涨落）；新测 2/2 复过；三 VERDICT 复 PASS；§184 零命中；落底两数复同值。
-
-**§310 判定：判绿**（预制面，不组版）——聚合上收与客户端退役落码见 §310 正文；行为等价靠三重对账：准入规则逐行移植＋伴生自测以客户端旧测试样本钉死（污染 9 名/形态变体/根散白名单/深度界）、生产读面实查 49 条与磁盘逐类对上、App 契约解码钉测双轮过。待主线组版；真机验收点见待办总表第 107 条（原登记第 106 条、与 A-11 重号，0.50.63 组版顺延，见待办总表该条注记）。
-
-## §311 GoalsView 结构拆分包（2026-11-16；分支 feat/goalsview-structure，基线 feat/goal-kanban-single@cb0c9c8；横扫 A-11；原自编号 §307，组版 0.50.63 顺延为 §311）
-
-A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 个 View 类型＋GoalCreateSheet＋文件级 helper）按职责拆为五文件，**纯结构、零行为变更**——不改任何文案、布局数值、交互与数据流。Tuist 目录 glob（`Sources/OneDayApp/**`）自动纳入新文件，Project.swift 不动。
-
-| 文件 | 行数 | 内容（原文行段） |
-|---|---|---|
-| GoalsView.swift | 442 | 文件头注释＋GoalCreateSheet＋GoalsView 列表页（1–442 逐字保留） |
-| GoalListRows.swift | 460 | 未归类行/分类行/分类 sheet/介绍卡/组头/勾选框/goalActivityDotColor/目标行/里程碑行（443–895） |
-| GoalDetailView.swift | 858 | 目标详情呈现页整页（896–1746；内部分区已 MARK 分段、整页一文件保呈现对拍单元） |
-| GoalBriefingViews.swift | 252 | 状态 chip＋简报列表页＋简报信件页（1747–1991） |
-| GoalFormViews.swift | 467 | 编辑/新建/委派三表单（1992–2451） |
-
-**零行为变更证明**：五文件（各去 7 行新文件头）按序拼回与原文逐字节对账，仅一行差——`goalActivityDotColor` 去 `private`（详情页 activitySection 跨文件共用同一 helper，可见性修饰、非逻辑变更；全文件仅此一处文件级 private 跨界）。新文件头各 7 行（4 import＋出处注释），git 账面：删 2009（搬移）／增 2037＝2009 搬移＋28 文件头，逐行闭合。详情页未再按分区拆扩展文件：其 @State/@Environment 与分区函数互为 private 一体，硬拆须把约 15 处成员改 internal，可见性 churn 的风险大于行数收益，留整页。
-
-**A-04 契约面原样保留（grep 实查）**：GoalAssociations 行驱动判定在 GoalDetailView（linkedTasks/ideas/monitors/isEmpty 四调用点）、delegateTask 单调用在 GoalFormViews（GoalDelegateView.submit）、assignUngroupedTask 在 GoalsView（ungroupedSection）；全 target `GoalTaskLinks`/`goalTaskLinks` 残留零。原 A-11 建议中的「条目流 LazyVStack」属行为变更、不在本包范围，未搭载（留主线另裁）。
-
-### §311.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
-
-第一轮（run 43806029400@c03ee59，全日志 24,998 行本地核账）：**Core 2157/2157、0 failures**（与基线 cb0c9c8 的 2157 逐项同值、本包 Core 零改动）；BUILD SUCCEEDED；VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。失败恰 11 件、全登记签名族：UI 第 95 条手势族 9（原生面 5＋仲裁 4、AX 帧不稳同签名）、App §257.1 探针 1、R2 装配 ⑧ 量测限制 1。§184 签名内：BackingData 零命中。签名外新红零。
-
-第二轮（run 43810409224@c03ee59，全日志 25,528 行）：**Core 2157/2157、0 failures**，失败恰同 11 件同签名、三 PASS、BackingData 零命中，与首轮逐项一致。
-
-**§311 判定：判绿**（预制面，不组版）——呈现对拍由逐字节拼回对账（仅一行可见性差）＋两轮全量门同值双证；待办总表登记第 106 条（未划、待组版）。真机无新增验收点（零视觉/行为改动），随组版清单顺带目验目标页各面即可（交卷报告 goalsview-structure-20261116.md）。
-
-## §312 0.50.63 组版（2026-11-16；分支 rel-05063，基线 rel-05062@2cfbdba）
-
-**装车两包**：①横扫 A-06 文件聚合服务端化（feat/files-server-aggregation@3bf917a；本档 §310）——文件页聚合集改消费伴生 GET /file-library 单流，客户端爬树/BFS/准入退役（伴生 1.0.66 已先行上线）；②横扫 A-11 GoalsView 结构拆分（feat/goalsview-structure@8a54e0c；本档 §311）——2451 行单文件按职责拆五文件，纯结构、零行为变更。
-**合并处置**：两包自编号同为 §307（与本档既有 §307 到达动画减法撞号），按后合顺延例亲解——按装车序顺延为 §310（A-06）／§311（A-11），各节标题注原自编号；A-06 代码面零自指，A-11 代码自指仅新文件头注释 4 行、已同步 §311。A-11 叠 A-04 尖端构建，A-04 已随 .62 合入本基线：合并冲突仅 GoalsView.swift 与 DESIGN 两处亲解——.62 侧对 GoalsView.swift 的 5 处改动（A-03 router 引用 3 行×2 处＋§308 注释 3 处）逐处移植进拆分后对应文件（GoalsView／GoalDetailView／GoalFormViews）；合并后逐字节拼回复证：五文件去头拼回与 rel-05062 版 GoalsView.swift 同为 2451 行、逐行仅一行差（`goalActivityDotColor` 去 private 的可见性修饰，与分支判绿口径一致）。A-06 自动合并两文件（DeliverablesView／OneDayBridgeClient）定向对账：与分支版差异恰为 .62 的 A-03 router 迁移行，A-06 改动集完整无损。杂项清理：待办总表第 106 条重号（A-11 与 A-06 各占一条）随本版清理——A-11 保留第 106 条、A-06 顺延第 107 条，两条互注（见待办账）。
-**版号**：0.50.63／构建 191（Project.swift 四值与设置页版本串两行同改，旧号在改动文件内零残留已 grep 验）。
-**判定依据**：两包各自判绿（§310.1／§311.1）。CI 判读见 §312.1（回填）。
-
-### §312.1 0.50.63 组版 CI 判读（2026-11-16 回填）——两轮签名全合、已出货
-
-第一轮（run 43834641140@7cec7b1，全日志 25,015 行本地核账）：**Core 2148/2148、0 failures**——合并账逐项闭合：.62 基线 2152＋A-06 −4（退役 DeliverableAdmissionTests 6−新 FileLibraryModelsTests 2）＋A-11 0（纯结构、Core 零改动）；FileLibraryModelsTests 2/2、DeliverableAdmission 全仓零残留。.61 键盘正面证据复跑不退：⑨ 打印 kbTopWin 随通知帧逐拍跟进（545→541→539→538…），⑨ 唯一失败断言为动画中段在途帧采样（登记量测限制、与 .62 逐字同）。落底对账：NATIVE-LANDING ③⑯ 距底两值 3.333／3.667、contentSize 4156.0——均在 §302.3 分解带（3.0–4.0）内，属第 100 条 ③⑯ 登记已知项。红集：App 6 件＝③⑯ 已知项 2＋⑧ 量测限制＋⑨ 中段采样＋§257.1 探针＋LayoutProductPoolTests.testWorkersRunConcurrently 墙钟并发断言 1 件（首轮 runner 显著过载：整轮 49m39s 对常态 36–41 分钟；两包改动面与该池零交叠，待二轮仲裁）；UI 9 件＝第 95 条族（仲裁 4＋原生面 5）。VERDICT／HUB-LAYOUT-VERDICT／MATRIX-VERDICT 三 PASS（键盘矩阵绿）。§184 签名内：宿主重启 1 次、BackingData 零命中。
-第二轮（run 43843797499@7cec7b1，同提交零改动，全日志 24,846 行）：**Core 2148/2148 复全绿**；kbTopWin 打印分布与首轮逐值同、落底两值 3.333／3.667 复在带内；**testWorkersRunConcurrently 转绿（3.228s 过）**——首轮红定性为过载 runner 上的墙钟环境 flake（与 §301.1 DataDetector 前例同式），非产品反例、不入签名族。红集恰 14 件与 .62 同构：App 5 件（③⑯ 2＋⑧＋⑨＋§257.1）＋UI 9 件（第 95 条族）；三 VERDICT 复 PASS；§184 宿主重启 1 次、BackingData 零命中。**签名外新红零。**
-**出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.63/OneDay-0.50.63-unsigned.ipa：**14,030,220 字节、md5 `07cd7704293363aad4e6428300459d4b`**，解包验 CFBundleShortVersionString=0.50.63、CFBundleVersion=191、bundle id site.didichou.oneday。待办总表已落：第 106 条（A-11）／第 107 条（A-06）划线（各注组版顺延定号 §311／§310），第 106 条重号已清（A-11 保留 106、A-06 顺延 107、两条互注），副本随交付目录；真机清单 36 项＝本版新增 5 项（A-06 文件页四项＋A-11 目标页目验）＋.62 未回 31 项原样带入（键盘组为浸泡主验；仅原第 24 项版号字面 .62→.63）。浸泡链第三版（.61 起算），本版不计 R5 开门。未合 main、未打 tag。
