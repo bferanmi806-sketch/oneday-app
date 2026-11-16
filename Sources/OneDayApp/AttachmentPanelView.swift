@@ -40,7 +40,8 @@ struct AttachmentPanelView: View {
     let onConfirmPhotos: ([String]) -> Void
     /// 「查看全部」（宿主收面板后开全量选图器）
     let onViewAll: () -> Void
-    /// 「添加文件」（宿主走 DocumentPickerBridge）
+    /// 「添加文件」（宿主收面板后开文件选择器，
+    /// §317 起走 DocumentPickerView 状态旗呈现）
     let onAddFile: () -> Void
     /// 「添加视频」（宿主收面板后开视频选图器）
     let onAddVideo: () -> Void

@@ -414,6 +414,11 @@ struct ChatView: View {
     /// 竞速，见 afterAttachPanelDismiss 注）
     @State private var attachPanelPendingAction:
         (() -> Void)?
+    /// §317：文件选择器状态旗——与相机行 showCamera
+    /// 同制，DocumentPickerView（representable）经
+    /// fullScreenCover 由框架排队呈现（命令式文件桥
+    /// 退役，见 DocumentPickerView 头注）
+    @State private var showDocumentPicker = false
     // §303（A-08 收口）：面板定高改走呈现控制器
     // custom detent 单源求解（见 sheet 本体注），
     // §152 的内容实测高状态与 §154 的宿主真高回
@@ -1313,17 +1318,7 @@ struct ChatView: View {
                 },
                 onAddFile: {
                     afterAttachPanelDismiss {
-                        DocumentPickerBridge.present(
-                            onPick: { urls in
-                                loadPickedFiles(urls: urls)
-                            },
-                            onFailure: {
-                                showNotice(
-                                    "文件选择器没能打开，请再试一次。",
-                                    tier: .extended
-                                )
-                            }
-                        )
+                        showDocumentPicker = true
                     }
                 },
                 onAddVideo: {
@@ -1335,9 +1330,20 @@ struct ChatView: View {
         // 0.36.31（件二）：.fileImporter 已删——侧载
         // 设备类上其 coordinator 会死在被拆的呈现上
         // 下文里、点「打开」无反应（诊断 file-picker-
-        // batch-diagnosis-20261111 定案）；文件选择
-        // 改由 DocumentPickerBridge 自顶层 VC 命令
-        // 式呈现，结果直喂 loadPickedFiles，不经本链
+        // batch-diagnosis-20261111 定案）。文件选择先
+        // 走命令式桥、§317 再换代为 DocumentPicker-
+        // View 状态旗排队呈现（见下 fullScreenCover
+        // 与 DocumentPickerView 头注），结果直喂
+        // loadPickedFiles，不经本链
+        .fullScreenCover(isPresented: $showDocumentPicker) {
+            DocumentPickerView(
+                onPick: { urls in
+                    showDocumentPicker = false
+                    loadPickedFiles(urls: urls)
+                },
+                onCancel: { showDocumentPicker = false }
+            )
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker(
                 onImage: { data in
@@ -7911,7 +7917,7 @@ private struct ComposerBarLayout: Layout {
         // 内容）；旧浮窗小卡 Menu（三行：拍
         // 照/相册选图/选文件）整套退役——三条路全部
         // 由面板承接（相机格/查看全部选图器/添加文件
-        // 行走 DocumentPickerBridge，P-18 桥不回退）
+        // 行走 DocumentPickerView，§317 状态旗呈现）
         Button {
             showAttachPanel = true
         } label: {
@@ -8273,9 +8279,9 @@ private struct ComposerBarLayout: Layout {
     }
 
     /// 文件接入（0.36.31 件二＋件三重写）：入参自
-    /// UIKit 桥 DocumentPickerBridge（asCopy 副本
-    /// URL，落在 App 容器内——旧 .fileImporter 路
-    /// 的安全作用域起停配对随桥退役，本函数直读）。
+    /// DocumentPickerView（asCopy 副本 URL，落在
+    /// App 容器内——旧 .fileImporter 路的安全作用
+    /// 域起停配对随之退役，本函数直读）。
     /// 逐个先查 fileSize 再读数据：超限不整份读入
     /// 内存（旧链先读 82.8MB 才判闸）；被拒文件
     /// （超限/读失败）由 Core FileIntake 汇总点名
