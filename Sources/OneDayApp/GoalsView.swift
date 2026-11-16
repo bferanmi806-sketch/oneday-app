@@ -949,7 +949,7 @@ struct GoalDetailView: View {
         await kanban.load(appState: appState)
     }
 
-    /// 委派回响物化（§123 H1）：三路真源（关联账＋任务
+    /// 委派回响物化（§123 H1）：三路真源（归属行＋任务
     /// 板＋目标本体）都到位后，按 Core GoalEcho 规划把
     /// 还没落过的回响按序落进绑定线程。触发点只有详情
     /// 的首载与下拉刷新这两处——无 APNs 的现实下，回响
@@ -965,7 +965,8 @@ struct GoalDetailView: View {
         guard let thread = try? modelContext.fetch(descriptor).first
         else { return }
         let linked = GoalAssociations.linkedTasks(
-            links: store.taskLinksByGoal[goalID] ?? [],
+            goalID: goalID,
+            rows: store.goalTasksByGoal[goalID] ?? [],
             tasks: kanban.snapshot?.tasks ?? []
         )
         let existing = Set(thread.entries.compactMap(\.echoKey))
@@ -1033,7 +1034,7 @@ struct GoalDetailView: View {
                 }
                 .sheet(isPresented: $showDelegate) {
                     GoalDelegateView(
-                        store: store, goal: goal, kanban: kanban
+                        store: store, goal: goal
                     )
                 }
             } else {
@@ -1269,8 +1270,7 @@ struct GoalDetailView: View {
     /// 最近变化时刻（读面一的 updatedAt）；桥没观察
     /// 到过这条任务的变化时只给状态，时刻不编
     private func associationTaskDetail(
-        _ linked: GoalAssociations.LinkedTask,
-        goalTaskRows: [BridgeGoalTask]
+        _ linked: GoalAssociations.LinkedTask
     ) -> String {
         let status = linked.task.map { task in
             KanbanStatusPresentation.resolve(
@@ -1279,9 +1279,10 @@ struct GoalDetailView: View {
                 lastFailureError: task.lastFailureError
             ).label
         } ?? "任务"
-        guard let updatedAt = goalTaskRows.first(where: {
-            $0.taskId == linked.link.taskId
-        })?.updatedAt else { return status }
+        // 最近变化时刻就在归属行上（GD-2 面一，§308 后
+        // 行与关联同为一物，不再跨面回查）
+        guard let updatedAt = linked.row.updatedAt
+        else { return status }
         let when = ChatTimeline.dividerText(
             for: Date(timeIntervalSince1970: updatedAt), now: Date()
         )
@@ -1330,8 +1331,8 @@ struct GoalDetailView: View {
     // MARK: 委派（安排一件事，0.40.0 欠账补落）
 
     /// 目标下直接委派：入口开 GoalDelegateView 表单，提交
-    /// 走 GoalsStore.delegateTask（任务板建卡＋桥侧关联
-    /// 回写＋回读确认，与点子采纳同一条链）。任务办完后
+    /// 走 GoalsStore.delegateTask（桥一次调用建卡＋写
+    /// goalId 字段＋回读确认，§308 单轨）。任务办完后
     /// 桥会在进展里自动记一条事实（来源「智能体记的」）
     private func delegationSection(_ goal: BridgeGoal) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -1393,10 +1394,11 @@ struct GoalDetailView: View {
 
     // MARK: 关联（0.40.0 欠账补落：客户端拼装、零新端点）
 
-    /// 挂靠点子（ideas 按 goalId 过滤）＋关联任务（经桥
-    /// goal_task_links 反查任务板现值）＋挂靠监测
-    /// （monitor.goalId），三路只读呈现、点行各自跳到
-    /// 对方详情/管理；全空时整段不出现，不留空壳标题
+    /// 挂靠点子（ideas 按 goalId 过滤）＋关联任务（任务
+    /// 的 goalId 字段经桥 GD-2 行投影、再拼任务板现值）
+    /// ＋挂靠监测（monitor.goalId），三路只读呈现、点行
+    /// 各自跳到对方详情/管理；全空时整段不出现，不留
+    /// 空壳标题
     @ViewBuilder
     private func associationSection(_ goal: BridgeGoal) -> some View {
         let ideas = GoalAssociations.ideas(
@@ -1406,12 +1408,10 @@ struct GoalDetailView: View {
             for: goalID, in: monitorsStore.monitors
         )
         let tasks = GoalAssociations.linkedTasks(
-            links: store.taskLinksByGoal[goalID] ?? [],
+            goalID: goalID,
+            rows: store.goalTasksByGoal[goalID] ?? [],
             tasks: kanban.snapshot?.tasks ?? []
         )
-        // GD-2 读面一：关联任务的最近变化时刻（状态
-        // 仍读任务板现值，时刻只作行小字补充）
-        let goalTaskRows = store.goalTasksByGoal[goalID] ?? []
         if !GoalAssociations.isEmpty(
             ideas: ideas, tasks: tasks, monitors: monitors
         ) {
@@ -1441,7 +1441,7 @@ struct GoalDetailView: View {
                     }
                     ForEach(
                         Array(tasks.enumerated()),
-                        id: \.element.link.id
+                        id: \.element.row.id
                     ) { index, linked in
                         if index > 0 || !ideas.isEmpty {
                             GroupDivider()
@@ -1449,14 +1449,14 @@ struct GoalDetailView: View {
                         NavigationLink {
                             KanbanTaskDetailView(
                                 store: kanban,
-                                taskID: linked.link.taskId
+                                taskID: linked.row.taskId
                             )
                         } label: {
                             associationRow(
                                 symbol: "checklist",
                                 title: linked.title ?? "任务",
                                 detail: associationTaskDetail(
-                                    linked, goalTaskRows: goalTaskRows
+                                    linked
                                 )
                             )
                         }
@@ -2322,9 +2322,9 @@ struct GoalCreateView: View {
 }
 
 /// 委派表单（sheet，0.40.0）：一件事的标题＋可挂的里程
-/// 碑；提交走 GoalsStore.delegateTask（任务板建卡→桥侧
-/// 关联回写→回读确认），确认落定才关表单，失败原因留
-/// 表单内——与新建目标同一纪律
+/// 碑；提交走 GoalsStore.delegateTask（桥一次调用建卡
+/// ＋写 goalId 字段→回读确认，§308 单轨），确认落定才
+/// 关表单，失败原因留表单内——与新建目标同一纪律
 struct GoalDelegateView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -2332,7 +2332,6 @@ struct GoalDelegateView: View {
 
     let store: GoalsStore
     let goal: BridgeGoal
-    let kanban: KanbanStore
 
     @State private var title = ""
     @State private var milestoneId: String?
@@ -2439,7 +2438,7 @@ struct GoalDelegateView: View {
         defer { isSubmitting = false }
         let ok = await store.delegateTask(
             appState: appState, goalID: goal.id, title: title,
-            milestoneId: milestoneId, kanban: kanban
+            milestoneId: milestoneId
         )
         if ok {
             ensureGoalThread()

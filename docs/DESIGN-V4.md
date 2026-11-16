@@ -13387,3 +13387,27 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 提交 8ab2ac1。第一轮 run 43795970815（全日志 24,592 行）、第二轮 run 43800526217（零改动同提交，24,981 行）：**Core 两轮均 2155/2155、0 failures**——基线 2153 恰加本条新增 2 例（开关回读＋plan 真值表），账面闭合；App 侧改钉/新增 3 例（视觉层 opacity-only、调度无 stagger 机器、开关落位）两轮全过。App 红两轮恰 2 件同签名：§257.1 探针＋R2 装配 ⑧（量测限制）。UI 红两轮恰 10 件：第 95 条族 9（仲裁 4＋原生面 5）＋键盘矩阵 1（第二轮失败串为登记原文「GAP 未成格（rig 定位失效）」；第一轮同件为快照元素定位失败，同 rig 族涨落、无产品断言触发；MATRIX-VERDICT 第二轮=FAIL 由其带动、与 .55 以来同形态）。落底续证两轮逐值不变：NATIVE-LANDING 与 R4 均 4156.0/3352.0/0.0。§184 签名内（BackingData 两轮零命中、teardown 标记 true）。VERDICT 两轮=PASS、HUB=PASS。签名外新红零。
 
 **§307 判定：判绿**（预制面，不组版）——真机验收点归主线组版清单：发一条回复看到达瞬间无药丸跳宽、无扫过感、列表不追逐；关「打字动画」后整批直显。
+
+## §308 目标↔Kanban 单轨包（2026-11-16；分支 feat/goal-kanban-single，基线 rel-05060@5f77967；横扫 A-04；伴生 1.0.65；原自编号 §306，组版 0.50.62 顺延为 §308）
+
+**病灶**：目标与看板任务的关联有两本账——桥侧 goalTaskLinks 链接集合（App 判定真源）＋ GD-2 读面行（呈现真源），App 委派是两步两账（直连 Dashboard 建卡→回桥 POST 补链接），中途失败留「卡在、关联不在」的半成品；回响完成戳挂在链接记录上、与任务本体分离。
+
+**改前先搜（市面成熟做法，分级）**：Linear（官方文档级）——Issue 自带 projectId 单值字段，create/update 时设定，项目进展＝其下 Issue 状态的读时派生，没有第二本关联账；Notion（官方文档级）——Relation 是长在记录上的属性、双向关系是服务端维护的同一关系的两个投影，Rollup 计数读时派生。与处方对账一致：关联＝任务实体上的单值字段＋反查读时派生。
+
+**字段落点（与横扫报告的出入，实查定版）**：报告设想 goalId 落 Hermes 看板卡本体——生产实查 Hermes kanban tasks 表为固定列 schema（title/body/assignee/status/priority/project_id/tenant…，无 goalId、无通用 metadata 列），且 Hermes 是上游镜像不可改。字段落**伴生侧任务属性账**（伴生是目标域属主、补 API 不加桥）：`_db["taskGoals"]`＝{taskId: {goalId, milestoneId, assignedAt, delegateKey?}}，字典键天然单值。回声 exactly-once 账独立为 `_db["goalEchoState"]`（桥轮询私有、永不下发，只经 GD-2 行 completionEntryAt 只读投影给 App 回响规划）。
+
+**服务端（伴生 1.0.65）**：①迁移 `_migrate_goal_task_links()` 挂 _load 成功路径末尾自带容错：存量链接按 createdAt 升序折叠、最早者赢、同任务多目标余者计 conflicts、死目标链接计 dropped、完成/停滞戳播种 echoState、meta.taskGoalMigration 留计数账；失败只记日志、链接保留下轮重试，绝不进降级路径。生产实数：目标 1、链接 0 条——迁移零行（实现与自测合成数据对账为准）。②新写面：`PUT /tasks/{taskId}/goal`（goalId 必填键、null＝清除并清回声账；里程碑不属该目标 400、目标不存在 404）与 `POST /goals/{id}/delegate`（桥经 Dashboard 通道建卡——卡体与旧 App 直连同形：assignee "default"、body 由桥按目标标题自拼、idempotency_key 透传——催派 best-effort，字段落字在网络往返外短锁完成；带 delegateKey 的同键重试先查已有归属直接返回、不重复建卡；建卡失败 502 且不落归属）。③兼容投影一周期：GET/POST /goals/{id}/task-links 保留为字段之上的薄投影（合成 link id＝"gt_"+taskId、戳记按 echoState 且 goalId 匹配时下发；POST 写穿字段——注意语义差异：任务已属他目标时是**移动**而非旧集合的双行共存），删除门＝新 App 出场＋日志零命中（仿桥-2 先例），理由：1.0.65 先于新 App 上线、生产 .60 App 仍调此面，先破后立不可接受。④读面全改读字段：GD-2 行加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 合成同值续发；GD-1 活动派生 wire 字段名全保留；未归类面排除集改字段键集（kanbanBindings 自带 goalId 的行排除逻辑不动）；删目标级联改清字段＋回声账；automation 建卡带 goalId 改写字段。⑤自测：新增 goalsingle 32 例（迁移折叠/幂等、PUT 置/移/清＋400/404、delegate 桩测建卡体与同键重试不重复建卡、兼容投影形状、删目标级联、迁移戳挡回声重发）；既有 gd1b/p6 戳记断言改读 echoState；全套红与改前基线逐字相同（p3 时界＋fileproc 本地环境），零新红。
+
+**App**：Core 删 GoalTaskLinks.swift（链接三件套＋旧 GoalAssociations），新增 GoalTaskAssignment.swift（BridgeTaskGoalAssignment／BridgeTaskGoalWrite——goalId 显式 null 编码，桥靠键在不在区分清除与漏传／BridgeGoalDelegate 请求与回执／新 GoalAssociations 行驱动拼装：只认行 goalId、同任务只出一次）；BridgeGoalTask 加 goalId/assignedAt/completionEntryAt、linkId/linkedAt 转容忍解码、id 改 taskId；GoalEcho 完成判定改读行戳（口径不变：桥事实条目落下后才有戳）、回响键改 "goalTask:<taskId>:<kind>"（生产链接为零、旧键从未落盘、无迁移负担）。客户端删 goalTaskLinks/createGoalTaskLink，加 delegateGoalTask/setTaskGoal。GoalsStore：删 taskLinksByGoal、loadDetail 四路改三路、delegateTask 单调用＋回读目标任务面确认行出现（旧「任务板未开通」探板前置步消失、失败文案归并一处）、assignUngroupedTask 改 setTaskGoal＋双面回读，乐观摘行/失败放回纪律不变。GoalsView：关联段与回响物化改读 goalTasksByGoal 行、行身份改 taskId、最近变化时刻直读行 updatedAt。
+
+**行为对拍（硬口径）**：目标页分组（行序＝归属落字升序＝旧链接 createdAt 升序）、任务归属显示、里程碑挂靠、GD-1 进展计数、回响五类与文案、未归类面构成——逐项同旧。差异登记四处：①字段落伴生而非卡本体（上游 schema 约束）；②兼容 POST 的移动语义（单值字段的必然结果，与「一件事只归一个目标」的产品口径一致）；③delegate 失败文案归并（探板步消失）；④演示态下 delegate 由「桥调用处失败」变为「单调用失败留人话 note」（失败形态等价）。
+
+**未搭载**：A-11（GoalsView 拆分＋条目流 LazyVStack）不在本包——简报口径全为 goalId 项，拆 2452 行巨型视图放大爆炸半径、危及呈现对拍，建议另立结构包。
+
+### §308.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+第一轮（run 43797017399@e68ce56，全日志 25,292 行本地核账）：**Core 2157 执行、1 红**——基线 2153＋本包新增 4 例（归属解码/显式 null 编码/委派请求编码/只认行 goalId）＝2157 逐项闭合；唯一红＝GoalsTailTests `testGoalTasksDecodeLiveAndOffBoardRows` 仍断言旧行身份（id == linkId），属本包契约变更面，已按新契约修（行身份＝taskId、夹具新旧线形各一行钉容忍解码）。App 红恰 2 件登记签名（§257.1 探针＋R2 装配 ⑧ 量测限制）；UI 红 9 件恰第 95 条手势族（原生面 5＋仲裁 4、AX 帧不稳同签名、无产品反例）；键盘矩阵本轮绿。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。§184 签名内：BackingData 零命中。
+
+第二轮（run 43801092767@bf03c28，全日志 25,045 行）：**Core 2157/2157、0 failures**，与首轮逐数一致、GoalsTail 转绿。App 红恰 2 件同签名（§257.1＋⑧）；UI 红 9 件同族同构成；VERDICT/HUB/MATRIX 三 PASS。§184 BackingData 零命中。签名外新红零。
+
+**§308 判定：判绿**（预制面，不组版）——行为对拍由 Core 钉测（回响五类口径、关联拼装只认字段、行解码新旧线形）＋伴生自测 748 过（红与改前基线逐字相同）双面覆盖；伴生 1.0.65 已部署（见交卷报告 goal-kanban-single-20261116.md 的上线回读账）；待办总表登记第 105 条（未划、待组版）。真机验收点随组版清单：目标里安排一件事→任务面出现＋办完后目标进展与绑定旁聊各落一条；未归类任务一键归组后从未归类面消失、目标关联段出现。
