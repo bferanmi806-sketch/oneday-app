@@ -683,11 +683,12 @@ final class AgentHubStore {
         // 防呆守卫（§245）：桥侧已判定确定性批不了的
         // 记录，批准路径在 store 层同样不开口——卡面
         // 已不给批准钮，这里防其他调用方绕过卡面；
-        // 驳回不受影响（死单的唯一出路）
-        if approve, let blockedReason = record.blockedReason {
-            cardNotes[record.id] = L10n.format(
-                "这条无法批准：%@", blockedReason
-            )
+        // 驳回不受影响（死单的唯一出路）。B-05
+        // （§301）：提示行经 Core reasonLine 单读口；
+        // isBlocked 蕴含 reason 非空、行恒有值，万一
+        // 不然守卫仍不开口（防呆优先于提示完整）
+        if approve, record.isBlocked {
+            cardNotes[record.id] = ApprovalCardCopy.reasonLine(for: record)
             return
         }
         decidingIDs.insert(record.id)
@@ -729,14 +730,14 @@ final class AgentHubStore {
                 alwaysApproveMarks.remove(record.id)
             } else {
                 // §245：桥回了结构化失败原因就直出它
-                // （与 blockedReason 同一「原因上卡面」
+                // （与记录面预检原因同一「原因上卡面」
                 // 通道），替代泛化红字——旧文案让用户
                 // 以为重开详情再批就能过，实为确定性
-                // 失败时纯属误导（生产个案 62927061）
-                if let reason = response.failureReason {
-                    cardNotes[record.id] = L10n.format(
-                        "裁决未生效：%@", reason
-                    )
+                // 失败时纯属误导（生产个案 62927061）。
+                // B-05（§301）：经 Core reasonLine 单
+                // 读口取行（回执 reason＋execution 阶段）
+                if let reasonLine = ApprovalCardCopy.reasonLine(for: response) {
+                    cardNotes[record.id] = reasonLine
                 } else {
                     cardNotes[record.id] = L10n.string("裁决未生效，请重新打开改动核对后再试。")
                 }
@@ -795,11 +796,10 @@ final class AgentHubStore {
         guard !decidingIDs.contains(record.id) else { return }
         // 防呆守卫（§245）：「总是允许」＝立即批准＋
         // 立规则，批不了的死单两步都无意义——不建规
-        // 则、不批准，只留原因（与 decide 同口径）
-        if let blockedReason = record.blockedReason {
-            cardNotes[record.id] = L10n.format(
-                "这条无法批准：%@", blockedReason
-            )
+        // 则、不批准，只留原因（与 decide 同口径、
+        // 同一 reasonLine 单读口，§301）
+        if record.isBlocked {
+            cardNotes[record.id] = ApprovalCardCopy.reasonLine(for: record)
             return
         }
         decidingIDs.insert(record.id)

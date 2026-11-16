@@ -13211,3 +13211,26 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 
 run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25,029 行本地核账：**Core 2153/2153、0 failures**（与 A-07 预制两轮逐数一致；基线 2164 减所删退役机器测试 11 件账面闭合）；听写行为套件在 Core 内全绿。**R1/R4 落底续证**：NATIVE-LANDING 与 NATIVE-LANDING-R4 均 contentSize=4156.0／offset=3352.0／distance=0.0，与 .59 ⑯ 三数逐值相同。App 红恰 2 件、与预期逐项同签名：§257.1 登记探针（EdgeEffectProbe）＋R2 装配 ⑧（「0≠1」×3、量测不可达已登记量测限制）。UI 红 9 件，恰第 95 条登记族：原生面五件＋仲裁四件（AX 帧不稳同签名、无产品反例）；**键盘矩阵本轮绿**（MATRIX-VERDICT=PASS，与 .59 同形态、rig 涨落族内）。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.60/OneDay-0.50.60-unsigned.ipa：**14,037,330 字节、md5 `17a505be1e3a19a1fdd0faba5252739e`**，解包验 CFBundleShortVersionString=0.50.60、CFBundleVersion=188、bundle id site.didichou.oneday。待办总表已落 99a 条 A-07 落地行（划线、.60 已组版）、99b 条 A-08 落地行（保持未划：核心收口达成、残留 sheet 帧高 +68pt 待修、判绿后进 .61）、第 100 条（键盘升起迟滞＋中段重叠帧、今晨真机录屏、已定因 K1/K2、热修线另行组版；.59 浸泡已因该条裁定作废、本版不计浸泡），副本随交付目录；真机清单 20 项＝新增听写组 4 项（录音条四态手感／停录整段落字／废弃不落字／预热命中快路点按即录）＋.59 未回 16 项全量带入（手势五件为首组；键盘三项标注第 100 条热修在途、本版可跳过）。A-08 未装车（见 §300 装车条件件处置）。未合 main、未打 tag。
+## §301 写闸 reason 单字段契约 App 半边收口（2026-11-16；feat/writegate-reason-app，基线 rel-05059@9619b61）
+
+**背景**：横扫 B-05 服务端半边已随伴生 1.0.63 上线（2026-11-16 05:18）——写闸桥把 blocked_reason（待批记录·预检）与 failure_reason（裁决回执·执行）合并为单字段 `reason`＋阶段标 `reason_phase`（`pre-check`／`execution`），模块内旧字段零残留。本节是 App 半边：切到新契约、审批卡改单读口。伴生报告对 App 现状的自述（「尚未解码两字段」）系沿用 2026-11-11 旧报告、与现行代码不符——§245 一代 App 已解码两旧字段并上卡面（WriteApprovalModels／ApprovalCardFace／AgentHubStore 三处实证）；1.0.63 上线后旧字段无产出，现行 .59 的防呆呈现实际已静默失效（解码恒 nil），本包即修复此窗口。
+
+**迁移裁决：直接切换、不留双解**。理由：①服务端只有一台伴生且已迁移验活，旧字段无任何生产者，双解读的是死字段；②B-05 的病根本身是「呈现方须先知道读哪个」，App 留双读口等于病留一半，与单源收口相悖；③本仓惯例为读时收敛（§235 化石读时作废、迁移装置退役），且模型解码全程 decodeIfPresent 宽容式——版本错位（旧 App 对新桥／新 App 对旧桥）只降级为原因不显、永不崩。旧载荷解码断言把此口径钉进测试（旧字段在场 → reason=nil、不崩）。
+
+**改动面**：
+- Core `WriteGateRecord`：删 `blockedReason`／`blocked_reason`，增 `reason`＋`reasonPhase`（新枚举 `WriteGateReasonPhase`：preCheck/execution；未知/缺失阶段解为 nil、无原因时阶段一并作废，与桥「命中才带字段」同口径）。`isBlocked` 口径改：有 reason 且阶段非 execution——记录面 reason 的唯一产出阶段是预检，阶段标丢失不许把死单防呆弄丢。
+- Core `WriteGateDecisionResponse`：删 `failureReason`／`failure_reason`，增 `reason`＋`reasonPhase`（回执面恒 execution；桥解析不出时 reason 键带 null、同按无原因解码）。
+- Core `ApprovalCardCopy.reasonLine`（新，呈现单读口）：记录面与回执面各一入口共用实现——只读 reason，阶段决定前缀句式：预检＝「这条无法批准：…」、执行＝「裁决未生效：…」（§245 定案文案两句、目录键既有，本包只收口读法不改措辞）；阶段缺失按载体缺省（记录＝预检、回执＝执行，与桥两面唯一产出阶段同口径）。
+- App `ApprovalCardFace`：防呆行改经 reasonLine 取整行，不再直读字段拼句。App `AgentHubStore`：decide／decideAlways 两道防呆守卫改以 isBlocked 为闸、提示行经 reasonLine；decide 失败分支改经 reasonLine(for: response) 取行、无原因回落既有泛化句。
+- 不动：WriteGateDecisionRecord（已决历史不带 reason 字段、桥 /decisions 载荷无此面）、SessionMigration 的 failureReasons（同名异物、会话迁移计划局部量）。
+
+**测试**：Core 解码钉测改写＋扩围（HubGateAndBrowserTests 两法：新载荷记录/回执各一、旧载荷各一、空白串、阶段未知、回执 reason=null）；呈现对拍新法（ApprovalCopyTests.testReasonLinePresentation：同 reason 串两面句式对拍＋阶段缺失缺省＋无原因恒 nil）。Core 净计数变化以 CI 实数为准（预期 2164＋新断言分布于既有 2 法改写与新 1 法，总法数 2165）。红只认登记签名族（§257.1／R2 ⑧量测限制／第 95 条 AX 帧不稳／键盘矩阵 rig／§184 签名内）。CI 判读见 §301.1（回填）。
+**待办账**：新增第 101 条（B-05 App 半边落地行）。编号顺延记账：本节原拟 §299，施工期间并行线先行占用——§299 已被听写瘦身包占用并随 rel-05060 入链、§300 为 0.50.60 组版节（待办第 100 条亦已被键盘热修条目占用），按后合顺延例本节改 §301、待办改第 101 条，代码自指已全量同步。
+
+### §301.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）——判绿
+
+第一轮（run 43771388646@a059463）：**Core 2165/2165 全绿**（基线 2164＋本包新法 1，与静态预期逐值对上）；本包三法全过（testRecordBlockedReasonDecode／testDecisionResponseFailureReasonDecode／testReasonLinePresentation）。App 263 例 3 红：§257.1 探针（失败值 24/8/18…与基线逐值同签名）、⑧（「0≠1」量测限制签名逐字）、DataDetectorPresentationTests.testDetectorsSurviveAssistantPresentationPath（整形后电话未识成 tel: 链接；与本包改动面零交叠、该套件有 flake 前科，待二轮定性）。UI 20 例 9 红＝原生面五件＋仲裁 4 件（第 95 条登记族、边距带本轮过）。键盘矩阵绿；VERDICT／HUB-LAYOUT／MATRIX 三 PASS；§184 宿主重启 1 次、BackingData 零命中。
+
+第二轮（run 43774895881@a059463）：**Core 2165/2165 复全绿、本包三法复过**；**DataDetector 3/3 转绿**——一轮红定性为该套件已知环境 flake（NSDataDetector 电话识别对 runner 环境敏感），与本包无关、不作产品反例。App 264 例 2 红（§257.1 探针 24/8/18/25 逐值同签名＋⑧「0≠1」）；UI 9 红与一轮同族同员；键盘矩阵复绿；三 VERDICT 复 PASS；§184 宿主重启 1 次、BackingData 零命中。两轮红集除 DataDetector flake 外无新面孔、签名外新红零。
+
+**判定：判绿**——新契约解码＋单读口呈现两轮全量复证，旧载荷不崩钉测在位。不组版：交主线随后续组版装车（真机验收点＝待批死单卡面出「这条无法批准：…」＋只给驳回、裁决失败卡面出结构化原因，随组版真机清单带）。
