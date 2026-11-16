@@ -267,12 +267,18 @@ final class ChatRootViewController: UIViewController,
     /// 落定拍调度账（与 gen3 §259 同式：滚动回调
     /// 只记账、施工与读数产出统一在落定拍）
     private var settleScheduled = false
-    /// 落点意图（H6）：冷开/命令贴底置真；收敛后
-    /// 距底 ≤0.5 或用户拖动接管即消
+    /// 落点意图（H6）：冷开/命令贴底置真；落定拍
+    /// 判达标＋几何跨拍稳定后消（§299.3）、或用
+    /// 户拖动接管即消
     private var landingIntent = false
     /// 落点意图置真时刻（收敛重拍的时间窗预算起
     /// 点，见 performSettleBeat 的尾差处理）
     private var landingIntentSince: CFTimeInterval = 0
+    /// §299.3 意图消费的几何稳定账：上一落定拍的
+    /// contentSize——与本拍逐值同才算几何静止（迟
+    /// 到布局回调落地后跨拍不变），意图置真/消解
+    /// 时清零
+    private var landingSettleContentSize: CGFloat?
     private var userInteracting = false
     /// 布局未就绪时到达的恢复命令（先记账、落定
     /// 拍执行——与 gen3 restore 的等拍口径同义）
@@ -859,7 +865,6 @@ final class ChatRootViewController: UIViewController,
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        let csAtEntry = collectionView.contentSize.height
         // §299：本拍先做位置常量同步——窗口未解
         // 析（入窗前）或回落态（标签栏随呈现时序
         // 迟到）在此补解析、找到即退出回落；常量
@@ -892,19 +897,11 @@ final class ChatRootViewController: UIViewController,
         if (wasAtBottom || landingIntent)
             && !userInteracting {
             pinToBottom()
-            if currentDistance() <= 0.5 {
-                landingIntent = false
-            }
-        }
-        if collectionView.contentSize.height != csAtEntry {
-            print(
-                "PINTRACE lps cs \(csAtEntry)->"
-                    + "\(collectionView.contentSize.height)"
-                    + " off=\(collectionView.contentOffset.y)"
-                    + " dist=\(currentDistance())"
-                    + " intent=\(landingIntent)"
-                    + " wasAt=\(wasAtBottom)"
-            )
+            // §299.3：布局拍只钉不消费意图——末钉
+            // 之后集合视图内部布局拍仍可能迟到回调
+            // offset（compositional 锚点保全，见落
+            // 定拍注），消费判据须跨拍验几何稳定、
+            // 统一归落定拍（performSettleBeat）
         }
         layoutArrow()
     }
@@ -994,6 +991,7 @@ final class ChatRootViewController: UIViewController,
                 // ChatView 恢复链经句柄命令驱动
                 landingIntent = true
                 landingIntentSince = CACurrentMediaTime()
+                landingSettleContentSize = nil
             }
         } else if !reconfigureKeys.isEmpty {
             var snapshot = dataSource.snapshot()
@@ -1079,14 +1077,22 @@ final class ChatRootViewController: UIViewController,
             executeRestore(anchor)
         } else if landingIntent && !userInteracting {
             pinToBottom()
-            if currentDistance() <= 0.5 {
-                print(
-                    "PINTRACE consume cs="
-                        + "\(collectionView.contentSize.height)"
-                        + " off=\(collectionView.contentOffset.y)"
-                        + " dist=\(currentDistance())"
-                )
+            let csNow = collectionView.contentSize.height
+            if currentDistance() <= 0.5
+                && landingSettleContentSize == csNow {
+                // §299.3 消费判据＝达标＋几何跨拍稳
+                // 定：距底 ≤0.5 且 contentSize 与上
+                // 一落定拍逐值同，才许消费意图。定
+                // 因（§299.3 量测）：落定链可达算术
+                // max 且落点稳定（直设 3352 三读不
+                // 动），4.0 残差是末钉之后、意图已被
+                // 瞬时达标消费之后，集合视图内部布
+                // 局拍迟到回调 offset −4（composi-
+                // tional 锚点保全、R1 期 ≤2pt 残差
+                // 同族）——瞬时达标不作数，须等几
+                // 何静止后由后续拍重钉收口
                 landingIntent = false
+                landingSettleContentSize = nil
             } else if CACurrentMediaTime()
                 - landingIntentSince < 2.0 {
                 // 收敛尾差（H6）：意图存续期内延迟
@@ -1095,14 +1101,11 @@ final class ChatRootViewController: UIViewController,
                 // （如图片落图改行高）落地后重钉、收
                 // 敛即停；预算按时间窗不按次数。2 秒
                 // 窗外仍未收敛则停拍、残差由现测读数
-                // 如实呈报不假装在底：装配实证存在
-                // ≤2pt 的布局 offset 调整残差（钉底
-                // 触发的布局 pass 为保锚点位回调 off-
-                // set，inset/contentSize/末行帧全自
-                // 洽、末行完整可见，见装配测试④全状
-                // 态打印与报告 §六定因）——那是布局
-                // 的可达落点、非本拍能推翻的标尺分叉
+                // 如实呈报不假装在底
+                landingSettleContentSize = csNow
                 scheduleSettle(delay: 0.05)
+            } else {
+                landingSettleContentSize = nil
             }
         }
         layoutArrow()
@@ -1216,17 +1219,8 @@ final class ChatRootViewController: UIViewController,
     }
 
     private func pinToBottom() {
-        let csBefore = collectionView.contentSize.height
-        let offBefore = collectionView.contentOffset.y
-        let target = maxOffsetY()
         collectionView.contentOffset = CGPoint(
-            x: 0, y: target
-        )
-        print(
-            "PINTRACE pin cs=\(csBefore)"
-                + " offBefore=\(offBefore) set=\(target)"
-                + " offAfter=\(collectionView.contentOffset.y)"
-                + " intent=\(landingIntent)"
+            x: 0, y: maxOffsetY()
         )
     }
 
@@ -1301,6 +1295,7 @@ final class ChatRootViewController: UIViewController,
         // 用户接管：落点意图即消（H6 的意图边界）
         userInteracting = true
         landingIntent = false
+        landingSettleContentSize = nil
     }
 
     func scrollViewDidEndDragging(
@@ -1321,6 +1316,7 @@ final class ChatRootViewController: UIViewController,
     func scrollToBottom(animated: Bool) {
         landingIntent = true
         landingIntentSince = CACurrentMediaTime()
+        landingSettleContentSize = nil
         collectionView.layoutIfNeeded()
         let target = maxOffsetY()
         if animated {
