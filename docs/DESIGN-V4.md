@@ -13455,3 +13455,27 @@ run 43771141003（workflow_dispatch @ rel-05060 尖端 1a562fa），全日志 25
 第二轮（run 43811401965@b12d52a，零改动同提交，全日志 24,770 行）：**Core 2149/2149 复全绿**；红集与首轮逐件相同（App 2＋UI 9、成员零涨落）；新测 2/2 复过；三 VERDICT 复 PASS；§184 零命中；落底两数复同值。
 
 **§310 判定：判绿**（预制面，不组版）——聚合上收与客户端退役落码见 §310 正文；行为等价靠三重对账：准入规则逐行移植＋伴生自测以客户端旧测试样本钉死（污染 9 名/形态变体/根散白名单/深度界）、生产读面实查 49 条与磁盘逐类对上、App 契约解码钉测双轮过。待主线组版；真机验收点见待办总表第 107 条（原登记第 106 条、与 A-11 重号，0.50.63 组版顺延，见待办总表该条注记）。
+
+## §311 GoalsView 结构拆分包（2026-11-16；分支 feat/goalsview-structure，基线 feat/goal-kanban-single@cb0c9c8；横扫 A-11；原自编号 §307，组版 0.50.63 顺延为 §311）
+
+A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 个 View 类型＋GoalCreateSheet＋文件级 helper）按职责拆为五文件，**纯结构、零行为变更**——不改任何文案、布局数值、交互与数据流。Tuist 目录 glob（`Sources/OneDayApp/**`）自动纳入新文件，Project.swift 不动。
+
+| 文件 | 行数 | 内容（原文行段） |
+|---|---|---|
+| GoalsView.swift | 442 | 文件头注释＋GoalCreateSheet＋GoalsView 列表页（1–442 逐字保留） |
+| GoalListRows.swift | 460 | 未归类行/分类行/分类 sheet/介绍卡/组头/勾选框/goalActivityDotColor/目标行/里程碑行（443–895） |
+| GoalDetailView.swift | 858 | 目标详情呈现页整页（896–1746；内部分区已 MARK 分段、整页一文件保呈现对拍单元） |
+| GoalBriefingViews.swift | 252 | 状态 chip＋简报列表页＋简报信件页（1747–1991） |
+| GoalFormViews.swift | 467 | 编辑/新建/委派三表单（1992–2451） |
+
+**零行为变更证明**：五文件（各去 7 行新文件头）按序拼回与原文逐字节对账，仅一行差——`goalActivityDotColor` 去 `private`（详情页 activitySection 跨文件共用同一 helper，可见性修饰、非逻辑变更；全文件仅此一处文件级 private 跨界）。新文件头各 7 行（4 import＋出处注释），git 账面：删 2009（搬移）／增 2037＝2009 搬移＋28 文件头，逐行闭合。详情页未再按分区拆扩展文件：其 @State/@Environment 与分区函数互为 private 一体，硬拆须把约 15 处成员改 internal，可见性 churn 的风险大于行数收益，留整页。
+
+**A-04 契约面原样保留（grep 实查）**：GoalAssociations 行驱动判定在 GoalDetailView（linkedTasks/ideas/monitors/isEmpty 四调用点）、delegateTask 单调用在 GoalFormViews（GoalDelegateView.submit）、assignUngroupedTask 在 GoalsView（ungroupedSection）；全 target `GoalTaskLinks`/`goalTaskLinks` 残留零。原 A-11 建议中的「条目流 LazyVStack」属行为变更、不在本包范围，未搭载（留主线另裁）。
+
+### §311.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）
+
+第一轮（run 43806029400@c03ee59，全日志 24,998 行本地核账）：**Core 2157/2157、0 failures**（与基线 cb0c9c8 的 2157 逐项同值、本包 Core 零改动）；BUILD SUCCEEDED；VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。失败恰 11 件、全登记签名族：UI 第 95 条手势族 9（原生面 5＋仲裁 4、AX 帧不稳同签名）、App §257.1 探针 1、R2 装配 ⑧ 量测限制 1。§184 签名内：BackingData 零命中。签名外新红零。
+
+第二轮（run 43810409224@c03ee59，全日志 25,528 行）：**Core 2157/2157、0 failures**，失败恰同 11 件同签名、三 PASS、BackingData 零命中，与首轮逐项一致。
+
+**§311 判定：判绿**（预制面，不组版）——呈现对拍由逐字节拼回对账（仅一行可见性差）＋两轮全量门同值双证；待办总表登记第 106 条（未划、待组版）。真机无新增验收点（零视觉/行为改动），随组版清单顺带目验目标页各面即可（交卷报告 goalsview-structure-20261116.md）。
