@@ -161,7 +161,7 @@ public struct WriteGateRecord: Decodable, Sendable, Equatable, Identifiable {
     public let anchor: WriteGateAnchor?
     /// 确定性批不了原因（§245 立项，伴生 1.0.29 起；
     /// B-05 于 1.0.63 改单字段 reason＋reason_phase，
-    /// App 侧 §300 直接切换、不再读旧 blocked_reason）：
+    /// App 侧 §301 直接切换、不再读旧 blocked_reason）：
     /// 桥以与上游落盘同口径的纯校验复算出「这条批准
     /// 必败」时随记录带出（上游原文，如技能简介超字
     /// 数预算），阶段标恒为 pre-check；nil＝无此结论
@@ -507,7 +507,7 @@ public struct WriteGateDecisionResponse: Decodable, Sendable, Equatable {
     public let decision: String?
     /// 裁决失败的结构化原因（§245 立项，伴生 1.0.29
     /// 起；B-05 于 1.0.63 改单字段 reason＋
-    /// reason_phase，App 侧 §300 直接切换、不再读旧
+    /// reason_phase，App 侧 §301 直接切换、不再读旧
     /// failure_reason）：桥从上游回放输出的 Failed
     /// 段解析出的本条原因，阶段标恒为 execution；
     /// success=false 且本字段非空时，卡面提示直接呈

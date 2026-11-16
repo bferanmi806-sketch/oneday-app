@@ -13176,7 +13176,7 @@ run 43746767854（workflow_dispatch @ rel-05058 尖端 0a9fca6），全日志 24
 run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25,031 行本地核账：**Core 2164/2164、0 failures**；**R1 装配 7/7 续绿**；**R2 装配 ⑦⑨⑩ 续绿**；**R3 装配四例全过**（⑪⑫⑬＋拼装资格）；**R4 装配 ⑭⑮⑯ 全过**——⑯ `NATIVE-LANDING-R4 contentSize=4156.0 offset=3352.0 distance=0.0 contentEndVisible=true`，与同轮 R1 ③ 的 NATIVE-LANDING 逐值相同、与 R4 预制两轮逐值相同（确定性复现）；**DiscussQuote 双面门绿**（9.2s）；**DataDetector 3/3 续绿**；**键盘矩阵本轮绿**（99.2s，rig 抖动族自愈、与登记观察一致）。App 红恰 2 件：§257.1 登记探针（EdgeEffectProbe，失败值 24/8/18/25 与基线逐值同签名、钉旗后仍在旧面量测）＋⑧（「0≠1」量测不可达、已登记量测限制）。UI 20 例 9 红、恰第 95 条登记族：原生面五件（AX 帧不稳同签名）＋仲裁 4 件（右滑/长按正文/长按电话/双击；边距带本轮过），全程无产品反例。§184 签名内：宿主重启 1 次、BackingData 零命中。VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS、MATRIX-VERDICT=PASS。签名外新红零。
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.59/OneDay-0.50.59-unsigned.ipa：**14,051,848 字节、md5 `9fb4ac69e24fc752a43e6d585dbd3e7e`**，解包验 CFBundleShortVersionString=0.50.59、CFBundleVersion=187、bundle id site.didichou.oneday。待办总表已落第 99 条 R4 落地行（.59 已组版、浸泡自本版起算、R5 门＝满一整版无承载级回退），副本随交付目录；真机清单 17 项＝首组手势五件最终验收（默认新面直接验）＋续组 11 项（新增第 6 项「装后默认即新面」、收尾项改「关开关回旧面再开回」）；全矩阵 24 项＋千条 Instruments 对照为浸泡期验收门、随真机验回填。未合 main、未打 tag。
 
-## §300 写闸 reason 单字段契约 App 半边收口（2026-11-16；feat/writegate-reason-app，基线 rel-05059@9619b61）
+## §301 写闸 reason 单字段契约 App 半边收口（2026-11-16；feat/writegate-reason-app，基线 rel-05059@9619b61）
 
 **背景**：横扫 B-05 服务端半边已随伴生 1.0.63 上线（2026-11-16 05:18）——写闸桥把 blocked_reason（待批记录·预检）与 failure_reason（裁决回执·执行）合并为单字段 `reason`＋阶段标 `reason_phase`（`pre-check`／`execution`），模块内旧字段零残留。本节是 App 半边：切到新契约、审批卡改单读口。伴生报告对 App 现状的自述（「尚未解码两字段」）系沿用 2026-11-11 旧报告、与现行代码不符——§245 一代 App 已解码两旧字段并上卡面（WriteApprovalModels／ApprovalCardFace／AgentHubStore 三处实证）；1.0.63 上线后旧字段无产出，现行 .59 的防呆呈现实际已静默失效（解码恒 nil），本包即修复此窗口。
 
@@ -13189,10 +13189,10 @@ run 43757498907（workflow_dispatch @ rel-05059 尖端 932e8d2），全日志 25
 - App `ApprovalCardFace`：防呆行改经 reasonLine 取整行，不再直读字段拼句。App `AgentHubStore`：decide／decideAlways 两道防呆守卫改以 isBlocked 为闸、提示行经 reasonLine；decide 失败分支改经 reasonLine(for: response) 取行、无原因回落既有泛化句。
 - 不动：WriteGateDecisionRecord（已决历史不带 reason 字段、桥 /decisions 载荷无此面）、SessionMigration 的 failureReasons（同名异物、会话迁移计划局部量）。
 
-**测试**：Core 解码钉测改写＋扩围（HubGateAndBrowserTests 两法：新载荷记录/回执各一、旧载荷各一、空白串、阶段未知、回执 reason=null）；呈现对拍新法（ApprovalCopyTests.testReasonLinePresentation：同 reason 串两面句式对拍＋阶段缺失缺省＋无原因恒 nil）。Core 净计数变化以 CI 实数为准（预期 2164＋新断言分布于既有 2 法改写与新 1 法，总法数 2165）。红只认登记签名族（§257.1／R2 ⑧量测限制／第 95 条 AX 帧不稳／键盘矩阵 rig／§184 签名内）。CI 判读见 §300.1（回填）。
-**待办账**：新增第 101 条（B-05 App 半边落地行；原拟第 100 条与 DESIGN §299 均已被键盘热修线占用，按后合顺延例改 §300／第 101 条）。未组版——判绿后交主线组版。
+**测试**：Core 解码钉测改写＋扩围（HubGateAndBrowserTests 两法：新载荷记录/回执各一、旧载荷各一、空白串、阶段未知、回执 reason=null）；呈现对拍新法（ApprovalCopyTests.testReasonLinePresentation：同 reason 串两面句式对拍＋阶段缺失缺省＋无原因恒 nil）。Core 净计数变化以 CI 实数为准（预期 2164＋新断言分布于既有 2 法改写与新 1 法，总法数 2165）。红只认登记签名族（§257.1／R2 ⑧量测限制／第 95 条 AX 帧不稳／键盘矩阵 rig／§184 签名内）。CI 判读见 §301.1（回填）。
+**待办账**：新增第 101 条（B-05 App 半边落地行）。编号顺延记账：本节原拟 §299，施工期间并行线先行占用——§299 已被听写瘦身包占用并随 rel-05060 入链、§300 为 0.50.60 组版节（待办第 100 条亦已被键盘热修条目占用），按后合顺延例本节改 §301、待办改第 101 条，代码自指已全量同步。
 
-### §300.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）——判绿
+### §301.1 CI 判读回填（2026-11-16；两轮全量门，判读守 §190）——判绿
 
 第一轮（run 43771388646@a059463）：**Core 2165/2165 全绿**（基线 2164＋本包新法 1，与静态预期逐值对上）；本包三法全过（testRecordBlockedReasonDecode／testDecisionResponseFailureReasonDecode／testReasonLinePresentation）。App 263 例 3 红：§257.1 探针（失败值 24/8/18…与基线逐值同签名）、⑧（「0≠1」量测限制签名逐字）、DataDetectorPresentationTests.testDetectorsSurviveAssistantPresentationPath（整形后电话未识成 tel: 链接；与本包改动面零交叠、该套件有 flake 前科，待二轮定性）。UI 20 例 9 红＝原生面五件＋仲裁 4 件（第 95 条登记族、边距带本轮过）。键盘矩阵绿；VERDICT／HUB-LAYOUT／MATRIX 三 PASS；§184 宿主重启 1 次、BackingData 零命中。
 
