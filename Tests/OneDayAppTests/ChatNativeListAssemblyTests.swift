@@ -502,75 +502,44 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             )
         }
         apply(rows: rows)
-        drain(0.4)
-        try dumpLandingDecomp(tag: "T0", rowCount: rows.count)
-        drain(1.2)
-        try dumpLandingDecomp(tag: "T1", rowCount: rows.count)
+        drain(1.6)
         let cv = controller.collectionView
-        let rulerMax = cv.contentSize.height
-            + handle.bottomInset - cv.bounds.height
+        let cs1 = cv.contentSize.height
+        let off1 = cv.contentOffset.y
+        let ruler = handle.bottomInset
+        let arithMax = cs1 + ruler - cv.bounds.height
+        let layoutCS = cv.collectionViewLayout
+            .collectionViewContentSize.height
+        print(
+            "DECOMP2 settled cs=\(cs1) off=\(off1)"
+                + " ruler=\(ruler) arithMax=\(arithMax)"
+                + " dist=\(handle.latestDistance)"
+                + " insetB=\(cv.contentInset.bottom)"
+                + " adjB=\(cv.adjustedContentInset.bottom)"
+                + " layoutCS=\(layoutCS)"
+        )
         cv.setContentOffset(
-            CGPoint(x: 0, y: rulerMax), animated: false
+            CGPoint(x: 0, y: arithMax), animated: false
         )
         print(
-            "DECOMP-PROBE setTo=\(rulerMax)"
-                + " immediateOffset=\(cv.contentOffset.y)"
+            "DECOMP2 setImmediate"
+                + " off=\(cv.contentOffset.y)"
+                + " cs=\(cv.contentSize.height)"
+        )
+        drain(0.6)
+        print(
+            "DECOMP2 afterBeats"
+                + " off=\(cv.contentOffset.y)"
+                + " cs=\(cv.contentSize.height)"
+                + " dist=\(handle.latestDistance)"
+                + " insetB=\(cv.contentInset.bottom)"
         )
         window.layoutIfNeeded()
         print(
-            "DECOMP-PROBE afterLayout"
-                + " offset=\(cv.contentOffset.y)"
-        )
-        drain(0.5)
-        try dumpLandingDecomp(tag: "T2", rowCount: rows.count)
-    }
-
-    private func dumpLandingDecomp(
-        tag: String, rowCount: Int
-    ) throws {
-        let cv = controller.collectionView
-        let last = try frame(at: rowCount - 1)
-        let host = try XCTUnwrap(controller.composerHost)
-        let hostInWindow = host.view.convert(
-            host.view.bounds, to: nil
-        )
-        let guide = controller.view.keyboardLayoutGuide
-            .layoutFrame
-        let ci = cv.contentInset
-        let ai = cv.adjustedContentInset
-        let maxByInset = cv.contentSize.height + ci.bottom
-            - cv.bounds.height
-        let maxByRuler = cv.contentSize.height
-            + handle.bottomInset - cv.bounds.height
-        let trail = cv.contentSize.height - last.maxY
-        print(
-            "DECOMP \(tag)"
-                + " contentSize=\(cv.contentSize.height)"
-                + " offset=\(cv.contentOffset.y)"
-                + " bounds=\(cv.bounds.width)x\(cv.bounds.height)"
-                + " cvFrame=\(cv.frame)"
-                + " inset T\(ci.top) B\(ci.bottom)"
-                + " adjInset T\(ai.top) B\(ai.bottom)"
-                + " behavior="
-                + "\(cv.contentInsetAdjustmentBehavior.rawValue)"
-                + " cvSafe T\(cv.safeAreaInsets.top)"
-                + " B\(cv.safeAreaInsets.bottom)"
-                + " viewSafe B"
-                + "\(controller.view.safeAreaInsets.bottom)"
-                + " winSafe T\(window.safeAreaInsets.top)"
-                + " B\(window.safeAreaInsets.bottom)"
-                + " ruler=\(handle.bottomInset)"
-                + " distance=\(handle.latestDistance)"
-                + " endVisible=\(handle.contentEndVisible)"
-                + " lastMaxY=\(last.maxY)"
-                + " trail=\(trail)"
-                + " hostWin minY\(hostInWindow.minY)"
-                + " maxY\(hostInWindow.maxY)"
-                + " h\(hostInWindow.height)"
-                + " guide minY\(guide.minY)"
-                + " maxY\(guide.maxY)"
-                + " maxByInset=\(maxByInset)"
-                + " maxByRuler=\(maxByRuler)"
+            "DECOMP2 afterLayout"
+                + " off=\(cv.contentOffset.y)"
+                + " cs=\(cv.contentSize.height)"
+                + " dist=\(handle.latestDistance)"
         )
     }
 
