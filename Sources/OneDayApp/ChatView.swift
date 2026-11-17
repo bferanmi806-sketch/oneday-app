@@ -471,6 +471,12 @@ struct ChatView: View {
     /// §195：顶簇实高（TopBarGuideHost 回写；种子
     /// 60＝顶栏单行高、进展胶囊出现/消失随实测跟进）
     @State private var topBarHeight: CGFloat = 60
+    /// §321：顶簇底缘窗口坐标（TopBarGuideHost 以
+    /// 活帧 convert 回写；种子 0＝未量得，新面顶
+    /// inset 喂入未量得时回落 §195 相加口径、量得
+    /// 后认本值单源——列表顶留位与顶簇真实底边
+    /// 由构造恒等，不再靠两个独立种子数相加对齐）
+    @State private var topClusterBottomInWindow: CGFloat = 0
     @State private var videoItems: [PhotosPickerItem] = []
     @State private var showVideoPicker = false
     // 文件选择自 0.36.31 起走 UIKit 桥 Document-
@@ -1100,10 +1106,22 @@ struct ChatView: View {
     private var topBarHostOverlay: some View {
         TopBarGuideHost(
             barHeight: $topBarHeight,
+            barBottom: $topClusterBottomInWindow,
             scrollHandle: listScrollHandle
         ) {
             topBarCluster
         }
+    }
+
+    /// §321：新面列表顶 inset 喂入——量得顶簇底缘
+    /// （窗口坐标）即认本值（列表视图同在窗口系
+    /// 全幅、原点同源）；未量得（首拍前）回落
+    /// §195 相加口径（窗口顶安全区实测＋顶簇实
+    /// 高），量级同档、无悬空帧
+    private var nativeFedTopInset: CGFloat {
+        topClusterBottomInWindow > 0
+            ? topClusterBottomInWindow
+            : windowTopSafeInset + topBarHeight
     }
 
     /// §251 预热条目组装（§257 起自 .task 链抽为
@@ -2371,7 +2389,15 @@ struct ChatView: View {
             // kbFrameUpdate（与旧面 ComposerGuide-
             // Host 同一口径、同一份快照）——R2 期
             // 「快照与本面脱钩」就此收口（定因 K2）
-            topInset: windowTopSafeInset + topBarHeight,
+            // §321：顶留位改认顶簇底缘实测单源
+            // （nativeFedTopInset：量得即认顶簇在窗
+            // 口里的真实底边、未量得回落上方 §195
+            // 相加口径）——治 .65 真机录屏「列表顶
+            // 部滑到浮动顶栏下被遮」：旧相加口径的
+            // 两个种子数在本面无同源实测兜底（顶安
+            // 全区种子在本面无回写者），与顶簇真实
+            // 底边可差一整段安全区量级
+            topInset: nativeFedTopInset,
             bottomMargin: OneDayMetrics.spacingM,
             composerView: AnyView(
                 bottomBar(
@@ -6587,6 +6613,22 @@ struct ChatView: View {
     /// 档填充渲染、零改动，只随正文一同被泡面包住；
     /// 异构件在本函数之外、不受影响。函数名沿旧名
     /// 以保调用点零改动与沿革可追。
+    /// §321 三度改判（2026-11-17，用户真机录屏实报
+    /// 「回复消息怎么还是这种？大厂怎么做的？和大
+    /// 厂对齐」）：§225 恢复气泡口径**作废**——助手
+    /// 回复对齐 Muse/Muse 式无气泡呈现：撤
+    /// bubbleFill 填充，散文直落 chatSurface（与 A1
+    /// 同形），§225「内容是纯文字」的本意保留（正
+    /// 文排版/字阶/字色逐字不动，被撤的只是承载
+    /// 面）。与 A1 的差别：§265 整行菜单的宿主背
+    /// 景层保留（填充改 .clear——菜单挂载面与内边
+    /// 距带命中不依赖填充色），几何 §263 逐值不动
+    /// （列宽/左缘/内边距全保留，量测喂入同值、行
+    /// 高产物零失效）；代码块/表格等异构件自有填
+    /// 充逐字不动、只不再被泡面包住。原生散文
+    /// cell 同步撤填充（ChatNativeProseCell §321
+    /// 注），双形态同口径。全档 reply-rendering-
+    /// alignment-20261117.md。
     private func assistantBubble<Content: View>(
         menuEntry: ChatEntry? = nil,
         @ViewBuilder _ content: () -> Content
@@ -6619,11 +6661,15 @@ struct ChatView: View {
                     // 同口径：背景层不是文本视图的祖
                     // 先，长按文本归 UITextView 原生；
                     // 流式泡不传（无菜单、形态逐字不变）
+                    // §321：填充改 .clear——本层自此只
+                    // 作菜单宿主、不再是可见气泡面（助
+                    // 手散文直落 chatSurface）；形状与
+                    // 挂载点逐字不动，菜单命中带不变
                     let shape = RoundedRectangle(
                         cornerRadius:
                             OneDayMetrics.assistantBubbleCorner
                     )
-                    .fill(Palette.bubbleFill)
+                    .fill(Color.clear)
                     if let menuEntry {
                         shape.modifier(
                             messageMenu(for: menuEntry)
