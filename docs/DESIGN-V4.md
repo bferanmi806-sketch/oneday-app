@@ -13724,3 +13724,23 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 ### §324.1 CI 两轮核账（§190，2026-11-17 回填；构建提交 d363e8a）
 
 两轮同提交、零改动复跑，工作流名义 conclusion 均 failure（签名红集恒在）。**第一轮 run 44066123206**（41m52s）：Core **2157/2157 零失败**（2153 基线＋速度模型例 1＋收口新例 3＝并集闭合）；本版新测全过（FileChipVersionFixAssemblyTests 1/1、ReplyRenderingAlignmentTests 2/2）；红集 16 件＝登记签名 15 件＋ChatPageDeviceConditionProbeTests 1 件——该探针失败点为前置条件超时（注入的 AX5 trait 8 秒内未传播到文本视图、量测链未进入、锚定断言未执行），属第 95 条族同源的 harness 传播涨落、非几何量测失败。**第二轮 run 44072783910**（45m43s）：Core 2157/2157；红集恰登记签名 **15 件**（第 100 条落底 2＋R2 ⑧⑨ 2＋§257.1 探针 1＋第 95 条族 9＋键盘 rig 1，MATRIX-VERDICT=FAIL 与 rig 红成对），该探针本轮转过——两轮互证第一轮为间歇涨落，**签名外新红零**。两轮 ATTACH-FIT 四值（sheet 170.67／ideal 136.67／presentedIdeal 136.67／safeBottom 0.0、GROWTH +102）与 .65 逐值同、kbTopWin 23 印、HUB-LAYOUT-VERDICT=PASS、BackingData 零印。**判绿**。IPA 取第一轮产物：0.50.66／194、bundle id site.didichou.oneday、14,040,291 字节、md5 `d961953a13575eb1b1222336031eb30d`，落 ~/workspace/your_files/oneday-v0.50.66/。未合 main、未打 tag。
+
+## §325 聊天页承载机制 B 档退役（2026-11-17；分支 feat/b-tier-carrier-retirement，基线 rel-05066@1379035；用户 2026-11-17 拍板，待办第 112 条；同根审计 chat-page-root-audit-20261117 §5 B 档定案）
+
+**退役三件（自造承载整套）**：
+
+**① 双 cell 形态 → 单渲染路径**：`ChatNativeProseCell.swift` 整件删除（原生散文 cell＋RowView＋规格＋段拼装缓存，922 行）；ChatNativeList 只注册托管 cell 一种、cellProvider 无形态分发；ChatView 的资格判定 `nativeProseSpec` 整件删除——内容 facet（工具卡/思考/图片/文件牌/结构段……）只影响行内呈现（entryRowContent 本体），不再决定行是哪种 cell。连带退役：§320.1 的 apply 形态翻转先删后插分流（无形态可翻，reconfigure 恒同注册原地重配，跨形态 dequeue 崩溃类由构造消除）；H11「落定不换装」在单形态下自动成立（落定行与流式行同为托管 cell、同键 reconfigure）。选字/菜单/右滑平价：托管侧即 R3 下沉前的生产原路（entryRowContent 的 messageMenu/swipeReply 修饰符＋SelectableInlineText 本体），非散文行一直在用、本次散文行回归同路；真机平价验归组版清单。
+
+**② 行高估算管线 → 框架自适应**：原生面行描述删除 estimatedHeight；ChatView 的 carrierRowEstimate（含 fileChipStackEstimate）退出原生面关键路径（只余 gen3 面消费、随 R5 一并销账，函数头注已标）；ChatNativeList 的占位均值聚合（placeholderEstimate：全行估算均值钳制 [56,320]、漂移 >1pt 全量 invalidateLayout）整件删除——compositional item/group 的 .estimated 只留固定常量 120（ChatNativeLayoutBox.estimatedPlaceholder，只供未物化区滚动几何、永不随行集变化）；物化行高由 UIHostingConfiguration 自适应＋selfSizingInvalidation=.enabledIncludingConstraints 由框架持有收敛。卡顿三源随之消解：占位漂移全量失效、散文 cell 双重量测（computeLayout×2，随 cell 删除）、估算↔实际修正风暴。
+
+**③ 手维护版本哈希 → 结构化派生**：行描述的 version: Int 退役，改 `ChatNativeRowRevision`——渲染输入全量值的有序清单（Part：text/data/flag/count/real，Equatable 逐值比较，不折长度不折哈希）。条目行单点派生 `ChatNativeRowRevision.entry`：按 ChatEntry 落盘字段声明序全量快照（29 字段：正文/双图数据/引用四族/思考/工具卡数据/远端图与文件路径数据/回响三键/发送三态/createdAt）＋环境侧四项（分隔文案/锚点点亮/选区在场/样式键）；渲染 facet 全部由落盘字段派生（计算属性无一例外），「漏折一项」这一错误形态由构造消除——新 facet 落盘即自动入账。其余行型同律：直播正文＝段文本全文、工具卡＝卡 Codable 编码本体、回告卡＝通知编码本体、审批区＝锚定 id 集本体（代旧 count）、工具组＝组内条目快照串接。apply 对账只认修订值全量比较（revisionsByKey）。
+
+**保留不动**：compositional 单列、贴底锚链（H3/H6/H7）、§302 键盘（通知帧顶单常量）、间距单源 24（interGroupSpacing 一处）、顶栏 nativeFedTopInset（§321）。
+
+**后置项裁定（同线内）**：
+- **键盘引导线重验——不成立，kbSnapshot 不退役**。证据：⑴结构：新宿主层级与 §302 时代无变（ChatView 仍经 SwiftUI 托管内嵌 ChatRootViewController，引导线被证伪的决定条件——SwiftUI 托管内嵌层级——未变）；⑵模拟器采样（新测 ⑭′）：投递 willShow（帧顶 545）后舱底逐值落 545（通知路成立），同帧 keyboardLayoutGuide 顶仍停静息值、与帧顶差 >100pt——引导线在本宿主依旧不追踪，与 §302 真机定因同签名。引导线若要成立须先换宿主层级（超出本包范围），真机终验归组版清单（清单项：键盘升起时以 kbTopWin/guideTopWin 自述对账复核——§302 采样通道仍在）。kbSnapshot 分发层保留：其现存消费＝标签栏键盘态藏坞（ChatView .toolbar）＋gen3 面几何（随 R5 退役再议）。
+- **输入舱管道瘦身——原生面已无可瘦**：原生面舱几何自 §302 起全由容器内通知链＋舱实测帧派生、不消费 kbSnapshot 任何字段；ChatView 侧与原生面相连的只剩 kbFrameUpdate 供数一根线（标签栏藏坞要用、gen3 面要用），删之即伤共享面。本包实际瘦身＝行描述去掉估算/版本两条喂入管线后，apply 入口不再有占位聚合与版本对账两段计算。舱形态（用户定版）零改动。
+
+**测试换代**：R1 ⑥产物估算带宽→「固定占位不驱动物化行高」；R3 装配文件整件换代（⑪双形态对拍/⑫原生 cell 本体/⑬混合间距随形态退役 → ⑪′全体行单形态结构断言/⑫′多遍 apply 间隙 24±2＋未变行帧逐值稳定＋变长行单独生长/⑬′修订值全字段敏感/⑭′引导线重验）；FileChip 装配测换代（散文→托管换装断言 → 同形态原位重配＋行高增长 ≥40，观测边界沿 §294.1 定版、未换第三种通道）；ReplyRenderingAlignment ①散文 cell 填充断言→单路径结构断言（②顶簇回报不动）；R1/R2/R4 行构造改修订值入账。装配断言采集一律沿既有定版（帧口径 layoutAttributes＋cell reuseID 结构断言），未自选新观测通道。
+
+**验收门**：CI 两轮同构、Core 全绿、签名外新红零（判读见 §325.1 回填）。**真机门（未验，随组版清单）**：同段对话滚动量测间隙 24±2、文件牌实时在席（发送即见、不重启）、滚动无可见高度跳变、散文行选字/长按菜单/右滑回复平价、键盘 kbTopWin/guideTopWin 对账复核。

@@ -20,7 +20,9 @@ import OneDayDesign
 /// 口径离底 vs 本面帧口径）；④程序化跳中段后距
 /// 底读数与锚一致（H7 现测）；⑤托管高度与裸宿
 /// 主（safeAreaRegions 清零）等价（H2 回退门）；
-/// ⑥产物估算与 cell 实高带宽（H10）。
+/// ⑥固定占位不驱动物化行高（§325 换代：原产物
+/// 估算带宽随估算管线退役，改验物化高只由内容
+/// 决定）。
 /// §293（R2）装配形态变更：输入舱不再是壳外
 /// UIView＋喂入两数——舱内容经 apply 的 compo-
 /// serView 交容器子托管；「键盘座位」R2 期由附
@@ -242,8 +244,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         _ key: String, _ text: String, entryID: UUID? = nil
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: entryID, version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: entryID,
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: { self.assistantContent(text) }
         )
     }
@@ -252,8 +254,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         _ key: String, _ text: String, entryID: UUID? = nil
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: entryID, version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: entryID,
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: {
                 AnyView(
                     HStack {
@@ -292,8 +294,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         _ key: String, _ text: String
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: nil, version: 1,
-            estimatedHeight: 110,
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: {
                 AnyView(
                     VStack(
@@ -605,81 +607,46 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ⑥ 产物估算带宽（H10）
+    // MARK: - ⑥ 固定占位不驱动物化行高（§325，代产物估算带宽）
 
-    func testProductEstimateWithinBand() async throws {
+    /// §325：产物层估算管线退役后，compositional
+    /// 的 .estimated 只剩固定常量（120）供未物化
+    /// 区几何——物化行高必须只由内容决定：短行
+    /// 远低于占位、长行远高于占位，两行间距仍单
+    /// 源 24。若行高被占位锚住（短行≈120 或长行
+    /// 被压），本断言即红
+    func testMaterializedHeightComesFromContentNotPlaceholder() throws {
         assemble()
-        let text = """
-            产物带宽检验第一段：排版产物在量测池里按真实字体与段落规格量出文本总高，行高模型再叠上气泡内边距组合成整行估算。
+        let longText = """
+            占位退役检验的长回复第一段：行高归框架自适应之后，物化行的高度只能来自它自己的内容排版——同一列表里短行与长行并存时，各自的高度差必须完整反映内容差，而不是被某个统一的估算值拉平。
 
-            第二段故意长一些，用来让文本在给定列宽下折成多行：集合视图 cell 的实高来自同一段正文的真实排版，两者之比应落进蓝图给定的带宽，而不是靠帧表或写死高度蒙混。
+            第二段继续加长：集合视图在滚动几何上对未物化区使用固定占位，那只是滚动条与总高的近似；一旦行被物化，它的帧高就是内容高，估算值不许再回头改写它。
 
-            第三段收尾。
+            第三段收尾，确保总高明显越过固定占位常量。
             """
-        let rows = [assistantRow("band", text)]
+        let rows = [
+            assistantRow("short", "短。"),
+            assistantRow("long", longText),
+        ]
         apply(rows: rows)
-        await drainAsync()
-        let cellHeight = try frame(at: 0).height
-
-        let textWidth = windowW
-            - OneDayMetrics.pageGutter * 2
-            - OneDayMetrics.bubblePaddingH * 2
-        let style = LayoutStyleContext(
-            sizeCategory: .large, boldText: false
-        )
-        let product = await LayoutProductService.shared
-            .product(
-                entryID: UUID(),
-                renderedText: text,
-                isUser: false,
-                width: textWidth,
-                style: style
-            )
-        let unwrapped = try XCTUnwrap(product, "产物应能现产")
-        let lineFloor = InlineTextFonts.specLineHeight(
-            textStyle: .body,
-            category: .large,
-            boldText: false
-        )
-        let dividerHeight = UIFont.preferredFont(
-            forTextStyle: .footnote,
-            compatibleWith: UITraitCollection(
-                preferredContentSizeCategory: .large
-            )
-        ).lineHeight
-        let estimate = CGFloat(
-            ChatRowHeightModel.rowHeight(
-                ChatRowHeightModel.Input(
-                    textTotalHeight: Double(
-                        unwrapped.textTotalHeight
-                    ),
-                    textSegmentCount: unwrapped.segments.count,
-                    structuralSegmentCount:
-                        unwrapped.structuralSegmentCount,
-                    measuredContentHeight: nil,
-                    hasDivider: false,
-                    bubblePaddingV: Double(
-                        OneDayMetrics.bubblePaddingV
-                    ),
-                    segmentSpacing: Double(
-                        OneDayMetrics.spacingS
-                    ),
-                    dividerHeight: Double(dividerHeight),
-                    dividerSpacing: Double(
-                        OneDayMetrics.spacingS
-                    ),
-                    lineHeightFloor: Double(lineFloor),
-                    provisionalHeight: 56
-                )
-            )
-        )
-        let ratio = estimate / cellHeight
+        drain()
+        let shortHeight = try frame(at: 0).height
+        let longHeight = try frame(at: 1).height
         print(
-            "NATIVE-BAND estimate=\(estimate) cell=\(cellHeight) ratio=\(ratio)"
+            "NATIVE-PLACEHOLDER short=\(shortHeight) long=\(longHeight)"
         )
-        XCTAssertTrue(
-            (0.55...1.8).contains(ratio),
-            "产物估算/实高比须 ∈ [0.55, 1.8]，实测 \(ratio)"
+        XCTAssertLessThan(
+            shortHeight, 100,
+            "短行物化高须来自内容（远低于固定占位 120），实测 \(shortHeight)"
+        )
+        XCTAssertGreaterThan(
+            longHeight, 180,
+            "长行物化高须来自内容（明显高于固定占位 120），实测 \(longHeight)"
+        )
+        let gap = try frame(at: 1).minY - frame(at: 0).maxY
+        XCTAssertEqual(
+            gap, OneDayMetrics.spacingL, accuracy: 1.0,
+            "长短行相邻间距须＝单源 24，实测 \(gap)"
         )
     }
 }

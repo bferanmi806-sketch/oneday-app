@@ -2736,11 +2736,12 @@ struct ChatView: View {
 
     /// 原生面行集组装：落定行全集与 carrierRows()
     /// 同源同序（渲染计划条目/工具组→直播区→回
-    /// 告卡→审批区→空状态）、估算与版本口径逐项
-    /// 复用 gen3 行构建（产物层单源）。直播区自
-    /// R2 起逐项入快照（§293，见 nativeLiveRow）；
-    /// R1 期曾整段一块以 live-zone 不透明 item 喂
-    /// 入，该形态自此退役
+    /// 告卡→审批区→空状态）。直播区自 R2 起逐项
+    /// 入快照（§293，见 nativeLiveRow）；R1 期曾
+    /// 整段一块以 live-zone 不透明 item 喂入，该
+    /// 形态自此退役。§325 起修订值口径换结构化
+    /// 派生（条目快照/卡与通知编码本体/锚定集本
+    /// 体逐值入账），不再复用 gen3 的版本与估算
     private func nativeRows() -> [ChatNativeRow] {
         var rows: [ChatNativeRow] = []
         if let thread = currentThread {
@@ -2756,12 +2757,22 @@ struct ChatView: View {
                     )
                 case .toolGroup(let groupEntries):
                     let cards = groupEntries.compactMap(\.toolCard)
+                    var groupRevision = ChatNativeRowRevision()
+                    for entry in groupEntries {
+                        groupRevision.parts.append(contentsOf:
+                            ChatNativeRowRevision.entry(
+                                entry,
+                                dividerText: plan.dividers[entry.id],
+                                highlighted: false,
+                                selectionActive: false,
+                                styleKey: nativeRowStyleKey
+                            ).parts)
+                    }
                     rows.append(
                         ChatNativeRow(
                             key: "toolgroup-\(groupEntries[0].id.uuidString)",
                             entryID: groupEntries[0].id,
-                            version: groupEntries.count,
-                            estimatedHeight: 96,
+                            revision: groupRevision,
                             makeView: {
                                 AnyView(
                                     ToolCardGroupView(cards: cards)
@@ -2785,12 +2796,15 @@ struct ChatView: View {
                 notifications: overviewStore.notifications,
                 isMainThread: isCurrentMainThread
             ) {
+                var reportRevision = ChatNativeRowRevision()
+                reportRevision.addData(
+                    try? JSONEncoder().encode(item)
+                )
                 rows.append(
                     ChatNativeRow(
                         key: "report-\(item.id)",
                         entryID: nil,
-                        version: 0,
-                        estimatedHeight: 110,
+                        revision: reportRevision,
                         makeView: {
                             AnyView(
                                 reportCard(
@@ -2802,13 +2816,16 @@ struct ChatView: View {
                 )
             }
         }
+        var approvalRevision = ChatNativeRowRevision()
+        for recordID in appState.sharedHubStore()
+            .anchoredRecordIDs.sorted() {
+            approvalRevision.addText(recordID)
+        }
         rows.append(
             ChatNativeRow(
                 key: "approval-zone",
                 entryID: nil,
-                version: appState.sharedHubStore()
-                    .anchoredRecordIDs.count,
-                estimatedHeight: 0,
+                revision: approvalRevision,
                 makeView: {
                     AnyView(
                         ChatApprovalZone(
@@ -2829,8 +2846,6 @@ struct ChatView: View {
                 ChatNativeRow(
                     key: "empty-hero",
                     entryID: nil,
-                    version: 0,
-                    estimatedHeight: 190,
                     makeView: { AnyView(emptyStateHero) }
                 )
             )
@@ -2838,8 +2853,6 @@ struct ChatView: View {
                 ChatNativeRow(
                     key: "empty-suggestions",
                     entryID: nil,
-                    version: 0,
-                    estimatedHeight: 190,
                     makeView: { AnyView(emptyStateSuggestions) }
                 )
             )
@@ -2848,8 +2861,6 @@ struct ChatView: View {
                     ChatNativeRow(
                         key: "empty-modelsetup",
                         entryID: nil,
-                        version: 0,
-                        estimatedHeight: 120,
                         makeView: {
                             AnyView(
                                 modelSetupCard.padding(
@@ -2865,48 +2876,29 @@ struct ChatView: View {
     }
 
     /// 原生面条目行：与 carrierEntryRow 同键（落
-    /// 定映射命中沿用流式行键）、同版本、同估算
-    /// （产物层），只换行描述类型。R3（§295）：
-    /// 资格判定通过的落定散文行带原生规格走原生
-    /// cell（版本并入样式键与右滑门控——样式环
-    /// 境或选区门控一变即 reconfigure 换规格，
-    /// 与托管形态的环境重渲同义）
+    /// 定映射命中沿用流式行键），只换行描述类型。
+    /// §325（B 档）：单渲染路径——全体落定行统一
+    /// 托管（R3 散文规格/原生 cell 退役，资格判定
+    /// nativeProseSpec 整件删除）；修订值由条目模
+    /// 型全字段快照结构化派生（ChatNativeRowRevi-
+    /// sion.entry 单点），环境侧输入（分隔/点亮/
+    /// 选区/样式键）同列入账——不再有手折版本哈
+    /// 希与产物层行高估算
     private func nativeEntryRow(
         _ entry: ChatEntry, dividerText: String?
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
         let key = settledKey ?? "entry-\(entry.id.uuidString)"
-        let estimate = carrierRowEstimate(
-            for: entry, hasDivider: dividerText != nil
-        )
-        if let spec = nativeProseSpec(
-            for: entry, dividerText: dividerText
-        ) {
-            var version = carrierEntryVersion(entry)
-            version = version &* 31
-                &+ nativeProseStyleKey.hashValue
-            version = version &* 31
-                &+ (spec.swipeEnabled ? 1 : 0)
-            return ChatNativeRow(
-                key: key,
-                entryID: entry.id,
-                version: version,
-                estimatedHeight: estimate,
-                proseSpec: spec,
-                makeView: {
-                    AnyView(
-                        entryRowContent(
-                            entry, dividerText: dividerText
-                        )
-                    )
-                }
-            )
-        }
         return ChatNativeRow(
             key: key,
             entryID: entry.id,
-            version: carrierEntryVersion(entry),
-            estimatedHeight: estimate,
+            revision: ChatNativeRowRevision.entry(
+                entry,
+                dividerText: dividerText,
+                highlighted: entry.id == anchorHighlightEntryID,
+                selectionActive: activeSelectionEntryID == entry.id,
+                styleKey: nativeRowStyleKey
+            ),
             makeView: {
                 AnyView(
                     entryRowContent(
@@ -2917,12 +2909,12 @@ struct ChatView: View {
         )
     }
 
-    /// R3 散文下沉的样式键（拼装缓存与行版本共
-    /// 用）：与 SelectableInlineText 的拼装缓存
-    /// 键同因子（字阶/字号档/粗体/前景与次级墨
-    /// 的解析值）——环境一变键即变、旧拼装自然
-    /// 淘汰、行版本随之翻新
-    private var nativeProseStyleKey: String {
+    /// 行样式键（§325 前身为 R3 散文拼装键）：与
+    /// SelectableInlineText 的拼装缓存键同因子
+    /// （字阶/字号档/粗体/前景与次级墨的解析
+    /// 值）——环境一变键即变、行修订值随之翻新、
+    /// 托管行原位重渲
+    private var nativeRowStyleKey: String {
         func components(_ color: Color) -> String {
             color.resolve(in: environment).cgColor
                 .components?
@@ -2939,174 +2931,55 @@ struct ChatView: View {
         ].joined(separator: "|")
     }
 
-    /// R3（§295）落定散文原生规格：资格判定＋拼
-    /// 装＋动作注入。资格口径（与 bubble() 的呈
-    /// 现分支逐项对账——下沉后呈现须与托管形态
-    /// 逐字同构，任一呈现件在席即整行留托管）：
-    /// - 通用：非工具卡/留痕/审批/目标回响行、
-    ///   正文非空、本会话落定映射不在席（H11 落
-    ///   定不换装字面优先，见 ChatNativeProse-
-    ///   Cell 头注）；
-    /// - 助手行：无落盘思考、无服务端图片行，
-    ///   且五组派生扫描全空（交付标记/MEDIA 图/
-    ///   内联图候选/独立成行路径/整条裸路径皆无
-    ///   ＝正文未经任何摘行、displayText 与原文
-    ///   逐字相等、文件牌组为空集）；
-    /// - 用户行：无引用块/源引用、无本地图与服
-    ///   务端图片行、无附件文件牌、非待发非失败
-    ///   （正文泡是行内唯一呈现件）；
-    /// - 段序列全为 prose/quote（结构段在席由拼
-    ///   装层返回 nil 整行留托管）。
-    /// 动作半边全注入既有链：菜单/右滑共用
-    /// beginReply、菜单分流 forkToSideChat、选
-    /// 择 selectionPayload、选区 noteTextSel-
-    /// ection、链接 openURL——与 messageMenu/
-    /// swipeReply 两修饰符的门控逐项同值（菜单
-    /// 恒开＝正文非空已由资格保证；右滑门控＝
-    /// 正文非空且本行无选区在场）
-    private func nativeProseSpec(
-        for entry: ChatEntry, dividerText: String?
-    ) -> ChatNativeProseSpec? {
-        guard entry.toolCard == nil,
-              entry.traceKey == nil,
-              entry.approvalKey == nil,
-              entry.echoKey == nil,
-              !entry.content.isEmpty,
-              streamSettleMap.rowKey(for: entry.id) == nil
-        else { return nil }
-        let isUser = entry.role == "user"
-        if isUser {
-            guard entry.quote == nil,
-                  entry.sourceQuote == nil,
-                  entry.allImageDatas.isEmpty,
-                  entry.remoteImagePaths.isEmpty,
-                  entry.remoteFilePaths.isEmpty,
-                  !entry.sendFailed,
-                  !entry.isPendingSend
-            else { return nil }
-        } else {
-            guard entry.role == "assistant",
-                  (entry.reasoning ?? "").isEmpty,
-                  entry.remoteImagePaths.isEmpty
-            else { return nil }
-            let scans = EntryScanMemo.scans(
-                entryID: entry.id,
-                content: entry.content,
-                remoteImagePaths: entry.remoteImagePaths
-            )
-            guard scans.delivery.deliveryIDs.isEmpty,
-                  scans.delivery.text == entry.content,
-                  scans.media.imagePaths.isEmpty,
-                  scans.media.text == entry.content,
-                  scans.inlineCandidates.isEmpty,
-                  scans.standalonePaths.isEmpty,
-                  FileRefDetector.wholeMessagePath(
-                      in: entry.content
-                  ) == nil
-            else { return nil }
-        }
-        let category = dynamicTypeSize
-            .contentSizeCategory
-        let boldText = environment.legibilityWeight
-            == .bold
-        func resolve(_ color: Color) -> UIColor {
-            UIColor(
-                cgColor: color.resolve(in: environment)
-                    .cgColor
-            )
-        }
-        guard let segments = ChatNativeProseAssembly
-            .segments(
-                isUser: isUser,
-                content: entry.content,
-                styleKey: nativeProseStyleKey,
-                baseFont: InlineTextFonts.baseFont(
-                    textStyle: .body,
-                    category: category,
-                    boldText: boldText
-                ),
-                overrideFont: { style in
-                    InlineTextFonts.baseFont(
-                        textStyle: style,
-                        category: category,
-                        boldText: boldText
-                    )
-                },
-                textColor: resolve(
-                    isUser
-                        ? Palette.userBubbleText
-                        : Palette.bodyInk
-                ),
-                dimmedColor: resolve(
-                    Palette.inkSecondaryOnFill
-                ),
-                quoteTextColor: resolve(
-                    Palette.inkSecondaryOnFill
-                )
-            )
-        else { return nil }
-        let text = plainText(for: entry)
-        return ChatNativeProseSpec(
-            dividerText: dividerText,
-            isUser: isUser,
-            segments: segments,
-            linkColor: resolve(Palette.primary),
-            bubbleFill: resolve(
-                isUser
-                    ? Palette.userBubbleFill
-                    : Palette.bubbleFill
-            ),
-            dividerColor: resolve(Palette.inkSecondary),
-            quoteBarColor: resolve(Palette.inkMuted),
-            highlightColor: resolve(Palette.primaryTint),
-            highlighted: entry.id
-                == anchorHighlightEntryID,
-            arrowIdleFill: resolve(Palette.fieldFill),
-            arrowArmedFill: resolve(Palette.primaryPale),
-            arrowIdleTint: resolve(Palette.inkSecondary),
-            arrowArmedTint: resolve(Palette.onPrimary),
-            menuPlainText: text,
-            onMenuReply: { beginReply(to: entry) },
-            onMenuFork: { forkToSideChat(from: entry) },
-            onMenuSelect: {
-                selectionPayload = SelectionPayload(
-                    text: text
-                )
-            },
-            swipeEnabled: activeSelectionEntryID
-                != entry.id,
-            onSwipeReply: { beginReply(to: entry) },
-            onSelectionChange: { active in
-                noteTextSelection(
-                    entryID: entry.id, active: active
-                )
-            },
-            openURL: { url in openURL(url) }
-        )
-    }
-
     /// §293（原生重建 R2）原生面直播行：与 gen3
     /// carrierLiveRow 同源同序（liveRenderItems
-    /// 单口）、同键同版本——思考/工具/工具组三类
-    /// 直接转 gen3 行描述（无流式分叉）；正文两类
-    /// （打开段/封存段）在本面走单渲染路径：内容
-    /// 只由装配器快照的段文本一次同步渲染（Stre-
-    /// amingBlockText 闭合前缀＋尾块同拍派生），
-    /// gen4 关的全文回落路（streamingBubble 全文
-    /// 逐词路）不在本面设——施工图 §五 R2「gen4
-    /// 关回落路在新面不设」；估算恒走块产物组合
-    /// 口径（与落定行同口、落定不跳高）
+    /// 单口）、同键——思考/工具/工具组三类直接转
+    /// gen3 行描述（无流式分叉）；正文两类（打开
+    /// 段/封存段）在本面走单渲染路径：内容只由装
+    /// 配器快照的段文本一次同步渲染（Streaming-
+    /// BlockText 闭合前缀＋尾块同拍派生），gen4
+    /// 关的全文回落路（streamingBubble 全文逐词
+    /// 路）不在本面设——施工图 §五 R2「gen4 关回
+    /// 落路在新面不设」。§325：修订值改结构化派
+    /// 生（段文本全文/工具卡编码本体逐值入账），
+    /// 行高估算（块产物组合口径）退出本面
     private func nativeLiveRow(
         _ item: LiveRenderItem
     ) -> ChatNativeRow {
         switch item {
-        case .reasoning, .tool, .toolGroup:
+        case .reasoning:
+            let row = carrierLiveRow(item)
+            var revision = ChatNativeRowRevision()
+            revision.addText(streamingReasoning)
+            revision.addFlag(
+                !((streamingText ?? "").isEmpty
+                    && liveToolCards.isEmpty)
+            )
+            return ChatNativeRow(
+                key: row.key,
+                entryID: row.entryID,
+                revision: revision,
+                makeView: row.makeView
+            )
+        case .tool(let card):
             let row = carrierLiveRow(item)
             return ChatNativeRow(
                 key: row.key,
                 entryID: row.entryID,
-                version: row.version,
-                estimatedHeight: row.estimatedHeight,
+                revision: Self.toolCardRevision(card),
+                makeView: row.makeView
+            )
+        case .toolGroup(let cards):
+            let row = carrierLiveRow(item)
+            var revision = ChatNativeRowRevision()
+            for card in cards {
+                revision.parts.append(contentsOf:
+                    Self.toolCardRevision(card).parts)
+            }
+            return ChatNativeRow(
+                key: row.key,
+                entryID: row.entryID,
+                revision: revision,
                 makeView: row.makeView
             )
         case .text:
@@ -3114,12 +2987,13 @@ struct ChatView: View {
             let blocks = StreamingBlockSegmenter.blocks(
                 for: text
             )
+            var revision = ChatNativeRowRevision()
+            revision.addText(text)
+            revision.addCount(blocks.count)
             return ChatNativeRow(
                 key: currentStreamRowKey(),
                 entryID: nil,
-                version: text.count &* 31 &+ blocks.count,
-                estimatedHeight:
-                    carrierStreamRowEstimate(text: text),
+                revision: revision,
                 makeView: {
                     AnyView(
                         self.nativeStreamingContent(text)
@@ -3127,12 +3001,12 @@ struct ChatView: View {
                 }
             )
         case .sealedText(let index, let text):
+            var revision = ChatNativeRowRevision()
+            revision.addText(text)
             return ChatNativeRow(
                 key: "\(currentStreamRowKey())#seg\(index)",
                 entryID: nil,
-                version: text.count,
-                estimatedHeight:
-                    carrierStreamRowEstimate(text: text),
+                revision: revision,
                 makeView: {
                     AnyView(
                         self.nativeStreamingContent(text)
@@ -3140,6 +3014,25 @@ struct ChatView: View {
                 }
             )
         }
+    }
+
+    /// 工具卡修订值（§325）：卡本体 Codable 编码
+    /// 逐值入账（标题/摘要/结果/失败位任一变即修
+    /// 订变）；编码失败回落字段文本清单
+    private static func toolCardRevision(
+        _ card: ToolCard
+    ) -> ChatNativeRowRevision {
+        var revision = ChatNativeRowRevision()
+        if let data = try? JSONEncoder().encode(card) {
+            revision.addData(data)
+        } else {
+            revision.addText(card.id)
+            revision.addText(card.title)
+            revision.addText(card.summary)
+            revision.addText(card.result)
+            revision.addFlag(card.resultFailed)
+        }
+        return revision
     }
 
     /// 原生面流式段内容（单渲染路径，H4）：非空
@@ -3433,17 +3326,20 @@ struct ChatView: View {
         )
     }
 
-    /// 条目内容版本：内容长/工具卡数据/图数任一变
-    /// 即重托管＋重量实（半截条目流内生长靠本版
-    /// 本跟上）；锚点点亮翻转只重托管被点亮的那行
+    /// 条目内容版本（gen3 承载专用）：内容长/工
+    /// 具卡数据/图数任一变即重托管＋重量实（半截
+    /// 条目流内生长靠本版本跟上）；锚点点亮翻转
+    /// 只重托管被点亮的那行
     /// §320：文件数同图数一律折入——发送回填
     /// （remoteFilePaths 落盘）是条目物化后才到的
-    /// 变化，不折入则版本不动、原生列表永不重配
-    /// 该行：行先按纯文本物化为原生散文 cell、回
-    /// 填后资格已变（nativeProseSpec 文件非空即
-    /// 出局）也换不上能画 FileChip 的托管行（诊
-    /// 断 file-attach-invisible-diagnosis-20261117
-    /// §B5 定案；旧面直读条目模型无此症）
+    /// 变化，不折入则版本不动、列表永不重配该行
+    /// （诊断 file-attach-invisible-diagnosis-
+    /// 20261117 §B5 定案；旧面直读条目模型无此
+    /// 症）。§325 起原生面不再消费本函数——原生
+    /// 面版本改 ChatNativeRowRevision 结构化派生
+    /// （全字段快照、无清单可漏）；本函数与
+    /// carrierRowEstimate 只余 gen3 面消费、随
+    /// R5 旧路退役一并销账
     private func carrierEntryVersion(
         _ entry: ChatEntry
     ) -> Int {
@@ -6626,9 +6522,9 @@ struct ChatView: View {
     /// （列宽/左缘/内边距全保留，量测喂入同值、行
     /// 高产物零失效）；代码块/表格等异构件自有填
     /// 充逐字不动、只不再被泡面包住。原生散文
-    /// cell 同步撤填充（ChatNativeProseCell §321
-    /// 注），双形态同口径。全档 reply-rendering-
-    /// alignment-20261117.md。
+    /// cell 当时同步撤填充（§321 注）；§325 起散
+    /// 文 cell 整件退役、本函数即唯一呈现口径。
+    /// 全档 reply-rendering-alignment-20261117.md。
     private func assistantBubble<Content: View>(
         menuEntry: ChatEntry? = nil,
         @ViewBuilder _ content: () -> Content

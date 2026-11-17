@@ -223,8 +223,8 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
         _ key: String, _ text: String
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: UUID(), version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: UUID(),
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: {
                 AnyView(
                     MarkdownText(text)
@@ -257,8 +257,8 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
         _ key: String, _ text: String
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: UUID(), version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: UUID(),
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: {
                 AnyView(
                     HStack {

@@ -5,29 +5,30 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §320（文件牌版本折算修复）真实时序装配断言：
-/// 诊断 file-attach-invisible-diagnosis-20261117
-/// §B5 的断点是时序形的——条目先以无附件形态物
-/// 化（发送瞬间：正文已落盘、remoteFilePaths 恒
-/// 空），上传回填随后才写 remoteFilePathsData。
-/// 本例按此时序造例，不测静态有附件的行（静态
-/// 行首帧即带附件、走的是另一条物化路，测不出
-/// 断点）：
+/// §320（文件牌版本折算修复）→§325（B 档后形态）
+/// 真实时序装配断言：诊断 file-attach-invisible-
+/// diagnosis-20261117 §B5 的断点是时序形的——条
+/// 目先以无附件形态物化（发送瞬间：正文已落盘、
+/// remoteFilePaths 恒空），上传回填随后才写
+/// remoteFilePathsData。本例按此时序造例，不测
+/// 静态有附件的行（静态行首帧即带附件、走的是
+/// 另一条物化路，测不出断点）：
 /// ①种子用户条目（正文＋无附件）整页装配——该
-/// 行须物化为原生散文 cell（回填前的真实形态）；
+/// 行物化为托管 cell（§325 单渲染路径：全体行
+/// 同一种形态）；
 /// ②按生产回填原样落盘（ChatView 发送链 §121：
 /// remoteFilePathsData＝JSONEncoder().encode(
-/// [String])＋save）——同一行须被重配为托管行：
-/// cell 换装（非散文 cell＝托管行在席，结构
-/// 断言）、行高较散文形态增长 ≥40（牌组估算
-/// 补入＋量实同向）。文件名文本在托管子树的
-/// 观测边界见 ③ 注（两通道实证采不到、主线
-/// 拍板降结构断言，牌面视觉在席归真机验收）。
-/// 机制注：承载 rowsEqual 闸以（键，版本，估
-/// 算）判变——版本不翻则整行不重配、散文 cell
-/// 恒在。故②的换装成立本身即「回填后版本必
-/// 变」的装配级证据；版本折算本体见 ChatView
-/// .carrierEntryVersion 的 §320 注。
+/// [String])＋save）——条目全字段快照派生的修
+/// 订值必变（§325）、同行被原位重配：cell 形态
+/// 不变（仍托管）、行高较回填前增长 ≥40（文件
+/// 牌组进行内呈现的真实排版高）。文件名文本在
+/// 托管子树的观测边界见 ③ 注（§294.1 定版两通
+/// 道实证采不到、不再换观测法；牌面视觉在席归
+/// 真机验收）。
+/// 机制注：§320 时代断点在手折版本哈希漏折文件
+/// 数；§325 后判变靠修订值全量比较——快照含
+/// remoteFilePathsData 本体，漏折这一错误形态
+/// 由构造消除，本例即其装配级回归。
 @MainActor
 final class FileChipVersionFixAssemblyTests: XCTestCase {
 
@@ -167,19 +168,18 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         return condition()
     }
 
-    /// 当前可见 cell 中的散文形态（种子只有一条
-    /// 条目，散文 cell 至多一只）
-    private func proseCell(
+    /// 当前可见 cell 中的条目行（种子只有一条条
+    /// 目，取可见 item 序最小者——条目行恒在行集
+    /// 首位）
+    private func entryCell(
         in controller: ChatRootViewController
-    ) -> (cell: ChatNativeProseCell, indexPath: IndexPath)? {
+    ) -> (cell: UICollectionViewCell, indexPath: IndexPath)? {
         let cv = controller.collectionView
-        for indexPath in cv.indexPathsForVisibleItems {
-            if let cell = cv.cellForItem(at: indexPath)
-                as? ChatNativeProseCell {
-                return (cell, indexPath)
-            }
-        }
-        return nil
+        guard let indexPath = cv.indexPathsForVisibleItems
+            .sorted(by: { $0.item < $1.item }).first,
+              let cell = cv.cellForItem(at: indexPath)
+        else { return nil }
+        return (cell, indexPath)
     }
 
     private func frame(
@@ -195,9 +195,9 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
     func testSentFileChipAppearsAfterBackfillRedress() throws {
         try assembleSeededPage()
 
-        // ① 回填前：原生面在场、该行是散文 cell
-        var prose: (cell: ChatNativeProseCell,
-                    indexPath: IndexPath)?
+        // ① 回填前：原生面在场、条目行已物化（托管形态）
+        var seed: (cell: UICollectionViewCell,
+                   indexPath: IndexPath)?
         var phase1Diag = "未见原生根控制器"
         let phase1 = waitUntil {
             guard let controller =
@@ -209,20 +209,25 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
                 + "\(cv.numberOfItems(inSection: 0))"
                 + " visible="
                 + "\(cv.indexPathsForVisibleItems.count)"
-            prose = self.proseCell(in: controller)
-            return prose != nil
+            seed = self.entryCell(in: controller)
+            return seed != nil
         }
         XCTAssertTrue(
             phase1,
-            "回填前该行须物化为原生散文 cell（发送瞬间形态）；"
+            "回填前条目行须已物化（发送瞬间形态）；"
                 + "末次诊断：\(phase1Diag)"
         )
-        let unwrappedProse = try XCTUnwrap(prose)
+        let unwrappedSeed = try XCTUnwrap(seed)
+        XCTAssertEqual(
+            unwrappedSeed.cell.reuseIdentifier,
+            "ChatNativeHostingCell",
+            "§325 单路径：回填前条目行须为托管 cell"
+        )
         let controller = try XCTUnwrap(
             findNativeRootController()
         )
-        let proseHeight = try XCTUnwrap(
-            frame(in: controller, at: unwrappedProse.indexPath)
+        let seedHeight = try XCTUnwrap(
+            frame(in: controller, at: unwrappedSeed.indexPath)
         ).height
 
         // ② 生产回填原样落盘（§121 发送回填同形：
@@ -245,18 +250,18 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
             try JSONEncoder().encode([filePath])
         try context.save()
 
-        // ③ 回填后：同行重配为托管行——散文 cell
-        // 退场（结构断言）、行高增长牌高量级。
-        // 观测边界（第四~六轮 CI 实证后主线拍板
-        // 收口）：文件名文本在托管子树两通道均采
-        // 不到（无障碍通道 labels=0、视图树通道
-        // texts 只得正文），不再换第三种观测法；
-        // 牌面在席的证据链＝散文资格出局本身只可
-        // 能由 remoteFilePaths 非空触发（native-
-        // ProseSpec 守卫）＋托管行画牌为代码直读
-        // 条件（ChatView 5651：非空即 ForEach
-        // FileChip）＋真机验收点承接视觉在席
-        let indexPath = unwrappedProse.indexPath
+        // ③ 回填后：修订值变→同行原位重配——形态
+        // 不变（仍托管 cell）、行高增长牌高量级。
+        // 观测边界（§320 第四~六轮 CI 实证后主线
+        // 拍板收口、§325 沿用）：文件名文本在托管
+        // 子树两通道均采不到（无障碍通道 labels=0、
+        // 视图树通道 texts 只得正文），不再换第三
+        // 种观测法；牌面在席的证据链＝修订快照含
+        // remoteFilePathsData 本体（字段非空即修
+        // 订必变、重配必达）＋托管行画牌为代码直
+        // 读条件（ChatView entryRowContent：非空
+        // 即 ForEach FileChip）＋真机验收点承接
+        let indexPath = unwrappedSeed.indexPath
         var dressedHeight: CGFloat = 0
         var phase2Diag = "cell 未取到"
         let phase2 = waitUntil {
@@ -267,28 +272,25 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
                 phase2Diag = "cell 未取到"
                 return false
             }
-            if cell is ChatNativeProseCell {
-                phase2Diag = "仍是散文 cell（未重配）"
-                return false
-            }
             phase2Diag = "cell=\(type(of: cell))"
+                + " reuse=\(cell.reuseIdentifier ?? "nil")"
             if let height = self.frame(
                 in: controller, at: indexPath
             )?.height {
                 dressedHeight = height
             }
-            return dressedHeight > 0
+            return dressedHeight > seedHeight + 40
         }
         XCTAssertTrue(
             phase2,
-            "回填后该行须换装托管行（散文 cell 退场、"
-                + "托管 cell 在席）；末次诊断："
+            "回填后该行须原位重配且行高增长牌高量级"
+                + "（修订值变的结构证据）；末次诊断："
                 + "\(phase2Diag)"
         )
         XCTAssertGreaterThan(
-            dressedHeight - proseHeight, 40,
-            "换装后行高须较散文形态增长牌高量级："
-                + "\(proseHeight)→\(dressedHeight)"
+            dressedHeight - seedHeight, 40,
+            "重配后行高须较回填前增长牌高量级："
+                + "\(seedHeight)→\(dressedHeight)"
         )
     }
 }

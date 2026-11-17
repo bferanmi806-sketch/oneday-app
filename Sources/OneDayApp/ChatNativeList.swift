@@ -14,15 +14,32 @@ import UIKit
 /// keyboardLayoutGuide（H8），§302 起改回 §194
 /// 通知帧顶单常量形态（见下 H8 沿革）。
 ///
+/// §325（B 档退役，2026-11-17；同根审计 chat-
+/// page-root-audit-20261117 §5 定案）：自造三件
+/// 整套退役——①双 cell 形态：R3 的原生散文 cell
+/// （ChatNativeProseCell）整件删除，落定行统一走
+/// 托管 cell 单渲染路径，内容 facet 只影响行内呈
+/// 现、不再决定行是哪种 cell（§320.1 的形态翻转
+/// 先删后插分流随之退役——无形态可翻）；②行高估
+/// 算管线：产物层估算（carrierRowEstimate／占位
+/// 均值聚合）退出列表关键路径，compositional 的
+/// .estimated 只留固定常量供未物化区滚动几何，
+/// 物化行高一律由 UIHostingConfiguration 自适应
+/// ＋selfSizingInvalidation 由框架持有收敛；
+/// ③手维护版本哈希：行版本（Int 折算）退役，改
+/// ChatNativeRowRevision 结构化派生——行描述的
+/// 渲染输入全量值比较（Equatable），条目行由条
+/// 目模型全字段快照单点派生（见 revision 节）。
+///
 /// 几何纪律（施工图 §四硬约束）：
 /// - H1 间距单源：相邻消息纵向间距只由 section
 ///   的 interGroupSpacing 一处声明（spacingL 24）；
 ///   cell 内容不带任何泡外纵 padding，时间分隔仍
 ///   长在条目 cell 内（ChatView 行内容自带）。
 /// - H2/H10 行高单权威、无帧表：本类没有任何帧
-///   表、任何量实回填——行高预量只出 ChatView 的
-///   产物层估算（喂 compositional 的 .estimated 占
-///   位），物化后由集合视图自适应收敛，contentSize
+///   表、任何量实回填——物化行高由集合视图自适
+///   应持有收敛（§325 起 .estimated 只留固定常
+///   量、产物层估算退出关键路径），contentSize
 ///   只由集合视图自己持有；托管拟合高永不回写。
 /// - H3 短内容底锚定：内容高＜有效视口时，按系
 ///   统实测 contentSize 派生一笔顶 inset（单点记
@@ -69,38 +86,132 @@ import UIKit
 ///   不许第二套）——isKeyboardUp／聚焦藏坞在
 ///   新面恢复触发（定因 K2 的修法）。
 
+// MARK: - 行修订值（§325 结构化派生，代手维护版本哈希）
+
+/// 行修订值：行「变没变」的唯一判据——不再是手
+/// 工折算的 Int 哈希（carrierEntryVersion 一类：
+/// facet 枚举漏一项、该行永不重配，§320 文件牌
+/// 即此病），而是行渲染输入的**全量值**有序清单，
+/// Equatable 逐值比较。清单由构造点按渲染输入逐
+/// 项填入（文本填全文、数据填本体、标量填原值），
+/// 不折长度、不折哈希——比较的是值本身。
+struct ChatNativeRowRevision: Equatable {
+    enum Part: Equatable {
+        case text(String)
+        case data(Data)
+        case flag(Bool)
+        case count(Int)
+        case real(Double)
+    }
+
+    var parts: [Part] = []
+
+    init(parts: [Part] = []) {
+        self.parts = parts
+    }
+
+    mutating func addText(_ value: String?) {
+        parts.append(.flag(value != nil))
+        parts.append(.text(value ?? ""))
+    }
+
+    mutating func addData(_ value: Data?) {
+        parts.append(.flag(value != nil))
+        if let value { parts.append(.data(value)) }
+    }
+
+    mutating func addFlag(_ value: Bool) {
+        parts.append(.flag(value))
+    }
+
+    mutating func addCount(_ value: Int) {
+        parts.append(.count(value))
+    }
+
+    mutating func addReal(_ value: Double?) {
+        parts.append(.flag(value != nil))
+        parts.append(.real(value ?? 0))
+    }
+
+    /// 条目行修订值（单点派生）：按 ChatEntry 落盘
+    /// 字段的声明序全量快照——渲染的一切 facet
+    /// （正文/工具卡/思考/引用四族/图片与文件路径/
+    /// 回响三键/发送状态）都由这些字段派生（计算
+    /// 属性 allImageDatas/remoteImagePaths/toolCard
+    /// 等无一例外），字段值不变则渲染输入不变、任
+    /// 一字段变则修订必变，不存在「漏折一项」的清
+    /// 单可漏。环境侧渲染输入（分隔文案/锚点点亮/
+    /// 选区在场/样式键）同列入账。
+    static func entry(
+        _ entry: ChatEntry,
+        dividerText: String?,
+        highlighted: Bool,
+        selectionActive: Bool,
+        styleKey: String
+    ) -> ChatNativeRowRevision {
+        var revision = ChatNativeRowRevision()
+        revision.addText(entry.role)
+        revision.addText(entry.content)
+        revision.addData(entry.imageData)
+        revision.addData(entry.imageDatasData)
+        revision.addText(entry.quoteRole)
+        revision.addText(entry.quoteContent)
+        revision.addText(entry.feedPostID)
+        revision.addText(entry.feedPostTitle)
+        revision.addText(entry.feedPostBody)
+        revision.addText(entry.feedPostSource)
+        revision.addText(entry.ideaQuoteID)
+        revision.addText(entry.ideaQuoteTitle)
+        revision.addText(entry.ideaQuoteBody)
+        revision.addText(entry.fileQuoteName)
+        revision.addText(entry.fileQuotePath)
+        revision.addText(entry.goalQuoteCategory)
+        revision.addText(entry.reasoning)
+        revision.addReal(entry.reasoningSeconds)
+        revision.addData(entry.toolCardData)
+        revision.addData(entry.remoteImagePathsData)
+        revision.addData(entry.remoteFilePathsData)
+        revision.addText(entry.echoKey)
+        revision.addText(entry.approvalKey)
+        revision.addText(entry.traceKey)
+        revision.addData(entry.traceEchoData)
+        revision.addFlag(entry.sendFailed)
+        revision.addText(entry.sendStateRaw)
+        revision.addText(entry.deliveryState)
+        revision.parts.append(
+            .real(entry.createdAt.timeIntervalSinceReferenceDate)
+        )
+        revision.addText(dividerText)
+        revision.addFlag(highlighted)
+        revision.addFlag(selectionActive)
+        revision.addText(styleKey)
+        return revision
+    }
+}
+
 // MARK: - 行描述（ChatView 喂入）
 
 /// 原生面行：身份键（diffable 条目身份，与 gen3
 /// 行键同名同源）＋条目 id（锚/顶可见用，非条目
-/// 行为 nil）＋内容版本（变→reconfigure 原位更
-/// 新）＋产物层估算高（只供 .estimated 占位聚合，
-/// 不是行高记账）＋视图构建闭包（只在（重）配置
-/// cell 时调用）
+/// 行为 nil）＋修订值（渲染输入全量值、变→
+/// reconfigure 原位更新，§325）＋视图构建闭包
+/// （只在（重）配置 cell 时调用）。§325 起全体
+/// 行只有托管 cell 一种形态——本描述不再携带形
+/// 态判别与行高估算
 struct ChatNativeRow {
     let key: String
     let entryID: UUID?
-    let version: Int
-    let estimatedHeight: CGFloat
+    let revision: ChatNativeRowRevision
     let makeView: () -> AnyView
-    /// R3（§295）：落定散文原生规格——非 nil 时
-    /// 本行走原生散文 cell（ChatNativeProseCell、
-    /// 不经 SwiftUI 托管）；makeView 保留为同行
-    /// 的托管形态（双形态对拍与回退口，cell 分
-    /// 发以 proseSpec 在场为准）
-    let proseSpec: ChatNativeProseSpec?
 
     init(
-        key: String, entryID: UUID?, version: Int,
-        estimatedHeight: CGFloat,
-        proseSpec: ChatNativeProseSpec? = nil,
+        key: String, entryID: UUID?,
+        revision: ChatNativeRowRevision = ChatNativeRowRevision(),
         makeView: @escaping () -> AnyView
     ) {
         self.key = key
         self.entryID = entryID
-        self.version = version
-        self.estimatedHeight = estimatedHeight
-        self.proseSpec = proseSpec
+        self.revision = revision
         self.makeView = makeView
     }
 }
@@ -112,7 +223,11 @@ private final class ChatNativeLayoutBox {
     var topPadding: CGFloat = 16
     var bottomPadding: CGFloat = 8
     var rowSpacing: CGFloat = 24
-    var estimatedPlaceholder: CGFloat = 120
+    /// §325：未物化区滚动几何的固定占位高——只此
+    /// 一个常量、不再由行估算聚合派生（产物层估
+    /// 算管线退役）；物化行高与本值无关、由框架
+    /// 自适应持有
+    static let estimatedPlaceholder: CGFloat = 120
 }
 
 // MARK: - 托管 cell
@@ -206,7 +321,8 @@ final class ChatRootViewController: UIViewController,
     )
     private var rows: [ChatNativeRow] = []
     private var rowsByKey: [String: ChatNativeRow] = [:]
-    private var versionsByKey: [String: Int] = [:]
+    private var revisionsByKey:
+        [String: ChatNativeRowRevision] = [:]
     /// 非条目行的锚占位 id（与 gen3 同式：捕获命中
     /// 时顺延到下一条目行）
     private var frameIDByKey: [String: UUID] = [:]
@@ -340,16 +456,11 @@ final class ChatRootViewController: UIViewController,
             forCellWithReuseIdentifier:
                 ChatNativeHostingCell.reuseID
         )
-        collectionView.register(
-            ChatNativeProseCell.self,
-            forCellWithReuseIdentifier:
-                ChatNativeProseCell.reuseID
-        )
         makeDataSource()
     }
 
     /// compositional 单列 section：item 宽全幅、
-    /// 高 .estimated（产物层聚合占位）；间距只此
+    /// 高 .estimated（固定常量占位，§325）；间距只此
     /// 一处声明（interGroupSpacing＝spacingL，H1）；
     /// section 内边距与 gen3 帧表记账逐值同源（顶
     /// spacingM／左右 pageGutter／底 spacingS）
@@ -359,7 +470,7 @@ final class ChatRootViewController: UIViewController,
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
             heightDimension: .estimated(
-                box.estimatedPlaceholder
+                ChatNativeLayoutBox.estimatedPlaceholder
             )
         )
         let item = NSCollectionLayoutItem(
@@ -368,7 +479,7 @@ final class ChatRootViewController: UIViewController,
         let groupSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
             heightDimension: .estimated(
-                box.estimatedPlaceholder
+                ChatNativeLayoutBox.estimatedPlaceholder
             )
         )
         let group = NSCollectionLayoutGroup.horizontal(
@@ -741,6 +852,22 @@ final class ChatRootViewController: UIViewController,
         )
     }
 
+    /// §325 引导线重验采样口（装配测试专用、只读）：
+    /// 本视图 keyboardLayoutGuide 顶边的窗口坐标——
+    /// 与通知帧顶同帧对账的测试读口（生产采样走
+    /// sampleGuideForTrace 自述通道、本口不参与驱
+    /// 动）
+    var testKeyboardGuideTopInWindow: CGFloat? {
+        guard let window = view.window else { return nil }
+        return view.convert(
+            CGPoint(
+                x: 0,
+                y: view.keyboardLayoutGuide.layoutFrame.minY
+            ),
+            to: window
+        ).y
+    }
+
     /// §302 引导线采样对照（只记自述、永不驱动）：
     /// 翻转拍记通知帧顶与本视图 keyboardLayout-
     /// Guide 顶的窗口值同帧对账——真机验收看数
@@ -832,24 +959,10 @@ final class ChatRootViewController: UIViewController,
             UICollectionViewDiffableDataSource<Int, String>(
                 collectionView: collectionView
             ) { [weak self] collectionView, indexPath, key in
-                // R3（§295）：散文规格在场的行走原生
-                // cell（文本本体直嵌、不经托管）；
-                // 其余行维持托管 cell。行键的形态由
-                // 内容资格决定——资格随回填（文件/
-                // 远端图落盘）变化时同键可翻转形态，
-                // 翻转键由 apply 的 §320.1 先删后插
-                // 承接，reconfigure 不跨形态换 cell 类
-                if let row = self?.rowsByKey[key],
-                   let spec = row.proseSpec {
-                    let cell = collectionView
-                        .dequeueReusableCell(
-                            withReuseIdentifier:
-                                ChatNativeProseCell.reuseID,
-                            for: indexPath
-                        ) as! ChatNativeProseCell
-                    cell.configure(with: spec)
-                    return cell
-                }
+                // §325：单渲染路径——全体行只有托管
+                // cell 一种形态，内容 facet 只决定行
+                // 内呈现（makeView 本体），不决定 cell
+                // 类；reconfigure 恒同注册原地重配
                 let cell = collectionView
                     .dequeueReusableCell(
                         withReuseIdentifier:
@@ -916,9 +1029,10 @@ final class ChatRootViewController: UIViewController,
         composerView: AnyView?,
         arrowView: AnyView?
     ) {
-        // 布局参数同步进匣：间距/内边距/占位任一变
-        // 即失效布局（compositional 声明式重算，不
-        // 手算帧——H10）
+        // 布局参数同步进匣：间距/内边距任一变即失
+        // 效布局（compositional 声明式重算，不手
+        // 算帧——H10）。§325 起 .estimated 占位是
+        // 固定常量、不随行集变化，不入本对账
         var paramsChanged = false
         if layoutBox.horizontalPadding
             != layout.horizontalPadding
@@ -934,18 +1048,6 @@ final class ChatRootViewController: UIViewController,
             paramsChanged = true
         }
         layoutParams = layout
-        // .estimated 占位只出产物层聚合（行估算的均
-        // 值、钳制在合理带内）：它只服务未物化区的
-        // 滚动几何，物化后系统自适应收敛——占位不
-        // 是行高记账（H10）
-        let placeholder = Self.placeholderEstimate(
-            for: newRows
-        )
-        if abs(placeholder - layoutBox.estimatedPlaceholder)
-            > 1 {
-            layoutBox.estimatedPlaceholder = placeholder
-            paramsChanged = true
-        }
         if paramsChanged {
             collectionView.collectionViewLayout
                 .invalidateLayout()
@@ -956,52 +1058,17 @@ final class ChatRootViewController: UIViewController,
                 ($0.key, $0)
             }
         )
-        let oldByKey = Dictionary(
-            uniqueKeysWithValues: rows.map {
-                ($0.key, $0)
-            }
-        )
         let oldKeys = rows.map(\.key)
         let newKeys = newRows.map(\.key)
-        // §320.1：形态翻转键——同键 proseSpec 在场
-        // 性变化（散文⇄托管）。reconfigure 只许以
-        // 同注册原地重配，跨形态 dequeue 异类注册
-        // 必抛 NSInternalInconsistencyException
-        // （§320 第三轮 CI 装配实证：文件回填令用
-        // 户行散文→托管、版本一翻 apply 当场崩）。
-        // cellProvider 头注旧断言「同键内形态恒定」
-        // 自此作废——内容资格会随回填（文件/远端
-        // 图）变化。翻转键先删后插：删除拍先行落，
-        // 本轮重建拍以新注册全新 dequeue，不进
-        // reconfigure 名单
-        let kindFlippedKeys = newKeys.filter { key in
-            guard let old = oldByKey[key],
-                  let new = newByKey[key]
-            else { return false }
-            return (old.proseSpec != nil)
-                != (new.proseSpec != nil)
-        }
-        if !kindFlippedKeys.isEmpty {
-            var preSnapshot = dataSource.snapshot()
-            preSnapshot.deleteItems(kindFlippedKeys)
-            dataSource.apply(
-                preSnapshot, animatingDifferences: false
-            )
-        }
+        // §325：重配对账只认修订值全量比较——同键
+        // 行的渲染输入任一值变即 reconfigure 原位
+        // 更新；单形态下 reconfigure 恒同注册、不
+        // 再有跨形态翻转分流（§320.1 退役）
         let keysChanged = oldKeys != newKeys
-            || !kindFlippedKeys.isEmpty
-        var reconfigureKeys: [String] = []
-        if keysChanged {
-            reconfigureKeys = newKeys.filter {
-                !kindFlippedKeys.contains($0)
-                    && versionsByKey[$0] != nil
-                    && versionsByKey[$0]
-                        != newByKey[$0]?.version
-            }
-        } else {
-            reconfigureKeys = newKeys.filter {
-                versionsByKey[$0] != newByKey[$0]?.version
-            }
+        let reconfigureKeys = newKeys.filter {
+            revisionsByKey[$0] != nil
+                && revisionsByKey[$0]
+                    != newByKey[$0]?.revision
         }
         let wasEmpty = rows.isEmpty
         rows = newRows
@@ -1032,9 +1099,9 @@ final class ChatRootViewController: UIViewController,
                 snapshot, animatingDifferences: false
             )
         }
-        versionsByKey = Dictionary(
+        revisionsByKey = Dictionary(
             uniqueKeysWithValues: newRows.map {
-                ($0.key, $0.version)
+                ($0.key, $0.revision)
             }
         )
 
@@ -1058,22 +1125,6 @@ final class ChatRootViewController: UIViewController,
             scheduleSettle()
         }
         applyArrow(view: arrowView)
-    }
-
-    /// .estimated 占位聚合：行产物估算的均值（空集
-    /// 回当前值不漂移），钳制 [56, 320] 防极端占位
-    /// 把未物化区几何带偏；逐行真实高由系统物化
-    /// 后收敛，与占位无关
-    private static func placeholderEstimate(
-        for rows: [ChatNativeRow]
-    ) -> CGFloat {
-        let estimates = rows
-            .map(\.estimatedHeight)
-            .filter { $0 > 0 }
-        guard !estimates.isEmpty else { return 120 }
-        let mean = estimates.reduce(0, +)
-            / CGFloat(estimates.count)
-        return min(320, max(56, mean))
     }
 
     // MARK: 落定拍（§259 合并调度，与 gen3 同式）
