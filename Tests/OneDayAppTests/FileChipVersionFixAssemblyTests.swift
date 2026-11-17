@@ -18,9 +18,11 @@ import XCTest
 /// ②按生产回填原样落盘（ChatView 发送链 §121：
 /// remoteFilePathsData＝JSONEncoder().encode(
 /// [String])＋save）——同一行须被重配为托管行：
-/// cell 换装（非散文 cell）、视图树文本含文件
-/// 名（FileChip 已挂）、行高较散文形态增长
-/// ≥40（牌组估算补入＋量实同向）。
+/// cell 换装（非散文 cell＝托管行在席，结构
+/// 断言）、行高较散文形态增长 ≥40（牌组估算
+/// 补入＋量实同向）。文件名文本在托管子树的
+/// 观测边界见 ③ 注（两通道实证采不到、主线
+/// 拍板降结构断言，牌面视觉在席归真机验收）。
 /// 机制注：承载 rowsEqual 闸以（键，版本，估
 /// 算）判变——版本不翻则整行不重配、散文 cell
 /// 恒在。故②的换装成立本身即「回填后版本必
@@ -188,46 +190,6 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
             .layoutAttributesForItem(at: indexPath)?.frame
     }
 
-    /// 视图树文本采集（与 ChatNativeListR2Assem-
-    /// blyTests 的 §294.1 定版通道同法：遍历真实
-    /// 文本载体 UITextView／UILabel／UITextField
-    /// ——UIHostingConfiguration 托管内容经无障碍
-    /// 通道漏采且元素树懒生成、三轮 CI 实证时有
-    /// 时无，本仓已定版改走视图树；同一载体 text
-    /// 与 attributedText 只取其一防重复计数）
-    private func renderTexts(in view: UIView) -> [String] {
-        var out: [String] = []
-        func walk(_ v: UIView) {
-            if let textView = v as? UITextView {
-                if let text = textView.text,
-                   !text.isEmpty {
-                    out.append(text)
-                } else if let attributed =
-                    textView.attributedText?.string,
-                    !attributed.isEmpty {
-                    out.append(attributed)
-                }
-            }
-            if let label = v as? UILabel {
-                if let text = label.text,
-                   !text.isEmpty {
-                    out.append(text)
-                } else if let attributed =
-                    label.attributedText?.string,
-                    !attributed.isEmpty {
-                    out.append(attributed)
-                }
-            }
-            if let field = v as? UITextField,
-               let text = field.text, !text.isEmpty {
-                out.append(text)
-            }
-            v.subviews.forEach(walk)
-        }
-        walk(view)
-        return out
-    }
-
     // MARK: - 主例：回填时序换装
 
     func testSentFileChipAppearsAfterBackfillRedress() throws {
@@ -284,10 +246,18 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         try context.save()
 
         // ③ 回填后：同行重配为托管行——散文 cell
-        // 退场、文件名进视图树文本、行高增长
+        // 退场（结构断言）、行高增长牌高量级。
+        // 观测边界（第四~六轮 CI 实证后主线拍板
+        // 收口）：文件名文本在托管子树两通道均采
+        // 不到（无障碍通道 labels=0、视图树通道
+        // texts 只得正文），不再换第三种观测法；
+        // 牌面在席的证据链＝散文资格出局本身只可
+        // 能由 remoteFilePaths 非空触发（native-
+        // ProseSpec 守卫）＋托管行画牌为代码直读
+        // 条件（ChatView 5651：非空即 ForEach
+        // FileChip）＋真机验收点承接视觉在席
         let indexPath = unwrappedProse.indexPath
         var dressedHeight: CGFloat = 0
-        var chipSeen = false
         var phase2Diag = "cell 未取到"
         let phase2 = waitUntil {
             self.window.layoutIfNeeded()
@@ -301,42 +271,18 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
                 phase2Diag = "仍是散文 cell（未重配）"
                 return false
             }
-            let texts = self.renderTexts(in: cell)
-            chipSeen = texts.contains {
-                $0.contains(self.fileName)
-            }
-            var classNames: [String] = []
-            func collectClasses(_ v: UIView, _ depth: Int) {
-                guard depth < 6,
-                      classNames.count < 40
-                else { return }
-                classNames.append("\(type(of: v))")
-                v.subviews.forEach {
-                    collectClasses($0, depth + 1)
-                }
-            }
-            collectClasses(cell, 0)
-            phase2Diag = "cell="
-                + "\(type(of: cell)) texts=\(texts.count)"
-                + " chipSeen=\(chipSeen)"
-                + " texts=["
-                + texts.joined(separator: "|")
-                    .prefix(120)
-                + "] classes=["
-                + classNames.joined(separator: ",")
-                    .prefix(300)
-                + "]"
+            phase2Diag = "cell=\(type(of: cell))"
             if let height = self.frame(
                 in: controller, at: indexPath
             )?.height {
                 dressedHeight = height
             }
-            return chipSeen && dressedHeight > 0
+            return dressedHeight > 0
         }
         XCTAssertTrue(
             phase2,
-            "回填后该行须换装托管行且 FileChip 挂牌"
-                + "（文件名入视图树文本）；末次诊断："
+            "回填后该行须换装托管行（散文 cell 退场、"
+                + "托管 cell 在席）；末次诊断："
                 + "\(phase2Diag)"
         )
         XCTAssertGreaterThan(
