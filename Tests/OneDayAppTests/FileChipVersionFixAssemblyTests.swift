@@ -257,10 +257,13 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
 
         // ② 生产回填原样落盘（§121 发送回填同形：
         // 回执路径 JSON 编码写入 remoteFilePaths-
-        // Data＋save；本例的落盘上下文与视图上下
-        // 文不同源——跨上下文传播正是回填到达视
-        // 图的真实路径）
-        let context = ModelContext(container)
+        // Data＋save；落盘上下文＝视图的环境上下文
+        // ——生产发送链正是经 ChatView 的 model-
+        // Context 回填（markSendState(in: model-
+        // Context) 同链），托管下即容器 mainContext；
+        // 第二轮 CI 实证：兄弟上下文落盘不刷新视图
+        // 经关系持有的条目实例、行永不重配）
+        let context = container.mainContext
         let targetID = try XCTUnwrap(entryID)
         let descriptor = FetchDescriptor<ChatEntry>(
             predicate: #Predicate { $0.id == targetID }
@@ -277,18 +280,28 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         let indexPath = unwrappedProse.indexPath
         var dressedHeight: CGFloat = 0
         var chipSeen = false
+        var phase2Diag = "cell 未取到"
         let phase2 = waitUntil {
             self.window.layoutIfNeeded()
             guard let cell = controller.collectionView
                 .cellForItem(at: indexPath)
-            else { return false }
-            if cell is ChatNativeProseCell { return false }
+            else {
+                phase2Diag = "cell 未取到"
+                return false
+            }
+            if cell is ChatNativeProseCell {
+                phase2Diag = "仍是散文 cell（未重配）"
+                return false
+            }
             let labels = self.collectAccessibilityLabels(
                 in: cell
             )
             chipSeen = labels.contains {
                 $0.contains(self.fileName)
             }
+            phase2Diag = "cell="
+                + "\(type(of: cell)) labels=\(labels.count)"
+                + " chipSeen=\(chipSeen)"
             if let height = self.frame(
                 in: controller, at: indexPath
             )?.height {
@@ -299,7 +312,8 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         XCTAssertTrue(
             phase2,
             "回填后该行须换装托管行且 FileChip 挂牌"
-                + "（文件名入无障碍标签）"
+                + "（文件名入无障碍标签）；末次诊断："
+                + "\(phase2Diag)"
         )
         XCTAssertGreaterThan(
             dressedHeight - proseHeight, 40,
