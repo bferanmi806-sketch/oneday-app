@@ -104,7 +104,7 @@ final class DrawerMotionTests: XCTestCase {
                 velocityX: -801, travel: travel
             )
         )
-        // 恰在阈值上不算 fling（走位置判定：相对偏移小 → 维持合）
+        // 恰在阈值上不算 fling（落到位置段：10 未过半 → 维持合）
         XCTAssertFalse(
             DrawerMotion.settleOpens(
                 currentOffset: 10, startOffset: 0, predictedExtra: 0,
@@ -113,40 +113,156 @@ final class DrawerMotionTests: XCTestCase {
         )
     }
 
-    func testSettlePredictedProjectionThirtyPercent() {
-        // 合态起：当前偏移＋动量外推过 30% travel（96）→ 开
+    // MARK: - §321 落定两段式（Proton 预测增量守卫）
+
+    func testSettleGuardTierTrustsPredictedEndSign() {
+        // 守卫带钉值：25pt（Proton 设计事实）
+        XCTAssertEqual(DrawerMotion.predictionGuard, 25)
+        // 拖 60（未过半）＋预测增量 40（过守卫带）：
+        // 预测终点相对接管起点 +100、在开侧 → 开
         XCTAssertTrue(
             DrawerMotion.settleOpens(
                 currentOffset: 60, startOffset: 0, predictedExtra: 40,
                 velocityX: 0, travel: travel
             )
         )
-        XCTAssertFalse(
+        // 预测增量 30（刚过守卫带）：预测终点 +90 在
+        // 开侧 → 开——§321 前的 30% 口径下 90<96 判
+        // 合，本段起改判（甩动有效即信预测终点、不
+        // 再叠位移阈值，Proton 同式）
+        XCTAssertTrue(
             DrawerMotion.settleOpens(
                 currentOffset: 60, startOffset: 0, predictedExtra: 30,
                 velocityX: 0, travel: travel
             )
         )
-        // 开态起：反向偏移未过 −30% → 维持开；过 → 关
-        XCTAssertTrue(
-            DrawerMotion.settleOpens(
-                currentOffset: 260, startOffset: 320, predictedExtra: -20,
-                velocityX: 0, travel: travel
-            )
-        )
+        // 开态起反向：拖回 60＋预测增量 −50 → 预测终
+        // 点相对起点 −110、在合侧 → 关
         XCTAssertFalse(
             DrawerMotion.settleOpens(
                 currentOffset: 260, startOffset: 320, predictedExtra: -50,
                 velocityX: 0, travel: travel
             )
         )
-        // travel 未量得（0）保守合
+        // 符号原点是接管起点：开态小拖回 20＋往开侧
+        // 甩（增量 +30）→ 预测终点 +10 在开侧 → 开
+        XCTAssertTrue(
+            DrawerMotion.settleOpens(
+                currentOffset: 300, startOffset: 320, predictedExtra: 30,
+                velocityX: 0, travel: travel
+            )
+        )
+    }
+
+    func testSettlePositionTierWhenPredictionInsignificant() {
+        // 增量恰 25（守卫带内、含界）不认甩动：拖 60
+        // 未过半 → 合（增量不进判定）
+        XCTAssertFalse(
+            DrawerMotion.settleOpens(
+                currentOffset: 60, startOffset: 0, predictedExtra: 25,
+                velocityX: 0, travel: travel
+            )
+        )
+        // 慢拖过半（200/320）＋带内增量 −20 → 开（位
+        // 置说了算、反向小增量不翻盘）
+        XCTAssertTrue(
+            DrawerMotion.settleOpens(
+                currentOffset: 200, startOffset: 0, predictedExtra: -20,
+                velocityX: 0, travel: travel
+            )
+        )
+        // 开态慢拖回 260（仍过半）＋增量 −20 → 维持开
+        XCTAssertTrue(
+            DrawerMotion.settleOpens(
+                currentOffset: 260, startOffset: 320, predictedExtra: -20,
+                velocityX: 0, travel: travel
+            )
+        )
+        // 恰半程不算过半（Proton 同式、严格大于）
+        XCTAssertFalse(
+            DrawerMotion.settleOpens(
+                currentOffset: 160, startOffset: 0, predictedExtra: 0,
+                velocityX: 0, travel: travel
+            )
+        )
+        // travel 未量得（0）保守合（两段同归）
         XCTAssertFalse(
             DrawerMotion.settleOpens(
                 currentOffset: 100, startOffset: 0, predictedExtra: 100,
                 velocityX: 0, travel: 0
             )
         )
+    }
+
+    // MARK: - §321 场景门（学 Simplenote C/D/F）
+
+    func testSceneGateBlocksEachConditionIndependently() {
+        let clear = DrawerMotion.GestureScene(
+            contentListDragging: false, drawerListDragging: false,
+            contentNavigationDepth: 1, isEditing: false
+        )
+        XCTAssertTrue(DrawerMotion.allowsOpenGesture(scene: clear))
+        // 门 C 两半：任一侧列表 dragging 中即挡
+        var scene = clear
+        scene.contentListDragging = true
+        XCTAssertFalse(DrawerMotion.allowsOpenGesture(scene: scene))
+        scene = clear
+        scene.drawerListDragging = true
+        XCTAssertFalse(DrawerMotion.allowsOpenGesture(scene: scene))
+        // 门 D：深度 2 起挡；根层 1 与退化值 0 不挡
+        scene = clear
+        scene.contentNavigationDepth = 2
+        XCTAssertFalse(DrawerMotion.allowsOpenGesture(scene: scene))
+        scene = clear
+        scene.contentNavigationDepth = 0
+        XCTAssertTrue(DrawerMotion.allowsOpenGesture(scene: scene))
+        // 门 F：编辑态挡
+        scene = clear
+        scene.isEditing = true
+        XCTAssertFalse(DrawerMotion.allowsOpenGesture(scene: scene))
+        // 三门同命中仍是挡（无优先级分叉）
+        scene = DrawerMotion.GestureScene(
+            contentListDragging: true, drawerListDragging: true,
+            contentNavigationDepth: 3, isEditing: true
+        )
+        XCTAssertFalse(DrawerMotion.allowsOpenGesture(scene: scene))
+    }
+
+    // MARK: - §321 裁切几何派生单源（迁入 DrawerMotion）
+
+    func testClipGeometryDerivesFromProgress() {
+        let size = CGSize(width: 393, height: 852)
+        // 合态：全幅、无内嵌、半径 0
+        let closed = DrawerMotion.clipGeometry(
+            progress: 0, foregroundSize: size)
+        XCTAssertEqual(closed.clipFrame, CGRect(x: 0, y: 0, width: 393, height: 852))
+        XCTAssertEqual(closed.contentFrame, CGRect(x: 0, y: 0, width: 393, height: 852))
+        XCTAssertEqual(closed.radius, 0)
+        // 开态：纵向内嵌 2、内容反向补偿（原点 −2、
+        // 高不变）、半径 54.5
+        let open = DrawerMotion.clipGeometry(
+            progress: 1, foregroundSize: size)
+        XCTAssertEqual(open.clipFrame, CGRect(x: 0, y: 2, width: 393, height: 848))
+        XCTAssertEqual(open.contentFrame, CGRect(x: 0, y: -2, width: 393, height: 852))
+        XCTAssertEqual(open.radius, 54.5)
+        // 中途：内嵌随 progress 线性（0.5 → 1）、半
+        // 径已一步到位
+        let mid = DrawerMotion.clipGeometry(
+            progress: 0.5, foregroundSize: size)
+        XCTAssertEqual(mid.clipFrame.origin.y, 1, accuracy: 0.001)
+        XCTAssertEqual(mid.contentFrame.origin.y, -1, accuracy: 0.001)
+        XCTAssertEqual(mid.radius, 54.5)
+        // 与分件派生逐值一致（迁入不改值：半径/内嵌
+        // 与 cornerRadius/verticalInset 同源）
+        for p: CGFloat in [0, 0.01, 0.5, 1, 2] {
+            let geometry = DrawerMotion.clipGeometry(
+                progress: p, foregroundSize: size)
+            XCTAssertEqual(geometry.radius, DrawerMotion.cornerRadius(progress: p))
+            XCTAssertEqual(
+                geometry.clipFrame.origin.y,
+                DrawerMotion.verticalInset(progress: p),
+                accuracy: 0.001)
+        }
     }
 
     // MARK: - S3/§3.4 白名单定值（§202 换代）

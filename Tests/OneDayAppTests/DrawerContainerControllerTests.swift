@@ -451,3 +451,71 @@ extension DrawerContainerControllerTests {
             "切回浅色后阴影应按当前 offset 重派生恢复")
     }
 }
+
+extension DrawerContainerControllerTests {
+    // MARK: - §321 场景门（采集半＋shouldBegin 接线）
+
+    /// 左缘手势＝容器 view 第三子（edgeView）上的唯
+    /// 一识别器（viewDidLoad 装配序）
+    private var edgePanRecognizer: UIGestureRecognizer {
+        controller.view.subviews[2].gestureRecognizers![0]
+    }
+
+    func testSceneScanHelpersReadHierarchyFacts() {
+        // 空层级：无拖动、深度恒 1、无编辑
+        let plain = UIView()
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasDraggingScrollView(plain))
+        XCTAssertEqual(
+            DrawerContainerController.hierarchyMaxNavigationDepth(plain), 1)
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasEditingList(plain))
+        // 静止滚动视图不算 dragging（门 C 只认拖动态）
+        let scroll = UIScrollView()
+        plain.addSubview(scroll)
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasDraggingScrollView(plain))
+        // 深层导航：嵌套两层、取最大值
+        let nav = UINavigationController(
+            rootViewController: UIViewController())
+        nav.pushViewController(UIViewController(), animated: false)
+        let wrapper = UIView()
+        wrapper.addSubview(nav.view)
+        plain.addSubview(wrapper)
+        XCTAssertEqual(
+            DrawerContainerController.hierarchyMaxNavigationDepth(plain), 2)
+        // 编辑态列表（深嵌同样命中）
+        let table = UITableView()
+        table.isEditing = true
+        wrapper.addSubview(table)
+        XCTAssertTrue(
+            DrawerContainerController.hierarchyHasEditingList(plain))
+    }
+
+    func testSceneGateBlocksEdgePanInDeepNavigation() {
+        // 无场景阻碍：左缘手势放行
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        // 内容宿主里出现深层导航栈 → 门 D 挡下开手势
+        let nav = UINavigationController(
+            rootViewController: UIViewController())
+        nav.pushViewController(UIViewController(), animated: false)
+        contentHostView?.addSubview(nav.view)
+        XCTAssertFalse(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        // 非左缘识别器不归场景门管（恒放行）
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(
+                UIPanGestureRecognizer()))
+    }
+
+    func testSceneGateBlocksEdgePanWhileEditing() {
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        let table = UITableView()
+        table.isEditing = true
+        contentHostView?.addSubview(table)
+        XCTAssertFalse(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+    }
+}

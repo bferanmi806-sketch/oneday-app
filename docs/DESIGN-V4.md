@@ -13658,3 +13658,17 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 第一轮（run 44030724860@8fbd7a3，全日志 25,578 行）：**Core 2154/2154、0 failures**——合并账闭合（基线 rel-05065 的 2153＋本包新增模型预言例 1；§320 正文「2153 不变」预期口径以此为准修正为 +1）。DrawerSpringTimingTests 5/5 全绿（定版钉值／镜像对钉／k·c 回算／ζ<1／模型预言例）；App 侧 DrawerContainerControllerTests 17/17 全绿（裸动画两例 2.0s 新等待内落定、干扰两例不退）；DrawerMotionTests 全绿。ATTACH-FIT 与基线逐值同（sheet=170.67／ideal=136.67／presentedIdeal=136.67／safeBottom=0.0；生长 88.67→190.67）。红集恰 15 件、全数登记签名族：App 5（第 100 条 ③⑯ 落底两例＋R2 两例＋§257.1 探针 1）＋UI 10（第 95 条族 9＋键盘矩阵 rig 1）；kbTopWin 545→541 逐拍跟进打印在；BackingData 零命中（§184 签名内）。**签名外新红零。**
 第二轮（run 44035154736@8fbd7a3，同提交零改动，全日志 24,838 行）：**Core 2154/2154 复全绿**；红集恰 15 件与首轮**逐件同构**；DrawerSpringTimingTests／DrawerContainerControllerTests 复绿；ATTACH-FIT 复同值；BackingData 复零命中。**签名外新红零。**
 结论：本包判绿。真机速度门（落定 ≤0.35s／打开 ≤0.6s／关闭 ≤0.35s／过冲 ≤1.5% 行程／锁步 ≤2pt／单份渲染门）**未验**，随下一组版真机清单；手感终裁归用户。未合 main、未打 tag。
+
+## §321 抽屉收口包（2026-11-17；分支 feat/drawer-consolidation，基线 fix/drawer-speed@32901c5；用户 2026-11-17 14:55 拍板「学好的」，设计出处 drawer-in-mature-apps-survey-20261117.md §四——两家 GPL 只学设计、一行代码不抄）
+
+**范围三件**（速度已由 §320 先行，本包只动结构与判定；不动：§320 弹簧 0.35/0.85 与投影 0.08、锁步形态、§318 安全区与实色材质、过冲钳制、travel 0.75、方向门三件套本体）：
+
+**① 单写点结构（学 Simplenote 单 animator 单写点，同报告 §2.1）**：呈现派生立 `DrawerMotion` 为唯一通道——前景裁切几何自容器私收迁入 `DrawerMotion.clipGeometry(progress:foregroundSize:)`（progress 纯派生，与 cornerRadius/verticalInset 同源、逐值不变，Core 单测对钉）；clip/内容宿主两帧自此只许容器 `applyOffset` 一处写——`viewDidLayoutSubviews` 不再直写两帧，只更新未变换几何事实（bounds/center/travel）后统一经呈现口按当前 offset 重派生，收掉诊断登记的「layout 与 applyOffset 双调用点」（drawer-ghosting-diagnosis-20261117.md §3 实账①；同账②弹簧字面值镜像对钉是单源＋镜像的既定形态、不属双写、不动）。变换单写点 §313 已成立、本次补齐帧写面。
+
+**② 场景门补三道（学 Simplenote shouldBegin 七门中的 C/D/F，同报告 §2.1/§四.2）**：左缘开手势 `gestureRecognizerShouldBegin` 先过场合门——C 任一侧列表 dragging 中不开、D 内容导航栈深度 >1 不开（深层页左缘是系统返回手势领地，与既有 require-failure 让行互为双保险）、F 任一侧编辑态不开。判定＝`DrawerMotion.allowsOpenGesture(scene:)` 纯谓词（GestureScene 事实快照，Core 单测逐门钉死）；容器侧事实采集＝两宿主层级递归扫描（UIScrollView.isDragging／UINavigationController 栈深／UITableView.isEditing——均为 SwiftUI 对应组件的 UIKit 底座同源），尽力而为口径：未见结构按无阻碍计（深度恒 1），不因采集不到误锁正常开合。分工：场合归 shouldBegin、方向仍归接管后方向锁定（10pt＋1.5 比＋失败依赖本体不动）；窄条关手势不设门（关不许被场合挡住）。
+
+**③ 落定判定换两段式（学 Proton 预测增量守卫，同报告 §2.2/§四.3）**：`DrawerMotion.settleOpens` 改——fling 直通（800pt/s）不变；其下守卫段：|predictedExtra| 过 `predictionGuard`（25pt，Proton lastSwipeSignificanceThreshold 的设计事实）才认甩动有效、按预测终点相对接管起点的符号定开合；位置段：无有效甩动按当前位置过半定（严格大于 travel/2）。退役 §313 前「相对偏移过 settleFraction 0.3」单阈口径（常量保留作沿革钉、退出判定）。与 §320 的衔接：predictedExtra 的近似来源不变（壳层以速度 × settleProjectionInterval 0.08 计算后喂同一判定——投影 0.08 不动、不打架），守卫带换算到速度域 ≈312pt/s（25/0.08），落在 fling 800 之下、两段衔接连续。**行为变更如实登记**：慢拖松手的开阈值自「相对起点 30%」改「绝对位置过半」——拖到三成多慢放手不再吸附开（须过半或带有效甩动），手感 A/B 终验归真机清单。
+
+**单测**：Core DrawerMotionTests——落定两段式重写（守卫段符号/原点/守卫带钉值 25、位置段过半含恰半程判合、travel 0 保守合；旧 30% 例整组替换）、场景门逐门独立命中＋全清放行、clipGeometry 与分件派生逐值对钉（迁入不改值）；App DrawerContainerControllerTests——层级扫描助手合成层级例（静止滚动不算 dragging/深层导航深度/编辑态）、shouldBegin 接线例（深层导航与编辑态各挡一例、非左缘识别器恒放行）。既有几何/锁步/动画干扰诸例不许退（layout 单写点化后由 testOpenStateClipGeometryInsetsRadiusAndShadowPath 与干扰两例把守）。
+
+**验收**：CI 两轮 Core 全绿、签名外新红零（判读见 §321.1 回填）。**真机门（未验、随组版清单）**：速度门沿用 §320 清单（同录屏量测管线复测不退）；场景门四场景手测——①内容列表滚动拖动中左缘滑不开 ②深层页（栈深 >1）左缘滑不开且返回手势正常 ③列表编辑态左缘滑不开 ④根层静止态左缘滑开正常；落定 A/B 手感——慢拖三成松手回弹、慢拖过半松手吸附、半程带甩（速度 300–800pt/s 档）按预测终点落位、松手抽动不误翻。
