@@ -723,11 +723,24 @@ final class DrawerContainerController: UIViewController,
     }
 
     /// 层级内导航栈最大深度（门 D 的采集半；未见
-    /// 导航控制器恒 1＝根层、不阻碍）
+    /// 导航控制器恒 1＝根层、不阻碍）。导航控制器
+    /// 是控制器不是视图、不在视图树上——逐视图沿
+    /// 响应链向上找到的首个控制器即其宿主控制器，
+    /// 导航栈的容器视图宿主恰是 UINavigationCont-
+    /// roller 本人（首轮 CI 实证：在视图树里直接
+    /// 找控制器类型恒落空、深度恒 1，两例新测红
+    /// 后改本法）
     static func hierarchyMaxNavigationDepth(_ root: UIView) -> Int {
         var depth = 1
-        if let navigation = root as? UINavigationController {
-            depth = max(depth, navigation.viewControllers.count)
+        var responder: UIResponder? = root
+        while let current = responder {
+            if let controller = current as? UIViewController {
+                if let navigation = controller as? UINavigationController {
+                    depth = max(depth, navigation.viewControllers.count)
+                }
+                break
+            }
+            responder = current.next
         }
         for subview in root.subviews {
             depth = max(depth, hierarchyMaxNavigationDepth(subview))
