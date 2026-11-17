@@ -13804,3 +13804,17 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 **判绿**。真机验收点见 oneday-design-review/small-fixes-batch-20261117.md 第六节，随 .67 清单带入。未合 main、未打 tag、未组版（归主线）。
 
+
+## §328 0.50.68 组版收口（2026-11-18；分支 rel-05068，基线 rel-05067@11b3e7b）
+
+**装车单包**：小修批整包 feat/small-fixes-batch@b6d8ea8（待办第 113 条；生产定版头 5cae228＋两提测试口径修正）——附件面板高度补偿桥退役改系统 detent、顶簇不透明背板、枢纽自绘分段胶囊评估保留自绘（详见 §327／§327.1）。
+
+**合并与同号合裁**：真合并（merge commit 3207b94），仅 DESIGN 一处内容冲突、亲解。合裁对照——小修批自编 §326→组版 **§327**、§326.1→**§327.1**；.67 组版节 §326／§326.1 原位不动。代码自指同步 18 处（7 文件：ChatView／TopBarGuideHost／AttachmentPanelView／AttachmentPanel(Core)＋三测试文件），批次 8 文件与分支版逐文件对账：除节号 token 外逐字一致。ChatView.swift 仅动 1316–1322 行注记区（与 B 档 2736+ 行区不相交、自动合入）。
+
+**顺修一件（单独提交）**：HapticsMatrixTests.testMatrixCallSiteCounts 期待值 6→5（§325 删散文 cell 后右滑落点由 SwipeReplyModifier 单路承接、5 为实测正值），§325 注记已补。本版起红集基线族由 16 件更新为 **15 件**（Haptics 转绿后族名单见 §328.1）。
+
+**浸泡注记**（主线口径照录）：聊天面浸泡链 .67 起算、本版为第二版；抽屉面 .65 链第四版（本版抽屉面无变更）。
+
+**版号**：0.50.68／196 六处同改（Project.swift 四值＋SettingsSupportViews 版本串两行），旧号在改动文件内零残留（grep 验）。
+
+**验证方式（本版首试）**：双通道并行——同一构建提交同时点火 GitHub Actions 与 Codemagic 两轮，两边日志各自 §190 全量核账后对位判绿；IPA 以 GitHub 轮产物为准。判读见 §328.1（回填）。
