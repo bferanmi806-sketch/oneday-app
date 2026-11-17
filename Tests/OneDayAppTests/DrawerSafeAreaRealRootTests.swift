@@ -15,17 +15,17 @@ import XCTest
 /// 环境）装配进真 DrawerContainerController＋设备
 /// 窗（402×874、安全区覆写顶 59／底 34，与诊断真
 /// 机同口径），断言渲染几何：
-/// - 名单 ScrollView 的 contentInset.top＝131——
-///   名单平台视图帧是全幅的（首轮实测帧顶 0），
-///   SwiftUI 把宿主安全区派生承载在滚动内容内边
-///   距上：59（宿主安全区顶）＋72（标题带空程
-///   contentMargins、DrawerView 本体常量）＝131；
-///   身份行是覆盖 VStack 的首行、与名单同受根
-///   ZStack 的同一份 SwiftUI 安全区派生（行自排
-///   顶距 spacingL 24 出本体常量 ⟹ 身份行顶
-///   59＋24＝83，诊断 §8 对账口径），故本值达标
-///   ⟺ 派生到达 DrawerView 本体；清零态回 72、
-///   必红。
+/// - 名单 ScrollView 的 adjustedContentInset.top
+///   ＝131——量测口径经两轮实测定案：名单平台视
+///   图帧全幅（帧顶 0）、SwiftUI 自排的标题带空
+///   程 72 落 contentInset、宿主安全区派生经平台
+///   调整层到达（adjusted＝72＋59＝131）；宿主清
+///   零时调整层归零、adjusted 回 72。身份行是覆
+///   盖 VStack 的首行、与名单同受根 ZStack 的同
+///   一份宿主派生（行自排顶距 spacingL 24 出本
+///   体常量 ⟹ 身份行顶 59＋24＝83，诊断 §8 对账
+///   口径），故本值达标 ⟺ 派生到达 DrawerView
+///   本体。
 /// - 底条搜索字段中心 y＝810：底条内容底缘停在安
 ///   全区线之上 4pt（距屏底 34＋4＝38，诊断 §8 口
 ///   径），胶囊高 52 居中于条内 → 中心距屏底 64；
@@ -140,9 +140,9 @@ final class DrawerSafeAreaRealRootTests: XCTestCase {
         )
         XCTAssertFalse(drawerHostView.isHidden, "开态抽屉宿主应可见")
 
-        // 名单安全区消费：宿主派生承载在 contentInset
-        // 上（见文件头注）——59（安全区顶）＋72（标
-        // 题带空程）＝131
+        // 名单安全区消费：宿主派生经平台调整层到达
+        // （见文件头注）——adjusted＝72（标题带空
+        // 程）＋59（宿主安全区顶）＝131
         let scrollViews = findAll(UIScrollView.self, in: drawerHostView)
         let list = try XCTUnwrap(
             scrollViews.max(by: {
@@ -151,12 +151,12 @@ final class DrawerSafeAreaRealRootTests: XCTestCase {
             "真 DrawerView 内未找到名单 ScrollView"
         )
         XCTAssertEqual(
-            list.contentInset.top, 131, accuracy: 2,
-            "名单 contentInset.top 应为 131（宿主安全区 59＋标题带空程 72）；"
-                + "实测 contentInset.top=\(list.contentInset.top)、"
-                + "adjusted=\(list.adjustedContentInset.top)、"
+            list.adjustedContentInset.top, 131, accuracy: 2,
+            "名单 adjustedContentInset.top 应为 131（标题带空程 72＋宿主安全区 59）；"
+                + "实测 adjusted=\(list.adjustedContentInset.top)、"
+                + "contentInset.top=\(list.contentInset.top)、"
                 + "帧顶=\(list.convert(list.bounds, to: window).minY)"
-                + "——宿主安全区派生若被清零此处回 72"
+                + "——宿主安全区派生若被清零 adjusted 回 72"
         )
 
         // 底条落位：搜索字段（底条三件中的平台视图）
