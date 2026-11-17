@@ -3410,6 +3410,14 @@ struct ChatView: View {
     /// 条目内容版本：内容长/工具卡数据/图数任一变
     /// 即重托管＋重量实（半截条目流内生长靠本版
     /// 本跟上）；锚点点亮翻转只重托管被点亮的那行
+    /// §320：文件数同图数一律折入——发送回填
+    /// （remoteFilePaths 落盘）是条目物化后才到的
+    /// 变化，不折入则版本不动、原生列表永不重配
+    /// 该行：行先按纯文本物化为原生散文 cell、回
+    /// 填后资格已变（nativeProseSpec 文件非空即
+    /// 出局）也换不上能画 FileChip 的托管行（诊
+    /// 断 file-attach-invisible-diagnosis-20261117
+    /// §B5 定案；旧面直读条目模型无此症）
     private func carrierEntryVersion(
         _ entry: ChatEntry
     ) -> Int {
@@ -3417,6 +3425,7 @@ struct ChatView: View {
         version = version &* 31
             &+ (entry.toolCardData?.count ?? 0)
         version = version &* 31 &+ entry.remoteImagePaths.count
+        version = version &* 31 &+ entry.remoteFilePaths.count
         if entry.id == anchorHighlightEntryID {
             version &+= 0x9e37
         }
@@ -3499,7 +3508,88 @@ struct ChatView: View {
                 )
             )
         )
+        // §320：行高模型只合成文本面——用户行正文
+        // 泡下方的文件牌组不在产物内，估算须另行
+        // 补入（回填换装后帧表先按估算落位，缺牌
+        // 高即先矮一截、量实回填才跳回）
         return CGFloat(ChatRowHeightModel.rowHeight(input))
+            + fileChipStackEstimate(for: entry, style: style)
+    }
+
+    /// 文件牌组估算高（§320）：托管行用户泡下方
+    /// FileChip 卡组的占位高。几何与 FileChip 本
+    /// 体同源：卡高＝纵内边距 10×2＋max(图标盒
+    /// 40, 名列高)；名列＝名行数×正文规格行高＋
+    /// spacingXS＋副行 caption 规格行高；名行数
+    /// 按文件名以 .body semibold 实测宽对牌内文
+    /// 宽折算（至多 2 行，与本体 lineLimit 同
+    /// 顶）；组高＝Σ卡高＋牌间 spacingXS×(n−1)，
+    /// 上方有正文泡或图片行时另加行内 spacingS
+    /// 一段。牌宽随气泡宽（屏宽−bubbleSide-
+    /// Inset），牌内文宽再减左内边距 spacingSM、
+    /// 图标盒 40 与其后 spacingSM、右侧「···」
+    /// 钮 44。本估算只作量实到达前的占位（同
+    /// provisionalRowHeight 纪律：产物/量实到达
+    /// 即被覆盖，不冒充量实）
+    private func fileChipStackEstimate(
+        for entry: ChatEntry, style: LayoutStyleContext
+    ) -> CGFloat {
+        let paths = entry.remoteFilePaths
+        guard !paths.isEmpty else { return 0 }
+        let bodyLine = InlineTextFonts.specLineHeight(
+            textStyle: .body,
+            category: style.sizeCategory,
+            boldText: style.boldText
+        )
+        let captionLine = InlineTextFonts.specLineHeight(
+            textStyle: .caption1,
+            category: style.sizeCategory,
+            boldText: style.boldText
+        )
+        let chipWidth = UIScreen.main.bounds.width
+            - OneDayMetrics.bubbleSideInset
+        let nameColumnWidth = max(
+            1,
+            chipWidth - OneDayMetrics.spacingSM - 40
+                - OneDayMetrics.spacingSM - 44
+        )
+        let nameFont = UIFont.systemFont(
+            ofSize: UIFont.preferredFont(
+                forTextStyle: .body,
+                compatibleWith: UITraitCollection(
+                    preferredContentSizeCategory:
+                        style.sizeCategory
+                )
+            ).pointSize,
+            weight: .semibold
+        )
+        var total: CGFloat = 0
+        for (index, rawPath) in paths.enumerated() {
+            let name = (
+                FileLineAnchor.split(
+                    pathWithAnchor: rawPath
+                ).path as NSString
+            ).lastPathComponent
+            let measured = (name as NSString).size(
+                withAttributes: [.font: nameFont]
+            ).width
+            let lines = min(
+                2,
+                max(1, Int(ceil(measured / nameColumnWidth)))
+            )
+            let column = max(
+                40,
+                CGFloat(lines) * bodyLine
+                    + OneDayMetrics.spacingXS + captionLine
+            )
+            total += 20 + column
+            if index > 0 { total += OneDayMetrics.spacingXS }
+        }
+        if !entry.content.isEmpty
+            || !entry.remoteImagePaths.isEmpty {
+            total += OneDayMetrics.spacingS
+        }
+        return total
     }
 
     /// 产物缓存同步直读（键与服务/预热同构：条目

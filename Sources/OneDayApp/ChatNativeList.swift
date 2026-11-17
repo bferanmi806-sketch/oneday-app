@@ -835,10 +835,10 @@ final class ChatRootViewController: UIViewController,
                 // R3（§295）：散文规格在场的行走原生
                 // cell（文本本体直嵌、不经托管）；
                 // 其余行维持托管 cell。行键的形态由
-                // 内容资格决定、同键内恒定（落定映射
-                // 在席的条目不下沉，见 ChatNative-
-                // ProseCell 头注），reconfigure 不跨
-                // 形态换 cell 类
+                // 内容资格决定——资格随回填（文件/
+                // 远端图落盘）变化时同键可翻转形态，
+                // 翻转键由 apply 的 §320.1 先删后插
+                // 承接，reconfigure 不跨形态换 cell 类
                 if let row = self?.rowsByKey[key],
                    let spec = row.proseSpec {
                     let cell = collectionView
@@ -956,13 +956,45 @@ final class ChatRootViewController: UIViewController,
                 ($0.key, $0)
             }
         )
+        let oldByKey = Dictionary(
+            uniqueKeysWithValues: rows.map {
+                ($0.key, $0)
+            }
+        )
         let oldKeys = rows.map(\.key)
         let newKeys = newRows.map(\.key)
+        // §320.1：形态翻转键——同键 proseSpec 在场
+        // 性变化（散文⇄托管）。reconfigure 只许以
+        // 同注册原地重配，跨形态 dequeue 异类注册
+        // 必抛 NSInternalInconsistencyException
+        // （§320 第三轮 CI 装配实证：文件回填令用
+        // 户行散文→托管、版本一翻 apply 当场崩）。
+        // cellProvider 头注旧断言「同键内形态恒定」
+        // 自此作废——内容资格会随回填（文件/远端
+        // 图）变化。翻转键先删后插：删除拍先行落，
+        // 本轮重建拍以新注册全新 dequeue，不进
+        // reconfigure 名单
+        let kindFlippedKeys = newKeys.filter { key in
+            guard let old = oldByKey[key],
+                  let new = newByKey[key]
+            else { return false }
+            return (old.proseSpec != nil)
+                != (new.proseSpec != nil)
+        }
+        if !kindFlippedKeys.isEmpty {
+            var preSnapshot = dataSource.snapshot()
+            preSnapshot.deleteItems(kindFlippedKeys)
+            dataSource.apply(
+                preSnapshot, animatingDifferences: false
+            )
+        }
         let keysChanged = oldKeys != newKeys
+            || !kindFlippedKeys.isEmpty
         var reconfigureKeys: [String] = []
         if keysChanged {
             reconfigureKeys = newKeys.filter {
-                versionsByKey[$0] != nil
+                !kindFlippedKeys.contains($0)
+                    && versionsByKey[$0] != nil
                     && versionsByKey[$0]
                         != newByKey[$0]?.version
             }
