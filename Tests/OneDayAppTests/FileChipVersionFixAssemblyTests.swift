@@ -112,6 +112,13 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         let appState = AppState(
             client: DemoHermesClient(), demoMode: .connected
         )
+        // 落点须钉在种子线程：ChatView 冷启 bootstrap
+        // 先 ensureMainThread 另建空主线、落点解析默认
+        // 回主线——不预选则展示的是那条空线、种子行永
+        // 不入列（第一轮 CI 实证：列表 0 行、阶段一超
+        // 时）。走生产入口预选（抽屉线程选择，bootstrap
+        // 里优先于落点解析消费）
+        appState.router.drawerThreadSelection = thread.id
         let host = UIHostingController(
             rootView: ChatView(overviewStore: nil)
                 .environment(appState)
@@ -221,17 +228,24 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         // ① 回填前：原生面在场、该行是散文 cell
         var prose: (cell: ChatNativeProseCell,
                     indexPath: IndexPath)?
+        var phase1Diag = "未见原生根控制器"
         let phase1 = waitUntil {
             guard let controller =
                 self.findNativeRootController()
             else { return false }
             self.window.layoutIfNeeded()
+            let cv = controller.collectionView
+            phase1Diag = "items="
+                + "\(cv.numberOfItems(inSection: 0))"
+                + " visible="
+                + "\(cv.indexPathsForVisibleItems.count)"
             prose = self.proseCell(in: controller)
             return prose != nil
         }
         XCTAssertTrue(
             phase1,
-            "回填前该行须物化为原生散文 cell（发送瞬间形态）"
+            "回填前该行须物化为原生散文 cell（发送瞬间形态）；"
+                + "末次诊断：\(phase1Diag)"
         )
         let unwrappedProse = try XCTUnwrap(prose)
         let controller = try XCTUnwrap(
