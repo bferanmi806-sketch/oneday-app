@@ -13734,3 +13734,15 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 **② 顶簇不透明背板（盘点 #11 余项）**：同根审计 §3.4 二选一裁决取背板路。TopBarGuideHostController 在顶簇宿主之下加背板 UIView：背景 Palette.chatSurface 实色（UIColor(Palette.x) 既有转换式、动态色随 trait 解析；与页面底同令牌同值——静止与页面同色不可见、滚动态对带下正文全遮蔽，alpha＝1）；几何＝左右贴宿主视图、底贴顶簇宿主底、顶经 backingTopConstraint 在 syncTopConstant 同拍维护（常量＝−宿主布局空间顶边，抵窗口顶，与顶簇钉位同式补偿；宿主帧被 SwiftUI 下移时背板向上补齐）。胶囊玻璃本体（浮动导航层，U2 A 保守口径内保留）、§213 顶缘内容驱动注册、§195 落位/§321 底缘回报口径一字不动；命中仍走 TopBarPassthroughView 活帧闸门（背板仅子视图、带外穿透裁决不变）。先例同构：抽屉面板 §318 压面改 chatSurface 实色。结构证据＝TopBarBackingPlateTests 两例（在席/序位/实色对账/全带覆盖＋下移补偿＋顶簇落点 62 不退）；改前结构＝基线 barHost.view.backgroundColor .clear、无背板子视图。
 
 **③ 枢纽自绘分段胶囊评估（盘点 #22）——结论：保留自绘，不换系统件**。评估差表（细节见 small-fixes-batch-20261117.md §三）：(a) 形态反相——系统 segmented（SwiftUI Picker／UISegmentedControl）为灰轨＋白拇指，§222 基准（用户 2026-11-14 对 Muse 智能体页量测亲批）为白轨＋发丝边＋selectionFill 灰选胶囊，反相不可经公开 API 扭转（Picker 零外观面；UISegmentedControl 的 selectedSegmentTintColor 只能染拇指、轨/拇指两级几何仍系统钉死）；(b) 几何不可达——基准三令牌 条 48／胶囊 36／字形 22（内缩 6 的两级结构），系统件总高约 32 单级、拇指内缩约 2，48/36 两级表达不出；(c) 既有裁决链同向——2026-11-14 评估（待办第 10 条）已判保留、第 88 条（2026-11-15）立「系统件为默认、自制为例外」时已把枢纽族登记为保留例外（SegmentedControlSpec 文档在册），通知/文件两面因「无例外理由」迁系统件，枢纽的例外理由（用户亲名页面的基准对齐）至今成立；(d) 系统件的免费项（段语义/滑移拇指动画）自绘已等价自备（Button＋段名 label＋.isSelected trait＋44 命中高＋MotionTokens.swap 动画），动态字号一项系统 segmented 本身亦固定几何、并非免费。重评触发条件：用户改枢纽基准，或系统分段件开放两级几何/反相填充定制。按「不许为换而换」本件零落码，待办以评估结论划线。
+
+### §326.1 CI 判读（2026-11-17，三轮 §190 全日志核账回填）
+
+生产码自首提 5cae228 冻结，后两提（87a42d0／de82a72）仅测试口径修正、生产码零改动。三轮 run：44113195470（51.5 分，head 5cae228）／44124436769（39.6 分，head 87a42d0）／44134103279（52.1 分，head de82a72）。后两轮生产码同构、作判绿对轮：Core **2157/2157** 两轮零红；本批新测两轮全绿（AttachmentPanelFitAssemblyTests 两例、TopBarBackingPlateTests 两例、EdgeEffectRegistration §326 修订例）；红集两轮 16／15 件、全在基线族内（第 100 条落底 2＋R2 系 2＋第 95 条族 9＋键盘 rig 1＋EdgeEffectProbe 1），**签名外新红零**；BackingData 两轮零命中；HUB-LAYOUT-VERDICT＝PASS（枢纽零落码旁证）。
+
+EdgeEffectProbe 一件的归属实证：同日 rel-05067 对照轮 run 44111454299（B 档＋.66、无本批改动）同测同断言同值红（24>3／18>3／24>7）——既有环境红、不归本批；且其 bottomRest 断言在本批改动面（顶簇）之外，双证。
+
+ATTACH-FIT 终读数（后两轮逐值同）：sheet 帧 469.67＝detent 解析值 435.67（.medium 半窗 437±30 带内）＋底部安全区 34；ideal 136.67、presentedIdeal 170.67＝ideal＋安全区 34（桥的反向补偿归零消失后，差恰安全区全量、结构吻合）；GROWTH collapsed＝expanded＝469.67——§303 时代增行 +102 跟随反转为 ±0 不跟随，退役目的达成。测试口径两轮教训（已落测试注记）：SwiftUI 施加的 detents 读回序不稳定（两轮 [.medium,.large] 与 [.large,.medium] 互见）、selectedDetentIdentifier 恒 nil——终口径＝标识集合相等＋帧高落 .medium 带互证开档。
+
+TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar（0, 62, 402, 52）；宿主帧下移 49 补偿例同值、顶簇落点 62 不退。
+
+**判绿**。真机验收点见 oneday-design-review/small-fixes-batch-20261117.md 第六节，随 .67 清单带入。未合 main、未打 tag、未组版（归主线）。
