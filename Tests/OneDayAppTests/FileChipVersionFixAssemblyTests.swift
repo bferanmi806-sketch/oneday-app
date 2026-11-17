@@ -305,9 +305,27 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
             chipSeen = texts.contains {
                 $0.contains(self.fileName)
             }
+            var classNames: [String] = []
+            func collectClasses(_ v: UIView, _ depth: Int) {
+                guard depth < 6,
+                      classNames.count < 40
+                else { return }
+                classNames.append("\(type(of: v))")
+                v.subviews.forEach {
+                    collectClasses($0, depth + 1)
+                }
+            }
+            collectClasses(cell, 0)
             phase2Diag = "cell="
                 + "\(type(of: cell)) texts=\(texts.count)"
                 + " chipSeen=\(chipSeen)"
+                + " texts=["
+                + texts.joined(separator: "|")
+                    .prefix(120)
+                + "] classes=["
+                + classNames.joined(separator: ",")
+                    .prefix(300)
+                + "]"
             if let height = self.frame(
                 in: controller, at: indexPath
             )?.height {
