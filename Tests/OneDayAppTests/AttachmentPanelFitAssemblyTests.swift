@@ -167,18 +167,26 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
 
         // 在场：presented 本体即面板的托管控制器
         // ——其视图 sizeThatFits 须与独立托管理想
-        // 高逐值对账（呈现的若是空 sheet 或错内容，
-        // 测不出此高）。无障碍标签集只留档不作断
-        // 言（首轮实测本环境 AX 树不填充、为空集）
+        // 高对账（呈现的若是空 sheet 或错内容，测
+        // 不出此高）。无障碍标签集只留档不作断言
+        // （首轮实测本环境 AX 树不填充、为空集）。
+        // §326 口径差：桥退役后 presented 视图的底
+        // 部安全区不再被反向补偿归零（.66 时代
+        // safeBottom＝0、presentedIdeal＝ideal），
+        // 其 sizeThatFits 含自身底部安全区一层——
+        // 对账式改 ideal＋safeBottom（首轮实测差
+        // 恰 34.0＝安全区全量，结构吻合）
         let presentedIdeal = presented.view.sizeThatFits(
             CGSize(
                 width: windowW, height: .greatestFiniteMagnitude
             )
         ).height
+        let safeBottom = presented.view.safeAreaInsets.bottom
         XCTAssertEqual(
-            presentedIdeal, ideal, accuracy: 4,
+            presentedIdeal, ideal + safeBottom, accuracy: 4,
             "presented 内容理想高 \(presentedIdeal) "
-                + "≠ 面板理想高 \(ideal)，面板不在场"
+                + "≠ 面板理想高 \(ideal)＋底部安全区 "
+                + "\(safeBottom)，面板不在场"
         )
         let labels = collectAccessibilityLabels(in: presented.view)
 
@@ -206,18 +214,27 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             "detents 须恰为系统 [.medium, .large]，"
                 + "实得 \(sheetPC.detents.map(\.identifier))"
         )
+        // 初始档：SwiftUI 管理下 selectedDetent-
+        // Identifier 恒 nil（首轮实测），开档由
+        // 「集合首元＝.medium＋帧高落 .medium 带」
+        // 两面互证，不按 UIKit 编程式选档断言
         XCTAssertEqual(
-            sheetPC.selectedDetentIdentifier, .medium,
-            "初始选中档须为 .medium，实得 "
-                + "\(String(describing: sheetPC.selectedDetentIdentifier))"
+            sheetPC.detents.first?.identifier, .medium,
+            "detents 首元须为 .medium（SwiftUI 开档"
+                + "认集合首元），实得 "
+                + "\(String(describing: sheetPC.detents.first?.identifier))"
         )
-        // 帧高落 .medium 半窗带（与内容理想高脱钩
-        // 是本批的既定代价、不是缺陷——§303 的
-        // 「贴内容」断言在此作废）
+        // 帧高落 .medium 半窗带：detent 解析值＝帧
+        // 高−底部安全区（帧含安全区一层，§303 时
+        // 代 sheet＝fit＋34 同式；首轮实测解析值
+        // 435.67 对半窗 437）。与内容理想高脱钩是
+        // 本批的既定代价、不是缺陷——§303 的「贴
+        // 内容」断言在此作废
         XCTAssertEqual(
-            sheetHeight, windowH * 0.5, accuracy: 30,
-            "sheet 高 \(sheetHeight) 不在 .medium "
-                + "半窗带（理想高 \(ideal) 仅留档）"
+            sheetHeight - safeBottom, windowH * 0.5,
+            accuracy: 30,
+            "sheet detent 解析值 \(sheetHeight - safeBottom) "
+                + "不在 .medium 半窗带（理想高 \(ideal) 仅留档）"
         )
         XCTAssertGreaterThan(
             sheetHeight, 100,
@@ -278,9 +295,15 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             "系统 detent 档位下内容增行不得改高："
                 + "\(collapsed)→\(expanded)"
         )
+        // 半窗带同 ①口径：detent 解析值＝帧高−底
+        // 部安全区（presented 在场取其安全区）
+        let probeSafeBottom = root.presentedViewController?
+            .view.safeAreaInsets.bottom ?? 0
         XCTAssertEqual(
-            collapsed, windowH * 0.5, accuracy: 30,
-            "探针 sheet 高 \(collapsed) 不在 .medium 半窗带"
+            collapsed - probeSafeBottom, windowH * 0.5,
+            accuracy: 30,
+            "探针 sheet detent 解析值 "
+                + "\(collapsed - probeSafeBottom) 不在 .medium 半窗带"
         )
     }
 
