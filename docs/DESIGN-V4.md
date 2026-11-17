@@ -13628,3 +13628,11 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 量测口径轮（不计门轮次，生产码零改动）：run 43980356596@ccc55fa——新测顶断言按「名单帧顶＝59」预设落红、实测帧顶 0（名单平台视图全幅），同轮底条字段中心与面板实色两断言已绿、Core 2153/2153；改判 contentInset.top 后 run 43986939952@2d01ad1 打印定案 contentInset.top＝72／adjusted＝131，改判 adjusted。同轮签名外一红 ComposerGuideHostTests.testRestGeometry 为 spin 0.3s 超时型 flake（非数值断言、量测轮首轮同例绿、与改动面零交集），其后两门轮次均未复现。
 
 门轮次（同提交 7dbf68e、零改动）：run 43993812173（全日志 24,942 行）＋run 44000192883（25,244 行）。**Core 两轮均 2153/2153、0 failures**——合并账闭合（.64 基线 2152＋钳制新例 1；App 侧净增新例 2）。点名测两轮全绿：DrawerSafeAreaRealRootTests 两例（真 DrawerView 安全区消费＋面板实色像素量测）、DrawerMotionTests 钳制例、抽屉锁步 testDrawerLayerLockstepsWithForeground、深色阴影 testDarkStyleClearsDrawerShadow。聊天面回归对账：落底 contentSize 两轮 4156.0、距底 A 轮 3.667／B 轮 2.333·3.333（第 100 条 ③⑯ 已知项包络内、≤4.0 上限成立，低值系迟到布局回调的时序涨落向零）；⑨ kbTopWin 逐拍跟进打印两轮在（545→541→539…）正面证据不退；舱几何由 ChatPageAssemblyRegressionTests 等装配套件全绿担（红集内无聊天几何例）。红集：A 轮恰 14 件（App 5＝③⑯ 落底 2＋⑧＋⑨＋§257.1 探针；UI 第 95 条族 9），与 .64 逐件同构；B 轮同 14 件＋键盘矩阵 rig 1 件（未出 MATRIX-VERDICT、rig 涨落登记形态内）。VERDICT／HUB-LAYOUT-VERDICT 两轮 PASS（A 轮 MATRIX 亦 PASS）；§184 签名内：BackingData 两轮零命中。**签名外新红零（量测轮的超时 flake 不计、门轮次未复现）。判绿，待组版 0.50.65（与文件选择器修复合组）。**
+
+## §319 0.50.65 组版（2026-11-17；分支 rel-05065，基线 rel-05064@f900c17）
+
+**版号**：0.50.65／构建 193（Project.swift 四值与设置页版本串两行同改，旧号在改动文件内零残留已 grep 验）。
+**装车两包（热修）**：①文件选择器呈现竞速修复（待办第 108 条）feat/docpicker-present-fix@2f014f8——组版定号 §317；②抽屉安全区误伤修复＋过冲钳制＋面板改实色（待办第 109 条）feat/drawer-safearea-fix@318065c——原自编号 §317、组版顺延 §318。
+**合并处置**：两包均自 rel-05064@f900c17 分叉、文件集除 DESIGN 外完全不相交，代码全自动合入零冲突；DESIGN 尾部 §317 同号亲解——按装车序文件线保留 §317、抽屉线顺延 §318（§318.1），抽屉代码自指 15 处全量同步（DrawerContainerView 4／DrawerView 3／DrawerMotion 2／Palette 1／DrawerSafeAreaRealRootTests 4／DrawerMotionTests 1）。合并后逐文件对账：文件线 6 文件与分支逐字一致；抽屉线 6 文件与分支差异仅节号 token；DESIGN 对基线零删行（§300–§318 节序完整连续）。两包定版口径未动（排队呈现路与 P2 窄守卫、双宿主恢复默认派生＋A-21 分界口径、drawerOffset 钳制 [−travel, 0]、面板 chatSurface 恒实色）。无新数据迁移；服务端无改动。
+**浸泡口径**：.64 抽屉面承载级回退不计干净版（诊断 §6）——抽屉面浸泡自本版（其修复版）起算；聊天面浸泡链不牵连、.61 起算不变，键盘组仍为真机主验；R5 门读法归主线裁，本版不计 R5 开门。
+**验收**：全量门两轮（§190 全日志核账）；Core 合并账预期 2153/2153（.64 基线 2152＋抽屉钳制新例 1；文件线不增删 Core 测）；App 侧新测 DocumentPickerViewTests 5＋DrawerSafeAreaRealRootTests 2 两轮全绿；ATTACH-FIT 同值不退；红只认登记签名族；落底三数与 ⑨ 键盘正面证据不退。CI 判读见 §319.1（回填）。
