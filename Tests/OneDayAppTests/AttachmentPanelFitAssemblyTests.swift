@@ -202,27 +202,27 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
 
         // 定高归系统档位（§326 本体）：detents 恰
-        // 为 [.medium, .large] 系统标识集、无自造
-        // custom detent 混入；开在 .medium
+        // 为 {.medium, .large} 系统标识集、无自造
+        // custom detent 混入。比对口径（两轮实测
+        // 教训）：SwiftUI 施加的 detents 读回序不
+        // 稳定（两轮分别 [.medium, .large] 与
+        // [.large, .medium]）、selectedDetent-
+        // Identifier 恒 nil——序与选档标识均不作
+        // 断言；集合相等＋下文帧高落 .medium 带
+        // （非 .large 带）两面互证开档为 .medium
         let sheetPC = try XCTUnwrap(
             presented.sheetPresentationController,
             "presented 无 sheetPresentationController"
         )
         XCTAssertEqual(
-            sheetPC.detents.map(\.identifier),
+            Set(sheetPC.detents.map(\.identifier)),
             [.medium, .large],
-            "detents 须恰为系统 [.medium, .large]，"
+            "detents 须恰为系统 {.medium, .large} 集合，"
                 + "实得 \(sheetPC.detents.map(\.identifier))"
         )
-        // 初始档：SwiftUI 管理下 selectedDetent-
-        // Identifier 恒 nil（首轮实测），开档由
-        // 「集合首元＝.medium＋帧高落 .medium 带」
-        // 两面互证，不按 UIKit 编程式选档断言
         XCTAssertEqual(
-            sheetPC.detents.first?.identifier, .medium,
-            "detents 首元须为 .medium（SwiftUI 开档"
-                + "认集合首元），实得 "
-                + "\(String(describing: sheetPC.detents.first?.identifier))"
+            sheetPC.detents.count, 2,
+            "detents 须恰两档，实得 \(sheetPC.detents.count)"
         )
         // 帧高落 .medium 半窗带：detent 解析值＝帧
         // 高−底部安全区（帧含安全区一层，§303 时
