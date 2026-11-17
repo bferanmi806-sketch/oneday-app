@@ -13818,3 +13818,12 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **版号**：0.50.68／196 六处同改（Project.swift 四值＋SettingsSupportViews 版本串两行），旧号在改动文件内零残留（grep 验）。
 
 **验证方式（本版首试）**：双通道并行——同一构建提交同时点火 GitHub Actions 与 Codemagic 两轮，两边日志各自 §190 全量核账后对位判绿；IPA 以 GitHub 轮产物为准。判读见 §328.1（回填）。
+
+**§328.1 CI 判读（§190 全日志本地核账，构建提交 e28e707）**：验证按主线 2026-11-18 拍板首试双通道并行——GitHub 轮先点火（run 44145533393，02:13:39 CST）；Codemagic 轮**未点火**：API 令牌仅存 Bitwarden 条目「Codemagic API」，本线（非浏览器分身）无取用路（bw CLI 未认证、保险库仅浏览器路线），按任务书回退口径如实记录并回退 GitHub 串行两轮（第二轮 run 44151761136，02:48:14 CST，第一轮核账并行点火），不硬等。两轮同提交零改动，全日志 25,291／24,993 行本地核账。
+
+- **Core 两轮均 2157/2157、0 failures**（逐 test-case 行计）。
+- **两轮逐值同**：BTIER-PASSES repeat=1／scroll=0／altTier=0；ATTACH-FIT sheet=469.67／ideal=136.67／presentedIdeal=170.67／safeBottom=34.0、ATTACH-FIT-GROWTH collapsed=expanded=469.67（增行不改高、与 §327.1 终读数逐值同）；TOPBAR-PLATE backing（0,0,402,114）／bar（0,62,402,52）；kbTopWin 两轮 37 行在席；BackingData 两轮零命中；HUB-LAYOUT-VERDICT 两轮 PASS。
+- **本包测试两轮全绿**：AttachmentPanelFitAssemblyTests 两例、TopBarBackingPlateTests 两例、EdgeEffectRegistrationTests 全例；**HapticsMatrixTests.testMatrixCallSiteCounts 两轮转绿**（顺修生效）。
+- **红集两轮同名 14 件、全在更新后基线族内、签名外新红零**。**基线族名单本版更新为 15 件**（逐名）：App 5——ChatNativeListAssemblyTests.testLongThreadLandsAtRealBottom／ChatNativeListR4AssemblyTests.testDefaultResolvedSurfaceLandsAtRealBottom／ChatNativeListR2AssemblyTests.testComposerNotificationFollowAndSnapshotFeed／ChatNativeListR2AssemblyTests.testBlockClosureKeepsSegmentInExactlyOneItem／EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1 像素探针）；UI 10——ChatGestureNativeSurfaceTests 5＋ChatGestureArbitrationTests 4（第 95 条族）＋KeyboardTapDismissMatrixTests.testTapBlankDismissMatrix（键盘矩阵 rig）。与 §326 的 16 件口径对账两处：⑴HapticsMatrixTests——§326.1 记为族外遗留红，本版顺修后消解、不再入账；⑵设备探针 ChatPageDeviceConditionProbe——§326 族内成员，自 .67 二轮起连续四轮未现红，本版起移出族名单列观察（再现红先按旧定因对账、不直接判新红）。⑮′ testLongHistoryScrollConvergesWithoutLayoutRecursion 本版两轮全过（.67 首轮单轮采样涨落，不入族）。
+- **浸泡注记**（§328 裁定照录）：聊天面 .67 链第二版；抽屉面 .65 链第四版。
+- **判绿出货**：产物取第一轮 IPA（解包验 0.50.68/196、bundle id site.didichou.oneday，md5 `1bcbfeea08f094bc36f777890652334b`）。
