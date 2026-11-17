@@ -367,4 +367,211 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
             "引导线位置须与通知帧顶显著无关，实测 \(guideAfter)"
         )
     }
+    // MARK: - ⑮′ 长历史滚动收敛压测（§325.2 崩溃除根门）
+
+    /// 220 行混合行集：普通文本行＋长代码行＋文件
+    /// 行（生产 FileChip 本体、回填在席形态）——复
+    /// 刻 .66 真机崩溃场景（上滑翻长历史）的行型谱
+    private func longHistoryRows(
+        count: Int = 220
+    ) -> [ChatNativeRow] {
+        let appState = AppState()
+        return (0..<count).map { i in
+            if i % 10 == 7 {
+                let path = "/opt/data/report-\(i).xlsx"
+                return ChatNativeRow(
+                    key: "h\(i)", entryID: nil,
+                    revision: ChatNativeRowRevision(
+                        parts: [
+                            .text("file-\(i)"), .text(path),
+                        ]
+                    ),
+                    makeView: {
+                        AnyView(
+                            VStack(
+                                alignment: .leading,
+                                spacing: 8
+                            ) {
+                                MarkdownText(
+                                    "第 \(i) 份报表已经生成，见附件。"
+                                )
+                                FileChip(path: path) {}
+                            }
+                            .padding(
+                                .horizontal,
+                                OneDayMetrics.bubblePaddingH
+                            )
+                            .padding(
+                                .vertical,
+                                OneDayMetrics.bubblePaddingV
+                            )
+                            .frame(
+                                maxWidth: .infinity,
+                                alignment: .leading
+                            )
+                            .environment(appState)
+                        )
+                    }
+                )
+            }
+            if i % 10 == 5 {
+                return hostedRow(
+                    "h\(i)",
+                    "长回复 \(i)。\n\n```swift\nlet value = \(i)\nprint(value)\n```\n\n代码之后还有一段较长的正文，用来拉开行高差异、让滚动路径覆盖多种行高收敛形态。这一段继续补充文字直到它明显比短行高出一截。"
+                )
+            }
+            return hostedRow(
+                "h\(i)",
+                "历史消息 \(i)，长度随序号略有变化。"
+            )
+        }
+    }
+
+    /// §325.2 第一验收门：220 行长历史多遍 apply＋
+    /// 自底向顶连续滚动模拟（.66 崩溃场景）全程不
+    /// 陷断言（跑完即第一重证据）、布局 pass 数有界
+    /// （section 重建计数）、间隙 24±2、文件牌在
+    /// 席、稳态强制布局帧逐值不动（自适应收敛/拟
+    /// 合幂等的结构证据）；末段切
+    /// .enabledIncludingConstraints 对照同组断言，
+    /// 两档 pass 数打印入日志作守卫 3③ 定档证据
+    func testLongHistoryScrollConvergesWithoutLayoutRecursion()
+        throws
+    {
+        assemble()
+        let rows = longHistoryRows()
+        apply(rows: rows)
+        drain(1.5)
+        let cv = controller.collectionView
+        XCTAssertGreaterThan(
+            cv.contentSize.height, 6000,
+            "220 行混合行集内容高须成规模，实测 \(cv.contentSize.height)"
+        )
+        // 同修订重复 apply：不得再触发 section 重建
+        let passesBeforeRepeat =
+            controller.testSectionProviderCallCount
+        apply(rows: rows)
+        apply(rows: rows)
+        drain(0.8)
+        XCTAssertEqual(
+            controller.testSectionProviderCallCount,
+            passesBeforeRepeat,
+            "同修订重复 apply 不得触发 section 重建（pass 数有界），\(passesBeforeRepeat) → \(controller.testSectionProviderCallCount)"
+        )
+        // 连续滚动模拟：以用户拖动态进入（落点意图
+        // 消、与真机手势同式），自底向顶 30 步
+        controller.scrollViewWillBeginDragging(cv)
+        let maxOffset = max(
+            0, cv.contentSize.height - cv.bounds.height
+        )
+        let steps = 30
+        let passesBeforeScroll =
+            controller.testSectionProviderCallCount
+        for step in 0...steps {
+            let y = maxOffset
+                * CGFloat(steps - step) / CGFloat(steps)
+            cv.contentOffset = CGPoint(x: 0, y: y)
+            window.layoutIfNeeded()
+        }
+        let scrollPasses =
+            controller.testSectionProviderCallCount
+            - passesBeforeScroll
+        XCTAssertLessThanOrEqual(
+            scrollPasses, steps,
+            "滚动全程 section 重建须有界（≤每步一次），实测 \(scrollPasses)/\(steps) 步"
+        )
+        controller.scrollViewDidEndDragging(
+            cv, willDecelerate: false
+        )
+        drain(0.6)
+        // 间隙抽样（首/中/尾，全程滚过已物化）：24±2
+        for index in [10, 110, 210] {
+            let gap = try frame(at: index + 1).minY
+                - frame(at: index).maxY
+            XCTAssertEqual(
+                gap, OneDayMetrics.spacingL, accuracy: 2.0,
+                "长历史行 \(index) 间隙须 24±2，实测 \(gap)"
+            )
+        }
+        // 文件牌在席：滚到文件行（107）须物化、行高
+        // 含牌面段（与相邻短文本行差分 ≥30）
+        let fileIndex = 107
+        let fileFrame = try frame(at: fileIndex)
+        cv.contentOffset = CGPoint(
+            x: 0, y: max(0, fileFrame.minY - 100)
+        )
+        window.layoutIfNeeded()
+        drain(0.5)
+        let fileCell = try XCTUnwrap(
+            cell(at: fileIndex),
+            "文件行滚入视口须物化出 cell（文件牌在席）"
+        )
+        XCTAssertEqual(
+            fileCell.reuseIdentifier,
+            "ChatNativeHostingCell"
+        )
+        let shortFrame = try frame(at: 106)
+        XCTAssertGreaterThan(
+            fileFrame.height, shortFrame.height + 30,
+            "文件行高须含文件牌段，文件行 \(fileFrame.height) vs 短行 \(shortFrame.height)"
+        )
+        // 收敛终局（生产档 .enabled）：稳态强制布局
+        // ×3——contentSize 与采样帧逐值不动、零
+        // section 重建（拟合幂等/无振荡的结构证据；
+        // 任一行型不幂等会在此以具体行号现形）
+        let steadySize = cv.contentSize
+        let steadyFrames = try (0..<8).map {
+            try frame(at: 100 + $0)
+        }
+        let passesBeforeIdle =
+            controller.testSectionProviderCallCount
+        for _ in 0..<3 { window.layoutIfNeeded() }
+        XCTAssertEqual(
+            cv.contentSize.height, steadySize.height,
+            accuracy: 0.5,
+            "稳态重复布局 contentSize 不得漂移（自适应收敛证据）"
+        )
+        for (offset, before) in steadyFrames.enumerated() {
+            XCTAssertEqual(
+                try frame(at: 100 + offset), before,
+                "稳态重复布局下行 \(100 + offset) 帧须逐值不变（无振荡）"
+            )
+        }
+        XCTAssertEqual(
+            controller.testSectionProviderCallCount,
+            passesBeforeIdle,
+            "稳态强制布局不得触发 section 重建"
+        )
+        // 档位对照（守卫 3③）：切最激进档重跑收敛
+        // 断言——同行集内容高须与生产档一致、稳态
+        // 同样幂等；两档 pass 数打印作定档证据
+        controller.testSelfSizingInvalidation =
+            .enabledIncludingConstraints
+        let passesBeforeAlt =
+            controller.testSectionProviderCallCount
+        apply(rows: rows)
+        drain(1.2)
+        XCTAssertEqual(
+            cv.contentSize.height, steadySize.height,
+            accuracy: 1.5,
+            "两档下同行集内容高须一致（定档互证），生产档 \(steadySize.height) vs 激进档 \(cv.contentSize.height)"
+        )
+        let altFrames = try (0..<8).map {
+            try frame(at: 100 + $0)
+        }
+        for _ in 0..<3 { window.layoutIfNeeded() }
+        for (offset, before) in altFrames.enumerated() {
+            XCTAssertEqual(
+                try frame(at: 100 + offset), before,
+                "激进档稳态下行 \(100 + offset) 帧须逐值不变"
+            )
+        }
+        let altPasses =
+            controller.testSectionProviderCallCount
+            - passesBeforeAlt
+        print(
+            "BTIER-PASSES repeat=\(passesBeforeRepeat) scroll=\(scrollPasses) altTier=\(altPasses)"
+        )
+    }
 }
+

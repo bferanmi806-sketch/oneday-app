@@ -228,6 +228,14 @@ private final class ChatNativeLayoutBox {
     /// 算管线退役）；物化行高与本值无关、由框架
     /// 自适应持有
     static let estimatedPlaceholder: CGFloat = 120
+    /// §325.2 布局 pass 计数口（section 提供者被调
+    /// 用次数）：收敛压测的 pass 数读数——稳态下强
+    /// 制布局/重复 apply 不得再触发 section 重建；
+    /// 生产路径只多一次计数、无行为影响
+    private(set) var sectionProviderCallCount = 0
+    func noteSectionProviderCall() {
+        sectionProviderCallCount += 1
+    }
 }
 
 // MARK: - 托管 cell
@@ -383,6 +391,12 @@ final class ChatRootViewController: UIViewController,
     /// 落定拍调度账（与 gen3 §259 同式：滚动回调
     /// 只记账、施工与读数产出统一在落定拍）
     private var settleScheduled = false
+    /// §325.2：布局参数变更的失效记账（apply 只记
+    /// 账、落定拍 pass 外合并施工，见 apply 注）
+    private var pendingLayoutInvalidation = false
+    /// §325.2：滚动期被冻结的落定拍记账（滚动结束
+    /// 回调合并落写时消费）
+    private var settleDeferredDuringScroll = false
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
     /// 判达标＋几何跨拍稳定后消（§302.3）、或用
     /// 户拖动接管即消
@@ -415,7 +429,10 @@ final class ChatRootViewController: UIViewController,
         layoutBox = box
         let layout = UICollectionViewCompositionalLayout {
             _, _ in
-            ChatRootViewController.makeSection(box: box)
+            box.noteSectionProviderCall()
+            return ChatRootViewController.makeSection(
+                box: box
+            )
         }
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
@@ -431,7 +448,10 @@ final class ChatRootViewController: UIViewController,
         layoutBox = box
         let layout = UICollectionViewCompositionalLayout {
             _, _ in
-            ChatRootViewController.makeSection(box: box)
+            box.noteSectionProviderCall()
+            return ChatRootViewController.makeSection(
+                box: box
+            )
         }
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
@@ -446,11 +466,17 @@ final class ChatRootViewController: UIViewController,
     private func setUpCollectionView() {
         collectionView.delegate = self
         // 自适应行高失效口径（iOS 16+ UICollection-
-        // View 属性、非 layout 属性）：cell 内约束
-        // 变化即自动重测——托管内容（SwiftUI 拟合）
-        // 的高变化靠本口收敛，不手算不回填（H9/H10）
+        // View 属性、非 layout 属性）：托管内容
+        // （SwiftUI 拟合）的尺寸变化即自动重测，不
+        // 手算不回填（H9/H10）。§325.2 守卫 3③ 定
+        // 档：.enabled（内容尺寸变化才失效）——最激
+        // 进档 .enabledIncludingConstraints（cell 内
+        // 任何约束变化即失效）是 .66 崩溃成环三件
+        // 套之一（诊断定因），托管内容的尺寸变化经
+        // 托管视图本体上报、.enabled 已足；两档收敛
+        // 对照由 R3 ⑮′ 压测实证（pass 数入 CI 日志）
         collectionView.selfSizingInvalidation =
-            .enabledIncludingConstraints
+            .enabled
         collectionView.register(
             ChatNativeHostingCell.self,
             forCellWithReuseIdentifier:
@@ -857,6 +883,21 @@ final class ChatRootViewController: UIViewController,
     /// 与通知帧顶同帧对账的测试读口（生产采样走
     /// sampleGuideForTrace 自述通道、本口不参与驱
     /// 动）
+    /// §325.2 测试读口：布局 pass 计数（section 提
+    /// 供者调用数）——长历史收敛压测断言 pass 数有
+    /// 界/稳态零重建用，生产无消费
+    var testSectionProviderCallCount: Int {
+        layoutBox.sectionProviderCallCount
+    }
+
+    /// §325.2 测试口：selfSizingInvalidation 档位
+    /// 对照压测用（生产默认 .enabled，见装配处注）
+    var testSelfSizingInvalidation:
+        UICollectionView.SelfSizingInvalidation {
+        get { collectionView.selfSizingInvalidation }
+        set { collectionView.selfSizingInvalidation = newValue }
+    }
+
     var testKeyboardGuideTopInWindow: CGFloat? {
         guard let window = view.window else { return nil }
         return view.convert(
@@ -1005,8 +1046,13 @@ final class ChatRootViewController: UIViewController,
             && currentDistance() <= 0.5
         collectionView.frame = view.bounds
         collectionView.layoutIfNeeded()
-        measureBottomSpace()
-        reconcileInsets()
+        // §325.2 守卫 1：inset 施工（reconcileInsets
+        // 与 measureBottomSpace）迁出布局拍——本拍
+        // 只记账排落定拍，施工归落定拍在 pass 外合
+        // 并执行（诊断守卫条目 1 点名本处）。键盘动
+        // 画期本拍逐帧到达、落定拍在帧间逐拍合并落
+        // 写，跟随链不断（§302 对账改走落定拍）
+        scheduleSettle()
         if (wasAtBottom || landingIntent)
             && !userInteracting {
             pinToBottom()
@@ -1049,8 +1095,16 @@ final class ChatRootViewController: UIViewController,
         }
         layoutParams = layout
         if paramsChanged {
-            collectionView.collectionViewLayout
-                .invalidateLayout()
+            // §325.2 守卫集：invalidateLayout 不许在
+            // apply（representable update）内同步执行
+            // ——布局参数只记账，失效施工归落定拍在
+            // pass 外合并执行一次（值真变才记账，本
+            // 分支即是）。2026-11-17 .66 真机崩溃链
+            // （compositional 在可见 cell 更新 pass 内
+            // 自我 invalidate 自递归至 UIKit 断言）的
+            // 防线之一：任何喂入路径都不许在布局 pass
+            // 可达的同步链里碰布局失效
+            pendingLayoutInvalidation = true
         }
 
         let newByKey = Dictionary(
@@ -1121,7 +1175,7 @@ final class ChatRootViewController: UIViewController,
         }
         applyComposer(view: composerView)
         if keysChanged || !reconfigureKeys.isEmpty
-            || insetChanged {
+            || insetChanged || paramsChanged {
             scheduleSettle()
         }
         applyArrow(view: arrowView)
@@ -1152,6 +1206,26 @@ final class ChatRootViewController: UIViewController,
     private func performSettleBeat() {
         guard collectionView.bounds.width > 0
         else { return }
+        if collectionView.isTracking
+            || collectionView.isDecelerating {
+            // §325.2 守卫 2③＋4：滚动期冻结——本拍
+            // 只记账（report 轻量读数照常产出）、不
+            // 施工：不写 inset、不钉底、不消费布局失
+            // 效记账；滚动结束回调（didEndDrag 不减
+            // 速／didEndDecelerating）一次性合并落写。
+            // 手势中不改视口几何（诊断守卫口径）
+            settleDeferredDuringScroll = true
+            report()
+            return
+        }
+        if pendingLayoutInvalidation {
+            // §325.2：布局失效的唯一施工口——落定拍
+            // 在布局 pass 外、同拍合并执行一次，随后
+            // layoutIfNeeded 冲刷收敛
+            pendingLayoutInvalidation = false
+            collectionView.collectionViewLayout
+                .invalidateLayout()
+        }
         collectionView.layoutIfNeeded()
         measureBottomSpace()
         reconcileInsets()
@@ -1344,21 +1418,27 @@ final class ChatRootViewController: UIViewController,
             handle.contentEndVisible = false
         }
         // 顶可见条目：帧序首个与有效视口顶相交的
-        // 条目行（非条目行跳过、继续向下找条目行）
+        // 条目行（非条目行跳过、继续向下找条目行）。
+        // §325.2 守卫 4：只查可见 cell（indexPaths-
+        // ForVisibleItems、至多一屏行数），禁全 rows
+        // 遍历——旧式全表扫描在长会话下每拍 O(n)，
+        // 是 .66 滚动卡顿的放大器（诊断候选 2）
         let visibleTop = collectionView.contentOffset.y
             + collectionView.contentInset.top
         var topEntry: UUID?
-        for (index, row) in rows.enumerated() {
-            guard let entryID = row.entryID,
+        let visibleItems = collectionView
+            .indexPathsForVisibleItems.map(\.item).sorted()
+        for index in visibleItems {
+            guard index < rows.count,
+                  let entryID = rows[index].entryID,
                   let attrs = collectionView
                     .layoutAttributesForItem(
                         at: IndexPath(item: index, section: 0)
-                    )
+                    ),
+                  attrs.frame.maxY > visibleTop
             else { continue }
-            if attrs.frame.maxY > visibleTop {
-                topEntry = entryID
-                break
-            }
+            topEntry = entryID
+            break
         }
         if lastReportedTopVisible == nil
             || lastReportedTopVisible! != topEntry {
@@ -1389,13 +1469,25 @@ final class ChatRootViewController: UIViewController,
         _ scrollView: UIScrollView,
         willDecelerate decelerate: Bool
     ) {
-        if !decelerate { userInteracting = false }
+        if !decelerate {
+            userInteracting = false
+            flushDeferredSettle()
+        }
     }
 
     func scrollViewDidEndDecelerating(
         _ scrollView: UIScrollView
     ) {
         userInteracting = false
+        flushDeferredSettle()
+    }
+
+    /// §325.2：滚动期冻结的施工在滚动结束一次性
+    /// 合并落写（守卫 2③ 的落写口）
+    private func flushDeferredSettle() {
+        guard settleDeferredDuringScroll else { return }
+        settleDeferredDuringScroll = false
+        scheduleSettle()
     }
 
     // MARK: 命令口（句柄转发目标，与 gen3 容器同名同义）

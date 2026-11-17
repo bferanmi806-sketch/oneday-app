@@ -13731,7 +13731,7 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 
 **① 双 cell 形态 → 单渲染路径**：`ChatNativeProseCell.swift` 整件删除（原生散文 cell＋RowView＋规格＋段拼装缓存，922 行）；ChatNativeList 只注册托管 cell 一种、cellProvider 无形态分发；ChatView 的资格判定 `nativeProseSpec` 整件删除——内容 facet（工具卡/思考/图片/文件牌/结构段……）只影响行内呈现（entryRowContent 本体），不再决定行是哪种 cell。连带退役：§320.1 的 apply 形态翻转先删后插分流（无形态可翻，reconfigure 恒同注册原地重配，跨形态 dequeue 崩溃类由构造消除）；H11「落定不换装」在单形态下自动成立（落定行与流式行同为托管 cell、同键 reconfigure）。选字/菜单/右滑平价：托管侧即 R3 下沉前的生产原路（entryRowContent 的 messageMenu/swipeReply 修饰符＋SelectableInlineText 本体），非散文行一直在用、本次散文行回归同路；真机平价验归组版清单。
 
-**② 行高估算管线 → 框架自适应**：原生面行描述删除 estimatedHeight；ChatView 的 carrierRowEstimate（含 fileChipStackEstimate）退出原生面关键路径（只余 gen3 面消费、随 R5 一并销账，函数头注已标）；ChatNativeList 的占位均值聚合（placeholderEstimate：全行估算均值钳制 [56,320]、漂移 >1pt 全量 invalidateLayout）整件删除——compositional item/group 的 .estimated 只留固定常量 120（ChatNativeLayoutBox.estimatedPlaceholder，只供未物化区滚动几何、永不随行集变化）；物化行高由 UIHostingConfiguration 自适应＋selfSizingInvalidation=.enabledIncludingConstraints 由框架持有收敛。卡顿三源随之消解：占位漂移全量失效、散文 cell 双重量测（computeLayout×2，随 cell 删除）、估算↔实际修正风暴。
+**② 行高估算管线 → 框架自适应**：原生面行描述删除 estimatedHeight；ChatView 的 carrierRowEstimate（含 fileChipStackEstimate）退出原生面关键路径（只余 gen3 面消费、随 R5 一并销账，函数头注已标）；ChatNativeList 的占位均值聚合（placeholderEstimate：全行估算均值钳制 [56,320]、漂移 >1pt 全量 invalidateLayout）整件删除——compositional item/group 的 .estimated 只留固定常量 120（ChatNativeLayoutBox.estimatedPlaceholder，只供未物化区滚动几何、永不随行集变化）；物化行高由 UIHostingConfiguration 自适应＋selfSizingInvalidation 由框架持有收敛（档位经 §325.2 守卫整包定为 .enabled）。卡顿三源随之消解：占位漂移全量失效、散文 cell 双重量测（computeLayout×2，随 cell 删除）、估算↔实际修正风暴。
 
 **③ 手维护版本哈希 → 结构化派生**：行描述的 version: Int 退役，改 `ChatNativeRowRevision`——渲染输入全量值的有序清单（Part：text/data/flag/count/real，Equatable 逐值比较，不折长度不折哈希）。条目行单点派生 `ChatNativeRowRevision.entry`：按 ChatEntry 落盘字段声明序全量快照（29 字段：正文/双图数据/引用四族/思考/工具卡数据/远端图与文件路径数据/回响三键/发送三态/createdAt）＋环境侧四项（分隔文案/锚点点亮/选区在场/样式键）；渲染 facet 全部由落盘字段派生（计算属性无一例外），「漏折一项」这一错误形态由构造消除——新 facet 落盘即自动入账。其余行型同律：直播正文＝段文本全文、工具卡＝卡 Codable 编码本体、回告卡＝通知编码本体、审批区＝锚定 id 集本体（代旧 count）、工具组＝组内条目快照串接。apply 对账只认修订值全量比较（revisionsByKey）。
 
@@ -13744,3 +13744,16 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 **测试换代**：R1 ⑥产物估算带宽→「固定占位不驱动物化行高」；R3 装配文件整件换代（⑪双形态对拍/⑫原生 cell 本体/⑬混合间距随形态退役 → ⑪′全体行单形态结构断言/⑫′多遍 apply 间隙 24±2＋未变行帧逐值稳定＋变长行单独生长/⑬′修订值全字段敏感/⑭′引导线重验）；FileChip 装配测换代（散文→托管换装断言 → 同形态原位重配＋行高增长 ≥40，观测边界沿 §294.1 定版、未换第三种通道）；ReplyRenderingAlignment ①散文 cell 填充断言→单路径结构断言（②顶簇回报不动）；R1/R2/R4 行构造改修订值入账。装配断言采集一律沿既有定版（帧口径 layoutAttributes＋cell reuseID 结构断言），未自选新观测通道。
 
 **验收门**：CI 两轮同构、Core 全绿、签名外新红零（判读见 §325.1 回填）。**真机门（未验，随组版清单）**：同段对话滚动量测间隙 24±2、文件牌实时在席（发送即见、不重启）、滚动无可见高度跳变、散文行选字/长按菜单/右滑回复平价、键盘 kbTopWin/guideTopWin 对账复核。
+
+### §325.2 .66 布局自递归崩溃守卫整包（2026-11-17 并入本线；诊断 crash-05066-layout-recursion-diagnosis-20261117，主线裁定不另开热修）
+
+**崩溃定因（诊断定案）**：成环三件套——selfSizingInvalidation 最激进档＋item/group 双层 .estimated＋占位估算取全行均值（apply 内 >1pt 即改匣＋invalidateLayout）；上滑翻历史逐行「估算→实测」修正经 compositional post-pass 钩子重入下一 pass，单 flush 内不收敛嵌套约百层撞 UIKit 断言（EXC_BREAKPOINT，.ips 138 帧无 App 帧）。本包退役的行高估算管线正是燃料源：均值占位整件已删（§325 ②）、.estimated 只留固定常量且永不入参数对账——「占位漂移→invalidateLayout」一环由构造断开。诊断守卫条目 1–4 在本包逐条落地：
+
+- **条目 1（布局输入只许 pass 外经单一合并闸落写）**：apply 的 invalidateLayout 改记账（pendingLayoutInvalidation），唯一施工口＝落定拍（scheduleSettle 合并、pass 外）在 layoutIfNeeded 前消费；reconcileInsets＋measureBottomSpace 迁出 viewDidLayoutSubviews（该拍只排落定拍记账）——inset 单写点仍是 reconcileInsets 本体（守卫 2②守恒）。键盘动画期布局拍逐帧到达、落定拍帧间合并落写，跟随链改走落定拍对账。
+- **条目 2（喂入守卫）**：①死区守恒（reconcile 0.5pt、参数等值比较）；②inset 单写点守恒（全仓 contentInset 写点只 reconcile 一处）；③滚动期冻结新增：performSettleBeat 在 isTracking/isDecelerating 时只记账（report 轻量读数照常）不施工（不写 inset/不钉底/不消费失效记账），滚动结束（didEndDragging 不减速/didEndDecelerating）经 flushDeferredSettle 一次性合并落写。
+- **条目 3（自适应收敛）**：①异步载荷等高占位既证：图片卡高恒定（ChatImageSizing.cardHeight，placeholderCardSize.height＝cardHeight，占位高＝终高，RichContentViews §130 口径），远端图到达不改行高；文件牌/审批卡为同步内容、无异步改高源。②估算分档：全局均值已废；compositional 单 section 的 .estimated 是统一声明、无法按行型分档——以「固定常量占位＋物化自适应」替代（占位不漂移、不驱动任何失效），偏离分档字面、守其本意，理由在此登记。③档位定档：selfSizingInvalidation 由 .enabledIncludingConstraints 改 **.enabled**（内容尺寸变化才失效；托管内容尺寸经托管视图本体上报已足）——R3 ⑮′ 压测两档对照（同行集内容高互证＋稳态幂等＋pass 数入 CI 日志）为据，若对照不过则回退激进档并在此改判。
+- **条目 4（滚动降压）**：落定拍滚动期冻结（条目 2③ 同闸）；report() 顶可见扫描改只查可见 cell（indexPathsForVisibleItems＋帧口径复核，至多一屏行数），全 rows 遍历整件删除（诊断候选 2 的 O(n) 放大器）。
+
+**压测（R3 ⑮′，第一验收门）**：220 行混合行集（文本/长代码/文件牌行）多遍 apply＋自底向顶 30 步连续滚动模拟：跑完不断言即崩溃链断开的第一重证据；section 提供者计数（ChatNativeLayoutBox.sectionProviderCallCount，只读测试口）断言重复 apply 零重建、滚动全程重建 ≤步数、稳态强制布局零重建＋帧逐值不动；间隙抽样 24±2；文件行滚入物化＋行高含牌面段（与短行差分 ≥30）。**行型点名口**：稳态幂等断言以行号定位——任一行型拟合不幂等（诊断候选 4）会在此以具体行号现形，交卷报告据实点名。真机门新增（随组版清单）：长会话快速上滑到顶 ×3 往返＋流式回复中上滑各一轮、QA 抓 Console「UICollectionViewRecursion」日志有无 invalidation 风暴。
+
+**§325.1 CI 判读**：【待两轮回填】
