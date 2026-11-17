@@ -366,9 +366,10 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
             )
         private var lastFingerprint: Int?
         /// §317：过渡期被守卫拦下的指纹 invalidate
-        /// 待补旗——过渡落定后的下一次 apply 在此补
-        /// 触发（见 apply 尾段）
+        /// 待补旗＋一次性补触发在途旗（见 apply 尾
+        /// 段与 scheduleDetentRefreshFlush）
         private var detentRefreshPending = false
+        private var detentFlushScheduled = false
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
@@ -415,19 +416,46 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
             // 过渡期不触发指纹 invalidateDetents——过
             // 渡中途的 detent 重解会拉长/扰动收起动
             // 画，是呈现竞速的加重项；指纹只登记待
-            // 补，落定后下一次 apply（内容更新/did-
-            // MoveToWindow 既有再断言）在此补触发。
-            // 补偿与首装不在守卫内：补偿是 §303 量
-            // 测律的载荷口径，首轮宽守卫曾连它一并
-            // 拦下、ATTACH-FIT 实测 safeBottom=34/
-            // 高 +34·+68 签名判红（§317.1 登记）——
-            // 延后即错值，故只守 invalidate 一项
+            // 补，由一次性延后补触发落定（schedule-
+            // DetentRefreshFlush）。补偿与首装不在守
+            // 卫内：补偿是 §303 量测律的载荷口径，
+            // 首轮宽守卫曾连它一并拦下、ATTACH-FIT
+            // 实测 safeBottom=34/高 +34·+68 签名判
+            // 红（§317.1 登记）——延后即错值，故只
+            // 守 invalidate 一项
             let transitioning = host.isBeingPresented
                 || host.isBeingDismissed
                 || host.transitionCoordinator != nil
-            if detentRefreshPending, !transitioning {
-                detentRefreshPending = false
-                sheet.invalidateDetents()
+            if detentRefreshPending {
+                if transitioning {
+                    scheduleDetentRefreshFlush(sheet: sheet)
+                } else {
+                    detentRefreshPending = false
+                    sheet.invalidateDetents()
+                }
+            }
+        }
+
+        /// §317：过渡期被拦下的指纹 invalidate 一次
+        /// 性延后补触发——0.4s 后无条件补、不再复查
+        /// 过渡态（装配环境实测：过渡信号可长存且
+        /// apply 调用稀疏，靠后续 apply 补触发会永
+        /// 不落地、生长例超时判红，§317.1 登记）；
+        /// 在途只排一份，补触发时待补旗已清则空转
+        private func scheduleDetentRefreshFlush(
+            sheet: UISheetPresentationController
+        ) {
+            guard !detentFlushScheduled else { return }
+            detentFlushScheduled = true
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.4
+            ) { [weak self, weak sheet] in
+                guard let self, let sheet else { return }
+                self.detentFlushScheduled = false
+                if self.detentRefreshPending {
+                    self.detentRefreshPending = false
+                    sheet.invalidateDetents()
+                }
             }
         }
 
