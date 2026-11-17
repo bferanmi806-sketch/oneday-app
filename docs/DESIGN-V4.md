@@ -13758,6 +13758,8 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 
 **§325.1 CI 判读（定版头 9b652a3，两轮同构）**：首轮 run 44094050703＋二轮 run 44101696834（均 workflow_dispatch 于本分支）——**Core 2157/2157 两轮、0 failures**（与基线同数：本包测试增减全在 App 目标）；**R3 五例两轮全过**（⑪′单形态／⑫′多遍稳定／⑬′修订敏感／⑭′引导线／⑮′长历史压测，⑮′ 两轮 BTIER-PASSES 逐值同：repeat 基线 1、scroll＝0、altTier＝0——220 行 30 步滚动零 section 重建、两档稳态零重建）；R1 七例、FileChip、ReplyRenderingAlignment 两轮全过（R1 含 testLongThreadLandsAtRealBottom 两轮转绿、键盘间隙例两轮绿——reconcile 迁出后跟随落点不退化）。**红集两轮各 15、全在基线族内、签名外新红零**：族内成员轮换（LongThread/DefaultResolved/BubblePadding 在两轮间出入）属既有涨落形态；**testComposerNotificationFollowAndSnapshotFeed（§302 中段 presentation 采样探针）两轮皆红——经基线一手互证非本包回归**：rel-05066 判绿两轮（run 44066123206/44072783910，构建 d363e8a）同测同断言（:626 中段采样未命中、时长 3.79s 逐轮同）皆红，本包四轮同形态——该探针在模拟器动画呈现层采样不可达（与 R3 ⑧ 量测不可达同族登记），其同测内的跟随几何断言（逐帧 duration-0 步进/落定值/inset 恒等式）每轮全过；真机动画中段帧对账仍归用户清单（§302 口径）。**行型点名（诊断候选 4）**：⑮′ 稳态幂等采样窗 100–107 行覆盖文本/长代码（105）/文件牌（107）三型，帧逐值不动、两档同——本轮压测无异常行型可点名，候选 4 维持存疑待真机 UICollectionViewRecursion 日志。判绿（真机门未验：见 §325 验收门＋§325.2 真机压力项）。
 
+**§325 注记（0.50.68 组版顺修，2026-11-18）**：HapticsMatrixTests.testMatrixCallSiteCounts 的 impact(.light) 期待值 6→5——§295 登记的右滑回复双承载之一（ChatNativeProseCell 落点）已随本节 ① 整件删除退役，现行单渲染路径由 SwipeReplyModifier 单路承接，实测计数 5（R3 前单承载原数）；.67 组版两轮该测确定性红系期待值滞后、非产品缺陷（正账见 §326.1），本版顺修后该测应转绿、红集基线族由 16 件更新为 15 件（判读见 §328.1）。
+
 ## §326 0.50.67 组版收口（2026-11-17；分支 rel-05067，基线 rel-05066@1379035）
 
 **装车单包**：B 档退役整包 feat/b-tier-carrier-retirement@26b90aa（待办第 112 条；生产定版头 9b652a3＋docs 回填 26b90aa）。合入为真合并（merge commit），合后逐文件对账：合并树与 B 档分支尖端逐字一致（git diff 零行），组版未动包内任何口径——单渲染路径/行高归框架/版本结构化派生（§325）＋崩溃守卫整包（§325.2）原样带入。

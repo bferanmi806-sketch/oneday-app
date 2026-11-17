@@ -107,8 +107,12 @@ final class HapticsMatrixTests: XCTestCase {
         // impact 在原生散文 cell 增一落点（5→6）——
         // 与 SwipeReplyModifier 的落点是同一事件的
         // 双承载形态（一行只走其一：原生面走 cell、
-        // 托管面走修饰符），行为不重不丢
-        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 6)
+        // 托管面走修饰符），行为不重不丢。
+        // §325（B 档退役）：散文 cell 整件删除、单渲
+        // 染路径落定，cell 落点随之退役——现行由
+        // SwipeReplyModifier 单路承接，计数回 5（即
+        // R3 前单承载原数）；0.50.68 顺修期待值 6→5
+        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 5)
         XCTAssertEqual(
             count(of: ".sensoryFeedback(.selection", in: all), 3)
         XCTAssertEqual(
