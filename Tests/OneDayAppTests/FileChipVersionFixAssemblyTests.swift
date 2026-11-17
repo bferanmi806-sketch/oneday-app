@@ -18,7 +18,7 @@ import XCTest
 /// ②按生产回填原样落盘（ChatView 发送链 §121：
 /// remoteFilePathsData＝JSONEncoder().encode(
 /// [String])＋save）——同一行须被重配为托管行：
-/// cell 换装（非散文 cell）、无障碍标签含文件
+/// cell 换装（非散文 cell）、视图树文本含文件
 /// 名（FileChip 已挂）、行高较散文形态增长
 /// ≥40（牌组估算补入＋量实同向）。
 /// 机制注：承载 rowsEqual 闸以（键，版本，估
@@ -188,35 +188,43 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
             .layoutAttributesForItem(at: indexPath)?.frame
     }
 
-    /// 无障碍标签全量收集（与 AttachmentPanelFit-
-    /// AssemblyTests 同法：视图本体＋accessibility-
-    /// Elements 两面都收，只作 contains 判定）
-    private func collectAccessibilityLabels(
-        in view: UIView
-    ) -> [String] {
+    /// 视图树文本采集（与 ChatNativeListR2Assem-
+    /// blyTests 的 §294.1 定版通道同法：遍历真实
+    /// 文本载体 UITextView／UILabel／UITextField
+    /// ——UIHostingConfiguration 托管内容经无障碍
+    /// 通道漏采且元素树懒生成、三轮 CI 实证时有
+    /// 时无，本仓已定版改走视图树；同一载体 text
+    /// 与 attributedText 只取其一防重复计数）
+    private func renderTexts(in view: UIView) -> [String] {
         var out: [String] = []
-        if let label = view.accessibilityLabel {
-            out.append(label)
-        }
-        if let elements = view.accessibilityElements {
-            for element in elements {
-                if let elementView = element as? UIView {
-                    out.append(
-                        contentsOf: collectAccessibilityLabels(
-                            in: elementView
-                        )
-                    )
-                } else if let object = element as? NSObject,
-                          let label = object.accessibilityLabel {
-                    out.append(label)
+        func walk(_ v: UIView) {
+            if let textView = v as? UITextView {
+                if let text = textView.text,
+                   !text.isEmpty {
+                    out.append(text)
+                } else if let attributed =
+                    textView.attributedText?.string,
+                    !attributed.isEmpty {
+                    out.append(attributed)
                 }
             }
+            if let label = v as? UILabel {
+                if let text = label.text,
+                   !text.isEmpty {
+                    out.append(text)
+                } else if let attributed =
+                    label.attributedText?.string,
+                    !attributed.isEmpty {
+                    out.append(attributed)
+                }
+            }
+            if let field = v as? UITextField,
+               let text = field.text, !text.isEmpty {
+                out.append(text)
+            }
+            v.subviews.forEach(walk)
         }
-        for sub in view.subviews {
-            out.append(
-                contentsOf: collectAccessibilityLabels(in: sub)
-            )
-        }
+        walk(view)
         return out
     }
 
@@ -276,7 +284,7 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         try context.save()
 
         // ③ 回填后：同行重配为托管行——散文 cell
-        // 退场、文件名进无障碍标签、行高增长
+        // 退场、文件名进视图树文本、行高增长
         let indexPath = unwrappedProse.indexPath
         var dressedHeight: CGFloat = 0
         var chipSeen = false
@@ -293,14 +301,12 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
                 phase2Diag = "仍是散文 cell（未重配）"
                 return false
             }
-            let labels = self.collectAccessibilityLabels(
-                in: cell
-            )
-            chipSeen = labels.contains {
+            let texts = self.renderTexts(in: cell)
+            chipSeen = texts.contains {
                 $0.contains(self.fileName)
             }
             phase2Diag = "cell="
-                + "\(type(of: cell)) labels=\(labels.count)"
+                + "\(type(of: cell)) texts=\(texts.count)"
                 + " chipSeen=\(chipSeen)"
             if let height = self.frame(
                 in: controller, at: indexPath
@@ -312,7 +318,7 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         XCTAssertTrue(
             phase2,
             "回填后该行须换装托管行且 FileChip 挂牌"
-                + "（文件名入无障碍标签）；末次诊断："
+                + "（文件名入视图树文本）；末次诊断："
                 + "\(phase2Diag)"
         )
         XCTAssertGreaterThan(
