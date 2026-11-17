@@ -131,7 +131,7 @@ final class DocumentPickerViewTests: XCTestCase {
         )
         model.presented = true
         let picker = try XCTUnwrap(
-            waitUntil { self.findPicker(in: root) }
+            waitUntil { self.findPicker(in: root) != nil }
                 ? findPicker(in: root) : nil,
             "状态旗置真后 picker 未在时限内呈现"
         )
@@ -154,7 +154,7 @@ final class DocumentPickerViewTests: XCTestCase {
         )
         model.presented = true
         let picker = try XCTUnwrap(
-            waitUntil { self.findPicker(in: root) }
+            waitUntil { self.findPicker(in: root) != nil }
                 ? findPicker(in: root) : nil,
             "单选配置下 picker 未在时限内呈现"
         )
@@ -245,7 +245,7 @@ final class DocumentPickerViewTests: XCTestCase {
         )
         model.panelPresented = false
         let picker = try XCTUnwrap(
-            waitUntil { self.findPicker(in: root) }
+            waitUntil { self.findPicker(in: root) != nil }
                 ? findPicker(in: root) : nil,
             "面板收起 onDismiss 置旗后 picker 未随后呈现"
                 + "（接力链断裂）"
