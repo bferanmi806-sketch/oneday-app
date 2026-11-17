@@ -13720,3 +13720,7 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 **版号**：0.50.66／194 六处同改（Project.swift 四值＋SettingsSupportViews 版本串两行），旧号在改动文件内零残留（grep 验）。
 
 **CI 判读**见 §324.1（回填）。
+
+### §324.1 CI 两轮核账（§190，2026-11-17 回填；构建提交 d363e8a）
+
+两轮同提交、零改动复跑，工作流名义 conclusion 均 failure（签名红集恒在）。**第一轮 run 44066123206**（41m52s）：Core **2157/2157 零失败**（2153 基线＋速度模型例 1＋收口新例 3＝并集闭合）；本版新测全过（FileChipVersionFixAssemblyTests 1/1、ReplyRenderingAlignmentTests 2/2）；红集 16 件＝登记签名 15 件＋ChatPageDeviceConditionProbeTests 1 件——该探针失败点为前置条件超时（注入的 AX5 trait 8 秒内未传播到文本视图、量测链未进入、锚定断言未执行），属第 95 条族同源的 harness 传播涨落、非几何量测失败。**第二轮 run 44072783910**（45m43s）：Core 2157/2157；红集恰登记签名 **15 件**（第 100 条落底 2＋R2 ⑧⑨ 2＋§257.1 探针 1＋第 95 条族 9＋键盘 rig 1，MATRIX-VERDICT=FAIL 与 rig 红成对），该探针本轮转过——两轮互证第一轮为间歇涨落，**签名外新红零**。两轮 ATTACH-FIT 四值（sheet 170.67／ideal 136.67／presentedIdeal 136.67／safeBottom 0.0、GROWTH +102）与 .65 逐值同、kbTopWin 23 印、HUB-LAYOUT-VERDICT=PASS、BackingData 零印。**判绿**。IPA 取第一轮产物：0.50.66／194、bundle id site.didichou.oneday、14,040,291 字节、md5 `d961953a13575eb1b1222336031eb30d`，落 ~/workspace/your_files/oneday-v0.50.66/。未合 main、未打 tag。
