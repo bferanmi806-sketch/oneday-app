@@ -89,14 +89,15 @@ final class DrawerContainerControllerTests: XCTestCase {
 
     /// 裸动画：无任何干扰，弹簧动画必须自己走完到
     /// travel（真机症状是停在约 9.5% travel）。
-    /// §313 注：弹簧换慢阻尼定版（response 1.4/ζ
-    /// 1.2、可见时长 ≈1.5s）后，本类动画落定断言的
-    /// 等待统一放宽到 3.5s（2.0s 时残余位移 ≈3pt、
-    /// 超 1.0 断言精度——是定版手感的量测事实、非
-    /// 产品退步）
+    /// §313 注（历史）：慢阻尼定版（1.4/ζ 1.2）时本
+    /// 类等待曾放宽到 3.5s；§320 换快档定版
+    /// （response 0.35/ζ 0.85、模型全程落定 ≈0.41s）
+    /// 后等待收回 2.0s——仍留约 5 倍余量防 CI 时序
+    /// 抖动，但慢档若回潮（落定 ≈1.5s＋animator 收
+    /// 尾）会逼近本界、不再无声放行
     func testAnimatedOpenCompletesWithoutInterference() {
         controller.setDrawer(true, animated: true)
-        spinRunLoop(seconds: 3.5)
+        spinRunLoop(seconds: 2.0)
         XCTAssertTrue(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
@@ -132,7 +133,7 @@ final class DrawerContainerControllerTests: XCTestCase {
     func testAnimatedCloseReturnsToZero() {
         controller.setDrawer(true, animated: false)
         controller.setDrawer(false, animated: true)
-        spinRunLoop(seconds: 3.5)
+        spinRunLoop(seconds: 2.0)
         XCTAssertFalse(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, 0, accuracy: 1.0)
     }
