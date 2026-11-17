@@ -68,6 +68,22 @@ import UIKit
 /// 状态栏带由列表自身的顶缘 .soft 效果覆盖（消
 /// 融臂实证成立）。胶囊玻璃本体（§179 定式）一字
 /// 不动；栏位落位/记账口径零改动。
+///
+/// ## §327 顶簇不透明背板（2026-11-17 小修批②，
+/// 同根审计 §3.4 裁决＋待办第 113 条）
+/// §213 的内容驱动边缘效果治得了「静止自成色
+/// 带」，治不了滚动态正文滑入顶簇带后隔着半透
+/// 明胶囊与柔边可读（顶栏遮顶壳层小症的余项）。
+/// 本批按审计二选一裁决取背板路：控制器在顶簇
+/// 宿主之下加一层背板——Palette.chatSurface 实
+/// 色（与页面底同令牌同值：静止时与页面同色不
+/// 可见、滚动态对带下正文全遮蔽），覆盖窗口顶
+/// →顶簇底全带（顶边经 syncTopConstant 以布局
+/// 空间补偿抵到窗口顶，与顶簇钉位同式）；胶囊
+/// 玻璃本体（浮动导航层，U2 A 保守口径内）与
+/// §213 边缘注册一字不动。抽屉面板 §318 改实
+/// 色是同一收口先例（浮动层压面恒 chatSurface
+/// 实色）。
 struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -279,6 +295,14 @@ final class TopBarGuideHostController: UIViewController {
     private let barHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
     )
+    /// §327：顶簇不透明背板（chatSurface 实色）——
+    /// 插在顶簇宿主之下，顶边经 backingTopConst-
+    /// raint 抵到窗口顶、底边贴顶簇底，带内滚动
+    /// 正文全遮蔽；命中仍走 TopBarPassthrough-
+    /// View 的活帧闸门（背板只是子视图、闸门口径
+    /// 不变：带外点仍按顶簇活帧裁决穿透）
+    private let backingView = UIView()
+    private var backingTopConstraint: NSLayoutConstraint!
     /// 顶边位置引导线：top 由 topGuideTopConstraint
     /// 的常量定位（syncTopConstant 唯一计算点）
     private let topGuide = UILayoutGuide()
@@ -321,6 +345,9 @@ final class TopBarGuideHostController: UIViewController {
         edgeInteraction
     }
 
+    /// §327 自述/测试定位口：顶簇背板本体
+    var traceBackingView: UIView { backingView }
+
     /// 顶簇实高喂入点（托管树每次布局后经 onGeo-
     /// metryChange 上行）：定高＋回报——顶簇在树内
     /// 生长（进展胶囊出现）时本类未必有布局拍，回
@@ -353,6 +380,14 @@ final class TopBarGuideHostController: UIViewController {
         // 管树的安全区归零——顶簇是自包含栈，不许
         // 宿主再按任何安全区给它派生一份内边距
         barHost.safeAreaRegions = []
+        // §327：背板先于顶簇宿主入层（恒在其下）；
+        // 实色取页面底同令牌——UIColor(Palette.x)
+        // 是仓内既有转换式，动态色随 trait 自解析
+        backingView.backgroundColor =
+            UIColor(Palette.chatSurface)
+        backingView.translatesAutoresizingMaskIntoConstraints =
+            false
+        view.addSubview(backingView)
         addChild(barHost)
         barHost.view.backgroundColor = .clear
         barHost.view.translatesAutoresizingMaskIntoConstraints =
@@ -379,7 +414,19 @@ final class TopBarGuideHostController: UIViewController {
             .constraint(equalTo: view.topAnchor, constant: 0)
         barHeightConstraint = barHost.view.heightAnchor
             .constraint(equalToConstant: barContentHeight)
+        // §327：背板几何——左右贴本视图、底贴顶簇
+        // 底、顶经常量抵窗口顶（常量由 syncTop-
+        // Constant 与顶簇钉位同拍维护，见彼处）
+        backingTopConstraint = backingView.topAnchor
+            .constraint(equalTo: view.topAnchor, constant: 0)
         NSLayoutConstraint.activate([
+            backingView.leadingAnchor.constraint(
+                equalTo: view.leadingAnchor),
+            backingView.trailingAnchor.constraint(
+                equalTo: view.trailingAnchor),
+            backingView.bottomAnchor.constraint(
+                equalTo: barHost.view.bottomAnchor),
+            backingTopConstraint,
             barHost.view.leadingAnchor.constraint(
                 equalTo: view.leadingAnchor),
             barHost.view.trailingAnchor.constraint(
@@ -450,6 +497,19 @@ final class TopBarGuideHostController: UIViewController {
         if abs(topGuideTopConstraint.constant - constant)
             > 0.5 {
             topGuideTopConstraint.constant = constant
+        }
+        // §327：背板顶边同拍维护——常量＝−本视图布
+        // 局空间顶边，背板顶由此恒抵窗口顶（本视
+        // 图帧被 SwiftUI 挪低多少、背板向上补多少，
+        // 与顶簇钉位同式补偿）
+        if let backingTopConstraint {
+            let backingConstant =
+                -Self.layoutSpaceMinY(of: view)
+            if abs(backingTopConstraint.constant
+                - backingConstant) > 0.5 {
+                backingTopConstraint.constant =
+                    backingConstant
+            }
         }
         // §213：顶缘绑定同路刷新——本函数是入窗/显
         // 形/逐布局拍的公共点，列表本体登记晚于本控
