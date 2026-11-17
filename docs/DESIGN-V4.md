@@ -13580,7 +13580,7 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 第二轮（run 43869328357@c5c1565，同提交零改动，全日志 24,694 行）：**Core 2152/2152 复全绿**；红集恰 14 件与首轮逐件同构；点名测复绿（锁步/深色/TailClose/SafeArea）；落底距底 3.0／3.333 复在带内、contentSize 4156.0；kbTopWin 打印分布与首轮逐值同；三 VERDICT 复 PASS；BackingData 零命中。**签名外新红零。**
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.64/OneDay-0.50.64-unsigned.ipa：**14,032,621 字节、md5 `0504d91eebf58caf6bbc278dc74dfc4e`**，解包验 CFBundleShortVersionString=0.50.64、CFBundleVersion=192、bundle id site.didichou.oneday。待办总表已落：第 78 条（抽屉＋A-21 查看器半边）／第 90 条（账本收尾）各包已划线、本版补组版出货注记（定号 §313／§315／§314），副本随交付目录；真机清单 42 项＝本版新增 11 项（抽屉 6＋账本 4＋查看器 1）＋.63 未回 36 项原样带入（键盘组为浸泡主验；仅原第 29 项版号字面 .63→.64）。浸泡链第四版（.61 起算），本版不计 R5 开门。未合 main、未打 tag。
 
-## §317 文件选择器呈现竞速修复（2026-11-17；分支 feat/docpicker-present-fix，基线 rel-05064@f900c17；节号本分支自选，组版合裁改号）
+## §317 文件选择器呈现竞速修复（2026-11-17；分支 feat/docpicker-present-fix，基线 rel-05064@f900c17；组版 0.50.65 定号 §317——与抽屉修复分支树内同号，彼顺延 §318）
 
 **依据**：诊断 attach-noresponse-diagnosis-20261117——用户真机录屏实报点附件面板「添加文件」无反应。逐帧定案：面板呈现本体正常（静止帧高 ≈316pt、与 A-08 定高口径吻合、无双重呈现），真故障在收起之后的呈现链：`afterAttachPanelDismiss`（ChatView）写死睡 450ms 猜 sheet 收起完成，iOS 26 收起时长非常量，收起未完时 `DocumentPickerBridge.present` 对 dismissing 中的 VC 调 present 被 UIKit 静默丢弃（面板收了、选择器永不来）；桥内无 completion、无重试、无日志，失败不留痕。病自 0.36.31 换桥即在、与 A-08 无关；A-08 detent 桥在过渡期重断言为加重项（P2）；topmost 取空静默 return 为待消灭项（P3）。
 
@@ -13609,3 +13609,22 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 - **最终形态两轮 run 43999943626 / 44004817913（同提交 9950000，零改动）**：Core 均 2152/2152 全绿（与基线逐数一致）；DocumentPickerViewTests 两轮 5/5；ATTACH-FIT 两轮同值全绿（sheet=170.67／ideal=136.67／presentedIdeal=136.67／safeBottom=0.0；生长 88.67→190.67，+102＞40）；红集两轮同为 15 件、全数落在登记签名族（App 5：第 100 条 ③⑯ 落底两例＋R2 ⑧＋R2 ⑨＋§257.1；UI 10：第 95 条族 9＋键盘矩阵 rig 1），签名外新红零；落底 contentSize 4156.0、距底 3.333/3.667 与 3.0/3.333（§302.3 带 3.0–4.0 内）；kbTopWin 545→541 逐拍跟进；VERDICT=PASS、HUB-LAYOUT-VERDICT=PASS；BackingData 两轮零命中（§184 签名内）。
 
 结论：本包判绿。真机终验随 0.50.65 组版清单（见 §317 验证面）。
+
+## §318 抽屉安全区误伤修复＋过冲钳制＋面板改实色（2026-11-17；分支 feat/drawer-safearea-fix，基线 rel-05064；待办第 109 条；原自编号 §317——与文件选择器修复分支树内同号，组版 0.50.65 合裁顺延 §318、代码自指同步）
+
+**依据**：诊断 drawer-broken-diagnosis-20261117.md（真机静帧＋录屏像素量测逐值定因）。三症同源于 .64 装车件与一桩定案变更：F1＝A-21「抽屉半边」把 drawerHost/contentHost 的 safeAreaRegions 一并清零（§313），误伤常规安全区消费方 DrawerView（身份行上移 59pt 撞状态栏、底条下沉 34pt 进 Home 区）；F2＝DrawerMotion.drawerOffset 越界段不钳制，拖动过冲时抽屉层被带过 travel、左缘露容器底约 52pt；材质＝用户 2026-11-17 亲递 Muse 侧边栏基准并拍板改纯色不透（「这个就很好」），0.36.3 thinMaterial 半透定案作废。承载级判定（诊断 §6）：抽屉面回退成立、.64 不计干净版；聊天面浸泡链不牵连。
+
+**落码**：
+- F1：DrawerContainerView.viewDidLoad 删双宿主清零两行、恢复默认 regions 派生（回到 .63 已验形态——当时聊天页在默认派生下正常、无双份安全区，现成对照）。**A-21 分界口径自此定版**：safeAreaRegions 清零只适用于内容自管几何的宿主（聊天页内 ComposerGuideHost/TopBarGuideHost/ChatNativeList 行宿主、查看器 ZoomHostingController——内容根自排全幅或手排几何，宿主派生只构成双源叠加）；常规安全区消费方的承载宿主（本容器双宿主——DrawerView 与其余四 Tab）不在列。文件头结构注与 viewDidLoad 注同步改按分界落字；聊天页内部行宿主的既有清零一字不动。
+- F2：DrawerMotion.drawerOffset 采**值域钳制 [−travel, 0]** 等价口径（诊断 §7-3 两方案取「钳制」路）：界内公式 offset − travel 一字不变（第 78 条锁步刚性与弹簧定版不动）；开向过冲钳上限 0——f004 实证露底成因正是 drawerOffset 被带过 0（左缘离屏左 52pt），钳 0 后抽屉钉死贴屏左、前景独走橡皮筋；关向过冲钳下限 −travel——整份藏好不深追（此即诊断所述「钳下限 −travel」的落点）。travel 未量得（0）恒 0，与容器既有口径结构性一致。Core 旧测「越界不钳制」两断言按新定版订正、另立钳制专例。
+- 材质：DrawerView.drawerBackdrop 改恒 Palette.chatSurface 不透明实色（浅 #FCFCFC／深 systemBackground 纯黑——App 既有面色口径、与旧实板及减透明回退同档），thinMaterial 与 TransparencyFallback 回退分支一并退役（实色本体即回退终点），DrawerView 的 reduceTransparency 环境量随之删除（Core TransparencyFallback 本体保留、他面可用）。全开与动画中段均零透出主内容。阴影口径（第 78 条 D4：浅色保留 §202 定值、深色归零）不因此改动。Palette.drawerSelectionFill 令牌值不动，其注释同步订正压面为实色 chatSurface（浅档 Δ≈24、只增不减）。
+
+**补测堵盲区**：.64 抽屉命名测试全用桩内容根、真 DrawerView 的安全区消费零覆盖，是本缺陷全程绿灯的通道（与第 100 条「安全区模拟不得作跟随证据」同族）。新增 DrawerSafeAreaRealRootTests（真 DrawerView 经容器 drawerBuilder 注入、生产桥同款环境、设备窗 402×874＋安全区覆写 59/34）：①名单 ScrollView 的 adjustedContentInset.top＝131（量测口径经两轮实测定案：名单平台视图帧全幅、标题带空程 72 落 contentInset、宿主安全区派生经平台调整层到达 adjusted＝72＋59；身份行与名单同受根 ZStack 的同一份派生、行自排顶距 24 出本体常量 ⟹ 身份行顶 83；清零态 adjusted 回 72）；②底条搜索字段渲染中心距屏底 64（落位 38＋胶囊半高 26）；③面板不透明量测——真 DrawerView 装宿主垫纯红背板、开态采样面板空区像素，只许落 chatSurface 双档且通道差 ≤6（材质透红呈粉灰必红）。
+
+**验收**：全量门两轮（§190 全日志核账）：Core 与基线逐数对账（预期基线＋Core 钳制新例 1、App 新例 2）；红只认登记签名族（§257.1、R2 ⑧、第 95 条 UI 族、键盘矩阵 rig、§184 签名内、第 100 条 ③⑯ 已知项）；聊天面回归对账（落底三数、⑨ 键盘正面证据、舱几何与 .63/.64 一致，证恢复 regions 无双份安全区回归）；抽屉锁步/深色既有测不退＋新测两轮绿。CI 判读见 §318.1（回填）。真机对账清单（诊断 §8）随 0.50.65 组版带入：①全开静帧身份行顶 ≈83pt、与时钟零叠印，底条底缘距屏底 ≈38pt；②开合中段帧头部不撞状态栏（全程）；③过冲拖拽面板左缘不露容器底；④其余四 Tab 逐页顶栏不撞状态栏、底栏不贴 Home 区；⑤关合态聊天页顶栏/输入舱/底栏与 .64 现值逐项一致；⑥身份行编辑菜单可点、底条三件可点、窄条点关/左拖关如旧；⑦面板全开与中段帧零透出主内容（深色纯黑实色）。
+
+### §318.1 CI 判读（§190 全日志核账，判绿）
+
+量测口径轮（不计门轮次，生产码零改动）：run 43980356596@ccc55fa——新测顶断言按「名单帧顶＝59」预设落红、实测帧顶 0（名单平台视图全幅），同轮底条字段中心与面板实色两断言已绿、Core 2153/2153；改判 contentInset.top 后 run 43986939952@2d01ad1 打印定案 contentInset.top＝72／adjusted＝131，改判 adjusted。同轮签名外一红 ComposerGuideHostTests.testRestGeometry 为 spin 0.3s 超时型 flake（非数值断言、量测轮首轮同例绿、与改动面零交集），其后两门轮次均未复现。
+
+门轮次（同提交 7dbf68e、零改动）：run 43993812173（全日志 24,942 行）＋run 44000192883（25,244 行）。**Core 两轮均 2153/2153、0 failures**——合并账闭合（.64 基线 2152＋钳制新例 1；App 侧净增新例 2）。点名测两轮全绿：DrawerSafeAreaRealRootTests 两例（真 DrawerView 安全区消费＋面板实色像素量测）、DrawerMotionTests 钳制例、抽屉锁步 testDrawerLayerLockstepsWithForeground、深色阴影 testDarkStyleClearsDrawerShadow。聊天面回归对账：落底 contentSize 两轮 4156.0、距底 A 轮 3.667／B 轮 2.333·3.333（第 100 条 ③⑯ 已知项包络内、≤4.0 上限成立，低值系迟到布局回调的时序涨落向零）；⑨ kbTopWin 逐拍跟进打印两轮在（545→541→539…）正面证据不退；舱几何由 ChatPageAssemblyRegressionTests 等装配套件全绿担（红集内无聊天几何例）。红集：A 轮恰 14 件（App 5＝③⑯ 落底 2＋⑧＋⑨＋§257.1 探针；UI 第 95 条族 9），与 .64 逐件同构；B 轮同 14 件＋键盘矩阵 rig 1 件（未出 MATRIX-VERDICT、rig 涨落登记形态内）。VERDICT／HUB-LAYOUT-VERDICT 两轮 PASS（A 轮 MATRIX 亦 PASS）；§184 签名内：BackingData 两轮零命中。**签名外新红零（量测轮的超时 flake 不计、门轮次未复现）。判绿，待组版 0.50.65（与文件选择器修复合组）。**

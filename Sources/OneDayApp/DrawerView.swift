@@ -131,11 +131,10 @@ struct DrawerView: View {
     /// 字号档（§157）：会话行在大字体（AX）档改标题/
     /// 时间上下排列，判定只读本环境，不另设开关
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    /// 减透明（0.23.0）：面板底 drawerBackdrop 的实
-    /// 色回退读它（经 Core TransparencyFallback 裁
-    /// 决）；底条霜层的那路已于 0.36.27 随霜层删除
-    @Environment(\.accessibilityReduceTransparency)
-    private var reduceTransparency
+    /// 减透明环境量原供面板底回退裁决读（0.23.0）；
+    /// §318 面板底改恒实色后本面再无消费方，声明
+    /// 随回退分支一并退役（TransparencyFallback
+    /// 本体在 Core 保留、他面仍可用）
     @Query(sort: \ChatThread.updatedAt, order: .reverse)
     private var threads: [ChatThread]
     /// 底条搜索词（本地过滤旁聊区，22:45 纠正后恢复
@@ -255,20 +254,20 @@ struct DrawerView: View {
         .frame(maxHeight: .infinity)
         // 面板底穿过上下安全区（0.4.1 第 10 修沿革：
         // 顶边贴到屏幕顶、底边直达屏底，形态不变）
-        // 0.36.3（用户 18:31 点名）：底由纯色实板改
-        // 系统朦胧材质——对照 Muse 抽屉参考图：整面
-        // 磨砂、后面聊天内容隐约透出、标题与行直接浮
-        // 于材质上。只用系统材质 API（thinMaterial）；
-        // Reduce Transparency 时经 Core 裁决落实色面
-        // （chatSurface 同档；底条霜层的那路回退已于
-        // 0.36.27 随霜层删除，此处只剩面板底本路）。
-        // 私有 variableBlur 永不碰（E11 已注销）
-        // §162 材质减法盘点：面板底本体已是单层（双
-        // 层材质是 0.36.5 标题带时代的病、当时已删）；
-        // thinMaterial 档位是 0.36.3 用户点名定案，
-        // 降档（ultraThin）在仓内与外部均无对标实证、
-        // 不猜不动——本批减法落点在底条三件的叠加装
-        // 饰（见 drawerBottomBar 注）
+        // §318（2026-11-17 用户拍板）：面板底改**不透
+        // 明实色**——0.36.3 的 thinMaterial 半透定案
+        // 作废。出处：用户当日亲递 Muse 侧边栏基准
+        // （纯黑实色、全幅盖严、主内容透出为零）并点
+        // 名「这个就很好」；半透档在 .64 真机帧里呈深
+        // 灰且动画中段叠加柔边/露底后「盖不严」观感
+        // 成立（诊断 drawer-broken-diagnosis-
+        // 20261117.md §5-①）。落色走 Palette.chat-
+        // Surface 既有口径（浅 #FCFCFC／深 system-
+        // Background 纯黑——与旧实板、减透明回退同
+        // 档），全开与动画中段均零透出；减透明回退
+        // 分支随材质退役（实色本体即回退终点、无分
+        // 支可言）。私有 variableBlur 永不碰（E11
+        // 已注销）
         .background {
             drawerBackdrop
                 .ignoresSafeArea(edges: [.top, .bottom])
@@ -389,20 +388,15 @@ struct DrawerView: View {
         }
     }
 
-    /// 抽屉底（0.36.3）：系统 thinMaterial 朦胧面；
-    /// Reduce Transparency 开启时经 Core
-    /// TransparencyFallback 裁决落实色（chatSurface
-    /// 与旧实板同档），面板与顶条共用同一底、整面
-    /// 一贯。深浅双档由材质本体随系统呈现
-    @ViewBuilder
+    /// 抽屉底（§318，2026-11-17 用户拍板改实色）：
+    /// 恒 Palette.chatSurface 不透明实色（浅
+    /// #FCFCFC／深纯黑），全幅盖严、零透出——
+    /// 0.36.3 thinMaterial 半透定案与减透明回退分
+    /// 支一并退役（定案变更出处见 body 背景注）。
+    /// 本色即旧实板与回退分支一直用的同档，面板与
+    /// 聊天表面同锚
     private var drawerBackdrop: some View {
-        if TransparencyFallback.surface(
-            reduceTransparency: reduceTransparency
-        ) == .solid {
-            Palette.chatSurface
-        } else {
-            Rectangle().fill(.thinMaterial)
-        }
+        Palette.chatSurface
     }
 
     /// 抽屉数据刷新（第 67 条包一收编）：旧形态本面

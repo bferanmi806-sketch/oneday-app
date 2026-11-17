@@ -15,8 +15,9 @@ import UIKit
 /// §313（第 78 条＋横扫 A-01/A-02/A-21）在此形态上
 /// 做变换对齐与内部收敛：抽屉层改与主面锁步同行、
 /// travel 改宽×0.75、弹簧改慢阻尼定版、深色阴影归
-/// 零；位移单源、阴影单写、几何/弹簧单源与宿主
-/// safeAreaRegions 清零逐项见下结构注。
+/// 零；位移单源、阴影单写、几何/弹簧单源逐项见
+/// 下结构注（宿主 safeAreaRegions 的 §313 清零已
+/// 由 §318 订正为分界口径、见彼段）。
 ///
 /// 结构（两个长期存在的 UIHostingController，开关
 /// 抽屉从不重建——聊天滚动位/输入草稿/导航栈/生成
@@ -57,11 +58,18 @@ import UIKit
 ///   归零（Muse 深色帧段无可量测阴影），派生走
 ///   DrawerMotion.shadowOpacity(progress:
 ///   appearance:) 单点。
-/// - 宿主安全区（横扫 A-21/H2 纪律）：drawerHost/
-///   contentHost 两宿主 safeAreaRegions 置 []——宿
-///   主帧由容器手排、内容安全区由 TabView 内真宿
-///   主（ComposerGuideHost 等已清零者）自理，本层
-///   不许再派生第二份安全区内边距与手排几何叠加。
+/// - 宿主安全区（§318 分界口径，订正 §313 的
+///   A-21 一刀切）：drawerHost/contentHost 两宿主
+///   走默认 regions 派生、**不清零**——两宿主承载
+///   的是常规安全区消费方（DrawerView 标题浮层与
+///   .safeAreaBar 底条、其余四 Tab 页面），其安全
+///   区只能由本层派生、没有下层真宿主自理；清零
+///   纪律只适用于内容自管几何的宿主（聊天页内
+///   ComposerGuideHost/TopBarGuideHost/列表行宿
+///   主——它们各自手排几何、宿主派生只会叠成第二
+///   份）。§313 曾把两宿主一并清零、.64 真机实证
+///   误伤（身份行撞状态栏/底条进 Home 区），本口
+///   径回到 .63 已验形态。
 /// - 强黑蒙层整套退役（覆盖形态的分离手段）；分离
 ///   感由页卡圆角＋柔影＋窄条明亮承担。
 ///
@@ -266,10 +274,20 @@ final class DrawerContainerController: UIViewController,
         // 覆盖形态下抽屉糊到的内容底色同族
         view.backgroundColor = UIColor(Palette.pageBG)
 
-        // A-21/H2：两宿主安全区派生清零（帧由容器手
-        // 排、内容安全区归 TabView 内真宿主自理）
-        drawerHost.safeAreaRegions = []
-        contentHost.safeAreaRegions = []
+        // §318（A-21 分界订正）：两宿主安全区派生**不
+        // 清零**、走默认 regions——.64 曾按 A-21 一刀
+        // 切清零（原注称「内容安全区归 TabView 内真
+        // 宿主自理」），但该立论只对聊天页成立：Drawer-
+        // View 与其余四 Tab 都是常规安全区消费方（标
+        // 题浮层靠安全区顶定位、底条是 .safeAreaBar），
+        // 清零后身份行上移 59pt 撞状态栏、底条下沉
+        // 34pt 进 Home 区（2026-11-17 真机定因，诊断
+        // drawer-broken-diagnosis-20261117.md）。清零
+        // 纪律自此按宿主性质分界：自管几何者（聊天页
+        // 内 ComposerGuideHost/TopBarGuideHost/列表
+        // 行宿主等）清零、常规消费方的承载宿主不列。
+        // 本处恢复 .63 已验形态（默认派生、聊天页当
+        // 时正常，无双份安全区）
 
         addChild(drawerHost)
         drawerHost.view.backgroundColor = .clear
@@ -437,7 +455,9 @@ final class DrawerContainerController: UIViewController,
         )
         // 第 78 条 D1 锁步：抽屉层同刚体平移——位移＝
         // offset − travel（合态 −travel 藏于主面之后、
-        // 开态 0 归位）；travel 未量得（0）时恒 0 不动
+        // 开态 0 归位）；§318：越界段由 DrawerMotion
+        // 钳制 [−travel, 0]（开向过冲不露容器底）；
+        // travel 未量得（0）时恒 0 不动
         drawerHost.view.transform = CGAffineTransform(
             translationX: DrawerMotion.drawerOffset(
                 offset: newOffset, travel: travel

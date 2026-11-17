@@ -134,17 +134,22 @@ public enum Palette {
         light: 0xF0F1F2, dark: .systemFill
     )
     /// 抽屉专用选中填充（§225，Muse 对齐三项包）：
-    /// selectionFill 压抽屉面板（thinMaterial 压 pageBG
-    /// 的合成面、浅档实测 #F2F2F2）逐通道 Δ≈0–3、选中
-    /// 态被材质吃掉——本令牌只供抽屉三行（导航/频道/
-    /// 旁聊当前行）选中垫：浅档 #E4E5E7 压合成面 Δ≈13
-    /// （与 Muse「#EEEFF1 压 #FCFCFC」同级、亦即
-    /// selectionFill 在实色面上的原有效对比）；暗档挂
+    /// selectionFill 压抽屉面板（§225 当时为 thin-
+    /// Material 压 pageBG 的合成面、浅档实测
+    /// #F2F2F2）逐通道 Δ≈0–3、选中态被材质吃掉——
+    /// 本令牌只供抽屉三行（导航/频道/旁聊当前行）
+    /// 选中垫：浅档 #E4E5E7 压合成面 Δ≈13（与 Muse
+    /// 「#EEEFF1 压 #FCFCFC」同级、亦即 selection-
+    /// Fill 在实色面上的原有效对比）；暗档挂
     /// tertiarySystemBackground #2C2C2E——面板暗档近
     /// 似面（二级面 #1C1C1E 级）之上 Δ≈16、与助手泡
     /// 暗档同级语义。selectionFill 本体与其余消费面
-    /// 不动；面板材质本体（0.36.3 用户点名 thinMate-
-    /// rial 定案）不动
+    /// 不动。§318 注记：面板材质本体已改实色（2026-
+    /// 11-17 用户拍板、0.36.3 thinMaterial 定案作
+    /// 废），压面现为 chatSurface 实色（浅 #FCFCFC
+    /// ／深纯黑）——本令牌浅档压新面 Δ≈24、暗档压
+    /// 纯黑 Δ 更大，均只增不减、选中态更立，令牌值
+    /// 不动
     public static let drawerSelectionFill = appleColor(
         light: 0xE4E5E7, dark: .tertiarySystemBackground
     )

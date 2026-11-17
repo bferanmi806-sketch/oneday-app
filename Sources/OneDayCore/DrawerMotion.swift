@@ -101,17 +101,27 @@ public enum DrawerMotion {
         return min(max(offset / travel, 0), 1)
     }
 
-    /// 抽屉层锁步位移（第 78 条 D1/§313）：抽屉层与主
-    /// 面是同一个刚性平移——关闭态抽屉整体左移恰好
-    /// 一个 travel 藏于主面之后，开合全程抽屉位移＝
-    /// 主面位移 − travel（Muse 录屏五帧拟合 D(p)＝
-    /// −travel·(1−p)，与 travel 全等，drawer-
-    /// transform-prep-20261114.md §2.3）。不钳制：橡
-    /// 皮筋越界段双层同量越界、刚性不破
+    /// 抽屉层锁步位移（第 78 条 D1/§313；越界钳制
+    /// §318）：抽屉层与主面是同一个刚性平移——关闭
+    /// 态抽屉整体左移恰好一个 travel 藏于主面之后，
+    /// 开合全程抽屉位移＝主面位移 − travel（Muse
+    /// 录屏五帧拟合 D(p)＝−travel·(1−p)，与 travel
+    /// 全等，drawer-transform-prep-20261114.md
+    /// §2.3）。**界内公式一字不变**；越界段（橡皮筋
+    /// 段）§318 起钳制到 [−travel, 0]：§313 的「不钳
+    /// 制、双层同量越界」在真机录屏实证露底——开向
+    /// 过冲时抽屉层被带过 0、左缘离屏左约 52pt 露
+    /// 出容器底色（诊断 drawer-broken-diagnosis-
+    /// 20261117.md F2），Muse 基准全程无露底。钳
+    /// 制后开向过冲抽屉钉死 0（面板左缘恒贴屏左、
+    /// 前景独走橡皮筋）、关向过冲抽屉停在 −travel
+    /// （整份藏好不深追）；前景橡皮筋手感与界内锁
+    /// 步刚性均不受影响。travel 未量得（0）时恒 0
     public static func drawerOffset(
         offset: CGFloat, travel: CGFloat
     ) -> CGFloat {
-        offset - travel
+        guard travel > 0 else { return 0 }
+        return min(max(offset - travel, -travel), 0)
     }
 
     /// S2 跟手位移：接管后写入值扣除锁定段（消除旧实
