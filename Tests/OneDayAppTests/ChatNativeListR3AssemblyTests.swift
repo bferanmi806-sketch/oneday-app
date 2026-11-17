@@ -5,26 +5,31 @@ import XCTest
 import OneDayCore
 import OneDayDesign
 
-/// §295（原生重建 R3）原生散文 cell 真实装配回
-/// 归（续 R1/R2 装配壳、同窗同座）：行内容全是
-/// 真实生产拼装（ChatNativeProseAssembly 段拼
-/// 装单源／MarkdownText 托管形态），禁用固定高
-/// 占位行作证据：
-/// ⑪同条目双形态行高对拍（施工图 §6.2⑥）：
-/// 同一助手多段散文（段落＋标题＋列表＋引用）
-/// 与同一用户正文，托管形态（assistantBubble
-/// 几何复刻＋MarkdownText／SelectableInline-
-/// Text）与原生散文 cell 的 cell 实高逐值比
-/// 对，差须 ≤1；
-/// ⑫原生 cell 装配本体断言：文本视图即 §168
-/// 本体（TK2/关编辑/开选择/关滚动/T4 探测开
-/// 集）、整行菜单交互挂气泡面且点位否决守文
-/// 本区、右滑桥识别器真装上集合视图且合成位
-/// 移走完触发链、选区回报与链接出口走委托本
-/// 体、选区在场时同段重配置不换文本视图（段
-/// 身份短路＝选区不自毁）；
-/// ⑬混合行集间距：原生/托管行交错时相邻帧间
-/// 距恒单源 24（H1 在下沉行上续守）。
+/// §325（B 档退役）单渲染路径装配回归——本文件
+/// 前身为 R3 原生散文 cell 装配（⑪双形态对拍／
+/// ⑫原生 cell 本体／⑬混合行集间距）：双 cell 形
+/// 态整套退役后三例的断言对象不复存在，随形态
+/// 一并退役；本文件改守 B 档验收门（类名沿用、
+/// CI 对账不断链）：
+/// ⑪′单路径结构断言——含散文/引用/结构段的落
+/// 定行全体物化为同一种托管 cell（reuseID 单
+/// 一），facet 只影响行内呈现、不决定 cell 类；
+/// ⑫′多遍 apply 稳定性——同段对话同修订连过三
+/// 遍 apply：帧逐值不动、间隙恒 24±1；一行动修
+/// 订（正文变长）后只有该行高生长、其余行高逐
+/// 值不变、间隙仍 24±1（无可见高度跳变的结构
+/// 证据，代旧「滚动多遍」盲区）；
+/// ⑬′修订值结构化派生——ChatNativeRowRevision
+/// .entry 对条目全字段敏感：remoteFilePathsData
+/// （§320 病灶字段）/正文/发送态任一变修订必
+/// 变，全同则逐值相等；环境侧（分隔/点亮/样式
+/// 键）同入账；
+/// ⑭′键盘引导线重验（新宿主结构）——通知帧顶
+/// 驱动舱落位成立的同时，keyboardLayoutGuide
+/// 在本宿主（SwiftUI 托管内嵌）仍停静息值、不
+/// 追踪通知帧：引导线换代不成立的模拟器结构证
+/// 据（真机终验归用户清单），kbSnapshot 分发
+/// 层据此不退役（见 §325 报告）。
 @MainActor
 final class ChatNativeListR3AssemblyTests: XCTestCase {
 
@@ -120,207 +125,19 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - 拼装（生产单源，测试只供环境与回调记账）
+    // MARK: - 真实行内容（生产视图、非占位）
 
-    /// 回调记账盒（断言注入链真达）
-    private final class Recorder {
-        var menuReply = false
-        var menuFork = false
-        var menuSelect = false
-        var swipeReply = false
-        var selectionEvents: [Bool] = []
-        var openedURL: URL?
-    }
-
-    /// 与 ChatView.nativeProseSpec 同源的环境读
-    /// 法：字号档/字重走窗口 trait、墨色经 Envi-
-    /// ronmentValues 按窗口明暗解析——拼装本体
-    /// 只此一份（ChatNativeProseAssembly），测
-    /// 试不复制拼装逻辑
-    private func makeSpec(
-        isUser: Bool, content: String,
-        dividerText: String? = nil,
-        swipeEnabled: Bool = true,
-        recorder: Recorder
-    ) -> ChatNativeProseSpec {
-        let traits = window.traitCollection
-        let category =
-            traits.preferredContentSizeCategory
-        let boldText = traits.legibilityWeight == .bold
-        var env = EnvironmentValues()
-        env.colorScheme = traits.userInterfaceStyle
-            == .dark ? .dark : .light
-        func resolve(_ color: Color) -> UIColor {
-            UIColor(
-                cgColor: color.resolve(in: env).cgColor
-            )
-        }
-        func components(_ color: Color) -> String {
-            color.resolve(in: env).cgColor.components?
-                .map { "\($0)" }.joined(separator: ",")
-                ?? ""
-        }
-        let styleKey = [
-            category.rawValue, boldText ? "b" : "r",
-            components(Palette.bodyInk),
-            components(Palette.inkSecondaryOnFill),
-            components(Palette.userBubbleText),
-        ].joined(separator: "|")
-        let segments = ChatNativeProseAssembly.segments(
-            isUser: isUser,
-            content: content,
-            styleKey: styleKey,
-            baseFont: InlineTextFonts.baseFont(
-                textStyle: .body, category: category,
-                boldText: boldText
-            ),
-            overrideFont: { style in
-                InlineTextFonts.baseFont(
-                    textStyle: style, category: category,
-                    boldText: boldText
-                )
-            },
-            textColor: resolve(
-                isUser
-                    ? Palette.userBubbleText
-                    : Palette.bodyInk
-            ),
-            dimmedColor: resolve(
-                Palette.inkSecondaryOnFill
-            ),
-            quoteTextColor: resolve(
-                Palette.inkSecondaryOnFill
-            )
-        )
-        return ChatNativeProseSpec(
-            dividerText: dividerText,
-            isUser: isUser,
-            segments: segments ?? [],
-            linkColor: resolve(Palette.primary),
-            bubbleFill: resolve(
-                isUser
-                    ? Palette.userBubbleFill
-                    : Palette.bubbleFill
-            ),
-            dividerColor: resolve(Palette.inkSecondary),
-            quoteBarColor: resolve(Palette.inkMuted),
-            highlightColor: resolve(Palette.primaryTint),
-            highlighted: false,
-            arrowIdleFill: resolve(Palette.fieldFill),
-            arrowArmedFill: resolve(Palette.primaryPale),
-            arrowIdleTint: resolve(Palette.inkSecondary),
-            arrowArmedTint: resolve(Palette.onPrimary),
-            menuPlainText: content,
-            onMenuReply: { recorder.menuReply = true },
-            onMenuFork: { recorder.menuFork = true },
-            onMenuSelect: { recorder.menuSelect = true },
-            swipeEnabled: swipeEnabled,
-            onSwipeReply: { recorder.swipeReply = true },
-            onSelectionChange: {
-                recorder.selectionEvents.append($0)
-            },
-            openURL: { recorder.openedURL = $0 }
-        )
-    }
-
-    private func proseRow(
-        _ key: String, isUser: Bool, _ content: String,
-        dividerText: String? = nil,
-        recorder: Recorder
-    ) -> ChatNativeRow {
-        ChatNativeRow(
-            key: key, entryID: nil, version: 1,
-            estimatedHeight: 120,
-            proseSpec: makeSpec(
-                isUser: isUser, content: content,
-                dividerText: dividerText,
-                recorder: recorder
-            ),
-            makeView: { AnyView(EmptyView()) }
-        )
-    }
-
-    // MARK: - 托管形态 fixture（生产几何复刻）
-
-    /// assistantBubble 的几何复刻（§263：屏宽比
-    /// 左缘/列宽＋泡内边距＋背景圆角）——与 R2
-    /// 装配的 bubble 复刻同例：几何常量全出
-    /// OneDayMetrics/Palette 单源，内容是生产
-    /// MarkdownText 本体
-    private func assistantHostedRow(
-        _ key: String, _ text: String
-    ) -> ChatNativeRow {
-        let screenWidth = UIScreen.main.bounds.width
-        let columnCap = screenWidth
-            * OneDayMetrics.assistantTextWidthFraction
-            + OneDayMetrics.bubblePaddingH * 2
-        let leading = screenWidth
-            * OneDayMetrics.assistantTextLeadingFraction
-            - OneDayMetrics.pageGutter
-            - OneDayMetrics.bubblePaddingH
-        return ChatNativeRow(
-            key: key, entryID: nil, version: 1,
-            estimatedHeight: 120,
-            makeView: {
-                AnyView(
-                    HStack(alignment: .top) {
-                        MarkdownText(text)
-                            .padding(
-                                .horizontal,
-                                OneDayMetrics.bubblePaddingH
-                            )
-                            .padding(
-                                .vertical,
-                                OneDayMetrics.bubblePaddingV
-                            )
-                            .background(
-                                RoundedRectangle(
-                                    cornerRadius: OneDayMetrics
-                                        .assistantBubbleCorner
-                                )
-                                .fill(Palette.bubbleFill)
-                            )
-                            .frame(
-                                maxWidth: columnCap,
-                                alignment: .leading
-                            )
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.leading, leading)
-                )
-            }
-        )
-    }
-
-    /// 用户泡托管形态复刻（bubble() 用户分支的
-    /// 几何子集：Spacer 让位＋正文泡）
-    private func userHostedRow(
+    private func hostedRow(
         _ key: String, _ text: String
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: nil, version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(
+                parts: [.text(text)]
+            ),
             makeView: {
                 AnyView(
-                    HStack {
-                        Spacer(
-                            minLength: OneDayMetrics
-                                .bubbleSideInset
-                        )
-                        SelectableInlineText(
-                            paragraphs: [
-                                InlineTextParagraph(
-                                    runs: TextShaping
-                                        .shapeRuns(
-                                            InlineRunBuilder
-                                                .plainRuns(text)
-                                        )
-                                )
-                            ],
-                            textStyle: .body,
-                            foreground:
-                                Palette.userBubbleText
-                        )
+                    MarkdownText(text)
                         .padding(
                             .horizontal,
                             OneDayMetrics.bubblePaddingH
@@ -329,349 +146,432 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
                             .vertical,
                             OneDayMetrics.bubblePaddingV
                         )
-                        .background(
-                            RoundedRectangle(
-                                cornerRadius: OneDayMetrics
-                                    .bubbleCorner
-                            )
-                            .fill(Palette.userBubbleFill)
+                        .frame(
+                            maxWidth: .infinity,
+                            alignment: .leading
                         )
-                    }
                 )
             }
         )
     }
 
-    // MARK: - ⑪ 双形态行高对拍
+    // MARK: - ⑪′ 全体行单形态（托管 cell 单一 reuseID）
 
-    func testProseHeightParityWithHostedForm() throws {
+    func testAllRowsMaterializeAsHostingCells() throws {
         assemble()
-        let assistantText =
-            "值班电话 13800138000，状态页 https://example.org/status ，邮箱 oncall@example.org。\n\n## 处理顺序\n\n- 先重启网关，再看日志确认恢复\n- 把结果同步到值班群\n\n> 备注：夜间窗口只有二十分钟，超时先回滚再排查。"
-        let userText =
-            "好，就按你说的顺序来。先重启网关，恢复之后把日志结论发我一份，我明早到单位再细看。"
-        let recorder = Recorder()
-
-        apply(rows: [
-            assistantHostedRow("host-a", assistantText),
-            userHostedRow("host-u", userText),
-        ])
-        drain()
-        let hostedAssistant = try frame(at: 0).height
-        let hostedUser = try frame(at: 1).height
-        XCTAssertGreaterThan(
-            hostedAssistant, 100,
-            "托管助手行应为多段真实排版高，实测 \(hostedAssistant)"
-        )
-
-        apply(rows: [
-            proseRow(
-                "prose-a", isUser: false, assistantText,
-                recorder: recorder
-            ),
-            proseRow(
-                "prose-u", isUser: true, userText,
-                recorder: recorder
-            ),
-        ])
-        drain()
-        let proseAssistant = try frame(at: 0).height
-        let proseUser = try frame(at: 1).height
-        print(
-            "R3-⑪ 对拍：助手 托管=\(hostedAssistant)"
-                + " 原生=\(proseAssistant)；用户 托管="
-                + "\(hostedUser) 原生=\(proseUser)"
-        )
-        XCTAssertEqual(
-            proseAssistant, hostedAssistant, accuracy: 1.0,
-            "助手散文双形态行高须逐值一致（托管 \(hostedAssistant) vs 原生 \(proseAssistant)）"
-        )
-        XCTAssertEqual(
-            proseUser, hostedUser, accuracy: 1.0,
-            "用户正文双形态行高须逐值一致（托管 \(hostedUser) vs 原生 \(proseUser)）"
-        )
-        // 原生形态结构直证：两行均为原生 cell
-        XCTAssertTrue(
-            cell(at: 0) is ChatNativeProseCell,
-            "助手散文行须落原生 cell"
-        )
-        XCTAssertTrue(
-            cell(at: 1) is ChatNativeProseCell,
-            "用户正文行须落原生 cell"
-        )
-    }
-
-    // MARK: - ⑫ 原生装配本体断言
-
-    func testNativeProseCellAssembly() throws {
-        assemble()
-        let content =
-            "值班电话 13800138000，状态页 https://example.org/status ，邮箱 oncall@example.org。"
-        let recorder = Recorder()
-        let spec = makeSpec(
-            isUser: false, content: content,
-            recorder: recorder
-        )
-        apply(rows: [
-            ChatNativeRow(
-                key: "prose-1", entryID: nil, version: 1,
-                estimatedHeight: 80, proseSpec: spec,
-                makeView: { AnyView(EmptyView()) }
-            ),
-        ])
-        drain()
-        let proseCell = try XCTUnwrap(
-            cell(at: 0) as? ChatNativeProseCell,
-            "散文行须落原生 cell"
-        )
-        let rowView = proseCell.rowView
-
-        // 文本本体：§168 同装配（TK2 子类/关编辑/
-        // 开选择/关滚动/零 inset/T4 探测开集）
-        let textView = try XCTUnwrap(
-            rowView.testTextViews.first,
-            "原生 cell 须含文本视图本体"
-        )
-        XCTAssertTrue(
-            textView is SelectableUITextView,
-            "文本本体须为 §168 SelectableUITextView"
-        )
-        XCTAssertFalse(textView.isEditable)
-        XCTAssertTrue(textView.isSelectable)
-        XCTAssertFalse(textView.isScrollEnabled)
-        XCTAssertEqual(textView.textContainerInset, .zero)
-        XCTAssertEqual(
-            textView.dataDetectorTypes,
-            [.phoneNumber, .link],
-            "T4 探测开集须随本体迁移＝[.phoneNumber, .link]"
-        )
-        XCTAssertTrue(
-            (textView.text ?? "").contains("13800138000"),
-            "文本视图须承载正文实文"
-        )
-
-        // S3 挂载面：菜单交互在气泡面、不在文本面
-        XCTAssertTrue(
-            rowView.testBubbleView.interactions.contains {
-                $0 is UIContextMenuInteraction
-            },
-            "整行菜单交互须挂气泡铬件面"
-        )
-        // 点位否决：文本区内点位→nil（归文本体
-        // 系）；边距带点位→出配置（整行菜单）
-        let interaction = UIContextMenuInteraction(
-            delegate: rowView
-        )
-        let bubble = rowView.testBubbleView
-        let textFrameInBubble = textView.convert(
-            textView.bounds, to: bubble
-        )
-        let textPoint = CGPoint(
-            x: textFrameInBubble.midX,
-            y: textFrameInBubble.midY
-        )
-        XCTAssertNil(
-            rowView.contextMenuInteraction(
-                interaction,
-                configurationForMenuAtLocation: textPoint
-            ),
-            "文本区点位须否决整行菜单（S3 仲裁）"
-        )
-        let bandPoint = CGPoint(
-            x: textFrameInBubble.minX - 8,
-            y: textFrameInBubble.midY
-        )
-        XCTAssertNotNil(
-            rowView.contextMenuInteraction(
-                interaction,
-                configurationForMenuAtLocation: bandPoint
-            ),
-            "气泡边距带点位须出整行菜单"
-        )
-
-        // 右滑桥：识别器真装上宿主集合视图、合成
-        // 位移走完「过线触发＋触觉点同一回调」链、
-        // 收尾回位
-        let installer = rowView.testInstaller
-        let recognizer = try XCTUnwrap(
-            installer.installedRecognizer,
-            "右滑桥识别器须已安装"
-        )
-        XCTAssertTrue(
-            controller.collectionView.gestureRecognizers?
-                .contains(recognizer) ?? false,
-            "右滑识别器须装在集合视图（宿主滚动视图）上"
-        )
-        installer.processPanTranslation(80)
-        XCTAssertTrue(
-            recorder.swipeReply,
-            "过线位移须触发引用回调（Core 判据 60）"
-        )
-        XCTAssertGreaterThan(
-            rowView.testSwipeOffsetX, 0,
-            "拖动中行内容须有显形位移"
-        )
-        installer.processPanEnd()
-        drain(0.5)
-        XCTAssertEqual(
-            rowView.testSwipeOffsetX, 0, accuracy: 0.5,
-            "收尾后行内容须回位"
-        )
-
-        // 链接出口：委托本体拦截 tel 链接、恒返
-        // 回 false、URL 交注入出口
-        let tel = try XCTUnwrap(
-            URL(string: "tel:13800138000")
-        )
-        let delegate = try XCTUnwrap(textView.delegate)
-        let allowed = delegate.textView?(
-            textView, shouldInteractWith: tel,
-            in: NSRange(location: 5, length: 11),
-            interaction: .invokeDefaultAction
-        ) ?? true
-        XCTAssertFalse(
-            allowed, "链接点按不许系统直开（出口拦截）"
-        )
-        XCTAssertEqual(recorder.openedURL, tel)
-
-        // 选区回报＋段身份短路：置选区→回报 true；
-        // 以同段新规格（右滑门控翻转）重配置后文
-        // 本视图实例与选区均须原样存续
-        let fullText = (textView.text ?? "") as NSString
-        let numberRange = fullText.range(
-            of: "13800138000"
-        )
-        textView.selectedRange = numberRange
-        delegate.textViewDidChangeSelection?(textView)
-        // 回报次数不作口径：程序化设选区自身回调
-        // 一回＋本例显式补调一回，第一轮 CI 实证
-        // [true, true]——只认末值 true 且无 false
-        // 混入（生产侧 noteTextSelection 幂等）
-        XCTAssertEqual(
-            recorder.selectionEvents.last, true,
-            "选区形成须回报 true"
-        )
-        XCTAssertTrue(
-            recorder.selectionEvents.allSatisfy { $0 },
-            "选区形成前不许有 false 回报混入"
-        )
-        let gatedSpec = makeSpec(
-            isUser: false, content: content,
-            swipeEnabled: false, recorder: recorder
-        )
-        proseCell.configure(with: gatedSpec)
-        XCTAssertTrue(
-            rowView.testTextViews.first === textView,
-            "同段重配置不许换文本视图（段身份短路）"
-        )
-        XCTAssertEqual(
-            textView.selectedRange, numberRange,
-            "同段重配置后选区须原样存续（不自毁）"
-        )
-        XCTAssertNil(
-            installer.installedRecognizer,
-            "选区在场（右滑门控关）时桥识别器须摘除"
-        )
-    }
-
-    // MARK: - ⑬ 混合行集间距单源
-
-    func testMixedRowsKeepSingleSourceSpacing() throws {
-        assemble()
-        let recorder = Recorder()
         let rows = [
-            proseRow(
-                "prose-1", isUser: false,
-                "第一条助手回复，内容不长。",
-                recorder: recorder
+            hostedRow(
+                "r1",
+                "普通散文一行——R3 时代这类行会下沉原生 cell。"
             ),
-            assistantHostedRow(
-                "host-1", "中间一条托管形态的助手回复。"
+            hostedRow(
+                "r2",
+                "带引用的回复。\n\n> 引用一行，facet 在席。\n\n引用之后再接一段正文收尾。"
             ),
-            proseRow(
-                "prose-2", isUser: true,
-                "好，就按你说的顺序来。",
-                dividerText: "今天 09:41",
-                recorder: recorder
+            hostedRow(
+                "r3",
+                "带结构段的回复。\n\n```swift\nlet x = 1\n```\n\n代码块之后还有正文。"
             ),
-            proseRow(
-                "prose-3", isUser: false,
-                "最后一条原生散文回复，收尾。",
-                recorder: recorder
-            ),
+            hostedRow("r4", "最后一条短回复。"),
         ]
         apply(rows: rows)
         drain()
-        var frames: [CGRect] = []
         for index in rows.indices {
-            frames.append(try frame(at: index))
-        }
-        for index in rows.indices {
+            let itemCell = try XCTUnwrap(
+                cell(at: index),
+                "行 \(index) 须物化出 cell"
+            )
+            XCTAssertEqual(
+                itemCell.reuseIdentifier,
+                "ChatNativeHostingCell",
+                "行 \(index) 须为唯一托管形态（单渲染路径），实得 \(String(describing: itemCell.reuseIdentifier))"
+            )
             XCTAssertGreaterThan(
-                frames[index].height, 30,
+                try frame(at: index).height, 30,
                 "行 \(index) 高须来自真实排版"
             )
         }
-        for index in 0..<(rows.count - 1) {
-            let gap = frames[index + 1].minY
-                - frames[index].maxY
-            XCTAssertEqual(
-                gap, OneDayMetrics.spacingL, accuracy: 1.0,
-                "混合行 \(index)→\(index + 1) 间距须＝单源 24，实测 \(gap)"
-            )
-        }
-        XCTAssertTrue(cell(at: 0) is ChatNativeProseCell)
-        XCTAssertFalse(
-            cell(at: 1) is ChatNativeProseCell,
-            "托管行须仍是托管 cell（形态分发不串）"
-        )
-        XCTAssertTrue(cell(at: 2) is ChatNativeProseCell)
-        XCTAssertTrue(cell(at: 3) is ChatNativeProseCell)
     }
 
-    // MARK: - 拼装资格（结构段不下沉）
+    // MARK: - ⑫′ 多遍 apply：间隙恒定＋未变行帧稳定
 
-    func testAssemblyRejectsStructuralSegments() {
+    func testMultiPassApplyKeepsSpacingAndStableFrames()
+        throws
+    {
         assemble()
-        let recorder = Recorder()
-        let traits = window.traitCollection
-        let category =
-            traits.preferredContentSizeCategory
-        let boldText = traits.legibilityWeight == .bold
-        func segments(_ content: String)
-            -> [ChatNativeProseSpec.Segment]? {
-            ChatNativeProseAssembly.segments(
-                isUser: false, content: content,
-                styleKey: "test",
-                baseFont: InlineTextFonts.baseFont(
-                    textStyle: .body, category: category,
-                    boldText: boldText
-                ),
-                overrideFont: { style in
-                    InlineTextFonts.baseFont(
-                        textStyle: style,
-                        category: category,
-                        boldText: boldText
-                    )
-                },
-                textColor: .label,
-                dimmedColor: .secondaryLabel,
-                quoteTextColor: .secondaryLabel
+        let base = [
+            hostedRow("m1", "第一条助手回复，内容不长。"),
+            hostedRow("m2", "第二条，长度中等的一行回复。"),
+            hostedRow("m3", "第三条收尾。"),
+        ]
+        apply(rows: base)
+        drain()
+        var firstFrames: [CGRect] = []
+        for index in base.indices {
+            firstFrames.append(try frame(at: index))
+        }
+        // 同修订连过两遍：帧逐值不动（无重配、无跳变）
+        for _ in 0..<2 {
+            apply(rows: base)
+            drain(0.6)
+            for index in base.indices {
+                let now = try frame(at: index)
+                XCTAssertEqual(
+                    now, firstFrames[index],
+                    "同修订重过 apply 后行 \(index) 帧须逐值不变，\(firstFrames[index]) → \(now)"
+                )
+            }
+        }
+        // 中间行正文变长（修订随之变）：只有该行生长
+        let grown = [
+            base[0],
+            hostedRow(
+                "m2",
+                "第二条，长度中等的一行回复。\n\n现在它多了一整段：多遍 apply 之后行高收敛只许发生在真正变了的行身上，未变的行帧若跟着漂移，就是用户在 .65 真机上看到的间隙异常那一族。"
+            ),
+            base[2],
+        ]
+        apply(rows: grown)
+        drain()
+        let grownFrame1 = try frame(at: 1)
+        XCTAssertGreaterThan(
+            grownFrame1.height, firstFrames[1].height + 20,
+            "变长行须按新内容生长，\(firstFrames[1].height) → \(grownFrame1.height)"
+        )
+        XCTAssertEqual(
+            try frame(at: 0).height, firstFrames[0].height,
+            accuracy: 0.5,
+            "未变行（首行）高不许随邻行变化漂移"
+        )
+        XCTAssertEqual(
+            try frame(at: 2).height, firstFrames[2].height,
+            accuracy: 0.5,
+            "未变行（末行）高不许随邻行变化漂移"
+        )
+        for index in 0..<(grown.count - 1) {
+            let gap = try frame(at: index + 1).minY
+                - frame(at: index).maxY
+            XCTAssertEqual(
+                gap, OneDayMetrics.spacingL, accuracy: 2.0,
+                "多遍 apply 后行 \(index)→\(index + 1) 间隙须 24±2，实测 \(gap)"
             )
         }
-        XCTAssertNil(
-            segments("正文一段。\n\n```swift\nlet x = 1\n```"),
-            "含代码块的行不许下沉（结构段留托管）"
+    }
+
+    // MARK: - ⑬′ 修订值结构化派生（全字段敏感）
+
+    func testEntryRevisionDerivedFromAllModelFields()
+        throws
+    {
+        let entry = ChatEntry(
+            role: "user", content: "能不能看到", thread: nil
         )
-        XCTAssertNil(
-            segments("| A | B |\n| - | - |\n| 1 | 2 |"),
-            "含表格的行不许下沉"
+        func revision() -> ChatNativeRowRevision {
+            ChatNativeRowRevision.entry(
+                entry,
+                dividerText: nil,
+                highlighted: false,
+                selectionActive: false,
+                styleKey: "style-a"
+            )
+        }
+        let base = revision()
+        XCTAssertEqual(
+            base, revision(),
+            "同条目同环境连算两遍修订须逐值相等（派生确定性）"
         )
-        let mixed = segments(
-            "正文一段。\n\n> 引用一行。\n\n后续一段。"
+        // §320 病灶字段：文件回填落盘
+        entry.remoteFilePathsData =
+            try JSONEncoder().encode(["/opt/data/a.xlsx"])
+        XCTAssertNotEqual(
+            base, revision(),
+            "remoteFilePathsData 变（文件回填）修订必须变——手折哈希漏折此项即 §320 病灶"
         )
-        XCTAssertNotNil(mixed, "散文＋引用须可下沉")
-        XCTAssertEqual(mixed?.count, 3)
-        _ = recorder
+        let withFile = revision()
+        // 正文变
+        entry.content = "能不能看到这个文件"
+        XCTAssertNotEqual(withFile, revision())
+        // 发送态变
+        entry.sendFailed = true
+        XCTAssertNotEqual(withFile, revision())
+        // 环境侧：分隔/点亮/样式键任一变
+        let envChanged = ChatNativeRowRevision.entry(
+            entry,
+            dividerText: "今天 09:41",
+            highlighted: false,
+            selectionActive: false,
+            styleKey: "style-a"
+        )
+        XCTAssertNotEqual(revision(), envChanged)
+        let styleChanged = ChatNativeRowRevision.entry(
+            entry,
+            dividerText: nil,
+            highlighted: false,
+            selectionActive: false,
+            styleKey: "style-b"
+        )
+        XCTAssertNotEqual(revision(), styleChanged)
+    }
+
+    // MARK: - ⑭′ 引导线重验：通知驱动成立、引导线不追踪
+
+    func testKeyboardGuideDoesNotTrackOnCurrentHost()
+        throws
+    {
+        assemble()
+        apply(rows: [hostedRow("only", "只有一条短回复。")])
+        drain()
+        let guideAtRest = try XCTUnwrap(
+            controller.testKeyboardGuideTopInWindow,
+            "入窗后引导线采样须有值"
+        )
+        // 投递生产驱动本体（willShow＋帧顶 545＋时长 0）
+        NotificationCenter.default.post(
+            name: UIResponder.keyboardWillShowNotification,
+            object: nil,
+            userInfo: [
+                UIResponder.keyboardFrameEndUserInfoKey:
+                    NSValue(cgRect: CGRect(
+                        x: 0, y: 545, width: windowW,
+                        height: windowH - 545
+                    )),
+                UIResponder.keyboardAnimationDurationUserInfoKey:
+                    NSNumber(value: 0),
+                UIResponder.keyboardAnimationCurveUserInfoKey:
+                    NSNumber(value: 7),
+            ]
+        )
+        window.layoutIfNeeded()
+        drain(0.6)
+        // 通知路成立：舱底＝帧顶 545（舱顶 491）
+        let host = try XCTUnwrap(
+            controller.composerHost, "舱子托管应已装配"
+        )
+        let composerBottom = host.view.convert(
+            host.view.bounds, to: nil
+        ).maxY
+        XCTAssertEqual(
+            composerBottom, 545, accuracy: 1.0,
+            "通知帧顶须驱动舱底＝545（§302 路成立），实测 \(composerBottom)"
+        )
+        // 引导线不追踪：仍停静息值、与帧顶 545 无关
+        let guideAfter = try XCTUnwrap(
+            controller.testKeyboardGuideTopInWindow
+        )
+        XCTAssertEqual(
+            guideAfter, guideAtRest, accuracy: 0.5,
+            "引导线在本宿主仍停静息值（不追踪）——重验不成立的结构证据，实测 \(guideAtRest) → \(guideAfter)"
+        )
+        XCTAssertGreaterThan(
+            abs(guideAfter - 545), 100,
+            "引导线位置须与通知帧顶显著无关，实测 \(guideAfter)"
+        )
+    }
+    // MARK: - ⑮′ 长历史滚动收敛压测（§325.2 崩溃除根门）
+
+    /// 220 行混合行集：普通文本行＋长代码行＋文件
+    /// 行（生产 FileChip 本体、回填在席形态）——复
+    /// 刻 .66 真机崩溃场景（上滑翻长历史）的行型谱
+    private func longHistoryRows(
+        count: Int = 220
+    ) -> [ChatNativeRow] {
+        let appState = AppState()
+        return (0..<count).map { i in
+            if i % 10 == 7 {
+                let path = "/opt/data/report-\(i).xlsx"
+                return ChatNativeRow(
+                    key: "h\(i)", entryID: nil,
+                    revision: ChatNativeRowRevision(
+                        parts: [
+                            .text("file-\(i)"), .text(path),
+                        ]
+                    ),
+                    makeView: {
+                        AnyView(
+                            VStack(
+                                alignment: .leading,
+                                spacing: 8
+                            ) {
+                                MarkdownText(
+                                    "第 \(i) 份报表已经生成，见附件。"
+                                )
+                                FileChip(path: path) {}
+                            }
+                            .padding(
+                                .horizontal,
+                                OneDayMetrics.bubblePaddingH
+                            )
+                            .padding(
+                                .vertical,
+                                OneDayMetrics.bubblePaddingV
+                            )
+                            .frame(
+                                maxWidth: .infinity,
+                                alignment: .leading
+                            )
+                            .environment(appState)
+                        )
+                    }
+                )
+            }
+            if i % 10 == 5 {
+                return hostedRow(
+                    "h\(i)",
+                    "长回复 \(i)。\n\n```swift\nlet value = \(i)\nprint(value)\n```\n\n代码之后还有一段较长的正文，用来拉开行高差异、让滚动路径覆盖多种行高收敛形态。这一段继续补充文字直到它明显比短行高出一截。"
+                )
+            }
+            return hostedRow(
+                "h\(i)",
+                "历史消息 \(i)，长度随序号略有变化。"
+            )
+        }
+    }
+
+    /// §325.2 第一验收门：220 行长历史多遍 apply＋
+    /// 自底向顶连续滚动模拟（.66 崩溃场景）全程不
+    /// 陷断言（跑完即第一重证据）、布局 pass 数有界
+    /// （section 重建计数）、间隙 24±2、文件牌在
+    /// 席、稳态强制布局帧逐值不动（自适应收敛/拟
+    /// 合幂等的结构证据）；末段切
+    /// .enabledIncludingConstraints 对照同组断言，
+    /// 两档 pass 数打印入日志作守卫 3③ 定档证据
+    func testLongHistoryScrollConvergesWithoutLayoutRecursion()
+        throws
+    {
+        assemble()
+        let rows = longHistoryRows()
+        apply(rows: rows)
+        drain(1.5)
+        let cv = controller.collectionView
+        XCTAssertGreaterThan(
+            cv.contentSize.height, 6000,
+            "220 行混合行集内容高须成规模，实测 \(cv.contentSize.height)"
+        )
+        // 同修订重复 apply：不得再触发 section 重建
+        let passesBeforeRepeat =
+            controller.testSectionProviderCallCount
+        apply(rows: rows)
+        apply(rows: rows)
+        drain(0.8)
+        XCTAssertEqual(
+            controller.testSectionProviderCallCount,
+            passesBeforeRepeat,
+            "同修订重复 apply 不得触发 section 重建（pass 数有界），\(passesBeforeRepeat) → \(controller.testSectionProviderCallCount)"
+        )
+        // 连续滚动模拟：以用户拖动态进入（落点意图
+        // 消、与真机手势同式），自底向顶 30 步
+        controller.scrollViewWillBeginDragging(cv)
+        let maxOffset = max(
+            0, cv.contentSize.height - cv.bounds.height
+        )
+        let steps = 30
+        let passesBeforeScroll =
+            controller.testSectionProviderCallCount
+        for step in 0...steps {
+            let y = maxOffset
+                * CGFloat(steps - step) / CGFloat(steps)
+            cv.contentOffset = CGPoint(x: 0, y: y)
+            window.layoutIfNeeded()
+        }
+        let scrollPasses =
+            controller.testSectionProviderCallCount
+            - passesBeforeScroll
+        XCTAssertLessThanOrEqual(
+            scrollPasses, steps,
+            "滚动全程 section 重建须有界（≤每步一次），实测 \(scrollPasses)/\(steps) 步"
+        )
+        controller.scrollViewDidEndDragging(
+            cv, willDecelerate: false
+        )
+        drain(0.6)
+        // 间隙抽样（首/中/尾，全程滚过已物化）：24±2
+        for index in [10, 110, 210] {
+            let gap = try frame(at: index + 1).minY
+                - frame(at: index).maxY
+            XCTAssertEqual(
+                gap, OneDayMetrics.spacingL, accuracy: 2.0,
+                "长历史行 \(index) 间隙须 24±2，实测 \(gap)"
+            )
+        }
+        // 文件牌在席：滚到文件行（107）须物化、行高
+        // 含牌面段（与相邻短文本行差分 ≥30）
+        let fileIndex = 107
+        let fileFrame = try frame(at: fileIndex)
+        cv.contentOffset = CGPoint(
+            x: 0, y: max(0, fileFrame.minY - 100)
+        )
+        window.layoutIfNeeded()
+        drain(0.5)
+        let fileCell = try XCTUnwrap(
+            cell(at: fileIndex),
+            "文件行滚入视口须物化出 cell（文件牌在席）"
+        )
+        XCTAssertEqual(
+            fileCell.reuseIdentifier,
+            "ChatNativeHostingCell"
+        )
+        let shortFrame = try frame(at: 106)
+        XCTAssertGreaterThan(
+            fileFrame.height, shortFrame.height + 30,
+            "文件行高须含文件牌段，文件行 \(fileFrame.height) vs 短行 \(shortFrame.height)"
+        )
+        // 收敛终局（生产档 .enabled）：稳态强制布局
+        // ×3——contentSize 与采样帧逐值不动、零
+        // section 重建（拟合幂等/无振荡的结构证据；
+        // 任一行型不幂等会在此以具体行号现形）
+        let steadySize = cv.contentSize
+        let steadyFrames = try (0..<8).map {
+            try frame(at: 100 + $0)
+        }
+        let passesBeforeIdle =
+            controller.testSectionProviderCallCount
+        for _ in 0..<3 { window.layoutIfNeeded() }
+        XCTAssertEqual(
+            cv.contentSize.height, steadySize.height,
+            accuracy: 0.5,
+            "稳态重复布局 contentSize 不得漂移（自适应收敛证据）"
+        )
+        for (offset, before) in steadyFrames.enumerated() {
+            XCTAssertEqual(
+                try frame(at: 100 + offset), before,
+                "稳态重复布局下行 \(100 + offset) 帧须逐值不变（无振荡）"
+            )
+        }
+        XCTAssertEqual(
+            controller.testSectionProviderCallCount,
+            passesBeforeIdle,
+            "稳态强制布局不得触发 section 重建"
+        )
+        // 档位对照（守卫 3③）：切最激进档重跑收敛
+        // 断言——同行集内容高须与生产档一致、稳态
+        // 同样幂等；两档 pass 数打印作定档证据
+        controller.testSelfSizingInvalidation =
+            .enabledIncludingConstraints
+        let passesBeforeAlt =
+            controller.testSectionProviderCallCount
+        apply(rows: rows)
+        drain(1.2)
+        XCTAssertEqual(
+            cv.contentSize.height, steadySize.height,
+            accuracy: 1.5,
+            "两档下同行集内容高须一致（定档互证），生产档 \(steadySize.height) vs 激进档 \(cv.contentSize.height)"
+        )
+        let altFrames = try (0..<8).map {
+            try frame(at: 100 + $0)
+        }
+        for _ in 0..<3 { window.layoutIfNeeded() }
+        for (offset, before) in altFrames.enumerated() {
+            XCTAssertEqual(
+                try frame(at: 100 + offset), before,
+                "激进档稳态下行 \(100 + offset) 帧须逐值不变"
+            )
+        }
+        let altPasses =
+            controller.testSectionProviderCallCount
+            - passesBeforeAlt
+        print(
+            "BTIER-PASSES repeat=\(passesBeforeRepeat) scroll=\(scrollPasses) altTier=\(altPasses)"
+        )
     }
 }
+

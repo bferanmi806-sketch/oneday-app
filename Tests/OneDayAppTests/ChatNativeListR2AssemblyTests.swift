@@ -162,8 +162,8 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         _ key: String, _ text: String
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: nil, version: 1,
-            estimatedHeight: 80,
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
             makeView: { self.bubble(MarkdownText(text)) }
         )
     }
@@ -172,8 +172,8 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         _ key: String, _ text: String, version: Int
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, entryID: nil, version: version,
-            estimatedHeight: 120,
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(parts: [.text(text), .count(version)]),
             makeView: {
                 self.bubble(StreamingBlockText(text: text))
             }
@@ -192,8 +192,8 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         )
         return ChatNativeRow(
             key: "live-tool-colorize-1",
-            entryID: nil, version: 1,
-            estimatedHeight: 96,
+            entryID: nil,
+            revision: ChatNativeRowRevision(parts: [.text(card.id)]),
             makeView: { AnyView(ToolCardView(card: card)) }
         )
     }
