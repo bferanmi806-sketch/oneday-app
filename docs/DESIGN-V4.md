@@ -13642,3 +13642,15 @@ A-04 交卷登记的爆炸半径处置：GoalsView.swift 2451 行单文件（16 
 第一轮（run 44010485041@1ac9b7a，全日志 23,408 行）：**Core 2153/2153、0 failures**——合并账闭合（.64 基线 2152＋抽屉钳制新例 1；文件线 Core 零增删）。新测全绿：DocumentPickerViewTests 5/5、DrawerSafeAreaRealRootTests 2/2、钳制例／锁步／深色阴影点名测全绿。ATTACH-FIT 与文件线最终形态逐值同（sheet=170.67／ideal=136.67／presentedIdeal=136.67／safeBottom=0.0；生长 88.67→190.67，+102）。红集恰 15 件、全数登记签名族：App 5（第 100 条 ③⑯ 落底两例＋R2 ⑧＋R2 ⑨＋§257.1 探针）＋UI 10（第 95 条族 9＋键盘矩阵 rig 1，未出 MATRIX-VERDICT、rig 涨落登记形态内）；落底 contentSize 4156.0、距底 3.667／3.0（§302.3 带 3.0–4.0 内）、末行距 20.33／21.0（③⑯ 已知项）；⑨ kbTopWin 545→541→539→538 逐拍跟进打印在；VERDICT／HUB-LAYOUT-VERDICT PASS；BackingData 零命中（§184 签名内）。**签名外新红零。**
 第二轮（run 44015524586@1ac9b7a，同提交零改动，全日志 23,200 行）：**Core 2153/2153 复全绿**；红集恰 15 件与首轮逐件同构；新测 7 例与点名测复绿；ATTACH-FIT 复同值；落底距底 3.333／3.667 复在带内、contentSize 4156.0；kbTopWin 打印分布与首轮逐值同；VERDICT／HUB 复 PASS；BackingData 复零命中。**签名外新红零。**
 **出货账**：IPA 落 ~/workspace/your_files/oneday-v0.50.65/OneDay-0.50.65-unsigned.ipa（第一轮产物）：**14,033,960 字节、md5 `e0d83dab6f2ff4a0190fba119f263b96`**，解包验 CFBundleShortVersionString=0.50.65、CFBundleVersion=193、bundle id site.didichou.oneday（第二轮产物同验同值、md5 `007fe1f3`，差异仅打包非确定性）。待办总表已落：第 108 条（组版定号 §317）／第 109 条（组版定号 §318）各线已划线、本版补组版出货注记，副本随交付目录；真机清单 53 项＝本版新增 11 项（添加文件组 4＋抽屉组 7）＋.64 未回 42 项原样带入（键盘组第 23–28 项为浸泡主验；仅原第 35 项版号字面 .64→.65）。浸泡：聊天面链 .61 起算不变、键盘组仍主验；抽屉面自本版起算；本版不计 R5 开门。未合 main、未打 tag。
+
+## §320 发送文件牌实时不显示修复（2026-11-17；分支 fix/file-chip-version，基线 rel-05065@47d820c；待办第 111 条——回复呈现对齐线同日先占第 110 条，本条顺延）
+
+**病灶**（诊断 file-attach-invisible-diagnosis-20261117 §B5 定案）：用户 .65 真机发 xlsx——服务端落盘/入站/助手已读全通、本地条目回填也在（§121），唯独新面实时会话不挂牌。断点＝行版本 `carrierEntryVersion` 只折 content/toolCard/remoteImagePaths、漏 remoteFilePaths：发送瞬间条目以空附件物化、资格命中 nativeProseSpec 成原生散文 cell；上传回填写 remoteFilePathsData 后版本不变，承载 rowsEqual 闸判无变化、永不重配该行，能画 FileChip 的托管行换不上来。旧面直读条目模型、无版本闸，无此症；历史重载走 B4 解码重建行、亦无此症——断点只在实时回填时序。
+
+**修法两件**：
+1. **版本折算补文件数**：carrierEntryVersion 在图数之后同律折入 `remoteFilePaths.count`（&* 31 链）。回填一到版本必翻→行重配→nativeProseSpec 因文件非空出局→托管行挂牌。
+2. **行高估算补牌高**：carrierRowEstimate 的行高模型只合成文本面、文件牌组不在产物内——新增 fileChipStackEstimate 与 FileChip 本体几何同源折算（卡高＝纵内边距 10×2＋max(图标盒 40, 名行数×body 规格行高＋spacingXS＋caption 规格行高)；名行数按文件名以 .body semibold 实测宽对牌内文宽折算、至多 2 行与本体 lineLimit 同顶；组高＝Σ卡高＋牌间 spacingXS×(n−1)，上方有正文泡或图片行时另加行内 spacingS）。缺此项时换装后帧表先按无牌高落位、量实回填前行先矮一截再跳高；补入后估算与量实同向。估算纪律不变（只作量实到达前占位、到达即覆盖，不冒充量实）。nativeProseSpec 的呈现口径未动（本包只动版本折算与估算，回复呈现对齐线另行）。
+
+**补测**：FileChipVersionFixAssemblyTests——真实时序造例：种子无附件用户条目整页装配→断言物化为原生散文 cell；按 §121 回填原样跨上下文落盘（JSONEncoder 编码 [String]＋save）→断言同行换装托管行、文件名入无障碍标签（FileChip 已挂）、行高较散文形态增长 >40。静态有附件的行不作证据（首帧即带附件、走另一条物化路，测不出回填时序断点）。
+
+**验收**：CI 两轮（§190 全日志核账）：Core 与基线逐数一致（本包 Core 零改动，预期 2153/2153）、新测两轮全绿、ATTACH-FIT/落底三数/⑨ 键盘证据不退、签名外新红零。真机验收点＝新面发一 xlsx：文件牌即时出现（不用重启 App、不用切旧面）；旧面同验不退。判读见 §320.1（回填）。
