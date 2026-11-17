@@ -284,9 +284,11 @@ enum FileUploadPerformer {
     }
 }
 
-/// 上传选件修饰器（0.36.31）：fileImporter＋同名覆盖
-/// 确认框的宿主无关封装——文件页（菜单组4）与系统
-/// 文件页（••• 菜单）共用，确认口径与旧控件一致
+/// 上传选件修饰器（0.36.31）：选件＋同名覆盖确认
+/// 框的宿主无关封装——文件页（菜单组4）与系统文件
+/// 页（••• 菜单）共用，确认口径与旧控件一致。选件
+/// 呈现 §317 起改走 DocumentPickerView 状态旗（见
+/// body 内 fullScreenCover 注），.fileImporter 退役
 struct FileUploadPickerModifier: ViewModifier {
     /// appState 由宿主显式传入（不在 Modifier 里取环
     /// 境值——取值路径稳、宿主两处都现成持有）
@@ -306,11 +308,27 @@ struct FileUploadPickerModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .fileImporter(
-                isPresented: $isPresented,
-                allowedContentTypes: [.item]
-            ) { result in
-                Task { await handlePick(result) }
+            // §317：选件呈现换 DocumentPickerView 状
+            // 态旗（与聊天页同一条框架排队呈现路、单
+            // 一呈现路径）——旧 .fileImporter 正是聊
+            // 天页当年因「侧载设备上点打开无反应」删
+            // 掉的同款机制（诊断 file-picker-batch-
+            // diagnosis-20261111），本入口同症风险就
+            // 此消灭。isPresented 即呈现旗：宿主置真
+            // 开、选定/取消在回调内复位（与聊天页
+            // showDocumentPicker 同制）；asCopy 交回
+            // App 临时区副本，读取不再需要安全作用
+            // 域配对。本入口维持单选（旧 fileImporter
+            // 同口径），多选只在聊天页
+            .fullScreenCover(isPresented: $isPresented) {
+                DocumentPickerView(
+                    allowsMultipleSelection: false,
+                    onPick: { urls in
+                        isPresented = false
+                        Task { await handlePicked(urls) }
+                    },
+                    onCancel: { isPresented = false }
+                )
             }
             .confirmationDialog(
                 "已存在同名文件「\(pendingOverwrite?.name ?? "")」，覆盖它？",
@@ -348,22 +366,22 @@ struct FileUploadPickerModifier: ViewModifier {
             }
     }
 
-    private func handlePick(_ result: Result<URL, Error>) async {
-        guard case .success(let url) = result else {
+    private func handlePicked(_ urls: [URL]) async {
+        guard let url = urls.first else {
             onFinished("没有选到文件。", false)
             return
         }
         let name = url.lastPathComponent
-        let scoped = url.startAccessingSecurityScopedResource()
+        // DocumentPickerView 以 asCopy 交回：URL 是
+        // App 临时区副本、直读即可（旧 .fileImporter
+        // 路的安全作用域起停配对随之退役，§317）
         let data: Data
         do {
             data = try Data(contentsOf: url)
         } catch {
-            if scoped { url.stopAccessingSecurityScopedResource() }
             onFinished("所选文件没读出来。", false)
             return
         }
-        if scoped { url.stopAccessingSecurityScopedResource() }
         let outcome = await FileUploadPerformer.prepare(
             appState: appState, name: name, data: data,
             targetDirectory: targetDirectory,

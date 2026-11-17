@@ -40,7 +40,8 @@ struct AttachmentPanelView: View {
     let onConfirmPhotos: ([String]) -> Void
     /// 「查看全部」（宿主收面板后开全量选图器）
     let onViewAll: () -> Void
-    /// 「添加文件」（宿主走 DocumentPickerBridge）
+    /// 「添加文件」（宿主收面板后开文件选择器，
+    /// §317 起走 DocumentPickerView 状态旗呈现）
     let onAddFile: () -> Void
     /// 「添加视频」（宿主收面板后开视频选图器）
     let onAddVideo: () -> Void
@@ -364,6 +365,11 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                 "attachmentPanel.fit"
             )
         private var lastFingerprint: Int?
+        /// §317：过渡期被守卫拦下的指纹 invalidate
+        /// 待补旗＋一次性补触发在途旗（见 apply 尾
+        /// 段与 scheduleDetentRefreshFlush）
+        private var detentRefreshPending = false
+        private var detentFlushScheduled = false
 
         override func didMoveToWindow() {
             super.didMoveToWindow()
@@ -400,43 +406,100 @@ struct AttachmentSheetDetentBridge: UIViewRepresentable {
                     - totalBottom
             }
             if sheet.detents.first?.identifier != Self.detentID {
-                sheet.detents = [
-                    .custom(identifier: Self.detentID) {
-                        [weak host] context in
-                        guard let host else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        let width = host.view.bounds.width > 0
-                            ? host.view.bounds.width
-                            : (host.view.window?.bounds.width
-                                ?? 0)
-                        guard width > 0 else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        let fit = host.view.sizeThatFits(
-                            CGSize(
-                                width: width,
-                                height: .greatestFiniteMagnitude
-                            )
-                        ).height
-                        guard fit > 0 else {
-                            return context.maximumDetentValue
-                                * 0.5
-                        }
-                        return min(
-                            fit, context.maximumDetentValue
-                        )
-                    },
-                ]
-                sheet.selectedDetentIdentifier = Self.detentID
-                sheet.invalidateDetents()
+                installDetents(sheet: sheet, host: host)
             }
             if lastFingerprint != fingerprint {
                 lastFingerprint = fingerprint
-                sheet.invalidateDetents()
+                detentRefreshPending = true
             }
+            // §317（诊断 P2 守卫，窄口径）：呈现/收起
+            // 过渡期不触发指纹 invalidateDetents——过
+            // 渡中途的 detent 重解会拉长/扰动收起动
+            // 画，是呈现竞速的加重项；指纹只登记待
+            // 补，由一次性延后补触发落定（schedule-
+            // DetentRefreshFlush）。补偿与首装不在守
+            // 卫内：补偿是 §303 量测律的载荷口径，
+            // 首轮宽守卫曾连它一并拦下、ATTACH-FIT
+            // 实测 safeBottom=34/高 +34·+68 签名判
+            // 红（§317.1 登记）——延后即错值，故只
+            // 守 invalidate 一项
+            let transitioning = host.isBeingPresented
+                || host.isBeingDismissed
+                || host.transitionCoordinator != nil
+            if detentRefreshPending {
+                if transitioning {
+                    scheduleDetentRefreshFlush(sheet: sheet)
+                } else {
+                    detentRefreshPending = false
+                    sheet.invalidateDetents()
+                }
+            }
+        }
+
+        /// §317：过渡期被拦下的指纹 invalidate 一次
+        /// 性延后补触发——0.4s 后无条件补、不再复查
+        /// 过渡态（装配环境实测：过渡信号可长存且
+        /// apply 调用稀疏，靠后续 apply 补触发会永
+        /// 不落地、生长例超时判红，§317.1 登记）；
+        /// 在途只排一份，补触发时待补旗已清则空转
+        private func scheduleDetentRefreshFlush(
+            sheet: UISheetPresentationController
+        ) {
+            guard !detentFlushScheduled else { return }
+            detentFlushScheduled = true
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 0.4
+            ) { [weak self, weak sheet] in
+                guard let self, let sheet else { return }
+                self.detentFlushScheduled = false
+                if self.detentRefreshPending {
+                    self.detentRefreshPending = false
+                    sheet.invalidateDetents()
+                }
+            }
+        }
+
+        /// §303 定高本体：custom detent 整组安装（解
+        /// 析器在呈现控制器内以 sizeThatFits 单源求
+        /// 解，口径自 §303 未动）。apply 内唯一安装
+        /// 点（§317 守卫只拦指纹 invalidate、不拦首
+        /// 装），不许分叉出第二套定高写法
+        private func installDetents(
+            sheet: UISheetPresentationController,
+            host: UIViewController
+        ) {
+            sheet.detents = [
+                .custom(identifier: Self.detentID) {
+                    [weak host] context in
+                    guard let host else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    let width = host.view.bounds.width > 0
+                        ? host.view.bounds.width
+                        : (host.view.window?.bounds.width
+                            ?? 0)
+                    guard width > 0 else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    let fit = host.view.sizeThatFits(
+                        CGSize(
+                            width: width,
+                            height: .greatestFiniteMagnitude
+                        )
+                    ).height
+                    guard fit > 0 else {
+                        return context.maximumDetentValue
+                            * 0.5
+                    }
+                    return min(
+                        fit, context.maximumDetentValue
+                    )
+                },
+            ]
+            sheet.selectedDetentIdentifier = Self.detentID
+            sheet.invalidateDetents()
         }
 
         /// 响应链上首个视图控制器即 sheet 的托管
