@@ -411,7 +411,17 @@ final class ChatNativeProseRowView: UIView {
             dividerLabel.accessibilityLabel =
                 "时间 \(dividerText)"
         }
-        bubbleView.backgroundColor = spec.bubbleFill
+        // §320（2026-11-17 助手回复呈现对齐）：助
+        // 手行撤气泡填充——文本直落列表背景（与托
+        // 管形态 assistantBubble 同步撤填充，几何
+        // §263 逐值不动：列宽/左缘/内边距全保留、
+        // 只去掉承载面本身）；bubbleView 本体保留
+        // 作菜单/右滑的铬件面（命中与交互不依赖填
+        // 充色）。用户泡填充逐字不动。§225 的恢复
+        // 气泡口径被用户 2026-11-17 指令取代（见
+        // DESIGN §320 沿革）
+        bubbleView.backgroundColor = spec.isUser
+            ? spec.bubbleFill : .clear
         bubbleView.layer.cornerRadius = spec.isUser
             ? OneDayMetrics.bubbleCorner
             : OneDayMetrics.assistantBubbleCorner

@@ -77,6 +77,14 @@ struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
     /// ChatView 以窗口顶安全区＋此值作列表顶
     /// contentMargins，顶留位记账只剩这一处）
     @Binding var barHeight: CGFloat
+    /// §320：顶簇底缘的窗口坐标实测回报（host 在
+    /// 布局拍以活帧 convert 回写）——新面列表顶
+    /// inset 自此认本值（顶簇在窗口里的真实底边，
+    /// 安全区/实高/进展胶囊生长全含），不再在
+    /// ChatView 侧以两个独立种子数相加推算；未接
+    /// 本绑定的调用点（存量测试装配）默认 .constant
+    /// 占位、行为不变
+    @Binding var barBottom: CGFloat
     /// 顶簇本体（ChatView 的 headerBar＋进展胶囊）：
     /// 在 init 里由构建闭包求值成视图值——求值发生
     /// 在 ChatView 的 body 构建期，内部状态读数由
@@ -90,10 +98,12 @@ struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
 
     init(
         barHeight: Binding<CGFloat>,
+        barBottom: Binding<CGFloat> = .constant(0),
         scrollHandle: ChatListScrollViewHandle,
         @ViewBuilder content: () -> Content
     ) {
         self._barHeight = barHeight
+        self._barBottom = barBottom
         self.scrollHandle = scrollHandle
         self.content = content()
     }
@@ -110,6 +120,16 @@ struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
             DispatchQueue.main.async {
                 if abs(barHeight.wrappedValue - value) > 0.5 {
                     barHeight.wrappedValue = value
+                }
+            }
+        }
+        let barBottom = $barBottom
+        controller.onBarBottomChange = { value in
+            // §320：与实高回报同一纪律（下一拍写、
+            // 变化 >0.5 才发）
+            DispatchQueue.main.async {
+                if abs(barBottom.wrappedValue - value) > 0.5 {
+                    barBottom.wrappedValue = value
                 }
             }
         }
@@ -250,6 +270,11 @@ final class TopBarGuideHostController: UIViewController {
     /// 顶簇实高变化回调（桥接回 SwiftUI 状态；本
     /// 类内先做等值守卫、变化 >0.5pt 才外发）
     var onBarHeightChange: ((CGFloat) -> Void)?
+    /// §320：顶簇底缘（窗口坐标）变化回调——与实
+    /// 高回调同一守卫口径；消费方＝ChatView 新面
+    /// 列表顶 inset 喂入（顶簇真实底边单源）
+    var onBarBottomChange: ((CGFloat) -> Void)?
+    private var lastReportedBottom: CGFloat = -1
 
     private let barHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
@@ -386,6 +411,26 @@ final class TopBarGuideHostController: UIViewController {
         // §214：透传判定帧不再于此缓存——闸门按顶
         // 簇活帧当场现算（TopBarPassthroughView）
         reportBarHeight()
+        reportBarBottom()
+    }
+
+    /// §320：顶簇底缘回报——顶簇宿主活帧 convert
+    /// 到窗口系取 maxY（与 §214 活帧裁决同式：不
+    /// 经任何缓存/推算，安全区＋实高＋宿主落位偏
+    /// 移全在这一帧里）。窗口未就绪/零高时不报
+    /// （消费方留旧值/回落推算值，不悬空）
+    private func reportBarBottom() {
+        guard let window = view.window,
+              barHost.view.bounds.height > 0
+        else { return }
+        let bottom = barHost.view.convert(
+            barHost.view.bounds, to: window
+        ).maxY
+        guard bottom > 0,
+              abs(bottom - lastReportedBottom) > 0.5
+        else { return }
+        lastReportedBottom = bottom
+        onBarBottomChange?(bottom)
     }
 
     /// 顶边常量唯一计算点：topGuide 的 top 常量＝
