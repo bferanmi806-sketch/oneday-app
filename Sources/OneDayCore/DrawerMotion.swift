@@ -17,6 +17,15 @@ import Foundation
 /// DrawerCardGeometry（本枚举同名白名单改转发）、新
 /// 增 drawerOffset 锁步派生与深色阴影归零口径；位移
 /// 三件与 scrim 化石保留不变。
+/// §323（抽屉收口包，用户 2026-11-17 拍板「学好
+/// 的」）：本枚举立为呈现派生的唯一通道——前景裁
+/// 切几何（clipGeometry）自容器私收迁入、与既有
+/// progress 派生同源；新增场景门谓词（学 Simplenote
+/// shouldBegin 的 C/D/F 三道场合门，设计出处
+/// drawer-in-mature-apps-survey-20261117.md §2.1，
+/// GPL-2.0 只学设计不抄码）；松手吸附改 Proton 预
+/// 测增量守卫两段式（出处同报告 §2.2，GPL-3.0 同
+/// 口径）。
 public enum DrawerMotion {
     /// S2 方向锁定：累计横向位移达到此值前手势不接管、
     /// 不写任何位移状态（纵滚零干扰）
@@ -28,8 +37,18 @@ public enum DrawerMotion {
     public static let flingVelocity: CGFloat = 800
     /// S6 预测位移吸附阈值：动量投影相对手势起点的偏
     /// 移过 travel 的三成即吸附到对岸（现行阈值沿用，
-    /// 已合 momentum 语义——裁决档 §3.5 S6）
+    /// 已合 momentum 语义——裁决档 §3.5 S6）。
+    /// §323 起退出落定判定（改预测增量守卫两段式、
+    /// 见 settleOpens），保留作沿革钉、不再有判定读点
     public static let settleFraction: CGFloat = 0.3
+    /// 预测增量守卫带（§323，学 Proton Mail 落定判
+    /// 定，SidebarScreen.swift 的 lastSwipeSignifi-
+    /// canceThreshold 设计）：|predictedExtra| 超此
+    /// 值才认松手甩动有效、信预测终点；否则按位置
+    /// 过半定——治松手瞬间手指抽动把抽屉推向反向
+    /// （出处 drawer-in-mature-apps-survey-20261117
+    /// .md §2.2）。数值 25pt 为设计事实登记、实现自写
+    public static let predictionGuard: CGFloat = 25
     /// S3 圆角一步到位阈值：progress 过此值圆角直接到
     /// 定值、拖动期不插值（逐帧改裁切半径＝整卡离屏
     /// 重合成，是 0.6.1 拖动卡顿主因之一，§1.5-2）。
@@ -151,12 +170,22 @@ public enum DrawerMotion {
         return target
     }
 
-    /// S6 松手吸附：fling 直通优先；否则以动量预测增
-    /// 量外推——相对手势接管起点的总偏移过 30% travel
-    /// 吸附到对岸（开向/合向同阈，沿现行口径）
+    /// S6 松手吸附（§323 改两段式，学 Proton Mail 的
+    /// 预测增量守卫——出处 drawer-in-mature-apps-
+    /// survey-20261117.md §2.2，设计移植、实现自
+    /// 写）：fling 直通优先；其下两段——
+    /// ① 守卫段：|predictedExtra| 过 predictionGuard
+    /// （25pt）才认甩动有效，按预测终点相对接管起
+    /// 点的符号定开/合（预测终点落回起点开侧＝开）；
+    /// ② 位置段：无有效甩动（慢拖松手）按当前位
+    /// 置过半定（Proton isCloserToOpenThanClosed
+    /// 同式）。§323 前的「相对偏移过 30% travel」
+    /// 单阈口径（settleFraction）就此退役：慢拖到
+    /// 三成即开的宽松口径与松手抽动误判同源，两段
+    /// 式逐项由单测钉死
     /// - currentOffset: 松手瞬间位移
-    /// - startOffset: 本次手势接管时的位移（定开/合向）
-    /// - predictedExtra: predictedEndTranslation − translation（动量外推增量）
+    /// - startOffset: 本次手势接管时的位移（守卫段的符号原点）
+    /// - predictedExtra: predictedEndTranslation − translation（动量外推增量；壳层以速度×settleProjectionInterval 近似，§322）
     /// - velocityX: 松手速度（pt/s，右为正）
     public static func settleOpens(
         currentOffset: CGFloat,
@@ -168,11 +197,94 @@ public enum DrawerMotion {
         guard travel > 0 else { return false }
         if velocityX > flingVelocity { return true }
         if velocityX < -flingVelocity { return false }
-        let relative = (currentOffset - startOffset) + predictedExtra
-        if startOffset < travel / 2 {
-            return relative > travel * settleFraction
+        if abs(predictedExtra) > predictionGuard {
+            return (currentOffset - startOffset) + predictedExtra > 0
         }
-        return relative > -travel * settleFraction
+        return currentOffset > travel / 2
+    }
+
+    // MARK: - §323 场景门（学 Simplenote shouldBegin 的 C/D/F）
+
+    /// 开抽屉手势的场景事实快照（§323）：容器在
+    /// gestureRecognizerShouldBegin 时点采集、喂
+    /// allowsOpenGesture 判定——判定纯函数可测、采
+    /// 集尽力而为（宿主层级扫描，未见结构按「无阻
+    /// 碍」计，见容器注）。设计出处：Simplenote
+    /// SPSidebarContainerViewController 的 shouldBegin
+    /// 七门中 C（任一侧表格 dragging 中）/D（关态主
+    /// 导航栈深度 >1）/F（侧栏编辑态）三道场合门
+    /// （drawer-in-mature-apps-survey-20261117.md
+    /// §2.1）；方向门 A/B 属方向判定、本仓已有更严
+    /// 的三件套（10pt＋1.5 比＋失败依赖），不重复立
+    public struct GestureScene: Equatable {
+        /// 内容侧列表正在拖动（门 C 内容半）
+        public var contentListDragging: Bool
+        /// 抽屉侧列表正在拖动（门 C 抽屉半）
+        public var drawerListDragging: Bool
+        /// 内容侧导航栈深度（门 D；未见导航结构恒 1）
+        public var contentNavigationDepth: Int
+        /// 任一侧处于编辑态（门 F）
+        public var isEditing: Bool
+
+        public init(
+            contentListDragging: Bool,
+            drawerListDragging: Bool,
+            contentNavigationDepth: Int,
+            isEditing: Bool
+        ) {
+            self.contentListDragging = contentListDragging
+            self.drawerListDragging = drawerListDragging
+            self.contentNavigationDepth = contentNavigationDepth
+            self.isEditing = isEditing
+        }
+    }
+
+    /// 场景门判定：三道场合门任一命中即不开抽屉
+    /// （C：任一侧列表 dragging 中；D：内容导航栈
+    /// 深度 >1——深层页左缘是系统返回手势的领地；
+    /// F：编辑态）。全不命中才放行；方向是否横向
+    /// 主导仍由手势接管后的方向锁定判（本谓词不管
+    /// 方向、只管场合）
+    public static func allowsOpenGesture(scene: GestureScene) -> Bool {
+        if scene.contentListDragging || scene.drawerListDragging {
+            return false
+        }
+        if scene.contentNavigationDepth > 1 {
+            return false
+        }
+        if scene.isEditing {
+            return false
+        }
+        return true
+    }
+
+    // MARK: - §323 前景裁切几何（派生单源迁入）
+
+    /// 前景裁切几何（§323 起派生单源在本枚举、与
+    /// progress 同源）：clip 帧＝前景尺寸纵向内嵌
+    /// verticalInset(progress)（合态 0、开态满值、
+    /// 随 progress 线性行进）、半径＝cornerRadius
+    /// (progress)（一步到位、K4 不插值）；内容宿主
+    /// 反向补偿：原点 −inset、高恒前景高——宿主在
+    /// 前景空间内的几何与 §202 之前逐值一致，浮置
+    /// 只是裁切窗的事。此前本派生以私收形式住在容
+    /// 器里、被 layout 与 applyOffset 两处调用写
+    /// 帧（双调用点）；§323 迁入本枚举立唯一派生
+    /// 通道，容器侧只许 applyOffset 一处按本派生
+    /// 写帧（单写点，学 Simplenote 单 animator 单
+    /// 写点——同报告 §2.1）
+    public static func clipGeometry(
+        progress: CGFloat, foregroundSize: CGSize
+    ) -> (clipFrame: CGRect, contentFrame: CGRect, radius: CGFloat) {
+        let radius = cornerRadius(progress: progress)
+        let inset = verticalInset(progress: progress)
+        let bounds = CGRect(origin: .zero, size: foregroundSize)
+        let clipFrame = bounds.insetBy(dx: 0, dy: inset)
+        let contentFrame = CGRect(
+            x: 0, y: -inset,
+            width: bounds.width, height: bounds.height
+        )
+        return (clipFrame, contentFrame, radius)
     }
 
     /// S3 圆角：progress 过阈一步到定值（拖动期冻结）

@@ -14,8 +14,9 @@ import UIKit
 /// 一版不缩放。
 /// §313（第 78 条＋横扫 A-01/A-02/A-21）在此形态上
 /// 做变换对齐与内部收敛：抽屉层改与主面锁步同行、
-/// travel 改宽×0.75、弹簧改慢阻尼定版、深色阴影归
-/// 零；位移单源、阴影单写、几何/弹簧单源逐项见
+/// travel 改宽×0.75、弹簧定版（其值 §322 已重定
+/// 版、慢阻尼旧值作废）、深色阴影归零；位移单源、
+/// 阴影单写、几何/弹簧单源逐项见
 /// 下结构注（宿主 safeAreaRegions 的 §313 清零已
 /// 由 §318 订正为分界口径、见彼段）。
 ///
@@ -41,7 +42,13 @@ import UIKit
 ///   UIView 上，TabView 在宿主内仍是零修饰根级
 ///   安放）。容器唯一位移事实源是 offset 一值：前景/
 ///   抽屉两层 transform 与全部呈现派生只在
-///   applyOffset 一处写（A-01 收敛）。
+///   applyOffset 一处写（A-01 收敛）。§323 起
+///   clip/内容宿主两帧同归本口唯一写点（layout
+///   不再直写帧、只更新未变换几何事实后经本口
+///   重派生），呈现派生本体立 DrawerMotion 为
+///   唯一通道（裁切几何迁入 DrawerMotion.clip-
+///   Geometry）——收口包单写点治理，学 Simplenote
+///   单 animator 单写点。
 /// - 阴影与裁切同层（§313 A-01 收敛）：柔影改挂
 ///   clip 本人（CALayer 语义：阴影按本层 alpha 形
 ///   状投射、clipsToBounds 只裁子层——阴影在裁切
@@ -90,6 +97,11 @@ import UIKit
 ///   内容本体交互关闭（防穿透）；抽屉面上不挂横拖
 ///   手势，纵向滚动天然不被抢（旧壳抽屉面共用拖拽
 ///   手势的口径就此变更）。
+/// - 场景门（§323）：左缘开手势 shouldBegin 先过
+///   三道场合门（任一侧列表 dragging 中/内容导航
+///   深层/编辑态不开，学 Simplenote C/D/F），与方
+///   向锁定分工——场合归 shouldBegin、方向归接管
+///   后判定，判定走 DrawerMotion.allowsOpenGesture。
 /// - 跟手：DrawerMotion 方向锁定（10pt/1.5 倍）达
 ///   成前不写位移、纵向主导即取消本手势；写入走
 ///   followedOffset（扣锁定段＋橡皮筋），判定走
@@ -99,10 +111,12 @@ import UIKit
 ///   当前 tx 接管，无跳变帧。
 /// - 归位动画：UIViewPropertyAnimator＋UISpring-
 ///   TimingParameters（参数出 OneDayCore.Drawer-
-///   SpringTiming 定版单源——§313 起 response 1.4/
-///   ζ 1.2 慢阻尼档，MotionTokens.drawerSpring 只
-///   以同字面值镜像、单测对钉；旧「双口径换算等
-///   价」表述随换算层退役作废）；松手速度按相对位
+///   SpringTiming 定版单源——§322 重定版 response
+///   0.35/ζ 0.85 快档欠阻尼（§313 的 1.4/ζ 1.2 慢
+///   阻尼档经 Muse 录屏对照证伪作废），Motion-
+///   Tokens.drawerSpring 只以同字面值镜像、单测对
+///   钉；旧「双口径换算等价」表述随换算层退役作
+///   废）；松手速度按相对位
 ///   移换算作初速交接；Reduce Motion 时瞬时归位。
 /// - 打开先收键盘（旧纪律沿用）；VoiceOver：开态
 ///   抽屉出 a11y 树、内容退出，关态反之，切换时发
@@ -325,35 +339,12 @@ final class DrawerContainerController: UIViewController,
         applyOffset(0)
     }
 
-    /// 当前 progress 的前景裁切几何：圆角半径＋纵向内
-    /// 嵌帧（§202 K1/K2）。layout 与 applyOffset 两写点
-    /// 共用这一处派生——几何再多一个事实源就会打架：
-    /// clip 帧＝前景 bounds 纵向内嵌 verticalInset(progress)
-    /// （合态 0、开态满值、随 progress 线性行进）、半
-    /// 径＝cornerRadius(progress)（一步到位、K4 不插值）。
-    /// 内容宿主反向补偿：原点 −inset、高恒 bounds 高——
-    /// 宿主在前景空间内的几何与 §202 之前逐值一致，浮
-    /// 置只是裁切窗的事，内容布局/安全区/栏位冻结几何
-    /// 一概不惊动（初版令宿主随 clip 同缩，CI
-    /// run 43384697181 生产同构实测：抽屉关落定后输入
-    /// 舱底 maxY −4pt 不复原，定因即宿主高被改写引发
-    /// 托管树几何重排，故改补偿式）。§313：阴影不再
-    /// 由本派生出手写路径——挂 clip 本人按其帧与半径
-    /// 的 alpha 形状自动成影（§182.2 的「路径必须跟
-    /// 随圆角」由图层语义结构性成立、双写点退役）
-    private func clipGeometry(progress: CGFloat)
-        -> (clipFrame: CGRect, contentFrame: CGRect, radius: CGFloat)
-    {
-        let radius = DrawerMotion.cornerRadius(progress: progress)
-        let inset = DrawerMotion.verticalInset(progress: progress)
-        let bounds = foreground.bounds
-        let clipFrame = bounds.insetBy(dx: 0, dy: inset)
-        let contentFrame = CGRect(
-            x: 0, y: -inset,
-            width: bounds.width, height: bounds.height
-        )
-        return (clipFrame, contentFrame, radius)
-    }
+    // §323：前景裁切几何的派生已迁 DrawerMotion.
+    // clipGeometry（progress 纯派生、与全部呈现派
+    // 生同源，DrawerMotion 立为唯一通道）；本容器
+    // 私收实现删除。派生口径沿革（§202 K1/K2 反向
+    // 补偿、§313 阴影挂 clip 本人自动成影）见
+    // DrawerMotion 该函数注
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
@@ -390,18 +381,6 @@ final class DrawerContainerController: UIViewController,
         // testAnimatedOpenSurvivesMidFlightResize）
         foreground.bounds = CGRect(origin: .zero, size: bounds.size)
         foreground.center = CGPoint(x: bounds.midX, y: bounds.midY)
-        // 帧派生同走 clipGeometry 单点（进度读当前
-        // offset 实算，不读语义 presented——布局期可能
-        // 先于手势/动画）。§313：本处不再写任何阴影
-        // 路径——§182.2 的路径跟随圆角已由阴影挂 clip
-        // 本人的图层语义结构性承担（帧/半径一变、影
-        // 随形变），布局期只管帧
-        let currentProgress = DrawerMotion.progress(
-            offset: offset, travel: travel
-        )
-        let geometry = clipGeometry(progress: currentProgress)
-        clipView.frame = geometry.clipFrame
-        contentHost.view.frame = geometry.contentFrame
         edgeView.frame = CGRect(
             x: 0, y: 0,
             width: OneDayMetrics.drawerEdgeZone,
@@ -409,18 +388,25 @@ final class DrawerContainerController: UIViewController,
         )
         if travelChanged {
             rebuildDrawerRoot()
-            // 旋转/尺寸变：无拖无动画时按当前 offset 重
-            // 派生一遍——开态位移跟到新 travel（主页面仍
-            // 完整露出同一比例）；关态同理把抽屉锁步位
-            // 钉到新 −travel（§313：合态抽屉恒藏于主面
-            // 之后一个 travel、首次布局后即成立）
-            if animator == nil, dragLockTranslation == nil {
-                if semanticPresented {
-                    offset = travel
-                }
-                applyOffset(offset)
+            // 旋转/尺寸变：无拖无动画时开态位移跟到新
+            // travel（主页面仍完整露出同一比例）
+            if animator == nil, dragLockTranslation == nil,
+               semanticPresented {
+                offset = travel
             }
         }
+        // §323 单写点：clip/内容宿主两帧自此只许
+        // applyOffset 一处写——本处不再直写（收掉
+        // layout 与 applyOffset 的双调用点，学
+        // Simplenote 单写点）；布局事实（bounds/
+        // center/travel）更新后统一经呈现口按当前
+        // offset 重派生一遍：关态把抽屉锁步位钉到
+        // 新 −travel（§313：合态抽屉恒藏于主面之
+        // 后一个 travel、首次布局后即成立）、高度
+        // 单变（travel 不变）时裁切帧同源跟随。动
+        // 画在途时 model 值已是目标值、重派生同值
+        // 不打架（traitCollectionDidChange 同先例）
+        applyOffset(offset)
     }
 
     private func rebuildDrawerRoot() {
@@ -447,7 +433,9 @@ final class DrawerContainerController: UIViewController,
     /// 位移唯一呈现口：只写双层 transform（主页面布
     /// 局尺寸恒不变）＋圆角/阴影/命中/a11y 派生——全
     /// 容器不许有第二处写 transform 或阴影（§313
-    /// A-01 单源收敛）
+    /// A-01 单源收敛）。§323 起 clip/内容宿主两帧
+    /// 同归本口唯一写点（layout 只写未变换几何事实
+    /// 后经本口重派生，学 Simplenote 单写点）
     private func applyOffset(_ newOffset: CGFloat) {
         offset = newOffset
         foreground.transform = CGAffineTransform(
@@ -467,7 +455,9 @@ final class DrawerContainerController: UIViewController,
         let progress = DrawerMotion.progress(
             offset: newOffset, travel: travel
         )
-        let geometry = clipGeometry(progress: progress)
+        let geometry = DrawerMotion.clipGeometry(
+            progress: progress, foregroundSize: foreground.bounds.size
+        )
         clipView.layer.cornerRadius = geometry.radius
         clipView.frame = geometry.clipFrame
         contentHost.view.frame = geometry.contentFrame
@@ -683,6 +673,88 @@ final class DrawerContainerController: UIViewController,
             setDrawer(semanticPresented, animated: true)
         default:
             break
+        }
+    }
+
+    /// 场景门（§323，学 Simplenote shouldBegin 的
+    /// C/D/F 三道场合门）：只管左缘开手势——任一侧
+    /// 列表 dragging 中（C）、内容导航栈深层（D、
+    /// 左缘是系统返回手势领地，与既有 require-
+    /// failure 让行互为双保险）、任一侧编辑态（F）
+    /// 时不开抽屉。判定走 DrawerMotion.allowsOpen-
+    /// Gesture 纯谓词；事实采集＝宿主层级扫描（尽力
+    /// 而为：未见对应结构按无阻碍计、深度恒 1，不
+    /// 因采集不到而误锁正常开合——四场景终验归真
+    /// 机手测）。窄条关手势不设门（关抽屉不许被场
+    /// 合挡住）
+    func gestureRecognizerShouldBegin(
+        _ recognizer: UIGestureRecognizer
+    ) -> Bool {
+        guard recognizer === edgePan else { return true }
+        return DrawerMotion.allowsOpenGesture(scene: currentGestureScene())
+    }
+
+    /// 场景事实采集（§323）：两宿主层级递归扫描——
+    /// UIScrollView.isDragging（SwiftUI List/Scroll-
+    /// View 的 UIKit 底座同源）、UINavigationCont-
+    /// roller 栈深（取层级内最大值）、UITableView.
+    /// isEditing（SwiftUI List 编辑态的底座同源）
+    private func currentGestureScene() -> DrawerMotion.GestureScene {
+        DrawerMotion.GestureScene(
+            contentListDragging: Self.hierarchyHasDraggingScrollView(
+                contentHost.view),
+            drawerListDragging: Self.hierarchyHasDraggingScrollView(
+                drawerHost.view),
+            contentNavigationDepth: Self.hierarchyMaxNavigationDepth(
+                contentHost.view),
+            isEditing: Self.hierarchyHasEditingList(contentHost.view)
+                || Self.hierarchyHasEditingList(drawerHost.view)
+        )
+    }
+
+    /// 层级内任一滚动视图正在拖动（门 C 的采集半）
+    static func hierarchyHasDraggingScrollView(_ root: UIView) -> Bool {
+        if let scrollView = root as? UIScrollView, scrollView.isDragging {
+            return true
+        }
+        return root.subviews.contains {
+            hierarchyHasDraggingScrollView($0)
+        }
+    }
+
+    /// 层级内导航栈最大深度（门 D 的采集半；未见
+    /// 导航控制器恒 1＝根层、不阻碍）。导航控制器
+    /// 是控制器不是视图、不在视图树上——逐视图沿
+    /// 响应链向上找到的首个控制器即其宿主控制器，
+    /// 导航栈的容器视图宿主恰是 UINavigationCont-
+    /// roller 本人（首轮 CI 实证：在视图树里直接
+    /// 找控制器类型恒落空、深度恒 1，两例新测红
+    /// 后改本法）
+    static func hierarchyMaxNavigationDepth(_ root: UIView) -> Int {
+        var depth = 1
+        var responder: UIResponder? = root
+        while let current = responder {
+            if let controller = current as? UIViewController {
+                if let navigation = controller as? UINavigationController {
+                    depth = max(depth, navigation.viewControllers.count)
+                }
+                break
+            }
+            responder = current.next
+        }
+        for subview in root.subviews {
+            depth = max(depth, hierarchyMaxNavigationDepth(subview))
+        }
+        return depth
+    }
+
+    /// 层级内任一列表处于编辑态（门 F 的采集半）
+    static func hierarchyHasEditingList(_ root: UIView) -> Bool {
+        if let table = root as? UITableView, table.isEditing {
+            return true
+        }
+        return root.subviews.contains {
+            hierarchyHasEditingList($0)
         }
     }
 

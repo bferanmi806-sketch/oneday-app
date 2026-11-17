@@ -89,14 +89,15 @@ final class DrawerContainerControllerTests: XCTestCase {
 
     /// 裸动画：无任何干扰，弹簧动画必须自己走完到
     /// travel（真机症状是停在约 9.5% travel）。
-    /// §313 注：弹簧换慢阻尼定版（response 1.4/ζ
-    /// 1.2、可见时长 ≈1.5s）后，本类动画落定断言的
-    /// 等待统一放宽到 3.5s（2.0s 时残余位移 ≈3pt、
-    /// 超 1.0 断言精度——是定版手感的量测事实、非
-    /// 产品退步）
+    /// §313 注（历史）：慢阻尼定版（1.4/ζ 1.2）时本
+    /// 类等待曾放宽到 3.5s；§322 换快档定版
+    /// （response 0.35/ζ 0.85、模型全程落定 ≈0.41s）
+    /// 后等待收回 2.0s——仍留约 5 倍余量防 CI 时序
+    /// 抖动，但慢档若回潮（落定 ≈1.5s＋animator 收
+    /// 尾）会逼近本界、不再无声放行
     func testAnimatedOpenCompletesWithoutInterference() {
         controller.setDrawer(true, animated: true)
-        spinRunLoop(seconds: 3.5)
+        spinRunLoop(seconds: 2.0)
         XCTAssertTrue(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, controller.travel, accuracy: 1.0)
     }
@@ -132,7 +133,7 @@ final class DrawerContainerControllerTests: XCTestCase {
     func testAnimatedCloseReturnsToZero() {
         controller.setDrawer(true, animated: false)
         controller.setDrawer(false, animated: true)
-        spinRunLoop(seconds: 3.5)
+        spinRunLoop(seconds: 2.0)
         XCTAssertFalse(controller.semanticPresented)
         XCTAssertEqual(foregroundTx, 0, accuracy: 1.0)
     }
@@ -448,5 +449,73 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(
             clip.layer.shadowOpacity, 0.22, accuracy: 0.01,
             "切回浅色后阴影应按当前 offset 重派生恢复")
+    }
+}
+
+extension DrawerContainerControllerTests {
+    // MARK: - §323 场景门（采集半＋shouldBegin 接线）
+
+    /// 左缘手势＝容器 view 第三子（edgeView）上的唯
+    /// 一识别器（viewDidLoad 装配序）
+    private var edgePanRecognizer: UIGestureRecognizer {
+        controller.view.subviews[2].gestureRecognizers![0]
+    }
+
+    func testSceneScanHelpersReadHierarchyFacts() {
+        // 空层级：无拖动、深度恒 1、无编辑
+        let plain = UIView()
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasDraggingScrollView(plain))
+        XCTAssertEqual(
+            DrawerContainerController.hierarchyMaxNavigationDepth(plain), 1)
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasEditingList(plain))
+        // 静止滚动视图不算 dragging（门 C 只认拖动态）
+        let scroll = UIScrollView()
+        plain.addSubview(scroll)
+        XCTAssertFalse(
+            DrawerContainerController.hierarchyHasDraggingScrollView(plain))
+        // 深层导航：嵌套两层、取最大值
+        let nav = UINavigationController(
+            rootViewController: UIViewController())
+        nav.pushViewController(UIViewController(), animated: false)
+        let wrapper = UIView()
+        wrapper.addSubview(nav.view)
+        plain.addSubview(wrapper)
+        XCTAssertEqual(
+            DrawerContainerController.hierarchyMaxNavigationDepth(plain), 2)
+        // 编辑态列表（深嵌同样命中）
+        let table = UITableView()
+        table.isEditing = true
+        wrapper.addSubview(table)
+        XCTAssertTrue(
+            DrawerContainerController.hierarchyHasEditingList(plain))
+    }
+
+    func testSceneGateBlocksEdgePanInDeepNavigation() {
+        // 无场景阻碍：左缘手势放行
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        // 内容宿主里出现深层导航栈 → 门 D 挡下开手势
+        let nav = UINavigationController(
+            rootViewController: UIViewController())
+        nav.pushViewController(UIViewController(), animated: false)
+        contentHostView?.addSubview(nav.view)
+        XCTAssertFalse(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        // 非左缘识别器不归场景门管（恒放行）
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(
+                UIPanGestureRecognizer()))
+    }
+
+    func testSceneGateBlocksEdgePanWhileEditing() {
+        XCTAssertTrue(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
+        let table = UITableView()
+        table.isEditing = true
+        contentHostView?.addSubview(table)
+        XCTAssertFalse(
+            controller.gestureRecognizerShouldBegin(edgePanRecognizer))
     }
 }
