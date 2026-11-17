@@ -4,30 +4,31 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §303（A-08 定高收口）真实装配断言：附件面板经
-/// 生产呈现口径（宿主 attachmentPanelPresenta-
-/// tion 拖拽指示＋面板内 AttachmentSheetDetent-
-/// Bridge 的 UIKit custom detent 定高）在真窗口
-/// 里真呈现——
+/// §326（小修批①，承 §303）真实装配断言：附件面
+/// 板经生产呈现口径（attachmentPanelPresentat-
+/// ion：系统 detent 档位 [.medium, .large]＋拖拽
+/// 指示）在真窗口里真呈现——
 /// ①面板在场：presented 控制器存在、其托管视图
 /// sizeThatFits 与独立托管理想高逐值对账（空
 /// sheet 测不出此高）；
-/// ②sheet 高贴内容：帧高与内容理想高对账（容差
-/// 吸收安全区口径差），且显著小于 .medium 档
-/// （不回默认档）、显著大于塌陷带（不重演 §154
-/// 量测自噬）；
-/// ③动态跟随：同桥同指纹口径下内容增行时 sheet
-/// 高跟随变高——真面板的确认行由照片授权态＋条
-/// 内选集驱动、装配环境不可达，故以同构 VStack
-/// （真实文本行、非固定高占位）挂同一生产定高
-/// 桥验增行跟随；真面板本体走 ①②。
-/// 注：首轮（run 43763594395）曾以 .presenta-
-/// tionSizing(.fitted) 为定高路实测 sheet=874
-/// 全高、理想高 136.67 被无视——fitted 在
-/// iPhone 底部 sheet 不改高，定高已改本桥；同
-/// 轮实测 App 测试窗口内无障碍标签集为空集，
-/// 在场断言因此不用 AX 标签面、改走托管视图
-/// sizeThatFits 对账（标签集只打印留档）。
+/// ②定高归系统档位：presented 的 sheetPresen-
+/// tationController detents 恰为 [.medium,
+/// .large] 标识集、选中档为 .medium、帧高落半
+/// 窗带（与内容理想高脱钩——§303 的精确贴合断
+/// 言就此作废，脱钩本身即本批的验收点）；
+/// ③增行不改高：同构 VStack（真实文本行、非固
+/// 定高占位）经同一生产呈现口径，内容增行后
+/// sheet 高逐值不变（放弃精确贴合的结构证据）；
+/// 真面板本体走 ①②。
+/// 沿革注：§303 时代本文件断言「高贴内容＋增行
+/// 跟随」，桥（AttachmentSheetDetentBridge，
+/// custom detent＋安全区反向补偿＋指纹重解）已
+/// 随 §326 整套删除——桥类型不复存在即编译期
+/// 证据，本文件不再按名查找。首轮（§303 run
+/// 43763594395）实测 App 测试窗口内无障碍标签
+/// 集为空集，在场断言因此不用 AX 标签面、改走
+/// 托管视图 sizeThatFits 对账（标签集只打印留
+/// 档），本批沿用。
 @MainActor
 final class AttachmentPanelFitAssemblyTests: XCTestCase {
 
@@ -127,6 +128,14 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         return nil
     }
 
+    private func spinRunLoop(seconds: TimeInterval) {
+        let exp = expectation(description: "spin \(seconds)s")
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + seconds
+        ) { exp.fulfill() }
+        wait(for: [exp], timeout: seconds + 5)
+    }
+
     private func makePanel() -> AttachmentPanelView {
         AttachmentPanelView(
             onCamera: {},
@@ -137,9 +146,9 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ①② 真面板在场＋高贴内容
+    // MARK: - ①② 真面板在场＋系统档位定高
 
-    func testAttachPanelPresentsAtFittedContentHeight() throws {
+    func testAttachPanelPresentsAtSystemMediumDetent() throws {
         let root = assemble(content: makePanel())
 
         let sheetHeight = try XCTUnwrap(
@@ -184,25 +193,39 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
                 + "photoAccess=\(access) labels=\(labels)"
         )
 
-        // 不塌陷（§154 失败形态：高塌到近零）
+        // 定高归系统档位（§326 本体）：detents 恰
+        // 为 [.medium, .large] 系统标识集、无自造
+        // custom detent 混入；开在 .medium
+        let sheetPC = try XCTUnwrap(
+            presented.sheetPresentationController,
+            "presented 无 sheetPresentationController"
+        )
+        XCTAssertEqual(
+            sheetPC.detents.map(\.identifier),
+            [.medium, .large],
+            "detents 须恰为系统 [.medium, .large]，"
+                + "实得 \(sheetPC.detents.map(\.identifier))"
+        )
+        XCTAssertEqual(
+            sheetPC.selectedDetentIdentifier, .medium,
+            "初始选中档须为 .medium，实得 "
+                + "\(String(describing: sheetPC.selectedDetentIdentifier))"
+        )
+        // 帧高落 .medium 半窗带（与内容理想高脱钩
+        // 是本批的既定代价、不是缺陷——§303 的
+        // 「贴内容」断言在此作废）
+        XCTAssertEqual(
+            sheetHeight, windowH * 0.5, accuracy: 30,
+            "sheet 高 \(sheetHeight) 不在 .medium "
+                + "半窗带（理想高 \(ideal) 仅留档）"
+        )
         XCTAssertGreaterThan(
             sheetHeight, 100,
             "sheet 高 \(sheetHeight) 进塌陷带"
         )
-        // 不回默认档：显著小于 .medium（≈半窗高）
-        XCTAssertLessThan(
-            sheetHeight, windowH * 0.5,
-            "sheet 高 \(sheetHeight) 回到 .medium 档量级"
-        )
-        // 贴内容：与理想高对账（容差吸收 sheet 安
-        // 全区/呈现层口径差）
-        XCTAssertEqual(
-            sheetHeight, ideal, accuracy: 48,
-            "sheet 高 \(sheetHeight) 与内容理想高 \(ideal) 脱钩"
-        )
     }
 
-    // MARK: - ③ 内容增行跟随
+    // MARK: - ③ 内容增行不改高（系统档位口径）
 
     private final class GrowthModel: ObservableObject {
         @Published var expanded = false
@@ -223,18 +246,14 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            // 与真面板同构：定高桥挂内容本体、指
-            // 纹＝增行有无（面板侧为资源库/确认行
-            // 两位指纹，机制同一）
-            .background(
-                AttachmentSheetDetentBridge(
-                    fingerprint: model.expanded ? 1 : 0
-                )
-            )
+            // §326：无桥——内容本体不挂任何定高装
+            // 置，呈现口径（系统 detent）由 Sheet-
+            // Host 的 attachmentPanelPresentation
+            // 统一施加（与真面板同一修饰器）
         }
     }
 
-    func testFittedSheetGrowsWhenContentGrows() throws {
+    func testSheetHeightIgnoresContentGrowth() throws {
         let model = GrowthModel()
         let root = assemble(content: GrowthProbe(model: model))
 
@@ -243,18 +262,25 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             "探针 sheet 未在时限内呈现落定"
         )
         model.expanded = true
+        // 等内容重排落定（增行本身不再触发任何高
+        // 度变更通路，落定读数应与增行前逐值同）
+        spinRunLoop(seconds: 1.0)
         let expanded = try XCTUnwrap(
-            settledSheetHeight(of: root, afterChangeFrom: collapsed),
+            settledSheetHeight(of: root),
             "增行后 sheet 未在时限内落定"
         )
         print(
             "ATTACH-FIT-GROWTH collapsed=\(collapsed) "
                 + "expanded=\(expanded)"
         )
-        XCTAssertGreaterThan(
-            expanded - collapsed, 40,
-            "内容增行（52＋间距）后 sheet 高未跟随："
+        XCTAssertEqual(
+            expanded, collapsed, accuracy: 1,
+            "系统 detent 档位下内容增行不得改高："
                 + "\(collapsed)→\(expanded)"
+        )
+        XCTAssertEqual(
+            collapsed, windowH * 0.5, accuracy: 30,
+            "探针 sheet 高 \(collapsed) 不在 .medium 半窗带"
         )
     }
 

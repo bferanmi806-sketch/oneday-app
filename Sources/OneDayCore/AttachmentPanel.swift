@@ -144,7 +144,9 @@ public enum AttachmentPanel {
 
     // §152/§154 的定高决策（detentHeight＋可信下限
     // ＋75% 钳顶）已随 A-08 收口整节退役：面板高度
-    // 改由系统 fitted 尺寸按内容理想尺寸单源决定
-    // （App 层 attachmentPanelPresentation），Core
-    // 不再参与定高、不留任何量测判据
+    // 先改由系统 fitted 尺寸按内容理想尺寸单源决定
+    // （§303 custom detent），§326 再退役精确贴合、
+    // 改系统 detent 档位 [.medium, .large]（App 层
+    // attachmentPanelPresentation），Core 不再参与
+    // 定高、不留任何量测判据
 }

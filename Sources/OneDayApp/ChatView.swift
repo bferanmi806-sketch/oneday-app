@@ -1312,6 +1312,10 @@ struct ChatView: View {
         // 套退役：PreferenceKey 回报、宿主实测高/真
         // 高两状态、Core 定高决策（可信下限＋75%
         // 钳顶）、fixedSize 保真一并删除
+        // §326（小修批①）：custom detent 精确贴合整
+        // 套再退役——桥本体删除，定高改系统 detent
+        // 档位 [.medium, .large]（attachmentPanel-
+        // Presentation 单源），确认行增减不再改高
         .sheet(
             isPresented: $showAttachPanel,
             onDismiss: {
