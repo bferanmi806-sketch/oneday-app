@@ -334,7 +334,10 @@ struct ChatNativeRowHeightComposer {
 
     // MARK: - 文本高备忘（同内容×宽×样式只量一次）
 
-    private static let textCache =
+    /// nonisolated(unsafe)：NSCache 官方文档保
+    /// 证线程安全（§331 起备忘被量测台后台队列
+    /// 读写）、只是未标 Sendable——由本注背书
+    private nonisolated(unsafe) static let textCache =
         NSCache<NSString, NSNumber>()
 
     private func memoKey(
@@ -381,9 +384,9 @@ struct ChatNativeRowHeightComposer {
     /// 值留存（静态缓存），O(1) 命中即整行跳过。
     /// 根治（量测异步预排版）随根治版，本层只做
     /// interim 减负、公式本体一字不动
-    private static let rowCache: NSCache<
-        NSString, NSNumber
-    > = {
+    /// nonisolated(unsafe)：同 textCache 注
+    private nonisolated(unsafe) static let rowCache:
+        NSCache<NSString, NSNumber> = {
         let cache = NSCache<NSString, NSNumber>()
         cache.countLimit = 1024
         return cache
@@ -394,10 +397,18 @@ struct ChatNativeRowHeightComposer {
     /// 为影响）：备忘未命中而真算一行的次数——滚
     /// 动稳态下同修订同环境的行入口应全命中、本
     /// 计数不涨
-    private(set) static var rowComputationCount = 0
+    /// 计数盒（§331）：量测台后台队列也会触发
+    /// 实算、裸 Int 静态量不再并发安全——锁盒承
+    /// 载（与 OneDayCore ParseMemoBox 同式）
+    private static let rowComputationBox =
+        LockedRowComputationCounter()
+
+    static var rowComputationCount: Int {
+        rowComputationBox.read()
+    }
 
     static func resetRowComputationCount() {
-        rowComputationCount = 0
+        rowComputationBox.reset()
     }
 
     /// 环境指纹：合成器构造口径中影响高的全体
@@ -419,7 +430,7 @@ struct ChatNativeRowHeightComposer {
         if let hit = Self.rowCache.object(forKey: nsKey) {
             return CGFloat(hit.doubleValue)
         }
-        Self.rowComputationCount += 1
+        Self.rowComputationBox.increment()
         let value = compute()
         Self.rowCache.setObject(
             NSNumber(value: Double(value)), forKey: nsKey
@@ -642,7 +653,12 @@ struct ChatNativeRowHeightComposer {
         for key: String
     ) -> Bool? {
         if let ledger {
-            return ledger.expansionOverride(for: key)
+            // 活读支仅适配器形态可达（恒主线程）；
+            // 量测台形态 ledger 恒 nil 不可达——
+            // assumeIsolated 前提由构造方式保证
+            return MainActor.assumeIsolated {
+                ledger.expansionOverride(for: key)
+            }
         }
         return facets.expansionOverrides[key]
     }
@@ -651,7 +667,9 @@ struct ChatNativeRowHeightComposer {
         for recordID: String
     ) -> ApprovalDetailState {
         if let ledger {
-            return ledger.approvalDetail(for: recordID)
+            return MainActor.assumeIsolated {
+                ledger.approvalDetail(for: recordID)
+            }
         }
         return facets.approvalDetails[recordID]
             ?? ApprovalDetailState()
@@ -661,9 +679,11 @@ struct ChatNativeRowHeightComposer {
         for recordID: String
     ) -> ApprovalAnchor.RowState {
         if let hubStore {
-            return hubStore.anchorRowState(
-                recordID: recordID
-            )
+            return MainActor.assumeIsolated {
+                hubStore.anchorRowState(
+                    recordID: recordID
+                )
+            }
         }
         return facets.anchorStates[recordID] ?? .loading
     }
@@ -672,7 +692,9 @@ struct ChatNativeRowHeightComposer {
         for recordID: String
     ) -> String? {
         if let hubStore {
-            return hubStore.cardNotes[recordID]
+            return MainActor.assumeIsolated {
+                hubStore.cardNotes[recordID]
+            }
         }
         return facets.cardNotes[recordID]
     }
@@ -681,8 +703,10 @@ struct ChatNativeRowHeightComposer {
         _ recordID: String
     ) -> Bool {
         if let hubStore {
-            return hubStore.decidingIDs
-                .contains(recordID)
+            return MainActor.assumeIsolated {
+                hubStore.decidingIDs
+                    .contains(recordID)
+            }
         }
         return facets.decidingIDs.contains(recordID)
     }
@@ -691,8 +715,10 @@ struct ChatNativeRowHeightComposer {
         _ path: String
     ) -> FileMetadataStore.Existence? {
         if ledger != nil {
-            return FileMetadataStore.shared
-                .existence(for: path)
+            return MainActor.assumeIsolated {
+                FileMetadataStore.shared
+                    .existence(for: path)
+            }
         }
         return facets.fileExistences[path]
     }
@@ -701,8 +727,10 @@ struct ChatNativeRowHeightComposer {
         _ path: String
     ) -> Int64? {
         if ledger != nil {
-            return FileMetadataStore.shared
-                .metadata(for: path)?.size
+            return MainActor.assumeIsolated {
+                FileMetadataStore.shared
+                    .metadata(for: path)?.size
+            }
         }
         return facets.fileSizes[path]
     }
@@ -711,8 +739,10 @@ struct ChatNativeRowHeightComposer {
         _ id: String
     ) -> DeliveryStore.MetaResult? {
         if ledger != nil {
-            return DeliveryStore.shared
-                .metaResult(for: id)
+            return MainActor.assumeIsolated {
+                DeliveryStore.shared
+                    .metaResult(for: id)
+            }
         }
         return facets.deliveryMetas[id]
     }
@@ -729,15 +759,18 @@ struct ChatNativeRowHeightComposer {
                 isDirectory: false, size: meta.size,
                 mtime: nil, mimeType: meta.mime
             )
-            return meta.cover.cover
-                || DeliveryStore.shared.hasCachedImage(
-                    id: meta.id, variant: .cover
-                )
-                || FileThumbnailStore.shared
-                    .hasCachedThumbnail(
-                        for: synthetic,
-                        targetPixelSize: 720
-                    )
+            return MainActor.assumeIsolated {
+                meta.cover.cover
+                    || DeliveryStore.shared
+                        .hasCachedImage(
+                            id: meta.id, variant: .cover
+                        )
+                    || FileThumbnailStore.shared
+                        .hasCachedThumbnail(
+                            for: synthetic,
+                            targetPixelSize: 720
+                        )
+            }
         }
         return facets.deliveryCoverForms[meta.id]
             ?? false
@@ -765,13 +798,16 @@ struct ChatNativeRowHeightComposer {
             resolvedLineIDs: [String])?
     {
         if let hubStore {
-            guard case .ready(let records)
-                = hubStore.approvalState
-            else { return nil }
-            return (
-                records, hubStore.anchoredRecordIDs,
-                hubStore.resolvedLines.map(\.id)
-            )
+            return MainActor.assumeIsolated {
+                guard case .ready(let records)
+                    = hubStore.approvalState
+                else { return nil }
+                return (
+                    records,
+                    hubStore.anchoredRecordIDs,
+                    hubStore.resolvedLines.map(\.id)
+                )
+            }
         }
         guard let records = facets.zoneRecords
         else { return nil }
@@ -2632,5 +2668,33 @@ struct ChatNativeRowHeightComposer {
         return slots.reduce(0, +)
             + OneDayMetrics.spacingS
                 * CGFloat(slots.count - 1)
+    }
+}
+
+
+/// 整行实算计数锁盒（§331）：NSLock 护裸 Int、
+/// @unchecked Sendable 依据＝一切读写都在锁内
+/// （与 OneDayCore ParseMemoBox 同式）
+private final class LockedRowComputationCounter:
+    @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 0
+
+    func increment() {
+        lock.lock()
+        value += 1
+        lock.unlock()
+    }
+
+    func reset() {
+        lock.lock()
+        value = 0
+        lock.unlock()
+    }
+
+    func read() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
     }
 }
