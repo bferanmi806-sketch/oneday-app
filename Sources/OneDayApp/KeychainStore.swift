@@ -22,6 +22,21 @@ enum CredentialKey {
     static let all = [baseURL, username, password, apiKey]
 }
 
+/// 身份键名（根治版包 1，DESIGN §330）：主线钦定身
+/// 份键（主线线程/服务端会话 id＋链接确认位）自
+/// UserDefaults 迁 Keychain 与凭据同级，键名集中在
+/// 此一处（SessionLedger 经 IdentityValueStore 读写）。
+/// 不并入 CredentialKey.all：断开连接不清身份——重
+/// 连同一台服务器还要认得出主线；旧 UserDefaults 键
+/// （sideChats.main*）留作一版双轨镜像保回滚（与归
+/// 档列同口径，停写归下一大版本）。
+enum IdentityKey {
+    static let mainThreadID = "identity.mainThreadID"
+    static let mainServerSessionID = "identity.mainServerSessionID"
+    static let mainServerConfirmed = "identity.mainServerConfirmed"
+    static let mainServerSeeded = "identity.mainServerSeeded"
+}
+
 /// 桥客户端统一取钥（0.33.1，用户 16:08 定版）：用户
 /// 只持一把 Hermes 登录密钥——桥请求直接以聊天同一
 /// 份 api.key 作 Bearer，nginx 入口校验通过后在服务

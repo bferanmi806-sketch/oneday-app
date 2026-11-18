@@ -80,6 +80,125 @@ struct MainSessionView: View {
             }
             .listRowInsets(settingsRowInsets)
 
+            // 认领记录（§330）：认领到哪条如实呈现——
+            // 会话/消息数/最近活动/归档态/认领时间；未
+            // 认领过不出现本节
+            if let record = appState.sessionLedger.mainClaimRecord {
+                Section {
+                    LabeledContent {
+                        Text(record.sessionID)
+                            .font(.metaMonospaced)
+                            .foregroundStyle(Palette.ink)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } label: {
+                        Text("认领会话")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .listRowBackground(Palette.surface)
+
+                    LabeledContent {
+                        Text(
+                            record.messageCount
+                                .map { "\($0) 条" } ?? "未知"
+                        )
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    } label: {
+                        Text("消息数")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .listRowBackground(Palette.surface)
+
+                    if let activity = record.lastActivityAt {
+                        LabeledContent {
+                            Text(Self.activityText(activity))
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.ink)
+                        } label: {
+                            Text("最近活动")
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.inkSecondary)
+                        }
+                        .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                        .listRowBackground(Palette.surface)
+                    }
+
+                    if record.candidateCount > 1 {
+                        LabeledContent {
+                            Text("\(record.candidateCount) 条（已按规则选定）")
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.ink)
+                        } label: {
+                            Text("同名候选")
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.inkSecondary)
+                        }
+                        .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                        .listRowBackground(Palette.surface)
+                    }
+
+                    if record.isArchived {
+                        LabeledContent {
+                            Text("已归档（打开主线时解档）")
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.ink)
+                        } label: {
+                            Text("归档态")
+                                .font(.rowTitleL)
+                                .foregroundStyle(Palette.inkSecondary)
+                        }
+                        .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                        .listRowBackground(Palette.surface)
+                    }
+
+                    LabeledContent {
+                        Text(Self.activityText(record.claimedAt))
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                    } label: {
+                        Text("认领时间")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .listRowBackground(Palette.surface)
+                } header: {
+                    Text("认领记录")
+                        .font(.sectionLabel)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .textCase(nil)
+                }
+                .listRowInsets(settingsRowInsets)
+            }
+
+            // 重新发现（§330）：手动向服务端目录重新
+            // 认领——绑定接错/服务端换代时的恢复入口，
+            // 结果经状态行与认领记录呈现
+            Section {
+                Button {
+                    Task {
+                        await appState.sessionLedger
+                            .rediscoverMainline(appState: appState)
+                    }
+                } label: {
+                    HStack {
+                        Spacer()
+                        Text("重新发现主线")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.primary)
+                        Spacer()
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                }
+                .listRowBackground(Palette.surface)
+                .listRowInsets(settingsRowInsets)
+            }
+
             // 继续对话按钮
             Section {
                 Button {
@@ -149,5 +268,11 @@ struct MainSessionView: View {
 
     private var settingsRowInsets: EdgeInsets {
         EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+    }
+
+    /// epoch 秒 → 人话时刻（认领记录行用）
+    private static func activityText(_ epoch: TimeInterval) -> String {
+        Date(timeIntervalSince1970: epoch)
+            .formatted(date: .abbreviated, time: .shortened)
     }
 }

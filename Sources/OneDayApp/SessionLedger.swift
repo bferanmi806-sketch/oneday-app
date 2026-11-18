@@ -2,6 +2,99 @@ import Foundation
 import OneDayCore
 import SwiftData
 
+/// 身份键值存储口（根治版包 1，DESIGN §330）：主线
+/// 钦定身份键（线程/服务端会话 id＋链接确认位）的
+/// 底层存储——生产＝Keychain（与登录凭据同级）、演
+/// 示/测试＝内存。身份键只许经本口读写；UserDefa-
+/// ults 旧键（sideChats.main*）退为一版双轨镜像（写
+/// 路径同拍回写、读路径只作迁移来源，停写归下一大
+/// 版本，与归档列同口径）。布尔以 "1"/"0" 字符串落
+/// 存储（string(forKey:) 非空即「在册」，迁移的在册
+/// 判定靠它）
+protocol IdentityValueStore: AnyObject {
+    func string(forKey key: String) -> String?
+    func bool(forKey key: String) -> Bool
+    func set(_ value: String?, forKey key: String)
+    func set(_ value: Bool, forKey key: String)
+}
+
+/// Keychain 形态（生产）：薄封 KeychainStore，键名
+/// 见 IdentityKey
+final class KeychainIdentityValueStore: IdentityValueStore {
+    func string(forKey key: String) -> String? {
+        KeychainStore.read(account: key)
+    }
+
+    func bool(forKey key: String) -> Bool {
+        KeychainStore.read(account: key) == "1"
+    }
+
+    func set(_ value: String?, forKey key: String) {
+        if let value {
+            KeychainStore.save(value, account: key)
+        } else {
+            KeychainStore.delete(account: key)
+        }
+    }
+
+    func set(_ value: Bool, forKey key: String) {
+        KeychainStore.save(value ? "1" : "0", account: key)
+    }
+}
+
+/// 内存形态（演示模式与测试注入）：进程内字典，不
+/// 落任何持久介质
+final class MemoryIdentityValueStore: IdentityValueStore {
+    private var values: [String: String] = [:]
+
+    func string(forKey key: String) -> String? {
+        values[key]
+    }
+
+    func bool(forKey key: String) -> Bool {
+        values[key] == "1"
+    }
+
+    func set(_ value: String?, forKey key: String) {
+        values[key] = value
+    }
+
+    func set(_ value: Bool, forKey key: String) {
+        values[key] = value ? "1" : "0"
+    }
+}
+
+/// 主线认领记录（§330）：认领事件的落痕——认领到
+/// 哪条、消息数、最近活动、认领当刻的归档位、同标
+/// 题候选数。设置页「主线会话」呈现；归档位同时是
+/// 「打开时解档」的一次性凭据（解档落定即清位）。
+/// 非身份键，UserDefaults 存放
+struct MainlineClaimRecord: Codable, Equatable {
+    var sessionID: String
+    var messageCount: Int?
+    var lastActivityAt: TimeInterval?
+    var isArchived: Bool
+    var candidateCount: Int
+    var claimedAt: TimeInterval
+}
+
+/// 认领一轮的结局（§330）：调用方（链接链/设置页）
+/// 据此决定下一步——只有 .noCandidateOnServer 许走
+/// 冷启动铸造，.directoryUnavailable 必须停手待重试
+enum MainlineClaimOutcome: Equatable {
+    /// 本地身份缓存已有 id（或重新发现时现任仍在目
+    /// 录里）：不打扰服务端、不改指针
+    case alreadyKnown
+    /// 认领落定：id 已落存＋确认位已置＋记录已留痕
+    case claimed(
+        sessionID: String, candidateCount: Int, isArchived: Bool
+    )
+    /// 目录里确无同标题主线：服务端无主线已证
+    case noCandidateOnServer
+    /// 未登录或目录拉不到：身份未定，不许铸造
+    case directoryUnavailable
+}
+
 /// 会话账本（第 67 条收口包一，2026-11-15）：「我有
 /// 哪些会话」的单店——全 App 唯一拉取者＋合并名单
 /// 持有者。底层存储零迁移：SwiftData ChatThread（本
@@ -42,6 +135,10 @@ final class SessionLedger {
     /// 不污染真实档案；键名全部沿用 sideChats.* 原
     /// 键（持有者换人、键不变，升级/回滚零翻译）
     private let defaults: UserDefaults?
+    /// 身份键存储（§330）：生产＝Keychain、演示＝内
+    /// 存；身份键的权威读出只走本口，UserDefaults 旧
+    /// 键是双轨镜像（见 IdentityValueStore 注）
+    private let identityStore: IdentityValueStore
 
     private enum Key {
         static let mainThreadID = "sideChats.mainThreadID"
@@ -52,6 +149,8 @@ final class SessionLedger {
         static let mainServerSeeded = "sideChats.mainServerSeeded"
         static let mainLinkLastError =
             "sideChats.mainLinkLastError"
+        static let mainClaimRecord =
+            "sideChats.mainClaimRecord"
         static let archivedKeys = "sideChats.archivedKeys"
         static let failedArchiveSessionIDs =
             "sideChats.failedArchiveSessionIDs"
@@ -63,21 +162,51 @@ final class SessionLedger {
 
     init(persisted: Bool = true) {
         defaults = persisted ? .standard : nil
-        guard let defaults else { return }
-        if let raw = defaults.string(forKey: Key.mainThreadID) {
+        identityStore = persisted
+            ? KeychainIdentityValueStore()
+            : MemoryIdentityValueStore()
+        loadPersistedState()
+    }
+
+    /// 测试口（§330）：注入侧账口与身份存储——验身
+    /// 份键迁移（旧值搬运＋幂等）与认领落存，不碰真
+    /// 实 Keychain 与标准侧账
+    init(defaults: UserDefaults?, identityStore: IdentityValueStore) {
+        self.defaults = defaults
+        self.identityStore = identityStore
+        loadPersistedState()
+    }
+
+    /// 落盘状态读入（两口共用）：身份键先过一次性搬
+    /// 运、再以身份存储为权威读出；其余侧账仍读
+    /// UserDefaults 原键（持有迁入口径不变）
+    private func loadPersistedState() {
+        if let defaults {
+            Self.migrateIdentityKeys(
+                from: defaults, to: identityStore
+            )
+        }
+        if let raw = identityStore.string(
+            forKey: IdentityKey.mainThreadID
+        ) {
             mainThreadID = UUID(uuidString: raw)
         }
-        mainServerSessionID = defaults.string(
-            forKey: Key.mainServerSessionID
+        mainServerSessionID = identityStore.string(
+            forKey: IdentityKey.mainServerSessionID
         )
-        mainServerConfirmed = defaults.bool(
-            forKey: Key.mainServerConfirmed
+        mainServerConfirmed = identityStore.bool(
+            forKey: IdentityKey.mainServerConfirmed
         )
-        mainServerSeeded = defaults.bool(
-            forKey: Key.mainServerSeeded
+        mainServerSeeded = identityStore.bool(
+            forKey: IdentityKey.mainServerSeeded
         )
+        guard let defaults else { return }
         mainLinkLastError = defaults.string(
             forKey: Key.mainLinkLastError
+        )
+        mainClaimRecord = Self.decode(
+            MainlineClaimRecord.self, defaults,
+            Key.mainClaimRecord
         )
         archivedKeys = Set(
             defaults.stringArray(forKey: Key.archivedKeys) ?? []
@@ -109,6 +238,42 @@ final class SessionLedger {
     private func persist<T: Encodable>(_ value: T, _ key: String) {
         guard let defaults else { return }
         defaults.set(try? JSONEncoder().encode(value), forKey: key)
+    }
+
+    /// 身份键一次性搬运（§330）：旧 UserDefaults 值
+    /// 与身份存储不一致时以旧值覆写存储——新版写路
+    /// 径双轨同写、两处恒同步，不一致只可能来自「旧
+    /// 版 App 期间（降级往返）的写入」，那时旧值就是
+    /// 最后写入值（末写胜）；两处一致时本函数无动作
+    /// ——重复执行幂等。旧键不删：作一版双轨镜像保回
+    /// 滚（停写/清键归下一大版本，与归档列同口径）
+    private static func migrateIdentityKeys(
+        from defaults: UserDefaults, to store: IdentityValueStore
+    ) {
+        let stringPairs = [
+            (Key.mainThreadID, IdentityKey.mainThreadID),
+            (Key.mainServerSessionID,
+             IdentityKey.mainServerSessionID),
+        ]
+        for (legacyKey, identityKey) in stringPairs {
+            guard let legacy = defaults.string(forKey: legacyKey),
+                  store.string(forKey: identityKey) != legacy
+            else { continue }
+            store.set(legacy, forKey: identityKey)
+        }
+        let boolPairs = [
+            (Key.mainServerConfirmed,
+             IdentityKey.mainServerConfirmed),
+            (Key.mainServerSeeded, IdentityKey.mainServerSeeded),
+        ]
+        for (legacyKey, identityKey) in boolPairs {
+            guard defaults.object(forKey: legacyKey) != nil
+            else { continue }
+            let legacy = defaults.bool(forKey: legacyKey)
+            if store.bool(forKey: identityKey) != legacy {
+                store.set(legacy, forKey: identityKey)
+            }
+        }
     }
     /// 删除引擎（包二归属）：待删队列/墓碑/后台围
     /// 栏删/落定收口/失败恢复全在此一台，队列是待
@@ -155,14 +320,26 @@ final class SessionLedger {
     /// 不许再静默——原文落此、设置页「服务器与连接」
     /// 区如实展示，链接成功即清
     private(set) var mainLinkLastError: String?
+    /// 主线认领记录（§330）：最近一次认领落定的留痕
+    /// （认领到哪条/消息数/最近活动/归档位/候选数），
+    /// 设置页「主线会话」呈现；归档位同时是「打开时
+    /// 解档」的一次性凭据（解档落定即清位）
+    private(set) var mainClaimRecord: MainlineClaimRecord?
 
     func designateMainThread(_ id: UUID) {
         mainThreadID = id
+        identityStore.set(
+            id.uuidString, forKey: IdentityKey.mainThreadID
+        )
+        // 双轨镜像：旧键同拍回写（§330，停写归下一版）
         defaults?.set(id.uuidString, forKey: Key.mainThreadID)
     }
 
-    /// 主线的服务端会话 id：首次由 App 生成并持久化，
-    /// 之后以服务端回执为准（服务端若改派 id 以回执改存）
+    /// 主线的服务端会话 id：已有落存直接返回；缺失时
+    /// 本地生成并持久化——§330 起本函数降为冷启动最
+    /// 后手段：调用方必须先走 discoverAndClaimMain-
+    /// line 确认服务端无主线（或认领落存）才许到这
+    /// 里，生成值最终以服务端建会话回执为准改存
     func ensureMainServerSessionID() -> String {
         if let mainServerSessionID { return mainServerSessionID }
         let generated = "oneday-main-\(UUID().uuidString.lowercased())"
@@ -172,11 +349,17 @@ final class SessionLedger {
 
     func setMainServerSessionID(_ id: String) {
         mainServerSessionID = id
+        identityStore.set(
+            id, forKey: IdentityKey.mainServerSessionID
+        )
         defaults?.set(id, forKey: Key.mainServerSessionID)
     }
 
     func confirmMainServer() {
         mainServerConfirmed = true
+        identityStore.set(
+            true, forKey: IdentityKey.mainServerConfirmed
+        )
         defaults?.set(true, forKey: Key.mainServerConfirmed)
     }
 
@@ -186,6 +369,9 @@ final class SessionLedger {
     func markMainLinked() {
         confirmMainServer()
         mainServerSeeded = true
+        identityStore.set(
+            true, forKey: IdentityKey.mainServerSeeded
+        )
         defaults?.set(true, forKey: Key.mainServerSeeded)
         mainLinkLastError = nil
         defaults?.removeObject(forKey: Key.mainLinkLastError)
@@ -197,6 +383,194 @@ final class SessionLedger {
     func noteMainLinkError(_ message: String) {
         mainLinkLastError = message
         defaults?.set(message, forKey: Key.mainLinkLastError)
+    }
+
+    // MARK: - 发现与认领（根治版包 1，DESIGN §330）
+
+    /// 登录后发现与认领（第一动作）：本地身份缓存已
+    /// 有 id 时不打扰服务端（.alreadyKnown）；缺失时
+    /// 拉目录过纯函数判定——认领到则落存 id＋确认位
+    /// ＋认领记录；目录确无主线回 .noCandidateOn-
+    /// Server（调用方才许走冷启动铸造）；未登录/目
+    /// 录不可达回 .directoryUnavailable（调用方不许
+    /// 铸造、留未认领态待重试）。本函数永不铸造 id、
+    /// 永不写服务端
+    @discardableResult
+    func discoverAndClaimMainline(
+        appState: AppState
+    ) async -> MainlineClaimOutcome {
+        guard mainServerSessionID == nil else {
+            return .alreadyKnown
+        }
+        guard appState.config != nil else {
+            return .directoryUnavailable
+        }
+        guard let rows = await claimSessions(appState: appState)
+        else { return .directoryUnavailable }
+        return applyMainlineClaim(rows: rows)
+    }
+
+    /// 设置页手动重新发现（§330）：不短路现任 id——
+    /// 现任仍在目录里回 .alreadyKnown（无事）；不在
+    /// 目录里且有同标题候选则改认候选（指针接错/服
+    /// 务端换代的支持面恢复路，改认在认领记录与诊
+    /// 断痕里留名）；不在且无候选保留现任指针不清
+    /// 空（名单未必完整、清空是破坏动作），原因落
+    /// mainLinkLastError 呈现
+    @discardableResult
+    func rediscoverMainline(
+        appState: AppState
+    ) async -> MainlineClaimOutcome {
+        guard appState.config != nil,
+              let rows = await claimSessions(appState: appState)
+        else {
+            noteMainLinkError(
+                "重新发现没完成：会话目录拉取失败，请检查连接后重试"
+            )
+            return .directoryUnavailable
+        }
+        if let current = mainServerSessionID,
+           rows.contains(where: { $0.session.id == current }) {
+            return .alreadyKnown
+        }
+        let outcome = applyMainlineClaim(rows: rows)
+        if outcome == .noCandidateOnServer,
+           mainServerSessionID != nil {
+            noteMainLinkError(
+                "服务器目录里没找到当前主线，也没有同名会话可认领——已保留现有绑定"
+            )
+        }
+        return outcome
+    }
+
+    /// 认领候选行（与 adoptionSessions 同源、另带归
+    /// 档位与行本体）：账本两段齐全时按段定归档位
+    /// （可见段 false、归档段 true）；未齐全回落现拉
+    /// include 全量、归档位读行本体。只用于候选检
+    /// 索、不驱动删除，不需完整性闸（不完整至多漏
+    /// 候选、方向保守）；拉不到返回 nil
+    private func claimSessions(
+        appState: AppState
+    ) async -> [(session: ServerSession, isArchived: Bool)]? {
+        if hasLoadedFull {
+            var seen = Set<String>()
+            var rows: [(session: ServerSession, isArchived: Bool)] = []
+            for session in visibleSessions
+            where seen.insert(session.id).inserted {
+                rows.append((session, session.isArchived ?? false))
+            }
+            for session in archivedSessions
+            where seen.insert(session.id).inserted {
+                rows.append((session, true))
+            }
+            return rows
+        }
+        guard let sessions = try? await Self.fetchAll(
+            appState: appState, archived: "include"
+        ).sessions else { return nil }
+        return sessions.map { ($0, $0.isArchived ?? false) }
+    }
+
+    /// 认领判定与落存（两口共用）：候选投影交 Core
+    /// 纯函数（标题全等＋删除账排除＋既定序）；落存
+    /// 只写本地身份缓存与认领记录——不写服务端、不
+    /// 解档（归档位随记录留存，解档归打开动作）
+    private func applyMainlineClaim(
+        rows: [(session: ServerSession, isArchived: Bool)]
+    ) -> MainlineClaimOutcome {
+        let candidates = rows.map {
+            MainlineAdoptionCandidate(
+                id: $0.session.id, title: $0.session.serverTitle,
+                lastActivityAt: $0.session.endedAt
+                    ?? $0.session.startedAt,
+                isArchived: $0.isArchived
+            )
+        }
+        // 防复活：本地删除账（删除引擎待删队列——删
+        // 除未落定的会话服务端仍有其行）在册 id 先排
+        // 除，判定本体在 Core 纯函数内过滤
+        switch MainlineClaimDirective.directive(
+            title: SideChatStore.mainTitle,
+            candidates: candidates,
+            excludedIDs: deletions.queue.sessionIDs
+        ) {
+        case .noCandidate:
+            return .noCandidateOnServer
+        case .claim(let id, let isArchived):
+            return recordMainlineClaim(
+                sessionID: id, candidateCount: 1,
+                isArchived: isArchived, rows: rows
+            )
+        case .claimAmongMultiple(let id, let count, let isArchived):
+            return recordMainlineClaim(
+                sessionID: id, candidateCount: count,
+                isArchived: isArchived, rows: rows
+            )
+        }
+    }
+
+    /// 认领落存：id 落身份缓存＋确认位置真＋认领记
+    /// 录留痕（诊断痕＋设置页记录同源）；改认（原绑
+    /// 定非空且不同）时在诊断痕里点名原绑定
+    private func recordMainlineClaim(
+        sessionID: String, candidateCount: Int,
+        isArchived: Bool,
+        rows: [(session: ServerSession, isArchived: Bool)]
+    ) -> MainlineClaimOutcome {
+        let previous = mainServerSessionID
+        setMainServerSessionID(sessionID)
+        confirmMainServer()
+        let row = rows.first { $0.session.id == sessionID }?.session
+        let record = MainlineClaimRecord(
+            sessionID: sessionID,
+            messageCount: row?.messageCount,
+            lastActivityAt: row?.endedAt ?? row?.startedAt,
+            isArchived: isArchived,
+            candidateCount: candidateCount,
+            claimedAt: Date().timeIntervalSince1970
+        )
+        mainClaimRecord = record
+        persist(record, Key.mainClaimRecord)
+        var trace = "主线认领：服务端目录认领既有会话 \(sessionID)"
+            + "（消息 \(record.messageCount.map(String.init) ?? "未知") 条"
+            + "、同标题候选 \(candidateCount) 条"
+            + (isArchived ? "、归档态保持" : "")
+            + "）"
+        if let previous, previous != sessionID {
+            trace += "；原绑定 \(previous) 已改认"
+        }
+        ChatDiagTrace.record(trace)
+        return .claimed(
+            sessionID: sessionID,
+            candidateCount: candidateCount,
+            isArchived: isArchived
+        )
+    }
+
+    /// 认领归档态的一次性解档（§330 主线裁定）：认
+    /// 领时保持归档，用户打开主线（链接落定）时才
+    /// 解——只认认领记录的归档位，落定即清位，用户
+    /// 此后自行归档与本路无关；解档失败不清位、下
+    /// 次打开再试
+    func unarchiveClaimedMainlineIfNeeded(
+        appState: AppState
+    ) async {
+        guard let record = mainClaimRecord, record.isArchived,
+              record.sessionID == mainServerSessionID
+        else { return }
+        let outcome = await ServerSessionActions.setArchived(
+            appState: appState, id: record.sessionID,
+            archived: false
+        )
+        guard case .verified = outcome else { return }
+        var updated = record
+        updated.isArchived = false
+        mainClaimRecord = updated
+        persist(updated, Key.mainClaimRecord)
+        unarchive(serverSessionID: record.sessionID)
+        ChatDiagTrace.record(
+            "主线认领归档已随打开解档：\(record.sessionID)"
+        )
     }
 
     // MARK: - 归档列（第 90 条收尾：持有迁入＋双轨回写）

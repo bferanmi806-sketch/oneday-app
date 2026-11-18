@@ -8553,9 +8553,9 @@ private struct ComposerBarLayout: Layout {
     /// 主线钦定落位：解析走 Core MainThreadDesignation——
     /// 存量钦定且线程还在则沿用（并把服务端绑定对齐到
     /// 持久的钦定会话 id）；否则新建本地主线：标题恒
-    /// 「主线」、绑定本地生成并持久化的服务端会话 id、
-    /// 写入钦定。服务端承载的实际存在性由
-    /// ensureMainLink 异步链接，本函数纯本地
+    /// 「主线」、写入钦定。服务端绑定只对齐已知的钦
+    /// 定 id（§330：不在此铸造）。服务端承载的实际
+    /// 存在性由 ensureMainLink 异步链接，本函数纯本地
     @discardableResult
     private func ensureMainThread() -> UUID? {
         let store = appState.sessionLedger
@@ -8564,8 +8564,12 @@ private struct ComposerBarLayout: Layout {
         ) {
         case .existing(let id):
             if let main = threads.first(where: { $0.id == id }) {
-                let sessionID = store.ensureMainServerSessionID()
-                if main.serverSessionID != sessionID {
+                // §330：绑定只对齐已知的钦定 id——本地
+                // 无 id 时不在此铸造（认领是登录后第一
+                // 动作）；对齐与迁账在认领/链接落定后
+                // 由 ensureMainLink 同拍完成
+                if let sessionID = store.mainServerSessionID,
+                   main.serverSessionID != sessionID {
                     // §227：改绑前先迁账——旧绑定键下的
                     // 存量选择跟到钦定键下，不许留旧账发霉
                     appState.migrateSessionModelChoice(
@@ -8584,7 +8588,9 @@ private struct ComposerBarLayout: Layout {
         case .needsCreation:
             let thread = ChatThread()
             thread.title = SideChatStore.mainTitle
-            thread.serverSessionID = store.ensureMainServerSessionID()
+            // §330：绑定先取已知的钦定 id（可为 nil）；
+            // 认领/冷启动落定后由 ensureMainLink 回写
+            thread.serverSessionID = store.mainServerSessionID
             modelContext.insert(thread)
             try? modelContext.save()
             store.designateMainThread(thread.id)
@@ -8798,6 +8804,21 @@ private struct ComposerBarLayout: Layout {
             return true
         }
         guard appState.config != nil else { return false }
+        // §330 认领第一动作：本地无 id 时先向服务端发
+        // 现——认领到既有主线以认领 id 链接；目录确认
+        // 无主线才落下方铸造冷启动；目录不可达不许铸
+        // 造（铸了就是分叉），留痕返 false 待下次重试
+        if store.mainServerSessionID == nil {
+            let claimOutcome = await store.discoverAndClaimMainline(
+                appState: appState
+            )
+            if claimOutcome == .directoryUnavailable {
+                store.noteMainLinkError(
+                    "未能向服务器确认主线（目录拉取失败），已暂缓新建——请检查连接后重试"
+                )
+                return false
+            }
+        }
         let wantedID = store.ensureMainServerSessionID()
         let mainThread = store.mainThreadID.flatMap { id in
             threads.first { $0.id == id }
@@ -8828,6 +8849,11 @@ private struct ComposerBarLayout: Layout {
                 try? modelContext.save()
             }
             store.markMainLinked()
+            // §330：认领时保持的归档态在打开（链接落
+            // 定）时解档，一次性、落定即清位
+            await store.unarchiveClaimedMainlineIfNeeded(
+                appState: appState
+            )
             await reconcileMainlineModelFromServer(
                 linkedID: linkedID, mainThread: mainThread
             )
