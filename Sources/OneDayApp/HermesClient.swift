@@ -163,11 +163,13 @@ protocol HermesClientProtocol: Sendable {
     /// （Dashboard 面 cookie 通道）一次落会话行＋全
     /// 量历史消息——带会话头的发送历史以服务端为
     /// 准、重放灌不进历史，有历史线程的链接只能走
-    /// 导入落种。围栏：request_id 每发新铸、
-    /// expectedRevision 取锚点当前 runtime_revision
-    /// （新锚 0、已存在锚先 GET 读值），冲突 409 由
-    /// 调用方如实上抛。sessionBody 由 Core
-    /// SideChatLink.importSessionBody 组装
+    /// 导入落种。围栏：request_id §331 改稳定派生
+    /// （SideChatLink.seedRequestID：同一一种子重试
+    /// 恒同 id，收据重放＋导入前回读双层幂等；旧
+    /// 「每发新铸」作废）、expectedRevision 取锚点
+    /// 当前 runtime_revision（新锚 0、已存在锚先
+    /// GET 读值），冲突 409 由调用方如实上抛。
+    /// sessionBody 由 Core SideChatLink 组装
     func importServerSession(
         config: ServerConfig, requestID: String,
         expectedRevision: Int, sessionBody: [String: JSONValue]
@@ -180,9 +182,14 @@ protocol HermesClientProtocol: Sendable {
     /// GET /api/sessions/{id}/messages
     func sessionMessages(config: ServerConfig, id: String) async throws -> [SessionMessage]
     /// §237（P6）：GET /api/sessions/{id}/messages
-    /// ?limit=&offset=&order=desc——官方 OpenAPI 已
-    /// 冻结三参数；desc 页按消息 id 倒序返回，调用
-    /// 方逐页反转落盘，先最新首屏、再向前补全。
+    /// ?limit=&offset=&order=latest——§331 订正：
+    /// 服务端两面（网关 8642/面板 9119）的 order 只
+    /// 认 oldest/latest，旧注「OpenAPI 冻结三参数、
+    /// desc 倒序」是错误假设，desc 已被新版服务端
+    /// 以 400 invalid_pagination 拒（2026-11-18 重
+    /// 装三连之三实锤）。latest＝从最新一页取起、
+    /// 页内时序返回，调用方按消息 id 升序重排落
+    /// 盘，先最新首屏、再向前补全
     func sessionMessagesPage(
         config: ServerConfig, id: String, limit: Int, offset: Int
     ) async throws -> [SessionMessage]
@@ -1293,7 +1300,9 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
             query: [
                 URLQueryItem(name: "limit", value: String(limit)),
                 URLQueryItem(name: "offset", value: String(offset)),
-                URLQueryItem(name: "order", value: "desc"),
+                // §331：规范值 latest（服务端只认
+                // oldest/latest，desc 会吃 400）
+                URLQueryItem(name: "order", value: "latest"),
             ]
         )
         return response.messages

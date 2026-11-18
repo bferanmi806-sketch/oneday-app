@@ -36,17 +36,22 @@ public enum SideChatLinkPhase: Equatable, Sendable {
     case linked(sessionID: String)
 }
 
-/// 本轮发送计划（send 起手按绑定与种子位定形）：
-/// - linkAndSeed：尚未完成链接（无绑定／绑的是合
-///   并桶／自有会话但种子未落）——先执行链接（建
-///   会话或导入种子），成功后本轮转会话模式发出；
-///   失败整轮不发、无任何回退形态（0.27.0 串话热
-///   修：无头重放回退就此整类删除——它在服务端按
-///   对话开头派生合并落库，是主线/旁聊串话的入口，
-///   诊断档 main-sidechat-bleed-diagnosis-20261110
-///   判死）；
-/// - session：已链接且种子已落——会话模式（仅本
-///   轮新消息＋会话头，服务端持上下文）。
+/// 本轮发送计划（send 起手按绑定定形）：
+/// - linkAndSeed：尚无可用绑定（无绑定／绑的是合
+///   并桶）——先执行链接建立（建会话或导入种子），
+///   成功后本轮转会话模式发出；失败整轮不发、无
+///   任何回退形态（0.27.0 串话热修：无头重放回退
+///   就此整类删除——它在服务端按对话开头派生合并
+///   落库，是主线/旁聊串话的入口，诊断档 main-
+///   sidechat-bleed-diagnosis-20261110 判死）；
+/// - session：绑定已知——会话模式（仅本轮新消息
+///   ＋会话头，服务端持上下文）。
+/// §331（根治版包 2）改判：种子位退出发送计划——
+/// 自有会话种子未落不再先链接补种，id 已知即会话
+/// 模式直发，种子改由后台同步补齐（SessionSeed-
+/// Syncer）；0.27.0 的「confirmed && seeded」双位
+/// 硬门同批废除（2026-11-18 重装三连的爆炸半径正
+/// 是此门：链接侧任一故障＝全部发送功能灭）。
 public enum SideChatSendPlan: Equatable, Sendable {
     case linkAndSeed
     case session(sessionID: String)
@@ -176,26 +181,24 @@ public enum SideChatLink {
         return !sessionID.hasPrefix("oneday-main-")
     }
 
-    /// 发送计划（0.27.0 改判）：只看绑定与种子位，
-    /// 主线/旁聊同口径（主线的绑定与种子位由
-    /// SideChatStore 的钦定 id＋确认/种子位代入）：
-    /// - 无绑定或空绑定 → 先链接；
+    /// 发送计划（§331 再改判）：只看绑定，主线/旁
+    /// 聊同口径（主线代入钦定 id）：
+    /// - 无绑定或空绑定 → 先链接建立；
     /// - 绑合并桶 → 先链接（解绑重链，桶本体不动）；
-    /// - 自有会话但种子未落 → 先链接（补种子）；
-    /// - 其余（自有已种子／导入的服务端会话——出
-    ///   生即带服务端历史）→ 会话模式。
-    /// 失败留痕不改计划：下次发送照样先试链接，但
-    /// 链接失败整轮不发（无回退形态，见枚举注）。
+    /// - 其余（自有会话种子落没落、导入的服务端会
+    ///   话）→ 会话模式直发。
+    /// 种子位（serverSeeded）自本版退出签名：它曾是
+    /// 「自有会话未种子先补种」的闸，§331 起种子是
+    /// 后台同步义务、不是发送前置（见枚举注）。
+    /// 失败留痕不改计划：无绑定时下次发送照样先试
+    /// 链接建立，失败整轮不发（无回退形态）。
     public static func sendPlan(
-        serverSessionID: String?, serverSeeded: Bool
+        serverSessionID: String?
     ) -> SideChatSendPlan {
         guard let serverSessionID, !serverSessionID.isEmpty else {
             return .linkAndSeed
         }
         if isMergeBucket(serverSessionID) { return .linkAndSeed }
-        if isOwnSessionID(serverSessionID), !serverSeeded {
-            return .linkAndSeed
-        }
         return .session(sessionID: serverSessionID)
     }
 
@@ -239,9 +242,12 @@ public enum SideChatLink {
 //   面 cookie 通道）一次落会话行＋全量消息——带头
 //   发送的历史以 state.db 为准、body 只取尾条，
 //   重放灌不进历史，种子只能走导入。围栏：
-//   request_id 每发新铸、expected_revision 取锚点
-//   当前 runtime_revision（新锚为 0），冲突 409
-//   如实上抛、不许静默重试成无头发送。
+//   expected_revision 取锚点当前 runtime_revision
+//   （新锚为 0），冲突 409 如实上抛、不许静默重
+//   试成无头发送。request_id §331 改稳定派生（见
+//   seedRequestID）：同一种子重试恒同 id，靠围栏
+//   收据重放＋导入前回读双层幂等（旧「每发新铸」
+//   口径作废——新铸 id 让后台重试无从对账）。
 // 锁的落法与网关建会话同构：model 本体＋
 // model_config.browser_model_lock（import 的
 // model/model_config 均为服务端透传列，源码实证）。
@@ -360,6 +366,48 @@ extension SideChatLink {
             "expected_revision": .number(Double(expectedRevision)),
             "sessions": .array(sessions.map { .object($0) }),
         ]
+    }
+
+    /// 种子摘要（§331）：种子全集的确定性指纹——
+    /// FNV-1a 64 位手写实现（不许用 String.hashValue：
+    /// 它逐进程随机、同种子跨启动不同值，幂等键就
+    /// 废了）。序列化口径：逐条 role␟content␟时间
+    /// 戳（秒，缺省空）以 ␞ 分隔、条间 ␝ 分隔，全
+    /// 串 UTF-8 逐字节滚动
+    public static func seedDigest(
+        messages: [SeedEntry]
+    ) -> String {
+        var hash: UInt64 = 0xcbf29ce484222325
+        let prime: UInt64 = 0x100000001b3
+        func absorb(_ string: String) {
+            for byte in string.utf8 {
+                hash ^= UInt64(byte)
+                hash &*= prime
+            }
+        }
+        for entry in messages {
+            absorb(entry.role)
+            absorb("\u{1F}")
+            absorb(entry.content)
+            absorb("\u{1F}")
+            if let timestamp = entry.timestamp {
+                absorb(String(timestamp))
+            }
+            absorb("\u{1E}")
+        }
+        return String(hash, radix: 16)
+    }
+
+    /// 种子导入的稳定 request_id（§331）：按目标会
+    /// 话 id＋种子摘要派生——同一种子（同一线程的同
+    /// 一份待导入历史）无论重试多少次恒得同一 id，
+    /// 服务端围栏按 id 重放收据、不会二次落种；种
+    /// 子内容变了（本地又攒了新历史）摘要随之而变、
+    /// 得新 id，不与旧收据相撞
+    public static func seedRequestID(
+        sessionID: String, messages: [SeedEntry]
+    ) -> String {
+        "import-\(sessionID)-\(seedDigest(messages: messages))"
     }
 }
 

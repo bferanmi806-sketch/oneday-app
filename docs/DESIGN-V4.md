@@ -13874,3 +13874,25 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **判绿（2026-11-18）**：最终树 6755dcf（fb1b30f 落码＋6755dcf 续修），run 44278696909 §190 核账——Core 2168/2168 零失败（基线 2157＋本包新测 11）；红集恰 §328.1/§329.1 基线族 13 件在席（与 §329 判绿轮 fails 逐件相同：R2 装配 2＋EdgeEffect 1＋手势仲裁 4＋手势原生面 5＋键盘矩阵 1），签名外新红零；本包新测 21 件全绿（Core 认领判定 11＋App 旅程/迁移 10）；关键读数与 §329 判绿轮逐值一致（CHAIN passes=172 sections=43 content=11916.0、BTIER 440/0/0）。
 
 **首轮（run 44271194919，树 fb1b30f）新红 4 件、定因与续修（6755dcf）**：⑴认领旅程 3 红——测试候选标题写死「主线」字面，而判定标题取 SideChatStore.mainTitle 随 locale 本地化（CI 英文环境＝"Main conversation"），测试口径 bug、生产逻辑无误（§220 同源）；续修：测试标题改取 mainTitle 同源。⑵既有双轨测 SessionLedgerTailCloseTests.testLedgerReadsAndWritesLegacyKeys 转红——未签名测试宿主 Keychain 写不落盘（SecItem 静默失败），身份键纯存储读出令裸写旧键读不到；续修：读出口径定为「旧键在册优先、身份存储兜底」（§330 对账段已同步），该测转绿、迁移三态测全绿。两件均为环境/口径实证，无 flake 成分。**未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门：重装→登录→认领→设置页记录可见）。
+
+## §331 根治版包 2·发送解门与历史补齐（2026-11-18；分支 feat/cure-import-demotion，基线 feat/cure-identity-claim@914e1c6；待办 G-02＋第 117 条；规格 cure-version-spec-20261118 §3.2/§四包 2）
+
+**定案：发送只认「已登录＋会话 id 已知」，历史是后台义务、不是发送前置。** 0.27.0 的「confirmed && seeded」双位硬门废除——2026-11-18 重装三连的爆炸半径正是此门：链接侧任一故障（导入 503/409、拉取 400）连坐全部发送功能。与大厂形态同构（规格 §1.1）：打开即用、历史渐进补齐、补齐进度以服务端计数为真值安静呈现。本包对位全件：①发送闸单判据（SessionLedger.mainSendGate：id 已知即 ready，来源＝包 1 认领或冷启动铸造）；②拉取参数订正（order=desc→latest，第 117 条正解——服务端两面只认 oldest/latest，旧「OpenAPI 冻结 desc」注释为错误假设，协议声明/Planner/Demo 模拟三处同步订正）；③拉取降级链（分页失败→无参全量→空开＋未同步标记，整段「载入失败」呈现退役；§223 不存在清理只认 404 不降级）；④种子后台化＋稳定 request_id 幂等；⑤回补指纹对账（重拉不重复落）。
+
+**发送路改判**：Core SideChatLink.sendPlan 删 serverSeeded 入参——自有会话种子未落不再先链接补种，id 已知即 .session 直发；无绑定/合并桶仍 .linkAndSeed 走建立路（合并桶两条钦定 id 永不许动，口径不变）。ChatView.prepareSendShape：主线走账本发送闸（ready 直发、顺带推进后台同步；needsIdentity 才 ensureMainLink 建立）；旁聊 .session 分支顺带排种子/回补调度，均不等待、不受其成败影响。**冷线程的「会话存在性建立」不随种子一并后台化（收窄明示）**：建立步（GET 查存→建会话/收养，id 以服务端回执为准）仍在首发同步完成——依据 0.27.0 串话定案「会话模式发送要求服务端会话先存在」＋规格 §3.1 冷启动原文；被降级的只有种子导入与 seeded 位。performLink 返回 LinkOutcome（会话 id＋seedLanded＋serverHeldHistory 两旗），§220 收养保留、判定口径逐字不变、改走同一结局结构。**链接失败恢复改回读探针**：performLink 抛错后不按错误类型猜——回读服务端现状：锚点在（任一计数）即视为已链、种子转待导入；不存在则空建保住存在性；探针自身失败才按原错误整轮不发（会话本体都确认不了时发送无从谈起，仍旧实拦）。ensureMainLink 快路＝发送闸 ready 即返 true＋推进后台同步；认领后按认领记录条数与本地所持比对播种 historyUnsynced（服务端多于本地才记待回补）。
+
+**拉取路（服务端→本地）**：openServerSession 首屏分页（latest）→逐页补全骨架不变，失败语义全改：首屏分页失败降级无参全量（成功即整段落盘、判拉齐）；全量亦失败（非 404）则空线程先开——绑定/种子记账照常（seedSyncState=.serverHeld）、historyUnsynced 置位、排后台回补，返回 .importedNew，不挂错误横幅、不挂重试条；中途页失败停在已落盘处、同记未同步＋排回补，不再落 .failed。回补引擎 SessionHistoryBackfiller：一轮从头分页全拉、逐页经 SessionHistoryInserter（自 ChatView 收口的落盘单点）＋Core 指纹（角色＋服务端时刻＋正文＋附件集＋工具卡 id）去重落盘；拉齐判据＝分页已尽且处理量对齐回读 messageCount；失败保留部分、标记在位，调度层退避续两轮后停（等下个触发点）。触发点：打开导入收尾、ensureMainLink、发送前顺带、syncDrawerObjectFromCurrentThread 切入钩子；防重入按线程 id 登记在飞任务。ChatThread 加 historyUnsynced/historyServerCount/historyLoadedCount 三记账字段（默认值轻量迁移）。
+
+**种子路（本地→服务端）**：SessionSeedSyncer 按线程 seedSyncState（Core 枚举：notOwed/pending/importing/syncedTextOnly/serverHeld/localOnly/failed）推进，决策以回读为准：GET 404→import 落行（修订 0）；存在空行→import 补种（修订取回读 runtime_revision）；存在且条数恰等于种子转录条数→认自家种子已落（回执丢失形态）记 syncedTextOnly；条数不等且 >0→不冒进上行记 localOnly（本地保留、如实标记）；回读/import 失败记 failed＋linkLastError 留痕待重试。request_id 改 SideChatLink.seedRequestID 稳定派生（会话 id＋种子 FNV-1a 摘要；同种子重试恒同 id——围栏收据重放＋导入前回读双层幂等；种子内容变则摘要变、新 id 不撞旧收据）；ChatView.importSeed 同步改用（旧「每发新铸」口径作废）。种子落定恒记 syncedTextOnly——转录天生只留纯文本（seedTranscript 既有口径），与回补的全量历史严格区分、不冒充全量。
+
+**呈现（新面准入四问）**：无新页面/新入口——两处既有面内改判＋一行安静标记：⑴MainSessionView（既有设置页「主线会话」）：状态行与会话 ID 行改认 id 已知（与发送闸同口径），新增「历史同步」行读账本 MainSyncStatus 快照（ChatView 同步落点回写）——补齐中带进度（SessionHistorySync.progressText：本地条目数与服务端原始总数分开报、不拼同单位比例）/已同步/仅文本/仅本地/失败待重试；⑵ChatView 发送区上方 historySyncBar（与 importRetryBar 同栈同族）：当前线程未同步完带进度、种子同步中/失败/仅本地/仅文本（常驻小字、无按钮不弹窗——重试由后台调度自理）。四问：①入口＝既有设置页与聊天页原位、无新入口；②重复＝同步状态此前无呈现面（旧「载入失败」横幅是错误面、已退役），不与认领记录行重复（彼记认领事件、此记同步进度）；③令牌＝复用 Palette.inkSecondary/.footnote/OneDayMetrics 既有令牌与行组件，无直写数值新件；④AX 与深色＝纯文本行、无定高容器，深色走 Palette 语义色同面其他行。§七开放问题 6（仅文本标注位）本包自决：主线走设置页「历史同步」行、旁聊走会话头安静标记＋落定 notice，理由＝两面都是用户正看着该线程/主线状态的原位，不新开诊断页。
+
+**与包 1 的衔接红线守恒**：认领记录/归档位/防复活排除集口径零改动；§330 双轨身份存储（Keychain 为主＋UserDefaults 镜像）零改动（mainServerSeeded 位只降为记账、存储管道不动）；包 3/4 不夹带（库迁移地基、服务端别名退役均未碰；客户端自本包起只发 latest，别名退役观察期自本包出货起算归包 4）。
+
+**改动面**：Core——SideChatLink（sendPlan 改判＋seedDigest/seedRequestID）、新增 SessionHistorySync.swift（SeedSyncState＋HistoryFingerprint＋unseenItems＋progressText）、BasicsFixBatch Planner 注释订正；App——HermesClient（order=latest＋协议注释）、DemoHermesClient（latest 模拟语义）、ChatStore（ChatThread 三字段＋seedSyncStateRaw/计算属性）、新增 SessionHistoryBackfiller.swift（回补引擎＋Inserter 收口）、新增 SessionSeedSyncer.swift、SessionLedger（mainSendGate＋MainSyncStatus 快照）、ChatView（prepareSendShape/ensureMainLink/performLink 结局化/importSeed 稳定 id/openServerSession 降级链/调度群/historySyncBar/insertImportedEntries 委托）、MainSessionView（状态改判＋历史同步行）。服务端零改动、伴生零改动。
+
+**验收门（本包）**：自动化旅程——认领→发送闸 ready 且全程零拉取零导入；回补拉齐＋指纹去重＋重拉幂等；回补中途失败保留部分、修复后拉齐；种子四路回读决策＋稳定 id＋落定不重复＋失败待重试；Core 计划改判/摘要/指纹/文案钉测。CI 按 §190 全日志核账一轮全绿（Core 全过、红集恰基线族、签名外新红零、新测全绿）。真机旅程门留主线（规格 §四全版共同门）：重装→登录→认领→不等历史补齐即可发送→历史后台补齐至对齐，四段全过才算根治版交付；实验室绿不作真机宣称。
+
+### §331.1 CI 判读（回填）
+
+（待 CI 判读后回填。）

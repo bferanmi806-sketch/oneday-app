@@ -266,10 +266,14 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
     }
 }
 
-/// 服务端会话历史分页计划。Hermes 0.23 官方
-/// OpenAPI 已冻结 `/messages` 的 limit/offset/order
-/// 参数；客户端按 desc 取最新页，再把每页按消息 id
-/// 升序落盘，offset 只前进、不整表回拉。
+/// 服务端会话历史分页计划。`/messages` 分页口径
+/// §331 订正：服务端（网关 8642 与面板 9119 两面）
+/// 的 order 只认 oldest/latest——旧注释「OpenAPI
+/// 冻结、按 desc 取页」是错误假设，desc 会被新版
+/// 服务端以 400 invalid_pagination 拒（2026-11-18
+/// 重装三连之三）。客户端按 latest 取最新页（页内
+/// 时序），再把每页按消息 id 升序落盘，offset 只
+/// 前进、不整表回拉。
 public enum SessionHistoryPagePlanner {
     public static let pageSize = 100
 

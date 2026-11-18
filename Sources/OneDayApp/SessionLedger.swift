@@ -78,6 +78,29 @@ struct MainlineClaimRecord: Codable, Equatable {
     var claimedAt: TimeInterval
 }
 
+/// 主线发送闸（根治版包 2，DESIGN §331）：发送只
+/// 认「会话 id 已知」——id 在手即 ready（来源＝认
+/// 领落存或冷启动铸造，与种子落没落无关）；id 未
+/// 知才 needsIdentity（先走认领/建立）。0.27.0 的
+/// 「confirmed && seeded」双位硬门就此废除：种子
+/// 位降为纯记账（mainServerSeeded 仍在，只是不再
+/// 进发送判据）
+enum MainSendGate: Equatable {
+    case ready(sessionID: String)
+    case needsIdentity
+}
+
+/// 主线历史同步快照（§331）：主线线程的回补/种子
+/// 记账镜像——ChatView 在同步动作落点更新，设置
+/// 页「主线会话」据此安静呈现（已齐/补齐中/未同
+/// 步/仅文本），不另开 SwiftData 读面
+struct MainSyncStatus: Equatable {
+    var historyUnsynced: Bool
+    var historyLoaded: Int
+    var historyTotal: Int
+    var seedState: SeedSyncState
+}
+
 /// 认领一轮的结局（§330）：调用方（链接链/设置页）
 /// 据此决定下一步——只有 .noCandidateOnServer 许走
 /// 冷启动铸造，.directoryUnavailable 必须停手待重试
@@ -389,9 +412,37 @@ final class SessionLedger {
         defaults?.set(true, forKey: Key.mainServerConfirmed)
     }
 
+    /// 主线发送闸派生（§331）：id 已知即 ready——
+    /// 发送路径的单点判据，种子/回补状态一律不进
+    /// （它们是后台义务、不是发送前置）
+    func mainSendGate() -> MainSendGate {
+        guard let mainServerSessionID, !mainServerSessionID.isEmpty
+        else { return .needsIdentity }
+        return .ready(sessionID: mainServerSessionID)
+    }
+
+    /// 主线同步快照（§331，内存面不落盘：呈现素材，
+    /// 进程重启后由下一轮同步动作重建）
+    private(set) var mainSyncStatus: MainSyncStatus?
+
+    /// 同步动作落点回写快照（ChatView 的回补/种子
+    /// 调度收口调用；数值口径与主线线程三字段同源）
+    func updateMainSyncStatus(
+        historyUnsynced: Bool, historyLoaded: Int,
+        historyTotal: Int, seedState: SeedSyncState
+    ) {
+        mainSyncStatus = MainSyncStatus(
+            historyUnsynced: historyUnsynced,
+            historyLoaded: historyLoaded,
+            historyTotal: historyTotal,
+            seedState: seedState
+        )
+    }
+
     /// 主线链接落定（0.27.0）：会话存在＋种子已落
-    /// 一并确认、失败留痕清零——发送计划只认这组
-    /// 合（confirmed && seeded）进会话模式
+    /// 一并确认、失败留痕清零。§331 后种子位只剩
+    /// 记账意义（发送闸见 mainSendGate），本函数仍
+    /// 是「链接＋种子同轮落定」时的收口
     func markMainLinked() {
         confirmMainServer()
         mainServerSeeded = true

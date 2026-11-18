@@ -381,6 +381,50 @@ final class SessionUpdateRecorder: @unchecked Sendable {
     }
 }
 
+/// import 调用记录器（§331）：request_id/围栏修订/请求
+/// 体逐次落账——种子幂等测靠它数调用、验稳定 id
+final class SessionImportRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [(
+        requestID: String, expectedRevision: Int,
+        sessionBody: [String: JSONValue]
+    )] = []
+
+    var calls: [(
+        requestID: String, expectedRevision: Int,
+        sessionBody: [String: JSONValue]
+    )] {
+        lock.withLock { storage }
+    }
+
+    func record(
+        requestID: String, expectedRevision: Int,
+        sessionBody: [String: JSONValue]
+    ) {
+        lock.withLock {
+            storage.append(
+                (requestID: requestID,
+                 expectedRevision: expectedRevision,
+                 sessionBody: sessionBody)
+            )
+        }
+    }
+}
+
+/// 消息拉取计数器（§331）：分页/全量各计一次——
+/// 「认领后发送不等历史」测靠它断言零拉取
+final class SessionMessageFetchRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pageCalls = 0
+    private var fullCalls = 0
+
+    var pageCallCount: Int { lock.withLock { pageCalls } }
+    var fullCallCount: Int { lock.withLock { fullCalls } }
+
+    func recordPage() { lock.withLock { pageCalls += 1 } }
+    func recordFull() { lock.withLock { fullCalls += 1 } }
+}
+
 struct ScriptedSessionsClient: HermesClientProtocol {
     /// 页脚本（键＝"archived|offset"）：只 serverSessionsPage
     /// 查它，其余方法恒抛 unreachable（与 FailingHermesClient
@@ -396,6 +440,24 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     /// ServerSession 的每次调用落此，缺席时仍抛
     /// unreachable（旧测试口径不变）
     var updateRecorder: SessionUpdateRecorder?
+    /// 消息分页脚本（§331，键＝"会话 id|offset"）：
+    /// sessionMessagesPage 查它，缺席抛 unreachable
+    /// （充当分页失败脚本）；配 messageFetchRecorder
+    /// 计数（缺席时不计数、行为与旧口径一致）
+    var scriptedMessagePages: [String: [SessionMessage]] = [:]
+    /// 消息全量脚本（§331，键＝会话 id）：session-
+    /// Messages 查它，缺席仍抛 unreachable
+    var scriptedFullMessages: [String: [SessionMessage]] = [:]
+    /// 404 脚本（§331）：serverSession 对名单内 id
+    /// 抛 unexpectedStatus 404（服务端不存在的真形
+    /// 态），与缺席抛 unreachable（桩未配）相区分
+    var scriptedMissingSessions: Set<String> = []
+    /// import 记录器（§331）：在场时 importServer-
+    /// Session 记录并成功返回，缺席仍抛 unreachable
+    var importRecorder: SessionImportRecorder?
+    /// 消息拉取计数器（§331）：在场时分页/全量调用
+    /// 各计一次，缺席不计数
+    var messageFetchRecorder: SessionMessageFetchRecorder?
 
     func health(config: ServerConfig) async throws -> HealthResponse {
         throw HermesError.unreachable("离线桩")
@@ -568,6 +630,11 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     }
 
     func serverSession(config: ServerConfig, id: String) async throws -> ServerSession {
+        if scriptedMissingSessions.contains(id) {
+            throw HermesError.unexpectedStatus(
+                endpoint: "服务端会话", status: 404
+            )
+        }
         if let row = scriptedSessions[id] { return row }
         throw HermesError.unreachable("离线桩")
     }
@@ -584,7 +651,13 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         config: ServerConfig, requestID: String,
         expectedRevision: Int, sessionBody: [String: JSONValue]
     ) async throws {
-        throw HermesError.unreachable("离线桩")
+        guard let importRecorder else {
+            throw HermesError.unreachable("离线桩")
+        }
+        importRecorder.record(
+            requestID: requestID, expectedRevision: expectedRevision,
+            sessionBody: sessionBody
+        )
     }
 
     func updateServerSessionModel(config: ServerConfig, id: String, model: String) async throws {
@@ -592,13 +665,18 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     }
 
     func sessionMessages(config: ServerConfig, id: String) async throws -> [SessionMessage] {
-        throw HermesError.unreachable("离线桩")
+        messageFetchRecorder?.recordFull()
+        if let messages = scriptedFullMessages[id] { return messages }
+        throw HermesError.unreachable("脚本全量缺失：\(id)")
     }
 
     func sessionMessagesPage(
         config: ServerConfig, id: String, limit: Int, offset: Int
     ) async throws -> [SessionMessage] {
-        throw HermesError.unreachable("离线桩")
+        messageFetchRecorder?.recordPage()
+        let key = "\(id)|\(offset)"
+        if let messages = scriptedMessagePages[key] { return messages }
+        throw HermesError.unreachable("脚本消息页缺失：\(key)")
     }
 
     func searchSessions(

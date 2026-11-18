@@ -586,6 +586,13 @@ struct ChatView: View {
     /// 掉即清
     @State private var importRetryContext:
         (sessionID: String, channelID: String?)?
+    /// §331（根治版包 2）：历史回补/种子同步的在飞
+    /// 任务登记（按线程 id）——同线程同时只许一轮，
+    /// 调度入口先查登记再起任务，落定自动注销
+    @State private var historyBackfillTasks:
+        [UUID: Task<Void, Never>] = [:]
+    @State private var seedSyncTasks:
+        [UUID: Task<Void, Never>] = [:]
     /// （showSessionInfo 已于 0.20.0 第五条随会话名次
     /// 行一并拆除：聊天页不再有会话详情入口，管理页
     /// ServerSessionRow 承接）
@@ -2069,6 +2076,7 @@ struct ChatView: View {
                 importRetryBar(importRetryContext)
                     .transition(.opacity)
             }
+            historySyncBar
             if let errorMessage {
                 errorBanner(
                     errorMessage,
@@ -6926,6 +6934,55 @@ struct ChatView: View {
     /// 里（服务端原因已由 openServerSession 写进
     /// errorMessage），本行只承动作：重试（以原出处
     /// 重走 runImport）与关闭
+    /// 同步状态行（§331，会话头安静标记）：当前线
+    /// 程历史未同步完/种子有欠账时在发送区上方给
+    /// 一行小字——事实可见、不弹窗、不带按钮（重
+    /// 试由后台调度自理，用户无事可做就不许给动
+    /// 作）。文案口径：未同步完带进度（已载入 N/
+    /// 共 M 条，M 未知时只报 N）；种子仅文本落定
+    /// 与仅本地保留都是这条线程的长久事实、常驻呈
+    /// 现，不许把「仅文本」冒充全量同步
+    @ViewBuilder
+    private var historySyncBar: some View {
+        if let thread = currentThread,
+           let text = historySyncText(for: thread) {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .accessibilityHidden(true)
+                Text(text)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+                Spacer()
+            }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .transition(.opacity)
+        }
+    }
+
+    private func historySyncText(for thread: ChatThread) -> String? {
+        if thread.historyUnsynced {
+            return "历史未同步完 · "
+                + SessionHistorySync.progressText(
+                    loaded: thread.historyLoadedCount,
+                    serverTotal: thread.historyServerCount
+                )
+        }
+        switch thread.seedSyncState {
+        case .pending, .importing:
+            return "本地历史同步中…"
+        case .failed:
+            return "本地历史同步失败，稍后自动重试"
+        case .localOnly:
+            return "部分早期历史仅保存在本机"
+        case .syncedTextOnly:
+            return "本地历史已同步（仅文本）"
+        case .notOwed, .serverHeld:
+            return nil
+        }
+    }
+
     private func importRetryBar(
         _ context: (sessionID: String, channelID: String?)
     ) -> some View {
@@ -8616,6 +8673,19 @@ private struct ComposerBarLayout: Layout {
         }
     }
 
+    /// 链接一轮的结局（§331）：最终会话 id（建会话
+    /// 回执为准）＋种子记账两旗——seedLanded＝本轮
+    /// import 已落（种子义务结清、且落的是仅文本转
+    /// 录）；serverHeldHistory＝服务端先已持有历史
+    /// （③路/收养持有人有消息，种子义务消解）。两
+    /// 旗皆假且本地有种子＝种子转后台待导入。调用
+    /// 方据此落线程 seedSyncState，不许再靠猜
+    private struct LinkOutcome {
+        let sessionID: String
+        let seedLanded: Bool
+        let serverHeldHistory: Bool
+    }
+
     /// 链接一条线程到它的自有服务端会话（0.27.0，
     /// 主线/旁聊共用）：desiredID 为目标会话 id（主
     /// 线＝钦定 id、旁聊＝已存自有 id 或新铸）。流程
@@ -8625,8 +8695,7 @@ private struct ComposerBarLayout: Layout {
     /// ②存在但空行且本地有种子：import 补种（围栏
     ///   修订取 GET 回的 runtime_revision）；
     /// ③存在且已有消息：服务端已持历史，直接认链。
-    /// 任一步失败抛错（不许静默、不许回退无头发送）；
-    /// 返回最终会话 id（建会话回执为准）
+    /// 任一步失败抛错（不许静默、不许回退无头发送）
     /// adoptsOnTitleConflict（§220，主线专用）：建会话
     /// 撞 400 invalid_title 时按标题反查既有会话走收
     /// 养（判定走 Core MainlineAdoptionDirective）——
@@ -8635,7 +8704,7 @@ private struct ComposerBarLayout: Layout {
     private func performLink(
         desiredID: String, title: String?, model: String?,
         seedEntries: [SeedEntry], adoptsOnTitleConflict: Bool = false
-    ) async throws -> String {
+    ) async throws -> LinkOutcome {
         guard let apiKey = appState.apiKey else {
             throw HermesError.sessionExpired
         }
@@ -8653,14 +8722,22 @@ private struct ComposerBarLayout: Layout {
             }
         }
         if let existing {
-            if (existing.messageCount ?? 0) == 0, !seed.isEmpty {
+            let heldHistory = (existing.messageCount ?? 0) > 0
+            if !heldHistory, !seed.isEmpty {
                 try await importSeed(
                     id: desiredID, title: title, model: model,
                     seed: seed,
                     expectedRevision: existing.runtimeRevision ?? 0
                 )
+                return LinkOutcome(
+                    sessionID: desiredID, seedLanded: true,
+                    serverHeldHistory: false
+                )
             }
-            return desiredID
+            return LinkOutcome(
+                sessionID: desiredID, seedLanded: false,
+                serverHeldHistory: heldHistory
+            )
         }
         do {
             if seed.isEmpty {
@@ -8670,30 +8747,39 @@ private struct ComposerBarLayout: Layout {
                             config: requireConfig(), apiKey: apiKey,
                             id: desiredID, model: model
                         )
-                    return created.id
+                    return LinkOutcome(
+                        sessionID: created.id, seedLanded: false,
+                        serverHeldHistory: false
+                    )
                 }
                 let created = try await appState.client.createServerSession(
                     config: requireConfig(), apiKey: apiKey,
                     id: desiredID, title: title
                 )
-                return created.id
+                return LinkOutcome(
+                    sessionID: created.id, seedLanded: false,
+                    serverHeldHistory: false
+                )
             }
             try await importSeed(
                 id: desiredID, title: title, model: model,
                 seed: seed, expectedRevision: 0
             )
-            return desiredID
+            return LinkOutcome(
+                sessionID: desiredID, seedLanded: true,
+                serverHeldHistory: false
+            )
         } catch {
             // §220 收养兜底：仅主线流程、仅 400 invalid_
             // title 触发；判定不成立（口径外错误/零匹配/
             // 名单拉不到）一律把原错误照抛，不许收养掩
             // 盖真故障、更不许静默
             guard adoptsOnTitleConflict, let title,
-                  let adoptedID = try await adoptOnTitleConflict(
+                  let adopted = try await adoptOnTitleConflict(
                       failed: error, title: title, model: model, seed: seed
                   )
             else { throw error }
-            return adoptedID
+            return adopted
         }
     }
 
@@ -8708,7 +8794,7 @@ private struct ComposerBarLayout: Layout {
     private func adoptOnTitleConflict(
         failed error: Error, title: String, model: String?,
         seed: [SeedEntry]
-    ) async throws -> String? {
+    ) async throws -> LinkOutcome? {
         guard let hermesError = error as? HermesError,
               case .serverError(_, let status, let code) = hermesError
         else { return nil }
@@ -8744,21 +8830,36 @@ private struct ComposerBarLayout: Layout {
                 "主线收养：标题「\(title)」多条匹配 \(matchCount) 条，按 oneday-main- 前缀＋最近活动选定 \(id) 认链"
             )
         }
-        if let holder = sessions.first(where: { $0.id == adoptedID }),
-           (holder.messageCount ?? 0) == 0, !seed.isEmpty {
-            try await importSeed(
-                id: adoptedID, title: title, model: model,
-                seed: seed,
-                expectedRevision: holder.runtimeRevision ?? 0
+        if let holder = sessions.first(where: { $0.id == adoptedID }) {
+            let heldHistory = (holder.messageCount ?? 0) > 0
+            if !heldHistory, !seed.isEmpty {
+                try await importSeed(
+                    id: adoptedID, title: title, model: model,
+                    seed: seed,
+                    expectedRevision: holder.runtimeRevision ?? 0
+                )
+                return LinkOutcome(
+                    sessionID: adoptedID, seedLanded: true,
+                    serverHeldHistory: false
+                )
+            }
+            return LinkOutcome(
+                sessionID: adoptedID, seedLanded: false,
+                serverHeldHistory: heldHistory
             )
         }
-        return adoptedID
+        return LinkOutcome(
+            sessionID: adoptedID, seedLanded: false,
+            serverHeldHistory: false
+        )
     }
 
     /// import 种子一步（Dashboard cookie 通道）：
-    /// request_id 每发新铸；落定不看回执——perform-
-    /// Link 返回后由发送/回读链自然验证，此处 2xx
-    /// 之外全抛
+    /// request_id §331 改稳定派生（SideChatLink.
+    /// seedRequestID——同一份种子重试恒同 id，围栏
+    /// 收据重放防二次落种；旧「每发新铸」作废）；
+    /// 落定不看回执——performLink 返回后由发送/回
+    /// 读链自然验证，此处 2xx 之外全抛
     private func importSeed(
         id: String, title: String?, model: String?,
         seed: [SeedEntry], expectedRevision: Int
@@ -8769,7 +8870,10 @@ private struct ComposerBarLayout: Layout {
         )
         try await appState.performAdmin { client, config in
             try await client.importServerSession(
-                config: config, requestID: UUID().uuidString,
+                config: config,
+                requestID: SideChatLink.seedRequestID(
+                    sessionID: id, messages: seed
+                ),
                 expectedRevision: expectedRevision, sessionBody: body
             )
         }
@@ -8785,14 +8889,17 @@ private struct ComposerBarLayout: Layout {
         return config
     }
 
-    /// 主线链接（0.27.0，代旧 ensureMainServerSession）：
-    /// 已链（确认＋种子双位）直接返 true；否则以钦
-    /// 定 id＋主线本地条目走 performLink——成功置双
-    /// 位并回写主线线程绑定，失败**不许静默**：原因
-    /// 原文落 SideChatStore（设置页展示）、返 false，
-    /// 调用方（进页预热或发送前链接）据此决定呈现。
-    /// 旧口径「失败静默、发送走无状态重放不依赖本确
-    /// 认」就此作废——那正是串话的存续条件
+    /// 主线链接（0.27.0 立；§331 解门）：id 已知直
+    /// 接返 true（发送闸见 SessionLedger.mainSend-
+    /// Gate）；id 未知才走认领→performLink 建立——
+    /// 成功回写主线线程绑定与种子记账，链接本体失
+    /// 败先走回读探针恢复（锚点在即已链、种子转后
+    /// 台），探针也失败才**不许静默**地留痕返 false，
+    /// 调用方（进页预热或发送前建立）据此决定呈现。
+    /// 旧口径两条一并作废：「确认＋种子双位齐才算
+    /// 链」（§331 废除——种子不再是发送前置）与更
+    /// 早的「失败静默、发送走无状态重放」（串话的
+    /// 存续条件，0.27.0 已废）
     /// seedSnapshot：发送路径必传（本轮条目落盘前
     /// 的快照——现取会把本轮新消息也导进种子、与随
     /// 后的尾条发送在服务端落两份）；进页预热传 nil
@@ -8800,7 +8907,13 @@ private struct ComposerBarLayout: Layout {
     @discardableResult
     private func ensureMainLink(seedSnapshot: [SeedEntry]? = nil) async -> Bool {
         let store = appState.sessionLedger
-        if store.mainServerConfirmed, store.mainServerSeeded {
+        // §331 快路：id 已知（认领落存/此前铸造）即已
+        // 链——种子与历史回补都是后台义务、不再作进
+        // 页与发送的闸（旧「confirmed && seeded 双位
+        // 齐才算链」口径废除：2026-11-18 三连的爆炸
+        // 半径正是此门）。顺带推进后台同步即返
+        if case .ready = store.mainSendGate() {
+            scheduleMainBackgroundSync()
             return true
         }
         guard appState.config != nil else { return false }
@@ -8823,14 +8936,26 @@ private struct ComposerBarLayout: Layout {
         let mainThread = store.mainThreadID.flatMap { id in
             threads.first { $0.id == id }
         }
+        // §331：认领记录里的服务端条数多于本地所持
+        // → 历史待回补先记账（回补由后台调度推进，
+        // 不等它齐、不拦发送）
+        if let mainThread, let record = store.mainClaimRecord,
+           record.sessionID == wantedID,
+           (record.messageCount ?? 0) > mainThread.entries.count {
+            mainThread.historyUnsynced = true
+            mainThread.historyServerCount = record.messageCount ?? 0
+            mainThread.historyLoadedCount = mainThread.entries.count
+            try? modelContext.save()
+        }
+        let seed = seedSnapshot
+            ?? mainThread.map(Self.seedEntries(of:)) ?? []
         do {
-            let linkedID = try await performLink(
+            let outcome = try await performLink(
                 desiredID: wantedID, title: SideChatStore.mainTitle,
-                model: nil,
-                seedEntries: seedSnapshot
-                    ?? mainThread.map(Self.seedEntries(of:)) ?? [],
+                model: nil, seedEntries: seed,
                 adoptsOnTitleConflict: true
             )
+            let linkedID = outcome.sessionID
             if linkedID != wantedID {
                 // §227：改绑/收养落定先迁账（旧键存量选
                 // 择跟到新键），再改存钦定副本——副本与
@@ -8845,7 +8970,9 @@ private struct ComposerBarLayout: Layout {
                 if mainThread.serverSessionID != linkedID {
                     mainThread.serverSessionID = linkedID
                 }
-                mainThread.serverSeeded = true
+                applySeedOutcome(
+                    outcome, to: mainThread, seed: seed
+                )
                 try? modelContext.save()
             }
             store.markMainLinked()
@@ -8857,13 +8984,286 @@ private struct ComposerBarLayout: Layout {
             await reconcileMainlineModelFromServer(
                 linkedID: linkedID, mainThread: mainThread
             )
+            scheduleMainBackgroundSync()
             return true
         } catch {
+            // §331 恢复探针：链接失败多半死在种子导入
+            // 一步——回读服务端现状，锚点在（或可空
+            // 建）即视为已链、种子转后台待导入；探针
+            // 也失败才按原错误留痕返 false（会话本体
+            // 都确认不了时发送无从谈起，仍旧实拦）
+            if let recoveredID = await recoverLinkByProbe(
+                desiredID: wantedID,
+                title: SideChatStore.mainTitle, model: nil
+            ) {
+                if recoveredID != wantedID {
+                    appState.migrateSessionModelChoice(
+                        fromServerSessionID: wantedID,
+                        toServerSessionID: recoveredID
+                    )
+                    store.setMainServerSessionID(recoveredID)
+                }
+                if let mainThread {
+                    if mainThread.serverSessionID != recoveredID {
+                        mainThread.serverSessionID = recoveredID
+                    }
+                    mainThread.seedSyncState =
+                        SideChatLink.seedTranscript(from: seed).isEmpty
+                        ? .notOwed : .pending
+                    try? modelContext.save()
+                }
+                store.markMainLinked()
+                await store.unarchiveClaimedMainlineIfNeeded(
+                    appState: appState
+                )
+                scheduleMainBackgroundSync()
+                return true
+            }
             store.noteMainLinkError(
                 (error as? HermesError)?.userMessage ?? "主线会话链接失败"
             )
             return false
         }
+    }
+
+    /// 链接结局 → 线程种子记账（§331）：落了记仅文
+    /// 本已同步、服务端已持历史记义务消解、两者皆
+    /// 非且本地有种子记待导入（后台同步器接手）；旧
+    /// serverSeeded 位在义务结清时同步置真（记账面
+    /// 保留、发送判据已不读它）
+    private func applySeedOutcome(
+        _ outcome: LinkOutcome, to thread: ChatThread,
+        seed: [SeedEntry]
+    ) {
+        if outcome.seedLanded {
+            thread.serverSeeded = true
+            thread.seedSyncState = .syncedTextOnly
+        } else if outcome.serverHeldHistory {
+            thread.serverSeeded = true
+            thread.seedSyncState = .serverHeld
+        } else if !SideChatLink.seedTranscript(from: seed).isEmpty {
+            thread.seedSyncState = .pending
+        } else if thread.seedSyncState == .pending {
+            thread.seedSyncState = .notOwed
+        }
+    }
+
+    /// 链接失败后的回读恢复探针（§331）：按服务端
+    /// 现状定生死——会话已存在（任一计数）即锚点
+    /// 在、返回其 id；不存在则空建会话保住存在性
+    /// （种子留待后台）；探针自身失败（回读不到/
+    /// 建不出）回 nil，调用方按原错误收口
+    private func recoverLinkByProbe(
+        desiredID: String, title: String?, model: String?
+    ) async -> String? {
+        let existing: ServerSession?
+        do {
+            existing = try await appState.performAdmin { client, config in
+                try await client.serverSession(config: config, id: desiredID)
+            }
+        } catch let error as HermesError {
+            if case .unexpectedStatus(_, let status) = error,
+               status == 404 {
+                existing = nil
+            } else {
+                return nil
+            }
+        } catch {
+            return nil
+        }
+        if existing != nil { return desiredID }
+        guard let apiKey = appState.apiKey,
+              let config = appState.config else { return nil }
+        do {
+            if let model {
+                let created = try await appState.client
+                    .createLinkedServerSession(
+                        config: config, apiKey: apiKey,
+                        id: desiredID, model: model
+                    )
+                return created.id
+            }
+            let created = try await appState.client.createServerSession(
+                config: config, apiKey: apiKey,
+                id: desiredID, title: title
+            )
+            return created.id
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - 历史/种子后台同步调度（§331）
+
+    /// 旧账派生（§331）：自有 id 已绑、种子位未置、
+    /// 种子态仍是缺省 notOwed、本地有条目＝0.27.0
+    /// 时代没走完链接的线程（链接落定过的线程种子
+    /// 位恒真——旧发送路落定即置位，不入此路）：
+    /// 种子义务按实情补记 pending，落不落由同步器
+    /// 回读定夺，不许升级一次就静默丢账
+    private func deriveLegacySeedObligation(_ thread: ChatThread) {
+        guard thread.seedSyncState == .notOwed,
+              !thread.serverSeeded,
+              let id = thread.serverSessionID,
+              SideChatLink.isOwnSessionID(id),
+              !thread.entries.isEmpty
+        else { return }
+        thread.seedSyncState = .pending
+        try? modelContext.save()
+    }
+
+    /// 主线后台同步推进：主线线程的种子欠账与历史
+    /// 未同步各排一轮（防重入在各调度器内）；快照
+    /// 刷新给设置页呈现。触发点：ensureMainLink 快
+    /// 路/落定后、主线发送前——都是顺带推进、从不
+    /// 等待、从不拦路
+    private func scheduleMainBackgroundSync() {
+        let store = appState.sessionLedger
+        guard let mainThread = store.mainThreadID.flatMap({ id in
+            threads.first { $0.id == id }
+        }) else { return }
+        // 认领落定的主线：服务端已持历史——种子义
+        // 务按 serverHeld 结清（包 1 认领不碰种子记
+        // 账，本包在此收口）；其余旧账走通用派生
+        if mainThread.seedSyncState == .notOwed,
+           store.mainClaimRecord?.sessionID
+               == store.mainServerSessionID {
+            mainThread.serverSeeded = true
+            mainThread.seedSyncState = .serverHeld
+            try? modelContext.save()
+        } else {
+            deriveLegacySeedObligation(mainThread)
+        }
+        refreshMainSyncStatus(mainThread)
+        if mainThread.seedSyncState.needsSyncAttempt {
+            scheduleSeedSync(thread: mainThread, seedSnapshot: nil)
+        }
+        if mainThread.historyUnsynced {
+            scheduleHistoryBackfillIfNeeded(thread: mainThread)
+        }
+    }
+
+    /// 主线同步快照回写（呈现面单点：ChatView 的同
+    /// 步动作落点统一经此刷新账本快照，设置页只读）
+    private func refreshMainSyncStatus(_ thread: ChatThread) {
+        guard thread.id == appState.sessionLedger.mainThreadID
+        else { return }
+        appState.sessionLedger.updateMainSyncStatus(
+            historyUnsynced: thread.historyUnsynced,
+            historyLoaded: thread.historyLoadedCount,
+            historyTotal: thread.historyServerCount,
+            seedState: thread.seedSyncState
+        )
+    }
+
+    /// 历史回补调度：未同步且未在飞才起任务；一轮
+    /// 不齐按退避再续两轮，仍不齐就留在未同步态等
+    /// 下个触发点（打开线程/发送/进页），不许无限
+    /// 空转
+    private func scheduleHistoryBackfillIfNeeded(
+        thread: ChatThread
+    ) {
+        guard thread.historyUnsynced,
+              thread.serverSessionID != nil,
+              historyBackfillTasks[thread.id] == nil
+        else { return }
+        let threadID = thread.id
+        historyBackfillTasks[threadID] = Task {
+            defer { historyBackfillTasks[threadID] = nil }
+            let backfiller = SessionHistoryBackfiller(
+                appState: appState
+            )
+            var attempts = 0
+            while attempts < 3 {
+                let outcome = await backfiller.backfill(
+                    thread: thread, context: modelContext
+                )
+                refreshMainSyncStatus(thread)
+                if outcome == .complete { break }
+                attempts += 1
+                if attempts < 3 {
+                    let wait = RetryBackoff.delay(
+                        afterFailure: attempts,
+                        jitterUnit: Double.random(in: 0...1)
+                    )
+                    if wait > 0 {
+                        try? await Task.sleep(for: .seconds(wait))
+                    }
+                }
+            }
+        }
+    }
+
+    /// 种子同步调度：欠账且未在飞才起任务；失败按
+    /// 退避续两轮，仍失败留在 failed 态等下个触发
+    /// 点。落定（仅文本/仅本地）时若用户正看着这条
+    /// 线程，给一记安静提示——事实要可见，但不弹窗
+    /// 不拦路
+    private func scheduleSeedSync(
+        thread: ChatThread, seedSnapshot: [SeedEntry]?
+    ) {
+        guard thread.seedSyncState.needsSyncAttempt,
+              seedSyncTasks[thread.id] == nil
+        else { return }
+        let seed = seedSnapshot ?? Self.seedEntries(of: thread)
+        guard !SideChatLink.seedTranscript(from: seed).isEmpty
+        else {
+            thread.seedSyncState = .notOwed
+            try? modelContext.save()
+            refreshMainSyncStatus(thread)
+            return
+        }
+        let threadID = thread.id
+        let title = threadID == appState.sessionLedger.mainThreadID
+            ? SideChatStore.mainTitle : thread.title
+        seedSyncTasks[threadID] = Task {
+            defer { seedSyncTasks[threadID] = nil }
+            let syncer = SessionSeedSyncer(appState: appState)
+            var attempts = 0
+            while attempts < 3 {
+                let state = await syncer.syncSeed(
+                    thread: thread, seed: seed, title: title,
+                    model: thread.linkedModel,
+                    context: modelContext
+                )
+                refreshMainSyncStatus(thread)
+                if !state.needsSyncAttempt {
+                    if threadID == currentThreadID {
+                        if state == .syncedTextOnly {
+                            showNotice("本地历史已同步到服务器（仅文本）")
+                        } else if state == .localOnly {
+                            showNotice("这段对话的部分早期历史仅保存在本机")
+                        }
+                    }
+                    break
+                }
+                attempts += 1
+                if attempts < 3 {
+                    let wait = RetryBackoff.delay(
+                        afterFailure: attempts,
+                        jitterUnit: Double.random(in: 0...1)
+                    )
+                    if wait > 0 {
+                        try? await Task.sleep(for: .seconds(wait))
+                    }
+                }
+            }
+        }
+    }
+
+    /// 切入线程时的欠账推进（syncDrawerObject 钩子
+    /// 调用）：当前线程有未同步历史/待导入种子各排
+    /// 一轮——打开即补、不用等发送
+    private func scheduleSyncForCurrentThread() {
+        guard let thread = currentThread else { return }
+        deriveLegacySeedObligation(thread)
+        if thread.historyUnsynced {
+            scheduleHistoryBackfillIfNeeded(thread: thread)
+        }
+        if thread.seedSyncState.needsSyncAttempt {
+            scheduleSeedSync(thread: thread, seedSnapshot: nil)
+        }
+        refreshMainSyncStatus(thread)
     }
 
     /// 主线模型回读比对（§220 立项、§227 组版改只读）：
@@ -8921,6 +9321,9 @@ private struct ComposerBarLayout: Layout {
     /// 按先行清零，本函数随之派生 .side，不在此处
     /// 特殊处理
     private func syncDrawerObjectFromCurrentThread() {
+        // §331：切入线程顺带推进历史/种子欠账（打开
+        // 即补；调度器自带防重入，本钩子高频调用无害）
+        scheduleSyncForCurrentThread()
         if let origin = appState.router.channelViewingOrigin,
            currentThread?.serverSessionID == origin.sessionID {
             appState.router.currentDrawerObject = .channel(origin.channelID)
@@ -9022,19 +9425,11 @@ private struct ComposerBarLayout: Layout {
     private func insertImportedEntries(
         _ messages: [SessionMessage], into thread: ChatThread
     ) {
-        let items = SessionHistoryImport.richItems(from: messages)
-        for entry in items {
-            let chatEntry = ChatEntry(
-                role: entry.role, content: entry.content,
-                thread: thread, toolCard: entry.toolCard,
-                remoteImagePaths: entry.imagePaths,
-                remoteFilePaths: entry.fileRefs
-            )
-            if let date = entry.date {
-                chatEntry.createdAt = date
-            }
-            modelContext.insert(chatEntry)
-        }
+        // §331：组装单点收口 SessionHistoryInserter
+        // （导入首开与后台回补共用一份，见该文件）
+        SessionHistoryInserter.insert(
+            messages: messages, into: thread, context: modelContext
+        )
     }
 
     private func openServerSession(
@@ -9054,20 +9449,76 @@ private struct ComposerBarLayout: Layout {
             let session = try? await appState.performAdmin { client, config in
                 try await client.serverSession(config: config, id: id)
             }
-            // §237（基础正解批 P6）：导入改分页——官方
-            // OpenAPI 的 limit/offset/order 参数直连，
-            // desc 取最新一页（100 条）先落盘、先建线
-            // 程、先切换，首屏不等全量；其后逐页向前
-            // 补全（offset 只前进、按消息 id 去重），
-            // 不许再整表一次性载入（旧 sessionMessages
-            // 全量口径退役于此路）
+            // §237（基础正解批 P6）：导入改分页——
+            // limit/offset/order=latest 取最新一页
+            // （100 条）先落盘、先建线程、先切换，首
+            // 屏不等全量；其后逐页向前补全（offset 只
+            // 前进、按消息 id 去重），不许再整表一次
+            // 性载入（旧 sessionMessages 全量口径退役
+            // 于此路——§331 起它只作分页失败时的降级
+            // 二级，见下方首屏取数）
             let pageSize = SessionHistoryPagePlanner.pageSize
-            let firstPage = try await appState.performAdmin {
-                client, config in
-                try await client.sessionMessagesPage(
-                    config: config, id: id,
-                    limit: pageSize, offset: 0
-                )
+            // §331 首屏取数（降级链一级→二级）：分页
+            // 失败（非不存在）不许整段「载入失败」——
+            // 降级无参全量拉取；全量也失败则走空开
+            // （三级，见 catch 内分支前的 openEmpty 分
+            // 支）。不存在（404）不降级：直抛外层走
+            // §223 .missing 清理
+            let firstPage: [SessionMessage]
+            var historyComplete = false
+            do {
+                firstPage = try await appState.performAdmin {
+                    client, config in
+                    try await client.sessionMessagesPage(
+                        config: config, id: id,
+                        limit: pageSize, offset: 0
+                    )
+                }
+            } catch let pageError {
+                if let hermesError = pageError as? HermesError,
+                   hermesError.isSessionNotFound {
+                    throw pageError
+                }
+                do {
+                    firstPage = try await appState.performAdmin {
+                        client, config in
+                        try await client.sessionMessages(
+                            config: config, id: id
+                        )
+                    }
+                    historyComplete = true
+                } catch let fullError {
+                    if let hermesError = fullError as? HermesError,
+                       hermesError.isSessionNotFound {
+                        throw fullError
+                    }
+                    // 降级三级：会话本体在目录里存在
+                    // （用户亲手点开的）——空线程先开、
+                    // 先可读可发，历史记未同步、后台回
+                    // 补接手；整段失败呈现就此退役
+                    let thread = ChatThread(
+                        title: SessionHistoryImport.threadTitle(
+                            session: session, entries: []
+                        )
+                    )
+                    thread.serverSessionID = id
+                    thread.serverSeeded = true
+                    thread.seedSyncState = .serverHeld
+                    thread.historyUnsynced = true
+                    thread.historyServerCount =
+                        session?.messageCount ?? 0
+                    thread.historyLoadedCount = 0
+                    if let started = session?.startedDate {
+                        thread.createdAt = started
+                    }
+                    thread.updatedAt = session?.endedDate
+                        ?? session?.startedDate ?? Date()
+                    modelContext.insert(thread)
+                    try? modelContext.save()
+                    currentThreadID = thread.id
+                    scheduleHistoryBackfillIfNeeded(thread: thread)
+                    return .importedNew
+                }
             }
             let firstChronological =
                 SessionHistoryPagePlanner.chronological(firstPage)
@@ -9088,6 +9539,8 @@ private struct ComposerBarLayout: Layout {
             // 并桶的两条 id 例外：sendPlan 对桶恒判先
             // 链接解绑，见 SideChatLink）
             thread.serverSeeded = true
+            thread.seedSyncState = .serverHeld
+            thread.historyServerCount = session?.messageCount ?? 0
             if let started = session?.startedDate {
                 thread.createdAt = started
             }
@@ -9100,19 +9553,31 @@ private struct ComposerBarLayout: Layout {
             currentThreadID = thread.id
             // 后续页逐页补全：条目自带服务端时刻、
             // 呈现按时刻排序，后到的旧页落位不乱序；
-            // 中途失败保留已落盘部分（catch 的文案口
-            // 径照旧：首屏已在、缺的是更早的历史）
+            // §331：中途失败不再整段报错——已落盘部
+            // 分保留、线程记未同步、后台回补续拉（缺
+            // 的只是更早的历史，会话照常可读可发）
             var seenIDs = Set(firstPage.map(\.id))
-            var nextOffset = SessionHistoryPagePlanner.nextOffset(
-                currentOffset: 0, receivedCount: firstPage.count
-            )
+            var nextOffset = historyComplete
+                ? nil
+                : SessionHistoryPagePlanner.nextOffset(
+                    currentOffset: 0, receivedCount: firstPage.count
+                )
             while let offset = nextOffset {
-                let page = try await appState.performAdmin {
-                    client, config in
-                    try await client.sessionMessagesPage(
-                        config: config, id: id,
-                        limit: pageSize, offset: offset
-                    )
+                let page: [SessionMessage]
+                do {
+                    page = try await appState.performAdmin {
+                        client, config in
+                        try await client.sessionMessagesPage(
+                            config: config, id: id,
+                            limit: pageSize, offset: offset
+                        )
+                    }
+                } catch {
+                    thread.historyUnsynced = true
+                    thread.historyLoadedCount = thread.entries.count
+                    try? modelContext.save()
+                    scheduleHistoryBackfillIfNeeded(thread: thread)
+                    return .importedNew
                 }
                 let fresh = SessionHistoryPagePlanner.unseen(
                     page, seenIDs: seenIDs
@@ -9130,6 +9595,18 @@ private struct ComposerBarLayout: Layout {
                     currentOffset: offset, receivedCount: page.count
                 )
             }
+            // 拉齐记账：处理量对齐已知总数（或总数未
+            // 知而分页已尽）才清未同步位；未对齐保持
+            // 位置并排后台回补
+            thread.historyLoadedCount = thread.entries.count
+            if thread.historyServerCount == 0
+                || seenIDs.count >= thread.historyServerCount {
+                thread.historyUnsynced = false
+            } else {
+                thread.historyUnsynced = true
+                scheduleHistoryBackfillIfNeeded(thread: thread)
+            }
+            try? modelContext.save()
             return .importedNew
         } catch {
             // §223：会话已不在服务器上（他处已删、本
@@ -10080,17 +10557,22 @@ private struct ComposerBarLayout: Layout {
     ) async throws -> (messages: [ChatMessage], sessionID: String?) {
         let store = appState.sessionLedger
         let isMain = thread.id == store.mainThreadID
+        // §331 改判：计划只看绑定 id（主线代入钦定
+        // id）——种子位退出判据：自有会话种子未落也
+        // 直发、种子转后台义务（欠账在本分支顺带排
+        // 调度，不拦本轮）；id 未知才走建立路
         let plan = isMain
             ? SideChatLink.sendPlan(
-                serverSessionID: store.mainServerSessionID,
-                serverSeeded: store.mainServerSeeded
+                serverSessionID: store.mainServerSessionID
             )
             : SideChatLink.sendPlan(
-                serverSessionID: thread.serverSessionID,
-                serverSeeded: thread.serverSeeded
+                serverSessionID: thread.serverSessionID
             )
         switch plan {
         case .session(let sessionID):
+            if isMain {
+                scheduleMainBackgroundSync()
+            }
             if !isMain, SideChatLink.needsModelRelock(
                 linkedModel: thread.linkedModel,
                 capsuleModel: appState.chatModel(
@@ -10121,6 +10603,20 @@ private struct ComposerBarLayout: Layout {
                     try? modelContext.save()
                 }
             }
+            if !isMain {
+                // §331：种子/回补欠账顺带排后台（防重
+                // 入在调度器；本轮发送不等待、不受其
+                // 成败影响）；旧账先派生再判欠账
+                deriveLegacySeedObligation(thread)
+                if thread.seedSyncState.needsSyncAttempt {
+                    scheduleSeedSync(
+                        thread: thread, seedSnapshot: seedEntries
+                    )
+                }
+                if thread.historyUnsynced {
+                    scheduleHistoryBackfillIfNeeded(thread: thread)
+                }
+            }
             return (
                 SideChatLink.payload(
                     plan: plan, fullContext: fullContext
@@ -10141,32 +10637,58 @@ private struct ComposerBarLayout: Layout {
                     }
                     linkedID = store.ensureMainServerSessionID()
                 } else {
-                    // 目标 id：已存自有 id 沿用（补种子
-                    // 路径），其余（无绑定/绑合并桶/绑
-                    // 他方会话待解绑）一律新铸——合并桶
-                    // 绑定在此被自有 id 覆盖、桶本体零
-                    // 动作
+                    // 目标 id：已存自有 id 沿用，其余（无
+                    // 绑定/绑合并桶/绑他方会话待解绑）一
+                    // 律新铸——合并桶绑定在此被自有 id
+                    // 覆盖、桶本体零动作
                     let desiredID = thread.serverSessionID
                         .flatMap {
                             SideChatLink.isOwnSessionID($0)
                                 ? $0 : nil
                         } ?? SideChatLink.newSessionID()
-                    linkedID = try await performLink(
-                        desiredID: desiredID, title: nil,
-                        model: appState.chatModel(
-                            serverSessionID: desiredID,
-                            threadID: thread.id
-                        ),
-                        seedEntries: seedEntries
+                    let linkModel = appState.chatModel(
+                        serverSessionID: desiredID,
+                        threadID: thread.id
                     )
+                    do {
+                        let outcome = try await performLink(
+                            desiredID: desiredID, title: nil,
+                            model: linkModel,
+                            seedEntries: seedEntries
+                        )
+                        linkedID = outcome.sessionID
+                        applySeedOutcome(
+                            outcome, to: thread, seed: seedEntries
+                        )
+                    } catch let linkError {
+                        // §331 探针恢复：链接多半死在种
+                        // 子导入一步——回读确认锚点在
+                        // （或空建保住存在性）即按已链
+                        // 发送，种子转待导入由后台补；
+                        // 探针也失败才按原错误整轮不发
+                        guard let recoveredID =
+                            await recoverLinkByProbe(
+                                desiredID: desiredID, title: nil,
+                                model: linkModel
+                            )
+                        else { throw linkError }
+                        linkedID = recoveredID
+                        thread.seedSyncState = SideChatLink
+                            .seedTranscript(from: seedEntries).isEmpty
+                            ? .notOwed : .pending
+                    }
                     thread.serverSessionID = linkedID
                     thread.linkedModel = appState.chatModel(
                         serverSessionID: linkedID, threadID: thread.id
                     )
-                    thread.serverSeeded = true
                     thread.linkFailureCount = 0
                     thread.linkLastError = nil
                     try? modelContext.save()
+                    if thread.seedSyncState.needsSyncAttempt {
+                        scheduleSeedSync(
+                            thread: thread, seedSnapshot: seedEntries
+                        )
+                    }
                 }
                 return (
                     SideChatLink.payload(
