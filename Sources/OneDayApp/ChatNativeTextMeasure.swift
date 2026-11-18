@@ -20,10 +20,17 @@ enum ChatNativeTextMeasure {
         emptyLineHeight: CGFloat
     ) -> CGFloat {
         if Thread.isMainThread {
-            return SelectableTextRepresentable
-                .referenceHeight(
-                    attributed: attributed, width: width
-                )
+            // 量测视图口是 @MainActor 隔离的；本
+            // 支以 Thread.isMainThread 钉死主线
+            // 程、assumeIsolated 桥接隔离（前提
+            // 由线程检查构造保证）
+            return MainActor.assumeIsolated {
+                SelectableTextRepresentable
+                    .referenceHeight(
+                        attributed: attributed,
+                        width: width
+                    )
+            }
         }
         guard attributed.length > 0 else {
             return emptyLineHeight
@@ -41,13 +48,15 @@ enum ChatNativeTextMeasure {
         attributed: NSAttributedString
     ) -> CGFloat {
         if Thread.isMainThread {
-            return SelectableTextRepresentable
-                .measuredSize(
-                    attributed: attributed,
-                    proposal: ProposedViewSize(
-                        width: nil, height: nil
-                    )
-                ).width
+            return MainActor.assumeIsolated {
+                SelectableTextRepresentable
+                    .measuredSize(
+                        attributed: attributed,
+                        proposal: ProposedViewSize(
+                            width: nil, height: nil
+                        )
+                    ).width
+            }
         }
         guard attributed.length > 0 else { return 0 }
         return LayoutMeasurePool.shared
