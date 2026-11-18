@@ -101,13 +101,14 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
                 role: "tool", content: "",
                 thread: nil,
                 toolCard: ToolCard(
-                    id: "parity-tool-1", title: "运行命令",
+                    id: "parity-tool-1",
                     toolName: "terminal",
-                    status: "completed",
+                    category: .terminal,
+                    title: "运行命令",
                     summary: "ls ~/workspace",
-                    arguments: "{\"command\": \"ls\"}",
                     result: "Documents\nDownloads",
-                    durationSeconds: 0.4
+                    resultFailed: false,
+                    arguments: "{\"command\": \"ls\"}"
                 )
             ),
             ChatEntry(
@@ -214,10 +215,14 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
         let ledger = ChatRowStateLedger()
         let composer = makeComposer(ledger: ledger)
         let card = ToolCard(
-            id: "parity-group-1", title: "运行命令",
-            toolName: "terminal", status: "completed",
-            summary: "ls", arguments: "{}",
-            result: "ok", durationSeconds: 0.2
+            id: "parity-group-1",
+            toolName: "terminal",
+            category: .terminal,
+            title: "运行命令",
+            summary: "ls",
+            result: "ok",
+            resultFailed: false,
+            arguments: "{}"
         )
         let groupKey = "tg-parity"
         ledger.setExpansion(true, for: groupKey)

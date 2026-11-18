@@ -27,65 +27,68 @@ import XCTest
 final class ChatNativeHotfix330Tests: XCTestCase {
     private var window: UIWindow?
     private var controller: ChatRootViewController?
-    private var callbacks = ChatNativeListCallbacks()
+    private var handle: ChatNativeListHandle?
 
     override func tearDown() {
         window?.isHidden = true
         window = nil
         controller = nil
+        handle = nil
         super.tearDown()
     }
 
+    /// 装配与 ChatNativeListR3AssemblyTests 同式
+    /// （窗口＋根 VC＋handle＋carrier 回调＋
+    /// addChild 挂载）——控制器回调口只有
+    /// ChatListCarrierCallbacks 一处，不另设
     private func assemble() {
         let win = UIWindow(
             frame: CGRect(x: 0, y: 0, width: 402, height: 874)
         )
-        let root = ChatRootViewController()
-        root.onScrollFrame = { [weak self] in
-            self?.callbacks.scrollFrames.append($0)
-        }
-        root.onUserScrollIntent = { [weak self] in
-            self?.callbacks.userScrollIntents += 1
-        }
-        root.onScrollSettled = { [weak self] in
-            self?.callbacks.scrollSettleds += 1
-        }
-        root.onBottomOvershoot =
-            { [weak self] velocity in
-                self?.callbacks.bottomOvershoots
-                    .append(velocity)
-            }
+        let root = UIViewController()
         win.rootViewController = root
         win.makeKeyAndVisible()
+        let listHandle = ChatNativeListHandle()
+        let list = ChatRootViewController()
+        list.handle = listHandle
+        list.callbacks = ChatListCarrierCallbacks(
+            onScrollGeometry: {},
+            onTopVisibleEntry: { _ in },
+            onBlankTap: {}
+        )
+        listHandle.controller = list
+        root.addChild(list)
+        list.view.frame = root.view.bounds
+        root.view.addSubview(list.view)
+        list.didMove(toParent: root)
+        root.view.layoutIfNeeded()
         window = win
-        controller = root
+        controller = list
+        handle = listHandle
     }
 
     private func apply(_ rows: [ChatNativeRow]) {
-        let composer = UIView(
-            frame: CGRect(x: 0, y: 0, width: 402, height: 54)
-        )
-        composer.backgroundColor = .systemGray5
-        let arrow = UIView(
-            frame: CGRect(x: 0, y: 0, width: 36, height: 36)
-        )
-        arrow.isHidden = true
         controller?.apply(
             rows: rows,
             layout: ChatCarrierLayout(
-                horizontalPadding: ChatLayoutTokens.pageGutter,
-                topPadding: ChatLayoutTokens.spacingM,
+                horizontalPadding: OneDayMetrics.pageGutter,
+                topPadding: OneDayMetrics.spacingM,
                 bottomPadding: 8,
-                rowSpacing: ChatLayoutTokens.spacingL,
-                arrowTrailing: 12,
-                arrowGapAboveComposer: 10,
-                arrowSize: 36
+                rowSpacing: OneDayMetrics.spacingL,
+                arrowTrailing: OneDayMetrics.spacingM,
+                arrowGapAboveComposer: 8,
+                arrowSize: OneDayMetrics.minTapTarget
             ),
             topInset: 122,
             bottomMargin: 0,
-            composerView: composer,
-            arrowView: arrow
+            composerView: AnyView(
+                Rectangle()
+                    .fill(Color.gray)
+                    .frame(height: 54)
+            ),
+            arrowView: AnyView(Color.clear)
         )
+        window?.layoutIfNeeded()
     }
 
     private func drain(_ seconds: TimeInterval) {
@@ -96,6 +99,7 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             deadline: .now() + seconds
         ) { exp.fulfill() }
         wait(for: [exp], timeout: seconds + 10)
+        window?.layoutIfNeeded()
     }
 
     private func hostingCell(
@@ -118,8 +122,11 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         height: CGFloat = 60
     ) -> ChatNativeRow {
         ChatNativeRow(
-            key: key, height: height,
-            revision: .parts([.text(text)]),
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(
+                parts: [.text(text)]
+            ),
+            height: height,
             makeView: {
                 AnyView(
                     Text(text)
@@ -321,8 +328,11 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             onSelect: {}, onShare: {}
         )
         let row = ChatNativeRow(
-            key: "m", height: 72,
-            revision: .parts([.text("m")]),
+            key: "m", entryID: nil,
+            revision: ChatNativeRowRevision(
+                parts: [.text("m")]
+            ),
+            height: 72,
             makeView: {
                 AnyView(
                     MenuProbeTextHost()
@@ -407,12 +417,13 @@ final class ChatNativeHotfix330Tests: XCTestCase {
 
     private func memoToolCardSample() -> ToolCard {
         ToolCard(
-            id: "memo-tool-1", title: "运行命令",
-            toolName: "terminal", status: "completed",
+            id: "memo-tool-1", toolName: "terminal",
+            category: .terminal,
+            title: "运行命令",
             summary: "ls ~/workspace",
-            arguments: "{\"command\": \"ls\"}",
             result: "Documents\nDownloads",
-            durationSeconds: 0.4
+            resultFailed: false,
+            arguments: "{\"command\": \"ls\"}"
         )
     }
 
