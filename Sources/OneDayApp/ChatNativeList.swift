@@ -31,16 +31,30 @@ import UIKit
 /// 渲染输入全量值比较（Equatable），条目行由条
 /// 目模型全字段快照单点派生（见 revision 节）。
 ///
+/// §329（布局环结构修，2026-11-18；定因 crash-
+/// 05068-diagnosis-20261118）：.67/.68 真机同签
+/// 名复崩证实 §325 ②「行高归框架自适应」不成立
+/// ——环由 compositional post-pass 自我失效驱
+/// 动、与 App 侧闸门无关。本节改：行高由量测
+/// 栈同步合成（ChatNativeRowHeight）回喂、布
+/// 局改 section-per-row＋.absolute 消费（框架
+/// 不再估算→修正）；apply 入 §325.2 滚动闸
+/// （滚动期整笔记账、停滚落定拍消费）。§325
+/// ①③与 §325.2 守卫、selfSizingInvalidation
+/// 档位、§321 均不动，详见 DESIGN §329。
+///
 /// 几何纪律（施工图 §四硬约束）：
 /// - H1 间距单源：相邻消息纵向间距只由 section
 ///   的 interGroupSpacing 一处声明（spacingL 24）；
 ///   cell 内容不带任何泡外纵 padding，时间分隔仍
 ///   长在条目 cell 内（ChatView 行内容自带）。
 /// - H2/H10 行高单权威、无帧表：本类没有任何帧
-///   表、任何量实回填——物化行高由集合视图自适
-///   应持有收敛（§325 起 .estimated 只留固定常
-///   量、产物层估算退出关键路径），contentSize
-///   只由集合视图自己持有；托管拟合高永不回写。
+///   表、任何量实回填——行高由 ChatView 的合成
+///   器（§329）同步算定、随行描述喂入，布局以
+///   .absolute 逐 section 消费（section-per-
+///   row）；contentSize 只由集合视图自己持有；
+///   托管拟合高永不回写（拟合与布局脱钩是布局
+///   环的构造拆除，定因见 §329）。
 /// - H3 短内容底锚定：内容高＜有效视口时，按系
 ///   统实测 contentSize 派生一笔顶 inset（单点记
 ///   账、随实测重算），末行底→舱顶与长内容同值。
@@ -194,24 +208,34 @@ struct ChatNativeRowRevision: Equatable {
 /// 原生面行：身份键（diffable 条目身份，与 gen3
 /// 行键同名同源）＋条目 id（锚/顶可见用，非条目
 /// 行为 nil）＋修订值（渲染输入全量值、变→
-/// reconfigure 原位更新，§325）＋视图构建闭包
+/// reconfigure 原位更新，§325）＋行高（§329 量
+/// 测回喂固定高：由 ChatView 的高度合成器同步
+/// 算定、布局以 .absolute 消费——框架不再估
+/// 算→修正，见 DESIGN §329）＋视图构建闭包
 /// （只在（重）配置 cell 时调用）。§325 起全体
-/// 行只有托管 cell 一种形态——本描述不再携带形
-/// 态判别与行高估算
+/// 行只有托管 cell 一种形态——本描述不再携带
+/// 形态判别
 struct ChatNativeRow {
     let key: String
     let entryID: UUID?
     let revision: ChatNativeRowRevision
+    /// §329 回喂高（pt）：合成器未给的构造点（测
+    /// 试手搓行等）回落固定常量——单值、永不随
+    /// 行集聚合（兜底口径见 §329）
+    let height: CGFloat
     let makeView: () -> AnyView
 
     init(
         key: String, entryID: UUID?,
         revision: ChatNativeRowRevision = ChatNativeRowRevision(),
+        height: CGFloat = ChatNativeRowHeightComposer
+            .fallbackHeight,
         makeView: @escaping () -> AnyView
     ) {
         self.key = key
         self.entryID = entryID
         self.revision = revision
+        self.height = height
         self.makeView = makeView
     }
 }
@@ -225,9 +249,14 @@ private final class ChatNativeLayoutBox {
     var rowSpacing: CGFloat = 24
     /// §325：未物化区滚动几何的固定占位高——只此
     /// 一个常量、不再由行估算聚合派生（产物层估
-    /// 算管线退役）；物化行高与本值无关、由框架
-    /// 自适应持有
+    /// 算管线退役）。§329 后只余布局提供者越界
+    /// （section 序超出当前行集）的防御回落
     static let estimatedPlaceholder: CGFloat = 120
+    /// §329：当前行集的回喂高（序＝行序）：布局
+    /// 提供者按 section 序直读本表给 .absolute
+    /// 高；apply 落写、提供者只读，两处不许各算
+    /// 一份
+    var rowHeights: [CGFloat] = []
     /// §325.2 布局 pass 计数口（section 提供者被调
     /// 用次数）：收敛压测的 pass 数读数——稳态下强
     /// 制布局/重复 apply 不得再触发 section 重建；
@@ -397,6 +426,19 @@ final class ChatRootViewController: UIViewController,
     /// §325.2：滚动期被冻结的落定拍记账（滚动结束
     /// 回调合并落写时消费）
     private var settleDeferredDuringScroll = false
+    /// §329：滚动期到达的整笔 apply 喂入（滚动闸
+    /// 记账槽，与 §325.2 冻结同族——停滚后由落定
+    /// 拍先行消费、再走原有落写链；后到覆盖先到，
+    /// 与 representable 只认最新喂入同义）
+    private struct PendingApply {
+        var rows: [ChatNativeRow]
+        var layout: ChatCarrierLayout
+        var topInset: CGFloat
+        var bottomMargin: CGFloat
+        var composerView: AnyView?
+        var arrowView: AnyView?
+    }
+    private var pendingApply: PendingApply?
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
     /// 判达标＋几何跨拍稳定后消（§302.3）、或用
     /// 户拖动接管即消
@@ -428,10 +470,10 @@ final class ChatRootViewController: UIViewController,
         let box = ChatNativeLayoutBox()
         layoutBox = box
         let layout = UICollectionViewCompositionalLayout {
-            _, _ in
+            sectionIndex, _ in
             box.noteSectionProviderCall()
             return ChatRootViewController.makeSection(
-                box: box
+                box: box, sectionIndex: sectionIndex
             )
         }
         collectionView = UICollectionView(
@@ -447,10 +489,10 @@ final class ChatRootViewController: UIViewController,
         let box = ChatNativeLayoutBox()
         layoutBox = box
         let layout = UICollectionViewCompositionalLayout {
-            _, _ in
+            sectionIndex, _ in
             box.noteSectionProviderCall()
             return ChatRootViewController.makeSection(
-                box: box
+                box: box, sectionIndex: sectionIndex
             )
         }
         collectionView = UICollectionView(
@@ -485,28 +527,33 @@ final class ChatRootViewController: UIViewController,
         makeDataSource()
     }
 
-    /// compositional 单列 section：item 宽全幅、
-    /// 高 .estimated（固定常量占位，§325）；间距只此
-    /// 一处声明（interGroupSpacing＝spacingL，H1）；
-    /// section 内边距与 gen3 帧表记账逐值同源（顶
-    /// spacingM／左右 pageGutter／底 spacingS）
+    /// compositional 单列 section（§329 改 section-
+    /// per-row）：一行一 section、item/group 高＝
+    /// .absolute(该行回喂高)——框架不估算、不修
+    /// 正，post-pass 偏移修正按构造不存在。间距
+    /// 仍单源（H1）：行距改由 section 底 inset 承
+    /// 担（非末行＝rowSpacing、末行＝bottomPad-
+    /// ding、首行顶＝topPadding），总几何与旧
+    /// interGroupSpacing 口径逐值等价；左右 inset
+    /// 恒 horizontalPadding。提供者越界（序≥行集
+    /// 长）回落固定占位常量（防御、正常路径不达）
     private static func makeSection(
-        box: ChatNativeLayoutBox
+        box: ChatNativeLayoutBox, sectionIndex: Int
     ) -> NSCollectionLayoutSection {
+        let rowCount = box.rowHeights.count
+        let height = sectionIndex < rowCount
+            ? box.rowHeights[sectionIndex]
+            : ChatNativeLayoutBox.estimatedPlaceholder
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
-            heightDimension: .estimated(
-                ChatNativeLayoutBox.estimatedPlaceholder
-            )
+            heightDimension: .absolute(max(0, height))
         )
         let item = NSCollectionLayoutItem(
             layoutSize: itemSize
         )
         let groupSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
-            heightDimension: .estimated(
-                ChatNativeLayoutBox.estimatedPlaceholder
-            )
+            heightDimension: .absolute(max(0, height))
         )
         let group = NSCollectionLayoutGroup.horizontal(
             layoutSize: groupSize, subitems: [item]
@@ -514,11 +561,11 @@ final class ChatRootViewController: UIViewController,
         let section = NSCollectionLayoutSection(
             group: group
         )
-        section.interGroupSpacing = box.rowSpacing
         section.contentInsets = NSDirectionalEdgeInsets(
-            top: box.topPadding,
+            top: sectionIndex == 0 ? box.topPadding : 0,
             leading: box.horizontalPadding,
-            bottom: box.bottomPadding,
+            bottom: sectionIndex >= rowCount - 1
+                ? box.bottomPadding : box.rowSpacing,
             trailing: box.horizontalPadding
         )
         return section
@@ -890,6 +937,13 @@ final class ChatRootViewController: UIViewController,
         layoutBox.sectionProviderCallCount
     }
 
+    /// §329 测试读口：当前行集的回喂高（布局匣
+    /// rowHeights 的只读镜像）——生产链压测对账
+    /// 「采用高 vs 帧高」用，生产无消费
+    var testAdoptedRowHeights: [CGFloat] {
+        layoutBox.rowHeights
+    }
+
     /// §325.2 测试口：selfSizingInvalidation 档位
     /// 对照压测用（生产默认 .enabled，见装配处注）
     var testSelfSizingInvalidation:
@@ -1075,6 +1129,41 @@ final class ChatRootViewController: UIViewController,
         composerView: AnyView?,
         arrowView: AnyView?
     ) {
+        // §329 滚动闸：滚动期（tracking/deceler-
+        // ating）到达的喂入整笔只记账、不施工——
+        // 与 §325.2 落定拍冻结共用同一记账（settle-
+        // DeferredDuringScroll），停滚后由 flush-
+        // DeferredSettle→落定拍先消费本槽再落写。
+        // 削 apply 在滚动中开启布局 pass 的触发面；
+        // 非滚动期行为逐字不变（走 applyNow）
+        if collectionView.isTracking
+            || collectionView.isDecelerating {
+            pendingApply = PendingApply(
+                rows: newRows, layout: layout,
+                topInset: topInset,
+                bottomMargin: newMargin,
+                composerView: composerView,
+                arrowView: arrowView
+            )
+            settleDeferredDuringScroll = true
+            return
+        }
+        applyNow(
+            rows: newRows, layout: layout,
+            topInset: topInset, bottomMargin: newMargin,
+            composerView: composerView,
+            arrowView: arrowView
+        )
+    }
+
+    private func applyNow(
+        rows newRows: [ChatNativeRow],
+        layout: ChatCarrierLayout,
+        topInset: CGFloat,
+        bottomMargin newMargin: CGFloat,
+        composerView: AnyView?,
+        arrowView: AnyView?
+    ) {
         // 布局参数同步进匣：间距/内边距任一变即失
         // 效布局（compositional 声明式重算，不手
         // 算帧——H10）。§325 起 .estimated 占位是
@@ -1127,11 +1216,29 @@ final class ChatRootViewController: UIViewController,
         let wasEmpty = rows.isEmpty
         rows = newRows
         rowsByKey = newByKey
+        // §329：回喂高落写布局匣——须先于快照 apply
+        // （apply 触发的布局 pass 即读新高）；高变
+        // 而键/修订未变时（如展开态翻转、异步 facet
+        // 到达），布局失效走既有记账、落定拍唯一
+        // 施工口合并落写（§325.2 条目 1 同路）
+        let newHeights = newRows.map(\.height)
+        let heightsChanged =
+            layoutBox.rowHeights != newHeights
+        if heightsChanged {
+            layoutBox.rowHeights = newHeights
+            pendingLayoutInvalidation = true
+        }
         if keysChanged {
             var snapshot =
                 NSDiffableDataSourceSnapshot<Int, String>()
-            snapshot.appendSections([0])
-            snapshot.appendItems(newKeys, toSection: 0)
+            snapshot.appendSections(
+                Array(newKeys.indices)
+            )
+            for (index, key) in newKeys.enumerated() {
+                snapshot.appendItems(
+                    [key], toSection: index
+                )
+            }
             if !reconfigureKeys.isEmpty {
                 snapshot.reconfigureItems(reconfigureKeys)
             }
@@ -1175,7 +1282,8 @@ final class ChatRootViewController: UIViewController,
         }
         applyComposer(view: composerView)
         if keysChanged || !reconfigureKeys.isEmpty
-            || insetChanged || paramsChanged {
+            || insetChanged || paramsChanged
+            || heightsChanged {
             scheduleSettle()
         }
         applyArrow(view: arrowView)
@@ -1217,6 +1325,21 @@ final class ChatRootViewController: UIViewController,
             settleDeferredDuringScroll = true
             report()
             return
+        }
+        if let pending = pendingApply {
+            // §329：滚动闸记账的消费口——停滚后第
+            // 一拍先落写整笔喂入（其引发的布局失效
+            // 记账由紧随的既有合并口同拍消费），再
+            // 走本拍余下链（量测/inset/落位）
+            pendingApply = nil
+            applyNow(
+                rows: pending.rows,
+                layout: pending.layout,
+                topInset: pending.topInset,
+                bottomMargin: pending.bottomMargin,
+                composerView: pending.composerView,
+                arrowView: pending.arrowView
+            )
         }
         if pendingLayoutInvalidation {
             // §325.2：布局失效的唯一施工口——落定拍
@@ -1400,7 +1523,7 @@ final class ChatRootViewController: UIViewController,
            let attrs = collectionView
                .layoutAttributesForItem(
                    at: IndexPath(
-                       item: rows.count - 1, section: 0
+                       item: 0, section: rows.count - 1
                    )
                ) {
             let visibleTop = collectionView
@@ -1427,13 +1550,13 @@ final class ChatRootViewController: UIViewController,
             + collectionView.contentInset.top
         var topEntry: UUID?
         let visibleItems = collectionView
-            .indexPathsForVisibleItems.map(\.item).sorted()
+            .indexPathsForVisibleItems.map(\.section).sorted()
         for index in visibleItems {
             guard index < rows.count,
                   let entryID = rows[index].entryID,
                   let attrs = collectionView
                     .layoutAttributesForItem(
-                        at: IndexPath(item: index, section: 0)
+                        at: IndexPath(item: 0, section: index)
                     ),
                   attrs.frame.maxY > visibleTop
             else { continue }
@@ -1534,7 +1657,7 @@ final class ChatRootViewController: UIViewController,
         collectionView.layoutIfNeeded()
         guard let attrs = collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: index, section: 0)
+                at: IndexPath(item: 0, section: index)
             )
         else { return }
         let target = min(
@@ -1560,7 +1683,7 @@ final class ChatRootViewController: UIViewController,
         for (index, row) in rows.enumerated() {
             guard let attrs = collectionView
                 .layoutAttributesForItem(
-                    at: IndexPath(item: index, section: 0)
+                    at: IndexPath(item: 0, section: index)
                 )
             else { continue }
             guard attrs.frame.maxY > visibleTop
@@ -1651,7 +1774,7 @@ final class ChatRootViewController: UIViewController,
         rows.enumerated().map { index, row in
             let frame = collectionView
                 .layoutAttributesForItem(
-                    at: IndexPath(item: index, section: 0)
+                    at: IndexPath(item: 0, section: index)
                 )?.frame ?? .zero
             return ChatListAnchor.RowFrame(
                 id: frameID(for: row),

@@ -34,6 +34,16 @@ final class DeliveryStore {
         metaResults[id]
     }
 
+    /// 同步 peek（§329 行高合成用）：某档快照字节
+    /// 是否已在进程缓存——只读不取数、不触发网络；
+    /// 合成器据此判交付文件卡的封面形态（字节在
+    /// 缓存＝视图 .task 同步命中、封面必达）
+    func hasCachedImage(
+        id: String, variant: DeliveryImageVariant
+    ) -> Bool {
+        imageBytes["\(id)/\(variant.rawValue)"] != nil
+    }
+
     func loadMeta(
         id: String, client: OneDayBridgeClient, appState: AppState
     ) async {

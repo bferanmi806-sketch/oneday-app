@@ -256,6 +256,11 @@ struct ChatView: View {
     /// 喂回同一判定、不循环、不自成机制（见 eva-
     /// luateSettleFallback）
     @State private var settleMachine = BottomSettleMachine()
+    /// §329 行状态账本：行内展开态（推理块/工具
+    /// 卡/组）与审批详情四态的跨视图单源——托管
+    /// cell 重建不丢、行高合成器同步可读（.abso-
+    /// lute 回喂的前提，见 ChatRowStateLedger）
+    @State private var rowStateLedger = ChatRowStateLedger()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
     /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
@@ -2748,6 +2753,22 @@ struct ChatView: View {
     /// 体逐值入账），不再复用 gen3 的版本与估算
     private func nativeRows() -> [ChatNativeRow] {
         var rows: [ChatNativeRow] = []
+        // §329：行高合成器（每趟行构建现建——环境
+        // 口径[字阶/粗体/屏宽]与本趟同值；账本为
+        // 本视图 @State、跨趟同实例）
+        let composer = ChatNativeRowHeightComposer(
+            screenWidth: UIScreen.main.bounds.width,
+            horizontalPadding: OneDayMetrics.pageGutter,
+            sizeCategory: dynamicTypeSize
+                .contentSizeCategory,
+            boldText: environment.legibilityWeight == .bold,
+            displayScale: UIScreen.main.scale,
+            ledger: rowStateLedger,
+            hubStore: appState.sharedHubStore(),
+            agentDisplayName: appState.agentDisplayName,
+            emptyStateAvatarSize: avatarTier
+                .emptyStatePointSize
+        )
         if let thread = currentThread {
             let plan = renderPlan(for: thread)
             for item in plan.items {
@@ -2756,7 +2777,8 @@ struct ChatView: View {
                     rows.append(
                         nativeEntryRow(
                             entry,
-                            dividerText: plan.dividers[entry.id]
+                            dividerText: plan.dividers[entry.id],
+                            composer: composer
                         )
                     )
                 case .toolGroup(let groupEntries):
@@ -2772,14 +2794,23 @@ struct ChatView: View {
                                 styleKey: nativeRowStyleKey
                             ).parts)
                     }
+                    let groupKey =
+                        "toolgroup-\(groupEntries[0].id.uuidString)"
                     rows.append(
                         ChatNativeRow(
-                            key: "toolgroup-\(groupEntries[0].id.uuidString)",
+                            key: groupKey,
                             entryID: groupEntries[0].id,
                             revision: groupRevision,
-                            makeView: {
+                            height: composer.toolGroupHeight(
+                                cards: cards, groupKey: groupKey
+                            ),
+                            makeView: { [rowStateLedger] in
                                 AnyView(
-                                    ToolCardGroupView(cards: cards)
+                                    ToolCardGroupView(
+                                        cards: cards,
+                                        expansionKey: groupKey,
+                                        ledger: rowStateLedger
+                                    )
                                 )
                             }
                         )
@@ -2793,7 +2824,9 @@ struct ChatView: View {
         // 与 gen3 逐项行同源同序；打开段单 cell 同
         // 步渲染、块闭合构造互斥，见 nativeLiveRow）
         for item in liveRenderItems() {
-            rows.append(nativeLiveRow(item))
+            rows.append(
+                nativeLiveRow(item, composer: composer)
+            )
         }
         if let overviewStore {
             for item in ReportCardPolicy.cards(
@@ -2809,6 +2842,7 @@ struct ChatView: View {
                         key: "report-\(item.id)",
                         entryID: nil,
                         revision: reportRevision,
+                        height: composer.reportCardHeight(item),
                         makeView: {
                             AnyView(
                                 reportCard(
@@ -2830,12 +2864,14 @@ struct ChatView: View {
                 key: "approval-zone",
                 entryID: nil,
                 revision: approvalRevision,
-                makeView: {
+                height: composer.approvalZoneHeight(),
+                makeView: { [rowStateLedger] in
                     AnyView(
                         ChatApprovalZone(
                             store: appState.sharedHubStore(),
                             anchoredRecordIDs: appState
-                                .sharedHubStore().anchoredRecordIDs
+                                .sharedHubStore().anchoredRecordIDs,
+                            ledger: rowStateLedger
                         )
                     )
                 }
@@ -2850,6 +2886,7 @@ struct ChatView: View {
                 ChatNativeRow(
                     key: "empty-hero",
                     entryID: nil,
+                    height: composer.emptyHeroHeight(),
                     makeView: { AnyView(emptyStateHero) }
                 )
             )
@@ -2857,6 +2894,7 @@ struct ChatView: View {
                 ChatNativeRow(
                     key: "empty-suggestions",
                     entryID: nil,
+                    height: composer.emptySuggestionsHeight(),
                     makeView: { AnyView(emptyStateSuggestions) }
                 )
             )
@@ -2865,6 +2903,7 @@ struct ChatView: View {
                     ChatNativeRow(
                         key: "empty-modelsetup",
                         entryID: nil,
+                        height: composer.modelSetupCardHeight(),
                         makeView: {
                             AnyView(
                                 modelSetupCard.padding(
@@ -2889,7 +2928,8 @@ struct ChatView: View {
     /// 选区/样式键）同列入账——不再有手折版本哈
     /// 希与产物层行高估算
     private func nativeEntryRow(
-        _ entry: ChatEntry, dividerText: String?
+        _ entry: ChatEntry, dividerText: String?,
+        composer: ChatNativeRowHeightComposer
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
         let key = settledKey ?? "entry-\(entry.id.uuidString)"
@@ -2902,6 +2942,9 @@ struct ChatView: View {
                 highlighted: entry.id == anchorHighlightEntryID,
                 selectionActive: activeSelectionEntryID == entry.id,
                 styleKey: nativeRowStyleKey
+            ),
+            height: composer.entryHeight(
+                entry, dividerText: dividerText
             ),
             makeView: {
                 AnyView(
@@ -2948,7 +2991,8 @@ struct ChatView: View {
     /// 生（段文本全文/工具卡编码本体逐值入账），
     /// 行高估算（块产物组合口径）退出本面
     private func nativeLiveRow(
-        _ item: LiveRenderItem
+        _ item: LiveRenderItem,
+        composer: ChatNativeRowHeightComposer
     ) -> ChatNativeRow {
         switch item {
         case .reasoning:
@@ -2963,6 +3007,11 @@ struct ChatView: View {
                 key: row.key,
                 entryID: row.entryID,
                 revision: revision,
+                height: composer.liveReasoningHeight(
+                    text: streamingReasoning ?? "",
+                    contentStarted: !((streamingText ?? "")
+                        .isEmpty && liveToolCards.isEmpty)
+                ),
                 makeView: row.makeView
             )
         case .tool(let card):
@@ -2971,6 +3020,15 @@ struct ChatView: View {
                 key: row.key,
                 entryID: row.entryID,
                 revision: Self.toolCardRevision(card),
+                height: composer.toolCardHeight(
+                    card: card, width: composer.contentWidth,
+                    expanded: rowStateLedger
+                        .expansionOverride(
+                            for: ChatRowStateKeys
+                                .toolLive(card.id)
+                        ) ?? false,
+                    plain: false
+                ),
                 makeView: row.makeView
             )
         case .toolGroup(let cards):
@@ -2984,6 +3042,11 @@ struct ChatView: View {
                 key: row.key,
                 entryID: row.entryID,
                 revision: revision,
+                height: composer.toolGroupHeight(
+                    cards: cards,
+                    groupKey: ChatRowStateKeys
+                        .liveToolGroup(item.id)
+                ),
                 makeView: row.makeView
             )
         case .text:
@@ -2998,6 +3061,10 @@ struct ChatView: View {
                 key: currentStreamRowKey(),
                 entryID: nil,
                 revision: revision,
+                height: composer.liveTextHeight(
+                    text: text,
+                    isUploading: isUploadingFiles
+                ),
                 makeView: {
                     AnyView(
                         self.nativeStreamingContent(text)
@@ -3011,6 +3078,9 @@ struct ChatView: View {
                 key: "\(currentStreamRowKey())#seg\(index)",
                 entryID: nil,
                 revision: revision,
+                height: composer.liveTextHeight(
+                    text: text, isUploading: false
+                ),
                 makeView: {
                     AnyView(
                         self.nativeStreamingContent(text)
@@ -3104,7 +3174,16 @@ struct ChatView: View {
                 entryID: nil,
                 version: liveToolCardVersion(card),
                 estimatedHeight: 96,
-                makeView: { AnyView(ToolCardView(card: card)) }
+                makeView: {
+                    AnyView(
+                        ToolCardView(
+                            card: card,
+                            expansionKey: ChatRowStateKeys
+                                .toolLive(card.id),
+                            ledger: rowStateLedger
+                        )
+                    )
+                }
             )
         case .toolGroup(let cards):
             return ChatCarrierRow(
@@ -3115,7 +3194,14 @@ struct ChatView: View {
                 },
                 estimatedHeight: 96,
                 makeView: {
-                    AnyView(ToolCardGroupView(cards: cards))
+                    AnyView(
+                        ToolCardGroupView(
+                            cards: cards,
+                            expansionKey: ChatRowStateKeys
+                                .liveToolGroup(item.id),
+                            ledger: rowStateLedger
+                        )
+                    )
                 }
             )
         }
@@ -3779,10 +3865,22 @@ struct ChatView: View {
                 streamingBubble(text)
                     .id("sealed-text-\(index)")
             case .tool(let card):
-                ToolCardView(card: card)
+                ToolCardView(
+                    card: card,
+                    expansionKey: ChatRowStateKeys
+                        .toolLive(card.id),
+                    ledger: rowStateLedger
+                )
                     .id("tool-\(card.id)")
             case .toolGroup(let cards):
-                ToolCardGroupView(cards: cards)
+                ToolCardGroupView(
+                    cards: cards,
+                    expansionKey: ChatRowStateKeys
+                        .liveToolGroup(
+                            "toolgroup-\(cards.first?.id ?? "none")"
+                        ),
+                    ledger: rowStateLedger
+                )
                     .id("toolgroup-\(cards.first?.id ?? "none")")
             }
         }
@@ -5036,7 +5134,10 @@ struct ChatView: View {
         ) ?? ""
         switch store.anchorRowState(recordID: recordID) {
         case .pending(let record):
-            ChatApprovalCard(store: store, record: record)
+            ChatApprovalCard(
+                store: store, record: record,
+                ledger: rowStateLedger
+            )
         case .decided(let item):
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: item.isApproved
@@ -5401,7 +5502,12 @@ struct ChatView: View {
         } else if let card = entry.toolCard {
             // 0.8.0（P1）：工具卡条目（role="tool"）——
             // 不进气泡形态、不挂长按菜单、不进发送上下文
-            ToolCardView(card: card)
+            ToolCardView(
+                card: card,
+                expansionKey: ChatRowStateKeys
+                    .toolEntry(entry.id),
+                ledger: rowStateLedger
+            )
         } else if entry.role == "user" {
             HStack {
                 Spacer(minLength: OneDayMetrics.bubbleSideInset)
@@ -5737,7 +5843,10 @@ struct ChatView: View {
                     ReasoningBlock(
                         text: reasoning,
                         seconds: entry.reasoningSeconds,
-                        isStreaming: false
+                        isStreaming: false,
+                        expansionKey: ChatRowStateKeys
+                            .reasoningEntry(entry.id),
+                        ledger: rowStateLedger
                     )
                 }
                 // 0.8.0（P1）：助手消息的服务端图片（历
@@ -6711,7 +6820,9 @@ struct ChatView: View {
                 isStreaming: true,
                 startedAt: reasoningStartedAt,
                 contentStarted: !(streamingText ?? "").isEmpty
-                    || !liveToolCards.isEmpty
+                    || !liveToolCards.isEmpty,
+                expansionKey: ChatRowStateKeys.liveReasoning,
+                ledger: rowStateLedger
             )
         }
     }

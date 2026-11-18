@@ -347,7 +347,7 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
 
         let cv = controller.collectionView
         let attrs = cv.layoutAttributesForItem(
-            at: IndexPath(item: rows.count - 1, section: 0)
+            at: IndexPath(item: 0, section: rows.count - 1)
         )
         let lastFrame = try XCTUnwrap(attrs).frame
         let distance = handle.latestDistance

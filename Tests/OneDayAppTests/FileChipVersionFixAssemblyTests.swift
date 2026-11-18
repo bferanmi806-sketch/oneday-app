@@ -176,7 +176,7 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
     ) -> (cell: UICollectionViewCell, indexPath: IndexPath)? {
         let cv = controller.collectionView
         guard let indexPath = cv.indexPathsForVisibleItems
-            .sorted(by: { $0.item < $1.item }).first,
+            .sorted(by: { $0.section < $1.section }).first,
               let cell = cv.cellForItem(at: indexPath)
         else { return nil }
         return (cell, indexPath)
@@ -205,8 +205,8 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
             else { return false }
             self.window.layoutIfNeeded()
             let cv = controller.collectionView
-            phase1Diag = "items="
-                + "\(cv.numberOfItems(inSection: 0))"
+            phase1Diag = "sections="
+                + "\(cv.numberOfSections)"
                 + " visible="
                 + "\(cv.indexPathsForVisibleItems.count)"
             seed = self.entryCell(in: controller)

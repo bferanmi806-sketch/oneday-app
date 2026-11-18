@@ -13827,3 +13827,24 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 - **红集两轮同名 14 件、全在更新后基线族内、签名外新红零**。**基线族名单本版更新为 15 件**（逐名）：App 5——ChatNativeListAssemblyTests.testLongThreadLandsAtRealBottom／ChatNativeListR4AssemblyTests.testDefaultResolvedSurfaceLandsAtRealBottom／ChatNativeListR2AssemblyTests.testComposerNotificationFollowAndSnapshotFeed／ChatNativeListR2AssemblyTests.testBlockClosureKeepsSegmentInExactlyOneItem／EdgeEffectProbeTests.testEdgeEffectAttributionProbe（§257.1 像素探针）；UI 10——ChatGestureNativeSurfaceTests 5＋ChatGestureArbitrationTests 4（第 95 条族）＋KeyboardTapDismissMatrixTests.testTapBlankDismissMatrix（键盘矩阵 rig）。与 §326 的 16 件口径对账两处：⑴HapticsMatrixTests——§326.1 记为族外遗留红，本版顺修后消解、不再入账；⑵设备探针 ChatPageDeviceConditionProbe——§326 族内成员，自 .67 二轮起连续四轮未现红，本版起移出族名单列观察（再现红先按旧定因对账、不直接判新红）。⑮′ testLongHistoryScrollConvergesWithoutLayoutRecursion 本版两轮全过（.67 首轮单轮采样涨落，不入族）。
 - **浸泡注记**（§328 裁定照录）：聊天面 .67 链第二版；抽屉面 .65 链第四版。
 - **判绿出货**：产物取第一轮 IPA（解包验 0.50.68/196、bundle id site.didichou.oneday，md5 `1bcbfeea08f094bc36f777890652334b`）。
+
+## §329 聊天列表布局环结构修：行高改量测回喂固定高（2026-11-18；分支 fix/chat-height-absolute，基线 rel-05068@d3700c0；待办第 115 条；定因 crash-05068-diagnosis-20261118）
+
+**明裁：§325 ②「行高归框架自适应」对聊天列表作废。** .67（B 档）与 .68 真机同签名复崩（EXC_BREAKPOINT、`_updateVisibleCellsNow:` 自递归 101 层、递归段零 App 帧）证实：环不需要 App 侧失效源——compositional 布局在可见 cell 更新 pass 收尾发现偏移修正（估算高被实测高替换）即自我失效、同步再入下一 pass；可见区任一行托管拟合高在 pass 间不收敛即永续成环。§325.2 四守卫全不在此路上（App 侧唯一 invalidate 写点已被闸收在落定拍、且不在崩溃栈内）——B 档只拆了放大器（均值占位、最激进档），点火源（托管行拟合不幂等）藏在行内容层。**新口径：行高由量测栈同步算定、经 compositional `.absolute` 回喂布局，框架不再估算→修正，post-pass 修正按构造拆除**——与市面成熟聊天（行高由内容模型预先算定/缓存、列表只消费）同构，与 2026-11-14 整体系统观「单一数据源」同向。§325 ①③（单渲染路径、修订值结构化派生）与 §325.2 守卫整包、§321 顶 inset、selfSizingInvalidation=.enabled 档位一字不动；本节只换行高的来源与布局消费形态。
+
+**施工三件**：
+
+**① 行高 .absolute 回喂（量测回喂固定高）**：布局形态改 section-per-row（compositional 单 section 无法逐 item 给不同 .absolute 高）：每行一 section，group 高＝`.absolute(该行量测高)`；横向 inset 恒 20；首 section 顶 inset＝topPadding 16、末 section 底 inset＝bottomPadding 8、其余 section 底 inset＝rowSpacing 24——总几何与旧 interGroupSpacing 口径逐值等价，间距仍单源（布局匣一处声明，H1 守恒）。行高合成器（新文件 ChatNativeRowHeight.swift）由 ChatView 在 nativeRows() 逐行同步合成、随 ChatNativeRow.height 喂入：文本量测走呈现本体同台——SelectableInlineText.build 同一拼装（§251 单源）＋SelectableTextRepresentable.referenceHeight 同一量测台（§251 对拍基准台），结构段与 facet 高全部确定性几何合成（代码块＝头行 44＋等宽 footnote 实测；表格 Grid/列表降级按 Core MarkdownTablePresentation 同口径逐格实测；图片/图行恒 ChatImageSizing.cardHeight 190；文件牌/工具卡/审批卡/交付卡/回响/引用块按各自视图几何逐项合成）。**量测源取舍在此定案**：§251 产物层是异步后台池量测，apply() 是同步入口、消费产物会让行高随缓存命中状态翻转（同行两遍 apply 高不同＝新的不收敛源）；故回喂高一律由同步基准台现量（与产物池同拼装、同台对拍 ≤1pt 的等价关系由 §251 影子账本既证），产物层保留预热/影子基建不动——此即 §251「包 3 承载侧定高」的落法。gen3 的 interimStructuralSegmentHeight 48 暂定值与字符粗估**禁用**作权威高（只许出现在 gen3 估算语境、随 R5 销账）。展开态上提：ReasoningBlock／ToolCardView／ToolCardGroupView 的展开 @State 与 ChatApprovalCard 的详情四态（展开/加载/详情/错误）对高度不可见，与 .absolute 冲突——定案设 ChatView 持有的行状态账本（ChatRowStateLedger，键＝行型命名空间＋行/卡 id），四视图经显式参数读账本（无账本环境回落本地 @State、其他表面行为不变），合成器读同一账本算高，状态变→ChatView 重渲→新高经 apply 落写，单一数据源守恒。异步 facet 状态同路：FileMetadataStore（@Observable）存在性、DeliveryStore（@Observable）登记 meta 均在行构建期被合成器读——状态到达即重渲回填新高；交付文件卡封面形态以「登记快照 cover 在册 ∨ 快照字节已缓存 ∨ 缩略图已缓存」判定（DeliveryStore／FileThumbnailStore 各补同步 peek 读口）。
+**兜底口径（入册）**：合成输入缺失（登记 meta 未到、存在性未确证等）时按视图本体的未就绪形态合成（EmptyView＝0、降级纯文本行＝实测文本高、占位图卡＝定高 190），就绪后经既有修订/重渲通道回填绝对值——**不许回退均值类占位**；万一某行合成整体不可达（防御分支），用固定常量 120（单值、沿旧占位常量语义、永不随行集聚合变化），并以行键在诊断自述留痕。
+
+**② apply() 入滚动闸**：representable 更新直调 apply 的路径并入 §325.2 滚动期冻结闸——apply 到达时若 isTracking/isDecelerating，整笔喂入（行集/布局参数/顶 inset/舱/回底钮）只记账进同一待落写槽（settleDeferredDuringScroll 同族记账，不新造第二套），停滚由既有 flushDeferredSettle→落定拍在 pass 外先消费待落写、再走原有失效合并与钉底链。非滚动期 apply 行为逐字不变。高度/布局参数变化的 invalidateLayout 仍只经落定拍唯一施工口落写（§325.2 条目 1 守恒）——数据侧尺寸变更的传播通道，非新设闸门。
+
+**③ 验证重建**：⑴压测行集改经生产链造行——SwiftData 种长线程、真 ChatView 挂窗取行（ChatEntry→nativeEntryRow 全 facet：表格/代码/用户泡/图行/审批/工具卡/交付卡/回响/ReasoningBlock＋极端高差相邻排布），旧 BTIER 手搓行集保留对照（其造行改为测试侧托管拟合量高喂入、断言语义不变）；⑵新增拟合一致性直测——逐 facet 以独立 UIHostingController 对行内容做拟合：以布局采用高为提议高回喂再拟合、与无界提议拟合三值逐值相等（±1pt），直测断言点名的量（fit(adopted)＝fit(∞)＝adopted）；⑶滚动改连续小步进（每步 ≈40pt＋layoutIfNeeded、步间部分 drain），断言 section 重建有界、contentSize 稳态逐值不动、间隙 24±2。
+
+**宽度口径注记（观察登记，本包不动）**：LayoutProductService.textWidth 用户口径 W−76 系旧账（漏承载左右 inset 40），原生列表用户正文真实折行宽＝W−116（CW−44−32）；合成器按真实宽量测。产物层旧账只余 gen3 估算消费（量实覆盖、随 R5 退役销账），本包不改、免动 gen3 语义。
+
+**已知残留（登记、不在本包处理）**：⑴FileChip 的 notice 反馈行（卡内 @State、动作后出现的一行 .footnote）对合成器不可见——出现时溢出量 ≈20pt＜行间距 24，视觉被间距吸收、无裁剪主内容，后续可改 overlay/toast 时一并销；⑵审批详情内 DisclosureGroup（系统件）展开态不可上提，展开时详情区实际高大于合成高（溢出进间距带，同 ⑴ 级别）；⑶交付文件卡封面首载（登记无 cover 且两缓存皆空、靠 §32 管线现生成）到达前按无封面形态合成，到达后靠下一次重渲回填，期间封面区溢出——以 peek 三路判定已把稳态覆盖；⑷展开/收起的行高变更为落定拍跳变、无高度动画（内部 SmoothExpand 动画在本行内照旧）——真机手感列入组版清单观察项。
+
+**验证边界（如实）**：用户无 Mac、无 Console 通道——定因报告第 0 步取证（UICollectionViewRecursion 日志点名点火行型）走不通，facet 点名仍未定案；本修以「构造拆除修正源」代替点名（全体行高与拟合脱钩后，任一行型拟合不幂等都不再可能成环）。**终判恒为用户真机**：真实长会话上翻到顶 ×3 往返不崩＋滚动无可见高度跳变；实验室绿不作治愈宣称（.66/.68 两度实证）。CI 两轮 §190 核账、红集按 §328.1 的 15 件族对位、签名外新红零为本包判绿门。
+
+### §329.1 CI 判读（回填）

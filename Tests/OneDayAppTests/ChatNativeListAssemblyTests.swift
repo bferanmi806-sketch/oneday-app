@@ -213,7 +213,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
     private func frame(at index: Int) throws -> CGRect {
         let attrs = controller.collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: index, section: 0)
+                at: IndexPath(item: 0, section: index)
             )
         return try XCTUnwrap(attrs).frame
     }

@@ -32,6 +32,30 @@ final class FileThumbnailStore {
         memoryCache.countLimit = 120
     }
 
+    /// 同步 peek（§329 行高合成用）：该条目该档
+    /// 缩略图是否已在内存或磁盘缓存——只查在席、
+    /// 不生成不取数；合成器据此判交付文件卡的封
+    /// 面形态（缓存命中＝视图 .task 即时得图）
+    func hasCachedThumbnail(
+        for entry: WorkspaceFileEntry,
+        targetPixelSize: CGFloat
+    ) -> Bool {
+        if entry.mediaKind == .audio { return false }
+        let key = cacheKey(
+            for: entry, pixel: Int(targetPixelSize)
+        )
+        if memoryCache.object(forKey: key as NSString)
+            != nil {
+            return true
+        }
+        guard let url = diskDirectory?
+            .appendingPathComponent("\(key).png")
+        else { return false }
+        return FileManager.default.fileExists(
+            atPath: url.path
+        )
+    }
+
     /// 取字节通道组（§144）：原图走宿主 performAdmin
     /// 文件下载、变体走桥 rendition 端点（桥钥在客户
     /// 端内读，宽度固定 360 档）——FileThumbnailView／

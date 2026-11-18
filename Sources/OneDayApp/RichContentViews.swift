@@ -26,8 +26,30 @@ import UIKit
 struct ToolCardView: View {
     let card: ToolCard
     var plain: Bool = false
-    @State private var expanded = false
+    /// §329 行状态账本（聊天列表面传入）：展开态改
+    /// 存账本——行高合成器须看得见（.absolute 回
+    /// 喂）；无账本环境回落本地 @State、行为不变
+    var expansionKey: String? = nil
+    var ledger: ChatRowStateLedger? = nil
+    @State private var localExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var expanded: Bool {
+        if let ledger, let expansionKey {
+            return ledger.expansionOverride(
+                for: expansionKey
+            ) ?? false
+        }
+        return localExpanded
+    }
+
+    private func setExpanded(_ value: Bool) {
+        if let ledger, let expansionKey {
+            ledger.setExpansion(value, for: expansionKey)
+        } else {
+            localExpanded = value
+        }
+    }
 
     private var state: ToolCardPresentation.State {
         ToolCardPresentation.state(of: card)
@@ -41,7 +63,7 @@ struct ToolCardView: View {
                         MotionTokens.swap, reduceMotion: reduceMotion
                     )
                 ) {
-                    expanded.toggle()
+                    setExpanded(!expanded)
                 }
             } label: {
                 rowContent
@@ -258,8 +280,30 @@ struct ToolCardView: View {
 /// 情。单卡轮次不走本组件、保持单行卡
 struct ToolCardGroupView: View {
     let cards: [ToolCard]
-    @State private var expanded = false
+    /// §329 行状态账本（同 ToolCardView）：组展开
+    /// 存账本、组内逐卡键＝组键/卡 id（ChatRow-
+    /// StateKeys.toolGroupCard 单点派生）
+    var expansionKey: String? = nil
+    var ledger: ChatRowStateLedger? = nil
+    @State private var localExpanded = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var expanded: Bool {
+        if let ledger, let expansionKey {
+            return ledger.expansionOverride(
+                for: expansionKey
+            ) ?? false
+        }
+        return localExpanded
+    }
+
+    private func setExpanded(_ value: Bool) {
+        if let ledger, let expansionKey {
+            ledger.setExpansion(value, for: expansionKey)
+        } else {
+            localExpanded = value
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -269,7 +313,7 @@ struct ToolCardGroupView: View {
                         MotionTokens.swap, reduceMotion: reduceMotion
                     )
                 ) {
-                    expanded.toggle()
+                    setExpanded(!expanded)
                 }
             } label: {
                 HStack(spacing: OneDayMetrics.spacingS) {
@@ -317,7 +361,16 @@ struct ToolCardGroupView: View {
                                     .vertical, OneDayMetrics.spacingS
                                 )
                         }
-                        ToolCardView(card: card, plain: true)
+                        ToolCardView(
+                            card: card, plain: true,
+                            expansionKey: expansionKey.map {
+                                ChatRowStateKeys.toolGroupCard(
+                                    groupKey: $0,
+                                    cardID: card.id
+                                )
+                            },
+                            ledger: ledger
+                        )
                     }
                 }
                 .padding(.top, OneDayMetrics.spacingS)

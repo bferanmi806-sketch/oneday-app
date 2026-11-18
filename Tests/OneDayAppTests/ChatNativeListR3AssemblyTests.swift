@@ -114,45 +114,73 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
     private func frame(at index: Int) throws -> CGRect {
         let attrs = controller.collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: index, section: 0)
+                at: IndexPath(item: 0, section: index)
             )
         return try XCTUnwrap(attrs).frame
     }
 
     private func cell(at index: Int) -> UICollectionViewCell? {
         controller.collectionView.cellForItem(
-            at: IndexPath(item: index, section: 0)
+            at: IndexPath(item: 0, section: index)
         )
     }
 
     // MARK: - 真实行内容（生产视图、非占位）
 
-    private func hostedRow(
-        _ key: String, _ text: String
+    /// §329：测试侧拟合量高——行高改 .absolute 回
+    /// 喂后手搓行须自带高：以独立托管控制器对行
+    /// 视图在列表内容宽（屏宽−左右 inset）下量拟
+    /// 合高（旧框架自适应在测试侧的等价物；生产
+    /// 行走高度合成器、不经本路）
+    private func fittedHeight(_ view: AnyView) -> CGFloat {
+        let host = UIHostingController(rootView: view)
+        return host.sizeThatFits(
+            in: CGSize(
+                width: windowW
+                    - OneDayMetrics.pageGutter * 2,
+                height: .greatestFiniteMagnitude
+            )
+        ).height
+    }
+
+    private func fittedRow(
+        key: String,
+        revision: ChatNativeRowRevision,
+        makeView: @escaping () -> AnyView
     ) -> ChatNativeRow {
         ChatNativeRow(
             key: key, entryID: nil,
+            revision: revision,
+            height: fittedHeight(makeView()),
+            makeView: makeView
+        )
+    }
+
+    private func hostedRow(
+        _ key: String, _ text: String
+    ) -> ChatNativeRow {
+        fittedRow(
+            key: key,
             revision: ChatNativeRowRevision(
                 parts: [.text(text)]
-            ),
-            makeView: {
-                AnyView(
-                    MarkdownText(text)
-                        .padding(
-                            .horizontal,
-                            OneDayMetrics.bubblePaddingH
-                        )
-                        .padding(
-                            .vertical,
-                            OneDayMetrics.bubblePaddingV
-                        )
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: .leading
-                        )
-                )
-            }
-        )
+            )
+        ) {
+            AnyView(
+                MarkdownText(text)
+                    .padding(
+                        .horizontal,
+                        OneDayMetrics.bubblePaddingH
+                    )
+                    .padding(
+                        .vertical,
+                        OneDayMetrics.bubblePaddingV
+                    )
+                    .frame(
+                        maxWidth: .infinity,
+                        alignment: .leading
+                    )
+            )
+        }
     }
 
     // MARK: - ⑪′ 全体行单形态（托管 cell 单一 reuseID）
@@ -379,40 +407,39 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
         return (0..<count).map { i in
             if i % 10 == 7 {
                 let path = "/opt/data/report-\(i).xlsx"
-                return ChatNativeRow(
-                    key: "h\(i)", entryID: nil,
+                return fittedRow(
+                    key: "h\(i)",
                     revision: ChatNativeRowRevision(
                         parts: [
                             .text("file-\(i)"), .text(path),
                         ]
-                    ),
-                    makeView: {
-                        AnyView(
-                            VStack(
-                                alignment: .leading,
-                                spacing: 8
-                            ) {
-                                MarkdownText(
-                                    "第 \(i) 份报表已经生成，见附件。"
-                                )
-                                FileChip(path: path) {}
-                            }
-                            .padding(
-                                .horizontal,
-                                OneDayMetrics.bubblePaddingH
+                    )
+                ) {
+                    AnyView(
+                        VStack(
+                            alignment: .leading,
+                            spacing: 8
+                        ) {
+                            MarkdownText(
+                                "第 \(i) 份报表已经生成，见附件。"
                             )
-                            .padding(
-                                .vertical,
-                                OneDayMetrics.bubblePaddingV
-                            )
-                            .frame(
-                                maxWidth: .infinity,
-                                alignment: .leading
-                            )
-                            .environment(appState)
+                            FileChip(path: path) {}
+                        }
+                        .padding(
+                            .horizontal,
+                            OneDayMetrics.bubblePaddingH
                         )
-                    }
-                )
+                        .padding(
+                            .vertical,
+                            OneDayMetrics.bubblePaddingV
+                        )
+                        .frame(
+                            maxWidth: .infinity,
+                            alignment: .leading
+                        )
+                        .environment(appState)
+                    )
+                }
             }
             if i % 10 == 5 {
                 return hostedRow(

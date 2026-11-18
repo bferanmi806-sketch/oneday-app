@@ -119,7 +119,7 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
     private func frame(at index: Int) throws -> CGRect {
         let attrs = controller.collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: index, section: 0)
+                at: IndexPath(item: 0, section: index)
             )
         return try XCTUnwrap(attrs).frame
     }
@@ -283,8 +283,8 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         drain()
         let cv = controller.collectionView
         XCTAssertEqual(
-            cv.numberOfItems(inSection: 0), rows.count,
-            "直播逐项须各自成 item（非整段一块）"
+            cv.numberOfSections, rows.count,
+            "直播逐项须各自成行（§329 一行一 section、非整段一块）"
         )
         var frames: [CGRect] = []
         for index in rows.indices {
@@ -331,10 +331,9 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         ])
         drain()
         XCTAssertEqual(
-            controller.collectionView
-                .numberOfItems(inSection: 0),
+            controller.collectionView.numberOfSections,
             1,
-            "闭合前须为打开段单 item（前缀＋尾块同 item 内分工）"
+            "闭合前须为打开段单行（前缀＋尾块同行内分工）"
         )
         print(
             "R2-⑧ 第一拍渲染树："
@@ -363,10 +362,9 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         ])
         drain()
         XCTAssertEqual(
-            controller.collectionView
-                .numberOfItems(inSection: 0),
+            controller.collectionView.numberOfSections,
             3,
-            "封段后须为封存段/工具/打开段三 item"
+            "封段后须为封存段/工具/打开段三行"
         )
         XCTAssertEqual(
             cellsContaining("DeOldify"), 1,

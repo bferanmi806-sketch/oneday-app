@@ -23,13 +23,19 @@ struct ChatApprovalZone: View {
     /// 再重复出卡/出行；默认空集＝现行行为（预制合并
     /// 前的调用点零影响）
     var anchoredRecordIDs: Set<String> = []
+    /// §329 行状态账本：透传给就地卡（详情四态上
+    /// 提、合成器可见）；不传＝卡内 @State 原行为
+    var ledger: ChatRowStateLedger? = nil
 
     var body: some View {
         if case .ready(let records) = store.approvalState {
             VStack(spacing: OneDayMetrics.spacingM) {
                 ForEach(records) { record in
                     if !anchoredRecordIDs.contains(record.id) {
-                        ChatApprovalCard(store: store, record: record)
+                        ChatApprovalCard(
+                            store: store, record: record,
+                            ledger: ledger
+                        )
                     }
                 }
                 ForEach(store.resolvedLines) { line in
@@ -81,13 +87,95 @@ struct ChatApprovalZone: View {
 struct ChatApprovalCard: View {
     let store: AgentHubStore
     let record: WriteGateRecord
+    /// §329 行状态账本（聊天列表面传入）：详情四
+    /// 态（展开/详情/错误/加载中）改存账本——详情
+    /// 区高度对行高合成器可见（.absolute 回喂）；
+    /// 无账本环境回落本地 @State、四态语义逐字不
+    /// 变（确认弹窗两件与详情无关、恒本地）
+    var ledger: ChatRowStateLedger? = nil
 
-    @State private var detail: WriteGateDetail?
-    @State private var detailError: String?
-    @State private var detailExpanded = false
-    @State private var detailLoading = false
+    @State private var localDetail: WriteGateDetail?
+    @State private var localDetailError: String?
+    @State private var localDetailExpanded = false
+    @State private var localDetailLoading = false
     @State private var showRejectConfirm = false
     @State private var showAlwaysConfirm = false
+
+    private var detail: WriteGateDetail? {
+        if let ledger {
+            return ledger.approvalDetail(
+                for: record.id
+            ).detail
+        }
+        return localDetail
+    }
+
+    private var detailError: String? {
+        if let ledger {
+            return ledger.approvalDetail(
+                for: record.id
+            ).error
+        }
+        return localDetailError
+    }
+
+    private var detailExpanded: Bool {
+        if let ledger {
+            return ledger.approvalDetail(
+                for: record.id
+            ).expanded
+        }
+        return localDetailExpanded
+    }
+
+    private var detailLoading: Bool {
+        if let ledger {
+            return ledger.approvalDetail(
+                for: record.id
+            ).loading
+        }
+        return localDetailLoading
+    }
+
+    private func setDetail(_ value: WriteGateDetail?) {
+        if let ledger {
+            ledger.updateApprovalDetail(record.id) {
+                $0.detail = value
+            }
+        } else {
+            localDetail = value
+        }
+    }
+
+    private func setDetailError(_ value: String?) {
+        if let ledger {
+            ledger.updateApprovalDetail(record.id) {
+                $0.error = value
+            }
+        } else {
+            localDetailError = value
+        }
+    }
+
+    private func setDetailExpanded(_ value: Bool) {
+        if let ledger {
+            ledger.updateApprovalDetail(record.id) {
+                $0.expanded = value
+            }
+        } else {
+            localDetailExpanded = value
+        }
+    }
+
+    private func setDetailLoading(_ value: Bool) {
+        if let ledger {
+            ledger.updateApprovalDetail(record.id) {
+                $0.loading = value
+            }
+        } else {
+            localDetailLoading = value
+        }
+    }
 
     var body: some View {
         ApprovalCardFace(
@@ -194,23 +282,23 @@ struct ChatApprovalCard: View {
 
     private func toggleDetail() {
         if detailExpanded {
-            detailExpanded = false
+            setDetailExpanded(false)
             return
         }
-        detailExpanded = true
+        setDetailExpanded(true)
         guard detail == nil, !detailLoading else { return }
-        detailLoading = true
-        detailError = nil
+        setDetailLoading(true)
+        setDetailError(nil)
         Task {
             switch await store.loadDetail(record) {
             case .success(let loaded):
-                detail = loaded
+                setDetail(loaded)
             case .failure(.recordGone):
-                detailError = "这条待批已被处理或已失效。"
+                setDetailError("这条待批已被处理或已失效。")
             case .failure:
-                detailError = "改动没读出来，可能是网络或服务暂时没响应"
+                setDetailError("改动没读出来，可能是网络或服务暂时没响应")
             }
-            detailLoading = false
+            setDetailLoading(false)
         }
     }
 }
