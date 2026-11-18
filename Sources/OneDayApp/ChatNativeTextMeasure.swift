@@ -24,10 +24,15 @@ enum ChatNativeTextMeasure {
             // 支以 Thread.isMainThread 钉死主线
             // 程、assumeIsolated 桥接隔离（前提
             // 由线程检查构造保证）
+            // 装箱后闭包只捕获 Sendable 箱（与
+            // §251 影子账过 detached 边界同式）：
+            // 裸 attributed 是 task 隔离值、直捕
+            // 进 @MainActor 闭包即发送错误
+            let boxed = LayoutAttributedBox(attributed)
             return MainActor.assumeIsolated {
                 SelectableTextRepresentable
                     .referenceHeight(
-                        attributed: attributed,
+                        attributed: boxed.value,
                         width: width
                     )
             }
@@ -48,10 +53,11 @@ enum ChatNativeTextMeasure {
         attributed: NSAttributedString
     ) -> CGFloat {
         if Thread.isMainThread {
+            let boxed = LayoutAttributedBox(attributed)
             return MainActor.assumeIsolated {
                 SelectableTextRepresentable
                     .measuredSize(
-                        attributed: attributed,
+                        attributed: boxed.value,
                         proposal: ProposedViewSize(
                             width: nil, height: nil
                         )
