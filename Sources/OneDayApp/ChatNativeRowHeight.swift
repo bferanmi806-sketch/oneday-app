@@ -26,8 +26,11 @@ import UIKit
 @MainActor
 struct ChatNativeRowHeightComposer {
     /// 防御兜底高（§329）：单值常量、沿旧占位常
-    /// 量语义，只在合成整体不可达时用
-    static let fallbackHeight: CGFloat = 120
+    /// 量语义，只在合成整体不可达时用。
+    /// nonisolated：ChatNativeRow 的默认参数在
+    /// 非隔离上下文引用本值（CGFloat 值类型、
+    /// 恒定不变，隔离无意义）
+    nonisolated static let fallbackHeight: CGFloat = 120
 
     /// 列表内容宽（屏宽−左右 inset 40）
     let contentWidth: CGFloat
@@ -608,7 +611,7 @@ struct ChatNativeRowHeightComposer {
             width: nameWidth, lineLimit: 2
         )
         let columnHeight = nameHeight
-            + OneDayMetrics.spacingXS + spec(.caption)
+            + OneDayMetrics.spacingXS + spec(.caption1)
         return 20 + max(
             40, columnHeight,
             hasMenu ? OneDayMetrics.minTapTarget : 0
@@ -654,7 +657,7 @@ struct ChatNativeRowHeightComposer {
             width: nameWidth, lineLimit: 2
         )
         let columnHeight = nameHeight
-            + OneDayMetrics.spacingXS + spec(.caption)
+            + OneDayMetrics.spacingXS + spec(.caption1)
         return 20 + max(40, columnHeight)
     }
 
@@ -723,7 +726,7 @@ struct ChatNativeRowHeightComposer {
             width: nameWidth, lineLimit: 2
         )
         let columnHeight = nameHeight
-            + OneDayMetrics.spacingXS + spec(.caption)
+            + OneDayMetrics.spacingXS + spec(.caption1)
         let rowHeight = max(
             coverForm ? 0 : 40, columnHeight
         )
@@ -797,7 +800,7 @@ struct ChatNativeRowHeightComposer {
         var textHeight = spec(.subheadline)
         if !toolCardSubtitle(card).isEmpty {
             textHeight += OneDayMetrics.spacingMicro
-                + spec(.caption)
+                + spec(.caption1)
         }
         return max(36, textHeight)
     }
@@ -810,11 +813,11 @@ struct ChatNativeRowHeightComposer {
         let textHeight = monospaced
             ? measurePlain(
                 text,
-                font: monospacedFont(.caption),
+                font: monospacedFont(.caption1),
                 width: width
             )
-            : plainHeight(text, .caption, width: width)
-        return spec(.caption)
+            : plainHeight(text, .caption1, width: width)
+        return spec(.caption1)
             + OneDayMetrics.spacingMicro + textHeight
     }
 
@@ -845,7 +848,7 @@ struct ChatNativeRowHeightComposer {
             monospaced: card.category == .terminal,
             width: width
         ))
-        var total = fields.reduce(0, +) + spec(.caption)
+        var total = fields.reduce(0, +) + spec(.caption1)
         total += OneDayMetrics.spacingS
             * CGFloat(fields.count)
         return total
@@ -935,12 +938,12 @@ struct ChatNativeRowHeightComposer {
             - OneDayMetrics.spacingS * 2
             - 2 - OneDayMetrics.spacingS
         let nameHeight = nameSingleLine
-            ? spec(.caption)
+            ? spec(.caption1)
             : plainHeight(
-                name, .caption, width: textWidth
+                name, .caption1, width: textWidth
             )
         let summaryHeight = plainHeight(
-            summary, .caption, width: textWidth,
+            summary, .caption1, width: textWidth,
             lineLimit: 2
         )
         return OneDayMetrics.spacingS * 2
@@ -963,7 +966,7 @@ struct ChatNativeRowHeightComposer {
         let innerWidth = width
             - OneDayMetrics.spacingM * 2
         var items: [CGFloat] = []
-        items.append(spec(.caption))
+        items.append(spec(.caption1))
         items.append(weightedHeight(
             ApprovalCardCopy.question(for: record),
             .body, .semibold, width: innerWidth
@@ -979,7 +982,7 @@ struct ChatNativeRowHeightComposer {
         }
         if let note = hubStore.cardNotes[record.id] {
             items.append(plainHeight(
-                note, .caption, width: innerWidth
+                note, .caption1, width: innerWidth
             ))
         }
         // 详情区：收起＝SmoothExpand 零高一项；展
@@ -992,7 +995,7 @@ struct ChatNativeRowHeightComposer {
         if !detail.expanded {
             items.append(0)
         } else if detail.loading {
-            items.append(max(20, spec(.caption)))
+            items.append(max(20, spec(.caption1)))
         } else if let loaded = detail.detail {
             items.append(
                 OneDayMetrics.spacingS
@@ -1006,7 +1009,7 @@ struct ChatNativeRowHeightComposer {
             )
         } else if let error = detail.error {
             items.append(plainHeight(
-                error, .caption, width: innerWidth
+                error, .caption1, width: innerWidth
             ))
             items.append(
                 OneDayMetrics.spacingS + spec(.subheadline)
@@ -1018,7 +1021,7 @@ struct ChatNativeRowHeightComposer {
         // （ApprovalCardSpec 单源）；不可裁决＝说
         // 明 caption 折行
         if hubStore.decidingIDs.contains(record.id) {
-            items.append(max(20, spec(.caption)))
+            items.append(max(20, spec(.caption1)))
         } else if record.canDecide {
             let actions = ApprovalCardSpec.actionStack(
                 canDecide: true, blocked: record.isBlocked
@@ -1032,7 +1035,7 @@ struct ChatNativeRowHeightComposer {
         } else {
             items.append(plainHeight(
                 "这类写入暂不支持在 App 内审批，请在 Hermes 中处理",
-                .caption, width: innerWidth
+                .caption1, width: innerWidth
             ))
         }
         var total = items.reduce(0, +)
@@ -1142,7 +1145,7 @@ struct ChatNativeRowHeightComposer {
             entry.createdAt
         )
         let timeWidth = naturalWidth(
-            timeText, font: plainFont(.caption)
+            timeText, font: plainFont(.caption1)
         )
         let textWidth = contentWidth
             - OneDayMetrics.spacingM * 2
@@ -1167,7 +1170,7 @@ struct ChatNativeRowHeightComposer {
                 )
         }
         return OneDayMetrics.spacingS * 2
-            + max(column, spec(.caption))
+            + max(column, spec(.caption1))
     }
 
     /// 回响时刻文案（ChatView.traceEchoTimeText
@@ -1247,7 +1250,7 @@ struct ChatNativeRowHeightComposer {
             L10n.string(
                 "消息经你自己的服务器发给 Agent，记录只存这台手机。"
             ),
-            .caption, width: contentWidth
+            .caption1, width: contentWidth
         )
         return OneDayMetrics.spacingXL
             + emptyStateAvatarSize
@@ -1537,7 +1540,7 @@ struct ChatNativeRowHeightComposer {
             slots.append(chips)
         }
         if entry.isPendingSend {
-            slots.append(spec(.caption))
+            slots.append(spec(.caption1))
         }
         var total: CGFloat = 0
         if !slots.isEmpty {
