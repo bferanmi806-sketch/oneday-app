@@ -13895,4 +13895,8 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 ### §331.1 CI 判读（回填）
 
-（待 CI 判读后回填。）
+**判绿（2026-11-18）**：最终树 b59cb0c（单提交落码＋本回填）。两轮同树核账——run 44290521072（首轮）与 run 44298956465（复跑）：Core 两轮均 2175/2175 零失败（基线 2168＋本包新测 7）；红集复跑轮恰 §330.1 基线族 13 件在席（R2 装配 2＋EdgeEffect 1＋手势仲裁 4＋手势原生面 5＋键盘矩阵 1，与 §330.1 逐件相同），签名外新红零；本包新测 16 件两轮全绿（Core SessionHistorySyncTests 7＋App ImportDemotionAppTests 9）；关键读数两轮与 §330.1 逐值一致（CHAIN passes=172 sections=43 content=11916.0、BTIER 440/0/0、NATIVE-PLACEHOLDER 48.0/300.0）。
+
+**首轮族外红 1 件定因（flake，非本包）**：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 首轮红、复跑同树翻绿——非确定性实锤，与 §329.1 在案的同测 flake 同型（彼时两度以不同超时签名红、判绿轮均绿；其 NativeSurface 孪生件为基线族恒红）。本包对其无作用面：未碰手势仲裁/行布局代码，唯一聊天页呈现增量（historySyncBar）在 UI 测环境（本地种子线程、无同步欠账）渲染为空。按同树复跑定因后不计入本包签名，登记备查。
+
+**未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门：重装→登录→认领→不等历史补齐即可发送→历史后台补齐至对齐，四段全过才算交付）。
