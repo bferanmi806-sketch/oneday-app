@@ -38,7 +38,10 @@ struct LayoutAttributedBox: @unchecked Sendable {
 final class LayoutMeasurePool: @unchecked Sendable {
     static let shared = LayoutMeasurePool()
 
-    private final class Worker {
+    /// worker 对 §331 量测台开放（同步原语须直达
+    /// worker 队列）；栈纪律不变——栈只在自己的
+    /// 队列上被碰
+    final class Worker {
         let queue: DispatchQueue
         private var storage: NSTextContentStorage?
         private var layoutManager: NSTextLayoutManager?
@@ -57,6 +60,15 @@ final class LayoutMeasurePool: @unchecked Sendable {
         func measure(
             _ attributed: NSAttributedString, width: CGFloat
         ) -> CGFloat {
+            measureSize(attributed, width: width).height
+        }
+
+        /// 尺寸本体（高＋自然宽同源一量）：容器宽＝
+        /// 给定宽、高无界，usageBounds 即量测视图
+        /// sizeThatFits 的内部同源值
+        func measureSize(
+            _ attributed: NSAttributedString, width: CGFloat
+        ) -> CGSize {
             if storage == nil {
                 let storage = NSTextContentStorage()
                 let layoutManager = NSTextLayoutManager()
@@ -69,14 +81,14 @@ final class LayoutMeasurePool: @unchecked Sendable {
                 self.container = container
             }
             guard let storage, let layoutManager, let container
-            else { return 0 }
+            else { return .zero }
             container.size = CGSize(
                 width: width,
                 height: CGFloat.greatestFiniteMagnitude
             )
             storage.attributedString = attributed
             layoutManager.ensureLayout(for: storage.documentRange)
-            return layoutManager.usageBoundsForTextContainer.height
+            return layoutManager.usageBoundsForTextContainer.size
         }
     }
 
@@ -120,6 +132,25 @@ final class LayoutMeasurePool: @unchecked Sendable {
                     )
                 )
             }
+        }
+    }
+
+    /// 同步尺寸量测（§331 后台量测台原语）：投某
+    /// worker 的串行队列同步执行并等结果——调用
+    /// 方须已在后台线程（量测台队列），主线程禁
+    /// 用（串行阻塞主线程、且主线程自有量测视图
+    /// 口径）。空串/非法宽回 .zero，空串口径由调
+    /// 用方按量测视图同口径补（见 ChatNativeText-
+    /// Measure）
+    func measureSizeSynchronously(
+        _ attributed: NSAttributedString, width: CGFloat
+    ) -> CGSize {
+        guard width > 0, attributed.length > 0 else {
+            return .zero
+        }
+        let worker = nextWorker()
+        return worker.queue.sync {
+            worker.measureSize(attributed, width: width)
         }
     }
 }

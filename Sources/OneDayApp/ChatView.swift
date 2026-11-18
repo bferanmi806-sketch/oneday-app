@@ -261,6 +261,10 @@ struct ChatView: View {
     /// cell 重建不丢、行高合成器同步可读（.abso-
     /// lute 回喂的前提，见 ChatRowStateLedger）
     @State private var rowStateLedger = ChatRowStateLedger()
+    /// §331 后台量测台（题 3 根治）：行高未就绪
+    /// 时投单后台量测、回填后经发布代次重喂列表
+    @State private var rowMeasureDesk =
+        ChatNativeRowMeasureDesk()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
     /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
@@ -2384,7 +2388,10 @@ struct ChatView: View {
     /// chatSurface 链上共享，本面只管列表本体与回
     /// 底钮浮层
     private var nativeListSurface: some View {
-        ChatNativeListView(
+        // §331：量测台发布代次入 body 依赖——后台
+        // 量测回填缓存后 bump、本面以确定高重喂
+        _ = rowMeasureDesk.publishedRevision
+        return ChatNativeListView(
             rows: nativeRows(),
             layout: ChatCarrierLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
@@ -2804,14 +2811,36 @@ struct ChatView: View {
                     }
                     let groupKey =
                         "toolgroup-\(groupEntries[0].id.uuidString)"
+                    // §331：工具组行高同走量测台
+                    let groupMemoKey =
+                        composer.toolGroupMemoKey(
+                            cards: cards, groupKey: groupKey
+                        )
+                    let groupResolved =
+                        rowMeasureDesk.resolve(
+                            memoKey: groupMemoKey,
+                            rowKey: groupKey,
+                            fallback:
+                                ChatNativeRowHeightComposer
+                                    .fallbackHeight
+                        )
+                    if groupResolved.needsJob {
+                        rowMeasureDesk.collect(
+                            composer
+                                .makeToolGroupMeasureJob(
+                                    cards: cards,
+                                    groupKey: groupKey,
+                                    memoKey: groupMemoKey,
+                                    rowKey: groupKey
+                                )
+                        )
+                    }
                     rows.append(
                         ChatNativeRow(
                             key: groupKey,
                             entryID: groupEntries[0].id,
                             revision: groupRevision,
-                            height: composer.toolGroupHeight(
-                                cards: cards, groupKey: groupKey
-                            ),
+                            height: groupResolved.height,
                             makeView: { [rowStateLedger] in
                                 AnyView(
                                     ToolCardGroupView(
@@ -2845,12 +2874,32 @@ struct ChatView: View {
                 reportRevision.addData(
                     try? JSONEncoder().encode(item)
                 )
+                // §331：回告卡行高同走量测台
+                let reportMemoKey =
+                    composer.reportMemoKey(item)
+                let reportRowKey = "report-\(item.id)"
+                let reportResolved =
+                    rowMeasureDesk.resolve(
+                        memoKey: reportMemoKey,
+                        rowKey: reportRowKey,
+                        fallback:
+                            ChatNativeRowHeightComposer
+                                .fallbackHeight
+                    )
+                if reportResolved.needsJob {
+                    rowMeasureDesk.collect(
+                        composer.makeReportMeasureJob(
+                            item, memoKey: reportMemoKey,
+                            rowKey: reportRowKey
+                        )
+                    )
+                }
                 rows.append(
                     ChatNativeRow(
                         key: "report-\(item.id)",
                         entryID: nil,
                         revision: reportRevision,
-                        height: composer.reportCardHeight(item),
+                        height: reportResolved.height,
                         makeView: {
                             AnyView(
                                 reportCard(
@@ -2867,12 +2916,37 @@ struct ChatView: View {
             .anchoredRecordIDs.sorted() {
             approvalRevision.addText(recordID)
         }
+        // §331：审批区行高同走量测台；但非 ready
+        // 态高恒 0、无文本量测可言——同步确知，不
+        // 走兜底高（免冷开时列表尾凭空闪 120 空行）
+        let zoneHeight: CGFloat
+        if case .ready = appState.sharedHubStore()
+            .approvalState {
+            let zoneMemoKey = composer.zoneMemoKey()
+            let zoneResolved = rowMeasureDesk.resolve(
+                memoKey: zoneMemoKey,
+                rowKey: "approval-zone",
+                fallback: ChatNativeRowHeightComposer
+                    .fallbackHeight
+            )
+            if zoneResolved.needsJob {
+                rowMeasureDesk.collect(
+                    composer.makeZoneMeasureJob(
+                        memoKey: zoneMemoKey,
+                        rowKey: "approval-zone"
+                    )
+                )
+            }
+            zoneHeight = zoneResolved.height
+        } else {
+            zoneHeight = composer.approvalZoneHeight()
+        }
         rows.append(
             ChatNativeRow(
                 key: "approval-zone",
                 entryID: nil,
                 revision: approvalRevision,
-                height: composer.approvalZoneHeight(),
+                height: zoneHeight,
                 makeView: { [rowStateLedger] in
                     AnyView(
                         ChatApprovalZone(
@@ -2923,6 +2997,9 @@ struct ChatView: View {
                 )
             }
         }
+        // §331：本趟收集的量测工单统一投递（逆序
+        // ——最新行先量先就绪）
+        rowMeasureDesk.flushCollected()
         return rows
     }
 
@@ -2941,6 +3018,26 @@ struct ChatView: View {
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
         let key = settledKey ?? "entry-\(entry.id.uuidString)"
+        // §331：行高先查整行备忘（命中＝确定高）；
+        // 未命中投量测台后台预排版、当趟用上次高/
+        // 兜底高，回填后经发布代次以确定高重喂
+        let memoKey = composer.entryMemoKey(
+            for: entry, dividerText: dividerText
+        )
+        let resolved = rowMeasureDesk.resolve(
+            memoKey: memoKey, rowKey: key,
+            fallback: ChatNativeRowHeightComposer
+                .fallbackHeight
+        )
+        if resolved.needsJob {
+            rowMeasureDesk.collect(
+                composer.makeEntryMeasureJob(
+                    for: entry,
+                    dividerText: dividerText,
+                    memoKey: memoKey, rowKey: key
+                )
+            )
+        }
         return ChatNativeRow(
             key: key,
             entryID: entry.id,
@@ -2951,9 +3048,7 @@ struct ChatView: View {
                 selectionActive: activeSelectionEntryID == entry.id,
                 styleKey: nativeRowStyleKey
             ),
-            height: composer.entryHeight(
-                entry, dividerText: dividerText
-            ),
+            height: resolved.height,
             makeView: {
                 AnyView(
                     entryRowContent(

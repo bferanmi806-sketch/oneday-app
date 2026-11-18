@@ -393,7 +393,8 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             ChatRowStateLedger()
     ) -> ChatNativeRowHeightComposer {
         ChatNativeRowHeightComposer(
-            screenW: 402,
+            screenWidth: 402,
+            horizontalPadding: OneDayMetrics.pageGutter,
             sizeCategory: .large,
             boldText: false,
             displayScale: 3,

@@ -219,8 +219,8 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         let fieldFrame = placeholder.frame
         app.coordinate(
             withNormalizedOffset: CGVector(dx: 0, dy: 0)
-        ).coordinate(
-            withOffset: CGVector(
+        ).withOffset(
+            CGVector(
                 dx: fieldFrame.midX, dy: fieldFrame.midY
             )
         ).tap()

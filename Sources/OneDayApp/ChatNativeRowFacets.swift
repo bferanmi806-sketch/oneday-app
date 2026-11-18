@@ -1,0 +1,270 @@
+import Foundation
+import OneDayCore
+import UIKit
+
+/// 条目行高输入快照（§331）：合成器核心读的条
+/// 目字段全集（值副本）——ChatEntry 是主线程类，
+/// 后台量测不得直读；快照后核心只碰值。图片数
+/// 据只为本地图解码判定而带（写时复制、缓冲共
+/// 享不拷字节）
+struct ChatEntryHeightSnapshot {
+    let id: UUID
+    let role: String
+    let content: String
+    let createdAt: Date
+    let sendFailed: Bool
+    let isPendingSend: Bool
+    let quote: MessageQuote?
+    let sourceQuote: SourceQuote?
+    let reasoning: String?
+    let toolCard: ToolCard?
+    let remoteImagePaths: [String]
+    let remoteFilePaths: [String]
+    let imageDatas: [Data]
+    let echoKey: String?
+    let approvalKey: String?
+    let traceKey: String?
+    let traceEcho: TraceEchoSnapshot?
+
+    init(_ entry: ChatEntry) {
+        id = entry.id
+        role = entry.role
+        content = entry.content
+        createdAt = entry.createdAt
+        sendFailed = entry.sendFailed
+        isPendingSend = entry.isPendingSend
+        quote = entry.quote
+        sourceQuote = entry.sourceQuote
+        reasoning = entry.reasoning
+        toolCard = entry.toolCard
+        remoteImagePaths = entry.remoteImagePaths
+        remoteFilePaths = entry.remoteFilePaths
+        imageDatas = entry.allImageDatas
+        echoKey = entry.echoKey
+        approvalKey = entry.approvalKey
+        traceKey = entry.traceKey
+        traceEcho = entry.traceEcho
+    }
+}
+
+/// 行高 facet 快照（§331）：合成器核心的一切外
+/// 部读（账本展开覆盖/审批详情/宿主审批锚态/备
+/// 注/裁决中/文件存在性与大小/交付 meta 与封面
+/// 形态/本地图解码）在主线程先落为值；核心据此
+/// 成为纯函数（值进→高出），可在量测台后台队
+/// 列整行执行。快照枚举与 §330 备忘键的 facet
+/// 摘要同源（摘要折什么、快照取什么——键与工
+/// 单永远同值，不会键新值旧）
+struct ChatNativeRowFacets {
+    var expansionOverrides: [String: Bool] = [:]
+    var approvalDetails: [String: ApprovalDetailState] = [:]
+    var anchorStates: [String: ApprovalAnchor.RowState] = [:]
+    var cardNotes: [String: String] = [:]
+    var decidingIDs: Set<String> = []
+    /// 存在性：键缺＝未验证（与 existence(for:)
+    /// 回 nil 同义）
+    var fileExistences: [String: FileMetadataStore.Existence] = [:]
+    var fileSizes: [String: Int64] = [:]
+    var deliveryMetas: [String: DeliveryStore.MetaResult] = [:]
+    /// 封面形态（交付卡高唯一读的缓存合成值，快
+    /// 照点按现行公式先算定）
+    var deliveryCoverForms: [String: Bool] = [:]
+    /// 本地图解码成败（与条目 imageDatas 同序）
+    var localImageDecoded: [Bool] = []
+    /// 审批区：ready 时的未锚定遍历集（记录本体
+    /// ＋锚定集＋已决行 id 集）；nil＝非 ready
+    var zoneRecords: [WriteGateRecord]?
+    var zoneAnchoredIDs: Set<String> = []
+    var zoneResolvedLineIDs: [String] = []
+}
+
+/// facet 快照器（§331）：主线程执行——把合成器
+/// 核心将读的外部值逐项落进快照。枚举与合成器
+/// 读点对账（漏取一项＝后台算出旧高，故条目集
+/// 逐 facet 与 ChatNativeRowHeight 的摘要枚举同
+/// 构、且有「快照核心高＝现行合成高」对拍测试
+/// 钉住，见 ChatNativeMeasureDeskTests）
+enum ChatNativeRowFacetSnapshotter {
+    @MainActor
+    static func entryFacets(
+        for entry: ChatEntry,
+        ledger: ChatRowStateLedger,
+        hubStore: AgentHubStore
+    ) -> ChatNativeRowFacets {
+        var facets = ChatNativeRowFacets()
+        recordExpansion(
+            ledger,
+            key: ChatRowStateKeys.reasoningEntry(entry.id),
+            into: &facets
+        )
+        recordExpansion(
+            ledger,
+            key: ChatRowStateKeys.toolEntry(entry.id),
+            into: &facets
+        )
+        if entry.role == "user" {
+            facets.localImageDecoded = entry
+                .allImageDatas.indices.map { index in
+                    LocalImageDecodeCache.shared.image(
+                        entryID: entry.id, index: index,
+                        data: entry.allImageDatas[index]
+                    ) != nil
+                }
+            for rawPath in entry.remoteFilePaths {
+                let split = FileLineAnchor.split(
+                    pathWithAnchor: rawPath
+                )
+                recordFileState(split.path, into: &facets)
+            }
+        } else {
+            let scans = EntryScanMemo.scans(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            )
+            for deliveryID in scans.delivery.deliveryIDs {
+                recordDelivery(deliveryID, into: &facets)
+            }
+            var paths = Set<String>()
+            paths.formUnion(scans.media.imagePaths)
+            paths.formUnion(
+                scans.inlineCandidates.map(\.path)
+            )
+            paths.formUnion(scans.standalonePaths)
+            let wholePathRef = FileRefDetector
+                .wholeMessagePath(in: scans.media.text)
+            if let wholePathRef {
+                paths.insert(wholePathRef.path)
+            }
+            let fileRefs = FileRefDetector
+                .detectStandaloneAnchored(
+                    in: entry.content,
+                    excluding: entry.remoteImagePaths
+                        + scans.media.imagePaths
+                        + scans.inlineCandidates
+                            .map(\.path)
+                        + (wholePathRef.map { [$0.path] }
+                            ?? [])
+                )
+            paths.formUnion(fileRefs.map(\.path))
+            for path in paths {
+                recordFileState(path, into: &facets)
+            }
+        }
+        if entry.approvalKey != nil {
+            let recordID = ApprovalAnchor.recordID(
+                fromKey: entry.approvalKey ?? ""
+            ) ?? ""
+            facets.anchorStates[recordID] =
+                hubStore.anchorRowState(recordID: recordID)
+            facets.approvalDetails[recordID] =
+                ledger.approvalDetail(for: recordID)
+            if let note = hubStore.cardNotes[recordID] {
+                facets.cardNotes[recordID] = note
+            }
+            if hubStore.decidingIDs.contains(recordID) {
+                facets.decidingIDs.insert(recordID)
+            }
+        }
+        return facets
+    }
+
+    @MainActor
+    static func groupFacets(
+        cards: [ToolCard], groupKey: String,
+        ledger: ChatRowStateLedger
+    ) -> ChatNativeRowFacets {
+        var facets = ChatNativeRowFacets()
+        recordExpansion(ledger, key: groupKey, into: &facets)
+        for card in cards {
+            recordExpansion(
+                ledger,
+                key: ChatRowStateKeys.toolGroupCard(
+                    groupKey: groupKey, cardID: card.id
+                ),
+                into: &facets
+            )
+        }
+        return facets
+    }
+
+    @MainActor
+    static func zoneFacets(
+        ledger: ChatRowStateLedger,
+        hubStore: AgentHubStore
+    ) -> ChatNativeRowFacets {
+        var facets = ChatNativeRowFacets()
+        guard case .ready(let records)
+            = hubStore.approvalState
+        else { return facets }
+        facets.zoneRecords = records
+        facets.zoneAnchoredIDs = hubStore.anchoredRecordIDs
+        facets.zoneResolvedLineIDs =
+            hubStore.resolvedLines.map(\.id)
+        for record in records {
+            facets.approvalDetails[record.id] =
+                ledger.approvalDetail(for: record.id)
+            if let note = hubStore.cardNotes[record.id] {
+                facets.cardNotes[record.id] = note
+            }
+            if hubStore.decidingIDs.contains(record.id) {
+                facets.decidingIDs.insert(record.id)
+            }
+        }
+        return facets
+    }
+
+    // MARK: - 记录助手
+
+    @MainActor
+    private static func recordExpansion(
+        _ ledger: ChatRowStateLedger, key: String,
+        into facets: inout ChatNativeRowFacets
+    ) {
+        if let value = ledger.expansionOverride(for: key) {
+            facets.expansionOverrides[key] = value
+        }
+    }
+
+    @MainActor
+    private static func recordFileState(
+        _ path: String,
+        into facets: inout ChatNativeRowFacets
+    ) {
+        if let existence = FileMetadataStore.shared
+            .existence(for: path) {
+            facets.fileExistences[path] = existence
+        }
+        if let size = FileMetadataStore.shared
+            .metadata(for: path)?.size {
+            facets.fileSizes[path] = size
+        }
+    }
+
+    @MainActor
+    private static func recordDelivery(
+        _ id: String,
+        into facets: inout ChatNativeRowFacets
+    ) {
+        guard let result = DeliveryStore.shared
+            .metaResult(for: id)
+        else { return }
+        facets.deliveryMetas[id] = result
+        if case .loaded(let meta) = result {
+            let synthetic = WorkspaceFileEntry(
+                name: meta.name, path: meta.path,
+                isDirectory: false, size: meta.size,
+                mtime: nil, mimeType: meta.mime
+            )
+            facets.deliveryCoverForms[id] =
+                meta.cover.cover
+                || DeliveryStore.shared.hasCachedImage(
+                    id: meta.id, variant: .cover
+                )
+                || FileThumbnailStore.shared
+                    .hasCachedThumbnail(
+                        for: synthetic, targetPixelSize: 720
+                    )
+        }
+    }
+}
