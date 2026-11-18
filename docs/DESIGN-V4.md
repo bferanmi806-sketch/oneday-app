@@ -13868,3 +13868,9 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **改动面**：Core 新增 MainlineClaim.swift（认领判定＋共用选定核）；MainlineAdoption 候选加 isArchived 位（§220 不读、默认 false）；SessionLedger 加认领编排（discoverAndClaimMainline/rediscoverMainline/unarchiveClaimedMainlineIfNeeded）＋身份存储口与迁移；ChatView 两处——ensureMainThread 不再铸造（绑定只对齐已知 id、可为 nil）、ensureMainLink 链接前先认领＋落定后解档；MainSessionView 加认领记录节＋「重新发现主线」按钮（复用既有行组件与 Palette/OneDayMetrics 令牌，无新视觉件）。服务端零改动、伴生零改动；§220 收养、服务端收编补丁均保留作兜底（定位降级见规格 §5.2）。
 
 **验收门（本包）**：Core 判定五形态（零/一/多候选、归档候选、删除账命中）＋App 全旅程（登录→目录→认领落存、归档保持且零服务端写、无主线回冷启动信号且不铸造、防复活、重新发现改认/无事、迁移三态）全过；真机旅程（重装→登录→自动认领→消息数对齐→设置页记录可见）随根治版组版门走（规格 §四全版共同门）。
+
+### §330.1 CI 判读（回填）
+
+**判绿（2026-11-18）**：最终树 6755dcf（fb1b30f 落码＋6755dcf 续修），run 44278696909 §190 核账——Core 2168/2168 零失败（基线 2157＋本包新测 11）；红集恰 §328.1/§329.1 基线族 13 件在席（与 §329 判绿轮 fails 逐件相同：R2 装配 2＋EdgeEffect 1＋手势仲裁 4＋手势原生面 5＋键盘矩阵 1），签名外新红零；本包新测 21 件全绿（Core 认领判定 11＋App 旅程/迁移 10）；关键读数与 §329 判绿轮逐值一致（CHAIN passes=172 sections=43 content=11916.0、BTIER 440/0/0）。
+
+**首轮（run 44271194919，树 fb1b30f）新红 4 件、定因与续修（6755dcf）**：⑴认领旅程 3 红——测试候选标题写死「主线」字面，而判定标题取 SideChatStore.mainTitle 随 locale 本地化（CI 英文环境＝"Main conversation"），测试口径 bug、生产逻辑无误（§220 同源）；续修：测试标题改取 mainTitle 同源。⑵既有双轨测 SessionLedgerTailCloseTests.testLedgerReadsAndWritesLegacyKeys 转红——未签名测试宿主 Keychain 写不落盘（SecItem 静默失败），身份键纯存储读出令裸写旧键读不到；续修：读出口径定为「旧键在册优先、身份存储兜底」（§330 对账段已同步），该测转绿、迁移三态测全绿。两件均为环境/口径实证，无 flake 成分。**未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门：重装→登录→认领→设置页记录可见）。
