@@ -194,6 +194,41 @@ struct ChatNativeRowHeightComposer {
         )
     }
 
+    /// SwiftUI Text 单行实高（§329 续修校准实证）：
+    /// UIFont 行高按显示像素向上取整——与量测台
+    /// 的 spec 步长不同值（例 .footnote：实高
+    /// 15.67 vs spec 18），凡呈现走 SwiftUI Text
+    /// 的单行字（限行 1 的标题/标签类）走本式
+    private func swiftLineHeight(_ font: UIFont) -> CGFloat {
+        (font.lineHeight * displayScale).rounded(.up)
+            / displayScale
+    }
+
+    /// SwiftUI Text 多行实高（§329 续修校准实
+    /// 证）：折行点与量测台一致（同为 TextKit 折
+    /// 行）、逐行量值不同——行数＝量测高÷字阶
+    /// spec 步长取整，实高＝首行（swiftLine-
+    /// Height）＋(行数−1)×spec 步长。校准集逐
+    /// 值验算：思考正文 6 行 105.67、代码 5 行
+    /// 87.67、工具详情等宽 3 行 46.33 全中。
+    /// 凡呈现走 SwiftUI Text 的多行文本（代码/
+    /// 思考正文/工具详情/表格格值）走本式，不
+    /// 许再直用量测高
+    private func swiftTextHeight(
+        measured: CGFloat,
+        stepStyle: UIFont.TextStyle,
+        firstLineFont: UIFont
+    ) -> CGFloat {
+        guard measured > 0 else { return measured }
+        let step = spec(stepStyle)
+        guard step > 0 else { return measured }
+        let lines = max(
+            1, Int((measured / step).rounded())
+        )
+        return swiftLineHeight(firstLineFont)
+            + CGFloat(lines - 1) * step
+    }
+
     /// 自然单行宽（表格列宽/回响时间列宽用）
     private func naturalWidth(
         _ text: String, font: UIFont
@@ -340,18 +375,25 @@ struct ChatNativeRowHeightComposer {
         case .code(let code, _):
             // codeView：内距 spacingSM＋头行（复制
             // 钮命中域 44 恒在席）＋spacingXS＋代码
-            // 文本（横滚不折行、等宽 footnote 自然
-            // 宽量高＝行数×行高）
-            let codeHeight = SelectableTextRepresentable
-                .referenceHeight(
-                    attributed: NSAttributedString(
-                        string: code,
-                        attributes: [
-                            .font: monospacedFont(.footnote),
-                        ]
+            // 文本（横滚不折行；呈现是 SwiftUI
+            // Text——量测高只借行数、实高走
+            // swiftTextHeight，§329 续修校准）
+            let codeHeight = swiftTextHeight(
+                measured: SelectableTextRepresentable
+                    .referenceHeight(
+                        attributed: NSAttributedString(
+                            string: code,
+                            attributes: [
+                                .font: monospacedFont(
+                                    .footnote
+                                ),
+                            ]
+                        ),
+                        width: nil
                     ),
-                    width: nil
-                )
+                stepStyle: .footnote,
+                firstLineFont: monospacedFont(.footnote)
+            )
             return OneDayMetrics.spacingSM * 2
                 + OneDayMetrics.minTapTarget
                 + OneDayMetrics.spacingXS
@@ -399,69 +441,27 @@ struct ChatNativeRowHeightComposer {
                 header: header, rows: rows, width: width
             )
         }
-        // Grid：列宽＝该列各格自然宽的最大值、封
-        // 顶 maxColumnWidth；格文本 .callout（strong
-        // 段 bold）在列宽内折行；行高＝行内最高格；
-        // 行间 verticalSpacing spacingXS；表头行与
-        // 数据行之间一行 GroupDivider（gridCell-
-        // Columns 占整行）
-        let columnCap = CGFloat(
-            MarkdownTablePresentation.maxColumnWidth
+        // Grid（§329 续修校准实证）：横滚 Scroll-
+        // View＋Grid 组合下，格上的 frame(max-
+        // ColumnWidth) 不压缩列宽——列宽按各格自
+        // 然宽取列最大值、每格恒单行（拟合直测：
+        // 备注列自然宽 270 整行不折、整表高与
+        // 「全行单行」模型逐值一致）。行高＝
+        // SwiftUI .callout 单行实高（表头 bold
+        // 同值）；行间 verticalSpacing spacingXS；
+        // 表头行与数据行之间 GroupDivider 一行。
+        // 注：§149「封顶折行」设计意图在此组合下
+        // 未达成、属呈现层既有行为，本式只对齐
+        // 量测、呈现改判归主线
+        let rowLineHeight = swiftLineHeight(
+            plainFont(.callout)
         )
-        var columnWidths = [CGFloat](
-            repeating: 0, count: header.count
-        )
-        func cellAttributed(_ cell: String) -> NSAttributedString {
-            tableCellAttributed(cell)
-        }
-        for (column, cell) in header.enumerated() {
-            columnWidths[column] = max(
-                columnWidths[column],
-                naturalWidth(
-                    cell, font: weightedFont(
-                        .callout, .bold
-                    )
-                )
-            )
-        }
-        for row in rows {
-            for (column, cell) in row.enumerated()
-            where column < header.count {
-                columnWidths[column] = max(
-                    columnWidths[column],
-                    naturalWidth(
-                        cell, font: plainFont(.callout)
-                    )
-                )
-            }
-        }
-        for index in columnWidths.indices {
-            columnWidths[index] = min(
-                columnWidths[index], columnCap
-            )
-        }
-        func rowHeight(_ cells: [String]) -> CGFloat {
-            var height: CGFloat = 0
-            for (column, cell) in cells.enumerated()
-            where column < header.count {
-                let cellHeight = SelectableTextRepresentable
-                    .referenceHeight(
-                        attributed: cellAttributed(cell),
-                        width: columnWidths[column]
-                    )
-                height = max(height, cellHeight)
-            }
-            return height
-        }
         let dividerHeight = 1 / max(displayScale, 1)
-        var total = rowHeight(header) + dividerHeight
-        for row in rows {
-            total += rowHeight(row)
-        }
         let gridRows = rows.count + 2
-        total += OneDayMetrics.spacingXS
-            * CGFloat(gridRows - 1)
-        return total
+        return rowLineHeight * CGFloat(rows.count + 1)
+            + dividerHeight
+            + OneDayMetrics.spacingXS
+                * CGFloat(gridRows - 1)
     }
 
     /// 表格降级列表高（>4 列）：逐数据行成组（组
@@ -496,7 +496,14 @@ struct ChatNativeRowHeightComposer {
                     entry.value, width: valueWidth
                 )
                 rowTotal += max(
-                    spec(.footnote), valueHeight
+                    swiftLineHeight(
+                        weightedFont(.footnote, .semibold)
+                    ),
+                    swiftTextHeight(
+                        measured: valueHeight,
+                        stepStyle: .callout,
+                        firstLineFont: plainFont(.callout)
+                    )
                 )
             }
             if row.count > 1 {
@@ -749,8 +756,12 @@ struct ChatNativeRowHeightComposer {
                 - OneDayMetrics.bubblePaddingH
                 - 2 - OneDayMetrics.spacingS
             let bodyHeight = min(
-                plainHeight(
-                    text, .footnote, width: bodyWidth
+                swiftTextHeight(
+                    measured: plainHeight(
+                        text, .footnote, width: bodyWidth
+                    ),
+                    stepStyle: .footnote,
+                    firstLineFont: plainFont(.footnote)
                 ),
                 CGFloat(ReasoningPresentation.maxBodyHeight)
             )
@@ -793,31 +804,45 @@ struct ChatNativeRowHeightComposer {
         }
     }
 
-    /// 卡行本体高：max(图标盒 36, 标题行＋副行)
+    /// 卡行本体高：max(图标盒 36, 标题行＋副行)；
+    /// 标题/副行均 SwiftUI Text 单行——走实高
+    /// （§329 续修校准：标题 .subheadline
+    /// medium 实高 18、副行 .caption 实高
+    /// 14.33，spec 口径各虚高 2/1.67）
     private func toolCardRowHeight(
         _ card: ToolCard
     ) -> CGFloat {
-        var textHeight = spec(.subheadline)
+        var textHeight = swiftLineHeight(
+            weightedFont(.subheadline, .medium)
+        )
         if !toolCardSubtitle(card).isEmpty {
             textHeight += OneDayMetrics.spacingMicro
-                + spec(.caption1)
+                + swiftLineHeight(plainFont(.caption1))
         }
         return max(36, textHeight)
     }
 
-    /// 详情字段高：标签 caption＋spacingMicro＋
-    /// 正文（caption，等宽档走等宽量测）
+    /// 详情字段高：标签 caption 单行实高＋
+    /// spacingMicro＋正文（caption SwiftUI
+    /// Text 多行实高，等宽档走等宽量测借行数）
     private func toolDetailFieldHeight(
         text: String, monospaced: Bool, width: CGFloat
     ) -> CGFloat {
-        let textHeight = monospaced
+        let measured = monospaced
             ? measurePlain(
                 text,
                 font: monospacedFont(.caption1),
                 width: width
             )
             : plainHeight(text, .caption1, width: width)
-        return spec(.caption1)
+        let textHeight = swiftTextHeight(
+            measured: measured,
+            stepStyle: .caption1,
+            firstLineFont: monospaced
+                ? monospacedFont(.caption1)
+                : plainFont(.caption1)
+        )
+        return swiftLineHeight(plainFont(.caption1))
             + OneDayMetrics.spacingMicro + textHeight
     }
 
@@ -848,7 +873,8 @@ struct ChatNativeRowHeightComposer {
             monospaced: card.category == .terminal,
             width: width
         ))
-        var total = fields.reduce(0, +) + spec(.caption1)
+        var total = fields.reduce(0, +)
+            + swiftLineHeight(plainFont(.caption1))
         total += OneDayMetrics.spacingS
             * CGFloat(fields.count)
         return total
@@ -898,7 +924,12 @@ struct ChatNativeRowHeightComposer {
     func toolGroupHeight(
         cards: [ToolCard], groupKey: String
     ) -> CGFloat {
-        var total = 30 + max(36, spec(.subheadline))
+        var total = 30 + max(
+            36,
+            swiftLineHeight(
+                weightedFont(.subheadline, .medium)
+            )
+        )
         let groupExpanded = ledger.expansionOverride(
             for: groupKey
         ) ?? false
