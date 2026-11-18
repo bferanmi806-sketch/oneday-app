@@ -149,8 +149,12 @@ final class LayoutMeasurePool: @unchecked Sendable {
             return .zero
         }
         let worker = nextWorker()
+        // 与异步口同式：NSAttributedString 非
+        // Sendable、装箱过队列边界（串组装后不
+        // 可变、跨线只读）
+        let boxed = LayoutAttributedBox(attributed)
         return worker.queue.sync {
-            worker.measureSize(attributed, width: width)
+            worker.measureSize(boxed.value, width: width)
         }
     }
 }
