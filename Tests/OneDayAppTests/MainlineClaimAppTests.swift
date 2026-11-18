@@ -12,6 +12,9 @@ import XCTest
 /// 不被认领复活⑤重新发现改认失效指针/现任在册无
 /// 事⑥身份键 Keychain 迁移（旧值搬运/双轨同写/降
 /// 级往返末写胜）
+/// 注：候选标题取 SideChatStore.mainTitle 与生产同
+/// 源（随 locale 变——CI 英文环境为 "Main conver-
+/// sation"），不写死「主线」字面（§220 同源口径）
 @MainActor
 final class MainlineClaimAppTests: XCTestCase {
 
@@ -91,7 +94,7 @@ final class MainlineClaimAppTests: XCTestCase {
                     messageCount: 3, archived: false
                 ),
                 sessionJSON(
-                    id: "oneday-main-serve", title: "主线",
+                    id: "oneday-main-serve", title: SideChatStore.mainTitle,
                     messageCount: 243, archived: false, ended: 1700
                 ),
             ], total: 2),
@@ -140,7 +143,7 @@ final class MainlineClaimAppTests: XCTestCase {
             pages: [
                 "include|0": makePage(sessions: [
                     sessionJSON(
-                        id: "oneday-main-archived", title: "主线",
+                        id: "oneday-main-archived", title: SideChatStore.mainTitle,
                         messageCount: 57, archived: true, ended: 900
                     ),
                 ], total: 1),
@@ -195,7 +198,7 @@ final class MainlineClaimAppTests: XCTestCase {
         let appState = makeAppState(pages: [
             "include|0": makePage(sessions: [
                 sessionJSON(
-                    id: "oneday-main-dead", title: "主线",
+                    id: "oneday-main-dead", title: SideChatStore.mainTitle,
                     messageCount: 12, archived: false, ended: 800
                 ),
             ], total: 1),
@@ -207,7 +210,7 @@ final class MainlineClaimAppTests: XCTestCase {
             return .verified
         }
         ledger.deletions.begin(
-            sessionID: "oneday-main-dead", title: "主线",
+            sessionID: "oneday-main-dead", title: SideChatStore.mainTitle,
             appState: appState, modelContext: context
         )
         XCTAssertTrue(
@@ -230,7 +233,7 @@ final class MainlineClaimAppTests: XCTestCase {
         let appState = makeAppState(pages: [
             "include|0": makePage(sessions: [
                 sessionJSON(
-                    id: "oneday-main-real", title: "主线",
+                    id: "oneday-main-real", title: SideChatStore.mainTitle,
                     messageCount: 88, archived: false, ended: 1500
                 ),
             ], total: 1),
@@ -257,7 +260,7 @@ final class MainlineClaimAppTests: XCTestCase {
         let appState = makeAppState(pages: [
             "include|0": makePage(sessions: [
                 sessionJSON(
-                    id: "oneday-main-real", title: "主线",
+                    id: "oneday-main-real", title: SideChatStore.mainTitle,
                     messageCount: 88, archived: false, ended: 1500
                 ),
             ], total: 1),

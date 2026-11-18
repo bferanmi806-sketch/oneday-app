@@ -7,10 +7,10 @@ import SwiftData
 /// 底层存储——生产＝Keychain（与登录凭据同级）、演
 /// 示/测试＝内存。身份键只许经本口读写；UserDefa-
 /// ults 旧键（sideChats.main*）退为一版双轨镜像（写
-/// 路径同拍回写、读路径只作迁移来源，停写归下一大
-/// 版本，与归档列同口径）。布尔以 "1"/"0" 字符串落
-/// 存储（string(forKey:) 非空即「在册」，迁移的在册
-/// 判定靠它）
+/// 路径同拍回写、读出旧键在册优先/本口兜底，停写
+/// 归下一大版本，与归档列同口径）。布尔以 "1"/"0"
+/// 字符串落存储（string(forKey:) 非空即「在册」，
+/// 迁移的在册判定靠它）
 protocol IdentityValueStore: AnyObject {
     func string(forKey key: String) -> String?
     func bool(forKey key: String) -> Bool
@@ -136,8 +136,8 @@ final class SessionLedger {
     /// 键（持有者换人、键不变，升级/回滚零翻译）
     private let defaults: UserDefaults?
     /// 身份键存储（§330）：生产＝Keychain、演示＝内
-    /// 存；身份键的权威读出只走本口，UserDefaults 旧
-    /// 键是双轨镜像（见 IdentityValueStore 注）
+    /// 存；UserDefaults 旧键是双轨镜像（读出口径见
+    /// loadPersistedState，见 IdentityValueStore 注）
     private let identityStore: IdentityValueStore
 
     private enum Key {
@@ -186,19 +186,32 @@ final class SessionLedger {
                 from: defaults, to: identityStore
             )
         }
-        if let raw = identityStore.string(
-            forKey: IdentityKey.mainThreadID
-        ) {
+        // 身份键读出口径（§330）：旧键在册时以旧键为
+        // 准——双轨写恒同步、不一致只来自旧版期间写
+        // 入（末写胜）；且 Keychain 在无权益环境（未
+        // 签名测试宿主等）写不进时旧键是唯一可靠落
+        // 点。旧键缺席（被清/损坏）才读身份存储——迁
+        // 移已把旧值搬入，那时靠它保身份不丢
+        if let raw = defaults?.string(forKey: Key.mainThreadID)
+            ?? identityStore.string(
+                forKey: IdentityKey.mainThreadID
+            ) {
             mainThreadID = UUID(uuidString: raw)
         }
-        mainServerSessionID = identityStore.string(
+        mainServerSessionID = defaults?.string(
+            forKey: Key.mainServerSessionID
+        ) ?? identityStore.string(
             forKey: IdentityKey.mainServerSessionID
         )
-        mainServerConfirmed = identityStore.bool(
-            forKey: IdentityKey.mainServerConfirmed
+        mainServerConfirmed = Self.identityBool(
+            legacy: defaults, legacyKey: Key.mainServerConfirmed,
+            store: identityStore,
+            identityKey: IdentityKey.mainServerConfirmed
         )
-        mainServerSeeded = identityStore.bool(
-            forKey: IdentityKey.mainServerSeeded
+        mainServerSeeded = Self.identityBool(
+            legacy: defaults, legacyKey: Key.mainServerSeeded,
+            store: identityStore,
+            identityKey: IdentityKey.mainServerSeeded
         )
         guard let defaults else { return }
         mainLinkLastError = defaults.string(
@@ -238,6 +251,19 @@ final class SessionLedger {
     private func persist<T: Encodable>(_ value: T, _ key: String) {
         guard let defaults else { return }
         defaults.set(try? JSONEncoder().encode(value), forKey: key)
+    }
+
+    /// 身份布尔读出（§330）：旧键在册以旧键为准（同
+    /// 字符串口径），缺席读身份存储
+    private static func identityBool(
+        legacy defaults: UserDefaults?, legacyKey: String,
+        store: IdentityValueStore, identityKey: String
+    ) -> Bool {
+        if let defaults,
+           defaults.object(forKey: legacyKey) != nil {
+            return defaults.bool(forKey: legacyKey)
+        }
+        return store.bool(forKey: identityKey)
     }
 
     /// 身份键一次性搬运（§330）：旧 UserDefaults 值
