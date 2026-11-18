@@ -515,8 +515,7 @@ struct ChatNativeRowHeightComposer {
                 isDirectory: false, size: meta.size,
                 mtime: nil, mimeType: meta.mime
             )
-            let sizeText = meta.size
-                .map(String.init) ?? "-"
+            let sizeText = String(meta.size)
             let coverFlag = meta.cover.cover
                 ? "1" : "0"
             let cachedImageFlag = DeliveryStore.shared
