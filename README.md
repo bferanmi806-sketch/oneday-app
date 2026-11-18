@@ -9,7 +9,7 @@
 **OneDay is a full-featured, native iOS client for Hermes — the self-hosted AI agent server.**
 Run your own agent on your own server, then chat with it, watch it work, approve its actions, browse its files and manage its models from your iPhone. No third-party cloud in the middle: the app talks directly to *your* server over its API.
 
-> **Status:** The original author has stepped away and OneDay is now **open for community maintenance**. The codebase is complete and builds; see the [help-wanted issues](https://github.com/yyyyymmmmm/oneday-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) if you'd like to pick something up, or open an issue to say hello if you want to co-maintain.
+> **Status:** OneDay is under active development by its original author (a solo side project, so the pace is irregular). Development is briefly paused while a Mac is on its way for on-device testing, and resumes as soon as it arrives. The codebase is complete and builds; see the [help-wanted issues](https://github.com/yyyyymmmmm/oneday-app/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) if you'd like to pick something up, or open an issue to say hello if you want to co-maintain.
 
 ## Screenshots
 
@@ -60,7 +60,7 @@ On first launch the app asks only for your Hermes server address and your login 
 
 OneDay 是自托管 AI Agent 服务端 **Hermes** 的原生 iOS 客户端：把 Agent 跑在你自己的服务器上，再用 iPhone 跟它聊天、看它干活、在聊天里批它的审批、管它的文件和模型。流式对话、工具调用卡片、会话与频道、工作台账、文件预览、语音听写、设备连接器（日历/通讯录/健康摘要）一应俱全，按 iOS 26 原生设计语言打造。
 
-原作者已停更，项目开放社区维护——欢迎从 [help wanted issue](https://github.com/yyyyymmmmm/oneday-app/issues) 里挑一个上手，或直接开 issue 报名共同维护。
+项目仍由原作者持续开发（个人业余项目，节奏不定期），目前短暂暂停，等 Mac 到位后继续推进并做真机测试。也欢迎共同维护：欢迎从 [help wanted issue](https://github.com/yyyyymmmmm/oneday-app/issues) 里挑一个上手，或直接开 issue 报名共同维护。
 
 ## Contributing
 
