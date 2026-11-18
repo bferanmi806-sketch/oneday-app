@@ -11,10 +11,11 @@ import UIKit
 /// 只在同步兜底路径上量测（直播行等少数行），
 /// 历史行全量走后台预排版
 enum ChatNativeTextMeasure {
-    /// 给定宽下的高。emptyLineHeight＝空串口径：
-    /// 量测视图对空串回字体一行高（§168/§329 校
-    /// 准口径），池对空串不造数——后台路径以调
-    /// 用方给出的字体行高补齐，两路同值
+    /// 给定宽下的高。emptyLineHeight＝空串兜底
+    /// 口径：量测视图对空串回自家字体实高（R10
+    /// 实测 22.0、与被量串的意图字体无关），后
+    /// 台以主线程探针实值回同值（见 emptyProbe
+    /// 注）、未探得才回本兜底，两路同值
     static func height(
         attributed: NSAttributedString, width: CGFloat,
         emptyLineHeight: CGFloat
@@ -29,21 +30,69 @@ enum ChatNativeTextMeasure {
             // 裸 attributed 是 task 隔离值、直捕
             // 进 @MainActor 闭包即发送错误
             let boxed = LayoutAttributedBox(attributed)
-            return MainActor.assumeIsolated {
+            let value = MainActor.assumeIsolated {
                 SelectableTextRepresentable
                     .referenceHeight(
                         attributed: boxed.value,
                         width: width
                     )
             }
+            if attributed.length == 0 {
+                emptyProbe.storeHeight(value)
+            }
+            return value
         }
         guard attributed.length > 0 else {
-            return emptyLineHeight
+            // 空串口径（R10 实测修正）：空串无属
+            // 性、量测视图以自家字体回高（实测
+            // 22.0、并非调用方字体行高 20.29）——
+            // 后台回主线程探针实值、与同步路径逐
+            // 值同；未探得才回字体行高兜底
+            return emptyProbe.storedHeight()
+                ?? emptyLineHeight
         }
         return LayoutMeasurePool.shared
             .measureSizeSynchronously(
                 attributed, width: width
             ).height
+    }
+
+    /// 空串实值探针：量测视图对空串的高/宽只由
+    /// 它自家字体决定（与被量串的意图字体无关、
+    /// 随环境变）——主线程量到即记、后台只读，
+    /// 两路空串恒同值（NSLock 锁盒、@unchecked
+    /// 依据＝读写全在锁内）
+    private static let emptyProbe = EmptyProbe()
+
+    private final class EmptyProbe:
+        @unchecked Sendable {
+        private let lock = NSLock()
+        private var height: CGFloat?
+        private var width: CGFloat?
+
+        func storeHeight(_ value: CGFloat) {
+            lock.lock()
+            height = value
+            lock.unlock()
+        }
+
+        func storeWidth(_ value: CGFloat) {
+            lock.lock()
+            width = value
+            lock.unlock()
+        }
+
+        func storedHeight() -> CGFloat? {
+            lock.lock()
+            defer { lock.unlock() }
+            return height
+        }
+
+        func storedWidth() -> CGFloat? {
+            lock.lock()
+            defer { lock.unlock() }
+            return width
+        }
     }
 
     /// 自然单行宽（表格列宽/时间列宽用）：与量测
@@ -54,17 +103,23 @@ enum ChatNativeTextMeasure {
     ) -> CGFloat {
         if Thread.isMainThread {
             let boxed = LayoutAttributedBox(attributed)
-            return MainActor.assumeIsolated {
+            let size = MainActor.assumeIsolated {
                 SelectableTextRepresentable
                     .measuredSize(
                         attributed: boxed.value,
                         proposal: ProposedViewSize(
                             width: nil, height: nil
                         )
-                    ).width
+                    )
             }
+            if attributed.length == 0 {
+                emptyProbe.storeWidth(size.width)
+            }
+            return size.width
         }
-        guard attributed.length > 0 else { return 0 }
+        guard attributed.length > 0 else {
+            return emptyProbe.storedWidth() ?? 0
+        }
         return LayoutMeasurePool.shared
             .measureSizeSynchronously(
                 attributed, width: 10_000

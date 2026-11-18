@@ -666,9 +666,31 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         // 工具组：同卡同组键，组展开覆盖翻转同理
         let groupKey = "tg-memo"
         let groupLedger = ChatRowStateLedger()
+        // 键稳定性直断（R10 红定位）：两台新合成
+        // 器对同组须产同键——不等时失败信息带出
+        // 两键全文、可一段定位分歧所在
+        let probeKey1 = makeComposer(
+            ledger: groupLedger
+        ).toolGroupMemoKey(
+            cards: [card], groupKey: groupKey
+        )
+        let probeKey2 = makeComposer(
+            ledger: groupLedger
+        ).toolGroupMemoKey(
+            cards: [card], groupKey: groupKey
+        )
+        XCTAssertEqual(
+            probeKey1, probeKey2,
+            "工具组备忘键须跨合成器稳定"
+        )
         let groupCollapsed = makeComposer(
             ledger: groupLedger
         ).toolGroupHeight(cards: [card], groupKey: groupKey)
+        XCTAssertNotNil(
+            ChatNativeRowHeightComposer
+                .cachedRowHeight(forKey: probeKey1),
+            "首算后备忘须可按同键读回"
+        )
         let groupCountAfterFirst =
             ChatNativeRowHeightComposer
                 .rowComputationCount

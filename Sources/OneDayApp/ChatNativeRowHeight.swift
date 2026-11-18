@@ -629,13 +629,42 @@ struct ChatNativeRowHeightComposer {
         return hash
     }
 
-    private static func encodeDigest<T: Encodable>(
-        _ value: T
+    /// 工具卡结构化摘要（§331 R10 修）：逐字
+    /// 段入修订摘要——原 JSON 编码摘要与 §325
+    /// 结构化派生双轨并存、且实测同卡同组键二
+    /// 算未命中（对照：全手写摘要的条目键跨趟
+    /// 稳定），统一废止 JSON 口；字段集＝
+    /// ToolCard 全字段、不漏一项
+    private static func cardDigest(
+        _ card: ToolCard
     ) -> String {
-        guard let data = try? JSONEncoder()
-            .encode(value)
-        else { return "encfail" }
-        return "\(fnv1a(data))"
+        var revision = ChatNativeRowRevision()
+        revision.addText(card.id)
+        revision.addText(card.toolName)
+        revision.addText(card.category.rawValue)
+        revision.addText(card.title)
+        revision.addText(card.summary)
+        revision.addText(card.result)
+        revision.addFlag(card.resultFailed)
+        revision.addText(card.arguments)
+        return revisionDigest(revision)
+    }
+
+    /// 回告卡结构化摘要（同 cardDigest 口径）：
+    /// 字段集＝OverviewNotification 全字段
+    private static func reportDigest(
+        _ item: OverviewNotification
+    ) -> String {
+        var revision = ChatNativeRowRevision()
+        revision.addText(item.id)
+        revision.addText(item.kind)
+        revision.addText(item.title)
+        revision.addText(item.body)
+        revision.addText(item.createdAt)
+        revision.addFlag(item.read)
+        revision.addText(item.refId)
+        revision.addText(item.changeId)
+        return revisionDigest(revision)
     }
 
     private static func boolDigest(
@@ -1582,7 +1611,7 @@ struct ChatNativeRowHeightComposer {
         card: ToolCard, width: CGFloat,
         expanded: Bool, plain: Bool
     ) -> CGFloat {
-        let key = "tc|\(Self.encodeDigest(card))"
+        let key = "tc|\(Self.cardDigest(card))"
             + "|\(LayoutProductKey.quantizedWidth(Double(width)))"
             + "|\(expanded ? "1" : "0")\(plain ? "1" : "0")"
             + "|\(environmentFingerprint)"
@@ -1637,7 +1666,7 @@ struct ChatNativeRowHeightComposer {
     ) -> String {
         var keyParts = ["tg|\(groupKey)"]
         for card in cards {
-            keyParts.append(Self.encodeDigest(card))
+            keyParts.append(Self.cardDigest(card))
         }
         keyParts.append(
             "g\(Self.boolDigest(ledger?.expansionOverride(for: groupKey)))"
@@ -2067,7 +2096,7 @@ struct ChatNativeRowHeightComposer {
         _ item: OverviewNotification
     ) -> String {
         "rc|\(item.id)"
-            + "|\(Self.encodeDigest(item))"
+            + "|\(Self.reportDigest(item))"
             + "|\(environmentFingerprint)"
     }
 

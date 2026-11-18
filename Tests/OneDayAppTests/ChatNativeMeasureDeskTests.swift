@@ -388,8 +388,9 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
                 "自然宽池/视图须一致"
             )
         }
-        // 空串口径：视图回字体行高、后台以
-        // emptyLineHeight 补——同定义同值
+        // 空串口径（R10 实测修正）：视图对空串
+        // 回自家字体实高（22.0、非字体行高）——
+        // 后台经探针回同值、须与主线程逐值一致
         let empty = NSAttributedString(
             string: "",
             attributes: [.font: font]
@@ -398,9 +399,18 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             attributed: empty, width: 320,
             emptyLineHeight: font.lineHeight
         )
+        var poolEmpty: CGFloat = -1
+        DispatchQueue.global(qos: .userInitiated)
+            .sync {
+                poolEmpty = ChatNativeTextMeasure
+                    .height(
+                        attributed: empty, width: 320,
+                        emptyLineHeight: font.lineHeight
+                    )
+            }
         XCTAssertEqual(
-            viewEmpty, font.lineHeight, accuracy: 0.5,
-            "量测视图空串口径须为字体行高（§168 校准）"
+            poolEmpty, viewEmpty, accuracy: 0.5,
+            "空串后台高须与量测视图同值（探针口径）"
         )
     }
 }
