@@ -18335,25 +18335,25 @@
         }
       }
     },
-    "如：婚礼筹备收尾": {
+    "如：季度总结收尾": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "e.g. Wrap up the wedding prep"
+            "value": "e.g. Wrap up the quarterly summary"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "如：婚礼筹备收尾"
+            "value": "如：季度总结收尾"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "如：婚禮籌備收尾"
+            "value": "如：季度總結收尾"
           }
         }
       }
@@ -55846,25 +55846,25 @@
         }
       }
     },
-    "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 inkroot001@gmail.com 联系我们。": {
+    "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 contact@example.com 联系我们。": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneDay is developed and maintained by Zhihe Shuzhi (“we”). This policy explains how OneDay handles information while you use it. If you have questions, or wish to exercise the rights described below, contact us via GitHub Issues (github.com/yyyyymmmmm/oneday-app/issues) or by email at inkroot001@gmail.com."
+            "value": "OneDay is developed and maintained by Zhihe Shuzhi (“we”). This policy explains how OneDay handles information while you use it. If you have questions, or wish to exercise the rights described below, contact us via GitHub Issues (github.com/yyyyymmmmm/oneday-app/issues) or by email at contact@example.com."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 inkroot001@gmail.com 联系我们。"
+            "value": "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 contact@example.com 联系我们。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "OneDay 由知和數智（下稱「我們」）開發並維護。本政策說明 OneDay 在你使用過程中如何處理資訊。如有疑問，或要行使下文所述的權利，可透過 GitHub 倉庫 Issues（github.com/yyyyymmmmm/oneday-app/issues）或信箱 inkroot001@gmail.com 聯絡我們。"
+            "value": "OneDay 由知和數智（下稱「我們」）開發並維護。本政策說明 OneDay 在你使用過程中如何處理資訊。如有疑問，或要行使下文所述的權利，可透過 GitHub 倉庫 Issues（github.com/yyyyymmmmm/oneday-app/issues）或信箱 contact@example.com 聯絡我們。"
           }
         }
       }

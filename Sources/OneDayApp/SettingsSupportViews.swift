@@ -389,7 +389,7 @@ struct LegalDocumentView: View {
         private static let privacySections: [(heading: String, body: String)] = [
             (
                 "运营方与联系方式",
-                "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 inkroot001@gmail.com 联系我们。"
+                "OneDay 由知和数智（下称「我们」）开发并维护。本政策说明 OneDay 在你使用过程中如何处理信息。如有疑问，或要行使下文所述的权利，可通过 GitHub 仓库 Issues（github.com/yyyyymmmmm/oneday-app/issues）或邮箱 contact@example.com 联系我们。"
             ),
             (
                 "没有账号，也不收集使用数据",

@@ -1,6 +1,6 @@
 # Hermes 接口面对接清单（服务端 v0.23.0）
 
-基准部署：https://hermes.didichou.site（2026-11-08 实测）。
+基准部署：https://your-hermes.example.com（2026-11-08 实测）。
 API Server（:8642）与 Dashboard（:9119）由 nginx 同域反代：
 API 走 /v1/ 与 /health，Dashboard 走 / 与 /api/*。
 鉴权分两个面：**Dashboard 会话 cookie** 管管理面，

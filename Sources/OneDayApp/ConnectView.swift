@@ -44,7 +44,7 @@ struct ConnectView: View {
     /// 回去要回原处，不许一律弹回登录）
     @State private var helpReturn: Page = .login
     @State private var mode: LoginMode = .password
-    @State private var serverText = "https://hermes.didichou.site"
+    @State private var serverText = "https://your-hermes.example.com"
     @State private var username = ""
     @State private var password = ""
     @State private var apiKey = ""
@@ -291,7 +291,7 @@ struct ConnectView: View {
     private var passwordFields: some View {
         VStack(spacing: 0) {
             FieldRow(label: "服务器地址", isActive: focusedField == .server) {
-                TextField("https://hermes.didichou.site", text: $serverText)
+                TextField("https://your-hermes.example.com", text: $serverText)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -318,7 +318,7 @@ struct ConnectView: View {
     private var keyFields: some View {
         VStack(spacing: 0) {
             FieldRow(label: "服务器地址", isActive: focusedField == .server) {
-                TextField("https://hermes.didichou.site", text: $serverText)
+                TextField("https://your-hermes.example.com", text: $serverText)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()

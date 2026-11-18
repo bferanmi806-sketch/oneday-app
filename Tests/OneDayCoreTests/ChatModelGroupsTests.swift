@@ -44,7 +44,7 @@ final class ChatModelGroupsTests: XCTestCase {
         [
             ProviderRegistry.Entry(
                 name: "Ailey",
-                baseURL: "https://aikey.didichou.site/v1",
+                baseURL: "https://your-gateway.example.com/v1",
                 keyEnv: "ONEDAY_PROVIDER_AILEY_KEY",
                 models: ["gpt-5.6", "gpt-5.5", "ailey-only"]
             ),
@@ -130,7 +130,7 @@ final class ChatModelGroupsTests: XCTestCase {
             optionsRoot: nil,
             providers: [ProviderRegistry.Entry(
                 name: "Ailey",
-                baseURL: "https://aikey.didichou.site/v1",
+                baseURL: "https://your-gateway.example.com/v1",
                 keyEnv: "ONEDAY_PROVIDER_AILEY_KEY",
                 models: ["gpt-5.6"]
             )],

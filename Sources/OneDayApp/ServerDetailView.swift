@@ -40,7 +40,7 @@ struct ServerDetailView: View {
                     .frame(minHeight: OneDayMetrics.rowHeight)
                     GroupDivider()
                     FieldRow(label: "服务器地址") {
-                        TextField("https://hermes.didichou.site", text: $serverText)
+                        TextField("https://your-hermes.example.com", text: $serverText)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()

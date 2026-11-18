@@ -4,7 +4,7 @@
 
 | 功能 | 状态 | 说明 |
 |---|---|---|
-| Tuist 工程骨架 | 已建 | 三 target（Core/Design/App）＋单测 target，bundle id site.didichou.oneday |
+| Tuist 工程骨架 | 已建 | 三 target（Core/Design/App）＋单测 target，bundle id com.example.oneday |
 | 设计令牌层 | 已移植 | 礼记 Mat/Elevation/Radius/Motion ＋「纸墨为体、玻璃为用」纪律，主色蓝色整套派生 |
 | 连接页（三步探活） | 已实现 | /health → /auth/password-login → /v1/models，逐步指示、失败给人话 |
 | 状态总览 | 已实现 | /api/status（免登录）＋ /api/config 摘要，两路分开报错 |
@@ -54,7 +54,7 @@ SwiftLint 行长口径核对（全部 ≤160）、WCAG 对比度逐对验算、
 首台 Mac 上的验收顺序（建议照此走）：
 1. `tuist generate` 生成工程，Xcode 打开选 OneDayApp scheme 编译。
 2. 跑 OneDayCoreTests（地址归一化 / SSE / 模型解码三组）。
-3. 真机或模拟器：连接页三步探活（对 hermes.didichou.site）、
+3. 真机或模拟器：连接页三步探活（对 your-hermes.example.com）、
    总览数据、聊天流式与停止、杀进程后凭据恢复。
 4. 首编重点盯的 API 面：iOS 26 玻璃按钮样式（.glass/.glassProminent）、
    URLSession.bytes 流式、@Observable 与 Tab 新 API——若个别符号

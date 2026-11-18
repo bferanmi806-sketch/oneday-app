@@ -136,7 +136,7 @@ final class DictationController {
     /// 段同走诊断行上屏
     private static let diagKey = "dictation.lastDiag"
     private static let log = Logger(
-        subsystem: "site.didichou.oneday", category: "dictation")
+        subsystem: "com.example.oneday", category: "dictation")
 
     /// 阶段打点：一行日志＋末阶段落盘（授权结果/资产
     /// 状态/会话激活/格式值/引擎启动/首结果各一处）

@@ -60,7 +60,7 @@ enum DemoSeeder {
                 "",
                 "```bash",
                 "# 健康检查（免登录）",
-                "curl -s https://hermes.didichou.site/health",
+                "curl -s https://your-hermes.example.com/health",
                 "",
                 "# 容器状态",
                 "docker ps --filter name=hermes",

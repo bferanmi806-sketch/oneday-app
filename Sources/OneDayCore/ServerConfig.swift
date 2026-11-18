@@ -5,7 +5,7 @@ import Foundation
 /// 归一化规则（连接页「测试并连接」前先行，单测覆盖）：
 /// - 去首尾空白；未写协议时补 https://；
 /// - 只保留 scheme / host / port / path，去掉 query 与 fragment；
-/// - 去掉 path 尾斜杠，根地址形如 https://hermes.didichou.site；
+/// - 去掉 path 尾斜杠，根地址形如 https://your-hermes.example.com；
 /// - host 为空、协议非 http/https、无法解析 → 返回 nil（连接页报
 ///   「服务器地址看起来不对」）。
 public struct ServerConfig: Equatable, Sendable {
@@ -40,7 +40,7 @@ public struct ServerConfig: Equatable, Sendable {
         URL(string: baseString)! // swiftlint:disable:this force_unwrapping
     }
 
-    /// 显示用 host（如 hermes.didichou.site）
+    /// 显示用 host（如 your-hermes.example.com）
     public var host: String {
         URLComponents(string: baseString)?.host ?? baseString
     }

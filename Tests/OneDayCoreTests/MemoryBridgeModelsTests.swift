@@ -95,11 +95,11 @@ final class MemoryBridgeModelsTests: XCTestCase {
           "entry": {
             "id": "mem_0123456789abcdef",
             "target": "memory",
-            "title": "婚礼日期",
-            "summary": "婚礼定于 2026-11-16。",
+            "title": "发布日期",
+            "summary": "发布定于 2026-11-16。",
             "updatedAt": 1794200000.0,
             "digest": "cccc",
-            "content": "婚礼定于 2026-11-16 在土基镇西故现村举行，新娘秦源一。"
+            "content": "发布定于 2026-11-16 在会议室举行。"
           }
         }
         """
@@ -108,7 +108,7 @@ final class MemoryBridgeModelsTests: XCTestCase {
         )
         XCTAssertEqual(
             response.entry.content,
-            "婚礼定于 2026-11-16 在土基镇西故现村举行，新娘秦源一。"
+            "发布定于 2026-11-16 在会议室举行。"
         )
         XCTAssertEqual(response.entry.target, .memory)
     }
@@ -165,7 +165,7 @@ final class MemoryBridgeModelsTests: XCTestCase {
 
     func testSearchFilter() {
         let entries = [
-            entry(id: "1", target: "memory", title: "婚礼日期", summary: "11 月 16 日"),
+            entry(id: "1", target: "memory", title: "发布日期", summary: "11 月 16 日"),
             entry(id: "2", target: "user", title: "称呼", summary: "喜欢被称作老板"),
             entry(id: "3", target: "memory", title: "服务器", summary: "RackNerd 节点"),
         ]
@@ -175,7 +175,7 @@ final class MemoryBridgeModelsTests: XCTestCase {
         )
         // 标题命中
         XCTAssertEqual(
-            MemoryEntryPresentation.filtered(entries, query: "婚礼").map(\.id),
+            MemoryEntryPresentation.filtered(entries, query: "发布").map(\.id),
             ["1"]
         )
         // 摘要命中

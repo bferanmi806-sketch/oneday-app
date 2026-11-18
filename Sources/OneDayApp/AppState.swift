@@ -672,7 +672,7 @@ final class AppState {
         switch demoMode {
         case .connected:
             // 演示会话：地址与账号只是展示数据，密钥由假客户端消化
-            config = ServerConfig(rawInput: "https://hermes.didichou.site")
+            config = ServerConfig(rawInput: "https://your-hermes.example.com")
             username = "admin"
             // 演示口径：模型名与总览「当前配置」同为 deepseek-chat，
             // 三处展示（顶栏副题/抽屉服务器行/设置）一致；假客户端

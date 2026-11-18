@@ -136,7 +136,7 @@ public struct OnboardingFailure: Error, Sendable, Equatable {
 /// 到的项为 nil、呈现层整项不显示、不编造——如密钥登
 /// 录没有面板会话、读不到模型目录数，就不显示模型数）。
 public struct ConnectionServiceInfo: Sendable, Equatable {
-    /// 服务器 host（如 hermes.didichou.site）
+    /// 服务器 host（如 your-hermes.example.com）
     public let host: String
     /// Hermes 版本（/health 或 /api/status 实测）
     public let hermesVersion: String?

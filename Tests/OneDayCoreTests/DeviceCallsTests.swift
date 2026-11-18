@@ -69,16 +69,16 @@ final class DeviceCallsTests: XCTestCase {
 
     func testCalendarCreateArgs() throws {
         let args = try CalendarCreateArgs.parse([
-            "title": .string("婚礼"),
+            "title": .string("会议"),
             "start": .string("2026-11-16T13:00:00+08:00"),
             "end": .string("2026-11-16T15:00:00+08:00"),
             "allDay": .bool(false),
-            "location": .string("西故现村"),
+            "location": .string("会议室"),
             "idempotencyKey": .string("key-1"),
         ])
-        XCTAssertEqual(args.title, "婚礼")
+        XCTAssertEqual(args.title, "会议")
         XCTAssertEqual(args.idempotencyKey, "key-1")
-        XCTAssertEqual(args.location, "西故现村")
+        XCTAssertEqual(args.location, "会议室")
         XCTAssertNil(args.calendarName)
     }
 
@@ -969,10 +969,10 @@ final class DeviceCallsTests: XCTestCase {
             )
         }
         let sms = try ComposeSMSArgs.parse([
-            "recipients": .array([.string("13772895146")]),
+            "recipients": .array([.string("13800138000")]),
             "body": .string("开会改到下午三点"),
         ])
-        XCTAssertEqual(sms.recipients, ["13772895146"])
+        XCTAssertEqual(sms.recipients, ["13800138000"])
         XCTAssertThrowsError(try ComposeSMSArgs.parse([
             "recipients": .array([]),
         ])) { error in
@@ -982,7 +982,7 @@ final class DeviceCallsTests: XCTestCase {
             )
         }
         XCTAssertThrowsError(try ComposeSMSArgs.parse([
-            "recipients": .string("13772895146"),
+            "recipients": .string("13800138000"),
         ])) { error in
             XCTAssertEqual(
                 (error as? DeviceToolError)?.code,

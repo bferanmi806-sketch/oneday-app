@@ -1735,7 +1735,7 @@ struct GoalCreateView: View {
                             .padding(.bottom, OneDayMetrics.spacingS)
                         VStack(spacing: 0) {
                             FieldRow(label: "标题") {
-                                TextField("如：婚礼筹备收尾", text: $title)
+                                TextField("如：季度总结收尾", text: $title)
                             }
                             GroupDivider()
                             FieldRow(label: "备注") {

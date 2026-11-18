@@ -12,7 +12,7 @@ final class DrawerSearchPolicyTests: XCTestCase {
     func testIsSearching() {
         XCTAssertFalse(DrawerSearchPolicy.isSearching(query: ""))
         XCTAssertFalse(DrawerSearchPolicy.isSearching(query: "   "))
-        XCTAssertTrue(DrawerSearchPolicy.isSearching(query: "婚礼"))
+        XCTAssertTrue(DrawerSearchPolicy.isSearching(query: "发布"))
         XCTAssertTrue(DrawerSearchPolicy.isSearching(query: " abc "))
     }
 
@@ -42,7 +42,7 @@ final class DrawerSearchPolicyTests: XCTestCase {
     // 置空——任意起始词经此动作后必出搜索态，重
     // 开抽屉呈全量名单由此构造保证
     func testResetAlwaysLeavesSearchState() {
-        for start in ["x", " 婚礼 ", "a b"] {
+        for start in ["x", " 发布 ", "a b"] {
             var query = start
             XCTAssertTrue(DrawerSearchPolicy.isSearching(query: query))
             if DrawerSearchPolicy.shouldResetQuery(

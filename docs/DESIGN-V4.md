@@ -401,7 +401,7 @@ Muse 长文输入态截图追加三点——顶部渐隐、输入多行时
 - 主构建 CI 绿（run 42506812485）：Release 构建成功、
   OneDayCore 单测全过；未签名 IPA 解包核验
   CFBundleShortVersionString 0.2.6 / CFBundleVersion
-  11 / bundle id site.didichou.oneday。注记：本轮首
+  11 / bundle id com.example.oneday。注记：本轮首
   个构建 run（42506355374）解包验出仍是 0.2.5/10——
   版本在本仓是 Info.plist 直写字面量（Project.swift
   app target 处），只改工程 base 设置不进包，已补字
@@ -521,7 +521,7 @@ Muse 长文输入态截图追加三点——顶部渐隐、输入多行时
   新增 ComposerLayoutTests 四态 4 条，均 passed）。
 - 未签名 IPA 解包实测：CFBundleShortVersionString
   0.2.7 / CFBundleVersion 12 / bundle id
-  site.didichou.oneday，与定版一致。
+  com.example.oneday，与定版一致。
 - 键盘态观感终审归用户真机（分工不变）：重点看拼音
   组合态发送舱是否贴着文字长、两键是否锚在编辑行。
 
@@ -609,7 +609,7 @@ OneDay 约 33；底栏总高两边同约 64–66（不动）。
 - 构建 run 42519047031 一轮绿（CI 迭代 1/2）：Release
   构建成功、OneDayCore 单测 49 条全过（ComposerLayout-
   Tests 四态按新基数 46/46/86/146 均 passed）。IPA 解
-  包实测 0.2.8 / 13 / site.didichou.oneday（主代理同法
+  包实测 0.2.8 / 13 / com.example.oneday（主代理同法
   复验一致），已置 your_files/oneday-v0.2.8/。
 - 截图环 run 42519050554：ComposerKeyboardTests 静止
   几何 passed（推导胶囊高落 43–49、field 单行高落
@@ -715,7 +715,7 @@ Tests）：2 行定长串胶囊＝单行基数 46＋1×行高
   ComposerTextMetricsTests 6——宽 270 推导、行高常
   数↔字体行高一致、2/4 行胶囊＝基数＋(n−1)×行高
   ±1、缠绕恰 3 行、空文本 1 行 46）。
-- IPA 解包实测 0.2.9 / 14 / site.didichou.oneday，
+- IPA 解包实测 0.2.9 / 14 / com.example.oneday，
   已置 your_files/oneday-v0.2.9/（终版 1,925,687
   字节；第一轮的同名包已被定案轮替换）。
 - 截图工作流：文件已删（本提交链内），仓库层
@@ -956,7 +956,7 @@ System 家族图标资产选定后自托管 Lottie JSON 接入
   4——字重降档映射、孤字绑定 2/3 字形、文档逐行；
   ChatModelsTests 3——三项清单钉死、provider 口
   径、初始选择优先级）。
-- IPA 解包实测 0.3.0 / 15 / site.didichou.oneday，
+- IPA 解包实测 0.3.0 / 15 / com.example.oneday，
   已置 your_files/oneday-v0.3.0/（1,958,748 字节）。
 - 纯黑自证：全仓 grep 0x000000 / Color.black /
   UIColor.black ＝ 0 残留。
@@ -1044,8 +1044,8 @@ TabBarSymbolsTests 改写：只钉符号名对清单——四
 - 构建 run **42525828519 一轮绿**；单测 **65 条全
   过**（TabBarSymbolsTests 换代 3 条：名对全表／
   .fill 成对纪律／按态取名；总数与 0.3.0 持平）。
-- IPA 解包实测 **0.3.1 / 16 / site.didichou.
-  oneday**，已置 your_files/oneday-v0.3.1/
+- IPA 解包实测 **0.3.1 / 16 / com.example.oneday**，
+  已置 your_files/oneday-v0.3.1/
   （1,955,916 字节）。
 - 真机终审归用户：底栏图标大小与描边（与 Muse
   并排）、选中 .fill 切换与 bounce 手感、标题进
@@ -1215,7 +1215,7 @@ oneday-design-review/liqian-reference-20261109.md；本
   **42526952431 一轮绿**；单测 **65 条全过**（本版
   改动全在 OneDayDesign/OneDayApp 两层，OneDayCore
   未动、测试数与 0.3.1 持平）。
-- IPA 解包实测 **0.3.2 / 17 / site.didichou.oneday**，
+- IPA 解包实测 **0.3.2 / 17 / com.example.oneday**，
   已置 your_files/oneday-v0.3.2/（1,954,636 字节）。
 - 裸色 grep 自查（提交时点）：OneDayDesign 之外
   `Color(hex:`/`Color.black`/`Color.white`/
@@ -1399,7 +1399,7 @@ semibold 小按钮/标签）均为标题/标签位、非正文
   差，均测试侧问题、已逐一修正并留痕于提交史）；
   单测 76 条全过（65 基线＋几何 5＋顶栏规格 2＋字
   重阶梯 3＋布局宽度双模式 1）；解包实测
-  0.3.3／18／site.didichou.oneday；IPA 在
+  0.3.3／18／com.example.oneday；IPA 在
   ~/workspace/your_files/oneday-v0.3.3/OneDay-0.3.3
   .ipa（1,973,934 字节）。
 - 真机终审归用户：底栏选中蓝、顶栏两钮观感、点
@@ -1499,7 +1499,7 @@ icons/oneday/（Logo 技能横评定案，见记忆）。
 
 - 构建 run 42529732483 一轮全绿；单测 76 条全过
   （与 0.3.3 同数，本版无新增/删改单测面）；解包
-  实测 0.3.4／19／site.didichou.oneday；IPA 在
+  实测 0.3.4／19／com.example.oneday；IPA 在
   ~/workspace/your_files/oneday-v0.3.4/OneDay-0.3.4
   .ipa（1,998,607 字节）；图标源文件与定版素材
   md5 一致、Assets.car 已随包打出。
@@ -1586,7 +1586,7 @@ actively）保留——礼记三件套的「点消息区收」与
 - 构建 run 42531079998 一轮全绿（含 Unit tests 步
   TEST SUCCEEDED）；单测 78 条全过（76＋新增 2：
   半径连续性、输入序列单调/纯函数）。解包实测
-  0.3.5／20／site.didichou.oneday；IPA 在
+  0.3.5／20／com.example.oneday；IPA 在
   ~/workspace/your_files/oneday-v0.3.5/OneDay-0.3.5
   .ipa（2,074,559 字节）。
 - 图标解包验：Assets.car 116,296 字节在位，内含
@@ -1766,7 +1766,7 @@ drawerFollowedDrag；②UnevenRoundedRectangle 实参顺
   言——isDateInToday 锚真实系统时钟忽略注入 now，
   已改 startOfDay 日差判定（修复 e51a819）。
 - 解包验：CFBundleShortVersionString 0.3.6／
-  CFBundleVersion 21／site.didichou.oneday；
+  CFBundleVersion 21／com.example.oneday；
   Assets.car 116,296 字节在位（0.3.5 图标全套延
   续）；IPA 2,119,717 字节，存
   ~/workspace/your_files/oneday-v0.3.6/。
@@ -1983,7 +1983,7 @@ api_server 等原始命名零上屏（§21.4），原名只
 新增 11＝ServerLabels 7＋IconTokens 2＋字重账本
 改版净增 1＋SessionDisplay 改版净增 1）；IPA 解包
 验：CFBundleShortVersionString 0.3.7／CFBundle-
-Version 22／bundle id site.didichou.oneday／
+Version 22／bundle id com.example.oneday／
 Assets.car 在包（116,296 字节）；IPA 2,178,936
 字节，落 ~/workspace/your_files/oneday-v0.3.7/。
 构建两轮修正留痕：①DataBar 默认高误引不存在的
@@ -2196,7 +2196,7 @@ SessionDisplay 兜底用例数据缺 endedAt（会话按模
 规格源：~/workspace/oneday-design-review/fixlist-0.3.8.md
 （33 条＋用户四裁）与 baseline-supplement-20261109.md
 （补遗，已并入 §22.7）。
-验收：CI run 42542458853 全绿（构建＋OneDayCore 单测 112 个 0 失败；0.3.7 为 96，新增 16＝DisplayMapping 8＋RenderMeasure 6＋TabBarLayout 2，TabBarSymbols 改版净 0）。IPA 解包验：CFBundleShortVersionString 0.3.8／CFBundleVersion 23／bundle id site.didichou.oneday／Assets.car 在包（116,296 字节）；IPA 2,237,982 字节，落 ~/workspace/your_files/oneday-v0.3.8/。构建两轮留痕：首轮 run 42541961055 构建绿、单测 2 个断言失败（RenderMeasure 设置列紧致密度上限 0.50 被 network 0.532／server.rack 0.525 击穿）——复核认定紧致盒口径对紧凑字形失真（量的是字形内部填充率、非同列复杂度），断言改格口径＋防实心上限，第二轮全绿，详见 24.2 第 14 条。
+验收：CI run 42542458853 全绿（构建＋OneDayCore 单测 112 个 0 失败；0.3.7 为 96，新增 16＝DisplayMapping 8＋RenderMeasure 6＋TabBarLayout 2，TabBarSymbols 改版净 0）。IPA 解包验：CFBundleShortVersionString 0.3.8／CFBundleVersion 23／bundle id com.example.oneday／Assets.car 在包（116,296 字节）；IPA 2,237,982 字节，落 ~/workspace/your_files/oneday-v0.3.8/。构建两轮留痕：首轮 run 42541961055 构建绿、单测 2 个断言失败（RenderMeasure 设置列紧致密度上限 0.50 被 network 0.532／server.rack 0.525 击穿）——复核认定紧致盒口径对紧凑字形失真（量的是字形内部填充率、非同列复杂度），断言改格口径＋防实心上限，第二轮全绿，详见 24.2 第 14 条。
 
 ### 24.1 量测方法（证据纪律，用户定）
 
@@ -2618,7 +2618,7 @@ Hermes 服务端、未发任何生产写请求；无截图工作流新增/复活
 - IPA：2,199,166 字节（~/workspace/your_files/
   oneday-v0.4.1/oneday-unsigned.ipa，md5 与 CI 工
   件一致），解包 Info.plist＝0.4.1/25 核对**通过**
-  （CFBundleIdentifier＝site.didichou.oneday）
+  （CFBundleIdentifier＝com.example.oneday）
 - 未验证如实标注：键盘弹起、抽屉单栏手感、底栏收起与
   胶囊三档切换均为真机行为，本批无真机/截图验收环，
   全部归用户真机终审；R1（续聊回写同一服务端会话）
@@ -2849,7 +2849,7 @@ Tests.swift）
   （7e4874ba798e4e833e0e311f2e7e6936）
 - 解包验版：Payload/OneDayApp.app/Info.plist＝
   CFBundleShortVersionString 0.4.2／CFBundleVersion
-  26／bundle id site.didichou.oneday ✓（三处版本源
+  26／bundle id com.example.oneday ✓（三处版本源
   同改，§25.7 假绿教训已避开）
 - 未验证（如实标注）：抽屉头尾渐隐手感、聊天底缘
   柔效观感、抖动三项真机表现（流式到底不脉冲/手动
@@ -3031,7 +3031,7 @@ Material 打底方案撤销，改走「把 bar 注册进系
   一致（557cb876144fc912bc6e989268ffa3b3）
 - 解包验版：Payload/OneDayApp.app/Info.plist＝
   CFBundleShortVersionString 0.4.3／CFBundle-
-  Version 27／bundle id site.didichou.oneday ✓
+  Version 27／bundle id com.example.oneday ✓
 - 未验证（如实标注）：顶/底化开强度、抽屉底
   条落点与搜索键盘跟随、聊天键盘四项（28.4）
   均无自动证据，归用户真机终审
@@ -3275,7 +3275,7 @@ Bar 内容的 background 溢出作裁剪，增益静默退化
   一致（1d1e95fed49e5f15c29d909971a32f41）
 - 解包验版：Payload/OneDayApp.app/Info.plist＝
   CFBundleShortVersionString 0.4.4／CFBundle-
-  Version 28／bundle id site.didichou.oneday ✓
+  Version 28／bundle id com.example.oneday ✓
 - 未验证（如实标注）：四缘化开强度与 bottom-
   Bar background 溢出是否被系统裁剪（29.3）、
   正文笔芯/覆盖复量、图标两格原图判读、聊天
@@ -3521,7 +3521,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
   unsigned.ipa，2,198,269 字节，md5 与 CI 工件一致
 - 解包验版：Payload/OneDayApp.app/Info.plist＝
   CFBundleShortVersionString 0.4.5／CFBundle-
-  Version 29／bundle id site.didichou.oneday ✓
+  Version 29／bundle id com.example.oneday ✓
 - 图标密度诊断两轮在 diag/tab-icons 分支完成
   （run 42559132273/42559600765），分支验完即删
 - 未验证（如实标注）：推式手感/圆角/缩放/影的
@@ -3590,7 +3590,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
   Dialog）；**永不回显钥匙原文**，草稿保存/移除后即清空；
   钥匙值不进代码/仓库/日志
 - 读写同键自证：写入/回读/删除与 WriteGateClient 读取共用
-  唯一通道 KeychainStore（service site.didichou.oneday）＋
+  唯一通道 KeychainStore（service com.example.oneday）＋
   唯一常量 CredentialKey.writeGateKey＝"writegate.key"，
   grep 全量五处引用同源（WriteGateClient.swift:58 读、
   WriteGateKeySettingsView save/delete/read、SettingsView
@@ -3613,7 +3613,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
   2,633,563 字节，md5 b993d1d4a84e80ede2be55ddea0824de
 - 解包验版：Payload/OneDayApp.app/Info.plist＝CFBundleShort-
   VersionString 0.5.0／CFBundleVersion 30／bundle id
-  site.didichou.oneday ✓；二进制 strings 冒烟：AgentHubView/
+  com.example.oneday ✓；二进制 strings 冒烟：AgentHubView/
   WriteGateKeySettingsView/EnvVarDetailView 类型名均在包内
 - 未验证（如实标注）：枢纽页五段真机观感与胶囊点开路径、
   活动行点按续聊回落、审核段与生产桥的真实 pending 联调
@@ -3748,7 +3748,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
   2,667,302 字节，md5 ac67532e0dedd5302c080dc137796046
 - 解包验版：Payload/OneDayApp.app/Info.plist＝CFBundle-
   ShortVersionString 0.5.1／CFBundleVersion 31／bundle
-  id site.didichou.oneday ✓；二进制 strings 冒烟：
+  id com.example.oneday ✓；二进制 strings 冒烟：
   ReasoningBlock/StreamPublishGate 类型名均在包内
 - 红线自查：未做任何截图；0.4.5 推式几何与 Drawer-
   View 零改动（git diff 文件面可证）；未引入任何三
@@ -3818,7 +3818,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 
 ## §37 0.11.0 批（P4 目标＋P5 点子转正：oneday-bridge 客户端，2026-11-09）
 
-规格＝full-build-program P4/P5 节＋服务端冻结契约（oneday-bridge-rollout-20261109.md，桥已上线验收 36 项全过）。本批只做客户端：基址 https://hermes.didichou.site/api/oneday-bridge（挂当前服务器根、随用户改址走），Bearer 复用 write-gate 钥匙（Keychain 既有字段、零新增粘贴）。
+规格＝full-build-program P4/P5 节＋服务端冻结契约（oneday-bridge-rollout-20261109.md，桥已上线验收 36 项全过）。本批只做客户端：基址 https://your-hermes.example.com/api/oneday-bridge（挂当前服务器根、随用户改址走），Bearer 复用 write-gate 钥匙（Keychain 既有字段、零新增粘贴）。
 
 - Core（OneDayBridgeModels）：DTO 按实测样本逐字落形（goal 全形 {id,title,note,milestones:[{id,title,done}],createdAt,updatedAt}、时间 epoch 秒 float；note/detail 缺失或 null 按空串收、里程碑缺失按空表收）；纯派生全收口在此——GoalProgress（x/y 计数＋fraction，0/0 不冒充完成）、GoalPatchPlan（勾选 toggle 与编辑 update 两路组装：PATCH 全量替换、已有里程碑 id 原样带回对齐勾选、新条不带 id 由服务端生成、空标题行先剔除）、请求体收口 make（POST goals/ideas 的可选字段空即不落键）、IdeaTaskPlan（转任务标题/正文组装：详情＋关联目标行＋来源行，目标名解析不到不编名）、IdeaConversionMarks（已转标记本地编解码：排序去重容脏）。
 - 客户端（OneDayBridgeClient）：错误口径与总览桥同分法——noKey/401＝桥未连接（钥匙问题）、集合端点 404＝桥未开通（bridgeMissing）、条目端点 404＝记录已不在（recordGone）；失败响应统一 {"error": 人话} 优先透服务端原文（标题为空/目标不存在无法关联等，客户端不猜固定文案）。契约细化对齐：删目标后点子 goalId 由服务端置 null（回读自愈、客户端不留悬空 chip）；POST /ideas 非 null goalId 必须指向现存目标（新建 picker 只列现存目标、提交时服务端再校验）；列表按 createdAt 升序原样呈现不重排。
@@ -3861,7 +3861,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - 呈现（新增 MemoryEntriesViews＋MemoryView 顶部接入）：条目段与状态面同页双数据源互不冒充，加载由 MemoryView 的 task/refreshable 并行驱动。段头「记忆条目」＋新建钮（闸门关禁用）；状态卡逐字「记忆条目尚未开通」/「数据桥未连接」＋重新检查；就绪态＝闸门关提示行＋待批区（提案行 操作·来源＋状态 chip＋note、遗留待批行 displaySummary＋「上次打开时提交的」；统一提示裁决在活动页审批区、本区不设裁决钮）＋搜索框（客户端过滤）＋按来源分组卡（行＝标题＋文件时刻 small＋待批 chip，§7 P7 锚）；空态「暂无记忆条目」。详情页：来源/更新时间 LabeledContent＋文件时刻口径说明、全文（可选文本）、待批提示、编辑/遗忘钮组（有待批或闸门关禁用；遗忘走 confirmationDialog 明示先待批后生效、提交成功 dismiss）。编辑器 sheet：新建分段选目标（长期记忆/用户档案）、编辑目标只读明示不能改；TextEditor 全量编辑＋校验问题行内＋提交钮「提交待审批」＋去向说明，成功才关表单。
 - 单测：新增 MemoryBridgeModelsTests 21 个（310→331）——sha256 已知向量（"abc"/空串）＋中文稳定性、条目/详情/已决解码（含缺字段宽容与未知 target）、标题兜底三档、分组序与组内稳定、搜索四命中一空、propose 编码形（create 省略键/update/delete 带 digest）、gate action 映射、校验三拦一纳、payload 匹配（replace old_text/matched_entry/add 与 patch 不贴标）、落定矩阵七例（待批/驳回/新建落定与未确认/修改新旧同在未确认与落定/删除落定/无裁决与未知裁决值未确认）。
 - 发版 0.13.0 / build 42（版本源五处：Project.swift 四字面量＋SettingsView 关于串）。未验项：契约三端点服务端未部署、无从联调（本包未碰生产任何接口，连只读 GET 亦未发——定案证据全部来自 OpenAPI 与桥源码一手实查）；files/read 未做联调（否决理由见契约 §1.4，不依赖它）；桥上线后须按契约 §2.4 全链复验（发起→活动格待批卡→批准→回读落盘、驳回→文件不变），且 sha256 口径与 origin 写入方式须在桥实现时各对账一次（契约 §4）。
-- 销账（0.13.0 批回填）：顶端提交 8dad79a（main 线，基线 5d6383d 之上）；CI 42604093819 success（构建＋OneDayCore 全测绿，Test Suite 'All tests' passed）；单测 331（310 基线＋21）；IPA 4,074,240 字节、md5 30122bb193dcc399329e0ce2d3ea30cf、解包验 Info.plist＝0.13.0/42、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.13.0/。
+- 销账（0.13.0 批回填）：顶端提交 8dad79a（main 线，基线 5d6383d 之上）；CI 42604093819 success（构建＋OneDayCore 全测绿，Test Suite 'All tests' passed）；单测 331（310 基线＋21）；IPA 4,074,240 字节、md5 30122bb193dcc399329e0ce2d3ea30cf、解包验 Info.plist＝0.13.0/42、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.13.0/。
 
 ## §41 0.14.0 批（P8 文件屏升级，2026-11-09）
 
@@ -3874,7 +3874,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - 上传流（FileUploadControl，交付物/浏览共用）：fileImporter 选件→security-scoped 读字节→25MB 上限先拦→（交付物段）确保 uploads 目录→同名预检（现拉目标目录）→同名确认框（覆盖/取消）→POST upload→回读对账才报成功；全程结果以 notice 人话呈现，不乐观假成功。
 - 单测：新增 FileBrowserLogicTests 14 个（331→345）——排序三键（含目录优先与 nil size 垫底）、过滤大小写与空查询、面包屑根/嵌套/越界兜底、相对面包屑、joinPath 双形、文件夹名校验六例、MIME 推断、data URL 前缀＋base64 回环、上传上限边界、tintIndex 类别与未分类稳定性。
 - 发版 0.14.0 / build 43（版本源五处：Project.swift 四字面量＋SettingsView 关于串）。未验项：upload/mkdir 未对生产联调（本包未向生产发任何写请求；请求形状据 OpenAPI 组件 schema、落定逻辑以回读对账兜底，真机首传即端到端自验——含上传回执形态、mkdir 已存在目录的服务端行为、upload path 须绝对路径的口径，均以服务端 locked_root 既有绝对路径惯例为准、若首传回读对不上界面会如实报未确认）；Box 段桥未部署、整段未开通为定案预期；改名/移动服务端无端点未做。
-- 销账（0.14.0 批回填）：顶端提交 710b36c（main 线，基线 d3f32a8 之上；首提交 66aeee5 的 FilesView 因单次写入截断致 CI 42606769843 失败、be0f553 补齐后半后又因测试辅助 String.init 歧义挂测试步，710b36c 修毕）；CI 42607773218 success（构建＋OneDayCore 全测绿，Test Suite 'All tests' passed）；单测 345（331 基线＋14）；IPA 4,222,678 字节、md5 ba79d287ae708d95d688a2e6cd842381、解包验 Info.plist＝0.14.0/43、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.14.0/。
+- 销账（0.14.0 批回填）：顶端提交 710b36c（main 线，基线 d3f32a8 之上；首提交 66aeee5 的 FilesView 因单次写入截断致 CI 42606769843 失败、be0f553 补齐后半后又因测试辅助 String.init 歧义挂测试步，710b36c 修毕）；CI 42607773218 success（构建＋OneDayCore 全测绿，Test Suite 'All tests' passed）；单测 345（331 基线＋14）；IPA 4,222,678 字节、md5 ba79d287ae708d95d688a2e6cd842381、解包验 Info.plist＝0.14.0/43、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.14.0/。
 
 ## §42 0.15.0 批（P9 智能体电脑屏，2026-11-09）
 
@@ -3889,7 +3889,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - 终端段（BoxTerminalView＋BoxShellClient，契约见上）：命令逐条手输、执行才发；历史仅当次会话内存态（离面即弃、不落盘）；每条交换＝codeFill 圆角 14 面（设计标准 §7 P9 锚）＋$ 命令行＋输出原文等宽直出（失败 danger 色＋退出码行、截断明示行）；四态分开（未连接/未开通/就绪/条内失败人话）。Core 新增 BoxShellModels：请求单键编码、回执容缺解码、succeeded 纯函数（exitCode 优先、缺失回落 ok、皆缺不判成功）、outputText（空输出「（无输出）」）、BoxShellCommandText.normalize（只去首尾空白、本体一字不改、空串拦下不发）。
 - 单测：新增 18 个（345→363）——BoxBridgeTests +9（imageLine 四例、creditsLine 三例、lastSavedAt 两例）、BoxShellTests 9（全形解码、exitCode 盖 ok、回落 ok、无信号不判成功、空输出占位、缺 output 容缺、截断旗、请求编码单键、命令规范化）。
 - 发版 0.15.0 / build 44（版本源五处：Project.swift 四字面量＋SettingsView 关于串）。未验项：桥文件面与终端面均未在本包联调（文件面桥实现并行施工中、上线后文件段自动转真读；终端面待桥小包部署后真机发 uname -a 自验）；实时视图 WebView 内厂商登录态未实测（用户 Google 账号在 WebView 内登录一次为厂商口径）；截图/接管链为 P2 已验链路、本批未重跑生产动作。
-- 销账（0.15.0 批回填）：顶端提交 347f7dc（main 线，基线 6d23fa3 之上，一轮绿）；CI 42609292739 success（构建＋OneDayCore 全测绿，Executed 363 tests, 0 failures）；单测 363（345 基线＋18，只增不减）；IPA 4,313,891 字节、md5 51a301f00c33998b324d7bf8d5a0a328、解包验 Info.plist＝0.15.0/44、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.15.0/。契约档两份在 ~/workspace/oneday-design-review/：box-files-contract-20261109.md（P8 冻结）、box-shell-contract-20261109.md（本批冻结）。
+- 销账（0.15.0 批回填）：顶端提交 347f7dc（main 线，基线 6d23fa3 之上，一轮绿）；CI 42609292739 success（构建＋OneDayCore 全测绿，Executed 363 tests, 0 failures）；单测 363（345 基线＋18，只增不减）；IPA 4,313,891 字节、md5 51a301f00c33998b324d7bf8d5a0a328、解包验 Info.plist＝0.15.0/44、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.15.0/。契约档两份在 ~/workspace/oneday-design-review/：box-files-contract-20261109.md（P8 冻结）、box-shell-contract-20261109.md（本批冻结）。
 
 ## §43 0.16.0 批（P10 管理面补齐：全功能施工图收官包，2026-11-09）
 
@@ -3903,7 +3903,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - Core 新增 ManagementModels.swift：HubSkill（identifier 末段＝installedName、sourceLabel 首段回落）、HubSearchResponse（results/skills/items 三键＋裸数组四形）、HubSource/HubSourcesResponse、HubPreview（四键容缺＋files 双形）、MCPServerItem/MCPServersResponse、MCPTestResult、SessionSearchHit/SessionSearchResponse、ProfileExportResult、WriteGateDecisionRecord 展示派生（decisionLabel/originText 走既有 WriteGateLabels 译表）。HermesClientProtocol 新增 13 法（hub 5＋档案 4＋会话搜索 1＋MCP 3），真实与 Demo 双实现（Demo 的 MCP 样本照生产实样给 box 插件行＋一条 stdio 手动配置行；hub 搜索/会话搜索在演示数据内按词过滤）。
 - 单测：新增 11 个（363→374，ManagementModelsTests）——hub 响应三形解码＋installedName/sourceLabel、sources 双形、preview 四键与 files 双形、MCP 生产实样逐字解码、MCP 测试回执四态（显式 ok/状态词判成、皆缺不判成、工具数双键）、会话搜索生产实样逐字＋displayTitle 三级回落＋role 只译两值、导出回执四键与皆缺为 nil、已决标签派生与 decisions 响应原样解码（decided_at ISO 带 +00:00）。
 - 发版 0.16.0 / build 45（版本源五处：Project.swift 四字面量＋SettingsView 关于串，全仓 grep 验无旧版残留、历史注释除外）。未验项：全部写动作（hub 安装/卸载、档案建/删/导/入、MCP 启停/测试）未对生产发请求（纪律：只读 GET 联调），真机首用即端到端自验——施工图验收动作中「搜索命中已知会话」已由联调在服务端侧实证、「历史查已决记录」数据源已备好，其余（真装技能并启停、建测试档案切换后删除）归真机首用；hub 响应形状无实样（端点超时）、profiles import 的 archive 语义、profiles export 回执形状、MCP test 回执形状均按多形宽容实现，待真机首用回填实样后收紧。
-- 销账（0.16.0 批回填）：顶端提交 beca9b6（main 线，基线 bffbcef 之上；首轮 CI 42612876523 红——ManagementModelsTests 两处 #"…"# 原始字符串被 JSON 内的 "# 提前截断，改双 # 定界后二轮绿，过程留痕）；CI 42613501820 success（构建＋OneDayCore 全测绿，Executed 374 tests, 0 failures）；单测 374（363 基线＋11，只增不减）；IPA 4,610,343 字节、md5 8f66484dc4a14284ec4f4fb51fd72009、解包验 Info.plist＝0.16.0/45、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.16.0/。至此全功能施工图 P1–P10 十包全部交付收官。
+- 销账（0.16.0 批回填）：顶端提交 beca9b6（main 线，基线 bffbcef 之上；首轮 CI 42612876523 红——ManagementModelsTests 两处 #"…"# 原始字符串被 JSON 内的 "# 提前截断，改双 # 定界后二轮绿，过程留痕）；CI 42613501820 success（构建＋OneDayCore 全测绿，Executed 374 tests, 0 failures）；单测 374（363 基线＋11，只增不减）；IPA 4,610,343 字节、md5 8f66484dc4a14284ec4f4fb51fd72009、解包验 Info.plist＝0.16.0/45、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.16.0/。至此全功能施工图 P1–P10 十包全部交付收官。
 
 ## §44 0.17.0 批（真机五修：chrome 三病＋侧边栏重做＋四格化，2026-11-09）
 
@@ -3918,7 +3918,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - 发版 0.17.0 / build 46（版本源五处：Project.swift 四字面量＋SettingsView 关于串，全仓 grep 验无旧版残留、历史注释除外）。
 - 未验项（真机终审，按纪律如实标注，本包不自证）：①底栏落位——对照用户暗色三图验「坞完整浮置、下方留空、标签不压 home indicator 区」；②顶带/状态栏朦胧感——对照 19:58 圈注图验「内容滚过胶囊与状态栏带时模糊渐隐、不再原样透字」（含状态栏带）；③抽屉慢拖手感——跟手/无回跳/无帧跳变。三项任一不过，按已定回退路逐项收（②的回退：胶囊 thick 档/顶缘 .hard；①③的回退：壳层承载再隔离）。
 - 过程留痕：首轮 CI 42616389772 构建已过、单测仅 TabBarSymbolsTests.testTabSymbolPairsArePinned 一处红（五格钉死期望未随四格化更新——施工时漏看该测试文件），改期望后二轮绿；无其他红项。
-- 销账（0.17.0 批回填）：顶端提交 5e3dbe9（main 线，基线 96d9c5b 之上，代码提交 2b85f32＋测试修复 5e3dbe9、本节为其后 docs 提交）；CI 42617407872 success（构建＋OneDayCore 全测绿，Executed 376 tests, 0 failures）；单测 376（374 基线＋2，只增不减）；IPA 4,613,030 字节、md5 16fb960d85004a33b84775a9a83be8b1、解包验 Info.plist＝0.17.0/46、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.17.0/。
+- 销账（0.17.0 批回填）：顶端提交 5e3dbe9（main 线，基线 96d9c5b 之上，代码提交 2b85f32＋测试修复 5e3dbe9、本节为其后 docs 提交）；CI 42617407872 success（构建＋OneDayCore 全测绿，Executed 376 tests, 0 failures）；单测 376（374 基线＋2，只增不减）；IPA 4,613,030 字节、md5 16fb960d85004a33b84775a9a83be8b1、解包验 Info.plist＝0.17.0/46、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.17.0/。
 
 ## §45 0.18.0 批（A 期内部修订：AI 标题直达＋全部对话管理页＋抽屉四类分区＋kanban 问题原文，2026-11-09）
 
@@ -3933,7 +3933,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - 发版 0.18.0 / build 47（版本源五处：Project.swift 四字面量＋SettingsView 关于串，全仓 grep 验无旧版残留、历史注释除外）。
 - 过程留痕：首轮 CI 42621032578 构建红——AllConversationsView 五处对不上真实 API（Palette.canvas 令牌不存在应为 pageBG、搜索命中型是 SessionSearchHit 而非 ServerSession、pruneSessions 回 Int? 且天数 Double、本地归档退役签名 unarchive(serverSessionID:)），逐处按真实签名对齐后二轮绿；无其他红项。
 - 未验项（如实标注）：①服务端四件写动作（改名/置顶/归档/删除）、批量、prune 真跑、存量迁移——**均未对生产发任何写请求**（施工纪律），待真机首用自验（迁移在管理页首开时自动执行、失败留痕可见）；②PATCH 回执形状、prune 回执键名均未实测，回执不依赖（改名等只认回读、prune 条数多键宽容取不到即如实显未回）；③抽屉新分区与管理页视觉终审归用户真机。
-- 销账（0.18.0 批回填）：顶端提交 2fa2edc（main 线，基线 3940acc 之上，代码提交 69e7a9c＋API 对齐修复 2fa2edc、本节为其后 docs 提交）；CI 42621459909 success（构建＋OneDayCore 全测绿，Executed 387 tests, 0 failures）；单测 387（376 基线＋11，只增不减）；IPA 4,801,995 字节、md5 d01a65cd9a16eea7af9929a8d25e52e6、解包验 Info.plist＝0.18.0/47、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.18.0/。
+- 销账（0.18.0 批回填）：顶端提交 2fa2edc（main 线，基线 3940acc 之上，代码提交 69e7a9c＋API 对齐修复 2fa2edc、本节为其后 docs 提交）；CI 42621459909 success（构建＋OneDayCore 全测绿，Executed 387 tests, 0 failures）；单测 387（376 基线＋11，只增不减）；IPA 4,801,995 字节、md5 d01a65cd9a16eea7af9929a8d25e52e6、解包验 Info.plist＝0.18.0/47、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.18.0/。
 
 ## §46 0.19.0 批（真机五条·二轮：点空白收键盘/抽屉导航化/底条贴底/状态点改绿/标签删除，2026-11-09）
 
@@ -3947,7 +3947,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 - Core 与单测：OverviewStatusLine 加 Tone/classify（resolve 行为逐字不变、既有 8 例词用例全过为证）；单测 387→392（+5，只增不减）：OverviewBridgeTests 新增 tone 五例，与词用例逐条对位（桥挂通道在→online、通道假→offline、冷启未知→offline、待审批→attention、桥报 up→online）。名单退役未引起任何旧测删改：抽屉名单的 Core 纯逻辑（SidebarGrouping/DrawerGeometry/分组与量测）本体与单测保留、仅 App 层消费退役；DisplayMappingTests 的 bottomBarBottomPadding 断言（34→38）继续成立（函数未动）。
 - 发版 0.19.0 / build 48（版本源五处：Project.swift 四字面量＋SettingsView 关于串，全仓 grep 验旧版字面量仅剩历史注释）。
 - 未验项（真机终审，如实标注）：①底条落位——对照样板图验「底条贴底缘、indicator 之上、无死白带」；若拆手算后仍有残段，下一查点已定：壳层 ZStack 分支的 .ignoresSafeArea() 全域忽略与 safeAreaBar 的相互作用；②抽屉新形态观感与导航行手感（点行即达/枢纽行开 sheet/搜索胶囊进管理页且键盘弹起聚焦）；③点空白收键盘的真机命中（尤其消息间空隙与空状态周围）；④胶囊「在线」绿点（桥未连接状态下亦应绿）；⑤0.17.0/0.18.0 遗留终审（顶带朦胧、管理页四件真动作）仍归用户真机一并验。
-- 销账（0.19.0 批回填）：顶端提交 89b74d4（main 线，基线 ce98290 之上，一轮绿、本节为其后 docs 提交）；CI 42636446499 success（构建＋OneDayCore 全测绿，Executed 392 tests, 0 failures）；单测 392（387 基线＋5，只增不减）；IPA 4,730,982 字节、md5 ba1ea77ca748f69384883c23feda21e1、解包验 Info.plist＝0.19.0/48、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.19.0/OneDay-0.19.0.ipa。
+- 销账（0.19.0 批回填）：顶端提交 89b74d4（main 线，基线 ce98290 之上，一轮绿、本节为其后 docs 提交）；CI 42636446499 success（构建＋OneDayCore 全测绿，Executed 392 tests, 0 failures）；单测 392（387 基线＋5，只增不减）；IPA 4,730,982 字节、md5 ba1ea77ca748f69384883c23feda21e1、解包验 Info.plist＝0.19.0/48、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.19.0/OneDay-0.19.0.ipa。
 
 ### §46 补记：22:45 口径纠正返工（覆盖上文第二、五条，2026-11-09）
 
@@ -3985,7 +3985,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
   27. api-836bf68b0af289e2「Run system info command in box shell」api_server → 撤（Box 联调）。
   28. api-25f140a6575bf25c（无标题、1 条、created_source=null）api_server → 撤（空壳残缺会话）。
   汇总：kanban 9 条字段可分全撤；api_server 19 条＝主线 1（旁聊区外）＋联调/测试/冒烟可识别 13 撤＋同构不可分靠兜底 5 撤。**留**：本地线程全体（不在此 28 条内，如「你好」）——即旁聊区名单本体；平台来源现存为零（Hermes 启用通道数零），规则已按 source 非用户通道预置。
-- 返工销账：代码提交 e33dcc6（基线 aba20bc 之上）；CI 42638839390 success（一轮绿，Executed 395 tests, 0 failures）；单测 395（返工前 392＋过滤 3，只增不减）；IPA 已覆盖同路径：4,770,991 字节、md5 c5d0f3169dd4c7927129625965c97ebd、解包验 Info.plist＝0.19.0/48、bundle site.didichou.oneday（**同版本重发，以此包为准，上文销账的 89b74d4 包作废**）。真机终审追加一项：旁聊区只见本人旁聊（「你好」在列、P3TEST/Kanban 类不见）、搜索过滤生效。
+- 返工销账：代码提交 e33dcc6（基线 aba20bc 之上）；CI 42638839390 success（一轮绿，Executed 395 tests, 0 failures）；单测 395（返工前 392＋过滤 3，只增不减）；IPA 已覆盖同路径：4,770,991 字节、md5 c5d0f3169dd4c7927129625965c97ebd、解包验 Info.plist＝0.19.0/48、bundle com.example.oneday（**同版本重发，以此包为准，上文销账的 89b74d4 包作废**）。真机终审追加一项：旁聊区只见本人旁聊（「你好」在列、P3TEST/Kanban 类不见）、搜索过滤生效。
 
 ---
 
@@ -4089,7 +4089,7 @@ Tests 全表钉死；抽屉名单同符号源、18pt 既有
 
 ### 47.9 真机终审项
 T1 抽屉长名单滚到底：底条后有被霜住的内容影、名单末行不被压；T2 抽屉字阶与 Muse 图并置复核（名字/行题/行距）；底条圆钮 52 与图中约 57 的差是否要点名再动；T3 已关联旁聊（主线/导入线程）标题跟随服务端 AI 名、纯本地旁聊保持派生名（缺口预期内）；T4 思考三态：流式限高区内滚动跟随、正文起流自动收起、打开旧会话思考全收起、展开态限高内读；思考区内滚动与消息列表滚动的手势分配；T5 聊天页头部只剩胶囊行；T6 设置页与图四五并置（底色/卡距/行题/红字行/页脚版本行）、管理组三页 sheet 开合与深链改道；T7 文件页分段/行 ⋮/影音网格与图六七并置、预览与分享真动作；T8 切后台恢复：生成中切走再回——无「无网络」横幅、回复或被补齐或自动续生成；前台 Wi-Fi 瞬断时未产出自动重试一次、横幅新文案不提地址。
-- 交付实录：功能提交 b1c9b75＋测试编译修复 65eada9（首轮 CI 42649039602 构建过、测试目标因 HermesErrorTests for-loop 类型标注写法编译失败，改先声明数组后复跑）；CI 42649862975 success，Executed 412 tests, 0 failures（395 基线＋17 新增，与 47.8 预估一致）；IPA 4,790,678 字节、md5 991267ade0a54ad8e71600c263409974、主代理独立解包验 Info.plist＝0.20.0/49、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.20.0/OneDay-0.20.0.ipa。
+- 交付实录：功能提交 b1c9b75＋测试编译修复 65eada9（首轮 CI 42649039602 构建过、测试目标因 HermesErrorTests for-loop 类型标注写法编译失败，改先声明数组后复跑）；CI 42649862975 success，Executed 412 tests, 0 failures（395 基线＋17 新增，与 47.8 预估一致）；IPA 4,790,678 字节、md5 991267ade0a54ad8e71600c263409974、主代理独立解包验 Info.plist＝0.20.0/49、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.20.0/OneDay-0.20.0.ipa。
 
 ## §48 0.21.0/50「旁聊建真会话·标题根治」（用户 2026-11-10 00:07 点选；基线 41f4247、单测 412 只增不减）
 
@@ -4135,7 +4135,7 @@ T1 抽屉长名单滚到底：底条后有被霜住的内容影、名单末行�
 
 ### 48.9 真机终审项
 U1 新建旁聊聊两轮：抽屉里该旁聊名从首消息派生名变为服务端 AI 名（发送完成回抽屉或等数秒）；U2 旧线程（0.21.0 前建的本地旁聊）续聊一轮后标题同样跟上（懒链接生效）；U3 已链接旁聊生成中切后台再回：走补齐路径（notice「回复已补齐」或自动续生成）、不整轮重发；U4 已链接旁聊里换胶囊模型再发：回复模型随新选（重锁生效、无报错横幅）；U5 抽屉删一条已链接旁聊：管理页已归档段出现该会话；U6 新建旁聊首轮带图发送：图片照常发出（种子轮多模态不回归）；U7 管理页核对新旁聊会话的 message_count（48.4 种子轮落库粒度观察项）。
-- 交付实录：功能提交 c36d3cb；CI 42653353346 success，Executed 431 tests, 0 failures（412 基线＋19 新增，与 48.8 预估一致）；IPA 4,813,686 字节、md5 f193ecb6cc4b8b3248238169aedd86f9、解包验 Info.plist＝0.21.0/50、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.21.0/OneDay-0.21.0.ipa。
+- 交付实录：功能提交 c36d3cb；CI 42653353346 success，Executed 431 tests, 0 failures（412 基线＋19 新增，与 48.8 预估一致）；IPA 4,813,686 字节、md5 f193ecb6cc4b8b3248238169aedd86f9、解包验 Info.plist＝0.21.0/50、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.21.0/OneDay-0.21.0.ipa。
 ## §49 0.22.0/51「视觉审计收官·对图对齐」（用户 2026-11-10 00:09 冷开点名＋00:25 审计 36 条 P0/P1 选包＋00:29 抽屉并排图追加＋00:30 设置图实测规格追加；基线 0157e1f、单测 431 只增不减；规格总源＝visual-direction-audit-20261110.md＋native-ios-design 技能）
 
 ### 49.1 冷开首屏压字（审计 C1，用户实机图）
@@ -4185,7 +4185,7 @@ U1 新建旁聊聊两轮：抽屉里该旁聊名从首消息派生名变为服�
 
 ### 49.9 真机终审项
 V1 冷开短会话（1–2 条消息）：首条气泡完整位于顶栏下方、右上角不被铃铛钮盖；V2 冷开长会话仍开在底部、流式跟随不回归；V3 底栏四格纯图标观感（段深浅/字形粗细对 Muse 并排）＋VoiceOver 抽查四格读名（聊天/点子/目标/文件）；V4 文件页首屏应全是真交付物（db/wal/state/cache 类零出现）、docx/xlsx/pptx/pdf 图标可辨识、⋮ 好点；V5 文件页/总览页头像与聊天页胶囊同一张；V6 抽屉名字头观感、导航图标粗细对参考图并排、时间戳/分区头可读性；V7 设置页：大标题形态、行题不再有粗细两档、导航行无右值小字、状态两行副行在位、行图标大小、分区头 15 灰。
-- 交付实录：第一轮提交 611b85e（CI 42656901969，442 测 2 失败——即上条设置列闸校准问题，构建本身通过）；定版提交 2ded189；CI 42658735147 success，Executed 441 tests, 0 failures（431 基线＋10 新增，与 49.8 一致）；IPA 4,830,694 字节、md5 a1109e0a4654de3cd85ef447debc4f60、解包验 Info.plist＝0.22.0/51、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.22.0/OneDay-0.22.0.ipa。施工期生产零写请求；未自截真机图。
+- 交付实录：第一轮提交 611b85e（CI 42656901969，442 测 2 失败——即上条设置列闸校准问题，构建本身通过）；定版提交 2ded189；CI 42658735147 success，Executed 441 tests, 0 failures（431 基线＋10 新增，与 49.8 一致）；IPA 4,830,694 字节、md5 a1109e0a4654de3cd85ef447debc4f60、解包验 Info.plist＝0.22.0/51、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.22.0/OneDay-0.22.0.ipa。施工期生产零写请求；未自截真机图。
 
 ## §50 0.23.0/52「整机视觉定向收口」（视觉审计 36 条剩余项整包；基线 2f6f515、单测 441 只增不减；规格总源＝visual-direction-audit-20261110.md＋native-ios-design＋SwiftUI-Agent-Skill 两技能；证据分级：【官方】HIG/SDK 事实【实算】WCAG 公式与渲染量测【定版】用户既往拍板【启发】审计建议）
 
@@ -4230,7 +4230,7 @@ V1 冷开短会话（1–2 条消息）：首条气泡完整位于顶栏下方�
 
 ### 50.9 真机终审项（W 系列）
 W1 大字号（设置→辅助功能→更大字体拉满）：抽屉/设置/文件/管理页/总览五行随之放大、不断行溢出（0.22.0 前三面纹丝不动为旧病）；W2 默认字号下五面与 0.22.0 并排观感不变（名字头/行题/副行同大同粗细）；W3 暗色模式五面过一遍：次级文字不发虚、思考/引用小字可读；W4 减透明开：抽屉底条变实色面、名单末行不透字叠读，关后霜层恢复；W5 聊天页顶栏两圆钮与胶囊同为玻璃质感（不再一纸一玻）、文件页两圆钮同；W6 命中手感抽查：思考头行、引用条 ✕、回告卡 ✕、附件移除钮、顶栏圆钮——都应一按中；W7 总览/管理页会话行与抽屉同物同尺感（题略粗、副行 15）；W8 设置页分区头与抽屉分区头同大同粗（15 medium 统一后）。
-- 交付实录：首轮提交 56f8de0（CI 42662291054，447 测 1 失败＝公式自证期望值 5.2 系施工估值、实测 5.035，按 0.22.0 惯例第二轮校准 a235992 改断言 5.04±0.05 并同步改正 Palette/§50 口径，达标结论不变）；口径补正 da2dbb3 为定版提交，CI 42664068485 success，Executed 447 tests, 0 failures（441 基线＋6 新增，与 50.7/50.8 一致）；IPA 4,854,701 字节、md5 ae1905f7802b74528bd85ac5f6b221a3、解包验 Info.plist＝0.23.0/52、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.23.0/OneDay-0.23.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens/发送链零改动。
+- 交付实录：首轮提交 56f8de0（CI 42662291054，447 测 1 失败＝公式自证期望值 5.2 系施工估值、实测 5.035，按 0.22.0 惯例第二轮校准 a235992 改断言 5.04±0.05 并同步改正 Palette/§50 口径，达标结论不变）；口径补正 da2dbb3 为定版提交，CI 42664068485 success，Executed 447 tests, 0 failures（441 基线＋6 新增，与 50.7/50.8 一致）；IPA 4,854,701 字节、md5 ae1905f7802b74528bd85ac5f6b221a3、解包验 Info.plist＝0.23.0/52、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.23.0/OneDay-0.23.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens/发送链零改动。
 
 ## §51 0.24.0/53「原生极简整改」（口径变更源＝用户 2026-11-10 当日指令：以苹果 HIG 为唯一依据、用原生极简主义重排、不许乱加粗——覆盖 0.22/0.23 的 Muse 量测口径；基线 6ab1883、单测 447 只增不减；证据分级：【官方】HIG/SDK 事实【实算】像素量测/WCAG/渲染量测【定版】用户既往拍板【惯例】系统列表惯例带）
 
@@ -4279,7 +4279,7 @@ W1 大字号（设置→辅助功能→更大字体拉满）：抽屉/设置/文
 
 ### 51.7 真机终审项（X 系列）
 X1 设置页行题与苹果设置并排：同为 17 regular 观感、行图标细线同列、无实心件；X2 抽屉：名字头 28 bold 不压人、导航行 17 regular、旁聊题 17＋时间戳 13 灰、分区头 13 灰；X3 文件页分段：两段字同大同粗、选中只靠白面浮起；X4 文件页空态为系统 ContentUnavailableView 形态（图标/题/副题系统排版）；X5 设置页静止态：大标题左对齐在位、身份卡 Hermes 与地址行完整无切；轻滚设置页：内容滑入栏下为渐隐、无半截字硬切；X6 服务端会话行图标不再压字、记忆/电脑/档案/外观四行新图标可辨识；X7 大字号拉满：五面随 DT 放大不断行（Body/Footnote/Title1 皆文本样式）；X8 管理页/总览会话行题为 regular 17（rowTitle 改档连带面）。
-- 交付实录：单轮定版——功能提交 7286dfc，CI 42741249148 success，Executed 447 tests, 0 failures（与基线 447 持平：本轮为断言改值型整改——角色表/令牌值/ListRowSpec 三处断言随规格改值、无删测、无新增）。量测闸一次过、无校准轮：21pt regular 设置列紧致密度 0.230（sun.max）–0.645（cable.connector，7pt 窄盒离群、格口径 0.055 反为最疏，沿 0.22.0 点名口径）、格口径全列 ≤0.126（闸 0.32）、离散比 2.80（闸 3.0）；新换五件 memorychip 0.378/bubble.left 0.291/display 0.317/archivebox 0.427/sun.max 0.230 全部落带内；抽屉名单 21 regular 紧致 0.276–0.381（闸 0.05–0.45）。IPA 4,858,061 字节、md5 7ce27562c7ee852f57b1e081d9f73743、独立解包验 Info.plist＝0.24.0/53、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.24.0/OneDay-0.24.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens/SideChatLink 与发送链零改动。
+- 交付实录：单轮定版——功能提交 7286dfc，CI 42741249148 success，Executed 447 tests, 0 failures（与基线 447 持平：本轮为断言改值型整改——角色表/令牌值/ListRowSpec 三处断言随规格改值、无删测、无新增）。量测闸一次过、无校准轮：21pt regular 设置列紧致密度 0.230（sun.max）–0.645（cable.connector，7pt 窄盒离群、格口径 0.055 反为最疏，沿 0.22.0 点名口径）、格口径全列 ≤0.126（闸 0.32）、离散比 2.80（闸 3.0）；新换五件 memorychip 0.378/bubble.left 0.291/display 0.317/archivebox 0.427/sun.max 0.230 全部落带内；抽屉名单 21 regular 紧致 0.276–0.381（闸 0.05–0.45）。IPA 4,858,061 字节、md5 7ce27562c7ee852f57b1e081d9f73743、独立解包验 Info.plist＝0.24.0/53、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.24.0/OneDay-0.24.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens/SideChatLink 与发送链零改动。
 
 ## §52 0.25.0/54「交互与动效专包」（依据：Emil 技能包六件【emil-design-eng 动效四问＋频率表/review-animations/improve-animations/gestures/choreograph/apple-design】＋native-ios-design＋§14 十条＋MotionTokens 现值；方法：全量审计→逐项裁决→按裁决修；证据分级：【官方】HIG/SDK 事实【技能】Emil 条文【定版】用户既往拍板/令牌册【实查】代码审计事实）
 
@@ -4338,7 +4338,7 @@ X1 设置页行题与苹果设置并排：同为 17 regular 观感、行图标�
 
 ### 52.7 真机终审项（Y 系列）
 Y1 按压手感抽查：抽屉导航行/管理行、设置任意行、枢纽行、总览卡——按下即回落（不等抬手）、松手回弹，无「点了没反应」感；Y2 发送舱右端：空输入麦克风→打出首字淡化成发送箭头、发送后圆盘内变停止键、流结束回落，全程无硬跳；Y3 错误/提示条：断网发送触发错误条——淡入＋底栏平滑长高，点 ✕ 淡出收起；Y4 回到底部钮：上滑后淡入带轻放（0.9 起）出现、点按回底；Y5 思考块：正文起流时自动收起为平滑滑动（不再突然消失）、点标题行重展、chevron 翻转有形变感；Y6 工具卡长结果展开/收起平滑长高收回；Y7 文件页：搜索框开关顺滑、分段切换白面滑移；Y8 管理页「选择」进出编辑模式顺滑；Y9 减弱动态效果开：Y2–Y8 全部变瞬时切换（无滑动无缩放）、抽屉拖动仍 1:1 跟手、松手瞬时到位；Y10 主按钮（连接/保存）：按压透明柔和过渡、不硬闪。
-- 交付实录：功能提交 d0804c3，CI 42743391015 success，Executed 451 tests, 0 failures（447 基线＋MotionGateTests 4 新增、零删测零改值）；IPA 4,870,215 字节、md5 dbaa7ebf4620fa19270a2ad05cd86c23、独立解包验 Info.plist＝0.25.0/54、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.25.0/OneDay-0.25.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens 九支数值零改动（冲突五项登记 52.5 待拍板）。
+- 交付实录：功能提交 d0804c3，CI 42743391015 success，Executed 451 tests, 0 failures（447 基线＋MotionGateTests 4 新增、零删测零改值）；IPA 4,870,215 字节、md5 dbaa7ebf4620fa19270a2ad05cd86c23、独立解包验 Info.plist＝0.25.0/54、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.25.0/OneDay-0.25.0.ipa。施工期生产零写请求；未自截真机图；§14 十条/MotionTokens 九支数值零改动（冲突五项登记 52.5 待拍板）。
 
 ## 53. 外观页专包（0.26.0/55）
 
@@ -4414,7 +4414,7 @@ Z6 持久化：杀进程重开，三组选择保持；模式为跟随系统时�
 Z7 减弱动态效果开：主题/模式切换变瞬时、无残余动画。
 Z8 形象行 Menu：点开为系统菜单、三档带勾在当前档、选手感与系统设置一致。
 
-- 交付实录：功能提交 3b8b423，CI 42745926878 success，Executed 459 tests, 0 failures（451 基线＋ChatThemeTests 8 新增、零删测零改值）；IPA 4,926,466 字节、md5 bb58277b09ba7851ae75b428869181af、独立解包验 Info.plist＝0.26.0/55、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.26.0/OneDay-0.26.0.ipa。
+- 交付实录：功能提交 3b8b423，CI 42745926878 success，Executed 459 tests, 0 failures（451 基线＋ChatThemeTests 8 新增、零删测零改值）；IPA 4,926,466 字节、md5 bb58277b09ba7851ae75b428869181af、独立解包验 Info.plist＝0.26.0/55、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.26.0/OneDay-0.26.0.ipa。
 
 ## 54. 主线/旁聊串话热修（0.27.0/56）
 
@@ -4429,7 +4429,7 @@ Z8 形象行 Menu：点开为系统菜单、三档带勾在当前档、选手感
 
 ### 54.2 五件施工落值
 
-1. 送达改路：nginx hermes.didichou.site 新增 location = /api/sessions（POST 经 error_page 418 内部转 @gateway_session_create→8642、其余方法原样回 9119；改前备份 hermes.didichou.site.conf.bak-20261110-oneday027、nginx -t 过后 reload、动前内存 51%）；客户端 createServerSession/createLinkedServerSession 改带 App 既有 /v1 Bearer（sendJSONDecoding 加 bearer 形参），请求体组装收进 Core 纯函数（createSessionBody/linkedCreateSessionBody，单测把守形态）。不放宽其他 /api/*。
+1. 送达改路：nginx your-hermes.example.com 新增 location = /api/sessions（POST 经 error_page 418 内部转 @gateway_session_create→8642、其余方法原样回 9119；改前备份 your-hermes.example.com.conf.bak-20261110-oneday027、nginx -t 过后 reload、动前内存 51%）；客户端 createServerSession/createLinkedServerSession 改带 App 既有 /v1 Bearer（sendJSONDecoding 加 bearer 形参），请求体组装收进 Core 纯函数（createSessionBody/linkedCreateSessionBody，单测把守形态）。不放宽其他 /api/*。
 2. 主线转真会话：ensureMainServerSession（失败全静默）退役→ensureMainLink：未链（SideChatStore 新增 mainServerSeeded、与 mainServerConfirmed 由 markMainLinked 一并置真）时走共用 performLink；失败原因原文落 mainLinkLastError 持久化，设置页「服务器与连接」新增主线会话状态行（statusInfoRow：已链接显 id、未链接显错误原文）。主线发送自此与旁聊同口径走 sendPlan（钦定 id＋双位代入）。
 3. 旁聊下线无头回退：SideChatSendPlan.legacyReplay 整类删除；sendPlan 改判 (serverSessionID, serverSeeded)：无绑定/绑合并桶/自有未种子→linkAndSeed，其余→session。链接共用 performLink 三路：不存在→无种子网关建、有种子 import 落行＋全量（围栏 0）；存在空行＋有种子→import 补种（围栏取 GET 的 runtime_revision）；存在有消息→认链。种子快照取本轮条目落盘前（防本轮消息在服务端落两份）；链接失败抛错→send() 删本轮条目、输入原样退回发送舱、错误横幅明示原因（旁聊失败计数/原因落线程既有字段）；用户链接窗口内停止抛 CancellationError 静默收尾（旧口径）。存量两条旁聊下次发送自动懒链接：绑桶者解绑覆盖为自有新 id（桶本体零动作）、各自本地条目成种。恢复链（reconcile）重发分支同步改判：旧待恢复账 sessionID 为 nil 时，已链接改带头只发尾条、未链接不硬发（留待下次发送一并种子）。
 4. 硬化两处：①currentThread 删除 ?? threads.first 静默回落→Core CurrentThreadResolution 精确解析（失配 nil/空态）；ensureThread 三路（useExisting/createFresh/mismatch），mismatch 置可见错误、整轮不发、输入退回。②删除联动加闸：Core mayArchiveOnDelete 只认 oneday- 前缀（DrawerView 接线）；管理页对两条合并桶的归档/删除加二次确认并写明牵连主线历史（Core mergeBucketWarning 单一文案；ServerSessionRow 归档/删除＋AllConversationsView 批量归档/删除四入口全覆盖，恢复方向不拦）。ChatThread 新增 serverSeeded（续聊导入线程落盘置真、自有会话链接收尾置真）。
@@ -4437,7 +4437,7 @@ Z8 形象行 Menu：点开为系统菜单、三档带勾在当前档、选手感
 
 ### 54.3 公网端到端复验证据（与 App 完全同形）
 
-- 公网 POST https://hermes.didichou.site/api/sessions（Bearer＋旁聊形态 payload）→ 201，会话 oneday-verify-20261110 落库（Dashboard 回读：model=deepseek-flash、model_config 含锁）。
+- 公网 POST https://your-hermes.example.com/api/sessions（Bearer＋旁聊形态 payload）→ 201，会话 oneday-verify-20261110 落库（Dashboard 回读：model=deepseek-flash、model_config 含锁）。
 - import 种子（Dashboard cookie 通道）→ 200 imported=1；回读 message_count=2、model/锁随导入落；随后以 App 发送形态（/v1/chat/completions＋X-Hermes-Session-Id＋仅尾条）发问「我第一句问的是什么」，模型答「你的第一句是：验收种子问」——种子上下文真续上；该会话 message_count 2→4（本轮 user＋assistant 追加进同一会话）。
 - VM 本机出站链路当日多次连接重置（login 一发被断）——系本机透明拦截老毛病，服务端行为以服务器本机复测＋公网 201 双证为准，不归因服务端。
 
@@ -4458,7 +4458,7 @@ Z8 形象行 Menu：点开为系统菜单、三档带勾在当前档、选手感
 - AA7 设置页状态：链接失败场景下（可用 AA4 的飞行模式在聊天页触发一次主线链接失败后）设置页「主线会话」行显「未链接 · <错误原文>」；恢复网络打开聊天页链接成功后该行转「已链接」。
 - AA8 主线历史连续性：装机链接后在主线问一件只有主线旧对话里提过的事（如某个旧决定），模型应答得上（种子上下文生效）；在「你好」旁聊里问同一件事，应答不上或明确无关（分家生效）。
 
-- 交付实录：功能提交 b7ebffc＋修复提交 1621c41（ServerSession.runtimeRevision 默认值，CI 首跑 42749072689 因此编译错、修复后重跑）；CI 42749644784 success，Executed 475 tests, 0 failures（459 基线＋SessionLinkHotfixTests 15＋SideChatLinkTests 改判净增 1，零删测）；IPA 4,948,355 字节、md5 6658834ff07419e1fd2a29ed02393fd3、独立解包验 Info.plist＝0.27.0/56、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.27.0/OneDay-0.27.0.ipa。§14/MotionTokens/0.26.0 外观成果零改动；未自截真机图。
+- 交付实录：功能提交 b7ebffc＋修复提交 1621c41（ServerSession.runtimeRevision 默认值，CI 首跑 42749072689 因此编译错、修复后重跑）；CI 42749644784 success，Executed 475 tests, 0 failures（459 基线＋SessionLinkHotfixTests 15＋SideChatLinkTests 改判净增 1，零删测）；IPA 4,948,355 字节、md5 6658834ff07419e1fd2a29ed02393fd3、独立解包验 Info.plist＝0.27.0/56、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.27.0/OneDay-0.27.0.ipa。§14/MotionTokens/0.26.0 外观成果零改动；未自截真机图。
 
 ## 55. 连接器目录页（0.28.0/57）
 
@@ -4516,7 +4516,7 @@ Z8 形象行 Menu：点开为系统菜单、三档带勾在当前档、选手感
 - BB6 读取失败不冒充：飞行模式下下拉刷新已连接段——应报错＋重试，不拿上次数据装实时（列表可能保留旧行属缓存呈现，但须有失败提示；若无提示即报回查）。
 - BB7 分类与行规格：可连接段分组序为 效率提升（2）/办公协作（3）/开发工具（1）/生活（2）；行题 17 regular、瓷砖 40、行高与设置首页一致，无粗体泛滥。
 
-- 交付实录：功能提交 c18a3f3＋修复提交 4d9aee2（ConnectedConnector 去 Equatable——MCPServerItem 非 Equatable 合成失败，CI 首跑 42751527952 因此编译错、修复后重跑）；CI 42751655037 success，Executed 485 tests, 0 failures（475 基线＋ConnectorCatalogTests 10 测，零删测）；IPA 5,033,330 字节、md5 c1a65db10958a2fac2bc7d2d792b9c5f、独立解包验 Info.plist＝0.28.0/57、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.28.0/OneDay-0.28.0.ipa。§14/MotionTokens/0.26.0 外观/0.27.0 会话链零改动；施工期除只读查外生产零写；未自截真机图。
+- 交付实录：功能提交 c18a3f3＋修复提交 4d9aee2（ConnectedConnector 去 Equatable——MCPServerItem 非 Equatable 合成失败，CI 首跑 42751527952 因此编译错、修复后重跑）；CI 42751655037 success，Executed 485 tests, 0 failures（475 基线＋ConnectorCatalogTests 10 测，零删测）；IPA 5,033,330 字节、md5 c1a65db10958a2fac2bc7d2d792b9c5f、独立解包验 Info.plist＝0.28.0/57、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.28.0/OneDay-0.28.0.ipa。§14/MotionTokens/0.26.0 外观/0.27.0 会话链零改动；施工期除只读查外生产零写；未自截真机图。
 
 ## 56. 连接器目录补本机服务组＋主线不进旁聊集（0.29.0/58）
 
@@ -4569,7 +4569,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 - CC7 主线不进旁聊：抽屉「旁聊」区与底条搜索里找主线对话——不出现（重点验历史上以「你好」开头的形态）；主线只从导航组「主线聊天」行进入；管理全部对话：主线只在「主线」段，「站内」「已归档」段无主线行；旁聊条目仍在、名单没被误杀空。
 - CC8 详情证据：四条详情的「证据来源」与实际探活端点一致（目标与点子、总览数据两条应注明无专用健康端点、取最轻只读端点）。
 
-- 交付实录：功能提交 9a1a80c；CI 42757396350 success，Executed 506 tests, 0 failures（485 基线＋LocalServicesTests 12 测＋MainlineExclusionTests 9 测，零删测）；IPA 5,101,724 字节、md5 09c895681111e06ce16494d59b223f8d、独立解包验 Info.plist＝0.29.0/58、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.29.0/OneDay-0.29.0.ipa。版本五处同改＋grep 验（注：设置页页脚在基线滞留 v0.26.0——0.27.0/0.28.0 两包漏改页脚，本包一并归正为 v0.29.0）。§14/MotionTokens/0.26.0 外观/0.27.0 会话链/0.28.0 目录既有条目状态语义零改动；探活全只读 GET、生产零写；未自截真机图。
+- 交付实录：功能提交 9a1a80c；CI 42757396350 success，Executed 506 tests, 0 failures（485 基线＋LocalServicesTests 12 测＋MainlineExclusionTests 9 测，零删测）；IPA 5,101,724 字节、md5 09c895681111e06ce16494d59b223f8d、独立解包验 Info.plist＝0.29.0/58、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.29.0/OneDay-0.29.0.ipa。版本五处同改＋grep 验（注：设置页页脚在基线滞留 v0.26.0——0.27.0/0.28.0 两包漏改页脚，本包一并归正为 v0.29.0）。§14/MotionTokens/0.26.0 外观/0.27.0 会话链/0.28.0 目录既有条目状态语义零改动；探活全只读 GET、生产零写；未自截真机图。
 
 ## 57. 会话页签恢复语义＋聊天时间系统（0.30.0/59）
 
@@ -4616,7 +4616,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 57.5 交付实录
 
 - 功能提交 7dadd70；CI 42759538188 success，Executed 528 tests, 0 failures（506 基线＋ChatLandingTests 9 测＋ChatTimelineTests 13 测，零删测零改值）。
-- IPA：5,107,798 字节、md5 9e3bbd4a578b0943807b863367ba2ffd、独立解包验 Info.plist＝0.30.0/59、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.30.0/OneDay-0.30.0.ipa。
+- IPA：5,107,798 字节、md5 9e3bbd4a578b0943807b863367ba2ffd、独立解包验 Info.plist＝0.30.0/59、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.30.0/OneDay-0.30.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 的 MARKETING_VERSION／CURRENT_PROJECT_VERSION／CFBundleShortVersionString／CFBundleVersion 四处＋SettingsView 页脚「OneDay v0.30.0」一处（本包未漏页脚）。
 - §14/MotionTokens/外观定版零改动；0.27.0 会话链与 0.29.0 主线分类器语义未动；施工期生产零写；未自截真机图。
 
@@ -4667,7 +4667,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 58.5 交付实录
 
 - 功能提交 458f6a6＋测试修正两笔（72a9918 相位比较关联值、e940d3a 提交中流断归未知——均为测试对齐状态机转移表，实现未改）；CI 42768305956 success，Executed 563 tests, 0 failures（528 基线－StreamRecoveryTests 6＋RunTurnTests 40，净增 35）。
-- IPA：5,164,319 字节、md5 ea044f360e00e75e41cb9c1c88879b9f、独立解包验 Info.plist＝0.31.0/60、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.31.0/OneDay-0.31.0.ipa。
+- IPA：5,164,319 字节、md5 ea044f360e00e75e41cb9c1c88879b9f、独立解包验 Info.plist＝0.31.0/60、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.31.0/OneDay-0.31.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION／CURRENT_PROJECT_VERSION／CFBundleShortVersionString／CFBundleVersion）＋SettingsView 页脚「OneDay v0.31.0」。
 - 施工期生产零写（仅阶段 A 探针：两条 oneday-probe-run* 会话已归档复验；write-gate 待审批一条 staged 未落库，见 58.2）；未自截真机图；EE1–EE8 待真机终审。
 
@@ -4705,7 +4705,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 59.4 交付实录
 
 - 功能提交 010f14a（10 文件，+1150/−161）；CI 42771107158 success，Executed 574 tests, 0 failures（563 基线＋11 新测：五字段全形解码/旧载荷默认/PATCH 编码/生成信息解码/待阅排序/已采纳 30 天窗/空态二分/过期天数/任务状态派生/任务正文带依据）。
-- IPA：5,247,107 字节、md5 32cddbfaed5b11580aa74ecf6aa860bb、独立解包验 Info.plist＝0.32.0/61、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.32.0/OneDay-0.32.0.ipa。
+- IPA：5,247,107 字节、md5 32cddbfaed5b11580aa74ecf6aa860bb、独立解包验 Info.plist＝0.32.0/61、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.32.0/OneDay-0.32.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION／CURRENT_PROJECT_VERSION／CFBundleShortVersionString／CFBundleVersion）＋SettingsView 页脚「OneDay v0.32.0」。
 - 桥侧生产验收（59.1）：公网契约 13/13 PASS（401/空表/下一轮时刻/brief 往返并复原/临时卡全链 PATCH 流转与 400·404 门/generated 无 evidence 400）；本地桩测 31/32（唯一 FAIL 为断言本身写反、已单独核实请求体）；过期清扫本地验过；首轮真实生成 produced=3（卡 id 与依据见 59.1），下一轮 2026-11-11 07:30 已排。
 - 施工期生产动作仅 oneday-bridge 本体（部署/env/重启/首轮触发/凑数卡删除各一次），内存峰值 52.6%，其余容器未动；未自截真机图；FF1–FF7 待真机终审。
@@ -4742,7 +4742,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 60.5 交付实录
 
 - 功能提交 a7589ef（23 文件，+560/−112）；CI 42774943285 success，Executed 582 tests, 0 failures（574 基线＋8 新测，只增不减：ChatModels 改写 4 测＋新增下线名保留/落回提示 2 测、BridgeKeyImport 新立 6 测）。
-- IPA：5,266,243 字节、md5 9e975e4cc1c7f61c3fe989b7f24c481c、独立解包验 Info.plist＝0.32.1/62、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.32.1/OneDay-0.32.1.ipa。
+- IPA：5,266,243 字节、md5 9e975e4cc1c7f61c3fe989b7f24c481c、独立解包验 Info.plist＝0.32.1/62、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.32.1/OneDay-0.32.1.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION 0.32.1／CURRENT_PROJECT_VERSION 62／CFBundleShortVersionString 0.32.1／CFBundleVersion 62）＋SettingsView 页脚「OneDay v0.32.1」。
 - F04 桥止血同批独立交付（见 60.1）：本地桩测 13/13、生产已部署实测。五桥凭据分权服务器侧（R8 后半）于本 IPA 出包后执行，钥匙组文件 bridge-keys.txt 交付用户导入（GG3）；过渡期影响：装 0.32.1 前各桥照常（服务器尚未轮换）、装后未导入前靠旧钥回退照常、导入一次即完成分权。
 - GG1–GG4 待真机终审（本版终审代号 GG，承 §59 的 FF 序）。
@@ -4798,7 +4798,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 61.6 交付实录
 
 - 功能提交 dad684b（8 文件，+1752/−151）；CI 42778416940 success，Executed 595 tests, 0 failures（582 基线＋13 新测，只增不减：GoalDepthTests 解码 5＋请求体 4＋GoalBoard 4）。
-- IPA：5,444,364 字节、md5 eb2b99231e8e20282a5d4a9d08f5f011、独立解包验 Info.plist＝0.33.0/63、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.33.0/OneDay-0.33.0.ipa。
+- IPA：5,444,364 字节、md5 eb2b99231e8e20282a5d4a9d08f5f011、独立解包验 Info.plist＝0.33.0/63、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.33.0/OneDay-0.33.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION 0.33.0／CURRENT_PROJECT_VERSION 63／CFBundleShortVersionString 0.33.0／CFBundleVersion 63）＋SettingsView 页脚「OneDay v0.33.0」。
 - 桥 P2 同批独立交付（见 61.1/61.2 与 rollout 附录 P2 节）：本地自测 34/34、生产已部署实测（手动一轮真产 1 封、验后删净、生产数据零残留）；下一轮自动简报 2026-11-16（周一）08:00（届时有 active 且有素材的目标才成信，生产当前 0 目标、如实 0 封）。
 - 9B 对话式创建本版未落（见 61.4）：桥 source=chat 契约已备，App 入口保持表单；替代方案待用户拍板。
@@ -4854,7 +4854,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 ### 62.7 交付实录
 
 - 功能提交 42e328b（21 文件：15 改＋3 删＋2 新＋DESIGN 本节）；CI 42781449131 success，Executed 595 tests, 0 failures（595 基线：删 BridgeKeyImportTests 6 测、增 RetiredBridgeKeyAccountsTests 6 测，等量接替、只增不减守恒）。
-- IPA：5,400,401 字节、md5 d8c0445aa7c28c039bfb00a39fbfdb5b、独立解包验 Info.plist＝0.33.1/64、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.33.1/OneDay-0.33.1.ipa。
+- IPA：5,400,401 字节、md5 d8c0445aa7c28c039bfb00a39fbfdb5b、独立解包验 Info.plist＝0.33.1/64、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.33.1/OneDay-0.33.1.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION 0.33.1／CURRENT_PROJECT_VERSION 64／CFBundleShortVersionString 0.33.1／CFBundleVersion 64）＋SettingsView 页脚「OneDay v0.33.1」。
 - 服务器段（nginx 单钥入口＋过渡双模）与本节同批交付且已先于用户装机生效，实录见 hermes-deploy/bridge-keys-rollout-20261110.md 的 0.33.1 追记（验矩阵全绿、备份 bak-20261110-singlekey、内存 51.6%）；fallback 撤销条件＝用户装 0.33.1 并确认桥功能正常后另行派单撤除。
 - II1–II4、JJ1–JJ4 待真机终审（本版终审代号 II＋JJ，承 §61 的 HH 序）。
@@ -4865,10 +4865,10 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 
 ### 63.1 服务器段：device-bridge 公网路由（严格单钥）
 
-- nginx `hermes.didichou.site` 新增 `location /api/device-bridge/` → 127.0.0.1:8647，照 0.33.1 单钥入口同形：`auth_request /__bridge_auth` 验 Hermes 登录钥 → `proxy_set_header Authorization` 注入 device 桥自己的服务钥（钥在服务器内从容器 env 直读直注、未经过任何本地文件/聊天）；`proxy_read_timeout 120s`＋`proxy_buffering off`（长轮询 ≤25s、转发调用 ≤30s）。
+- nginx `your-hermes.example.com` 新增 `location /api/device-bridge/` → 127.0.0.1:8647，照 0.33.1 单钥入口同形：`auth_request /__bridge_auth` 验 Hermes 登录钥 → `proxy_set_header Authorization` 注入 device 桥自己的服务钥（钥在服务器内从容器 env 直读直注、未经过任何本地文件/聊天）；`proxy_read_timeout 120s`＋`proxy_buffering off`（长轮询 ≤25s、转发调用 ≤30s）。
 - **直接严格单钥、无过渡双模**：本桥新立、唯一客户端就是 0.34.0 的 App（持登录钥），不存在旧桥钥客户端要保——与四桥的双模情形不同，不留 fallback。
 - **Hermes config 注册 MCP 门面不在本版**（留收官窗口与 Notion/GitHub 验活同批）：`/api/device-mcp` 路由未启用，智能体本版尚调不到设备工具——App 呈现按此诚实口径（见 63.5）。
-- 备份：`hermes.didichou.site.conf.bak-20261110-devicebridge`（0600，改前整份）；回滚＝覆盖回备份＋`nginx -t`＋reload。改前内存 51.6%、改后 51.6%，未触红线，未动 Hermes 本体与其余桥。
+- 备份：`your-hermes.example.com.conf.bak-20261110-devicebridge`（0600，改前整份）；回滚＝覆盖回备份＋`nginx -t`＋reload。改前内存 51.6%、改后 51.6%，未触红线，未动 Hermes 本体与其余桥。
 - 验矩阵（公网实测全绿）：`GET /api/device-bridge/health` 登录钥 200（`{"ok":true,"service":"device-bridge",...}`）／随机错钥 401／无钥 401；会话全环冒烟（登录钥）：POST `/device/session` 201 得 sessionId → GET `/device/poll?wait=1` 回 `{"call":null}` → POST `/device/heartbeat` `{"ok":true}` → POST `/device/disconnect` `{"ok":true}`、断后 health 的 sessionOnline 回 false（冒烟会话已断净、不留残会话）。
 
 ### 63.2 Core 落值（纯逻辑，单测钉死）
@@ -4914,7 +4914,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 
 - 提交链：862d11b（功能整包）→2576d09（CI 修：formatter Sendable＋DeviceSourceID Codable）→1d26ee8（CI 修：keysToFetch 组装）→bf0f5f7（CI 修：fetchReminders continuation 盒）；顶端 bf0f5f7。
 - CI 42785106180 success，**Executed 624 tests, 0 failures**（基线 595＋新测 29：DeviceSourcesTests 12＋DeviceCallsTests 17，只增不减）。
-- IPA：5,709,994 字节、md5 f9aa773ef461aa1ae4aa8ed754a088ad、独立解包验 Info.plist＝0.34.0/65、bundle site.didichou.oneday、三键 UsageDescription 均在包内，落 ~/workspace/your_files/oneday-v0.34.0/OneDay-0.34.0.ipa。
+- IPA：5,709,994 字节、md5 f9aa773ef461aa1ae4aa8ed754a088ad、独立解包验 Info.plist＝0.34.0/65、bundle com.example.oneday、三键 UsageDescription 均在包内，落 ~/workspace/your_files/oneday-v0.34.0/OneDay-0.34.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION 0.34.0／CURRENT_PROJECT_VERSION 65／CFBundleShortVersionString 0.34.0／CFBundleVersion 65）＋SettingsView 页脚「OneDay v0.34.0」。
 - 服务器段实录见 63.1（nginx 路由已生效、验矩阵全绿、备份 bak-20261110-devicebridge、内存 51.6%）；施工记录追记 hermes-deploy/device-bridge-rollout-20261110.md。
 - KK1–KK7 待真机终审；JJ1–JJ4 续审（本版底栏正解 A 是否回描边以 JJ3 逐格对 Muse 为准，灯泡先看）；KK8 待收官窗口（Hermes 注册门面）后另验。
@@ -4954,7 +4954,7 @@ Core 新 `LocalServices.swift` 单一真源：名册四条（序＝呈现序）�
 
 - 提交链：6e601b0（功能整包）→9e2805a（CI 修：动态格符号 newspaper 量测判死换 doc.text＋相对时间边界测例修正）；顶端 9e2805a。
 - CI 42789983434 success（首轮 42788898202 构建过、单测三处红：newspaper 密度两闸＋相对时间恰 60 秒边界，均已修），**Executed 637 tests, 0 failures**（基线 624＋新测 13：FeedBoardTests 13，只增不减）。
-- IPA：5,855,761 字节、md5 1c616691ccffe68d2705bf247984c3b2、独立解包验 Info.plist＝0.35.0/66、bundle site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.35.0/OneDay-0.35.0.ipa。
+- IPA：5,855,761 字节、md5 1c616691ccffe68d2705bf247984c3b2、独立解包验 Info.plist＝0.35.0/66、bundle com.example.oneday，落 ~/workspace/your_files/oneday-v0.35.0/OneDay-0.35.0.ipa。
 - 版本五处同改＋grep 验：Project.swift 四处（MARKETING_VERSION 0.35.0／CURRENT_PROJECT_VERSION 66／CFBundleShortVersionString 0.35.0／CFBundleVersion 66）＋SettingsView 页脚「OneDay v0.35.0」。
 - 桥侧实录见 64.1（备份 bak-20261110-p3、双生产者首轮真跑、自测 25/25、内存约 51.6%）；施工记录追记 hermes-deploy/oneday-bridge-rollout-20261109.md。
 - LL1–LL7 待真机终审；JJ/KK 系列续审并行。
@@ -5215,7 +5215,7 @@ ChatView.modelMenu 每行改同构 HStack：固定对号槽（ModelMenuSpec 进 
 1. **删整道语音识别授权门**（DictationController）：prepConfirmStart 只请求麦克风；handleMicTap 已授权直启判断只看 AVAudioApplication.recordPermission（.granted 直启／.denied 失败行／其余进预备页）；requestSpeechPermission 整删，全仓 requestAuthorization 零残留（仅余 ImageViewerView 的相册授权、与本包无关）。DictationViews 预备页删「需要开语音识别」行、失败文案改只提麦克风；Core 的 permissionDenied 注释同步。NSSpeechRecognitionUsageDescription 键保留在 plist（Project.swift 未动、无害），代码不再调用该 API。
 2. **tap 格式有效性门**（Core 新设 DictationAudioFormatPolicy.isUsable＋DictationController.startEngine）：读 inputNode.outputFormat 后先过门（sampleRate 有限且 >0、channelCount >0）；无效先 engine.prepare() 复读一次，仍无效清 session 走 .unavailable 失败路并落 formatInvalid 面包屑（带实际 rate/channels 值），绝不把无效格式递给 converter/installTap。installTap 改传 format: nil（节点实时格式）；转换器改由 DictationAudioPipe 以首个 buffer 的实际 format 惰性建立（格式变更自动重建），开录前快照竞态整类消除。管线比值改走 Core conversionRatio 有限性守卫，无效整帧丢弃（原 UInt32(∞) trap 面消除）。
 3. **音频会话对齐 WWDC25 样例**：setCategory 改 .playAndRecord、mode 改 .spokenAudio（原 .record/.default）。回归面核查：全仓无其他 AVAudioSession 类别设置、无 AVAudioPlayer/AVPlayer 播放面，不存在与既有播放共存的冲突面；录音条/电平链未动。
-4. **os.Logger 阶段面包屑**（DictationController）：subsystem site.didichou.oneday、category dictation；markStage 同步把末阶段写入 UserDefaults dictation.lastStage。打点：micGranted/micDenied、moduleBuilt、assetReady、sessionActive、formatReady/formatInvalid、tapInstalled、analyzerStarted、engineStarted、recording、firstResult、startupFault/engineFault——授权、资产、会话、格式、引擎、首结果全阶段各一行。
+4. **os.Logger 阶段面包屑**（DictationController）：subsystem com.example.oneday、category dictation；markStage 同步把末阶段写入 UserDefaults dictation.lastStage。打点：micGranted/micDenied、moduleBuilt、assetReady、sessionActive、formatReady/formatInvalid、tapInstalled、analyzerStarted、engineStarted、recording、firstResult、startupFault/engineFault——授权、资产、会话、格式、引擎、首结果全阶段各一行。
 5. **假录音根除**（Core 新设 DictationFaultPolicy＋App pipelineFault）：analyzer.start 与结果流抛错统一走 pipelineFault，按政策分相位处置——.recording→.engineError 失败收尾；.requestingPermission/.preparing→置 startupFault 闩，startEngine 在 engine.start() 成功后、宣布 .started 前检查并拆管道回 .startFailed（startPipeline 据此 fail(.engineError)，不走回退链误报不可用）；已落定/收尾中/代次不符→ignore。旧 engineFailed 的 phase==.recording 守卫整删。
 
 ### 73.2 验收
@@ -5274,7 +5274,7 @@ ChatView.modelMenu 每行改同构 HStack：固定对号槽（ModelMenuSpec 进 
 - 版本五处同改 0.36.10/77（Project.swift 四处＋SettingsView 页脚），grep 验讫。
 - 单测 741 → **751**（+10，只增不减）：ToolCardPresentationTests 7（卡级状态三分支/无意义判定/状态语六例/组头四例/累积器中文兜底/旧卡解码兼容/arguments 往返）、RichContentTests +2（connection/device 分类与标题、复合命令摘要含实拍样本）、DeviceSourcesTests +1（会话离线三断言）；另 combo 夹具 1 条旧断言按 D3-5 迁移（计数不变）。
 - CI：首轮 42822808738 红（仅上述夹具断言 1 条，属口径迁移漏网），迁移提交后 **42824509891 绿**（head f04d08e），Executed 751 tests, 0 failures。
-- IPA：~/workspace/your_files/oneday-v0.36.10/oneday-unsigned.ipa，6,635,541 字节，md5 77f5e19ce793d839a5a2cc973f16e770，解包 Info.plist = 0.36.10/77/site.didichou.oneday；二进制内验到本包新文案长字面量（channelNote 两句在 OneDayApp 内命中；≤15 字节短串走 Swift 小字符串立即数编码、不以连续字节存，此为 Release 常态）。
+- IPA：~/workspace/your_files/oneday-v0.36.10/oneday-unsigned.ipa，6,635,541 字节，md5 77f5e19ce793d839a5a2cc973f16e770，解包 Info.plist = 0.36.10/77/com.example.oneday；二进制内验到本包新文案长字面量（channelNote 两句在 OneDayApp 内命中；≤15 字节短串走 Swift 小字符串立即数编码、不以连续字节存，此为 Release 常态）。
 - 发送链与 0.31.0 任务制语义零改动：本包只动呈现层判定与文案，followRunEvents 的落盘/对账/重试逻辑未改（仅在既有挂点记事件序与净化直播结果）。
 
 ### 75.3 诚实边界
@@ -5611,7 +5611,7 @@ different analyzer instance」缓存已加载资源）——与常备束是同�
 - 单测 796（785＋11 DictationPreheatTimingTests），TEST
   SUCCEEDED，独立复核日志总计行。
 - IPA：6,862,761 字节，md5 6b18756f67dbf13dca98984393c998c0，
-  解包 Info.plist 自验 0.36.15/82、bundle site.didichou.oneday；
+  解包 Info.plist 自验 0.36.15/82、bundle com.example.oneday；
   落 ~/workspace/your_files/oneday-v0.36.15/oneday-unsigned.ipa。
 - 待真机复验（§80.5 口径）：停留数秒等首束备好→5 秒短录音应
   中途出字＋诊断行「首结果+Xms」与约 10000ms 对比；第二段起看
@@ -5711,7 +5711,7 @@ complete 回执）；失败＝原因行＋「重试」钮同行，且同步落�
 - 单测 804（796＋8：DeviceSyncTests 增一开关映射 4＋日志 4），
   TEST SUCCEEDED，日志总计行独立复核（Executed 804 tests）。
 - IPA：6,891,039 字节，md5 a6127313f4daf06a3360066aec1c0325，
-  解包 Info.plist 自验 0.36.16/83、bundle site.didichou.oneday；
+  解包 Info.plist 自验 0.36.16/83、bundle com.example.oneday；
   落 ~/workspace/your_files/oneday-v0.36.16/oneday-unsigned.ipa。
 - 待真机复验：①进通讯录详情页，全页只剩一个开关（权限是状态
   行）；拨开→首启区当页展开→点「开启同步」→人留在详情页看完
@@ -5803,7 +5803,7 @@ finalize 2 秒超时＋drain 2 秒兜底（现行口径未动），超时按
   CI 日志逐个 passed、总计行 817、0 failures，只增不减。
 - IPA：6,895,953 字节，md5 `d878160a0db90c4f91d7faa2c032dbbf`，
   独立解包自验 Info.plist ＝ 0.36.17/84、bundle
-  `site.didichou.oneday`；落 ~/workspace/your_files/
+  `com.example.oneday`；落 ~/workspace/your_files/
   oneday-v0.36.17/oneday-unsigned.ipa。版本五处同改已 grep 验。
 - 错题本 P-03 终修栏随包更新（双因定案＋状态「已修待真
   机验」）。
@@ -5909,7 +5909,7 @@ enabled/disabled 为 0.36.16 存量条目、新流程不再产生
   Executed 820 tests, 0 failures。
 - IPA：6,880,340 字节，md5 `bb071d147efb3b2d7d8a78f2cbf714ca`，
   独立解包自验 Info.plist ＝ 0.36.18/85、bundle
-  `site.didichou.oneday`；落 ~/workspace/your_files/
+  `com.example.oneday`；落 ~/workspace/your_files/
   oneday-v0.36.18/oneday-unsigned.ipa。版本五处同改已 grep 验。
 - 错题本 P-11 终修栏随包更新为 0.36.18 终形态。
 
@@ -6078,7 +6078,7 @@ App（或停在日历详情页）：数秒内日志应多出一轮同步记录
   +6；CI 总计行 Executed 831 tests, 0 failures。
 - IPA：6,899,110 字节，md5 `d2806eee74409c7d4dda238d7159c24a`，
   独立解包自验 Info.plist ＝ 0.36.19/86、bundle
-  `site.didichou.oneday`；落 ~/workspace/your_files/
+  `com.example.oneday`；落 ~/workspace/your_files/
   oneday-v0.36.19/oneday-unsigned.ipa。版本五处同改已
   grep 验。
 - 错题本：P-12（引用截断＋编辑标记）、P-13（图片单轴
@@ -6378,8 +6378,8 @@ hermes-deploy/credentials.txt 取、未落盘未外传；测试请
   计行 Executed **844 tests, 0 failures**（831＋手势
   4＋连接 9，只增不减）；IPA 6,919,048 字节，md5
   `eb8bad838ac9b78c6256a48c8912dc24`，独立解包自验
-  Info.plist＝0.36.20/87、bundle `site.didichou.
-  oneday`；落 ~/workspace/your_files/oneday-v0.36.20/
+  Info.plist＝0.36.20/87、bundle `com.example.oneday`；
+  落 ~/workspace/your_files/oneday-v0.36.20/
   oneday-unsigned.ipa。
 - 连接面真机复验：①聊天页停留不动，旁路由/路由器
   制造一次数秒抖动（或短暂断开 WiFi 再恢复）：胶囊
@@ -6944,7 +6944,7 @@ your_files/oneday-v0.36.22/。
 
 ### 90.4 诊断打点清单（临时件，随本构建保留一轮）
 
-SwipeReplyDiagnostics（App 层新文件）＋桥内三处挂钩，代码内均标「下一轮撤」；落双通道（照听写诊断先例）：os.Logger（subsystem `site.didichou.oneday`、category `swipeReply`）＋UserDefaults 落盘环（键 `swipeReply.diagTrace`，最近 40 条带时刻，杀进程不丢）；不进任何正常 UI。
+SwipeReplyDiagnostics（App 层新文件）＋桥内三处挂钩，代码内均标「下一轮撤」；落双通道（照听写诊断先例）：os.Logger（subsystem `com.example.oneday`、category `swipeReply`）＋UserDefaults 落盘环（键 `swipeReply.diagTrace`，最近 40 条带时刻，杀进程不丢）；不进任何正常 UI。
 
 1. **shouldReceive＋视图链**：Coordinator 的 `gestureRecognizer(_:shouldReceive:)` 恒 true 只记——时间戳＋recognizer.view 的完整 superview 类名链。从未触发＝H3（装载点不在命中链上）。
 2. **shouldBegin＋实测值**：进入即记当刻 translation（dx/dy）与 Core 判决。有 shouldReceive、无本条、且 scroll pan 有 began＝H1（被仲裁抢先）；本条出现且判 false＝判据问题（H2 位移版形态）。
@@ -7750,7 +7750,7 @@ def greet(name):
 
 ### 110.1 契约与真源（亲查实证）
 
-- **伴生面**：GET /api/companion/info（front 8650、公网经 hermes.didichou.site 同源、单钥 Bearer），build_info() 实产字段＝companionVersion／apiLevel／minAppVersion／hermesUp（布尔）／modules{writeGate, overview, box, oneday, device → {state, detail?, degraded?（仅 oneday 恒带）}}／generatedAt。模块状态词表据 aggregate()＋probe_module() 实产：up／degraded／down／crash-loop／disabled／unknown。
+- **伴生面**：GET /api/companion/info（front 8650、公网经 your-hermes.example.com 同源、单钥 Bearer），build_info() 实产字段＝companionVersion／apiLevel／minAppVersion／hermesUp（布尔）／modules{writeGate, overview, box, oneday, device → {state, detail?, degraded?（仅 oneday 恒带）}}／generatedAt。模块状态词表据 aggregate()＋probe_module() 实产：up／degraded／down／crash-loop／disabled／unknown。
 - **Hermes 本体版本真源（实情）**：info 面**没有** hermesVersion 字段（只有 hermesUp 布尔）——拿不到，不许从 info 编。真源在 Hermes 自家面：GET /api/status 的 version（实测样本 "0.23.0"，ServerStatus.version，设置页 loadSummaries 既有读数）；/health 亦带 version。本包版本组 Hermes 行即用前者。
 - **顺带销账**：设置页关于组旧「服务端」行在 status 读不到时写死兜底 "Hermes v0.23.0"——拿已知生产版本冒充现读，本包废除：新版本组读不到如实显「未知」，旧行移出关于组（与伴生行成组，避免同页两处版本）。
 
@@ -8218,7 +8218,7 @@ Core 新增/扩：IdeaEmoji 兜底映射（桥值优先、按 kind 兜底、手�
 - **预制分支 CI 先行记账**：分支 run 42956872736 终局 failure（build-native）——`FeedView.swift:1115 error: expected '}' in struct`。确诊：FeedPostDetailView 抽共享组件（FeedSourceCardView/FeedSourcesSheet）时漏收 struct 自身的闭合括号，文件尾净大括号深度 +1、其后三个组件 struct 全被吞为嵌套（FeedView 在行首无限定引用两组件、嵌套亦不可见）。修法：详情 body 之后、FeedSourceCardView 文档注释之前补回 struct 闭合 `}`（大括号深度扫描归零复核），随合并提交一并入 main。
 - **合并**：feat/muse-align（顶端 bda4778，基线 ddde9c4）并入 main（0.46.1 顶端 a11c52f）。冲突仅 DESIGN-V4.md 一处（§116.5/116.6 与 §117 同锚追加），两段顺序拼接、全保留；Localizable.xcstrings 自动合并后键集校验＝两边并集 2422 键、零丢失零多余，validate_i18n 通过（2435 键×三语）。版本五处对账＝Project.swift 四处（MARKETING_VERSION 0.47.0／CURRENT_PROJECT_VERSION 114／CFBundleShortVersionString 0.47.0／CFBundleVersion 114）＋SettingsView 页脚「OneDay v0.47.0」，无 0.46 残留。合并提交 669e5bb。
 - **合并后 CI**：run 42959056483 一轮全绿（build-native success、head 669e5bb，合并后零修复轮）；单测 1238、0 failures（基线 1231＋MuseAlign117Tests 7，只增不减）。
-- **独立验包**：IPA 9,095,130 字节、md5 `f84cb4cfaa2bf797413a3e8c953f92a1`、Info.plist 实读 CFBundleShortVersionString 0.47.0／CFBundleVersion 114／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.47.0/OneDay-0.47.0.ipa`（落盘 md5 与取件一致）。
+- **独立验包**：IPA 9,095,130 字节、md5 `f84cb4cfaa2bf797413a3e8c953f92a1`、Info.plist 实读 CFBundleShortVersionString 0.47.0／CFBundleVersion 114／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.47.0/OneDay-0.47.0.ipa`（落盘 md5 与取件一致）。
 - **S2-11 核查结论（顺带项）**：**未随 §117 落地**——分支 diff 对简报编辑器保存钮零触碰，合并后 FeedBriefEditorView 的「保存兴趣」「保存正式简报」仍为纯 Form 文本行式 Button、无主按钮层级（与 style-audit-2 的 S2-11 登记现状一致）；转后续样式包处理，本包不夹带。
 
 ## §118 样式热修包 A·审批卡双面统一＋选择菜单 Picker 化（样式审计二期首包，2026-11-11，预制分支 feat/style-fix-a，基线 main 2ed1d4f；节号自选 §118——§117 为在飞对标包预留，合并时主线终审如撞号顺延）
@@ -8252,7 +8252,7 @@ Core 新增/扩：IdeaEmoji 兜底映射（桥值优先、按 kind 兜底、手�
 - **交付定版**：0.49.1／119。原预制分支 feat/style-fix-a（顶端 18da930，基线老 main 2ed1d4f）首轮合并单按纪律停在分支 CI 红——唯一失败 FileIntakeTests.testTranscodeGBKTextToUTF8 系基线旧账（§116 的 GBK 终修 P-21 在现行 main、分支 diff 不触 FileIntake）。本续办单先变基到现行 main c3e1729（变基后顶端 7228c90＋2a36a2f）：冲突仅 DESIGN-V4.md 一处，按顺序拼接、§118 节归位至 §117 与 §121 之间（§116／§117／§121／§122／§124／§123 全保留）；代码面（FilesView／HubApprovalSection 等）自动合并、无审批卡面与 §123 通知面的取舍冲突；Localizable.xcstrings 分支零触碰，main 2487 键原样、validate_i18n 通过。变基后分支 CI run 42968708726 全绿（单测 1296＝main 基线 1283＋本包 13、0 failures，GBK 旧账随终修转绿）；续补 S2-11（提交 8024d99，见 §118.4）后第二轮分支 CI run 42969772410 全绿。
 - **合并**：合并提交 3a82ae2（--no-ff，零冲突）；定版提交 c2748f0（版本五处＝Project.swift 四处 0.49.1/119＋SettingsView 页脚「OneDay v0.49.1」，grep 验无 0.49.0 残留）即合并后 main 顶端。
 - **合并后 CI**：run 42970583976 success（build-native success，head c2748f0）；单测 1296、0 failures（只增不减）。
-- **独立验包**：IPA 9,197,811 字节、md5 `add8ce495c9918d4fceb925b3616566a`、Info.plist 实读 0.49.1／119／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.49.1/OneDay-0.49.1.ipa`（落盘 md5 一致）。
+- **独立验包**：IPA 9,197,811 字节、md5 `add8ce495c9918d4fceb925b3616566a`、Info.plist 实读 0.49.1／119／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.49.1/OneDay-0.49.1.ipa`（落盘 md5 一致）。
 - **真机待验**：§118.3 三点（两面审批卡三钮等宽满宽、主钮恒蓝；两处菜单恰一勾且文字同线；已决历史行「按规则放行」灰字后缀）＋S2-11 两钮（简报编辑器主钮蓝实心通栏、次钮浅灰同高、禁用态变淡、保存中转菊花）。
 
 
@@ -8301,7 +8301,7 @@ XCTest 无新增、只减不增红线守恒：跟改断言 8 处（ConnectorCata
 - **§119.4 遗留处置（校验器扩版复跑＋槽位豁免销账）**：扩版校验器（16 词黑名单＋源串同查）对合并后目录复跑通过（2616 键×三语、占位符一致、零漏网；--check-code 同过）。合并前对 main 目录试跑的 49 条违规＝41 条 §120 已改名旧键（随并集删除消解）＋槽位 8 条。槽位豁免组 8 条删除销账：§119.4 已逐条改写、8 键在合并后代码零引用（「辅助槽位」仅剩 ModelCombos.swift 一处代码注释、不上用户面），系孤儿键，随豁免一并删（目录 −8 已计入上数）。余豁免 4 条（D3-12 解释句 2＋台账记录者标签 1＋闹钟连接器说明文 1）仍在效、校验器未报失效。
 - **代码冲突 4 文件**：①DocumentReaderView——§120 唯一改动行（loadError 兜底句）的宿主已被 §125 在 main 侧整段换代为 FileOpenFailure 五分文案，旧串在 main 已不存在，取 main、§120 改动自然消解。②FilesView——§120 五处改串中四处自动合并在位；第五处宿主 FilePreviewView 已被 §125 整支删除，取 main 的退役注释。③ModelCombos——取 main（§119 的 main/custom 双 case＋D3-13 注释为 §120 侧超集，§120 的「默认服务商（经网关）」改名 main 已含）。④ModelSettingsView——§119 名词与 §120 句式合裁：定为新串「预设清单没读出来，可能是网络或服务暂时没响应」（§119「预设」名词×§120 统一失败句式；三语齐备入目录，+1 已计入上数；§120 原串「组合清单没读出来…」与 §119 串「预设清单读取失败，请下拉重试。」均成孤儿键保留待后续清）。
 - **CI 两轮**：首轮 run 42979607534（head e39a20f）build-native failure——唯一失败 LocalServicesTests.testSearchByBlurb：其搜索词「审批桥」正是 D3-05 改掉的 writeGate 旧简介，§120 预制时漏跟改此断言（实算 []、期望 [writeGate]）。同值跟改搜索词为新简介词「批准」（新简介中唯一命中）提交 3af9674；二轮 run 42980936511（head 3af9674）jobs API 逐项终判 build-native **success**。单测 **1336、0 failures**——与合并前 main 口径（0.50.0）分毫不差，合 §120 无增删、断言跟改合 9 处（预制 8＋合并跟改 1）的对账。
-- **独立验包**：IPA 9,408,803 字节、md5 `17d841be973cb7097bb187215939d9d9`、Info.plist 实读 CFBundleShortVersionString 0.50.1／CFBundleVersion 123／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.50.1/OneDay-0.50.1.ipa`（落盘 md5 与取件一致）。
+- **独立验包**：IPA 9,408,803 字节、md5 `17d841be973cb7097bb187215939d9d9`、Info.plist 实读 CFBundleShortVersionString 0.50.1／CFBundleVersion 123／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.50.1/OneDay-0.50.1.ipa`（落盘 md5 与取件一致）。
 - **真机待验**：各页失败提示已换人话口径（远端读取类「X没读出来，可能是网络或服务暂时没响应」、动作失败尾巴「请稍后再试。」）；连接面「桥/闸门」词族清零（还没连上你的服务／写入审批）；会话批量操作回执「没改成」族；设置页页脚 v0.50.1。
 
 ## §121 热修：回底钮消失＋自己发的文件没牌/点开落点（0.46.1 真机报障，2026-11-11 12:27）
@@ -8348,7 +8348,7 @@ Core 新增/改：BackToBottomPlacement 新签名落位族（旧「frame 未发�
 
 - **合并**：feat/hotfix-file-back（顶端 013f70e，分支 CI run 42961158491 全绿、单测 1246）并入 main（基线 5a9e1a1）；DESIGN 冲突一处（§117.8 与 §121 同锚追加），顺序拼接全保留。合并提交 53f0e86，版本五处对账＝Project.swift 四处 0.47.1/115＋SettingsView 页脚「OneDay v0.47.1」。
 - **合并后 CI**：run 42962305282 success（build-native success，head 53f0e86）。
-- **独立验包**：IPA 9,098,746 字节、md5 `220c983db9cd480bf4f6ba2988f5493f`、Info.plist 实读 0.47.1／115／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.47.1/OneDay-0.47.1.ipa`（落盘 md5 一致）。
+- **独立验包**：IPA 9,098,746 字节、md5 `220c983db9cd480bf4f6ba2988f5493f`、Info.plist 实读 0.47.1／115／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.47.1/OneDay-0.47.1.ipa`（落盘 md5 一致）。
 - **真机验收点**：见 §121.6 五条（回底钮出现/落位/点按、自发文件立即出牌、.ipa 落分享单、失败五分文案、旧消息 GestaltX 补牌）。
 ## §122 三页修正包（2026-11-11，预制分支 feat/three-pages-fix，基线 main 5a9e1a1；§118–§121 在各自预制分支，合并时主线按序拼接）
 
@@ -8388,7 +8388,7 @@ Core 新增/改：BackToBottomPlacement 新签名落位族（旧「frame 未发�
 - **分支终局**：feat/three-pages-fix（顶端 8c65e0e，基线 5a9e1a1）分支 CI run 42962710628 全绿；单测 1256（基线 1238＋ThreePages122Tests 18，MuseAlign117Tests 更正 1 处计数不减）。
 - **合并**：并入 main（顶端 d5ac49b，含 §121/0.47.1 与 §121.7）。冲突仅 DESIGN-V4.md 一处（§121 与 §122 同锚追加），顺序拼接（§121 在前、§122 在后）全保留；Localizable.xcstrings 自动合并后键集校验＝两边并集 2444 键、零丢失零多余，validate_i18n 通过（2457 键×三语，含版本串对账后）。版本五处＝Project.swift 四处 0.48.0/116＋SettingsView 页脚「OneDay v0.48.0」。合并提交 bc58930。
 - **合并后 CI**：run 42963437267 success（build-native success，head bc58930）。
-- **独立验包**：IPA 9,112,272 字节、md5 `a0df82ed32b5b25e61cd743676e586ff`、Info.plist 实读 0.48.0／116／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.48.0/OneDay-0.48.0.ipa`（落盘 md5 一致）。
+- **独立验包**：IPA 9,112,272 字节、md5 `a0df82ed32b5b25e61cd743676e586ff`、Info.plist 实读 0.48.0／116／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.48.0/OneDay-0.48.0.ipa`（落盘 md5 一致）。
 - **真机待验**：点子采纳全链（任务后台建成＋旁聊打开＋上下文预填在舱未代发）、存量已采纳点「打开对话」补建、长帖行内截断＋展开全文、整页截图类图片在行与详情均 16:9 不撑高、动态页静止位胶囊不遮首行、任务详情事件人话（heartbeat 不显、「执行：default」不显）。
 ## §124 热修：回底钮落位过高（0.47.1 真机复报，键盘态多扣一截键盘高，2026-11-11 13:11）
 
@@ -8429,7 +8429,7 @@ Core 新增/改：BackToBottomPlacement 新签名落位族（旧「frame 未发�
 
 - **交付定版**：0.48.1／117。分支 feat/back-bottom-fix（顶端 2599a4c，基线 bc58930）分支 CI run 42964921055 全绿；合并提交 0fc584c（冲突仅 DESIGN-V4.md 一处，顺序拼接 §122.5 在前、§124 在后，两节全保留）；定版提交 d828830（版本五处＝Project.swift 四处 0.48.1/117＋SettingsView 页脚「OneDay v0.48.1」，grep 验无 0.48.0 残留）即合并后 main 顶端。
 - **合并后 CI**：run 42965760654 success（build-native success，head d828830）。
-- **独立验包**：IPA 9,106,854 字节、md5 `ebcdf251c2051ff4b28d52b0052bb496`、Info.plist 实读 0.48.1／117／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.48.1/OneDay-0.48.1.ipa`（落盘 md5 一致）。
+- **独立验包**：IPA 9,106,854 字节、md5 `ebcdf251c2051ff4b28d52b0052bb496`、Info.plist 实读 0.48.1／117／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.48.1/OneDay-0.48.1.ipa`（落盘 md5 一致）。
 ## §123 闭环包：回响落对话＋通知点达＋三处收口（similar-issues 审计 H1/H2/M2/M3/N2/N3，2026-11-11 12:55 用户按推荐拍板）
 
 基线 main 53f0e86（含 §121），分支 feat/closure-loop 预制；§122 合并排前（动 FeedView/点子面），本包按现行 main 施工、合并时主线三方对账。版本不改（合并时定）。伴生侧小改 1.0.14 已按伴生自动部署规矩上线（报告 hermes-deploy/companion/CLOSURE-114-REPORT.md）——**注意简报原文写「版本号顺延 1.0.13」，但 1.0.13 已于同日 12:54 由 FEED-113 上线，故本包伴生改动顺延为 1.0.14，特此记账**。
@@ -8486,7 +8486,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 
 - **交付定版**：0.49.0／118。分支 feat/closure-loop（顶端 3235baf，基线 53f0e86）分支 CI run 42966452551 全绿（单测 1264）；合并提交 b15608f——冲突三处按对账处理：DESIGN 顺序拼接（§122／§124 在前、§123 在后全保留）；Localizable.xcstrings 并集 2474 键（strings 口径，零丢失零改值，余 2 孤儿旧键保留待 §120 统一删），validate_i18n 通过（2487 键含 InfoPlist 13）；SideChatStore 的 ideaThreadIDs（§122）与 goalThreadIDs（§123）两段并存；FeedView 只入 discuss 预填、ChatView 只入 echo 首分支＋三处 echoKey 守卫，§122 行呈现／图盒与 §116／§121／§124 段经 diff 核对未动。定版提交 21e5a2f（版本五处＝Project.swift 四处 0.49.0/118＋SettingsView 页脚「OneDay v0.49.0」，grep 验无 0.48.1 残留）即合并后 main 顶端。
 - **合并后 CI**：run 42967571383 success（build-native success，head 21e5a2f）；单测 1283（main 基线 1265＋ClosureLoopTests 18，只增不减）。
-- **独立验包**：IPA 9,190,223 字节、md5 `ba0e2e5250a341c56d8b3fee201804c6`、Info.plist 实读 0.49.0／118／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.49.0/OneDay-0.49.0.ipa`（落盘 md5 一致）。
+- **独立验包**：IPA 9,190,223 字节、md5 `ba0e2e5250a341c56d8b3fee201804c6`、Info.plist 实读 0.49.0／118／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.49.0/OneDay-0.49.0.ipa`（落盘 md5 一致）。
 - **真机待验**：见 §123.9 六条（目标回响全链、通知点达与原文折叠、讨论预填节选标记＋回指、点子角标、定时任务人话、监测详情预览展开）。
 
 ## §126 动态页紧凑化包（2026-11-11，预制分支 feat/feed-compact，基线 main 4271410；§123/§125/§118–§120 在各自预制分支，合并时主线按序拼接）
@@ -8557,7 +8557,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **ContentView 对账（如实记账，含对 §126.3 预制口径的一处修订）**：126.3 记「轮询只喂角标一处」系预制基线（4271410）当时的实情；§123 合并后 M3 点子角标搭同一条 pollFeedUnread 的 30 秒拍顺带刷新（AppState.refreshIdeasUnread 全仓唯一调用点即在此回路）。合并处置：动态半边全删——feedUnread 状态、feedGeneration 取数、底栏 .badge(feedUnread) 合并后零残留；回路改名 pollIdeasBadge、只余点子角标一职，scenePhase 驱动保留，feedBadgeClient 因 M3 仍在用而保留（126.3「专用客户端一并退役」一句随此修订作废）。§123 的 .badge(appState.ideasUnread) 与 IdeasBadge 判定链未动。FeedView 侧 §123 discuss（FeedDiscussPrefill.make）、§122 行呈现/16:9 图盒、§118 S2-11 主钮经 grep 逐项核在位；ChatView 未入合并 diff（§124 回底钮承载段未动）；readAt/markRead 静默账本全链保留（FeedView 未读字样仅剩记账注释）。
 - **xcstrings**：并集后按 126.8 删 4 孤儿键（删前 grep 全仓复核：短键零消费方；FeedView 空态长句「写下你感兴趣什么，我每天替你去看；第一轮…」系另一键、仍在目录且在用，未误删）；目录 2487→2483 键（validate 口径，含 InfoPlist 13），validate_i18n 通过。
 - **合并后 CI**：run 42971891493 success（build-native success，head c8289a8）；单测 1301（CI 根套件 Executed 数与合并树 func test 计数一致；0.49.1 基线 1296＋FeedCompact126Tests 5，只增不减）。
-- **独立验包**：IPA 9,163,448 字节、md5 `d22d5e8b3f62cc20c6e7b016f8e6dd17`、Info.plist 实读 0.49.2／120／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.49.2/OneDay-0.49.2.ipa`（落盘 md5 与 CI 产物一致）。
+- **独立验包**：IPA 9,163,448 字节、md5 `d22d5e8b3f62cc20c6e7b016f8e6dd17`、Info.plist 实读 0.49.2／120／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.49.2/OneDay-0.49.2.ipa`（落盘 md5 与 CI 产物一致）。
 - **真机待验**：见 §126.9 四条；另加 §123 回归一条——点子新轮生成后底栏点子角标照常出数、进点子页清零（验 pollIdeasBadge 改名续接后链路不断）。
 
 ## §125 文件呈现对标包（2026-11-11，分支 feat/file-open-flow，基线 main 62c0b3c；用户 13:15 拍板主包＋表格转码二期一起做，规格唯一依据 file-open-flow-benchmark-20261111.md）
@@ -8605,7 +8605,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **交付定版**：0.49.3／121。分支 feat/file-open-flow（顶端 737cb2d、代码顶端 74fa0bb，基线 62c0b3c）分支 CI run 42968384303 success（单测 Executed 1280）；合并提交 f49e2b3（冲突两处：Localizable.xcstrings 按 key 三方并集——主线 2470＋分支新增 19＝2489 键、零双改、§126 已删 4 孤儿键保持删除，validate 口径 2502 键含 InfoPlist 13、validate_i18n 通过；DESIGN-V4.md 顺序拼接 §124→§123→§126→§125 四节全保留）；定版提交 9be8818（版本五处＝Project.swift 四处 0.49.3/121＋SettingsView 页脚「OneDay v0.49.3」，grep 验无 0.49.2 残留）。
 - **对账复核**：FilesView 排序 Picker（§118 S2-05）与 DeliverablesView 显示/排序 Picker（§118 S2-04）在位；FilePreviewView 整支删除（FilesView 留墓碑注释）、三入口（聊天 openChatFile／文件浏览器／资料库）全收编 FileOpenView/FileOpenContent 中间页；ChatView §116 文件牌链、§121 出牌回填（remoteFilePathsData 写回＋reconcileUserMessages）与 FileOpenFailure 五分、§123 echo 行与三处守卫、§124 回底钮 bottomBar 承载段逐项 grep 在位、无重复定义；Core FileOpenRoute/FileLineAnchor 为准，xlsx 走桥 spreadsheet 端点＋classifySpreadsheet 分型；DeliverableIconStyle 字母块表未入合并 diff（C8 按用户 14:32 定版另行调研先行，不在本包）。
 - **合并后 CI**：run 42973245502 success（build-native success，head 9be8818）；单测 Executed 1317、0 failures（0.49.2 基线 1301＋FileOpenRouteTests 16，只增不减）。
-- **独立验包**：IPA 9,281,841 字节、md5 `a32bfe5cb1fad7712c3314a0ac62a1f1`、Info.plist 实读 0.49.3／121／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.49.3/OneDay-0.49.3.ipa`（落盘 md5 与 CI 产物一致）。
+- **独立验包**：IPA 9,281,841 字节、md5 `a32bfe5cb1fad7712c3314a0ac62a1f1`、Info.plist 实读 0.49.3／121／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.49.3/OneDay-0.49.3.ipa`（落盘 md5 与 CI 产物一致）。
 - **真机待验**：见 §125.6 六条（xlsx 中间页查看表格全链、.ipa 说明行、文件卡大小三路回填、#L 锚点定位、文件页三入口、敏感锁定分支）。伴生端点 1.0.15 已先行上线（现行伴生 1.0.16），本包未动伴生。
 
 ## §119 模型设置简化重做（预制分支 feat/model-simple，基线 main a11c52f；用户 2026-11-11 12:10 亲定＋12:15 六点拍板，调研报告 research_notes/model-settings-simple-20261111.md）
@@ -8650,7 +8650,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 
 - **交付定版**：0.50.0／122。分支 feat/model-simple（顶端 029fa05，基线 a11c52f）分支 CI run 42960071308（分支单测口径 1250）；合并提交 4d23a29（冲突两处：Localizable.xcstrings 按 key 三方并集——base 2415、main +78/−4、分支 +138/−0、并集 2627 键、零双改，§126 已删 4 孤儿键保持删除，validate_i18n 通过 2640 键含 InfoPlist 13；DESIGN-V4.md 顺序拼接，§119 节顺接于 §125 之后全保留。AppState/ChatView 自动合并，ModelSetupGuidance 接线与 providerModelTotal 派生 grep 在位、AuxSlotCatalog 单一定义）；定版提交 a003384（版本五处＝Project.swift 四处 0.50.0/122＋SettingsView 页脚「OneDay v0.50.0」，grep 验无 0.49.3 残留）。
 - **合并后 CI**：run 42978004561 success（build-native success、steps 零失败，head a003384）；单测 Executed 1336、0 failures（0.49.3 基线 1317＋§119 新增 19，只增不减；分支口径 1250＝其旧基线 1231＋19，差额为分叉后 main 侧 §122/§123/§125/§126 增量）。
-- **独立验包**：IPA 9,410,629 字节、md5 `a48f9c9bfc715be26e24c99c88c63983`、Info.plist 实读 0.50.0／122／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.50.0/OneDay-0.50.0.ipa`（落盘 md5 与 CI 产物一致）。
+- **独立验包**：IPA 9,410,629 字节、md5 `a48f9c9bfc715be26e24c99c88c63983`、Info.plist 实读 0.50.0／122／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.50.0/OneDay-0.50.0.ipa`（落盘 md5 与 CI 产物一致）。
 - **两处如实约束的呈现位置**：①具名服务商不给「设为默认」——设默认只在默认服务商（网关）卡的模型行（点行弹「切换默认模型？」确认）；具名卡模型行无此动作，说明文案在预设编辑器 PresetEditorView（「只有经网关的模型能设为全局默认；直连服务商的模型请在下面给具体用途指定。」），具名模型经辅助模型页行/预设行给具体用途选用。②默认服务商卡地址/密钥只看不改——ModelSettingsView 默认服务商卡内两行 infoRow：「接口地址：在服务器上配置，App 里只看不改」「密钥：在服务器上保管」。
 - **遗留口径**：§119.4 所记「§120 扩版校验器复跑」随 §120 合并单处置（本包 validate 以现行校验器通过）；辅助写回热生效实测仍并入收官窗口重启；真机待验见 §119.5。
 
@@ -8690,7 +8690,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **交付定版**：0.50.2／124。分支 feat/file-icons（顶端 edb4b8e，基线 18c6b39）分支 CI run 42975217028 success（单测口径 1322）；合并提交 d8e9a8b（冲突一处：DESIGN-V4.md 尾部顺序拼接——§119 节与本节全保留、§119 在前本节随后；FilesView.swift 自动合并，main 侧 §120 文案改动与分支 FileTypeFace／FileIconImageView 换图 grep 双在位）；定版提交 805978d（版本五处＝Project.swift 四处 0.50.2/124＋SettingsView 页脚「OneDay v0.50.2」，grep 验无 0.50.1 残留）。
 - **节号改注（消歧）**：本节预制时自题「§128 文件图标接入包」，与审批锚点规格 §128（approval-anchor-spec-20261111.md／ANCHOR-128）同号。合并记账时改注为「§128（图标） 文件图标接入包」（标题括注＋节首括注同步改为「合并时主线定号 0.50.2／124」），小节号 128.1–128.6 不变；锚点线仍称 §128，两线自此以「（图标）」括注区分，后续引用图标包一律写 §128（图标）。
 - **合并后 CI**：run 42982512903 success（jobs API 逐项终判：build-native success、head 805978d）；单测 Executed 1341、0 failures（main 0.50.1 基线 1336＋DeliverableIconStyleTests 整表重写 +5，只增不减；分支口径 1322＝其旧基线 1317＋5，差额 19 为分叉后 main 侧 §119 增量）。
-- **独立验包**：IPA 9,934,942 字节、md5 `23980525e502e82b90cdfb79e71a558b`、Info.plist 实读 0.50.2／124／bundle id site.didichou.oneday；Assets.car 内 fileicon-* 15 枚名齐（app/archive/audio/code/document/folder/folder-open/image/pdf/sheet/slides/text/unknown/video/word）；DeliverableIconStyle 表驱动单源在位、backgroundHex／hexRGB 代码零残留（仅测试墓碑注释）；交付件 `~/workspace/your_files/oneday-v0.50.2/OneDay-0.50.2.ipa`（落盘 md5 与 CI 产物一致）。
+- **独立验包**：IPA 9,934,942 字节、md5 `23980525e502e82b90cdfb79e71a558b`、Info.plist 实读 0.50.2／124／bundle id com.example.oneday；Assets.car 内 fileicon-* 15 枚名齐（app/archive/audio/code/document/folder/folder-open/image/pdf/sheet/slides/text/unknown/video/word）；DeliverableIconStyle 表驱动单源在位、backgroundHex／hexRGB 代码零残留（仅测试墓碑注释）；交付件 `~/workspace/your_files/oneday-v0.50.2/OneDay-0.50.2.ipa`（落盘 md5 与 CI 产物一致）。
 - **真机待验**：见 §128.5（待发筹码／聊天文件卡／打开页文件头／文件页行与网格四面新图＋深色亮砖＋code/app/unknown 落枚）。
 ## §129 引用文件牌 404 修复包（2026-11-11，预制分支 feat/file-ref-404，基线 main 18c6b39；诊断唯一依据 file-ref-404-diagnosis-20261111.md，本包只做其 App 侧修法 4.1）
 
@@ -8740,7 +8740,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 
 - **交付定版**：0.50.3／125。分支 feat/file-ref-404（顶端 5b240cf，基线 18c6b39）分支 CI run 42976295338 success（分支单测口径 1329）；合并提交 2bb6e1d（冲突两处：Localizable.xcstrings 按 key 三方并集——分支纯增 4 键、零删除零改值，main 2603＋4＝2607 键，validate_i18n 通过 2620 键含 InfoPlist 13；DESIGN-V4.md 顺序拼接，§129 节顺接于 §128（图标）之后全保留。ChatView/RichContentViews 自动合并，接线 grep 复核 detectStandaloneAnchored／verifyExistence／AssistantFileChip／FileResendPrefill 均在位）；定版提交 7265879（版本五处＝Project.swift 四处 0.50.3/125＋SettingsView 页脚「OneDay v0.50.3」，grep 验无 0.50.2 残留）。
 - **合并后 CI**：run 42983985572，jobs API 逐项终判 build-native success；单测 Executed 1353、0 failures（合并前 main 口径 1341＋§129 新增 12，只增不减；分支口径 1329＝其旧基线 1317＋12，差额为分叉后 main 侧增量）。
-- **独立验包**：IPA 9,951,874 字节、md5 `f566ed0d5ca916f2325a7d943f9b8dd9`、Info.plist 实读 0.50.3／125／bundle id site.didichou.oneday；交付件 `~/workspace/your_files/oneday-v0.50.3/OneDay-0.50.3.ipa`（落盘 md5 与取件一致）。
+- **独立验包**：IPA 9,951,874 字节、md5 `f566ed0d5ca916f2325a7d943f9b8dd9`、Info.plist 实读 0.50.3／125／bundle id com.example.oneday；交付件 `~/workspace/your_files/oneday-v0.50.3/OneDay-0.50.3.ipa`（落盘 md5 与取件一致）。
 - **遗留口径**：真机待验见 §129.6 五条；诊断 4.2 服务端治本（交付登记制）仍登记待拍板，不在本包。
 ## §130 已发图固定高度卡（2026-11-11，用户 15:09 附 OneDay 与 Muse 双图点题；预制分支 feat/image-card-fixed，基线 main 18c6b39；§129 在飞文件牌包同动聊天呈现层，合并串行、基线先到先得，节号顺延取 §130）
 
@@ -8752,7 +8752,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **新旧口径对照**：旧＝每张图一个随比例变的尺寸（竖截图 110×240 细长条、横图 220×101），占位 220×150 与实际高度不一致会跳；新＝所有已发图同高 190 的卡，图完整居中、余量露底色，占位/失败/正式三态同高不跳。
 - **真机待验**：竖长截图呈 96×190 卡（图 87.4 宽居中、两侧露底）、横图 260 宽卡、连发多张不同比例图高度齐平、远端图加载全程高度不跳、失败态卡形、点开全屏查看器仍为原图。
 - **分支终局**：feat/image-card-fixed（worktree pkg-image-card），代码提交 1ae09d3、本节记账提交随后；版本号未改（合并时主线定版）。
-- **合并与验包记账（2026-11-11，主线合并单）**：merge e830cb7（feat/image-card-fixed 1668ddb → main，基线 main 71d450c／0.50.3）。冲突两处：RichContentViews.swift 的 ServerRemoteImage 图渲染核——整段取分支形态（ZStack＋fittedSize＋卡帧＋bubbleFill＋clipShape），解后与分支原版逐字比对一致（合并过程中一度多落一个闭合括号、已当场摘除）；DESIGN 本文件顺序拼接（HEAD 侧 §119/§128/§129 在前、本节随后）。ChatView.swift 自动合并（本地图消费点 cardSize/fittedSize 在位、displaySize 全仓零残留复核过）。定版 92640fc（0.50.4/126，版本五处同改＋grep 验无 0.50.3 残留）。CI run 42985495445：jobs API 逐项终判 build-native 及全部 steps success；单测 Executed **1355、0 failures**（§129 合并后 main 1353＋本包 ChatImageSizingTests 6→8 净 +2，只增不减）。IPA 落 ~/workspace/your_files/oneday-v0.50.4/OneDay-0.50.4.ipa，9,956,363 字节，md5 `d14617ba7b872793d03fab8f0a54d6eb`（落盘与 CI 产物一致），Info.plist 实读 0.50.4／126／site.didichou.oneday。发送空屏修复包在另一 worktree 动 ChatView，本单未碰其线、合并无交叉。
+- **合并与验包记账（2026-11-11，主线合并单）**：merge e830cb7（feat/image-card-fixed 1668ddb → main，基线 main 71d450c／0.50.3）。冲突两处：RichContentViews.swift 的 ServerRemoteImage 图渲染核——整段取分支形态（ZStack＋fittedSize＋卡帧＋bubbleFill＋clipShape），解后与分支原版逐字比对一致（合并过程中一度多落一个闭合括号、已当场摘除）；DESIGN 本文件顺序拼接（HEAD 侧 §119/§128/§129 在前、本节随后）。ChatView.swift 自动合并（本地图消费点 cardSize/fittedSize 在位、displaySize 全仓零残留复核过）。定版 92640fc（0.50.4/126，版本五处同改＋grep 验无 0.50.3 残留）。CI run 42985495445：jobs API 逐项终判 build-native 及全部 steps success；单测 Executed **1355、0 failures**（§129 合并后 main 1353＋本包 ChatImageSizingTests 6→8 净 +2，只增不减）。IPA 落 ~/workspace/your_files/oneday-v0.50.4/OneDay-0.50.4.ipa，9,956,363 字节，md5 `d14617ba7b872793d03fab8f0a54d6eb`（落盘与 CI 产物一致），Info.plist 实读 0.50.4／126／com.example.oneday。发送空屏修复包在另一 worktree 动 ChatView，本单未碰其线、合并无交叉。
 ## §131 文件呈现对齐包（2026-11-11，预制分支 feat/file-present-align，基线 main a003384；用户 15:13 拍板「对齐」含翻案卡上「···」钮，唯一依据 file-present-muse-benchmark-20261111.md 对差表 D1/D8 与卡面动作项；节号改注：分支自选 §127 与三页对标专项 §127 撞号，合并时主线改注 §131、原分支自选号作废）
 
 - **D1 大小前移（回读重试化）**：FileChip 与打开页原已在可见时走 backfillFromListing，但首试失败即静默放弃——冷启动/通道未就绪时首试必败、大小要等打开页再试才补，即「首见常缺」的成因。改：FileMetadataStore.backfillFromListing 回 Bool 并按父目录记失败时刻、同目录冷却 5s（Core FileBackfillPolicy 单源：最多 3 试、间隔 1.5s/4s、冷却 5s）；新入口 ensureSize 在卡可见周期内递增重试，FileChip 与 FileOpenContent 的 .task 均改走它。同目录仍只并发一轮、整目录兄弟一并入账，不逐卡单发；三试皆败保持只显类型、不编造（§125 诚实口径不变）。
@@ -8764,7 +8764,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **验收**：单测只增不减（新增 FilePinSetTests 8＋FileRenamePlanTests 6＋FileBackfillPolicyTests 3，FileActionPolicyTests +5、LibraryOrderingTests +4，共 +26）；分支 CI 全绿后回报坐标，不合并（主线串行另派）。
 - **真机待验**：聊天卡 ⋮ 钮命中与消息长按菜单并存、网格卡 ⋮ 与整卡点按分工、置顶段在网格/列表两态呈现、改名全链（尤其 overwrite=false 在生产 Hermes 的实际语义与回读校验）、定位高亮四面滚动落点、AX 大字档下卡内 ⋮ 钮与两行文件名的排布。
 
-- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.5／127**。merge c042c5c（feat/file-present-align 9565d12 → main，基线 main 11672b4／0.50.4；分支 CI run 42979941824 success、分支单测口径 1362＝其基线 a003384 口径 1336＋26）。冲突三处：①Localizable.xcstrings 按 key 三方并集——base 2627、main 2607、分支 2640（纯增 13）、并集 2620 键、零双改，validate_i18n 通过（2633 键含 InfoPlist 13，三语全覆盖）；②FileMetadataStore.swift 手工合裁——§129 存在性账（verifyExistence/absorb）与 D1 回读重试双在位：backfillFromListing 取分支 Bool＋冷却形态、成功路走 HEAD 的 absorb 保住兄弟存在性入账，两侧注释与属性（verifyInFlight/listingFailedAt）双留；③DESIGN 本文件顺序拼接（HEAD 侧 §119.6/§128/§129/§130 在前、本节随后）。**节号改注**：本节标题 §127→§131（分支自选 §127 与三页对标专项 §127 撞号、自选号作废），分支代码注释内的 §127 引用同步改注 §131（涉 17 文件，逐一核过 main 侧同文件 §127 零命中、均为本包引入）。定版 2b34282（版本五处＝Project.swift 四处 0.50.5/127＋SettingsView 页脚「OneDay v0.50.5」，grep 验无 0.50.4 残留）。首轮 CI run 42987273029 failure——FileOpenContent 的自定义 init（§131 currentTarget 种子化）顶掉成员wise init，§129 的 onRequestResend 呼叫点报 extra argument；修复 4291691（init 补 onRequestResend 形参并赋值）后 run 42987824342，jobs API 逐项终判 build-native **success**。单测 Executed **1381、0 failures**（0.50.4 合并后 main 1355＋本包 +26，只增不减；分支口径差额为分叉后 main 侧增量）。IPA 落 ~/workspace/your_files/oneday-v0.50.5/OneDay-0.50.5.ipa，10,036,817 字节，md5 `39a6105e1c670f33c678b72a55049e39`（落盘与 CI 产物一致），Info.plist 实读 0.50.5／127／site.didichou.oneday。真机待验沿本节末条清单。
+- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.5／127**。merge c042c5c（feat/file-present-align 9565d12 → main，基线 main 11672b4／0.50.4；分支 CI run 42979941824 success、分支单测口径 1362＝其基线 a003384 口径 1336＋26）。冲突三处：①Localizable.xcstrings 按 key 三方并集——base 2627、main 2607、分支 2640（纯增 13）、并集 2620 键、零双改，validate_i18n 通过（2633 键含 InfoPlist 13，三语全覆盖）；②FileMetadataStore.swift 手工合裁——§129 存在性账（verifyExistence/absorb）与 D1 回读重试双在位：backfillFromListing 取分支 Bool＋冷却形态、成功路走 HEAD 的 absorb 保住兄弟存在性入账，两侧注释与属性（verifyInFlight/listingFailedAt）双留；③DESIGN 本文件顺序拼接（HEAD 侧 §119.6/§128/§129/§130 在前、本节随后）。**节号改注**：本节标题 §127→§131（分支自选 §127 与三页对标专项 §127 撞号、自选号作废），分支代码注释内的 §127 引用同步改注 §131（涉 17 文件，逐一核过 main 侧同文件 §127 零命中、均为本包引入）。定版 2b34282（版本五处＝Project.swift 四处 0.50.5/127＋SettingsView 页脚「OneDay v0.50.5」，grep 验无 0.50.4 残留）。首轮 CI run 42987273029 failure——FileOpenContent 的自定义 init（§131 currentTarget 种子化）顶掉成员wise init，§129 的 onRequestResend 呼叫点报 extra argument；修复 4291691（init 补 onRequestResend 形参并赋值）后 run 42987824342，jobs API 逐项终判 build-native **success**。单测 Executed **1381、0 failures**（0.50.4 合并后 main 1355＋本包 +26，只增不减；分支口径差额为分叉后 main 侧增量）。IPA 落 ~/workspace/your_files/oneday-v0.50.5/OneDay-0.50.5.ipa，10,036,817 字节，md5 `39a6105e1c670f33c678b72a55049e39`（落盘与 CI 产物一致），Info.plist 实读 0.50.5／127／com.example.oneday。真机待验沿本节末条清单。
 ## §135 发送空屏修复包（2026-11-11，预制分支 feat/send-blank-fix，基线 main 805978d／0.50.2；节号改注：分支自选 §132 与具名默认 B 分支 feat/provider-default 的自选 §132 撞号，且 §133（在飞 MEDIA 兼容包／cx-misc 预占）、§134（在飞 cx-model-storage 预占）均已被占，合并时主线改注 §135、原自选号作废；分支代码注释内的 §132 引用同步改注 §135）
 
 ### 135.1 病灶与定案（诊断 send-blank-diagnosis-20261111.md，摘要）
@@ -8813,7 +8813,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **交付定版**：0.50.6／128。merge b33cf33（feat/send-blank-fix 3b14c17 → main，基线 805978d／0.50.2；分支 CI run 42985878037 success、分支单测口径 1356＝其基线 1341＋15）。冲突一处：DESIGN-V4.md 尾部——HEAD 侧 §129/§130/§131 三节全保留在前、本节顺接其后；ChatView.swift 自动合并（接线复核：BottomStickCoordinator／renderPlan 单口与 §130 的 cardSize／fittedSize 双在位；`scrollTo("bottom")` 只剩 performScrollToBottom 原语双形态两处、defaultScrollAnchor 只余退役注释两行）。定版 949ee5a（版本五处＝Project.swift 四处 0.50.6/128＋SettingsView 页脚「OneDay v0.50.6」，grep 验无 0.50.5 残留）。
 - **节号改注（消歧）**：本节预制时自选 §132，与具名默认 B 分支 feat/provider-default 的自选 §132 撞号；§133 已被在飞 MEDIA 兼容包（feat/media-marker）与 cx-misc 预占、§134 已被 cx-model-storage 预占，故合并时主线顺延改注 **§135**、原自选号作废（节头已写明）；分支代码注释内的 §132 引用同步改注 §135（8 文件 37 处：ChatView 24／BottomFollow 5／BottomFollowTests 3／ChatStore、BottomStick、ChatRenderPlan、BottomStickTests、ChatRenderPlanKeyTests 各 1，改后代码内 §132 零残留）。§135.1–§135.6 小节号随迁，本节为 135.7。
 - **合并后 CI**：run 42989208941，jobs API 逐项终判 build-native 及全部 steps success（head 949ee5a）；单测 Executed **1396、0 failures**（合并前 main 口径 1381＋本包新增 15，只增不减，与预期分毫不差）。三语文案零新增，validate_i18n 本地实跑通过（2633 键含 InfoPlist 13，三语全覆盖，与 0.50.5 同口径）。
-- **独立验包**：IPA 落 ~/workspace/your_files/oneday-v0.50.6/OneDay-0.50.6.ipa，10,043,072 字节，md5 `07ec4b05d3f583ed56695a4c7f54dc50`（落盘与 CI 产物一致），Info.plist 实读 0.50.6／128／bundle id site.didichou.oneday。
+- **独立验包**：IPA 落 ~/workspace/your_files/oneday-v0.50.6/OneDay-0.50.6.ipa，10,043,072 字节，md5 `07ec4b05d3f583ed56695a4c7f54dc50`（落盘与 CI 产物一致），Info.plist 实读 0.50.6／128／bundle id com.example.oneday。
 - **真机待验**：见 §135.6 五条（长线程发送不再空屏＋诊断面三段读数对读为重点；回底钮迟滞带晚消失观察；离底未读角标；切线程锚恢复与首帧落位；键盘锚底与流式跟随不回归）。
 
 ## §136 助手侧 MEDIA: 图片标记渲染包（2026-11-11，用户 16:18 真机报障；预制分支 feat/media-marker，基线 main 92640fc／0.50.4；节号改注：分支自选 §133 与 cx-misc 分支的 §133 预占撞号，且 §134 已被 cx-model-storage 预占、§135 已由发送空屏修复包合并占用，合并时主线顺延改注 §136、原自选号作废，分支代码注释内的 §133 引用同步改注 §136；§135 节头与正文注记中的「§133（在飞 MEDIA 兼容包）」即本包）
@@ -8828,7 +8828,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **真机待验**：让智能体再拍一张云电脑截图——回复里直接出图（定高卡）、正文无 MEDIA: 原文残留；连发两三张图逐张成卡；引用一条不存在的图片路径——整行不显示、无原文漏出；断网打开含标记的历史消息——先不出图、恢复网络重进后出图。
 - **单测与 CI**：分支 CI run 42986530074 success（jobs API 终判 build-native success、steps 零失败），单测 Executed 1369、0 failures（基线 1355＋MediaMarkerTests 新增 14，只增不减）。三语零新增文案（复用「查看大图」既有键）。
 - **分支终局**：feat/media-marker（worktree pkg-media-marker），顶端以记账补录提交为准；版本号未改（合并时主线定版）。
-- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.7／129**。merge 9627359（feat/media-marker 3d30148 → main，基线 main 607ec4f／0.50.6；分支 CI run 42986530074 success、分支单测口径 1369＝其基线 92640fc 口径 1355＋14）。冲突一处：DESIGN-V4.md 尾部——HEAD 侧 §130 合并记账行＋§131＋§135 三节全保留在前、本节顺接其后；ChatView.swift 与 RichContentViews.swift 自动合并（接线复核：MediaMarker.split／AssistantMediaImage／FileRefDetector excluding 增补 mediaSplit.imagePaths 与 §135 的 BottomStickCoordinator／renderPlan 单口双在位，verifyExistence 三分在 RichContentViews 两处呼叫点在位）。**节号改注**：本节标题 §133→§136（分支自选 §133 与 cx-misc 预占撞号、§134 已被 cx-model-storage 预占、§135 已由发送空屏包占用，自选号作废），分支代码注释内的 §133 引用同步改注 §136（4 文件 7 处：ChatView 3／MediaMarker 2／RichContentViews 1／MediaMarkerTests 1，改后代码内 §133 零残留）。xcstrings 本包零改动，三方并集无冲突，validate_i18n 通过（2633 键含 InfoPlist 13，三语全覆盖）。定版 e37de91（版本五处＝Project.swift 四处 0.50.7/129＋SettingsView 页脚「OneDay v0.50.7」，grep 验无 0.50.6 残留）。CI run 42991017262：jobs API 逐项终判 build-native **success**。单测 Executed **1410、0 failures**（0.50.6 合并后 main 1396＋本包 MediaMarkerTests 14，只增不减）。IPA 落 ~/workspace/your_files/oneday-v0.50.7/OneDay-0.50.7.ipa，10,054,999 字节，md5 `408074eb50cc84b5d4c2a111aee9ef6e`（落盘与 CI 产物一致），Info.plist 实读 0.50.7／129／site.didichou.oneday。真机待验沿本节「真机待验」条清单。
+- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.7／129**。merge 9627359（feat/media-marker 3d30148 → main，基线 main 607ec4f／0.50.6；分支 CI run 42986530074 success、分支单测口径 1369＝其基线 92640fc 口径 1355＋14）。冲突一处：DESIGN-V4.md 尾部——HEAD 侧 §130 合并记账行＋§131＋§135 三节全保留在前、本节顺接其后；ChatView.swift 与 RichContentViews.swift 自动合并（接线复核：MediaMarker.split／AssistantMediaImage／FileRefDetector excluding 增补 mediaSplit.imagePaths 与 §135 的 BottomStickCoordinator／renderPlan 单口双在位，verifyExistence 三分在 RichContentViews 两处呼叫点在位）。**节号改注**：本节标题 §133→§136（分支自选 §133 与 cx-misc 预占撞号、§134 已被 cx-model-storage 预占、§135 已由发送空屏包占用，自选号作废），分支代码注释内的 §133 引用同步改注 §136（4 文件 7 处：ChatView 3／MediaMarker 2／RichContentViews 1／MediaMarkerTests 1，改后代码内 §133 零残留）。xcstrings 本包零改动，三方并集无冲突，validate_i18n 通过（2633 键含 InfoPlist 13，三语全覆盖）。定版 e37de91（版本五处＝Project.swift 四处 0.50.7/129＋SettingsView 页脚「OneDay v0.50.7」，grep 验无 0.50.6 残留）。CI run 42991017262：jobs API 逐项终判 build-native **success**。单测 Executed **1410、0 failures**（0.50.6 合并后 main 1396＋本包 MediaMarkerTests 14，只增不减）。IPA 落 ~/workspace/your_files/oneday-v0.50.7/OneDay-0.50.7.ipa，10,054,999 字节，md5 `408074eb50cc84b5d4c2a111aee9ef6e`（落盘与 CI 产物一致），Info.plist 实读 0.50.7／129／com.example.oneday。真机待验沿本节「真机待验」条清单。
 
 ## §137 复杂化收口包：服务探测收一＋演示模式冻结（2026-11-11，复杂化全清第 9 项＋第 4 项，用户 16:08 点名全清、审计 complexity-audit-20261111.md；预制分支 feat/cx-probe-demo，基线 main 7265879／0.50.3；分支未自选节号、合并时主线新立 §137，现行已用节号至 §136、无撞号）
 
@@ -8836,7 +8836,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **第 4 项·演示模式冻结（清单外统一空态）**：冻结口径 demo-surface-freeze-20261111.md（连接页／对话主面只读／动态／点子／目标／文件六面）。DemoHermesClient 清单外 **64 个接口的逐个假实现全删**（样本 JSON、静默成功写方法、假计数等；文件 1256→942 行、净删 314 行），统一抛专用空态信号 `HermesError.demoLimitReached`，文案单一出处＝三语键一条「演示模式到此为止，连接你的服务器后可用。」；吞错面专项补口 7 处（SkillHubViews 搜索/预览/安装/卸载、ModelManagementStore 测连接/清单刷新、ProviderEditorView 测连接，只认 demoLimitReached、不改生产文案）。连带穷举收口：`FileOpenFailure.classify` 补 demoLimitReached 归 `.other` 兜底（分支首轮 CI 红点在此，5580b4a 已修后重跑全绿）。冻结六面种子路径逐面走查保留（连接页假探活三步、对话只读浏览＋种子会话补完 run 通道四件、点子 kanban 全组样本、文件种子目录树与 fileData；动态/点子/目标的桥面演示下走既有 notConnected 如实态、非本包职责面）。**如实记账**：全仓 `isDemo` 分叉施工前后同为 36 处、收敛 0 处——它们守的是落盘/钥匙串/网络时机、不是假实现，与本项砍的对象（客户端方法级假实现）不同层；后续再收须逐处单独裁。
 - **单测与 CI（分支口径）**：新增 ServiceHealthTests 11 法（词表八档、本地四档映射、伴生七路、/health 两路、提供商三路、同源防回潮）＋DemoLimitTests 2 法（统一文案 zh 源串钉死、信号非瞬断不被自动重试），合计 +13 法。分支 CI run 42986131831 success（jobs 全 step success，首轮 42985894128 构建失败＝HermesError 新增 case 后 FileOpenFailure 穷举未补，5580b4a 修复）。三语新增 3 键、零删键（逐键核对：分支相对其基线 Localizable 仅增「降级运行」「上次读到」「演示模式到此为止，连接你的服务器后可用。」3 键、无删无改值）。
 - **真机待验（合并后随版）**：①演示模式走查（-odDemoMode/-odDemoConnect 各开一遍冻结六面：清单内可走通、清单外动作落统一空态文案、无假数据冒充）②Overview 探活新口径（伴生 status 异常时设置版本组进退避重探、不再误报活）③设置版本组、连接器页、提供商编辑页三处状态词同源一致（同一故障同词同档）。
-- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.8／130**。merge 170a813（feat/cx-probe-demo 5580b4a → main，基线 7265879／0.50.3；分支 CI run 42986131831 success、分支单测口径 +13 法）。**零冲突**：AppState.swift 与 Localizable.xcstrings 自动合并，接线复核双在位——AppState 三处连接硬门改判 `ServiceHealth.from(health:) == .up` 与 §131 的 fileRevealPath 并存；DemoHermesClient 内 demoLimitReached 抛点 65 处、HermesError 定义与 FileOpenFailure 归类在位；ServiceHealth 消费面七文件齐。**节号**：分支未自选节号，主线新立 §137（已用至 §136、无撞号、无代码注释改注）。**删键核对**：分支相对其基线 Localizable 零删键零改值、仅增 3 键（降级运行／上次读到／演示空态文案）；三方并集＝主线 2620＋3＝**2623 键**，validate_i18n 通过（2636 键含 InfoPlist 13，三语全覆盖）。64 个演示假实现的删除均为 DemoHermesClient 客户端方法体、无对应单测随删（删除面由新增 DemoLimitTests 2 法反向钉住），单测只增不减成立。定版 2d6240d（版本五处＝Project.swift 四处 0.50.8/130＋SettingsView 页脚「OneDay v0.50.8」，grep 验无 0.50.7 残留）。CI run 42992703627：jobs API 逐项终判 build-native 及全部 steps **success**（head b895f32）；单测 Executed **1423、0 failures**（0.50.7 合并后 main 1410＋本包新增 13，与预期分毫不差）。IPA 落 ~/workspace/your_files/oneday-v0.50.8/OneDay-0.50.8.ipa，10,044,299 字节，md5 `43cd8731e7950ca5aa2c13f0c7de76fd`（落盘与 CI 产物一致），Info.plist 实读 0.50.8／130／site.didichou.oneday。真机待验沿本节清单三条（演示六面走查、Overview 探活新口径、三面状态词同源）。
+- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.8／130**。merge 170a813（feat/cx-probe-demo 5580b4a → main，基线 7265879／0.50.3；分支 CI run 42986131831 success、分支单测口径 +13 法）。**零冲突**：AppState.swift 与 Localizable.xcstrings 自动合并，接线复核双在位——AppState 三处连接硬门改判 `ServiceHealth.from(health:) == .up` 与 §131 的 fileRevealPath 并存；DemoHermesClient 内 demoLimitReached 抛点 65 处、HermesError 定义与 FileOpenFailure 归类在位；ServiceHealth 消费面七文件齐。**节号**：分支未自选节号，主线新立 §137（已用至 §136、无撞号、无代码注释改注）。**删键核对**：分支相对其基线 Localizable 零删键零改值、仅增 3 键（降级运行／上次读到／演示空态文案）；三方并集＝主线 2620＋3＝**2623 键**，validate_i18n 通过（2636 键含 InfoPlist 13，三语全覆盖）。64 个演示假实现的删除均为 DemoHermesClient 客户端方法体、无对应单测随删（删除面由新增 DemoLimitTests 2 法反向钉住），单测只增不减成立。定版 2d6240d（版本五处＝Project.swift 四处 0.50.8/130＋SettingsView 页脚「OneDay v0.50.8」，grep 验无 0.50.7 残留）。CI run 42992703627：jobs API 逐项终判 build-native 及全部 steps **success**（head b895f32）；单测 Executed **1423、0 failures**（0.50.7 合并后 main 1410＋本包新增 13，与预期分毫不差）。IPA 落 ~/workspace/your_files/oneday-v0.50.8/OneDay-0.50.8.ipa，10,044,299 字节，md5 `43cd8731e7950ca5aa2c13f0c7de76fd`（落盘与 CI 产物一致），Info.plist 实读 0.50.8／130／com.example.oneday。真机待验沿本节清单三条（演示六面走查、Overview 探活新口径、三面状态词同源）。
 
 ## §138 复杂化收口包：文件回填收口＋听写残件退役（2026-11-11，复杂化全清第 6 项＋第 8 项，用户 16:08 点名全清、审计 complexity-audit-20261111.md；预制分支 feat/cx-files-dictation，基线 9565d12／feat/file-present-align 顶端；分支未自选节号、合并时主线新立 §138，现行已用节号至 §137、无撞号）
 
@@ -8845,7 +8845,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **单测对账（分支口径）**：DictationTests +7 法（locale 候选单表：三语候选、主选＝首项、回退＝次项、回退仅粤语非空、候选内唯一非空）；随功能退役删测 8 法逐项列明——落字钟 5 法（DictationSettlePolicyTests 的 testSettleLatencyMeasuresStopToApplied／CompleteBeforeBeginIsIgnored／FirstCompleteWins／BeginClearsPreviousReading／RoundsAndClamps，被测本体 DictationSettleLatency 已删、无处可钉）＋回读退避 3 法（FileBackfillPolicyTests 的 testDelayProgressionAndExhaustion／testMaxAttemptsCoversDelays／testCooldownWindow，被测 delay/maxAttempts/isCoolingDown 已删），回读新口径另立 2 法钉单试形状（testMaxAttemptsPerAppearanceIsOne／testAppearanceBudgetIsExactlyTheFirstTry）。净账 −5＋7−3＋2＝**+1 法**。
 - **xcstrings 核对**：分支相对其基线零改动 Localizable.xcstrings（听写量尺的诊断段是代码内拼串、非本地化键，无键可删）；三方并集＝主线现行 **2623 键**不变，validate_i18n 合并后复跑确认。
 - **真机待验（合并后随版）**：①文件卡大小呈现：冷启动首见文件卡大小一趟回读补上或只显类型（不编造）、滑走再滑回能再查②打开文件/表格分享链路无回退（下载回填删除后打开页大小靠回读补）③听写停后落字照常（落字钟退役只是诊断记账摘除、落稿路径不动）、粤语识别回退 zh_HK 照常。
-- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.9／131**。merge c626de7（feat/cx-files-dictation fb601cd → main，基线 9565d12／feat/file-present-align 顶端；分支 CI 已绿）。**冲突三处全在文件面**：FileBackfillPolicy.swift 与其测试取分支整版（main 侧自基线仅 §127→§131 注释改注、无实质分叉，取版后注释同步改注 §131＋§138）；FileMetadataStore.swift 手工合裁（口径如上节第 6 项条：两路＋单试归本包、§129 三分在位、absorb 单源）；FileOpenView／RichContentViews／SpreadsheetReaderView 自动合并、recordDownload 三调用点随删干净（全仓 grep 零残留）。**接线复核**：verifyExistence／absorb／Existence 三态在位、退役符号（maxAttempts／delay／isCoolingDown／failureCooldown／listingFailedAt／DictationSettleLatency／recordDownload）全仓零残留、.fastResults 选项在位、§135 BottomStickCoordinator／renderPlan、§136 MediaMarker、§137 ServiceHealth 接线未动。**节号**：分支未自选节号，主线新立 §138（已用至 §137、无撞号）；分支注释内的「§127 对齐包」指称按 main 现行口径改注 §131。**xcstrings**：分支零改动、三方并集＝主线 2623 键 Localizable 不变，validate_i18n 通过（2636 键含 InfoPlist 13，三语全覆盖）。定版 b806f89（版本五处＝Project.swift 四处 0.50.9/131＋SettingsView 页脚「OneDay v0.50.9」，grep 验无 0.50.8 残留）。CI run 42994743268：jobs API 逐项终判 build-native 及全部 steps **success**（head eaa2207）；单测 Executed **1424、0 failures**（0.50.8 合并后 main 1423＋本包净增 1，与对账分毫不差）。IPA 落 ~/workspace/your_files/oneday-v0.50.9/OneDay-0.50.9.ipa，10,040,644 字节，md5 `33a8d22a6355e4b921765feb2fe2657a`（落盘与 CI 产物一致），Info.plist 实读 0.50.9／131／site.didichou.oneday。真机待验沿本节清单三条（文件卡大小单趟回读、打开/分享链路无回退、听写落稿与粤语回退照常）。
+- **合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.9／131**。merge c626de7（feat/cx-files-dictation fb601cd → main，基线 9565d12／feat/file-present-align 顶端；分支 CI 已绿）。**冲突三处全在文件面**：FileBackfillPolicy.swift 与其测试取分支整版（main 侧自基线仅 §127→§131 注释改注、无实质分叉，取版后注释同步改注 §131＋§138）；FileMetadataStore.swift 手工合裁（口径如上节第 6 项条：两路＋单试归本包、§129 三分在位、absorb 单源）；FileOpenView／RichContentViews／SpreadsheetReaderView 自动合并、recordDownload 三调用点随删干净（全仓 grep 零残留）。**接线复核**：verifyExistence／absorb／Existence 三态在位、退役符号（maxAttempts／delay／isCoolingDown／failureCooldown／listingFailedAt／DictationSettleLatency／recordDownload）全仓零残留、.fastResults 选项在位、§135 BottomStickCoordinator／renderPlan、§136 MediaMarker、§137 ServiceHealth 接线未动。**节号**：分支未自选节号，主线新立 §138（已用至 §137、无撞号）；分支注释内的「§127 对齐包」指称按 main 现行口径改注 §131。**xcstrings**：分支零改动、三方并集＝主线 2623 键 Localizable 不变，validate_i18n 通过（2636 键含 InfoPlist 13，三语全覆盖）。定版 b806f89（版本五处＝Project.swift 四处 0.50.9/131＋SettingsView 页脚「OneDay v0.50.9」，grep 验无 0.50.8 残留）。CI run 42994743268：jobs API 逐项终判 build-native 及全部 steps **success**（head eaa2207）；单测 Executed **1424、0 failures**（0.50.8 合并后 main 1423＋本包净增 1，与对账分毫不差）。IPA 落 ~/workspace/your_files/oneday-v0.50.9/OneDay-0.50.9.ipa，10,040,644 字节，md5 `33a8d22a6355e4b921765feb2fe2657a`（落盘与 CI 产物一致），Info.plist 实读 0.50.9／131／com.example.oneday。真机待验沿本节清单三条（文件卡大小单趟回读、打开/分享链路无回退、听写落稿与粤语回退照常）。
 ## §139 复杂化清理·丁包（2026-11-11，预制分支 feat/cx-misc，基线 main 7265879／0.50.3；依据 complexity-audit-20261111.md 第 7、10、13、12 项；节号改注：分支预占 §133 已被现行占用，现行已用至 §138，合并时主线顺延改注 §139、原预占号作废，代码与脚本注释同步改注）
 
 ### 139.1 第 7 项 · 阅读器宿主合一
@@ -8891,7 +8891,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **节号改注（消歧）**：本节预制时预占 §133，现行已用至 §138（§133 已被占用），合并时主线顺延改注 **§139**、原预占号作废（节头已写明）；139.1–139.6 小节号随迁，本节为 139.7。分支代码与脚本注释内的 §133 引用同步改注 §139（10 处：DocumentReaderView／KanbanStore／LedgerStore 2／OneDayBridgeModels 2／StoreLoadState／StoreLoadStateTests／merge_xcstrings.py／样本 README 各 1），改后本包 §133 零残留（§135／§136 节内对 cx-misc 预占 §133 的历史记述保留原样）。
 - **xcstrings 三方并集（用本包入仓脚本实跑）**：merge_xcstrings.py 以 base＝7265879、ours＝main 8e6b655、theirs＝feat/cx-misc 跑 Localizable——base 2607／ours 2623／theirs 2607，**零冲突**；分支相对基线零新增、零删除、零改值（逐键对账：added／removed／changed 三单皆空），并集结果与 main 现行 2623 键语义逐键全等，故文件保留 main 现行版（脚本输出键序按其 base 序＋新增序、与现行文件序不同，不为对账改序）；InfoPlist 同法跑：13 键三方全等、零冲突。merge_xcstrings.py --self-test 通过；validate_i18n 通过（2636 键含 InfoPlist 13，三语全覆盖）。
 - **单测对账**：Tests/ 仅新增 StoreLoadStateTests.swift 一文件 8 法，既有测零删改；合并后 CI 单测 Executed **1432、0 failures**（合并前 main 1424＋本包 8，只增不减，与预期分毫不差），无例外项。
-- 定版 c0de202（版本五处＝Project.swift 四处 0.50.10/132＋SettingsView 页脚「OneDay v0.50.10」，grep 验无 0.50.9 残留）。CI run 42996454744：jobs API 逐项终判 build-native 及全部 steps **success**（head c0de202）。IPA 落 ~/workspace/your_files/oneday-v0.50.10/OneDay-0.50.10.ipa，10,036,158 字节，md5 `1ff23adc3f4bae424c2fa0f92be47d5a`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.10／132／site.didichou.oneday。真机待验沿 139.6 清单（md/xlsx/csv 各开一份真文件、表格切 sheet、两阅读器各造一次失败态核对失败页与动作）。
+- 定版 c0de202（版本五处＝Project.swift 四处 0.50.10/132＋SettingsView 页脚「OneDay v0.50.10」，grep 验无 0.50.9 残留）。CI run 42996454744：jobs API 逐项终判 build-native 及全部 steps **success**（head c0de202）。IPA 落 ~/workspace/your_files/oneday-v0.50.10/OneDay-0.50.10.ipa，10,036,158 字节，md5 `1ff23adc3f4bae424c2fa0f92be47d5a`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.10／132／com.example.oneday。真机待验沿 139.6 清单（md/xlsx/csv 各开一份真文件、表格切 sheet、两阅读器各造一次失败态核对失败页与动作）。
 
 ## §140 提示纪律第一包：重连播报摘除＋notice 分档自消（2026-11-11，预制分支 feat/notice-discipline，基线 main a003384；用户 15:12 点题、15:14 拍板「改」，规格唯一依据 notice-response-audit-20261111.md 第一包范围；节号改注：分支自选 §131 已被文件呈现对齐包占用（该包先合并），且现行已用至 §139，合并时主线顺延改注 §140、原自选号作废，代码注释同步改注 §140）
 
@@ -8903,7 +8903,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **140.6 真机待验**（沿审计 §五验收点）：①断网/切后台后恢复一轮落定，对话内无条残留、内容完整；②按停生成，「已停止生成。」5 秒内自消；③选超限文件，点名条出现且 8 秒内自消；④任一提示在场时点 ✕ 即消、自清计时不复活已关条；⑤恢复对账后顶栏状态词与对话内容如常（乙组未动旁证）。
 - **第二包候选（登记不施工）**：E 族动作位（按档重试/填回输入/去设置/重选文件）、M2 消息级失败标记＋原地重发、M1 限流专档（读 Retry-After＋倒计时出路）。
 - **140.7 预制验收**：分支 CI run 42978653095（workflow_dispatch，head 2a0ecce）build-native success；单测 Executed 1345、0 failures（基线 a003384 口径 1336＋本包 ChatNoticeTests 9，只增不减）；validate_i18n 与 --check-code 本地双过（2639 键×三语，删「已重新连接」键后仍全覆盖）。未合并、版本号未改，待主线按合并序接入。
-- **140.8 合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.11／133**。merge 3956b23（feat/notice-discipline 0208249 → main，基线 a003384／0.50.0；分支 CI run 42978653095 success、分支单测口径 1345）。**冲突三处**：ChatView.swift 仅一处——N4 叠发被拦文案，§120 已在主线把措辞由「落定后可继续发送」改作「确认完就能继续发送」（代码与词条同步），分支沿基线旧文案转档，**合裁取主线现行文案＋分支 showNotice 形态（缺省 brief 档，与 140.3 的 N4→brief 对表一致）**；Localizable.xcstrings 用入仓脚本 merge_xcstrings.py 三方并集（base 2627／ours 2623／theirs 2626 → 2622、**零冲突**），逐键核对仅删 N1 键「已重新连接，回复已补齐。」、无其他键增删改；脚本输出键序与现行文件序不同，成品取 main 现行文件做同键外科删除（23 行，与分支原 diff 同尺寸，语义与脚本结果逐键断言全等）；DESIGN-V4.md——HEAD 侧 §119.6–§139 全保留，本节順接文末改注 §140。**节号改注（消歧）**：分支自选 §131 与文件呈现对齐包 §131 撞号（该包先合并占用），现行已用至 §139，顺延改注 **§140**、原自选号作废；140.1–140.7 小节号随迁、本条为 140.8；代码注释同步改注 8 处（ChatNotice.swift 2／ChatNoticeTests.swift 2／ChatView.swift 4），改后三文件 §131 零残留（均为本包自引、无正牌 §131 混入）。**接线复核**：showNotice 呼叫点全在位（N2 已停止生成 brief／N3 对账耗尽 extended／N4 叠发 brief／N5 模型落回 brief＋isPresenting 不抢占／N6 文件汇总三处 extended／N7 频道收养 brief／N8 非法路径 brief），notice 裸赋值全仓零残留、runWasDetached 仅落定处一句墓碑注释；§135 BottomStickCoordinator／renderPlan／ChatDiagTrace、§138 听写收口接线未动。**归档判断终审复核**：140.3 中「没有选到文件」空选提示归 N6 同族 extended——合并后代码复核（loadPickedFiles 空数组出口与图片超限、汇总拼接同函数族同档）仍成立，维持原判。**单测对账**：Tests/ 仅新增 ChatNoticeTests.swift 一文件 9 法、既有测零删改（与分支 diff 逐项一致）；合并后 CI 单测 Executed **1441、0 failures**（合并前 main 1432＋本包 9，只增不减，与预期分毫不差），无例外项。validate_i18n 通过（2635 键含 InfoPlist 13，三语全覆盖）。定版 d7b669b（版本五处＝Project.swift 四处 0.50.11/133＋SettingsView 页脚「OneDay v0.50.11」，grep 验无 0.50.10 残留）。CI run 42998383233：jobs API 逐项终判 build-native 及全部 steps **success**（head d7b669b）。IPA 落 ~/workspace/your_files/oneday-v0.50.11/OneDay-0.50.11.ipa，10,044,777 字节，md5 `e02dcf6d719a25c387f14eaa2add15d6`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.11／133／site.didichou.oneday。真机待验沿 140.6 清单五条（断网恢复无条残留／停生成 5s 自消／超限文件 8s 自消／✕ 即消不复活／恢复对账顶栏与内容如常）。
+- **140.8 合并与验包记账（2026-11-11，主线合并单）**：交付定版 **0.50.11／133**。merge 3956b23（feat/notice-discipline 0208249 → main，基线 a003384／0.50.0；分支 CI run 42978653095 success、分支单测口径 1345）。**冲突三处**：ChatView.swift 仅一处——N4 叠发被拦文案，§120 已在主线把措辞由「落定后可继续发送」改作「确认完就能继续发送」（代码与词条同步），分支沿基线旧文案转档，**合裁取主线现行文案＋分支 showNotice 形态（缺省 brief 档，与 140.3 的 N4→brief 对表一致）**；Localizable.xcstrings 用入仓脚本 merge_xcstrings.py 三方并集（base 2627／ours 2623／theirs 2626 → 2622、**零冲突**），逐键核对仅删 N1 键「已重新连接，回复已补齐。」、无其他键增删改；脚本输出键序与现行文件序不同，成品取 main 现行文件做同键外科删除（23 行，与分支原 diff 同尺寸，语义与脚本结果逐键断言全等）；DESIGN-V4.md——HEAD 侧 §119.6–§139 全保留，本节順接文末改注 §140。**节号改注（消歧）**：分支自选 §131 与文件呈现对齐包 §131 撞号（该包先合并占用），现行已用至 §139，顺延改注 **§140**、原自选号作废；140.1–140.7 小节号随迁、本条为 140.8；代码注释同步改注 8 处（ChatNotice.swift 2／ChatNoticeTests.swift 2／ChatView.swift 4），改后三文件 §131 零残留（均为本包自引、无正牌 §131 混入）。**接线复核**：showNotice 呼叫点全在位（N2 已停止生成 brief／N3 对账耗尽 extended／N4 叠发 brief／N5 模型落回 brief＋isPresenting 不抢占／N6 文件汇总三处 extended／N7 频道收养 brief／N8 非法路径 brief），notice 裸赋值全仓零残留、runWasDetached 仅落定处一句墓碑注释；§135 BottomStickCoordinator／renderPlan／ChatDiagTrace、§138 听写收口接线未动。**归档判断终审复核**：140.3 中「没有选到文件」空选提示归 N6 同族 extended——合并后代码复核（loadPickedFiles 空数组出口与图片超限、汇总拼接同函数族同档）仍成立，维持原判。**单测对账**：Tests/ 仅新增 ChatNoticeTests.swift 一文件 9 法、既有测零删改（与分支 diff 逐项一致）；合并后 CI 单测 Executed **1441、0 failures**（合并前 main 1432＋本包 9，只增不减，与预期分毫不差），无例外项。validate_i18n 通过（2635 键含 InfoPlist 13，三语全覆盖）。定版 d7b669b（版本五处＝Project.swift 四处 0.50.11/133＋SettingsView 页脚「OneDay v0.50.11」，grep 验无 0.50.10 残留）。CI run 42998383233：jobs API 逐项终判 build-native 及全部 steps **success**（head d7b669b）。IPA 落 ~/workspace/your_files/oneday-v0.50.11/OneDay-0.50.11.ipa，10,044,777 字节，md5 `e02dcf6d719a25c387f14eaa2add15d6`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.11／133／com.example.oneday。真机待验沿 140.6 清单五条（断网恢复无条残留／停生成 5s 自消／超限文件 8s 自消／✕ 即消不复活／恢复对账顶栏与内容如常）。
 ## §141 具名服务商设为默认（2026-11-11，预制分支 feat/provider-default，基线 main 3af9674；用户 15:30 点题，核实报告 named-provider-default-check-20261111.md 结论档位①）；节号改注：分支自选 §132 已被发送空屏修复包改注占用脉络（§133–§140 均已排满），合并时主线顺延改注 §141、原自选号作废，代码注释同步改注 §141
 
 ### 141.1 定案：机制本来就有，§119 是被拍平的 GET 形态误导
@@ -8948,7 +8948,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **节号改注（消歧）**：分支自选 §132 与发送空屏修复包 §135 节头注记的撞号脉络相冲（§133 MEDIA／§134 cx-model 均已被占、现行已用至 §140），顺延改注 **§141**、原自选号作废；141.1–141.6 小节号随迁、本条为 141.7；代码注释同步改注 11 处（HermesClient 2／ModelManagementStore 3／ModelSettingsView 3／MainModelAssignment 2／MainModelAssignmentTests 1），改后代码内 §132 零残留（DESIGN §135 历史记账中提及本分支自选号的原文属史实、不动）。
 - **单测对账**：Tests/ 仅新增 MainModelAssignmentTests.swift 一文件 10 法、既有测零删改（与分支 diff 逐项一致）；合并后 CI 单测 Executed **1451、0 failures**（合并前 main 1441＋本包 10，只增不减，与预期分毫不差），无例外项。validate_i18n 与 --check-code 双过（2639 键含 InfoPlist 13，三语全覆盖）。
 - **合并后 CI**：run 43000262723，jobs API 逐项终判 build-native 及全部 steps **success**（head fa2bf24）。定版 fa2bf24（版本五处＝Project.swift 四处 0.50.12/134＋SettingsView 页脚「OneDay v0.50.12」，grep 验无 0.50.11 残留）。
-- **独立验包**：IPA 落 ~/workspace/your_files/oneday-v0.50.12/OneDay-0.50.12.ipa，10,063,161 字节，md5 `56de1470cbfa61421d0cb05602fd44ab`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.12／134／site.didichou.oneday。真机待验沿 141.5 清单四条（Ailey 设默认徽标互换／主卡切回网关／杀 App 回读一致／端点不可达拒写有提示）。
+- **独立验包**：IPA 落 ~/workspace/your_files/oneday-v0.50.12/OneDay-0.50.12.ipa，10,063,161 字节，md5 `56de1470cbfa61421d0cb05602fd44ab`（落盘与 CI 产物逐字一致），Info.plist 实读 0.50.12／134／com.example.oneday。真机待验沿 141.5 清单四条（Ailey 设默认徽标互换／主卡切回网关／杀 App 回读一致／端点不可达拒写有提示）。
 # §142 预设存储本地化：选模型五层收口（复杂化全清第 5 项，2026-11-11；分支自选 §134 已被在飞占用、合并时改注 §142）
 
 用户 16:08 点名复杂化 13 项全解决；本项抉择书先行停点（complexity-resolution/item-05.md），用户 2026-11-11 16:33 拍板「两件都按建议办」——稠密化按 A 案、T2 另线处置。本节是 App 侧施工记账：**预制分支 feat/cx-model-storage（worktree ~/workspace/oneday-worktrees/pkg-cx-model，基线 feat/provider-default 顶端 886437e），未合并、版本号未动。**
@@ -9148,20 +9148,20 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **合并修复一处**：首轮中间 CI run 43010703033 failure——BridgeClient 并集时 rendition 与 deliveryImage 的共用收尾被当作单份，rendition 函数尾（状态码收尾＋return data＋闭合）被吞，编译断在 462 行；修复 1a43812 补回（+6 行、括号配平深 0），非功能改动。二轮中间 CI run 43011077709 **success**（jobs 逐项全 success）。
 - **xcstrings 并集**：自动合并后逐键断言——HEAD 2626 键零丢失、新增精确 2 键（「交付内容」／「%@（文件已删除）」）→ 2628；validate_i18n 通过（2641 键含 InfoPlist 13，三语全覆盖）。
 - **单测总对账**：1496（0.50.13）＋21（DeliveryMarkerTests 18＋BridgeDeliveryDecodeTests 3）＝**1517**，中间 CI 与发版 CI（run 43012492950，jobs 逐项终判 build-native 及全部 steps **success**）双实测 Executed 1517、0 failures，只增不减。
-- **定版与验包**：定版 0b80e01（版本五处＝Project.swift 四处 0.50.14/136＋SettingsView 页脚，grep 验 0.50.13 零残留）。IPA 落 ~/workspace/your_files/oneday-v0.50.14/OneDay-0.50.14.ipa：**10,209,072 字节、md5 `7e46699465779f05f83b60c434b3ee12`**，主线独立解包复核 Info.plist 实读 0.50.14／136／site.didichou.oneday。真机待验沿 §146.3 五条（试验会话白卡／新图登记内联／假号纯文本／删文件 gone 行／老消息兜底不回归）。
+- **定版与验包**：定版 0b80e01（版本五处＝Project.swift 四处 0.50.14/136＋SettingsView 页脚，grep 验 0.50.13 零残留）。IPA 落 ~/workspace/your_files/oneday-v0.50.14/OneDay-0.50.14.ipa：**10,209,072 字节、md5 `7e46699465779f05f83b60c434b3ee12`**，主线独立解包复核 Info.plist 实读 0.50.14／136／com.example.oneday。真机待验沿 §146.3 五条（试验会话白卡／新图登记内联／假号纯文本／删文件 gone 行／老消息兜底不回归）。
 
 ### 147.7 合并与发版记账（2026-11-11，0.50.15/137）
 
 - 前置清理：§146 合并遗留的冲突标记残行（`>>>>>>> feat/delivery-registry`，随 70cac12 误入 main）已单独记账清除，commit `7d2059a`（仅删该一行）。
 - 合并：merge commit `e46df60`（feat/attachment-panel `80a99d9`，基线 6042a77）。冲突两处合裁：①xcstrings 走并集脚本三方并集零冲突（base 2626→结果 2633＝main 2628＋本包新增 5 键，validate_i18n 通过 2646 键含 InfoPlist 13、三语全覆盖）；②DESIGN 本节自选 §146 已被登记制占用，整节顺延改注 **§147**（小节号 146.x→147.x 随迁），代码注释自引同步改注 11 处（新文件 3 处＋ChatView 本包引入行 8 处，按与基线 diff 精确圈定；ChatView 内 §146 登记制接线注释逐字未动）。ChatView 自动合并，接线复核：showAttachPanel sheet／afterAttachPanelDismiss／ingestPhotoData 三点在位、旧浮窗 Menu 退役口径与分支一致。
 - 定版：版本五处同改 0.50.15／137（Project.swift 四处＋SettingsView 页脚）commit `35e350c`，grep 验 0.50.14 零残留。CI run **43013170866** jobs 逐项终判 build-native **success**；单测 Executed **1527、0 failures**（0.50.14 的 1517＋AttachmentPanelTests 10，只增不减）。
-- 验包：IPA 落 ~/workspace/your_files/oneday-v0.50.15/OneDay-0.50.15.ipa：**10,249,115 字节、md5 `0a7816a4e29ab6276e9d454a56fa9b0e`**，主线独立解包复核 Info.plist 实读 0.50.15／137／site.didichou.oneday 一致。
+- 验包：IPA 落 ~/workspace/your_files/oneday-v0.50.15/OneDay-0.50.15.ipa：**10,249,115 字节、md5 `0a7816a4e29ab6276e9d454a56fa9b0e`**，主线独立解包复核 Info.plist 实读 0.50.15／137／com.example.oneday 一致。
 - 真机待验（随本版回收 §147.6 清单）：点「+」面板形态与点题截图对版；照片条点选直达附件条；相机格开相机；查看全部开多选；添加文件走文件桥；添加视频入条；未授权相册时资源库区不显、动作行照常；AX 最大档＋深色各一帧。
 ## §148 两题本地定因补查（2026-11-11，用户 19:22 报障；上一轮只回外部核查节，本节补本地断点与数据证据；只诊断不施工）
 
 ### 148.1 题一：设置换了默认、顶栏仍显示 Flash——口径本就分层，非写没落、非读没刷
 
-- **写路实证（写落了）**：服务器回读 /opt/data/config.yaml（hermes 容器内实读，文件 mtime 2026-11-11 19:27）：结构化 `model.default: gpt-5.6`、`model.provider: custom:ailey`、`model.base_url: https://aikey.didichou.site/v1` 三键与用户在设置页的操作逐字对上——§141 写路（ModelManagementStore.swift:181-200 `setDefaultModel(provider:model:)` → HermesClient.swift:1545 `POST /api/model/set {scope:"main"}`）真实落盘。providers 注册表 Ailey 条目在位、models 含 gpt-5.6。（只读回读，未打印任何密钥。）
+- **写路实证（写落了）**：服务器回读 /opt/data/config.yaml（hermes 容器内实读，文件 mtime 2026-11-11 19:27）：结构化 `model.default: gpt-5.6`、`model.provider: custom:ailey`、`model.base_url: https://your-gateway.example.com/v1` 三键与用户在设置页的操作逐字对上——§141 写路（ModelManagementStore.swift:181-200 `setDefaultModel(provider:model:)` → HermesClient.swift:1545 `POST /api/model/set {scope:"main"}`）真实落盘。providers 注册表 Ailey 条目在位、models 含 gpt-5.6。（只读回读，未打印任何密钥。）
 - **顶栏取数源头（另一套口径）**：聊天顶栏胶囊模型名＝`ChatModels.shortDisplayName(for: appState.chatModel)`（ChatView.swift:1068），与服务端默认**零数据通路**。`chatModel` 是 App 本地聊天模型选择：AppState.swift:51-59 文件头注释明文「与服务端默认模型（defaultModel，设置页管理面口径）互不干扰」，初值＝`ChatModels.initialSelection(stored: UserDefaults "chatModelID", serverDefault: nil)`（AppState.swift:56-59）；唯一写入点＝顶栏自己的 Picker → `AppState.selectChatModel`（AppState.swift:71-75，只写本地 UserDefaults、不发网络请求）。且影响是实质的非仅显示：发送链逐请求带 `model: appState.chatModel`（ChatView.swift:4630/4684/4818）——**用户在设置里换的默认对聊天实际用哪个模型没有影响**，聊天只认顶栏选择那套本地值。
 - **刷新时机（设计上就不存在）**：`refreshModelCatalog`（AppState.swift:671-737）每次刷新会回读服务端默认到 defaultModel，但对 chatModel 的回灌只在「从未选过（chatModelID == nil）」时发生一次（AppState.swift:683-688）；noteDefaultModel（AppState.swift:742-743，§141 写后由 ModelManagementStore.swift:195 调用）只同步 defaultModel 与候选集，**从不触碰 chatModel**。故设置变更后顶栏无任何刷新路径——不是缓存没刷，是两套口径从未接线。
 - **本会话会话锁判定（无锁）**：本机代码不存在「每会话模型锁」实体——chatModel 是全局单值（顶栏 Picker 是 App 级选择器、非 per-session）；发送时的 linkedModel（ChatView.swift:4688 `thread.linkedModel = appState.chatModel`）只是发送当刻的快照抄写，不构成独立会话锁。故任务单设问③答：无所谓改设置前/后单独切过——凡经顶栏 Picker 点选过即 UserDefaults 持久值跨会话生效；未点选过则为 initialSelection 落值（清单 fallback＝deepseek-flash，ChatModels.swift:65、39-44 短名 Flash），与服务端默认（原 deepseek-flash）同名时看不出分层。**用户当前截图示 Flash＝本地 chatModel 仍为 deepseek-flash**，而其设置默认已是 Ailey/gpt-5.6，顶栏照旧——与本断点逐字吻合。
@@ -9391,7 +9391,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - 冲突合裁：每包仅 DESIGN 文末拼接冲突，取双边全保留＋节序 §149→§150→§151→§152→§153 顺延，代码注释全量同步改注（多图包 ChatView 内附件面板 §147 注释按文件级归属豁免、保持不动）。xcstrings 逐包并集对账：管理面包 +7 键（2633→2640）、附件修订包并集 2641、顶栏包走 merge_xcstrings.py 三方并集（base 2633→2645、无冲突），终值 Localizable 2645 键、validate_i18n 通过（2658 键含 InfoPlist 13、三语全覆盖）。
 - 管理面↔顶栏包交叉点合裁（§151.5/§153.5）：作用域文案 defaultScopeText 单源在 ModelSettingsView、顶栏包 B2 本会话语义同批落地，文案与实现同批成立、未先行；refreshModelCatalog 两包接线同在且无互斥改动；channelsFace/GatewayChannelsFace 读面本体保留（ModelManagementStore 仍消费），设置面呈现层已撤、读面不删。
 - 定版：版本五处同改 0.50.16／138 commit `702fb4b`＋补丁 `1e25cc4`（验包实读发现 Info.plist 直写 CFBundleVersion 漏改 137、已补齐重跑）。发版 CI run **43021211318** jobs 逐项终判 build-native **success**；单测 Executed **1562、0 failures**（0.50.15 的 1527＋文本 13＋多图 5＋管理面 6＋附件修订 11＋顶栏 0 净增*，只增不减；*顶栏包分支口径 1534 相对其基线 0.50.14 的 1517 为 +17，与其余各包同基线增量有重叠口径，发版总账以主线实测 1562 为准）。
-- 验包：IPA 落 ~/workspace/your_files/oneday-v0.50.16/OneDay-0.50.16.ipa：**10,309,008 字节、md5 `ad20469e3e53ad147c9f93d0a57e55d7`**，主线独立解包复核 Info.plist 实读 0.50.16／138／site.didichou.oneday 一致。
+- 验包：IPA 落 ~/workspace/your_files/oneday-v0.50.16/OneDay-0.50.16.ipa：**10,309,008 字节、md5 `ad20469e3e53ad147c9f93d0a57e55d7`**，主线独立解包复核 Info.plist 实读 0.50.16／138／com.example.oneday 一致。
 - 真机待验（随本版回收）：§149.6 文本选字清单、§150.5 多图清单、§151 管理面三段与默认作用域文案、§152.6 附件面板修订清单、§153.5 顶栏分组选择与作用域实证五条。
 
 ## §154 热修：附件面板点「+」无反应（量测回路自噬塌陷）＋MEDIA 图裸行漏摘（2026-11-11，用户 20:51 真机录屏报障，0.50.16 回归；预制分支 feat/hotfix-attach-panel-05017，基线 main 866a5c8／0.50.16，只预制不合并、版本等主线指令走单包发版）
@@ -9443,7 +9443,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 
 - 合并：merge `f83131e`（feat/hotfix-attach-panel-05017 `5f7ef55` → main，基线 866a5c8／0.50.16），零冲突；§154 节号就地保留（枢纽包分支同号 §154、其合并时顺延，不在本单处理）。
 - 定版：版本五处同改＝Project.swift MARKETING_VERSION/CURRENT_PROJECT_VERSION＋CFBundleShortVersionString/CFBundleVersion（直写一处重点盯防，即 0.50.16 首轮漏改、1e25cc4 补丁的那处）＋SettingsView 页脚；grep 验五处全 0.50.17/139、无 0.50.16/138 残留。
-- 发版：CI run **43027685694**（push main `d3b8c99`），jobs API 逐项终判 build-native **success**；单测 Executed **1567、0 failures**（与预制口径一致）。主线独立解包验包：IPA **10,318,601 字节**、md5 `98f61c9c969aba5de5cac65404dcde17`、Info.plist 实读 **0.50.17／139／site.didichou.oneday** 三值一致；交付物落 `~/workspace/your_files/oneday-v0.50.17/OneDay-0.50.17.ipa`。真机待验按 §154.6 回收。
+- 发版：CI run **43027685694**（push main `d3b8c99`），jobs API 逐项终判 build-native **success**；单测 Executed **1567、0 failures**（与预制口径一致）。主线独立解包验包：IPA **10,318,601 字节**、md5 `98f61c9c969aba5de5cac65404dcde17`、Info.plist 实读 **0.50.17／139／com.example.oneday** 三值一致；交付物落 `~/workspace/your_files/oneday-v0.50.17/OneDay-0.50.17.ipa`。真机待验按 §154.6 回收。
 ## §155 HUB-1 枢纽全量接通（2026-11-11，预制分支 feat/hub1-consolidation，基线 main 866a5c8／0.50.16，只预制不合并；规格唯一依据 hub-consolidation-spec-20261111.md §5.1 包一，节号分支自选 §154，合并时主线合裁顺延 §155 并同步代码注释）
 
 ### 155.1 入口转正（规格 §2/§5.1）
@@ -9680,7 +9680,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - **设置页页脚（第 5 包×热修）**：第 5 包的「v0.50.16 (138)」新格式与热修已定的 0.50.17 撞行——合裁取新格式＋现行值「OneDay v0.50.17 (139)」，本版再升「v0.50.18 (140)」；页脚自此为「版本号 (构建号)」并列形态，仍是版本源第五处。
 - **xcstrings**：六包中三包动词条文件，合并全程自动并集无冲突，合并后实读 JSON 合法（2675 键）。
 
-发版验包补记：定版提交 8f35981；发版 CI run **43041855822**，jobs API 逐项终判 build-native **success**；单测 **Executed 1591 tests, with 0 failures**＋TEST SUCCEEDED（基线 0.50.17 的 1567 净增 24、只增不减：HUB-1 +7／抽屉容器 +3／抽屉呈现 +1／折叠 +13／身份卡 +0／命名 +0，含热修基线口径差归并）；主线独立解包验 IPA：**10,446,790 字节、md5 `721e969984331915b88dc9d415f93735`**、Info.plist 实读 CFBundleShortVersionString＝0.50.18／CFBundleVersion＝**140**／CFBundleIdentifier＝site.didichou.oneday（0.50.16 漏过的直写位本次实读盯防通过）；落 `~/workspace/your_files/oneday-v0.50.18/OneDay-v0.50.18-140.ipa`。
+发版验包补记：定版提交 8f35981；发版 CI run **43041855822**，jobs API 逐项终判 build-native **success**；单测 **Executed 1591 tests, with 0 failures**＋TEST SUCCEEDED（基线 0.50.17 的 1567 净增 24、只增不减：HUB-1 +7／抽屉容器 +3／抽屉呈现 +1／折叠 +13／身份卡 +0／命名 +0，含热修基线口径差归并）；主线独立解包验 IPA：**10,446,790 字节、md5 `721e969984331915b88dc9d415f93735`**、Info.plist 实读 CFBundleShortVersionString＝0.50.18／CFBundleVersion＝**140**／CFBundleIdentifier＝com.example.oneday（0.50.16 漏过的直写位本次实读盯防通过）；落 `~/workspace/your_files/oneday-v0.50.18/OneDay-v0.50.18-140.ipa`。
 
 
 # §162 抽屉呈现优化·第二批「材质减法」（2026-11-11，用户 21:01 亲递抽屉补充方案之第二批；预制分支 feat/drawer-present-batch2，基线 feat/drawer-present-batch1 顶端 239e174／§157 之上叠加，只预制不合并，节号分支自选 §155，合并时主线合裁顺延 §162 并同步代码注释。已知节号占用：热修包/HUB-1/容器包各分支亦自选过 §154，顺延幅度以主线合并序为准）
@@ -9820,7 +9820,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 
 ### 164.5 隐私政策与用户协议正式全文（用户授权自拟）
 - 依据：用户 2026-11-11 21:39 亲口授权「隐私和协议你自己给咱们写好，我就不操心了」——两页由原「草稿结构稿＋草稿标记」升为**正式全文**，草稿标记与关于页「草稿」值位全撤。
-- 隐私政策（运营方知和数智；联系 GitHub Issues＋inkroot001@gmail.com）：九节——运营方与联系方式／没有账号也不收集使用数据（无账号体系、无中转服务器、无广告与统计类 SDK）／凭据只存本机钥匙串／对话与文件只在设备与用户自己服务器之间流转／设备数据五类逐项授权、副本只存用户自己服务器、照片仅元数据、步数仅日汇总、一键删除副本、撤权即停供／用户自配第三方服务按其自身政策／用户权利（查询、删除、撤回授权路径具体到 App 内位置）／未成年人／变更与生效（生效日期 2026-11-11）。
+- 隐私政策（运营方知和数智；联系 GitHub Issues＋contact@example.com）：九节——运营方与联系方式／没有账号也不收集使用数据（无账号体系、无中转服务器、无广告与统计类 SDK）／凭据只存本机钥匙串／对话与文件只在设备与用户自己服务器之间流转／设备数据五类逐项授权、副本只存用户自己服务器、照片仅元数据、步数仅日汇总、一键删除副本、撤权即停供／用户自配第三方服务按其自身政策／用户权利（查询、删除、撤回授权路径具体到 App 内位置）／未成年人／变更与生效（生效日期 2026-11-11）。
 - 用户协议：八节——服务定位（客户端、自托管）／自托管与责任划分／可接受使用／AI 输出不构成专业建议、经智能体执行的操作由用户确认负责／知识产权（OneDay 开源仓库、Hermes 归 Nous Research）／责任限制／终止／适用中华人民共和国法律与协议变更。
 - 同文存档：docs/PRIVACY-POLICY.md、docs/USER-AGREEMENT.md 与 App 内页逐字同文；App 正文走本地化词条——**简体中文为正文，繁体与英文同文译本随本包一并交付**（17 标题＋17 正文段全量入目录、validate_i18n 通过），无法定语义增减。
 
@@ -10063,7 +10063,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - 节号映射（自选→定号）：§155→§162｜§157→§163｜§160→§164｜§156→§165｜§157→§166｜§157→§167｜§161→§168｜§161→§169｜§165→§170｜§165→§172；各节代码/测试注释已同步。
 - 合并合裁四项：①设置身份卡——以 §164 IA 为终局，§159 的 Menu 形态退役（SettingsView 残留呈现旗与两张 sheet 已清），编辑面本体经 IdentityDetailView 复用、版本页脚收敛 OneDayVersionLabel 单源（第五处字面在本版由 0.50.17 旧值一并归正为现行版）；②通知落点——§166 的 destination(for:) 先查 §165 ApprovalNotificationRouting 本机锚再回落 §123 集，详情按钮 hasAnchorRoute 由落点档位派生；连带补 NotificationDetail.destinationLabel 对锚点两档的穷尽分支（首轮合并 CI 红于此、9a41112 修复）；③底缘——ChatView 底缘以 §170 hidden（整条撤带）为终局，§167 的 .hard 不取（§170 节内已记作废补记），§167 其余（解析缓存等）照常；④xcstrings 三轮并集均实读校验（三语全覆盖，终值 2872 键＋InfoPlist）；§164 与引导线共有的 8 个反馈类键英文译法冲突取已合入的引导线版（中文同文、无功能差）。
 - 抽屉热修时序补记：本节初稿曾记其「未赶上」（当时其分支 CI 未绿、无就绪确认）；随后 CI 43059901058 转绿且就绪确认到达，因 0.50.19 尚未产出 IPA 未交付，按 ⑩ 并入本版，初稿口径作废。
-- 发版验包补记：发版 CI 以最终树 7573714 的 run **43066818091** 为准（jobs API 终判 build-native **success**）；先行两跑作废——43062266756（同树首跑）红于宿主测试 testAnimatedCloseReturnsToZero 的 runner 停顿型超时（无断言失败、Core 1669 全过；43066818091 同用例 2.03 秒 passed，定谳 flake）、43061763175 为不含热修的旧树 049a6aa（success 但不作数）。单测 **Executed 1669（OneDayCoreTests）＋8（OneDayAppTests）、0 failures**（0.50.18 基线 1591 净增 86，只增不减）。IPA：**10,879,000 字节，md5 `0e2720ef2f3d687ef5824f3463b935fa`**，主线独立解包实读 Info.plist＝0.50.19／**141**／site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.19/OneDay-v0.50.19-141.ipa。
+- 发版验包补记：发版 CI 以最终树 7573714 的 run **43066818091** 为准（jobs API 终判 build-native **success**）；先行两跑作废——43062266756（同树首跑）红于宿主测试 testAnimatedCloseReturnsToZero 的 runner 停顿型超时（无断言失败、Core 1669 全过；43066818091 同用例 2.03 秒 passed，定谳 flake）、43061763175 为不含热修的旧树 049a6aa（success 但不作数）。单测 **Executed 1669（OneDayCoreTests）＋8（OneDayAppTests）、0 failures**（0.50.18 基线 1591 净增 86，只增不减）。IPA：**10,879,000 字节，md5 `0e2720ef2f3d687ef5824f3463b935fa`**，主线独立解包实读 Info.plist＝0.50.19／**141**／com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.19/OneDay-v0.50.19-141.ipa。
 
 ## §172 抽屉打不开阻断热修：布局往返反解 center 吃掉 transform 位移（2026-11-11 夜，用户真机录屏点名；预制分支 feat/drawer-open-hotfix，基线 main edab9f0，只预制不合并；节号自选 §165，合并时主线合裁顺延 §172）
 
@@ -10134,7 +10134,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - 节号：§173 自选即定号，无映射变更。
 - 合并 CI：run **43069618466**（push，head=8c83f5c）build-native **success**；单测 **Executed 1669（OneDayCoreTests）＋8（OneDayAppTests）、0 failures**（与 0.50.19 基线逐数一致，本包零新增/零退役，符合观感修饰符改动预期）。
 - 定版：五处字面同改 0.50.20/142（Project.swift 四处＋SettingsSupportViews 的 OneDayVersionLabel 一处两面），grep 验代码内无 0.50.19 残留。
-- 发版验包补记：定版提交 `b87f261`；发版 CI 以 workflow_dispatch run **43071330463**（head=b87f261）为准、只跑一次，jobs API 终判 build-native **success**；单测 **Executed 1669（OneDayCoreTests）＋8（OneDayAppTests）、0 failures**（日志实读，与合并 CI 逐数一致）。IPA：**10,877,129 字节，md5 `5357c8c0fbe707921dafd21f280421c4`**，主线独立解包实读 Info.plist＝0.50.20／**142**／site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.20/OneDay-v0.50.20-142.ipa。真机待验＝§173.5 五项（长消息溶化形态并排对参照／回底钮带高 106 观感裁决／四页同语言／深色各一帧／键盘态不断层）。
+- 发版验包补记：定版提交 `b87f261`；发版 CI 以 workflow_dispatch run **43071330463**（head=b87f261）为准、只跑一次，jobs API 终判 build-native **success**；单测 **Executed 1669（OneDayCoreTests）＋8（OneDayAppTests）、0 failures**（日志实读，与合并 CI 逐数一致）。IPA：**10,877,129 字节，md5 `5357c8c0fbe707921dafd21f280421c4`**，主线独立解包实读 Info.plist＝0.50.20／**142**／com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.20/OneDay-v0.50.20-142.ipa。真机待验＝§173.5 五项（长消息溶化形态并排对参照／回底钮带高 106 观感裁决／四页同语言／深色各一帧／键盘态不断层）。
 
 ## §175 外部补丁发版：抽屉折叠容器单列化＋模型弹窗宿主迁移（2026-11-12，用户 02:03 提供补丁并令构建）
 
@@ -10143,7 +10143,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - 改动二（ChatView）：模型选择弹窗原挂在身份胶囊的局部按钮上，胶囊经 ViewThatFits 在完整/紧凑两套布局间切换、呈现宿主不稳定；弹窗迁至聊天根节点的唯一 `.sheet(isPresented:)`，内容抽为 `modelPickerSheet`，选择、搜索、分组、隐藏确认逻辑原样保留。**对方自注：此项针对可疑路径修正，是否彻底解决顶部重叠仍需真机验证。**
 - 测试（DrawerContainerControllerTests）：新增 3 个宿主几何测试——展开五条导航同列量测（minX/宽度/纵向不重叠）、折叠高度为 0、ForEach 六行旁聊窄宽堆叠总高。App 宿主测试 8 → 11。
 - 定版：五处字面同改 0.50.21/143（Project.swift 四处＋SettingsSupportViews 的 OneDayVersionLabel），grep 验无 0.50.20/142 残留（本节总账行除外）。
-- 发版验包补记：定版提交 `40ce39f`；合并 CI run **43074196507**（push，head=40ce39f）build-native **success**，单测 **Executed 1669（OneDayCoreTests）＋11（OneDayAppTests）、0 failures**（基线 1669＋8，增量＝补丁新增 3 个 DrawerContainerControllerTests 宿主几何测试，逐个 passed 实读；无退役）。§173 回退后 CI run **43078801515**（push，head=fd2deec）build-native **success**、Core 1669 不变、TEST SUCCEEDED。发版 CI 以 workflow_dispatch run **43081154380**（head=fd2deec）为准、只跑一次，build-native **success**。IPA：**10,868,681 字节，md5 `3f6584f1acdc233119fbbe196d8612d0`**，解包实读 Info.plist＝0.50.21／**143**／site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.21/OneDay-v0.50.21-143.ipa。
+- 发版验包补记：定版提交 `40ce39f`；合并 CI run **43074196507**（push，head=40ce39f）build-native **success**，单测 **Executed 1669（OneDayCoreTests）＋11（OneDayAppTests）、0 failures**（基线 1669＋8，增量＝补丁新增 3 个 DrawerContainerControllerTests 宿主几何测试，逐个 passed 实读；无退役）。§173 回退后 CI run **43078801515**（push，head=fd2deec）build-native **success**、Core 1669 不变、TEST SUCCEEDED。发版 CI 以 workflow_dispatch run **43081154380**（head=fd2deec）为准、只跑一次，build-native **success**。IPA：**10,868,681 字节，md5 `3f6584f1acdc233119fbbe196d8612d0`**，解包实读 Info.plist＝0.50.21／**143**／com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.21/OneDay-v0.50.21-143.ipa。
 - 真机待验：①抽屉展开：导航与旁聊纵向排列、文字图标不再左溢出截断，折叠动画在、折叠后点不到；②顶栏胶囊打开模型选择页：标题/取消入口正常、列表不压状态栏；③§173.5 朦胧五项可一并验。
 - **§173 回退补记（2026-11-12 02:07 用户亲定）**：用户装 0.50.20 后否决朦胧对标（「越改越难看，这个不要，删除」），**§173 整包作废**、0.50.20 IPA 已由主线删除。本版在外部补丁之外一并 `git revert -m 1 8c83f5c` 回退 §173 全部改动：四页（动态/点子/目标/文件）底缘回 .hard、聊天底缘回 hidden、顶缘 .soft 不动、回底钮行密度回收一并退回。对账证据：FeedView/IdeasView/GoalsView/DeliverablesView 与 0.50.19 定版 e7d293c 的 `git diff` 为空（逐字一致）；ChatView 与 e7d293c 的 diff 只剩模型弹窗宿主迁移两块（@@ -480、@@ -1282），边缘行实读＝顶 .soft（:1959）／底 hidden（:1989），与 e7d293c 原行逐字相同。先前误触的发版 run 43078561755（head 40ce39f，不含本回退）产物作废不落盘；本版发版以回退后顶端重新触发的 run 为准。真机待验随之调整：原第③项（§173.5 朦胧五项）撤销，改验边缘观感与 0.50.19 一致。
 
@@ -10277,7 +10277,7 @@ Core 新增 ClosureLoopTests 18 测：GoalEcho 规划五件（排队只落已安
 - 件四·动态/点子呈现对标（§177）：动态去日期分组＋帖面与页底同色、点子撤待阅/采纳＋分类小节全程结构＋主题 emoji 兜底（桥侧分类已随伴生 1.0.34 上线）。合并 286eeab；合并时防回潮核验：四页底缘保持 §173 回退后的 .hard、与 0.50.19 口径一致，朦胧未带回。
 - 五页边缘口径不变：四页底缘 .hard／聊天底缘 hidden／顶缘 .soft（§173 朦胧整包已作废，不得复活）。
 - 定版：五处字面同改 0.50.22/144（Project.swift 四处＋SettingsSupportViews 的版本串 full/hero），grep 验无 0.50.21/143 残留（历史节与代码注释中的版本沿革引用除外）。
-- 发版验包补记：定版提交 `9c634b0`；其 push CI run **43103751219** build-native **success**（jobs API 逐项实读）。发版 CI 以 workflow_dispatch run **43106169047**（head=9c634b0）为准、只跑一次，build-native **success**。单测（发版构建日志实读）：**Executed 1679（OneDayCoreTests）＋12（OneDayAppTests）、0 failures**——Core 与合并基线 1679 持平；App 11→12，增量＝§179 新增 IdentityCapsuleHitDomainTests 1 法（两组断言同法承载，DrawerContainerControllerTests 11 法不变）；无退役。IPA：**10,864,446 字节，md5 `9eba885b25313dfea6ef8514cd9e71e2`**，解包实读 Info.plist＝0.50.22／**144**／site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.22/OneDay-v0.50.22-144.ipa。
+- 发版验包补记：定版提交 `9c634b0`；其 push CI run **43103751219** build-native **success**（jobs API 逐项实读）。发版 CI 以 workflow_dispatch run **43106169047**（head=9c634b0）为准、只跑一次，build-native **success**。单测（发版构建日志实读）：**Executed 1679（OneDayCoreTests）＋12（OneDayAppTests）、0 failures**——Core 与合并基线 1679 持平；App 11→12，增量＝§179 新增 IdentityCapsuleHitDomainTests 1 法（两组断言同法承载，DrawerContainerControllerTests 11 法不变）；无退役。IPA：**10,864,446 字节，md5 `9eba885b25313dfea6ef8514cd9e71e2`**，解包实读 Info.plist＝0.50.22／**144**／com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.22/OneDay-v0.50.22-144.ipa。
 - 真机待验（四包汇总）：①状态栏点按回顶不开面、点胶囊上缘玻璃带不开枢纽/模型面、两钮点各自域不串、胶囊观感与 0.50.21 一致、紧凑档同验（§179.4）；②间距贴底四路（回底/新消息/自发/切会话）＋长线程惰性量测流畅度＋复贴阈值 7 晚跳观感＋两提示条展开间距恒 8（§176）；③回底钮玻璃观感与点按（§178）；④动态无日期分组、帖面同色、点子全程分类小节＋长按/左滑放下＋底栏无角标（§177.6）。
 
 ## §181 云电脑收口包：VPS 表单改三样口径（IP＋账户名＋密码）（2026-11-12，用户 2026-11-11 15:58 定版＋2026-11-12 05:25 确认排期；预制分支 feat/cloudpc-closeout，基线 main ead40cb／0.50.22 定版顶端，只预制不合并、不发版；规格真源＝oneday-design-review/cloudpc-closeout-spec-20261112.md）
@@ -10786,7 +10786,7 @@ enum SettingsRoute: Hashable {
 - 输入舱承载换代包：本版跳过——分支补修未落盘/CI 红，合入条件不满足（主线裁决，归下一小批）。
 - 定版：五处字面同改 0.50.23/145（Project.swift 四处＋SettingsSupportViews 版本串 full/hero），grep 验代码内无 0.50.22 残留。
 - 发版验包补记：见本节后续补记行（CI run／单测／IPA 字节与 md5）。
-- **§184 发版验包补记（2026-11-12）**：定版提交 f741d4b（rel/0.50.23 直推 main）。推送 CI run 43164058177：attempt 1/2 均栽在 App 宿主既有 flake——`DrawerContainerControllerTests.testAnimatedCloseReturnsToZero` 首启动挂死（started 无 passed、约 66 秒后 xcodebuild 重启测试包，重启后全数通过但整步仍判红；同型先例＝§177.4 的 43077221548、与本批三包改动面无关，两轮日志实证每条跑完的用例全 passed、Core 两轮均 1684/1684）；attempt 3 全步 success（jobs API 逐项实读：Build/Unit tests/Package/Upload 全 success），单测 Core **1684**（0.50.22 的 1679＋5：云电脑＋3、设置改写净＋2）、App **13**（DrawerBridgeHarness 1＋DrawerContainerController 11＋IdentityCapsuleHitDomain 1；执行的 12 基线＋1），0 failures。发版构建 workflow_dispatch run **43170225777** 一次 success（jobs API 逐项 success；单测 Core 1684、App 12 executed/0 failures，App 段亦出现一次同型重启自愈、步终判 success）。IPA 自验：**10,942,933 字节、md5 `b9c24e3e18cf6621c7bf14f0709b8aa1`**、Info.plist＝0.50.23/145/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.23/OneDay-v0.50.23-145.ipa。注记：App 宿主关门动画用例的首启动挂死 flake 两日三见，建议单独立项治理（本版不阻断）。
+- **§184 发版验包补记（2026-11-12）**：定版提交 f741d4b（rel/0.50.23 直推 main）。推送 CI run 43164058177：attempt 1/2 均栽在 App 宿主既有 flake——`DrawerContainerControllerTests.testAnimatedCloseReturnsToZero` 首启动挂死（started 无 passed、约 66 秒后 xcodebuild 重启测试包，重启后全数通过但整步仍判红；同型先例＝§177.4 的 43077221548、与本批三包改动面无关，两轮日志实证每条跑完的用例全 passed、Core 两轮均 1684/1684）；attempt 3 全步 success（jobs API 逐项实读：Build/Unit tests/Package/Upload 全 success），单测 Core **1684**（0.50.22 的 1679＋5：云电脑＋3、设置改写净＋2）、App **13**（DrawerBridgeHarness 1＋DrawerContainerController 11＋IdentityCapsuleHitDomain 1；执行的 12 基线＋1），0 failures。发版构建 workflow_dispatch run **43170225777** 一次 success（jobs API 逐项 success；单测 Core 1684、App 12 executed/0 failures，App 段亦出现一次同型重启自愈、步终判 success）。IPA 自验：**10,942,933 字节、md5 `b9c24e3e18cf6621c7bf14f0709b8aa1`**、Info.plist＝0.50.23/145/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.23/OneDay-v0.50.23-145.ipa。注记：App 宿主关门动画用例的首启动挂死 flake 两日三见，建议单独立项治理（本版不阻断）。
 
 ## §185 上下栏纯色块修复：背景延伸＋内容流动（2026-11-12；分支 feat/shell-bg-unify，基线 f741d4b／0.50.23 定版顶端）
 
@@ -11013,7 +11013,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 - 件二·输入舱承载换代（§186）：cherry-pick feat/composer-kbguide 链 30 提交（终头 ed7fc14，分支 CI run 43172509099 全绿），丢弃 §176 重复 cherry-pick 7d275d0 及其 DESIGN 节；探针四提交只触探针测试文件、已由定版提交 d4b9111 删除净尽。代码零冲突（DrawerContainerView 自动合并，main §182.2 阴影路径与分支 §186.8 门控各落其位）；DESIGN 各提交增量冲突以 main 为准、分支 §178 全量顺延 **§186** 落盘（子节 186.1–186.11＋186.12 顺延记），代码注释 §178.8/§178.11 同步改 §186.8/§186.11，grep 验无残留错号（ChatView 仅存 main 自有 §178 回底钮一处）。
 - 定版：五处字面同改 0.50.24/146（Project.swift 四处＋SettingsSupportViews 版本串 full/hero），grep 验代码内无 0.50.23 残留。
 - 发版验包补记：见本节后续补记行（CI run／单测／IPA 字节与 md5）。
-- **§187 发版验包补记（2026-11-12）**：定版提交 e0dac5c（rel/0.50.24 直推 main）。推送 CI run 43175100836 **attempt 1 一次全绿**（jobs API 逐项 success；本批未撞 Drawer 首启停滞 flake）。单测：Core **1684**（与 0.50.23 持平、本批两包零 Core 新增）、0 failures；App 合计 **27**（ComposerGuideHostTests 9/9、DrawerContainerControllerTests 13/13、DrawerBridgeHarnessTests 1/1、IdentityCapsuleHitDomainTests 1/1、ShellBgStructureProbeTests 3/3），0 failures。发版构建 workflow_dispatch run **43176882923** 只触发一次、success。IPA 自验：**10,967,684 字节、md5 `02b03cd3aa7dda52eac7b90d9f1cfa8b`**、Info.plist＝0.50.24/146/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.24/OneDay-v0.50.24-146.ipa。
+- **§187 发版验包补记（2026-11-12）**：定版提交 e0dac5c（rel/0.50.24 直推 main）。推送 CI run 43175100836 **attempt 1 一次全绿**（jobs API 逐项 success；本批未撞 Drawer 首启停滞 flake）。单测：Core **1684**（与 0.50.23 持平、本批两包零 Core 新增）、0 failures；App 合计 **27**（ComposerGuideHostTests 9/9、DrawerContainerControllerTests 13/13、DrawerBridgeHarnessTests 1/1、IdentityCapsuleHitDomainTests 1/1、ShellBgStructureProbeTests 3/3），0 failures。发版构建 workflow_dispatch run **43176882923** 只触发一次、success。IPA 自验：**10,967,684 字节、md5 `02b03cd3aa7dda52eac7b90d9f1cfa8b`**、Info.plist＝0.50.24/146/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.24/OneDay-v0.50.24-146.ipa。
 
 ## §188 设置页脚与关于页图标补回＋伴生版本号定性（2026-11-12；分支 feat/settings-icon-restore）
 - 起因：0.50.23 真机验收（用户 15:31 两图点名）——设置页最底部页脚与关于页顶部各丢一处原型 App 图标。原型正本（oneday-prototype-2.html）：页脚签名行（line 865＋CSS 243–245：图标 19×19 圆角 5＋「OneDay」＋版本小字 11px）、关于 hero（line 1208＋CSS 321：图标 68×68 圆角 17 居中、图标下接名与版本）。现行两处均无图标（页脚纯文字一行、hero 只有粗字标）。§164 零丢失对账只核功能条目、视觉签名元素漏网，本包补回；只补视觉、不动任何功能条目，对账口径不受影响。
@@ -11043,7 +11043,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 - **两次改判（如实记）**：①推送 CI 三 attempt 陪耗后主线改判「不再等全绿、立即 dispatch 发版」——依据：该 flake 已立项（§184）且与本版改动无关；全天证据链已足（16:21 main 推送 CI 对 af7eb6e 曾一次全绿 Core 1684＋App 33；hotfix 定版 run 43204911095 两测全过、零断言失败）。②发版 run 三 attempt 仍全红于 flake 后，主线再改判「attempt 上限取消」并授权第二轮 dispatch。
 - **发版构建账（IPA 未产出）**：run 43216428448 attempt 1–3＋run 43224361704 attempt 1–2，合计 5 个 attempt 判读全同型——两条整页测试全过、全日志断言失败 0 条、仅 flake 红。**结构性堵点**：workflow ios-native.yml 步序为 Build→Unit tests→Package IPA→Upload IPA，上传步无 if: always()，测试步红（xcodebuild exit 65）即整 job 止步，五轮 artifacts 均为 0，**0.50.25 IPA 至今未产出、未交付**。
 - **待决（交主线）**：版本内容本身不欠验证（单测口径 Core 1684＋App 35＝33＋整页新测 2，只增不减），欠的只是打包通道。二选一：(a) 择 flake 低发时段再 dispatch 碰绿窗；(b) 授权改 workflow（Package/Upload 加 if: always()，或测试步对该 flake 容忍）后重发。§190 验包行（IPA 字节/md5/Info.plist 读回）待真出包后补。
-- **§190 验包行（2026-11-12 深夜补，主线拍板走上 (b) 变体）**：workflow 步序变更先行——提交 36fb501 仅给 Package unsigned IPA 与 Upload IPA 两步加 `if: ${{ !cancelled() }}`（比 always() 收敛：job 被取消时仍止步），测试步照常跑照常判红、只是不再扣押打包，其余步序条件一字未动。发版 run **43230727423**（workflow_dispatch，head 36fb501，attempt 1）步序结论原文：Build (no codesign)＝success／Unit tests (OneDayCore)＝failure／Package unsigned IPA＝success／Upload IPA＝success——改步序当轮即解堵，artifact 产出（oneday-unsigned-ipa，id 13951451576）。本轮判读依据（按 §190 既定标准逐项核）：ChatPageAssemblyRegressionTests 两条真过（testChatPageBarsAssembledOnProductionPage 4.423s、testKeyboardUpMovesComposerOnlyDockStays 13.775s，套件 passed）；全日志 `Test Case … failed` 行 **0 条**（3 行 XCTAssert 命中经逐行核为编译日志源码回显、非断言失败）；唯一红源仍是 §184 首启停滞 flake（Restarting ×2）。**验包实数**：IPA 落 ~/workspace/your_files/oneday-v0.50.25/OneDay-v0.50.25-147.ipa，**10,973,330 字节，md5 9c853695e3d4de577f2063414a7a61e3**；解包读 Payload/OneDayApp.app/Info.plist：CFBundleShortVersionString＝0.50.25、CFBundleVersion＝147、CFBundleIdentifier＝site.didichou.oneday，与定版一致。至此 0.50.25 出包通道关闭，最终验收仍＝用户真机复测（见上证据边界）。
+- **§190 验包行（2026-11-12 深夜补，主线拍板走上 (b) 变体）**：workflow 步序变更先行——提交 36fb501 仅给 Package unsigned IPA 与 Upload IPA 两步加 `if: ${{ !cancelled() }}`（比 always() 收敛：job 被取消时仍止步），测试步照常跑照常判红、只是不再扣押打包，其余步序条件一字未动。发版 run **43230727423**（workflow_dispatch，head 36fb501，attempt 1）步序结论原文：Build (no codesign)＝success／Unit tests (OneDayCore)＝failure／Package unsigned IPA＝success／Upload IPA＝success——改步序当轮即解堵，artifact 产出（oneday-unsigned-ipa，id 13951451576）。本轮判读依据（按 §190 既定标准逐项核）：ChatPageAssemblyRegressionTests 两条真过（testChatPageBarsAssembledOnProductionPage 4.423s、testKeyboardUpMovesComposerOnlyDockStays 13.775s，套件 passed）；全日志 `Test Case … failed` 行 **0 条**（3 行 XCTAssert 命中经逐行核为编译日志源码回显、非断言失败）；唯一红源仍是 §184 首启停滞 flake（Restarting ×2）。**验包实数**：IPA 落 ~/workspace/your_files/oneday-v0.50.25/OneDay-v0.50.25-147.ipa，**10,973,330 字节，md5 9c853695e3d4de577f2063414a7a61e3**；解包读 Payload/OneDayApp.app/Info.plist：CFBundleShortVersionString＝0.50.25、CFBundleVersion＝147、CFBundleIdentifier＝com.example.oneday，与定版一致。至此 0.50.25 出包通道关闭，最终验收仍＝用户真机复测（见上证据边界）。
 
 ## §191 栏位病第二轮定因与修复验证构建 149（2026-11-13；诊断分支 hotfix/05025-bars2，不合 main）
 
@@ -11073,7 +11073,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 ### §193 实施补记（同日，CI 实证后定版形态与结果）
 - **v1→v2 更正**：初版「坞锚直钉 UITabBar.topAnchor＋键盘锚钉窗口 keyboardLayoutGuide」的跨层级约束形态被 CI 实证否决——run 43337805344 中 ComposerGuideHostTests.testTabRoundTrip 与组装键盘测试各抛一次 no-common-ancestor／布局引擎内部异常：切格往返与聚焦藏坞的层级手术瞬间，仍活着的跨层级约束会在求解时引用已离场的视图（生产同险，非测试特有）。定版 v2：两锚全回本视图内层级——键盘升起钉**本视图** keyboardLayoutGuide（仅升起态用；该态引导线由 UIKit 按真实键盘帧算、与本视图帧污染无关，§186 原形态），键盘落下钉自有 UILayoutGuide，其 top 常量逐布局拍由坞本体（UITabBar 优先、类名含 TabBar 兜底，命中模式记自述 anchorMode）的**布局空间**实帧换算（沿父链累加 frame 原点、忽略 transform——抽屉平移不假补偿、舱随前景同移）；坞只被读帧、永不被约束引用，悬空约束整类消失。§193 正文「键盘升起钉窗口 keyboardLayoutGuide」一句以本补记为准。
 - **CI 结果（run 43341159132，HEAD bc749ff）**：构建/打包/上传全过；单测步**零断言失败、零异常**——v1 崩溃的两测试（组装键盘跟随、切格往返几何复原）与舱生长钉底、静止几何等宿主级测试全过；新增锚定不变量测试在 v1 轮（run 43337805344）已全过（生长 +29 底边 783 不动、强制污染帧 (0,-89,402×1030) 后底边仍 783、pocket 仍 62、anchorMode=uitabbar），v2 轮该测试与 DarkOnly/SceneWindowOnly 三场景死于测试进程停滞重启（started 无结果、无错误行——§184 flake 家族，失败集合逐轮轮换，治本归 flake 线，本轮不阻）。
-- **151 验包**：11,008,953 字节、md5 `b6fdae0cdc1843a2d5fef6073c1aa410`、Info.plist 0.50.25/151/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag151/。真机判读除既有四项外先看自述 negot 段 anchorMode（期望 uitabbar；若 fallbackWindowSafe 则舱底会低约 49pt 压坞——属锚参照未命中、按归档档 bars-anchor-refactor-20261113.md 的判定表续修，不属协商问题）。
+- **151 验包**：11,008,953 字节、md5 `b6fdae0cdc1843a2d5fef6073c1aa410`、Info.plist 0.50.25/151/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag151/。真机判读除既有四项外先看自述 negot 段 anchorMode（期望 uitabbar；若 fallbackWindowSafe 则舱底会低约 49pt 压坞——属锚参照未命中、按归档档 bars-anchor-refactor-20261113.md 的判定表续修，不属协商问题）。
 
 ## §194 栏位病第五轮：151 判绿后的两条交互病急修（2026-11-13；诊断分支 hotfix/05025-bars2 续作，不合 main）
 
@@ -11084,7 +11084,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 - **缺陷② 判归属（点胶囊开模型列表不是枢纽，用户 09:28 截图实证）**：不在本分支修，交胶囊线并线。证据链：①全仓只有胶囊模型域闭包一处把 showModelPicker 置 true（ChatView L1294），用户那一点确实触发了模型域 action——不是宿主吞点（吞点开不出任何面），错位发生在胶囊处或其命中环境；②症状最早见于 0.50.22（当时无 §186/§193、输入舱还是 safeAreaBar 承载），先于一切输入舱承载变更；③IdentityCapsuleView 的 §179 纪律已在生产码落地（玻璃只作背板、两域 Button 独立 contentShape），ChatView 接线单源派生无误；④胶囊线现状（feat/ext-shell-batch2 阶段一）：官方定式 union 拼合面未过阶段门、裁决停手不叠补丁、动作级证据定为转轨 XCUITest 合成点按。本分支只补路由侧取证：组装关五 testHitRouting（见下）证 §193 覆盖层在生产整页里对 pocket 带透明（命中落 pocket 承载带内、不被舱宿主截走）——本轮层级嫌疑排除，根子在胶囊线 §179/§153 域内派发。
 - **新增测试**：ComposerGuideHostTests.testKeyboardNotifications_barFollowsFrameThenRestores（宿主壳合成通知：帧顶 538→舱底贴合、willChangeFrame 500→跟随、willHide→静息分毫不差——通知帧即生产修法的输入通道本身）；ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays 沿用（真键盘全链回归，新机制经同一 willShow 通道驱动）；同文件新增 testHitRouting_textListAndPocketIdentity（文本区命中落文本视图本体/列表区不被宿主吞/pocket 身份域命中落 pocket 带——透传门 Preference 帧原点与顶栏路由的首次独立验收，命中链打进失败信息留证）。既有组装键盘测试的主机口径不变。
 - **152 验证构建**：0.50.25/152（分支 hotfix/05025-bars2）。真机验收口径：点输入框→键盘升起且舱贴键盘上沿可见可用、打字时候选条高度变化舱跟随、收起回静息锚位分毫不差；自述 kbShowSettled 帧中舱底＝kbTopWin、kbHideSettled 后 pocket 62／composer (0,62,402×729)／adjBottom 197 全数复原；缺陷②不在本包验收范围（归属已判、待胶囊线并线）。
-- **152 CI 与验包（同日补记）**：代码提交 2949ceb＋取证关定位器修 59376c6；三轮 CI（43347064580／43348878817／43351271135）构建/打包/上传全过、**全场零断言失败**。§194 相关测试实测：testKeyboardNotifications 三轮全过（机制本体确定性绿证）；testHitRouting 首轮死于胶囊定位器落空（本人测试缺陷、已按组装关一同源口径修）、后两轮全过；testAnchoredBarsSurviveGrowthAndFramePollution 与静止几何/透传组全过（几何口径零回退）。未结项：组装真键盘测试 testKeyboardUpMovesComposerOnlyDockStays 三轮均在执行中被测试进程看门狗掐死（started 无结果、进程重启），死亡集三轮完全一致——同集另三条（探针 BoldAX/RealDeviceCombo 两场景＋抽屉动画测试）为 §184 flake 在案成员（§193 v2 轮已同型死亡两条）、本轮零断言失败，故判基建 flake 而非本改动回归，治本归 flake 线（fix/drawer-flake）；该测试的真键盘全链由真机自述 kb 数字链替代验收（本系列一贯口径：模拟器绿仅作无回退参考、判绿只认真机）。IPA 取第二轮产物验真：11,010,080 字节、md5 `23e3963a48c9ff8daa20e150f2f7cb43`、Info.plist 0.50.25/152/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag152/OneDay-0.50.25-diag152.ipa。不合 main（待 152 真机判绿后随 0.50.26 去诊断版处理）。
+- **152 CI 与验包（同日补记）**：代码提交 2949ceb＋取证关定位器修 59376c6；三轮 CI（43347064580／43348878817／43351271135）构建/打包/上传全过、**全场零断言失败**。§194 相关测试实测：testKeyboardNotifications 三轮全过（机制本体确定性绿证）；testHitRouting 首轮死于胶囊定位器落空（本人测试缺陷、已按组装关一同源口径修）、后两轮全过；testAnchoredBarsSurviveGrowthAndFramePollution 与静止几何/透传组全过（几何口径零回退）。未结项：组装真键盘测试 testKeyboardUpMovesComposerOnlyDockStays 三轮均在执行中被测试进程看门狗掐死（started 无结果、进程重启），死亡集三轮完全一致——同集另三条（探针 BoldAX/RealDeviceCombo 两场景＋抽屉动画测试）为 §184 flake 在案成员（§193 v2 轮已同型死亡两条）、本轮零断言失败，故判基建 flake 而非本改动回归，治本归 flake 线（fix/drawer-flake）；该测试的真键盘全链由真机自述 kb 数字链替代验收（本系列一贯口径：模拟器绿仅作无回退参考、判绿只认真机）。IPA 取第二轮产物验真：11,010,080 字节、md5 `23e3963a48c9ff8daa20e150f2f7cb43`、Info.plist 0.50.25/152/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag152/OneDay-0.50.25-diag152.ipa。不合 main（待 152 真机判绿后随 0.50.26 去诊断版处理）。
 
 ## §195 栏位病第六轮：键盘落定帧顶簇上移急修——顶簇锚定托管（2026-11-13；诊断分支 hotfix/05025-bars2 续作，不合 main）
 - **152 真机判读（先分清对错）**：§194 键盘跟随判绿——[kbShow] 舱底 545＝kbTopWin 545 分毫不差（用户截图亦见输入框贴键盘上沿），§194 手工常数机制成立、不许推翻；静息与 [kbHideSettled] 几何全数复原（pocket 62／帧 729／guide 791／adjTop 122），抽屉态正常。**新缺陷只在 [kbShowSettled] 落定帧**：pocket 62→13、composerVC=(0,13,402x580)（底 593≠545）、surface=(0,13,402x580) safe=(13,0,280,0)、composerVC safe top 0→48、chatScroll adjTop 122→73、adjBottom 617；kb 常数仍 483、kbTopWin 仍 545。用户亲定验收口径（10:42）：大厂标准就是顶栏固定不动——顶簇纵坐标在任何帧（静息/kbShow/kbShowSettled/kbHide/抽屉）恒为 62，动 1pt 不算过；结构上顶簇位置只由窗口顶部安全区决定，与输入舱那张会被重算的 surface、与坞、与键盘彻底脱钩，不许只在 surface 顶边补常量。
@@ -11092,7 +11092,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 - **修法（断链＋锚定，与底缘同式，用户口径落地）**：①顶簇（顶栏＋进展胶囊，内容一字未动）退出 `.safeAreaBar(edge: .top)` 注册，迁入新锚定宿主 **TopBarGuideHost**（挂 chatSurface 复合面 overlay、与输入舱同层同式、互不承载）：控制器以自有 topGuide 单约束钉顶簇宿主顶边，常量唯一计算点 syncTopConstant＝窗口顶安全区实测 − 本视图布局空间顶边，逐布局拍重算——SwiftUI 再把宿主帧挪到哪，常量补偿后顶簇窗口落点恒 62（§194 舱在 152 落定帧的自纠即同式真机前证）；宿主不订阅任何键盘/坞信号，脱钩是构造性的；透传根视图只放行顶簇实帧内的命中，列表滚动/点空白收键盘照常。顶簇高走 fixedSize 自认＋onGeometryChange 实测回报定高（种子 60），不经任何 sizing 通道（§191 纪律）。②列表顶缘同式收口：`.ignoresSafeArea(edges: .top)` 断顶传播，顶留位改走 `.contentMargins(.top, windowTopSafeInset + topBarHeight)` 一处记账（窗口顶安全区由 ComposerGuideHost 布局拍回报、顶簇实高由 TopBarGuideHost 回报；ChatView 状态种子＝窗口同步读/62 与 60）。③自述 pocket 定位换代：VC 树找 TopBarGuideHostController、报其宿主视图帧；elements 改数簇内玻璃交互视图（两端玻璃钮 2 个为活——胶囊背板玻璃按 §179 不生成交互视图，旧 ScrollPocket 元素口径 3 就此作废）。
 - **测试**：组装关一收紧——pocket.minY 恒等测试窗顶安全区（覆写 59，accuracy 1）、元素口径改玻璃视图 ≥2、adjTop 仍 110–130（新口径实值 119）；新增**关六 testTopClusterImmuneToPropagatedSafeAreaTheft**——根宿主 additionalSafeAreaInsets.top=−49 模拟落定偷位，断言 pocket 纵坐标与 adjTop 与基线逐点一致（锁「传播变化带不走顶簇」的结构不变量；真机落定帧终判仍以 153 自述为准）；关五③胶囊定位改几何推导（左玻璃钮右缘与顶簇中点的中点，必落居中胶囊左半身份域）；探针测试 pocket 落点/元素口径同步换代；ComposerGuideHostTests 替身补 topSafe 通道。IdentityCapsuleHitDomainTests 的自备脚手架仍用 safeAreaBar 复刻旧托管形态——其测的是胶囊域内命中、与生产托管已不同构，口径归胶囊线收（本分支未动该文件）。
 - **153 验证构建**：0.50.25/153（分支 hotfix/05025-bars2）。真机验收口径：装 153 → 点输入框 → 等落定（>1s）看顶簇仍贴 62 不叠状态栏 → 回传自述，判绿看 kbShow 与 kbShowSettled 两帧 pocket 均 =(0,62)、舱底均 ＝kbTopWin、kbHide 两帧静息几何分毫不差（pocket 62／帧 729／guide 791／adjTop 122）；negot 风暴下顶簇不漂（老判据全套保留）。§194 常数链未动。
-- **153 CI 与验包（同日补记）**：代码提交 8be384d；CI 一轮（43355417112）构建/打包/上传全过、**全日志断言失败 0 条**。§195 相关测试实测：组装关一（pocket.minY 恒等窗口顶安全区＋新元素口径＋adjTop 带）过、**关六 testTopClusterImmuneToPropagatedSafeAreaTheft 过**（传播偷位 −49 下顶簇与 adjTop 逐点不动）、关五 testHitRouting 过（新几何定位）、testAnchoredBarsSurviveGrowthAndFramePollution 过、ComposerGuideHostTests 全过（含 testKeyboardNotifications）；探针场景 SceneWindow/RealDeviceCombo/Dark/BoldAX 四场景过。未结项：testKeyboardUpMovesComposerOnlyDockStays 与探针 Baseline/LongThread 两场景、DrawerContainerControllerTests.testAnimatedClose（中途死亡后重跑过）四条在执行中被测试进程看门狗掐死（均 started 无结果、进程重启、零断言失败）——死亡集与 §184 flake 家族一致（成员在重型整页组装簇内轮换，152 三轮同型），判基建 flake 而非本改动回归，治本归 flake 线；真机终判以 153 自述 kbShowSettled 帧为准（本系列一贯口径）。IPA 验真：11,019,964 字节、md5 `9beeaa0b9eb347c935c72a205f805878`、Info.plist 0.50.25/153/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag153/OneDay-0.50.25-diag153.ipa。不合 main（待 153 真机判绿后随 0.50.26 去诊断版处理）。
+- **153 CI 与验包（同日补记）**：代码提交 8be384d；CI 一轮（43355417112）构建/打包/上传全过、**全日志断言失败 0 条**。§195 相关测试实测：组装关一（pocket.minY 恒等窗口顶安全区＋新元素口径＋adjTop 带）过、**关六 testTopClusterImmuneToPropagatedSafeAreaTheft 过**（传播偷位 −49 下顶簇与 adjTop 逐点不动）、关五 testHitRouting 过（新几何定位）、testAnchoredBarsSurviveGrowthAndFramePollution 过、ComposerGuideHostTests 全过（含 testKeyboardNotifications）；探针场景 SceneWindow/RealDeviceCombo/Dark/BoldAX 四场景过。未结项：testKeyboardUpMovesComposerOnlyDockStays 与探针 Baseline/LongThread 两场景、DrawerContainerControllerTests.testAnimatedClose（中途死亡后重跑过）四条在执行中被测试进程看门狗掐死（均 started 无结果、进程重启、零断言失败）——死亡集与 §184 flake 家族一致（成员在重型整页组装簇内轮换，152 三轮同型），判基建 flake 而非本改动回归，治本归 flake 线；真机终判以 153 自述 kbShowSettled 帧为准（本系列一贯口径）。IPA 验真：11,019,964 字节、md5 `9beeaa0b9eb347c935c72a205f805878`、Info.plist 0.50.25/153/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.25-diag153/OneDay-0.50.25-diag153.ipa。不合 main（待 153 真机判绿后随 0.50.26 去诊断版处理）。
 
 ## §196 发版总账：0.50.26/154——栏位案结案＋胶囊症二修复（2026-11-13；rel/05026 独立 worktree 组版，基线 main 8ac6193）
 
@@ -11108,7 +11108,7 @@ Codex 复核四条：两条 CI 可修（本节 A/B）、一条文档口径（本
 - **CI（run 43358810361，head 911422e，workflow_dispatch 于 rel/05026）**：Build／Package／Upload 三步 success；Unit tests 步 conclusion=failure，**唯一失败源＝ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays 被测试进程看门狗掐死**（03:50:36 started 后无结果行、日志有 "Restarting after unexpected exit, crash, or test timeout"，xcodebuild 终表列其为唯一 failing test）——§184 flake 家族签名与 152 三轮／153 同型（全链真键盘测试、started 无结果、进程重启），**全日志断言失败 0 条**，判基建 flake 非本版回归，治本仍归 flake 线；该测试的真键盘全链由真机自述数字链替代验收（本系列一贯口径）。
 - **单测对账（日志逐项点名）**：Core **1684 全过**（与 bars2 线基线逐字相等、≥ main 的 1679，无减少）；App 静态 55＝**41 过＋13 skip＋1 flake 死亡**——13 skip 全为胶囊线证据轮预置 XCTSkip（CapsuleHitTestScenarios 8＋PresentationLayerScenarios 5，在案设计、分支 CI 同口径）；退役六场景后 ChatPageDeviceConditionProbeTests 仅剩锚定不变量关且整套 passed；UI **2 全过**（CapsuleTapDispatchUITests 双臂、日志 VERDICT=PASS）。§196 去诊断的减测仅此六场景一处，与本账吻合。
 - **§195 在案事项结案**：IdentityCapsuleHitDomainTests 合并后 **passed**——safeAreaBar 脚手架未与生产 TopBarGuideHost 托管冲突出红，本版无需最小收口；脚手架与生产托管不同构一节仍按 §195 口径归胶囊线后续收口，不阻本版。
-- **验包**：**10,986,878 字节、md5 `ce104c90a558058619cd13e6cfe175a7`**、Info.plist 0.50.26/154/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.26/OneDay-0.50.26.ipa。分支 rel/05026 留置：未打 tag、未合回 main，待主线独立验包与令。
+- **验包**：**10,986,878 字节、md5 `ce104c90a558058619cd13e6cfe175a7`**、Info.plist 0.50.26/154/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.26/OneDay-0.50.26.ipa。分支 rel/05026 留置：未打 tag、未合回 main，待主线独立验包与令。
 ## §197 设备会话状态机补全：在线重注册迁会话＋在线旗标派生＋回执失败落痕（2026-11-13；分支 fix/device-session-machine，基线 main 8ac6193／0.50.22 定版顶端，只交分支不合并——待 0.50.26 入 main 后由主线并轨入下版；节号自选 §181，合并时顺延为 §197）
 
 ### 197.1 定因（诊断 device-bridge-realtime-diag-20261113.md，服务器日志实证）
@@ -11236,7 +11236,7 @@ Core 新增两法（DeviceCallsTests）：`testSessionReregisterWhileActiveMigra
 ### §201 发版补记（同日，出包）
 - **合 main 与 tag**：rel-05027 快进合入本地 main 后，push 时发现 origin/main 已被 tmate 调试线推进（5 提交、仅 .github/workflows/debug-mac.yml、基 b19a155）——并轨合并 043ec0b（两线并存、无改写历史）后 push 成功，main 头回读 043ec0b；打 annotated tag **v0.50.27** 于 043ec0b 并 push。
 - **发版构建（run 43376388284，main push 触发，仅此一次）**：Package／Upload success、artifact 在架；断言失败 **0**、Core **1698 全过**；Failing 两条仍为 §184 在案无断言进程死亡（键盘真崩＋DrawerContainerController 关闭动画一条——止血包 §199.4 已同签名在案；本轮 barGrowth 存活、死亡席位在同族内轮换，方差与台账一致），无新红。
-- **验包**：**11,024,687 字节、md5 `a762ce9d411ded37c7306431a20584c9`**、Info.plist 0.50.27/155/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.27/OneDay-0.50.27.ipa。真机待验按 §201 总清单四组执行。
+- **验包**：**11,024,687 字节、md5 `a762ce9d411ded37c7306431a20584c9`**、Info.plist 0.50.27/155/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.27/OneDay-0.50.27.ipa。真机待验按 §201 总清单四组执行。
 ## §202 胶囊路线 B 定案：一胶囊一动作＋枢纽独立头像钮（2026-11-13；分支 feat/capsule-single-action，基线 main 0494f7d，只交分支不合并、不出包——完工回报主线组版；0.50.28 装配顺延 §198→§202）
 
 ### 202.1 定案与退役
@@ -11340,7 +11340,7 @@ Core 新增钉测 16（SessionClassificationTests ＋5：R3b 收养/序位压 R4
 ### §205 发版补记（同日，出包）
 - **合 main 与 tag**：rel-05028 快进合入 main（origin/main 未被其他线推进、无并轨），main 头 62ecb60；打 annotated tag **v0.50.28** 于 62ecb60 并 push。
 - **发版构建（run 43388360888，main push 触发，仅此一次）**：Package／Upload success、artifact 在架；断言失败 **0**、Core **1721 全过**；Failing 仅 `testKeyboardUpMovesComposerOnlyDockStays` 一条（§184 键盘在案真崩；装配轮的 Drawer 族那条本轮存活，同族席位轮换与台账一致），无新红。
-- **验包**：**11,073,402 字节、md5 `54c689d363ac11eaaf3d8f9064a69251`**、Info.plist 0.50.28/156/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.28/OneDay-0.50.28.ipa。真机待验按 §205 总清单三组执行。
+- **验包**：**11,073,402 字节、md5 `54c689d363ac11eaaf3d8f9064a69251`**、Info.plist 0.50.28/156/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.28/OneDay-0.50.28.ipa。真机待验按 §205 总清单三组执行。
 
 ## §202 抽屉边缘互补几何修复（2026-11-13；分支 fix/drawer-edge-geometry，基线 main 6a14792／0.50.27 定版顶端，只交分支不合并、不发版；立项＝用户 14:56 真机截图点名「人家是互补的、咱们的是直的」，规格源＝聊天页三题调研 chat-surface-selection-research-20261113.md 题三定案 K1–K4）
 
@@ -11399,11 +11399,11 @@ Core 新增钉测 16（SessionClassificationTests ＋5：R3b 收养/序位压 R4
 
 ### §206.4 出包补记（暂存，未发版）
 - 版本号五处同改 0.50.29/157＋grep 验净（提交 300d1f9）。
-- 验包（attempt 2 artifact 14028623836）：**11,118,220 字节、md5 `585aeff123378364efa5a1bdbcba080f`**、Info.plist 0.50.29/157/site.didichou.oneday，落 ~/workspace/your_files/oneday-v0.50.29/OneDay-0.50.29.ipa。
+- 验包（attempt 2 artifact 14028623836）：**11,118,220 字节、md5 `585aeff123378364efa5a1bdbcba080f`**、Info.plist 0.50.29/157/com.example.oneday，落 ~/workspace/your_files/oneday-v0.50.29/OneDay-0.50.29.ipa。
 - **未打 tag、未合 main**：等用户点头后由主线合 main＋打 annotated tag v0.50.29 并触发发版构建（仅此一次）。发版报告：release-05029-assembly-20261113.md。
 - 真机待验：枢纽首开（页头在顶/✕ 可关/单行入口/滚到底段/双影残项/深色＋AX 各一帧）、旁聊存量「爱的定义」自动归位＋新开即时入区＋回响卡点达、改名四面变「三狗」＋头像 paw、抽屉四角并排对照、设置不收回、手感三验（回底弹簧/点子按压/批量删除落锤）。
 
 ### §206.5 发版补记（2026-11-13 晚，用户 18:59 批准正式发版）
 - 合 main：rel/05029 快进 a438fdd→**30b4fc4** 并 push（ls-remote 回读一致）；annotated tag **v0.50.29**（对象 350b06b）指向 30b4fc4、已 push 回读。
 - 发版构建仅触发一次：main push 自动起 run **43413635412**（event=push、head 30b4fc4、未另行 dispatch），终局名义 failure。§190 判读：全日志断言失败 **0 条**（`Test Case.*failed` 零命中、XCTAssert 命中皆源码回显、无 Suite failed）；Core **1754 tests, 0 failures** 对账精确；HUB-LAYOUT-VERDICT=PASS、派发门 VERDICT=PASS。exit 65 唯一来源＝§184 在案静默死亡 3 起、宿主重启 3 次逐一起点对位——`testKeyboardUpMovesComposerOnlyDockStays`（11:14:54 起／11:15:30 重启）、`testBarGrowth_topRisesBottomPinned`（11:15:42 起／11:16:27 重启；三指认在案、本轮游走命中，装配 attempt 1 中其为 passed）、`testAnimatedCloseKeepsContentUntouchableUntilSettled`（11:16:46 起／11:17:09 重启）；三者皆 started 无裁决。**按 §190 判绿、发版成立，不重触发构建。**
-- 正式验包（run 43413635412 artifact）：**11,118,217 字节、md5 `c94ea093eb82413c12f0873805c09446`**、Info.plist 0.50.29/157/site.didichou.oneday。与暂存包对账：IPA 容器差 3 字节（zip 元数据），**主二进制 38,425,328 字节、md5 `5c69d34e03ec7eb79d12b923115ed35d` 两包逐字相同**、Payload 文件清单 17 件全同——正式包与暂存包同码。正式包落 ~/workspace/your_files/oneday-v0.50.29/OneDay-0.50.29.ipa；暂存包改名 OneDay-0.50.29-assembly-staged.ipa 并存备查。真机待验同 §206.4 末行，随装机执行。
+- 正式验包（run 43413635412 artifact）：**11,118,217 字节、md5 `c94ea093eb82413c12f0873805c09446`**、Info.plist 0.50.29/157/com.example.oneday。与暂存包对账：IPA 容器差 3 字节（zip 元数据），**主二进制 38,425,328 字节、md5 `5c69d34e03ec7eb79d12b923115ed35d` 两包逐字相同**、Payload 文件清单 17 件全同——正式包与暂存包同码。正式包落 ~/workspace/your_files/oneday-v0.50.29/OneDay-0.50.29.ipa；暂存包改名 OneDay-0.50.29-assembly-staged.ipa 并存备查。真机待验同 §206.4 末行，随装机执行。

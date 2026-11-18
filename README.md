@@ -1,11 +1,13 @@
 # OneDay
 
+> This project is no longer maintained by the original author and is open for community maintenance.
+
 自托管 Hermes Agent 的全功能 iOS 客户端。用户在 App 内填入自己的
 Hermes 服务器地址、面板账号与 API 密钥即可连接；聊天与状态走
 服务端 API，管理功能分里程碑逐个点亮。
 
 - 平台：原生 iOS（Swift 6 + SwiftUI，下限 iOS 26），Tuist 工程
-- Bundle id：site.didichou.oneday
+- Bundle id：com.example.oneday
 - 设计：礼记设计语言移植（纸墨为体、玻璃为用），主色腾讯蓝 #0052D9
 - 服务端要求：Hermes v0.23.0（接口面按此版实测对接，见 docs/API-SURFACE.md）
 

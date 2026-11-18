@@ -1,6 +1,6 @@
 # 里程碑 2 接口摸排（2026-11-08 晚，Hermes v0.23.0 实测）
 
-方法：POST /auth/password-login 拿会话 cookie 后逐个探路。基址 https://hermes.didichou.site（Dashboard :9119）。
+方法：POST /auth/password-login 拿会话 cookie 后逐个探路。基址 https://your-hermes.example.com（Dashboard :9119）。
 
 ## 已确认存在（登录后 200）
 - GET /api/cron/jobs → 裸数组（当前 []）；定时任务管理走这里（CRUD 方法待里程碑 2 写操作时逐项验）

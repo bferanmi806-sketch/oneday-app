@@ -63,24 +63,24 @@ final class AgentProfileTests: XCTestCase {
     func testHostExtractionStripsEverythingButHost() {
         XCTAssertEqual(
             AgentServerHost.extract(
-                from: "https://user:secret@hermes.didichou.site:8443/v1?key=abc"
+                from: "https://user:secret@your-hermes.example.com:8443/v1?key=abc"
             ),
-            "hermes.didichou.site"
+            "your-hermes.example.com"
         )
         XCTAssertEqual(
-            AgentServerHost.extract(from: "https://hermes.didichou.site"),
-            "hermes.didichou.site"
+            AgentServerHost.extract(from: "https://your-hermes.example.com"),
+            "your-hermes.example.com"
         )
         XCTAssertEqual(
-            AgentServerHost.extract(from: "http://118.24.41.52:8642"),
-            "118.24.41.52"
+            AgentServerHost.extract(from: "http://203.0.113.10:8642"),
+            "203.0.113.10"
         )
     }
 
     func testHostExtractionSchemelessAndGarbage() {
         XCTAssertEqual(
-            AgentServerHost.extract(from: "hermes.didichou.site"),
-            "hermes.didichou.site"
+            AgentServerHost.extract(from: "your-hermes.example.com"),
+            "your-hermes.example.com"
         )
         XCTAssertNil(AgentServerHost.extract(from: nil))
         XCTAssertNil(AgentServerHost.extract(from: ""))
@@ -91,8 +91,8 @@ final class AgentProfileTests: XCTestCase {
 
     func testShareCardTextShape() {
         XCTAssertEqual(
-            AgentShareCardText.make(name: "三狗", host: "hermes.didichou.site"),
-            "三狗 · hermes.didichou.site"
+            AgentShareCardText.make(name: "三狗", host: "your-hermes.example.com"),
+            "三狗 · your-hermes.example.com"
         )
         XCTAssertEqual(
             AgentShareCardText.make(name: "三狗", host: nil),

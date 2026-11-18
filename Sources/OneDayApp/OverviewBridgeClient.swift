@@ -12,7 +12,7 @@ enum OverviewBridgeError: Error, Sendable, Equatable {
 }
 
 /// 总览桥客户端（0.6.0 一期，冻结契约）：路径挂在当前
-/// 服务器根下（默认 https://hermes.didichou.site 的
+/// 服务器根下（默认 https://your-hermes.example.com 的
 /// /api/overview-bridge，与桥部署口径一致；用户改址后
 /// 桥随服务器走）。Bearer 只从 Keychain 的
 /// BridgeCredential 统一读（0.33.1：聊天同一份
