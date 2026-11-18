@@ -190,6 +190,125 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         )
     }
 
+    /// §330 流式工况（定因报告题 1 验收口径：双
+    /// 击/长按必须在流式进行中验、静态绿不算数）。
+    /// 演示发送流逐字产出定稿回复（约 14 秒）：
+    /// 流式开始后对正在生长的回复正文双击→须出
+    /// 编辑菜单、不出整行菜单；随后对同行气泡右
+    /// 带长按→须出整行菜单。时序注记：本机执行
+    /// 若慢、长按落点时流式已收尾，该断言退化为
+    /// 静态长按——流式终判仍归真机照单验（交卷
+    /// 清单在案）；本册在 CI 属基线红族（AX 环境
+    /// 无有效信号），本件为真机/本地备查而落
+    func testStreamingDoubleTapSelectsAndLongPressShowsMenu()
+        throws
+    {
+        let app = launchDemoApp()
+        openSeededThread(in: app)
+        // 发送前基线：种子会话内同文回复的既有数
+        // （发送后以「新增一条」认定流式回复在途）
+        let baseline = streamingMatches(
+            in: app, needle: "构建全绿"
+        ).count
+        // 唤起输入舱：占位字坐标点透到文本视图
+        let placeholder = app.staticTexts["发消息…"]
+        XCTAssertTrue(
+            placeholder.waitForExistence(timeout: 10),
+            "输入舱占位字未出现"
+        )
+        let fieldFrame = placeholder.frame
+        app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0, dy: 0)
+        ).coordinate(
+            withOffset: CGVector(
+                dx: fieldFrame.midX, dy: fieldFrame.midY
+            )
+        ).tap()
+        Thread.sleep(forTimeInterval: 0.6)
+        app.typeText("在吗")
+        let send = app.buttons["发送"]
+        XCTAssertTrue(
+            send.waitForExistence(timeout: 5),
+            "发送钮未出现"
+        )
+        send.tap()
+        // 流式在途证据：同文回复新增一条（生长中
+        // 的前缀即含针文）
+        let reply = try XCTUnwrap(
+            waitStreamingReply(
+                in: app, needle: "构建全绿",
+                baselineCount: baseline, timeout: 12
+            ),
+            "流式回复未在 12 秒内开始产出"
+        )
+        // 流式中双击正文→选字＋编辑菜单
+        reply.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)
+        ).doubleTap()
+        assertEditMenuShown(in: app)
+        assertRowMenuAbsent(in: app)
+        dismissMenus(in: app)
+        // 流式中长按气泡右带（文本帧右缘外 8pt，
+        // 与边距带件的右带同点法）→整行菜单
+        let fresh = try XCTUnwrap(
+            streamingMatches(
+                in: app, needle: "构建全绿"
+            ).last,
+            "流式回复元素丢失"
+        )
+        let point = fresh.coordinate(
+            withNormalizedOffset: CGVector(dx: 1, dy: 0.5)
+        ).withOffset(CGVector(dx: 8, dy: 0))
+        point.press(forDuration: 1.5)
+        XCTAssertTrue(
+            pollRowMenu(in: app, timeout: 5),
+            "流式进行中长按气泡边距带须出整行菜单；"
+                + "当时按钮树：" + treeSnapshot(in: app)
+        )
+    }
+
+    /// 正文值匹配（与 textView(matching:) 同整形
+    /// 口径）：剥整形字符后 CONTAINS 针文的元素集
+    private func streamingMatches(
+        in app: XCUIApplication, needle: String
+    ) -> [XCUIElement] {
+        candidateElements(in: app).filter { element in
+            let raw = (element.value as? String)
+                ?? element.label
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            return stripped.contains(needle)
+        }
+    }
+
+    /// 等流式回复出现：匹配数超过发送前基线即认
+    /// 在途、返回新增的那条（集内末位）
+    private func waitStreamingReply(
+        in app: XCUIApplication, needle: String,
+        baselineCount: Int, timeout: TimeInterval
+    ) -> XCUIElement? {
+        let deadline = Date()
+            .addingTimeInterval(timeout)
+        while Date() < deadline {
+            let matches = streamingMatches(
+                in: app, needle: needle
+            )
+            if matches.count > baselineCount {
+                return matches.last
+            }
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        return nil
+    }
+
     // MARK: - 装配与查找
 
     private func launchDemoApp() -> XCUIApplication {

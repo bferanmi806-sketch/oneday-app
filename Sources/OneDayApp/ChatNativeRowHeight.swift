@@ -320,6 +320,328 @@ struct ChatNativeRowHeightComposer {
         return value
     }
 
+    // MARK: - 整行高备忘（§330 题 3 interim）
+
+    /// 整行备忘（0.50.70 热修 §330，题 3 interim）：
+    /// §329 后每次 ChatView body 求值都全表逐行同
+    /// 步重算行高，未被文本备忘覆盖的 facet（表格
+    /// 逐格自然宽/工具卡详情字段/审批卡逐项/文件
+    /// 牌名/交付卡）走真实 TextKit 量测——长会话滚
+    /// 动卡顿的实测主因（定因见 hotfix-05070-
+    /// diagnosis 题 3）。本层在行入口加整行备忘：
+    /// 键＝行修订摘要（ChatNativeRowRevision 结构
+    /// 化派生，与重配判据同源）＋环境指纹（宽/字
+    /// 阶/粗体/缩放/智能体名）＋facet 状态摘要（修
+    /// 订之外的高度输入逐项折入：账本展开覆盖与
+    /// 审批详情四态、宿主审批锚态/备注/裁决中、交
+    /// 付 meta 与封面缓存态、文件存在性与元数据、
+    /// 本地图解码态、回响时刻的日界），跨 body 求
+    /// 值留存（静态缓存），O(1) 命中即整行跳过。
+    /// 根治（量测异步预排版）随根治版，本层只做
+    /// interim 减负、公式本体一字不动
+    private static let rowCache: NSCache<
+        NSString, NSNumber
+    > = {
+        let cache = NSCache<NSString, NSNumber>()
+        cache.countLimit = 1024
+        return cache
+    }()
+
+    /// 整行实算普查计数（测试读口，与 §329 布局
+    /// 匣计数口同式：生产路径只多一次计数、无行
+    /// 为影响）：备忘未命中而真算一行的次数——滚
+    /// 动稳态下同修订同环境的行入口应全命中、本
+    /// 计数不涨
+    private(set) static var rowComputationCount = 0
+
+    static func resetRowComputationCount() {
+        rowComputationCount = 0
+    }
+
+    /// 环境指纹：合成器构造口径中影响高的全体
+    /// （宽经 LayoutProductKey 量化、与文本备忘
+    /// 同口径）
+    private var environmentFingerprint: String {
+        "w\(LayoutProductKey.quantizedWidth(Double(contentWidth)))"
+            + "|aw\(LayoutProductKey.quantizedWidth(Double(assistantTextWidth)))"
+            + "|\(sizeCategory.rawValue)"
+            + "|\(boldText ? "b" : "r")"
+            + "|s\(displayScale)"
+            + "|n\(LayoutProductKey.fnv1a(agentDisplayName))"
+    }
+
+    private func rowMemo(
+        _ key: String, _ compute: () -> CGFloat
+    ) -> CGFloat {
+        let nsKey = key as NSString
+        if let hit = Self.rowCache.object(forKey: nsKey) {
+            return CGFloat(hit.doubleValue)
+        }
+        Self.rowComputationCount += 1
+        let value = compute()
+        Self.rowCache.setObject(
+            NSNumber(value: Double(value)), forKey: nsKey
+        )
+        return value
+    }
+
+    /// 修订摘要：ChatNativeRowRevision 的 parts
+    /// 逐项 FNV-1a 折算（值清单→定长摘要；比较口
+    /// 径与修订的 Equatable 逐值比较等价——摘要
+    /// 只作备忘键、碰撞概率可忽略且碰撞后果仅是
+    /// 一行高取错值，与文本备忘的 fnv 键同险同级）
+    private static func revisionDigest(
+        _ revision: ChatNativeRowRevision
+    ) -> String {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        func mix(_ value: UInt64) {
+            hash ^= value
+            hash &*= 0x0000_0100_0000_01b3
+        }
+        for part in revision.parts {
+            switch part {
+            case .text(let string):
+                mix(0x1)
+                mix(LayoutProductKey.fnv1a(string))
+            case .data(let data):
+                mix(0x2)
+                mix(fnv1a(data))
+            case .flag(let flag):
+                mix(flag ? 0x31 : 0x30)
+            case .count(let count):
+                mix(UInt64(bitPattern: Int64(count)))
+            case .real(let real):
+                mix(real.bitPattern)
+            }
+        }
+        return "\(hash)"
+    }
+
+    private static func fnv1a(_ data: Data) -> UInt64 {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in data {
+            hash ^= UInt64(byte)
+            hash &*= 0x0000_0100_0000_01b3
+        }
+        return hash
+    }
+
+    private static func encodeDigest<T: Encodable>(
+        _ value: T
+    ) -> String {
+        guard let data = try? JSONEncoder()
+            .encode(value)
+        else { return "encfail" }
+        return "\(fnv1a(data))"
+    }
+
+    private static func boolDigest(
+        _ value: Bool?
+    ) -> String {
+        value.map { $0 ? "1" : "0" } ?? "-"
+    }
+
+    /// 审批详情四态摘要（合成读的全体：展开/加载
+    /// 态＋详情的注意行/原文失效位/diff 全文＋错
+    /// 误文案）
+    private func approvalDetailDigest(
+        _ recordID: String
+    ) -> String {
+        let state = ledger.approvalDetail(for: recordID)
+        var parts = [
+            "x\(state.expanded ? "1" : "0")",
+            "l\(state.loading ? "1" : "0")",
+            "e\(state.error.map { "\(LayoutProductKey.fnv1a($0))" } ?? "-")",
+        ]
+        if let detail = state.detail {
+            var detailParts = detail.review.noteLabels
+                .map { "\(LayoutProductKey.fnv1a($0))" }
+            detailParts.append(
+                "o\(detail.review.requestedOldString != nil ? "1" : "0")"
+            )
+            detailParts.append(
+                "d\(LayoutProductKey.fnv1a(detail.review.displayDiff))"
+            )
+            parts.append(
+                "D\(detailParts.joined(separator: ","))"
+            )
+        } else {
+            parts.append("D-")
+        }
+        return parts.joined(separator: "|")
+    }
+
+    /// 审批记录本体摘要（卡面合成读的全体：问句/
+    /// 原因行派生文案＋可裁决/阻断位＋备注＋裁决
+    /// 中——记录其余字段不入高）
+    private func approvalRecordDigest(
+        _ record: WriteGateRecord
+    ) -> String {
+        "q\(LayoutProductKey.fnv1a(ApprovalCardCopy.question(for: record)))"
+            + "|r\(ApprovalCardCopy.reasonLine(for: record).map { "\(LayoutProductKey.fnv1a($0))" } ?? "-")"
+            + "|c\(record.canDecide ? "1" : "0")"
+            + "|b\(record.isBlocked ? "1" : "0")"
+            + "|n\(hubStore.cardNotes[record.id].map { "\(LayoutProductKey.fnv1a($0))" } ?? "-")"
+            + "|d\(hubStore.decidingIDs.contains(record.id) ? "1" : "0")"
+    }
+
+    /// 文件状态摘要（牌/图/交付合成读的全体：存
+    /// 在性＋元数据大小——牌面副行与菜单在席判定
+    /// 的输入）
+    private func fileStateDigest(
+        _ path: String
+    ) -> String {
+        let existence = FileMetadataStore.shared
+            .existence(for: path)
+        let size = FileMetadataStore.shared
+            .metadata(for: path)?.size
+        return "\(existence)|\(size.map(String.init) ?? "-")"
+    }
+
+    /// 交付 meta 摘要（交付合成读的全体：未到/
+    /// 查无/已载三态；已载折状态/种类/名/大小＋
+    /// 封面三路缓存态）
+    private func deliveryMetaDigest(
+        _ id: String
+    ) -> String {
+        switch DeliveryStore.shared.metaResult(for: id) {
+        case nil:
+            return "nil"
+        case .notFound:
+            return "nf"
+        case .loaded(let meta):
+            let synthetic = WorkspaceFileEntry(
+                name: meta.name, path: meta.path,
+                isDirectory: false, size: meta.size,
+                mtime: nil, mimeType: meta.mime
+            )
+            return "ld\(meta.status)"
+                + "|\(meta.kind)"
+                + "|\(LayoutProductKey.fnv1a(meta.name))"
+                + "|\(meta.size.map(String.init) ?? "-")"
+                + "|c\(meta.cover.cover ? "1" : "0")"
+                + "|ci\(DeliveryStore.shared.hasCachedImage(id: meta.id, variant: .cover) ? "1" : "0")"
+                + "|th\(FileThumbnailStore.shared.hasCachedThumbnail(for: synthetic, targetPixelSize: 720) ? "1" : "0")"
+        }
+    }
+
+    /// 条目行 facet 状态摘要：修订之外的高度输入
+    /// 逐项折入（账本两键/审批锚全态/交付与文件
+    /// 状态/本地图解码/回响日界）——摘要的每一项
+    /// 都对应 entryHeight 家族的一处外部读，漏折
+    /// 一项即旧高残留、与 §325 修订漏折同病，故
+    /// 逐项按合成读点对账列全
+    private func entryFacetDigest(
+        _ entry: ChatEntry
+    ) -> String {
+        var parts: [String] = []
+        parts.append(
+            "rx\(Self.boolDigest(ledger.expansionOverride(for: ChatRowStateKeys.reasoningEntry(entry.id))))"
+        )
+        parts.append(
+            "tx\(Self.boolDigest(ledger.expansionOverride(for: ChatRowStateKeys.toolEntry(entry.id))))"
+        )
+        if entry.traceKey != nil {
+            // 回响时刻文案随日界变宽（今天只时刻、
+            // 跨日带月日）：折当日判定
+            parts.append(
+                "td\(Calendar.current.isDateInToday(entry.createdAt) ? "1" : "0")"
+            )
+        }
+        if entry.approvalKey != nil {
+            let recordID = ApprovalAnchor.recordID(
+                fromKey: entry.approvalKey ?? ""
+            ) ?? ""
+            parts.append(
+                "apd\(approvalDetailDigest(recordID))"
+            )
+            switch hubStore.anchorRowState(
+                recordID: recordID
+            ) {
+            case .pending(let record):
+                parts.append(
+                    "app\(approvalRecordDigest(record))"
+                )
+            case .decided:
+                parts.append("apDecided")
+            case .stale:
+                parts.append("apStale")
+            case .loading:
+                parts.append("apLoading")
+            }
+        }
+        if entry.role == "user" {
+            if !entry.allImageDatas.isEmpty {
+                // 本地图行：任一解出即出卡（与合成
+                // 同判）
+                let decoded = entry.allImageDatas
+                    .indices.contains { index in
+                        LocalImageDecodeCache.shared
+                            .image(
+                                entryID: entry.id,
+                                index: index,
+                                data: entry.allImageDatas[
+                                    index
+                                ]
+                            ) != nil
+                    }
+                parts.append("li\(decoded ? "1" : "0")")
+            }
+            for rawPath in entry.remoteFilePaths {
+                let split = FileLineAnchor.split(
+                    pathWithAnchor: rawPath
+                )
+                parts.append(
+                    "rf\(LayoutProductKey.fnv1a(split.path))=\(fileStateDigest(split.path))"
+                )
+            }
+        } else {
+            // 助手行：派生扫描与合成同源（EntryScan-
+            // Memo 备忘在席、此处只多一趟缓存读）；
+            // 存在性/交付态逐路径/逐 id 折入——disp-
+            // layText 的剥离集与各图/牌/交付槽高都
+            // 由这批状态决定
+            let scans = EntryScanMemo.scans(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            )
+            for deliveryID in scans.delivery.deliveryIDs {
+                parts.append(
+                    "dl\(deliveryID)=\(deliveryMetaDigest(deliveryID))"
+                )
+            }
+            var paths = Set<String>()
+            paths.formUnion(scans.media.imagePaths)
+            paths.formUnion(
+                scans.inlineCandidates.map(\.path)
+            )
+            paths.formUnion(scans.standalonePaths)
+            let wholePathRef = FileRefDetector
+                .wholeMessagePath(in: scans.media.text)
+            if let wholePathRef {
+                paths.insert(wholePathRef.path)
+            }
+            let fileRefs = FileRefDetector
+                .detectStandaloneAnchored(
+                    in: entry.content,
+                    excluding: entry.remoteImagePaths
+                        + scans.media.imagePaths
+                        + scans.inlineCandidates
+                            .map(\.path)
+                        + (wholePathRef.map { [$0.path] }
+                            ?? [])
+                )
+            paths.formUnion(fileRefs.map(\.path))
+            for path in paths.sorted() {
+                parts.append(
+                    "fx\(LayoutProductKey.fnv1a(path))=\(fileStateDigest(path))"
+                )
+            }
+        }
+        return parts.joined(separator: "|")
+    }
+
     // MARK: - Markdown 高（助手正文/直播正文共用）
 
     /// MarkdownText 本体高：段序列与呈现同一装配
@@ -900,10 +1222,29 @@ struct ChatNativeRowHeightComposer {
         return text
     }
 
+    /// ToolCardView 高（§330 备忘包装）：键＝卡
+    /// 本体编码摘要＋宽＋展开/素面位＋环境指纹
+    /// （合成只读卡本体与入参、无外部状态）
+    func toolCardHeight(
+        card: ToolCard, width: CGFloat,
+        expanded: Bool, plain: Bool
+    ) -> CGFloat {
+        let key = "tc|\(Self.encodeDigest(card))"
+            + "|\(LayoutProductKey.quantizedWidth(Double(width)))"
+            + "|\(expanded ? "1" : "0")\(plain ? "1" : "0")"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            toolCardHeightUncached(
+                card: card, width: width,
+                expanded: expanded, plain: plain
+            )
+        }
+    }
+
     /// ToolCardView 高：plain（组内嵌）无自家内
     /// 距、独立卡内距 15；展开＋spacingS＋发丝线
     /// 1＋spacingS＋详情区
-    func toolCardHeight(
+    func toolCardHeightUncached(
         card: ToolCard, width: CGFloat,
         expanded: Bool, plain: Bool
     ) -> CGFloat {
@@ -918,10 +1259,40 @@ struct ChatNativeRowHeightComposer {
         return total
     }
 
+    /// ToolCardGroupView 高（§330 备忘包装）：
+    /// 键＝组键＋逐卡编码摘要＋组/逐卡展开覆盖＋
+    /// 环境指纹
+    func toolGroupHeight(
+        cards: [ToolCard], groupKey: String
+    ) -> CGFloat {
+        var keyParts = ["tg|\(groupKey)"]
+        for card in cards {
+            keyParts.append(Self.encodeDigest(card))
+        }
+        keyParts.append(
+            "g\(Self.boolDigest(ledger.expansionOverride(for: groupKey)))"
+        )
+        for card in cards {
+            let cardKey = ChatRowStateKeys
+                .toolGroupCard(
+                    groupKey: groupKey, cardID: card.id
+                )
+            keyParts.append(
+                "c\(Self.boolDigest(ledger.expansionOverride(for: cardKey)))"
+            )
+        }
+        keyParts.append(environmentFingerprint)
+        return rowMemo(keyParts.joined(separator: "|")) {
+            toolGroupHeightUncached(
+                cards: cards, groupKey: groupKey
+            )
+        }
+    }
+
     /// ToolCardGroupView 高：内距 15＋组头行 36；
     /// 展开＋顶距 spacingS＋逐卡 plain 高＋卡间
     /// 分隔（发丝线 1＋纵内距 spacingS×2）
-    func toolGroupHeight(
+    func toolGroupHeightUncached(
         cards: [ToolCard], groupKey: String
     ) -> CGFloat {
         var total = 30 + max(
@@ -943,7 +1314,7 @@ struct ChatNativeRowHeightComposer {
             let cardKey = ChatRowStateKeys.toolGroupCard(
                 groupKey: groupKey, cardID: card.id
             )
-            total += toolCardHeight(
+            total += toolCardHeightUncached(
                 card: card,
                 width: contentWidth - 30,
                 expanded: ledger.expansionOverride(
@@ -1132,10 +1503,45 @@ struct ChatNativeRowHeightComposer {
         }
     }
 
+    /// 审批区行高（§330 备忘包装）：键＝区 facet
+    /// 摘要（ready 态＋未锚定记录的卡面/详情摘
+    /// 要＋已决行 id 集）＋环境指纹
+    func approvalZoneHeight() -> CGFloat {
+        let key = "az|\(approvalZoneFacetDigest())"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            approvalZoneHeightUncached()
+        }
+    }
+
+    /// 审批区 facet 摘要：与 approvalZoneHeight
+    /// 的遍历同集同序（未锚定者入账、锚定集经遍
+    /// 历过滤间接在键内）
+    private func approvalZoneFacetDigest() -> String {
+        guard case .ready(let records)
+            = hubStore.approvalState
+        else { return "notready" }
+        let anchored = hubStore.anchoredRecordIDs
+        var parts: [String] = []
+        for record in records
+        where !anchored.contains(record.id) {
+            parts.append(
+                "r\(record.id)"
+                    + "\(approvalRecordDigest(record))"
+                    + "\(approvalDetailDigest(record.id))"
+            )
+        }
+        for line in hubStore.resolvedLines
+        where !anchored.contains(line.id) {
+            parts.append("l\(line.id)")
+        }
+        return parts.joined(separator: "|")
+    }
+
     /// 审批区行高（ChatApprovalZone）：非 ready
     /// ＝0；ready＝未锚定待批卡＋未锚定已决行、
     /// VStack spacingM
-    func approvalZoneHeight() -> CGFloat {
+    func approvalZoneHeightUncached() -> CGFloat {
         guard case .ready(let records)
             = hubStore.approvalState
         else { return 0 }
@@ -1249,6 +1655,17 @@ struct ChatNativeRowHeightComposer {
     func reportCardHeight(
         _ item: OverviewNotification
     ) -> CGFloat {
+        let key = "rc|\(item.id)"
+            + "|\(Self.encodeDigest(item))"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            reportCardHeightUncached(item)
+        }
+    }
+
+    func reportCardHeightUncached(
+        _ item: OverviewNotification
+    ) -> CGFloat {
         let textWidth = contentWidth
             - OneDayMetrics.spacingM * 2
             - 15 - OneDayMetrics.spacingS * 2
@@ -1273,6 +1690,12 @@ struct ChatNativeRowHeightComposer {
     /// spacingS＋标题 callout＋spacingS＋说明
     /// caption 居中折行
     func emptyHeroHeight() -> CGFloat {
+        rowMemo("eh|\(environmentFingerprint)") {
+            emptyHeroHeightUncached()
+        }
+    }
+
+    func emptyHeroHeightUncached() -> CGFloat {
         let titleHeight = plainHeight(
             L10n.format("和 %@ 聊聊", agentDisplayName),
             .callout, width: contentWidth
@@ -1293,6 +1716,12 @@ struct ChatNativeRowHeightComposer {
     /// 行（minHeight 50、行内文 callout 折行兜
     /// 底）＋行间 spacingS
     func emptySuggestionsHeight() -> CGFloat {
+        rowMemo("es|\(environmentFingerprint)") {
+            emptySuggestionsHeightUncached()
+        }
+    }
+
+    func emptySuggestionsHeightUncached() -> CGFloat {
         let texts = EmptyChatSuggestions.texts
         var total = OneDayMetrics.spacingL
         for text in texts {
@@ -1316,6 +1745,12 @@ struct ChatNativeRowHeightComposer {
     /// spacingM、题 callout semibold＋正文 foot-
     /// note 折行＋钮行 callout，行间 spacingS）
     func modelSetupCardHeight() -> CGFloat {
+        rowMemo("ms|\(environmentFingerprint)") {
+            modelSetupCardHeightUncached()
+        }
+    }
+
+    func modelSetupCardHeightUncached() -> CGFloat {
         let innerWidth = contentWidth
             - OneDayMetrics.spacingM * 2
         let bodyHeight = plainHeight(
@@ -1335,6 +1770,20 @@ struct ChatNativeRowHeightComposer {
     /// 同算（contentStarted 决定 streaming/
     /// contentStarted 相位），账本覆盖优先
     func liveReasoningHeight(
+        text: String, contentStarted: Bool
+    ) -> CGFloat {
+        let key = "lr|\(LayoutProductKey.fnv1a(text))"
+            + "|\(contentStarted ? "1" : "0")"
+            + "|\(Self.boolDigest(ledger.expansionOverride(for: ChatRowStateKeys.liveReasoning)))"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            liveReasoningHeightUncached(
+                text: text, contentStarted: contentStarted
+            )
+        }
+    }
+
+    func liveReasoningHeightUncached(
         text: String, contentStarted: Bool
     ) -> CGFloat {
         let phase: ReasoningPhase = contentStarted
@@ -1358,6 +1807,20 @@ struct ChatNativeRowHeightComposer {
     /// 以同字阶纯文本量测近似（直播行瞬态、落
     /// 定即被落定行替换，§329 口径）
     func liveTextHeight(
+        text: String,
+        isUploading: Bool
+    ) -> CGFloat {
+        let key = "lt|\(LayoutProductKey.fnv1a(text))"
+            + "|\(isUploading ? "1" : "0")"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            liveTextHeightUncached(
+                text: text, isUploading: isUploading
+            )
+        }
+    }
+
+    func liveTextHeightUncached(
         text: String,
         isUploading: Bool
     ) -> CGFloat {
@@ -1404,11 +1867,36 @@ struct ChatNativeRowHeightComposer {
 
     // MARK: - 条目行（与 ChatView.bubble 分流同序）
 
+    /// 条目行高总口（§330 备忘包装）：键＝条目
+    /// 修订摘要（与 ChatView 构造点的修订同源派
+    /// 生——点亮/选区/样式键不入高、恒以中性值
+    /// 派生）＋facet 状态摘要＋环境指纹
+    func entryHeight(
+        _ entry: ChatEntry, dividerText: String?
+    ) -> CGFloat {
+        let revision = ChatNativeRowRevision.entry(
+            entry,
+            dividerText: dividerText,
+            highlighted: false,
+            selectionActive: false,
+            styleKey: ""
+        )
+        let key = "e|\(entry.id.uuidString)"
+            + "|\(Self.revisionDigest(revision))"
+            + "|\(entryFacetDigest(entry))"
+            + "|\(environmentFingerprint)"
+        return rowMemo(key) {
+            entryHeightUncached(
+                entry, dividerText: dividerText
+            )
+        }
+    }
+
     /// 条目行高总口：时间分隔槽（在席时 foot-
     /// note 一行＋spacingS）＋bubble 本体——分流
     /// 序与 ChatView.bubble 逐字同序（回响→审批
     /// 锚→委派回响→工具卡→用户→助手）
-    func entryHeight(
+    func entryHeightUncached(
         _ entry: ChatEntry, dividerText: String?
     ) -> CGFloat {
         var total: CGFloat = 0
@@ -1428,7 +1916,7 @@ struct ChatNativeRowHeightComposer {
             return total + echoHeight(entry)
         }
         if let card = entry.toolCard {
-            return total + toolCardHeight(
+            return total + toolCardHeightUncached(
                 card: card, width: contentWidth,
                 expanded: ledger.expansionOverride(
                     for: ChatRowStateKeys.toolEntry(

@@ -658,6 +658,9 @@ struct ChatView: View {
     @State private var topVisibleEntryID: UUID?
     /// 0.4.1：长按「选择」的纯文本 sheet 载荷
     @State private var selectionPayload: SelectionPayload?
+    /// §330：原生面 UIKit 行菜单「分享」的分享单
+    /// 状态口（见 MessageSharePayload）
+    @State private var messageSharePayload: MessageSharePayload?
     /// §152：正文选区在场的条目 id（选字期间关该行
     /// 右滑引用防拖柄误触）；消选经延迟清账（块间
     /// 切换选区时旧块先报消、新块后报选，立即清账
@@ -868,6 +871,11 @@ struct ChatView: View {
         // 选型见 DESIGN-V4 §26）
         .sheet(item: $selectionPayload) { payload in
             SelectableTextSheet(text: payload.text)
+        }
+        // §330：原生面 UIKit 行菜单「分享」的系统
+        // 分享单（与「选择」sheet 同排）
+        .sheet(item: $messageSharePayload) { payload in
+            MessageShareSheet(text: payload.text)
         }
         // 选择面使用唯一、稳定的宿主；胶囊全量/紧凑档
         // 与 safeAreaBar 的布局切换不再重建呈现锚点。
@@ -2951,6 +2959,47 @@ struct ChatView: View {
                     entryRowContent(
                         entry, dividerText: dividerText
                     )
+                    // §330（题 2）：本面菜单由 cell 的
+                    // UIKit 交互承载——内容内的 SwiftUI
+                    // .contextMenu 在本面关停（见
+                    // ChatRowSwiftUIMenuEnabledKey）
+                    .environment(
+                        \.chatRowSwiftUIMenuEnabled, false
+                    )
+                )
+            },
+            contextMenu: nativeRowContextMenu(for: entry)
+        )
+    }
+
+    /// 原生面行菜单描述（§330，题 2）：与 message-
+    /// Menu(for:) 同门控同动作——纯图片消息（正文
+    /// 空）不挂；动作闭包逐项复用 SwiftUI 菜单的同
+    /// 一批入口（beginReply/forkToSideChat/选择
+    /// sheet），仅分享改走 UIKit 分享单状态口
+    /// （ShareLink 是 SwiftUI 视图、UIKit 菜单内
+    /// 无处安放）
+    private func nativeRowContextMenu(
+        for entry: ChatEntry
+    ) -> ChatNativeRowContextMenu? {
+        guard !entry.content.isEmpty else { return nil }
+        let text = plainText(for: entry)
+        return ChatNativeRowContextMenu(
+            plainText: text,
+            onReply: {
+                beginReply(to: entry)
+            },
+            onFork: {
+                forkToSideChat(from: entry)
+            },
+            onSelect: {
+                selectionPayload = SelectionPayload(
+                    text: text
+                )
+            },
+            onShare: {
+                messageSharePayload = MessageSharePayload(
+                    text: text
                 )
             }
         )
@@ -11328,6 +11377,25 @@ private struct ComposerBarLayout: Layout {
 
 }
 
+/// 原生面行菜单承载开关（§330，0.50.70 热修题
+/// 2）：原生面行菜单改由 cell 的 UIContextMenu-
+/// Interaction 承载（ChatNativeList），托管内容
+/// 内的 SwiftUI .contextMenu 须在本面关闭——两
+/// 承载同挂会双出菜单、且 SwiftUI 承载正是 .69
+/// 真机长按全灭的当事层。仅原生面行构造点置
+/// false；gen3 面无此环境值、默认 true、行为逐
+/// 字不变
+private struct ChatRowSwiftUIMenuEnabledKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
+extension EnvironmentValues {
+    var chatRowSwiftUIMenuEnabled: Bool {
+        get { self[ChatRowSwiftUIMenuEnabledKey.self] }
+        set { self[ChatRowSwiftUIMenuEnabledKey.self] = newValue }
+    }
+}
+
 /// 消息长按菜单（0.4.1）：系统 contextMenu 四项——回复
 /// ／复制／选择／分享，全系统件、禁自绘菜单。复制走
 /// Pasteboard 收敛口径（与 CopyButton 同源一处）；分享
@@ -11350,9 +11418,15 @@ private struct MessageMenuModifier: ViewModifier {
     let onFork: () -> Void
     let onSelect: () -> Void
 
+    /// §330：原生面关停本承载（菜单已由 cell 的
+    /// UIKit 交互承载，见 ChatRowSwiftUIMenu-
+    /// EnabledKey）；gen3 面恒 true
+    @Environment(\.chatRowSwiftUIMenuEnabled)
+    private var swiftUIMenuEnabled
+
     @ViewBuilder
     func body(content: Content) -> some View {
-        if isEnabled {
+        if isEnabled && swiftUIMenuEnabled {
             content.contextMenu {
                 Button(action: onReply) {
                     Label("回复", systemImage: MessageActionSymbols.reply)
@@ -11579,6 +11653,37 @@ extension View {
 private struct SelectionPayload: Identifiable {
     let id = UUID()
     let text: String
+}
+
+/// 分享载荷（§330）：原生面 UIKit 行菜单的「分
+/// 享」动作落点——ShareLink 是 SwiftUI 视图、
+/// UIKit 菜单内无处安放，改经本状态口开系统分
+/// 享单（与 gen3 面 ShareLink 同为系统分享件、
+/// 同载荷）
+private struct MessageSharePayload: Identifiable {
+    let id = UUID()
+    let text: String
+}
+
+/// 系统分享单承载（§330）：UIActivityViewCon-
+/// troller 薄包装，与 FilesView 的 FileShare-
+/// Sheet 同式（彼以文件 URL、本以消息纯文本）
+private struct MessageShareSheet: UIViewControllerRepresentable {
+    let text: String
+
+    func makeUIViewController(
+        context: Context
+    ) -> UIActivityViewController {
+        UIActivityViewController(
+            activityItems: [text],
+            applicationActivities: nil
+        )
+    }
+
+    func updateUIViewController(
+        _ controller: UIActivityViewController,
+        context: Context
+    ) {}
 }
 
 /// 「选择」承载页（0.4.1 立、§152 升级）：整条消息
