@@ -12,26 +12,98 @@ struct ChatModelContainerBootstrap {
     let container: ModelContainer?
     let usesFallback: Bool
     let failureMessage: String?
+    /// 打开前备份的主文件（§332）：落盘打开时留的
+    /// 回滚点；内存形态/首装无库时为 nil
+    let backupStoreURL: URL?
 }
 
 enum ChatModelContainerBootstrapFactory {
+    /// 生产入口。§332（根治版包 3）起打开次序改
+    /// 为「先备份、带迁移链打开、失败才降级」：
+    /// Schema 只许经 CurrentChatSchema＋ChatMigra-
+    /// tionPlan 立，不许再裸 Schema 直开落盘库
     static func make(
         isStoredInMemoryOnly: Bool
     ) -> ChatModelContainerBootstrap {
-        let schema = Schema([ChatThread.self, ChatEntry.self])
-        return make(
+        let schema = Schema(versionedSchema: CurrentChatSchema.self)
+        if isStoredInMemoryOnly {
+            // 内存形态（演示模式）：无文件、无迁移、
+            // 无备份，走既有主/降级缝
+            return make(
+                primary: {
+                    try ModelContainer(
+                        for: schema,
+                        migrationPlan: ChatMigrationPlan.self,
+                        configurations: [ModelConfiguration(
+                            schema: schema,
+                            isStoredInMemoryOnly: true
+                        )]
+                    )
+                },
+                fallback: {
+                    try ModelContainer(
+                        for: schema,
+                        migrationPlan: ChatMigrationPlan.self,
+                        configurations: [ModelConfiguration(
+                            schema: schema,
+                            isStoredInMemoryOnly: true
+                        )]
+                    )
+                }
+            )
+        }
+        let storeURL = ModelConfiguration(
+            schema: schema, isStoredInMemoryOnly: false
+        ).url
+        return makePersistent(storeURL: storeURL)
+    }
+
+    /// 落盘打开（可测缝：显式库文件 URL，次序与生
+    /// 产入口同构）：①迁移前备份（ChatStoreBack-
+    /// up，失败留痕后继续——备份是兜底不是闸）；
+    /// ②带迁移链打开（迁移在容器 init 内沿链逐级
+    /// 走）；③打开/迁移失败留痕＋走 P10 降级（内
+    /// 存库＋明示＋原文件保留），备份随结果带出、
+    /// 提示里点名，恢复有据可依
+    static func makePersistent(
+        storeURL: URL
+    ) -> ChatModelContainerBootstrap {
+        let schema = Schema(versionedSchema: CurrentChatSchema.self)
+        var backupURL: URL?
+        do {
+            backupURL = try ChatStoreBackup.backupStoreIfPresent(
+                at: storeURL,
+                versionTag: CurrentChatSchema.versionTag
+            )
+        } catch {
+            ChatDiagTrace.record(
+                "本地库迁移前备份失败："
+                    + error.localizedDescription
+                    + "——继续尝试打开原库"
+            )
+        }
+        let result = make(
             primary: {
-                try ModelContainer(
-                    for: schema,
-                    configurations: [ModelConfiguration(
-                        schema: schema,
-                        isStoredInMemoryOnly: isStoredInMemoryOnly
-                    )]
-                )
+                do {
+                    return try ModelContainer(
+                        for: schema,
+                        migrationPlan: ChatMigrationPlan.self,
+                        configurations: [ModelConfiguration(
+                            schema: schema, url: storeURL
+                        )]
+                    )
+                } catch {
+                    ChatDiagTrace.record(
+                        "本地库打开失败（将降级内存库）："
+                            + error.localizedDescription
+                    )
+                    throw error
+                }
             },
             fallback: {
                 try ModelContainer(
                     for: schema,
+                    migrationPlan: ChatMigrationPlan.self,
                     configurations: [ModelConfiguration(
                         schema: schema,
                         isStoredInMemoryOnly: true
@@ -39,11 +111,29 @@ enum ChatModelContainerBootstrapFactory {
                 )
             }
         )
+        guard result.usesFallback else {
+            return ChatModelContainerBootstrap(
+                container: result.container,
+                usesFallback: false,
+                failureMessage: nil,
+                backupStoreURL: backupURL
+            )
+        }
+        let message = (result.failureMessage ?? "")
+            + (backupURL != nil
+                ? "打开前的备份已保留，可供恢复。"
+                : "")
+        return ChatModelContainerBootstrap(
+            container: result.container,
+            usesFallback: true,
+            failureMessage: message,
+            backupStoreURL: backupURL
+        )
     }
 
     /// 可测缝：primary 失败才走 fallback；fallback
     /// 也失败则 container 为 nil，由根层显示不可用
-    /// 页。任何一路都不删原库文件、不做迁移兜底。
+    /// 页。任何一路都不删原库文件。
     static func make(
         primary: () throws -> ModelContainer,
         fallback: () throws -> ModelContainer
@@ -52,20 +142,23 @@ enum ChatModelContainerBootstrapFactory {
             return ChatModelContainerBootstrap(
                 container: try primary(),
                 usesFallback: false,
-                failureMessage: nil
+                failureMessage: nil,
+                backupStoreURL: nil
             )
         } catch {
             do {
                 return ChatModelContainerBootstrap(
                     container: try fallback(),
                     usesFallback: true,
-                    failureMessage: "本地记录暂时不可用：原来的记录没有删除，重启 App 会再试；这次打开期间的新内容不会保存到本机。"
+                    failureMessage: "本地记录暂时不可用：原来的记录没有删除，重启 App 会再试；这次打开期间的新内容不会保存到本机。",
+                    backupStoreURL: nil
                 )
             } catch {
                 return ChatModelContainerBootstrap(
                     container: nil,
                     usesFallback: true,
-                    failureMessage: "本地记录暂时打不开：原来的记录没有删除。请先关闭 App 后重新打开；如果一直这样，请联系支持并说明聊天记录打不开。"
+                    failureMessage: "本地记录暂时打不开：原来的记录没有删除。请先关闭 App 后重新打开；如果一直这样，请联系支持并说明聊天记录打不开。",
+                    backupStoreURL: nil
                 )
             }
         }

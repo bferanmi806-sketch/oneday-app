@@ -13900,3 +13900,19 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **首轮族外红 1 件定因（flake，非本包）**：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 首轮红、复跑同树翻绿——非确定性实锤，与 §329.1 在案的同测 flake 同型（彼时两度以不同超时签名红、判绿轮均绿；其 NativeSurface 孪生件为基线族恒红）。本包对其无作用面：未碰手势仲裁/行布局代码，唯一聊天页呈现增量（historySyncBar）在 UI 测环境（本地种子线程、无同步欠账）渲染为空。按同树复跑定因后不计入本包签名，登记备查。
 
 **未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门：重装→登录→认领→不等历史补齐即可发送→历史后台补齐至对齐，四段全过才算交付）。
+
+## §332 根治版包 3·本地库版本迁移地基（2026-11-18；分支 feat/cure-schema-foundation，基线 feat/cure-import-demotion@4bc0cd5；待办第 122 条 G-05；规格 cure-version-spec-20261118 §3.3/§四包 3）
+
+**定案：本地库演进自此只走版本链，打开失败与解码失败一律明示自愈、不许静默。** 三件本体：①ChatSchemaV1 冻结＋ChatMigrationPlan 立链；②容器打开次序改「先备份→带迁移链打开→失败才降级」；③SessionLedger 解码失败可见＋触发包 1 重新发现自愈。与苹果官方正道同构（规格 §1.2 A 级：VersionedSchema＋SchemaMigrationPlan 是平台标准动作；迁移前复制 store 作回退点、打开失败降级＋原文件保留＋用户明示为 B 级工程通则——§237 P10 已有后半，本包补前半）。
+
+**V1 冻结形态（施工口径）**：现行 ChatThread/ChatEntry 本体即 V1 模型集，ChatSchemaV1（versionIdentifier 1.0.0）只引用不搬家——模型类型与实体指纹与已发布库逐字一致，零指纹漂移风险；ChatStore.swift 文件头钉冻结规矩（不许原地改模型定义，变更必须先把 V1 复制冻结、新模型进 V2 并在计划内追加迁移段）。机械守卫＝指纹测（SchemaFoundationAppTests）：版本化 Schema 与裸 Schema 逐实体逐属性一致＋两模型存储属性全集逐名钉死，原地改模型必然 CI 触发红。本版不做任何 schema 变更（stages 为空），只立链——下一次结构变更（加非可选字段/改名/改类型）自此有合法路径，不再结局于降级内存库。
+
+**打开次序与备份**：ChatModelContainerBootstrapFactory 落盘路径改走 makePersistent——①ChatStoreBackup 先把库文件整组（主文件＋-wal/-shm 边车）复制为「<库名>.backup-<版本>-<时间戳>」备份（保留最近 2 组、旧组整组清理；备份失败留痕后继续打开原库——备份是兜底不是闸，不许反把 App 砖死）；②带 ChatMigrationPlan 打开（迁移在容器 init 内沿链逐级走）；③打开/迁移失败留痕（ChatDiagTrace 点名）＋走既有 P10 降级（内存库＋明示＋原文件保留），降级提示追加「打开前的备份已保留，可供恢复」、备份 URL 随 Bootstrap 带出。内存形态（演示模式）无文件无备份、走既有主/降级缝，口径不变。
+
+**解码失败可见＋自愈（SessionLedger）**：decode 改实例口径——键缺席回 nil 不算失败（从未写过）；键在册解不出＝损坏，键名记入收集列，读入收尾 finalizeStateReadFailures 三件同拍：ChatDiagTrace 点名留痕、localStateReadFailureNote 人话提示置位（「本地状态读取失败，已按未认领处理（将自动向服务器重新确认）」，MainSessionView「会话信息」区新增「本地状态」行呈现，不复用链接错误位）、stateReadFailurePendingRediscovery 自愈标记置位。主线线程 id 在册却解不出 UUID 同账处理。persist 编码失败同理留痕且不再把 nil 写回删既有值（旧 try? 形态的隐性删值一并收口）。**自愈消费**：ChatView.ensureMainLink 入口在快路之前消费标记——SessionLedger.rediscoverAfterStateReadFailure 已登录才消费（一轮一次），复用包 1 rediscoverMainline 对账（现任在册无事、失效改认候选并重建认领记录、无候选保留现任不清指针）；目录不可达则提示保留待下次启动再对账。自愈只读目录不写服务端，包 1 认领判定/防复活/归档位口径零改动。**SideChatStore 三键（标题覆盖/草稿/滚动锚）留痕级收口**：同形 decode/persist 改留痕＋不写回删值；非身份状态、损坏代价限于本键语义，只留痕不进明示＋重认领链。
+
+**与包 1/2 衔接红线守恒**：认领记录、身份双轨存储（Keychain 为主＋UserDefaults 镜像）、§331 发送闸、回补引擎口径零改动；本包只动本地库地基（工厂/schema/备份）与打开/解码失败路径。服务端/伴生零改动；包 4（别名退役/服务端收口）不夹带。
+
+**改动面**：App——新增 ChatSchema.swift（ChatSchemaV1＋CurrentChatSchema 别名＋ChatMigrationPlan）、新增 ChatStoreBackup.swift（迁移前备份＋轮转）；OneDayApp.swift 工厂落盘路径（备份→迁移链→降级＋Bootstrap 带备份 URL）；ChatStore.swift 冻结注记；SessionLedger（decode 明示＋收尾三件＋persist 留痕＋rediscoverAfterStateReadFailure 消费口）；SideChatStore（decode/persist 留痕级）；ChatView（ensureMainLink 入口消费自愈标记一处）；MainSessionView（「本地状态」行一行）。测试新增 SchemaFoundationAppTests 10 件。
+
+**验收门（本包）**：自动化——V1 指纹逐实体逐属性＋属性全集钉死；V1 形态旧库（裸 Schema 建库写数）经新工厂打开数据零丢失（条数/关键字段对齐）＋备份存在且可打开；备份轮转保留 2 组、首装无库不备份；打开失败注入（垃圾字节库）→降级明示含「备份已保留」＋原文件字节不动＋备份在册＋失败留痕；解码失败注入（认领记录/关联表/主线线程 id 三路）→留痕点名＋提示置位＋自愈标记；健康/缺席状态不误报；自愈消费实证（脚本目录：失效指针被改认＋认领记录重建＋提示清除；目录不可达：标记消费、提示保留、链接错误位留痕）。CI 按 §190 全日志核账一轮全绿（Core 全过、红集恰基线族、签名外新红零、新测全绿）。真机旅程门留主线（规格 §四全版共同门·升级程）：装有 .69 数据的真机覆盖升级根治版→本地线程/草稿完好、主线不失联、无降级提示；实验室绿不作真机宣称。

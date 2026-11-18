@@ -58,14 +58,34 @@ final class SideChatStore {
         scrollAnchors = Self.decode([String: SideChatScrollAnchor].self, defaults, Key.scrollAnchors) ?? [:]
     }
 
+    /// 解码（§332 留痕级收口）：键缺席回 nil 不算
+    /// 失败；在册解不出＝损坏，落诊断痕点名，不再
+    /// 静默回空。本店三键（标题覆盖/草稿/滚动锚）
+    /// 非身份状态，损坏代价限于本键语义——只留痕，
+    /// 不进 SessionLedger 的明示＋重认领自愈链
     private static func decode<T: Decodable>(_ type: T.Type, _ defaults: UserDefaults, _ key: String) -> T? {
         guard let data = defaults.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(type, from: data)
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            ChatDiagTrace.record(
+                "本地状态读取失败：\(key) 解码失败，已按缺失处理"
+            )
+            return nil
+        }
     }
 
     private func persist<T: Encodable>(_ value: T, _ key: String) {
         guard let defaults else { return }
-        defaults.set(try? JSONEncoder().encode(value), forKey: key)
+        do {
+            defaults.set(try JSONEncoder().encode(value), forKey: key)
+        } catch {
+            // 编码失败留痕（§332）：跳过本次落盘、
+            // 既有值保留，不许把 nil 写回去删值
+            ChatDiagTrace.record(
+                "本地状态写入失败：\(key) 编码失败，本次落盘已跳过"
+            )
+        }
     }
 
     // MARK: - 落点记忆（0.30.0）

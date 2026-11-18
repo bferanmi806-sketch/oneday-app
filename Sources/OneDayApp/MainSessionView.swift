@@ -89,6 +89,25 @@ struct MainSessionView: View {
                     .frame(minHeight: OneDayMetrics.settingsRowHeight)
                     .listRowBackground(Palette.surface)
                 }
+
+                // 本地状态读取失败提示（§332）：侧账解
+                // 码失败的明示位——不复用链接错误行
+                // （那是链接链的账）；自愈对账完成后
+                // 本行自动消失，诊断痕留底可查
+                if let note = appState.sessionLedger
+                    .localStateReadFailureNote {
+                    LabeledContent {
+                        Text(note)
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                    } label: {
+                        Text("本地状态")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .listRowBackground(Palette.surface)
+                }
             } header: {
                 Text("会话信息")
                     .font(.sectionLabel)
