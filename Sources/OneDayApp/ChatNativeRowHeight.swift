@@ -515,13 +515,25 @@ struct ChatNativeRowHeightComposer {
                 isDirectory: false, size: meta.size,
                 mtime: nil, mimeType: meta.mime
             )
+            let sizeText = meta.size
+                .map(String.init) ?? "-"
+            let coverFlag = meta.cover.cover
+                ? "1" : "0"
+            let cachedImageFlag = DeliveryStore.shared
+                .hasCachedImage(
+                    id: meta.id, variant: .cover
+                ) ? "1" : "0"
+            let thumbnailFlag = FileThumbnailStore
+                .shared.hasCachedThumbnail(
+                    for: synthetic, targetPixelSize: 720
+                ) ? "1" : "0"
             return "ld\(meta.status)"
                 + "|\(meta.kind)"
                 + "|\(LayoutProductKey.fnv1a(meta.name))"
-                + "|\(meta.size.map(String.init) ?? "-")"
-                + "|c\(meta.cover.cover ? "1" : "0")"
-                + "|ci\(DeliveryStore.shared.hasCachedImage(id: meta.id, variant: .cover) ? "1" : "0")"
-                + "|th\(FileThumbnailStore.shared.hasCachedThumbnail(for: synthetic, targetPixelSize: 720) ? "1" : "0")"
+                + "|\(sizeText)"
+                + "|c\(coverFlag)"
+                + "|ci\(cachedImageFlag)"
+                + "|th\(thumbnailFlag)"
         }
     }
 

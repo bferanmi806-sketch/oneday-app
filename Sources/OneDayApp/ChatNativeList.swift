@@ -1,4 +1,5 @@
 import OneDayCore
+import OneDayDesign
 import SwiftUI
 import UIKit
 
@@ -439,17 +440,11 @@ final class ChatNativeHostingCell: UICollectionViewCell,
         isContextMenuPresented = false
     }
 
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        willPerformPreviewActionForMenuWith configuration:
-            UIContextMenuConfiguration,
-        animator: UIContextMenuInteractionCommitAnimating
-    ) {
-        // 预览即 cell 本体（无 previewProvider 的
-        // 系统默认形态）：点预览无导航语义，提交
-        // 动画原样收口
-        animator.commit()
-    }
+    // willPerformPreviewAction 不实现：预览即 cell
+    // 本体（previewProvider 恒 nil 的系统默认形
+    // 态）、点预览无导航语义，delegate 缺省收口即
+    // 标准路（本 SDK 的 CommitAnimating 无 commit
+    // 成员，自实现反而越界）
 
     /// 点位否决判据：点（cell 坐标）落在托管内容
     /// 子树任一 UITextView 的帧内——文本视图是
