@@ -250,6 +250,34 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         )
     }
 
+    /// §329：测试侧拟合量高（同 R3 fittedRow 口
+    /// 径）——行高改 .absolute 回喂后手搓行须自
+    /// 带高；仅高度语义两门（托管等价／物化高来
+    /// 自内容）走本路，其余装配行维持默认兜底
+    /// 高、既有几何口径不动
+    private func fittedHeight(of view: AnyView) -> CGFloat {
+        let host = UIHostingController(rootView: view)
+        host.safeAreaRegions = []
+        return host.sizeThatFits(
+            in: CGSize(
+                width: windowW
+                    - OneDayMetrics.pageGutter * 2,
+                height: .greatestFiniteMagnitude
+            )
+        ).height
+    }
+
+    private func fittedAssistantRow(
+        _ key: String, _ text: String
+    ) -> ChatNativeRow {
+        ChatNativeRow(
+            key: key, entryID: nil,
+            revision: ChatNativeRowRevision(parts: [.text(text)]),
+            height: fittedHeight(of: assistantContent(text)),
+            makeView: { self.assistantContent(text) }
+        )
+    }
+
     private func userRow(
         _ key: String, _ text: String, entryID: UUID? = nil
     ) -> ChatNativeRow {
@@ -572,7 +600,7 @@ final class ChatNativeListAssemblyTests: XCTestCase {
         assemble()
         let text =
             "托管等价检验：同一段多行正文，在集合视图 cell 里经 UIHostingConfiguration 托管的高度，必须与裸 UIHostingController（宿主 safeAreaRegions 清零）在同宽下的自适应高度一致——若本断言红，说明配置式托管的拟合被安全区抬高，R1 按施工图回退 keyed 托管控制器方案。"
-        let rows = [assistantRow("host-eq", text)]
+        let rows = [fittedAssistantRow("host-eq", text)]
         apply(rows: rows)
         drain()
         let cellHeight = try frame(at: 0).height
@@ -609,12 +637,12 @@ final class ChatNativeListAssemblyTests: XCTestCase {
 
     // MARK: - ⑥ 固定占位不驱动物化行高（§325，代产物估算带宽）
 
-    /// §325：产物层估算管线退役后，compositional
-    /// 的 .estimated 只剩固定常量（120）供未物化
-    /// 区几何——物化行高必须只由内容决定：短行
-    /// 远低于占位、长行远高于占位，两行间距仍单
-    /// 源 24。若行高被占位锚住（短行≈120 或长行
-    /// 被压），本断言即红
+    /// §325／§329：产物层估算管线退役后，未带高
+    /// 的行只剩固定常量（120）兜底；带高行（生产
+    /// 走合成器、本测走测试侧拟合回喂）物化行高
+    /// 必须只由内容决定：短行远低于占位、长行远
+    /// 高于占位，两行间距仍单源 24。若行高被占
+    /// 位锚住（短行≈120 或长行被压），本断言即红
     func testMaterializedHeightComesFromContentNotPlaceholder() throws {
         assemble()
         let longText = """
@@ -625,8 +653,8 @@ final class ChatNativeListAssemblyTests: XCTestCase {
             第三段收尾，确保总高明显越过固定占位常量。
             """
         let rows = [
-            assistantRow("short", "短。"),
-            assistantRow("long", longText),
+            fittedAssistantRow("short", "短。"),
+            fittedAssistantRow("long", longText),
         ]
         apply(rows: rows)
         drain()

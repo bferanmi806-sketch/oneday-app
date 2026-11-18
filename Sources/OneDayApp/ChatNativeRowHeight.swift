@@ -1422,11 +1422,16 @@ struct ChatNativeRowHeightComposer {
     private func userEntryHeight(
         _ entry: ChatEntry
     ) -> CGFloat {
-        let stackGap: CGFloat = 8
+        // §329 续修（拟合直测校准实证）：HStack 与
+        // Spacer 相邻处不另计默认间距（Spacer 本身
+        // 即间距、相邻 stack spacing 被吸收）——旧
+        // 稿多扣 8pt 令正文宽窄一档、长文虚高 3 行；
+        // 失败重发钮与正文列之间无 Spacer、默认间
+        // 距 spacingS 照计
         var columnWidth = contentWidth
-            - stackGap - OneDayMetrics.bubbleSideInset
+            - OneDayMetrics.bubbleSideInset
         if entry.sendFailed {
-            columnWidth -= stackGap
+            columnWidth -= OneDayMetrics.spacingS
                 + OneDayMetrics.minTapTarget
         }
         let textWidth = columnWidth
