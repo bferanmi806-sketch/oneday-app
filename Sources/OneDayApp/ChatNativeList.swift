@@ -224,7 +224,12 @@ struct ChatNativeRowContextMenu {
     /// 菜单本体：项集/序/图符与 MessageMenu-
     /// Modifier 的 SwiftUI 菜单逐项一致，不改产
     /// 品语义；复制走 Pasteboard 收敛口径（与
-    /// CopyButton 同源一处）
+    /// CopyButton 同源一处）。@MainActor：本 SDK
+    /// 的 UIAction handler 带隔离要求，动作闭包
+    /// 须在主隔离内形成（非隔离上下文里组装会触
+    /// Swift 6 发送检查）；调用点恒为主线程菜单
+    /// 构建时刻，隔离与实际一致
+    @MainActor
     func makeMenu() -> UIMenu {
         UIMenu(children: [
             UIAction(
