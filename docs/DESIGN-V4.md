@@ -13916,3 +13916,11 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **改动面**：App——新增 ChatSchema.swift（ChatSchemaV1＋CurrentChatSchema 别名＋ChatMigrationPlan）、新增 ChatStoreBackup.swift（迁移前备份＋轮转）；OneDayApp.swift 工厂落盘路径（备份→迁移链→降级＋Bootstrap 带备份 URL）；ChatStore.swift 冻结注记；SessionLedger（decode 明示＋收尾三件＋persist 留痕＋rediscoverAfterStateReadFailure 消费口）；SideChatStore（decode/persist 留痕级）；ChatView（ensureMainLink 入口消费自愈标记一处）；MainSessionView（「本地状态」行一行）。测试新增 SchemaFoundationAppTests 10 件。
 
 **验收门（本包）**：自动化——V1 指纹逐实体逐属性＋属性全集钉死；V1 形态旧库（裸 Schema 建库写数）经新工厂打开数据零丢失（条数/关键字段对齐）＋备份存在且可打开；备份轮转保留 2 组、首装无库不备份；打开失败注入（垃圾字节库）→降级明示含「备份已保留」＋原文件字节不动＋备份在册＋失败留痕；解码失败注入（认领记录/关联表/主线线程 id 三路）→留痕点名＋提示置位＋自愈标记；健康/缺席状态不误报；自愈消费实证（脚本目录：失效指针被改认＋认领记录重建＋提示清除；目录不可达：标记消费、提示保留、链接错误位留痕）。CI 按 §190 全日志核账一轮全绿（Core 全过、红集恰基线族、签名外新红零、新测全绿）。真机旅程门留主线（规格 §四全版共同门·升级程）：装有 .69 数据的真机覆盖升级根治版→本地线程/草稿完好、主线不失联、无降级提示；实验室绿不作真机宣称。
+
+### §332.1 CI 判读（回填）
+
+**判绿（2026-11-19）**：最终树 2968a22（单提交落码＋本回填）。两轮同树核账——run 44306613661（首轮）与 run 44487618900（复跑）：Core 两轮均 2175/2175 零失败（与 §331.1 基线逐值一致，本包未加 Core 测）；红集复跑轮恰 §330.1 基线族 13 件在席（R2 装配 2＋EdgeEffect 1＋手势仲裁 4＋手势原生面 5＋键盘矩阵 1，与 §330.1/§331.1 逐件相同），签名外新红零；本包新测 SchemaFoundationAppTests 10 件两轮全绿；关键读数与 §330.1/§331.1 逐值一致（CHAIN passes=172 sections=43 content=11916.0）。
+
+**首轮族外红 1 件定因（flake，非本包）**：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 首轮红（112.1s、四点长压均未出整行菜单）、复跑同树翻绿（仲裁套件复跑 5 件仅基线 4 红）——与 §331.1 在案的同测 flake 完全同型（§331 首轮亦此件红、复跑翻绿，§329.1 亦有同测异签名红记录；其 NativeSurface 孪生件为基线族恒红）。本包对其无作用面：改动面限于本地库地基（ChatSchema/ChatStoreBackup/容器工厂）与 SessionLedger/SideChatStore 解码留痕路径，未碰手势仲裁/行布局/UI 呈现。按同树复跑定因后不计入本包签名，登记备查。
+
+**未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门·升级程：装有 .69 数据的真机覆盖升级根治版→本地线程/草稿完好、主线不失联、无降级提示；实验室绿不作真机宣称）。
