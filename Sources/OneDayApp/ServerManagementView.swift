@@ -7,6 +7,8 @@ import SwiftUI
 /// （密钥/重启网关）＋底部断开连接行
 struct ServerManagementView: View {
     @Environment(AppState.self) private var appState
+    /// 体检留痕：维护段「体检与存档」行副题读上次结论
+    @State private var healthSummaryStore = HealthSummaryStore.shared
     /// 服务器状态：卡片需显示连接状态与绿点
     let status: ServerStatus?
     @Binding var showDisconnectConfirm: Bool
@@ -69,6 +71,15 @@ struct ServerManagementView: View {
 
                 NavigationLink(value: SettingsRoute.restartGateway) {
                     rowContent(icon: "arrow.clockwise", title: "重启网关", subtitle: nil)
+                }
+                .settingsSeparatorToIconEdge()
+
+                NavigationLink(value: SettingsRoute.healthCheck) {
+                    rowContent(
+                        icon: "stethoscope",
+                        title: "体检与存档",
+                        subtitle: lastHealthWord
+                    )
                 }
                 .settingsSeparatorToIconEdge()
             } header: {
@@ -160,6 +171,13 @@ struct ServerManagementView: View {
         case "error", "failed": return "异常"
         default: return "未知"
         }
+    }
+
+    /// 上次体检一词结论（没跑过为 nil、不占副题位）
+    private var lastHealthWord: String? {
+        healthSummaryStore
+            .summary(for: appState.config?.baseString)?
+            .overall.word
     }
 
     private var gatewayStateWord: String {

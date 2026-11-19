@@ -242,6 +242,8 @@ struct SettingsView: View {
                         status: status,
                         showRestartConfirm: $showRestartConfirm
                     )
+                case .healthCheck:
+                    HealthCheckView()
                 }
             }
             .confirmationDialog(
@@ -691,6 +693,7 @@ struct SettingsView: View {
         case .workspaceHub: return .workspaceHub
         case .mainSession: return .mainSession
         case .restartGateway: return .restartGateway
+        case .healthCheck: return .healthCheck
         }
     }
 
@@ -732,6 +735,7 @@ struct SettingsView: View {
         case "workspace": return "square.grid.2x2"
         case "mainSession": return "link"
         case "restartGateway": return "arrow.clockwise"
+        case "healthCheck": return "stethoscope"
         default: return "gearshape"
         }
     }

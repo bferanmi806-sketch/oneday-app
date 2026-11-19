@@ -58,6 +58,8 @@ enum SettingsRoute: Hashable {
     case workspaceHub       // 工作区枢纽页
     case mainSession        // 主线会话详情页
     case restartGateway     // 重启网关页
+    /// 体检面（H1-a，台账 158）：服务器管理「维护」段
+    case healthCheck
 }
 
 /// 「工作区」组三页的 sheet 呈现槽枚举（原定义在

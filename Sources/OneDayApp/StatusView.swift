@@ -17,6 +17,8 @@ struct StatusView: View {
     var onOpenSession: (String) -> Void = { _ in }
 
     @State private var segment = 0
+    /// 体检留痕（H1-a）：系统段尾次入口读同一份摘要
+    @State private var healthSummaryStore = HealthSummaryStore.shared
     @State private var status: ServerStatus?
     @State private var sessions: [ServerSession] = []
     @State private var logLines: [String] = []
@@ -311,6 +313,61 @@ struct StatusView: View {
                     .font(.callout)
                     .foregroundStyle(Palette.inkSecondary)
             }
+            // 体检次入口（H1-a）：状态页是「看现在」、
+            // 体检面是「跑一遍查问题」——本行只呈上次
+            // 结论与时间，点进体检面，不在此处跑检查
+            SectionLabel("体检")
+                .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                .padding(.bottom, OneDayMetrics.spacingS)
+            NavigationLink {
+                HealthCheckView()
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    StatusDot(color: lastHealthColor)
+                    VStack(
+                        alignment: .leading,
+                        spacing: OneDayMetrics.spacingMicro
+                    ) {
+                        Text("上次体检")
+                            .font(.body)
+                            .foregroundStyle(Palette.ink)
+                        Text(lastHealthText)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundStyle(Palette.inkMuted)
+                        .accessibilityHidden(true)
+                }
+                .padding(.horizontal, OneDayMetrics.spacingM)
+                .frame(minHeight: OneDayMetrics.rowHeight)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .odGroup()
+        }
+    }
+
+    private var lastHealthSummary: HealthCheckSummary? {
+        healthSummaryStore.summary(for: appState.config?.baseString)
+    }
+
+    private var lastHealthText: String {
+        guard let summary = lastHealthSummary else {
+            return "还没做过体检"
+        }
+        return summary.overall.word + " · "
+            + DisplayDateFormatting.relativeDateTime(summary.date)
+    }
+
+    private var lastHealthColor: Color {
+        switch lastHealthSummary?.overall {
+        case .ok: return Palette.success
+        case .attention: return Palette.warning
+        case .problem: return Palette.danger
+        case .incomplete, nil: return Palette.inkMuted
         }
     }
 
