@@ -56,6 +56,8 @@ final class SettingsCatalogTests: XCTestCase {
             // prototype-2 新增
             .agentConfig, .serverManagement, .sessionManagement,
             .workspaceHub, .mainSession, .restartGateway,
+            // H1-a 新增（台账 158）
+            .healthCheck,
         ]
         XCTAssertEqual(covered, Set(all))
     }
@@ -125,6 +127,7 @@ final class SettingsCatalogTests: XCTestCase {
                 "profiles", "memory", "skills",
                 // serverManagement 页内
                 "server", "gateway", "logs", "usage", "envVars", "restartGateway",
+                "healthCheck",
                 // sessionManagement 页内
                 "mainSession", "serverSessions",
                 // workspace 页内
@@ -178,5 +181,21 @@ final class SettingsCatalogTests: XCTestCase {
 
     func testSearchNoHitIsEmpty() {
         XCTAssertTrue(SettingsCatalog.search("不存在的词条xyz").isEmpty)
+    }
+
+    /// H1-a（台账 158）：体检面条目——标题直搜命中、
+    /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
+    func testHealthCheckEntryIsSearchable() {
+        let hits = SettingsCatalog.search("体检")
+        XCTAssertEqual(hits.first?.id, "healthCheck")
+        XCTAssertEqual(hits.first?.destination, .healthCheck)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        // 英文关键词同达
+        XCTAssertTrue(
+            SettingsCatalog.search("doctor").contains {
+                $0.id == "healthCheck"
+            }
+        )
     }
 }

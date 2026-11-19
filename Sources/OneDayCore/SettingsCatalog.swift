@@ -69,6 +69,9 @@ public enum SettingsDestination: Equatable, Sendable {
     case workspaceHub       // 工作区枢纽页
     case mainSession        // 主线会话详情页
     case restartGateway     // 重启网关页
+    /// 体检面（H1-a，台账 158）：服务器管理枢纽页
+    /// 「维护」段内子项——自检＋安全审计＋结论留痕
+    case healthCheck
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -224,6 +227,13 @@ public enum SettingsCatalog {
             summary: "服务器管理 · 维护",
             keywords: ["重启", "维护", "restart gateway"],
             destination: .restartGateway, showsInBrowse: false
+        ),
+        SettingsCatalogEntry(
+            id: "healthCheck", group: .serverAndWorkspace,
+            title: "体检与存档",
+            summary: "服务器管理 · 维护",
+            keywords: ["体检", "自检", "安全审计", "健康", "health", "doctor", "audit"],
+            destination: .healthCheck, showsInBrowse: false
         ),
         // 会话管理页内子项（不在根页显示）
         SettingsCatalogEntry(
