@@ -873,6 +873,18 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsSecurityAudit(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsActionStatus(config: ServerConfig, name: String, lines: Int) async throws -> OpsActionStatus {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func files(config: ServerConfig, path: String?) async throws -> FilesListing {
         throw HermesError.unreachable("离线桩")
     }

@@ -357,6 +357,21 @@ protocol HermesClientProtocol: Sendable {
     /// POST /api/gateway/stop
     func gatewayStop(config: ServerConfig) async throws
 
+    // MARK: 运维体检（H1-a，台账 158；契约据 H1-0 探活冻结）
+
+    /// POST /api/ops/doctor：只触发后台自检动作、立即
+    /// 回执 {ok,pid,name}——检查结果不在本响应里，走
+    /// opsActionStatus 轮询日志解析（两段式）
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// POST /api/ops/security-audit：同上两段式
+    func opsSecurityAudit(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// GET /api/actions/{name}/status?lines=：动作状态
+    /// ＋追加式共享日志尾（消费前须按 started 标记切
+    /// 本轮，见 OneDayCore.OpsActionLog）
+    func opsActionStatus(
+        config: ServerConfig, name: String, lines: Int
+    ) async throws -> OpsActionStatus
+
     // MARK: 工作区文件与系统（0.2.1）
 
     /// GET /api/files?path=（path 为 nil 时服务端回默认根，
@@ -1816,6 +1831,65 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         try await sendJSON(
             config: config, path: "/api/gateway/stop", method: "POST",
             endpoint: L10n.string("网关停止"), timeout: 120
+        )
+    }
+
+    // MARK: - 运维体检（H1-a）
+
+    /// 无 body 的 POST 并解码回执（ops 触发端点专用：
+    /// 服务端不收 body，回执是小 JSON）
+    private func postDecoding<T: Decodable>(
+        config: ServerConfig, path: String, endpoint: String
+    ) async throws -> T {
+        var request = URLRequest(url: config.endpoint(path))
+        request.httpMethod = "POST"
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: endpoint, status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(endpoint: endpoint)
+        }
+    }
+
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse {
+        try await postDecoding(
+            config: config, path: "/api/ops/doctor",
+            endpoint: L10n.string("自检")
+        )
+    }
+
+    func opsSecurityAudit(
+        config: ServerConfig
+    ) async throws -> OpsSpawnResponse {
+        try await postDecoding(
+            config: config, path: "/api/ops/security-audit",
+            endpoint: L10n.string("安全审计")
+        )
+    }
+
+    func opsActionStatus(
+        config: ServerConfig, name: String, lines: Int
+    ) async throws -> OpsActionStatus {
+        // 动作名是服务端常量（doctor/security-audit），
+        // 仍按路径段转义兜底（与频道 id 同法）
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/?#")
+        let encoded = name.addingPercentEncoding(
+            withAllowedCharacters: allowed
+        ) ?? name
+        return try await getJSON(
+            config: config,
+            path: "/api/actions/\(encoded)/status",
+            endpoint: L10n.string("体检进度"),
+            query: [URLQueryItem(
+                name: "lines",
+                value: String(min(max(lines, 1), 2000))
+            )]
         )
     }
 
