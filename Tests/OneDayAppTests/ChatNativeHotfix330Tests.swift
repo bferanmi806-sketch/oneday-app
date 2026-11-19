@@ -468,37 +468,27 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             ),
             to: collectionView
         )
-        let offText = try XCTUnwrap(
-            list.collectionView(
-                collectionView,
-                contextMenuConfigurationForItemAt: indexPath,
-                point: offTextPoint
-            ),
-            "文本外点位须给出行菜单配置"
+        let offText = list.collectionView(
+            collectionView,
+            contextMenuConfigurationForItemAt: indexPath,
+            point: offTextPoint
         )
-        let provided = try XCTUnwrap(
-            offText.actionProvider?([]),
-            "配置须产出菜单"
+        XCTAssertNotNil(
+            offText, "文本外点位须给出行菜单配置"
         )
-        let providedActions = provided.children
+        // 配置的菜单本体即行描述 makeMenu（delegate
+        // 闭包直返，本 SDK 无 actionProvider 读回
+        // 口）——项集/序/图符以 makeMenu 为准断言
+        let actions = menu.makeMenu().children
             .compactMap { $0 as? UIAction }
         XCTAssertEqual(
-            providedActions.map(\.title),
+            actions.map(\.title),
             ["回复", "在旁聊里接着问", "复制", "选择", "分享"],
             "菜单项集/序须与 SwiftUI 承载逐项同"
         )
         XCTAssertTrue(
-            providedActions.allSatisfy {
-                $0.image != nil
-            },
+            actions.allSatisfy { $0.image != nil },
             "菜单图符须在席"
-        )
-        let actions = menu.makeMenu().children
-            .compactMap { $0 as? UIAction }
-        XCTAssertEqual(
-            providedActions.map(\.title),
-            actions.map(\.title),
-            "delegate 产出须与行描述 makeMenu 逐项同"
         )
     }
 
