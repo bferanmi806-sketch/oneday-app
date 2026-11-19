@@ -731,6 +731,12 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func setActiveProfile(config: ServerConfig, name: String) async throws {
         throw HermesError.unreachable("离线桩")
     }

@@ -571,6 +571,8 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func activeProfileName(config: ServerConfig) async throws -> String? { throw HermesError.demoLimitReached }
 
+    func activeProfile(config: ServerConfig) async throws -> ActiveProfileResponse { throw HermesError.demoLimitReached }
+
     func setActiveProfile(config: ServerConfig, name: String) async throws { throw HermesError.demoLimitReached }
 
     // MARK: - 档案增删与导入导出（P10，演示口径同上）

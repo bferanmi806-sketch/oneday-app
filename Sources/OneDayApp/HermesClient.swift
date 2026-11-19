@@ -246,6 +246,13 @@ protocol HermesClientProtocol: Sendable {
     func profiles(config: ServerConfig) async throws -> [ProfileItem]
     /// GET /api/profiles/active
     func activeProfileName(config: ServerConfig) async throws -> String?
+    /// GET /api/profiles/active 全形（active 与 current
+    /// 分开）：H1-d 身份对账要认 current（本进程实际
+    /// 所辖档案），activeProfileName 的合并口径
+    /// （active ?? current）不够用
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse
     /// POST /api/profiles/active {name}
     func setActiveProfile(config: ServerConfig, name: String) async throws
     /// GET /api/profiles/{name}/soul（回执 schema 未冻结，
@@ -1512,6 +1519,15 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
             config: config, path: "/api/profiles/active", endpoint: L10n.string("当前档案")
         )
         return response.name
+    }
+
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse {
+        try await getJSON(
+            config: config, path: "/api/profiles/active",
+            endpoint: L10n.string("当前档案")
+        )
     }
 
     func setActiveProfile(config: ServerConfig, name: String) async throws {
