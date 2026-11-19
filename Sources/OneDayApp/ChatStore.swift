@@ -6,6 +6,13 @@ import SwiftData
 /// 0.4.0（审计 §3.4）：服务端会话与本地线程的映射打通
 /// ——续聊导入时把服务端会话 id 落在 serverSessionID，
 /// 再点同一条服务端会话按 id 找回本线程、不重复导入。
+/// §332（根治版包 3）冻结：本文件两模型（ChatThread/
+/// ChatEntry）即 ChatSchemaV1 的模型集，自此**不许原
+/// 地改模型定义**（加/删/改名/改类型字段）——结构变
+/// 更必须先把 V1 复制冻结、新模型进 ChatSchemaV2 并
+/// 在 ChatMigrationPlan 追加迁移段（见 ChatSchema.
+/// swift）。指纹由 SchemaFoundationAppTests 钉死，
+/// 原地改动必然在 CI 触发红。
 @Model
 final class ChatThread {
     var id: UUID

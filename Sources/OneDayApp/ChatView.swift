@@ -9051,6 +9051,17 @@ private struct ComposerBarLayout: Layout {
     @discardableResult
     private func ensureMainLink(seedSnapshot: [SeedEntry]? = nil) async -> Bool {
         let store = appState.sessionLedger
+        // §332：本地状态解码失败的自愈对账排在最前
+        // ——标记在册时先向服务端重新发现对账（一
+        // 轮只消费一次，账本内守恒）；对账不拦发送：
+        // 现任指针有效则下方快路照常，失效才在对账
+        // 里改认；目录不可达留痕待下次，不许因侧账
+        // 损坏静默清零后本地铸造新 id
+        if store.stateReadFailurePendingRediscovery {
+            await store.rediscoverAfterStateReadFailure(
+                appState: appState
+            )
+        }
         // §331 快路：id 已知（认领落存/此前铸造）即已
         // 链——种子与历史回补都是后台义务、不再作进
         // 页与发送的闸（旧「confirmed && seeded 双位

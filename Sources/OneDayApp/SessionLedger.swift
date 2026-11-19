@@ -162,6 +162,11 @@ final class SessionLedger {
     /// 存；UserDefaults 旧键是双轨镜像（读出口径见
     /// loadPersistedState，见 IdentityValueStore 注）
     private let identityStore: IdentityValueStore
+    /// 解码失败收集（§332）：loadPersistedState 期
+    /// 间在册却解不出的键名落此（键缺席不算失败）；
+    /// 读入收尾由 finalizeStateReadFailures 统一处
+    /// 置（落痕＋明示＋自愈标记），不在解码点散处理
+    private var stateReadFailureKeys: [String] = []
 
     private enum Key {
         static let mainThreadID = "sideChats.mainThreadID"
@@ -219,7 +224,13 @@ final class SessionLedger {
             ?? identityStore.string(
                 forKey: IdentityKey.mainThreadID
             ) {
-            mainThreadID = UUID(uuidString: raw)
+            if let parsed = UUID(uuidString: raw) {
+                mainThreadID = parsed
+            } else {
+                // §332：在册但解不出＝损坏，不许静默
+                // 当缺失——与 decode 失败同账收尾处理
+                stateReadFailureKeys.append(Key.mainThreadID)
+            }
         }
         mainServerSessionID = defaults?.string(
             forKey: Key.mainServerSessionID
@@ -236,44 +247,87 @@ final class SessionLedger {
             store: identityStore,
             identityKey: IdentityKey.mainServerSeeded
         )
-        guard let defaults else { return }
+        guard let defaults else {
+            finalizeStateReadFailures()
+            return
+        }
         mainLinkLastError = defaults.string(
             forKey: Key.mainLinkLastError
         )
-        mainClaimRecord = Self.decode(
-            MainlineClaimRecord.self, defaults,
-            Key.mainClaimRecord
+        mainClaimRecord = decode(
+            MainlineClaimRecord.self, Key.mainClaimRecord
         )
         archivedKeys = Set(
             defaults.stringArray(forKey: Key.archivedKeys) ?? []
         )
-        failedArchiveSessionIDs = Self.decode(
-            [String].self, defaults, Key.failedArchiveSessionIDs
+        failedArchiveSessionIDs = decode(
+            [String].self, Key.failedArchiveSessionIDs
         ) ?? []
-        ideaThreadIDs = Self.decode(
-            [String: String].self, defaults, Key.ideaThreadIDs
+        ideaThreadIDs = decode(
+            [String: String].self, Key.ideaThreadIDs
         ) ?? [:]
-        goalThreadIDs = Self.decode(
-            [String: String].self, defaults, Key.goalThreadIDs
+        goalThreadIDs = decode(
+            [String: String].self, Key.goalThreadIDs
         ) ?? [:]
-        feedDiscussPostIDs = Self.decode(
-            [String: String].self, defaults,
-            Key.feedDiscussPostIDs
+        feedDiscussPostIDs = decode(
+            [String: String].self, Key.feedDiscussPostIDs
         ) ?? [:]
+        finalizeStateReadFailures()
     }
 
-    private static func decode<T: Decodable>(
-        _ type: T.Type, _ defaults: UserDefaults, _ key: String
+    /// 侧账解码（§332 改明示）：键缺席＝从未写过、
+    /// 回 nil 不算失败；键在册但解码失败＝数据损
+    /// 坏——键名记入 stateReadFailureKeys，读入收
+    /// 尾统一落痕＋明示＋置自愈标记（finalizeState-
+    /// ReadFailures），不许再 try? 静默回空装作无事
+    private func decode<T: Decodable>(
+        _ type: T.Type, _ key: String
     ) -> T? {
-        guard let data = defaults.data(forKey: key) else {
+        guard let defaults,
+              let data = defaults.data(forKey: key) else {
             return nil
         }
-        return try? JSONDecoder().decode(type, from: data)
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch {
+            stateReadFailureKeys.append(key)
+            return nil
+        }
+    }
+
+    /// 解码失败收尾（§332）：任一键失败即三件同拍
+    /// ——诊断痕留底（键名点名）、人话提示置位（设
+    /// 置页「主线会话」呈现）、自愈标记置位（进主
+    /// 线链接时向服务端重新发现对账，见 rediscover-
+    /// AfterStateReadFailure）。本地状态自此按「未
+    /// 认领」对待：恢复动作是向服务端发现认领，不
+    /// 是静默清零后本地铸造新 id
+    private func finalizeStateReadFailures() {
+        guard !stateReadFailureKeys.isEmpty else { return }
+        ChatDiagTrace.record(
+            "本地状态读取失败："
+                + stateReadFailureKeys.joined(separator: "、")
+                + " 解码失败，已按未认领处理，将向服务端重新发现认领"
+        )
+        localStateReadFailureNote =
+            "本地状态读取失败，已按未认领处理（将自动向服务器重新确认）"
+        stateReadFailurePendingRediscovery = true
     }
 
     private func persist<T: Encodable>(_ value: T, _ key: String) {
         guard let defaults else { return }
-        defaults.set(try? JSONEncoder().encode(value), forKey: key)
+        do {
+            defaults.set(
+                try JSONEncoder().encode(value), forKey: key
+            )
+        } catch {
+            // 编码失败留痕（§332）：不许静默，更不许
+            // 把失败的 nil 写回去删掉既有值——跳过本
+            // 次落盘、原值保留
+            ChatDiagTrace.record(
+                "本地状态写入失败：\(key) 编码失败，本次落盘已跳过"
+            )
+        }
     }
 
     /// 身份布尔读出（§330）：旧键在册以旧键为准（同
@@ -374,6 +428,16 @@ final class SessionLedger {
     /// 设置页「主线会话」呈现；归档位同时是「打开时
     /// 解档」的一次性凭据（解档落定即清位）
     private(set) var mainClaimRecord: MainlineClaimRecord?
+    /// 本地状态读取失败的人话提示（§332）：启动读
+    /// 入时任一侧账解码失败即置位，设置页「主线会
+    /// 话」呈现；自愈对账完成（目录可达）后清，诊
+    /// 断痕永久留底
+    private(set) var localStateReadFailureNote: String?
+    /// 解码失败待自愈标记（§332）：ChatView 进主
+    /// 线链接时消费一次——向服务端重新发现对账
+    /// （rediscoverAfterStateReadFailure）；未登录
+    /// 时不消费、留待登录后
+    private(set) var stateReadFailurePendingRediscovery = false
 
     func designateMainThread(_ id: UUID) {
         mainThreadID = id
@@ -518,6 +582,25 @@ final class SessionLedger {
             )
         }
         return outcome
+    }
+
+    /// 解码失败自愈消费（§332）：ChatView 进主线
+    /// 链接（ensureMainLink）入口调用——标记在册
+    /// 且已登录时走一轮重新发现对账（复用 redis-
+    /// coverMainline：现任在册无事、失效改认候选、
+    /// 无候选保留现任不清指针）；目录不可达时提
+    /// 示保留待下次启动再对账。标记一轮只消费一
+    /// 次，不许每进一次主线都重拉目录
+    func rediscoverAfterStateReadFailure(
+        appState: AppState
+    ) async {
+        guard stateReadFailurePendingRediscovery else { return }
+        guard appState.config != nil else { return }
+        stateReadFailurePendingRediscovery = false
+        let outcome = await rediscoverMainline(appState: appState)
+        if outcome != .directoryUnavailable {
+            localStateReadFailureNote = nil
+        }
     }
 
     /// 认领候选行（与 adoptionSessions 同源、另带归
