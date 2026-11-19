@@ -253,73 +253,105 @@ final class HealthCheckStore {
 
     // MARK: - 生产执行口（spawn＋poll）
 
-    /// 两段式执行（H1-0 探活冻结口径）：
-    /// 1. 先读一次状态：同名动作已在跑（可能来自其他
-    ///    客户端）就直接收养那一轮，不重复触发——服务
-    ///    端按名只有一个跟踪槽，后触发会覆盖先触发；
-    /// 2. 触发前数清日志里已有的 started 标记数作基
-    ///    线，轮询只认基线之后新落的本轮标记，旧轮的
-    ///    「已跑完」状态不许误收（日志多方共享）；
-    /// 3. 2.5 秒一轮询，总超时 60 秒（实测每轮 10–15
-    ///    秒，60 秒是四倍余量）；超时抛 timedOut，界
-    ///    面落「没等到结果」＋单组重试，不无限转圈。
+    /// 两段式执行走 OpsActionRunner（H1-b 起与存档段
+    /// 共用同一套 spawn＋poll，不另造）：体检两组只在
+    /// 「按动作名选触发端点」这一处分工。
     static func liveExecutor(
         appState: AppState
     ) -> ActionExecutor {
         { action in
-            let name = action.name
-            let statusPath = name
-            let pre = try await appState.performAdmin { client, config in
+            let outcome = try await OpsActionRunner.run(
+                appState: appState, actionName: action.name
+            ) { client, config in
+                switch action {
+                case .doctor:
+                    return try await client.opsDoctor(config: config)
+                case .securityAudit:
+                    return try await client.opsSecurityAudit(
+                        config: config
+                    )
+                }
+            }
+            return ActionResult(
+                lines: outcome.lines, exitCode: outcome.exitCode
+            )
+        }
+    }
+}
+
+/// ops 动作 spawn＋poll 通用执行口（H1-a 体检两组与
+/// H1-b 备份共用，口径据 H1-0 探活冻结）：
+/// 1. 先读一次状态：同名动作已在跑（可能来自其他
+///    客户端）就直接收养那一轮，不重复触发——服务
+///    端按名只有一个跟踪槽，后触发会覆盖先触发；
+/// 2. 触发前数清日志里已有的 started 标记数作基
+///    线，轮询只认基线之后新落的本轮标记，旧轮的
+///    「已跑完」状态不许误收（日志多方共享）；
+/// 3. 2.5 秒一轮询，总超时 60 秒（实测每轮 10–15
+///    秒，60 秒是四倍余量）；超时抛 timedOut，界
+///    面落「没等到结果」＋重试，不无限转圈。
+enum OpsActionRunner {
+    struct Outcome: Sendable {
+        var lines: [String]
+        var exitCode: Int?
+        /// 本轮由我们触发时 spawn 回执带回的值（backup
+        /// 的 archive 产物路径）；收养他人在飞轮时为 nil
+        var spawnArchive: String?
+    }
+
+    static func run(
+        appState: AppState, actionName: String,
+        spawn: @MainActor (
+            HermesClientProtocol, ServerConfig
+        ) async throws -> OpsSpawnResponse
+    ) async throws -> Outcome {
+        let pre = try await appState.performAdmin { client, config in
+            try await client.opsActionStatus(
+                config: config, name: actionName, lines: 500
+            )
+        }
+        let baseline: Int
+        var spawnArchive: String?
+        if pre.running {
+            // 收养在飞的一轮：它的标记已在日志里，
+            // 基线退一格把该标记算作本轮
+            baseline = max(
+                OpsActionLog.markerCount(
+                    lines: pre.lines, actionName: actionName
+                ) - 1, 0
+            )
+        } else {
+            baseline = OpsActionLog.markerCount(
+                lines: pre.lines, actionName: actionName
+            )
+            let receipt = try await appState.performAdmin {
+                client, config in
+                try await spawn(client, config)
+            }
+            spawnArchive = receipt.archive
+        }
+        let deadline = Date().addingTimeInterval(60)
+        while true {
+            let status = try await appState.performAdmin {
+                client, config in
                 try await client.opsActionStatus(
-                    config: config, name: statusPath, lines: 500
+                    config: config, name: actionName, lines: 500
                 )
             }
-            let baseline: Int
-            if pre.running {
-                // 收养在飞的一轮：它的标记已在日志里，
-                // 基线退一格把该标记算作本轮
-                baseline = max(
-                    OpsActionLog.markerCount(
-                        lines: pre.lines, actionName: name
-                    ) - 1, 0
+            if !status.running,
+               let sliced = OpsActionLog.sliceAfterMarker(
+                   lines: status.lines, actionName: actionName,
+                   ordinal: baseline
+               ) {
+                return Outcome(
+                    lines: sliced, exitCode: status.exitCode,
+                    spawnArchive: spawnArchive
                 )
-            } else {
-                baseline = OpsActionLog.markerCount(
-                    lines: pre.lines, actionName: name
-                )
-                _ = try await appState.performAdmin { client, config in
-                    switch action {
-                    case .doctor:
-                        return try await client.opsDoctor(config: config)
-                    case .securityAudit:
-                        return try await client.opsSecurityAudit(
-                            config: config
-                        )
-                    }
-                }
             }
-            let deadline = Date().addingTimeInterval(60)
-            while true {
-                let status = try await appState.performAdmin {
-                    client, config in
-                    try await client.opsActionStatus(
-                        config: config, name: statusPath, lines: 500
-                    )
-                }
-                if !status.running,
-                   let sliced = OpsActionLog.sliceAfterMarker(
-                       lines: status.lines, actionName: name,
-                       ordinal: baseline
-                   ) {
-                    return ActionResult(
-                        lines: sliced, exitCode: status.exitCode
-                    )
-                }
-                if Date() > deadline {
-                    throw HealthCheckEngineError.timedOut
-                }
-                try await Task.sleep(for: .seconds(2.5))
+            if Date() > deadline {
+                throw HealthCheckEngineError.timedOut
             }
+            try await Task.sleep(for: .seconds(2.5))
         }
     }
 }

@@ -655,6 +655,10 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func opsActionStatus(config: ServerConfig, name: String, lines: Int) async throws -> OpsActionStatus { throw HermesError.demoLimitReached }
 
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse { throw HermesError.demoLimitReached }
+
+    func opsCheckpoints(config: ServerConfig) async throws -> CheckpointsResponse { throw HermesError.demoLimitReached }
+
     // MARK: - 工作区文件与系统（0.2.1 样本，结构对实查回执）
 
     func files(config: ServerConfig, path: String?) async throws -> FilesListing {

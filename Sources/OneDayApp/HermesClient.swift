@@ -371,6 +371,15 @@ protocol HermesClientProtocol: Sendable {
     func opsActionStatus(
         config: ServerConfig, name: String, lines: Int
     ) async throws -> OpsActionStatus
+    /// POST /api/ops/backup：同上两段式，回执额外带
+    /// archive 产物路径；服务端要 JSON body（Backup-
+    /// Request{output?}），output 不填、服务端定名
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// GET /api/ops/checkpoints：同步结构化（现役实例
+    /// 恒空，如实呈现）；prune 删除行为未知，不接
+    func opsCheckpoints(
+        config: ServerConfig
+    ) async throws -> CheckpointsResponse
 
     // MARK: 工作区文件与系统（0.2.1）
 
@@ -1890,6 +1899,27 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
                 name: "lines",
                 value: String(min(max(lines, 1), 2000))
             )]
+        )
+    }
+
+    func opsBackup(
+        config: ServerConfig
+    ) async throws -> OpsSpawnResponse {
+        // 冻结件 BackupRequest 的 body 必填（output 可
+        // 空）：发空对象，不用 H1-a 的无 body postDecoding
+        try await sendJSONDecoding(
+            config: config, path: "/api/ops/backup",
+            method: "POST", endpoint: L10n.string("备份"),
+            body: [:]
+        )
+    }
+
+    func opsCheckpoints(
+        config: ServerConfig
+    ) async throws -> CheckpointsResponse {
+        try await getJSON(
+            config: config, path: "/api/ops/checkpoints",
+            endpoint: L10n.string("检查点")
         )
     }
 

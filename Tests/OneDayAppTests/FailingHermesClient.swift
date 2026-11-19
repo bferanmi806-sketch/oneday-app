@@ -420,6 +420,14 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsCheckpoints(config: ServerConfig) async throws -> CheckpointsResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func files(config: ServerConfig, path: String?) async throws -> FilesListing {
         throw HermesError.unreachable("离线桩")
     }
