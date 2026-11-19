@@ -615,22 +615,28 @@ public struct HealthCheckSummary: Codable, Sendable, Equatable {
     public var serverBase: String
     public var doctor: HealthGroupSummary?
     public var audit: HealthGroupSummary?
+    /// 身份对账组（H1-d）：旧留痕没有这个键，解码回
+    /// nil——合成时按「这组没跑过」处理，不造假结论
+    public var identity: HealthGroupSummary?
 
     public init(
         date: Date, serverBase: String,
         doctor: HealthGroupSummary? = nil,
-        audit: HealthGroupSummary? = nil
+        audit: HealthGroupSummary? = nil,
+        identity: HealthGroupSummary? = nil
     ) {
         self.date = date
         self.serverBase = serverBase
         self.doctor = doctor
         self.audit = audit
+        self.identity = identity
     }
 
     /// 总判定：已跑组里取最重一档（异常 > 没跑完 >
     /// 注意 > 正常）；一组都没跑过按没跑完
     public var overall: HealthVerdict {
-        let verdicts = [doctor?.verdict, audit?.verdict].compactMap { $0 }
+        let verdicts = [doctor?.verdict, audit?.verdict, identity?.verdict]
+            .compactMap { $0 }
         guard let worst = verdicts.max(by: {
             $0.severityRank < $1.severityRank
         }) else { return .incomplete }
@@ -643,15 +649,20 @@ public struct HealthCheckSummary: Codable, Sendable, Equatable {
         case .ok:
             return "体检通过，没有发现问题"
         case .attention:
-            let n = (doctor?.warnCount ?? 0) + (audit?.findingCount ?? 0)
+            let n = (doctor?.warnCount ?? 0)
+                + (audit?.findingCount ?? 0)
+                + (identity?.warnCount ?? 0)
             return n > 0
                 ? "能用，但有 \(n) 项要注意"
                 : "能用，但有几项要注意"
         case .problem:
-            let n = (doctor?.failCount ?? 0) + (audit?.highCount ?? 0)
+            let n = (doctor?.failCount ?? 0)
+                + (audit?.highCount ?? 0)
+                + (identity?.failCount ?? 0)
             if n > 0 { return "发现 \(n) 项异常，建议处理" }
-            let culprit = doctor?.verdict == .problem
-                ? doctor : audit
+            let culprit = [doctor, audit, identity]
+                .compactMap { $0 }
+                .first { $0.verdict == .problem }
             return culprit?.headline ?? "发现异常，建议处理"
         case .incomplete:
             return "体检没跑完，结论不完整"
