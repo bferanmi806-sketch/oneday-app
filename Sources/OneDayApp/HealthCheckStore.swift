@@ -86,10 +86,19 @@ final class HealthCheckStore {
         var exitCode: Int?
     }
 
+    /// 身份对账的取数口（H1-d）：注入点在「装配一份
+    /// 对账输入快照」这一层——生产实现现拉目录＋状态
+    /// ＋档案（liveIdentityFetcher），判定在 Core 纯
+    /// 函数 IdentityReconciler，测试注入 fixture 快照。
+    typealias IdentityFetcher =
+        @MainActor () async throws -> IdentityReconciliationInput
+
     private(set) var doctorPhase: Phase = .idle
     private(set) var auditPhase: Phase = .idle
+    private(set) var identityPhase: Phase = .idle
     private(set) var doctorRun: DoctorRun?
     private(set) var auditRun: SecurityAuditRun?
+    private(set) var identityRun: IdentityReconciliation?
 
     private let summaryStore: HealthSummaryStore
 
@@ -99,6 +108,7 @@ final class HealthCheckStore {
 
     var isRunning: Bool {
         doctorPhase.isRunning || auditPhase.isRunning
+            || identityPhase.isRunning
     }
 
     /// 「开始体检」可用性：任一组在跑时整面禁用重入
@@ -118,11 +128,15 @@ final class HealthCheckStore {
         guard let base = appState.config?.baseString else {
             doctorPhase = .failed("还没连上服务器")
             auditPhase = .failed("还没连上服务器")
+            identityPhase = .failed("还没连上服务器")
             return
         }
         await runAll(
             serverBase: base,
-            execute: Self.liveExecutor(appState: appState)
+            execute: Self.liveExecutor(appState: appState),
+            fetchIdentity: Self.liveIdentityFetcher(
+                appState: appState
+            )
         )
     }
 
@@ -138,14 +152,48 @@ final class HealthCheckStore {
         )
     }
 
+    /// 身份对账单组重试（它不是 spawn 动作，取数口
+    /// 与体检两组不同，单开一口）
+    func retryIdentity(appState: AppState) async {
+        guard let base = appState.config?.baseString else {
+            identityPhase = .failed("还没连上服务器")
+            return
+        }
+        await retryIdentity(
+            serverBase: base,
+            fetchIdentity: Self.liveIdentityFetcher(
+                appState: appState
+            )
+        )
+    }
+
     // MARK: - 状态机（测试可注入执行口）
 
+    /// 两组版（H1-a 原口）：身份组不参与——它的留痕
+    /// 在 saveSummary 里沿用上次，不被两组跑动冲掉
     func runAll(
         serverBase: String, execute: ActionExecutor
+    ) async {
+        await runAll(
+            serverBase: serverBase, execute: execute,
+            fetchIdentity: nil
+        )
+    }
+
+    /// 全组版：三组依次跑（doctor → security-audit
+    /// → 身份对账）；fetchIdentity 为 nil 时跳过身份
+    /// 组（两组版口径）。身份组是同步读面、不占服务
+    /// 端动作槽，排在最后不影响两段式的串行口径
+    func runAll(
+        serverBase: String, execute: ActionExecutor,
+        fetchIdentity: IdentityFetcher?
     ) async {
         guard !isRunning else { return }
         await performGroup(.doctor, execute: execute)
         await performGroup(.securityAudit, execute: execute)
+        if let fetchIdentity {
+            await performIdentity(fetch: fetchIdentity)
+        }
         saveSummary(serverBase: serverBase)
     }
 
@@ -156,6 +204,25 @@ final class HealthCheckStore {
         guard !isRunning else { return }
         await performGroup(action, execute: execute)
         saveSummary(serverBase: serverBase)
+    }
+
+    func retryIdentity(
+        serverBase: String, fetchIdentity: IdentityFetcher
+    ) async {
+        guard !isRunning else { return }
+        await performIdentity(fetch: fetchIdentity)
+        saveSummary(serverBase: serverBase)
+    }
+
+    private func performIdentity(fetch: IdentityFetcher) async {
+        identityPhase = .running(since: Date())
+        do {
+            let input = try await fetch()
+            identityRun = IdentityReconciler.reconcile(input)
+            identityPhase = .finished
+        } catch {
+            identityPhase = .failed(Self.humanMessage(for: error))
+        }
     }
 
     private func performGroup(
@@ -198,13 +265,35 @@ final class HealthCheckStore {
         let auditSummary = groupSummary(
             for: .securityAudit, previous: previous?.audit
         )
-        guard doctorSummary != nil || auditSummary != nil else { return }
+        let identitySummary = identityGroupSummary(
+            previous: previous?.identity
+        )
+        guard doctorSummary != nil || auditSummary != nil
+            || identitySummary != nil else { return }
         summaryStore.save(
             HealthCheckSummary(
                 date: Date(), serverBase: serverBase,
-                doctor: doctorSummary, audit: auditSummary
+                doctor: doctorSummary, audit: auditSummary,
+                identity: identitySummary
             )
         )
+    }
+
+    /// 身份组留痕合成（与两组同式）：本轮跑完用本轮
+    /// 结论，取数失败记「没跑完」，没跑沿用上次
+    private func identityGroupSummary(
+        previous: HealthGroupSummary?
+    ) -> HealthGroupSummary? {
+        switch identityPhase {
+        case .finished:
+            return identityRun?.groupSummary
+        case .failed:
+            return HealthGroupSummary(
+                verdict: .incomplete, headline: "身份对账没跑完"
+            )
+        case .idle, .running:
+            return previous
+        }
     }
 
     private func groupSummary(
@@ -274,6 +363,76 @@ final class HealthCheckStore {
             }
             return ActionResult(
                 lines: outcome.lines, exitCode: outcome.exitCode
+            )
+        }
+    }
+
+    // MARK: - 身份对账生产取数口（H1-d）
+
+    /// 装配对账输入快照：三个服务端来源各自独立取，
+    /// 任一取不到只把那一份记 nil（组内对应项降级
+    /// 「暂无法对账」），不整组失败——目录拉不到时网
+    /// 关那项照样能判，反之亦然。判定在 Core 的
+    /// IdentityReconciler，本口只负责取数与投影。
+    static func liveIdentityFetcher(
+        appState: AppState
+    ) -> IdentityFetcher {
+        {
+            let ledger = appState.sessionLedger
+
+            // 目录：现拉全量（含归档段）＋完整性口径
+            // 原样带出；本地投影条数只作漂移提示
+            var catalog: IdentityReconciliationInput
+                .CatalogSnapshot?
+            var localProjectionCount: Int?
+            if let snapshot = try? await ledger
+                .identityCatalogSnapshot(appState: appState) {
+                catalog = .init(
+                    rows: snapshot.sessions.map { session in
+                        .init(
+                            id: session.id,
+                            title: session.serverTitle,
+                            isArchived: session.isArchived ?? false,
+                            messageCount: session.messageCount
+                        )
+                    },
+                    incompleteNote: snapshot.incompleteReason?
+                        .traceLabel
+                )
+                localProjectionCount =
+                    ledger.localCatalogProjectionCount
+            }
+
+            // 网关：/api/status 的网关段（免登录面）
+            let status = try? await appState.performAdmin {
+                client, config in
+                try await client.status(config: config)
+            }
+            let gateway = status.map { status in
+                IdentityReconciliationInput.GatewaySnapshot(
+                    running: status.gatewayRunning,
+                    state: status.gatewayState,
+                    apiServerState: status
+                        .platforms["api_server"]?.state,
+                    version: status.version
+                )
+            }
+
+            // 当前档案：认 current（本进程实际所辖），
+            // 缺失回落 active；只呈现、不判定
+            let profile = try? await appState.performAdmin {
+                client, config in
+                try await client.activeProfile(config: config)
+            }
+
+            return IdentityReconciliationInput(
+                boundMainSessionID: ledger.mainServerSessionID,
+                expectedMainTitle: SideChatStore.mainTitle,
+                catalog: catalog,
+                localProjectionCount: localProjectionCount,
+                gateway: gateway,
+                currentProfile: profile?.current
+                    ?? profile?.active
             )
         }
     }

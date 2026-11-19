@@ -2,14 +2,18 @@ import OneDayDesign
 import OneDayCore
 import SwiftUI
 
-/// 体检面（H1-a 体检段＋H1-b 存档段，台账 158）：
-/// 设置 → 服务器管理 → 维护 →「体检与存档」。体检
-/// 段——自检（doctor）＋安全审计（security-audit）
-/// 两组依次跑、出人话结论、留摘要痕；存档段——备
-/// 份（同为 spawn＋poll、三态判读）＋检查点如实呈
-/// 现＋升级前检查单联动行。诊断段（H1-c，探活实证
-/// 服务端只有外发形态、已缓办）不在本面出现，不留
-/// 假按钮；检查点清理（prune）行为未知，同样不放行。
+/// 体检面（H1-a 体检段＋H1-b 存档段＋H1-d 身份对
+/// 账组，台账 158）：设置 → 服务器管理 → 维护 →
+/// 「体检与存档」。体检段——自检（doctor）＋安全
+/// 审计（security-audit）两组依次跑、出人话结论、
+/// 留摘要痕；第四组身份对账（H1-d）把认领三项落
+/// 成只读核对（主线绑定/消息路由/会话目录），取
+/// 不到数据的项如实降级「暂无法对账」；存档段——
+/// 备份（同为 spawn＋poll、三态判读）＋检查点如
+/// 实呈现＋升级前检查单联动行。诊断段（H1-c，探
+/// 活实证服务端只有外发形态、已缓办）不在本面出
+/// 现，不留假按钮；检查点清理（prune）行为未知，
+/// 同样不放行。
 /// 数据口径：结论全部来自 HealthCheckStore 本轮解析
 /// 结果与 HealthSummaryStore 留痕，两处同源；状态页
 /// 的「看现在」与本面的「跑一遍查问题」分工不混。
@@ -36,6 +40,7 @@ struct HealthCheckView: View {
             runButtonSection
             doctorSection
             auditSection
+            identitySection
             archiveSection
             checkpointsSection
         }
@@ -94,6 +99,9 @@ struct HealthCheckView: View {
                     }
                     if let audit = summary.audit {
                         groupLine(name: "安全", summary: audit)
+                    }
+                    if let identity = summary.identity {
+                        groupLine(name: "身份", summary: identity)
                     }
                 }
                 .padding(.vertical, OneDayMetrics.spacingS)
@@ -317,6 +325,149 @@ struct HealthCheckView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(Palette.inkSecondary)
             }
+        }
+        .padding(.vertical, OneDayMetrics.spacingXS)
+    }
+
+    // MARK: - 身份对账组（H1-d）
+
+    /// 体检第四组：认领三项只读核对（主线绑定/消息
+    /// 路由/会话目录）逐项呈现——状态点＋人话结论＋
+    /// （不一致时）哪边为准的提示。当前档案只报服务
+    /// 端现行值、不参与判定（App 侧没有第二真源，不
+    /// 造假对账），单列一行说明白。
+    private var identitySection: some View {
+        Section {
+            identityStatusRow
+            if case .failed = store.identityPhase {
+                Button {
+                    Task {
+                        await store.retryIdentity(appState: appState)
+                    }
+                } label: {
+                    HStack(spacing: OneDayMetrics.spacingS) {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(Palette.ink)
+                            .accessibilityHidden(true)
+                        Text("重试这一项")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Spacer(minLength: OneDayMetrics.spacingS)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .contentShape(Rectangle())
+                }
+                .disabled(!store.canStart)
+            }
+            if let run = store.identityRun {
+                ForEach(
+                    Array(run.items.enumerated()), id: \.offset
+                ) { _, item in
+                    identityItemRow(item)
+                }
+                if let profile = run.currentProfile {
+                    HStack(spacing: OneDayMetrics.spacingS) {
+                        Text("当前档案")
+                            .font(.rowSubtitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                        Spacer(minLength: OneDayMetrics.spacingS)
+                        Text(profile)
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                    }
+                    Text("档案以服务端为准，这里只报现行值，不参与对账判定。")
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+        } header: {
+            sectionHeader("身份对账")
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(settingsRowInsets)
+    }
+
+    /// 身份组状态行（与两组同式四态）：跑中/结论/
+    /// 失败/未跑（有留痕读留痕、无留痕显说明）
+    @ViewBuilder
+    private var identityStatusRow: some View {
+        switch store.identityPhase {
+        case .running(let since):
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    ProgressView()
+                    Text(
+                        "正在对账… 已用 "
+                            + "\(Int(context.date.timeIntervalSince(since))) 秒"
+                    )
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        case .finished:
+            if let run = store.identityRun {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    StatusDot(color: verdictColor(run.verdict))
+                    Text(run.headline)
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        case .failed(let message):
+            HStack(spacing: OneDayMetrics.spacingS) {
+                StatusDot(color: Palette.warning)
+                Text(message)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: OneDayMetrics.spacingS)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
+        case .idle:
+            if let group = savedSummary?.identity {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    StatusDot(color: verdictColor(group.verdict))
+                    Text(group.headline)
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            } else {
+                Text("核对主线绑定、消息路由与会话目录对不对得上")
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        }
+    }
+
+    private func identityItemRow(_ item: IdentityItem) -> some View {
+        HStack(
+            alignment: .top, spacing: OneDayMetrics.spacingS
+        ) {
+            StatusDot(color: verdictColor(item.verdict))
+                .padding(.top, OneDayMetrics.spacingXS)
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingMicro
+            ) {
+                Text(item.title)
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+                Text(item.headline)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                if let note = item.authorityNote {
+                    Text(note)
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Spacer(minLength: OneDayMetrics.spacingS)
         }
         .padding(.vertical, OneDayMetrics.spacingXS)
     }
