@@ -337,8 +337,15 @@ struct ChatNativeRowHeightComposer {
     /// nonisolated(unsafe)：NSCache 官方文档保
     /// 证线程安全（§331 起备忘被量测台后台队列
     /// 读写）、只是未标 Sendable——由本注背书
-    private nonisolated(unsafe) static let textCache =
-        NSCache<NSString, NSNumber>()
+    /// §333：与整行备忘（rowCache 1024）同轨封
+    /// 顶——旧形态无 countLimit，长会话文本备忘
+    /// 无界涨、与整行层口径不一致
+    private nonisolated(unsafe) static let textCache:
+        NSCache<NSString, NSNumber> = {
+        let cache = NSCache<NSString, NSNumber>()
+        cache.countLimit = 1024
+        return cache
+    }()
 
     private func memoKey(
         _ kind: String, _ text: String, _ width: CGFloat
@@ -1011,29 +1018,22 @@ struct ChatNativeRowHeightComposer {
                     "dl\(deliveryID)=\(deliveryMetaDigest(deliveryID))"
                 )
             }
-            var paths = Set<String>()
-            paths.formUnion(scans.media.imagePaths)
-            paths.formUnion(
-                scans.inlineCandidates.map(\.path)
-            )
-            paths.formUnion(scans.standalonePaths)
-            let wholePathRef = FileRefDetector
-                .wholeMessagePath(in: scans.media.text)
-            if let wholePathRef {
-                paths.insert(wholePathRef.path)
-            }
-            let fileRefs = FileRefDetector
-                .detectStandaloneAnchored(
-                    in: entry.content,
-                    excluding: entry.remoteImagePaths
-                        + scans.media.imagePaths
-                        + scans.inlineCandidates
-                            .map(\.path)
-                        + (wholePathRef.map { [$0.path] }
-                            ?? [])
-                )
-            paths.formUnion(fileRefs.map(\.path))
-            for path in paths.sorted() {
+            // §333（待办 143 根治）：路径并集改走
+            // EntryScanMemo.facetPaths 备忘（五源
+            // 并集与旧现算逐字相等）——旧形态每趟
+            // 键组装对正文重跑 wholeMessagePath＋
+            // 组合排除口径的 detectStandalone-
+            // Anchored 全文扫，长会话每趟 body 求
+            // 值全表重付，是 §331 量测台落成后热
+            // 路径上残余的主线程同步全扫；现第二
+            // 趟起只剩备忘读＋逐路径状态摘要（状
+            // 态本身仍逐趟活读、翻转即键变，失效
+            // 语义不变）
+            for path in EntryScanMemo.facetPaths(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            ) {
                 parts.append(
                     "fx\(LayoutProductKey.fnv1a(path))=\(fileStateDigest(path))"
                 )

@@ -413,4 +413,48 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             "空串后台高须与量测视图同值（探针口径）"
         )
     }
+
+    /// §333（待办 143 根治）：行键组装热路径零
+    /// 重扫——同一助手条目逐趟调 entryMemoKey
+    /// （ChatView body 每趟行构建的真实调用），
+    /// 键须逐字稳定且 facet 路径并集只许第一趟
+    /// 真扫、其后全走 EntryScanMemo 备忘（facet-
+    /// Misses 不再增长）。旧形态每趟对正文重跑
+    /// wholeMessagePath＋组合排除口径锚定探测
+    /// 全文扫，本测试即其回归闸
+    func testEntryMemoKeyAssemblyDoesNotRescan() {
+        EntryScanMemo.removeAll()
+        EntryScanMemo.resetMetrics()
+        let composer = makeComposer()
+        let entry = ChatEntry(
+            role: "assistant",
+            content:
+                "归档完成，文件在下面一行。\n"
+                + "/opt/data/files/report.png\n"
+                + "MEDIA:/opt/data/cache/images/img_a.png\n"
+                + "正文其余部分照常叙述，撑起多行。",
+            thread: nil
+        )
+        let key1 = composer.entryMemoKey(
+            for: entry, dividerText: nil
+        )
+        let afterFirst = EntryScanMemo.metrics()
+        XCTAssertEqual(afterFirst.facetMisses, 1)
+        // 模拟滚动期逐趟 body 求值：同条目连调多趟
+        for _ in 0..<5 {
+            let keyN = composer.entryMemoKey(
+                for: entry, dividerText: nil
+            )
+            XCTAssertEqual(keyN, key1, "同输入行键须逐字稳定")
+        }
+        let afterRepeat = EntryScanMemo.metrics()
+        XCTAssertEqual(
+            afterRepeat.facetMisses, afterFirst.facetMisses,
+            "逐趟键组装不许重扫正文（facet 未命中须不增长）"
+        )
+        XCTAssertGreaterThan(
+            afterRepeat.facetHits, afterFirst.facetHits,
+            "重复趟须走 facet 备忘命中"
+        )
+    }
 }
