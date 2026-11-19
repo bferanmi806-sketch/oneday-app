@@ -571,6 +571,8 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func activeProfileName(config: ServerConfig) async throws -> String? { throw HermesError.demoLimitReached }
 
+    func activeProfile(config: ServerConfig) async throws -> ActiveProfileResponse { throw HermesError.demoLimitReached }
+
     func setActiveProfile(config: ServerConfig, name: String) async throws { throw HermesError.demoLimitReached }
 
     // MARK: - 档案增删与导入导出（P10，演示口径同上）
@@ -648,6 +650,16 @@ struct DemoHermesClient: HermesClientProtocol {
     func gatewayRestart(config: ServerConfig) async throws { throw HermesError.demoLimitReached }
     func gatewayStart(config: ServerConfig) async throws { throw HermesError.demoLimitReached }
     func gatewayStop(config: ServerConfig) async throws { throw HermesError.demoLimitReached }
+
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse { throw HermesError.demoLimitReached }
+
+    func opsSecurityAudit(config: ServerConfig) async throws -> OpsSpawnResponse { throw HermesError.demoLimitReached }
+
+    func opsActionStatus(config: ServerConfig, name: String, lines: Int) async throws -> OpsActionStatus { throw HermesError.demoLimitReached }
+
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse { throw HermesError.demoLimitReached }
+
+    func opsCheckpoints(config: ServerConfig) async throws -> CheckpointsResponse { throw HermesError.demoLimitReached }
 
     // MARK: - 工作区文件与系统（0.2.1 样本，结构对实查回执）
 

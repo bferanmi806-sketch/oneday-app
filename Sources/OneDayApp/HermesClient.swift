@@ -246,6 +246,13 @@ protocol HermesClientProtocol: Sendable {
     func profiles(config: ServerConfig) async throws -> [ProfileItem]
     /// GET /api/profiles/active
     func activeProfileName(config: ServerConfig) async throws -> String?
+    /// GET /api/profiles/active 全形（active 与 current
+    /// 分开）：H1-d 身份对账要认 current（本进程实际
+    /// 所辖档案），activeProfileName 的合并口径
+    /// （active ?? current）不够用
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse
     /// POST /api/profiles/active {name}
     func setActiveProfile(config: ServerConfig, name: String) async throws
     /// GET /api/profiles/{name}/soul（回执 schema 未冻结，
@@ -356,6 +363,30 @@ protocol HermesClientProtocol: Sendable {
     func gatewayStart(config: ServerConfig) async throws
     /// POST /api/gateway/stop
     func gatewayStop(config: ServerConfig) async throws
+
+    // MARK: 运维体检（H1-a，台账 158；契约据 H1-0 探活冻结）
+
+    /// POST /api/ops/doctor：只触发后台自检动作、立即
+    /// 回执 {ok,pid,name}——检查结果不在本响应里，走
+    /// opsActionStatus 轮询日志解析（两段式）
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// POST /api/ops/security-audit：同上两段式
+    func opsSecurityAudit(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// GET /api/actions/{name}/status?lines=：动作状态
+    /// ＋追加式共享日志尾（消费前须按 started 标记切
+    /// 本轮，见 OneDayCore.OpsActionLog）
+    func opsActionStatus(
+        config: ServerConfig, name: String, lines: Int
+    ) async throws -> OpsActionStatus
+    /// POST /api/ops/backup：同上两段式，回执额外带
+    /// archive 产物路径；服务端要 JSON body（Backup-
+    /// Request{output?}），output 不填、服务端定名
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse
+    /// GET /api/ops/checkpoints：同步结构化（现役实例
+    /// 恒空，如实呈现）；prune 删除行为未知，不接
+    func opsCheckpoints(
+        config: ServerConfig
+    ) async throws -> CheckpointsResponse
 
     // MARK: 工作区文件与系统（0.2.1）
 
@@ -1490,6 +1521,15 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         return response.name
     }
 
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse {
+        try await getJSON(
+            config: config, path: "/api/profiles/active",
+            endpoint: L10n.string("当前档案")
+        )
+    }
+
     func setActiveProfile(config: ServerConfig, name: String) async throws {
         try await sendJSON(
             config: config, path: "/api/profiles/active", method: "POST",
@@ -1816,6 +1856,86 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         try await sendJSON(
             config: config, path: "/api/gateway/stop", method: "POST",
             endpoint: L10n.string("网关停止"), timeout: 120
+        )
+    }
+
+    // MARK: - 运维体检（H1-a）
+
+    /// 无 body 的 POST 并解码回执（ops 触发端点专用：
+    /// 服务端不收 body，回执是小 JSON）
+    private func postDecoding<T: Decodable>(
+        config: ServerConfig, path: String, endpoint: String
+    ) async throws -> T {
+        var request = URLRequest(url: config.endpoint(path))
+        request.httpMethod = "POST"
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: endpoint, status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(endpoint: endpoint)
+        }
+    }
+
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse {
+        try await postDecoding(
+            config: config, path: "/api/ops/doctor",
+            endpoint: L10n.string("自检")
+        )
+    }
+
+    func opsSecurityAudit(
+        config: ServerConfig
+    ) async throws -> OpsSpawnResponse {
+        try await postDecoding(
+            config: config, path: "/api/ops/security-audit",
+            endpoint: L10n.string("安全审计")
+        )
+    }
+
+    func opsActionStatus(
+        config: ServerConfig, name: String, lines: Int
+    ) async throws -> OpsActionStatus {
+        // 动作名是服务端常量（doctor/security-audit），
+        // 仍按路径段转义兜底（与频道 id 同法）
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/?#")
+        let encoded = name.addingPercentEncoding(
+            withAllowedCharacters: allowed
+        ) ?? name
+        return try await getJSON(
+            config: config,
+            path: "/api/actions/\(encoded)/status",
+            endpoint: L10n.string("体检进度"),
+            query: [URLQueryItem(
+                name: "lines",
+                value: String(min(max(lines, 1), 2000))
+            )]
+        )
+    }
+
+    func opsBackup(
+        config: ServerConfig
+    ) async throws -> OpsSpawnResponse {
+        // 冻结件 BackupRequest 的 body 必填（output 可
+        // 空）：发空对象，不用 H1-a 的无 body postDecoding
+        try await sendJSONDecoding(
+            config: config, path: "/api/ops/backup",
+            method: "POST", endpoint: L10n.string("备份"),
+            body: [:]
+        )
+    }
+
+    func opsCheckpoints(
+        config: ServerConfig
+    ) async throws -> CheckpointsResponse {
+        try await getJSON(
+            config: config, path: "/api/ops/checkpoints",
+            endpoint: L10n.string("检查点")
         )
     }
 

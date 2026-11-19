@@ -731,6 +731,12 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func activeProfile(
+        config: ServerConfig
+    ) async throws -> ActiveProfileResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func setActiveProfile(config: ServerConfig, name: String) async throws {
         throw HermesError.unreachable("离线桩")
     }
@@ -870,6 +876,26 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     }
 
     func gatewayStop(config: ServerConfig) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsDoctor(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsSecurityAudit(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsActionStatus(config: ServerConfig, name: String, lines: Int) async throws -> OpsActionStatus {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsBackup(config: ServerConfig) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func opsCheckpoints(config: ServerConfig) async throws -> CheckpointsResponse {
         throw HermesError.unreachable("离线桩")
     }
 

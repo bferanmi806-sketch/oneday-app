@@ -631,6 +631,32 @@ final class SessionLedger {
         return sessions.map { ($0, $0.isArchived ?? false) }
     }
 
+    /// 身份对账取数（H1-d 体检第四组）：现拉一份服务
+    /// 端目录全量（含归档段）连同完整性口径回给体检
+    /// 面——对账认的是刚拉到的服务端目录，不拿本地
+    /// 缓存投影冒充服务端所报。与 claimSessions 的区
+    /// 别：那边为候选检索可读缓存、完整性不设闸；这
+    /// 边是判定数据源，完整性口径必须原样带出（没拉
+    /// 全就不下结论）。只读：不写服务端、不动本地账
+    func identityCatalogSnapshot(
+        appState: AppState
+    ) async throws -> FetchResult {
+        try await Self.fetchAll(
+            appState: appState, archived: "include"
+        )
+    }
+
+    /// 本机账本的目录投影条数（可见＋归档两段去重）：
+    /// 只作对账时的漂移提示、不作判据；账本没整表加
+    /// 载过时为 nil（没缓存就不提缓存的事）
+    var localCatalogProjectionCount: Int? {
+        guard hasLoadedFull else { return nil }
+        var seen = Set<String>()
+        for session in visibleSessions { seen.insert(session.id) }
+        for session in archivedSessions { seen.insert(session.id) }
+        return seen.count
+    }
+
     /// 认领判定与落存（两口共用）：候选投影交 Core
     /// 纯函数（标题全等＋删除账排除＋既定序）；落存
     /// 只写本地身份缓存与认领记录——不写服务端、不
