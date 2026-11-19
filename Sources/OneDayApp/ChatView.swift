@@ -690,12 +690,9 @@ struct ChatView: View {
     /// §330：原生面 UIKit 行菜单「分享」的分享单
     /// 状态口（见 MessageSharePayload）
     @State private var messageSharePayload: MessageSharePayload?
-    /// §152：正文选区在场的条目 id（选字期间关该行
-    /// 右滑引用防拖柄误触）；消选经延迟清账（块间
-    /// 切换选区时旧块先报消、新块后报选，立即清账
-    /// 会误关新选区的行保护）
-    @State private var activeSelectionEntryID: UUID?
-    @State private var selectionClearTask: Task<Void, Never>?
+    /// §152 的选区在场记账已迁 ChatRowStateLedger
+    /// （141/142 根治：选区永不进 @State/行修订，
+    /// 见 noteTextSelection 与账本注）
     /// 0.8.0（P1 富内容）：图片全屏查看与文件 QuickLook
     /// 预览的呈现载荷；流式工具卡列（累积完成即入列、
     /// 本轮收尾落盘，见 driveRun）
@@ -2840,7 +2837,6 @@ struct ChatView: View {
                                 entry,
                                 dividerText: plan.dividers[entry.id],
                                 highlighted: false,
-                                selectionActive: false,
                                 styleKey: nativeRowStyleKey
                             ).parts)
                     }
@@ -3085,7 +3081,6 @@ struct ChatView: View {
                 entry,
                 dividerText: dividerText,
                 highlighted: entry.id == anchorHighlightEntryID,
-                selectionActive: activeSelectionEntryID == entry.id,
                 styleKey: nativeRowStyleKey,
                 showsUnreadDivider: showsUnread
             ),
@@ -6566,24 +6561,32 @@ struct ChatView: View {
         composerFocusHandle.focus()
     }
 
-    /// §152 选区在场记账：正文文本块（Selectable-
-    /// InlineText）经 onSelectionChange 回报——选
-    /// 区在场时该行右滑引用停用（拖选字手柄的横向
-    /// 位移不许误触引用，DESIGN §152.3 第 4 条）；
-    /// 消选延迟 350ms 清账，防同一条内换块选字时
-    /// 旧块消选先于新块报选到达、把保护误清
+    /// §152 选区在场记账（141/142 根治后形态）：
+    /// 正文文本块（SelectableInlineText）经 onSe-
+    /// lectionChange 回报——记账只落 ChatRowState-
+    /// Ledger（永不进 @State：@State 写触发 body
+    /// 重算、旧制还把选区折进行修订，选区一形成
+    /// 该行即被重配换代、文本视图本体被拆，选区/
+    /// 编辑菜单当场被冲——141/142 的共同病根）。
+    /// 两个消费方都在事件时刻直读账本/句柄，不经
+    /// 渲染管线：①右滑引用在 pan 回调时刻查账本
+    /// 停用（SwipeReplyModifier.isSuppressed）；
+    /// ②原生面把选区行键同步给句柄，控制器分流
+    /// 据此暂存该行重配（选区清账后 flush）。消选
+    /// 延迟 350ms 清账在账本内（防同条换块选字时
+    /// 旧块消选先于新块报选到达、把保护误清）
     private func noteTextSelection(entryID: UUID, active: Bool) {
-        if active {
-            selectionClearTask?.cancel()
-            selectionClearTask = nil
-            activeSelectionEntryID = entryID
-        } else if activeSelectionEntryID == entryID {
-            selectionClearTask?.cancel()
-            selectionClearTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(350))
-                guard !Task.isCancelled else { return }
-                activeSelectionEntryID = nil
+        rowStateLedger.noteTextSelection(
+            entryID: entryID, active: active,
+            onProtectionEnded: { [nativeHandle] in
+                nativeHandle.selectionActiveRowKey = nil
+                nativeHandle.noteSelectionProtectionEnded()
             }
+        )
+        if active {
+            nativeHandle.selectionActiveRowKey =
+                streamSettleMap.rowKey(for: entryID)
+                ?? "entry-\(entryID.uuidString)"
         }
     }
 
@@ -6616,12 +6619,17 @@ struct ChatView: View {
     /// 重叠）
     private func swipeReply(for entry: ChatEntry) -> SwipeReplyModifier {
         SwipeReplyModifier(
-            // §152：本行正文有选区在场时停用——拖
-            // 选字手柄与右滑引用同为横向拖动手势，
-            // 选字优先（仲裁见 DESIGN §152.3 第 4
-            // 条）；选区清空（延迟清账后）自动恢复
-            isEnabled: !entry.content.isEmpty
-                && activeSelectionEntryID != entry.id,
+            // §152 的选区停用自 141/142 根治起不再
+            // 走 isEnabled（结构翻转＝行重渲染＝原
+            // 生面托管换代、冲选区）：改经 isSup-
+            // pressed 在 pan 回调时刻直读账本停用
+            // （选字优先，DESIGN §152.3 第 4 条）；
+            // isEnabled 只余「空文本不挂」的稳定口径
+            isEnabled: !entry.content.isEmpty,
+            isSuppressed: { [rowStateLedger] in
+                rowStateLedger.textSelectionEntryID
+                    == entry.id
+            },
             onReply: {
                 beginReply(to: entry)
             }
@@ -12327,6 +12335,11 @@ private struct MessageMenuModifier: ViewModifier {
 /// 制一份同形修饰符充数
 struct SwipeReplyModifier: ViewModifier {
     let isEnabled: Bool
+    /// 选区抑制（141/142 根治）：pan 回调时刻直读
+    /// （账本选区在场即抑制）——不经 body 重算、
+    /// 不翻结构，托管视图零换代（与 OB selecting
+    /// 态只切手势 enabled 同构）。默认不抑制
+    var isSuppressed: () -> Bool = { false }
     let onReply: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -12388,7 +12401,13 @@ struct SwipeReplyModifier: ViewModifier {
     /// （整段只一次）。起始点排除已由桥在 sho-
     /// uldBegin 判死（识别器根本不开始），本处
     /// 不再复查
+    /// 选区抑制在场时整段不消费：位移归零待命
+    /// （拖选字手柄的横移不许把行拖出引用位）
     private func handlePanChanged(_ translationX: CGFloat) {
+        if isSuppressed() {
+            if dragOffset != 0 { dragOffset = 0 }
+            return
+        }
         let newOffset = SwipeReplyMotion.dragOffset(
             translationWidth: translationX,
             currentOffset: dragOffset
@@ -12408,7 +12427,9 @@ struct SwipeReplyModifier: ViewModifier {
     }
 
     /// 桥回调·收尾：松手/取消/失败同口——复位触
-    /// 发标记、动画回位、不再判触发
+    /// 发标记、动画回位、不再判触发。选区抑制在
+    /// 场时同样只复位（抑制中不判触发，见
+    /// handlePanChanged）
     private func handlePanEnded() {
         hasTriggered = false
         withAnimation(

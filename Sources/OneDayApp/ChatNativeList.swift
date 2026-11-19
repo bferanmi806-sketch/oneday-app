@@ -156,12 +156,23 @@ struct ChatNativeRowRevision: Equatable {
     /// 等无一例外），字段值不变则渲染输入不变、任
     /// 一字段变则修订必变，不存在「漏折一项」的清
     /// 单可漏。环境侧渲染输入（分隔文案/锚点点亮/
-    /// 选区在场/样式键）同列入账。
+    /// 样式键）同列入账。
+    /// 【选区在场永不入账】（141/142 根治，2026-
+    /// 11-19 用户令对话页按 OpenBot 做法）：选区是
+    /// 平台文本视图的内部状态、不是渲染输入——它
+    /// 曾以 selectionActive 旗入账，结果选区一形成
+    /// →修订翻转→该行重配→托管视图换代→UITextView
+    /// 本体被拆、选区与编辑菜单当场被冲（§332 触
+    /// 摸门只能把冲毁推迟到序列闭合后 0.35s，治标
+    /// 不治本）。OB 的同构做法：selecting 态只切已
+    /// 建手势的 enabled、不重建任何视图。自此选区
+    /// 的跨界影响只走两条不重配的路：右滑引用在手
+    /// 势回调时刻读账本停用、选区行重配在控制器分
+    /// 流处暂存（见 partitionTouchStaged）。
     static func entry(
         _ entry: ChatEntry,
         dividerText: String?,
         highlighted: Bool,
-        selectionActive: Bool,
         styleKey: String,
         showsUnreadDivider: Bool = false
     ) -> ChatNativeRowRevision {
@@ -202,7 +213,6 @@ struct ChatNativeRowRevision: Equatable {
         // 同列入账（在席变化必触发重配与重测高）
         revision.addFlag(showsUnreadDivider)
         revision.addFlag(highlighted)
-        revision.addFlag(selectionActive)
         revision.addText(styleKey)
         return revision
     }
@@ -578,6 +588,19 @@ final class ChatNativeListHandle {
     /// FocusConvergence）
     func focusEntry(_ id: UUID) {
         controller?.focusEntry(id)
+    }
+
+    /// 选区在场行键（141/142 根治）：ChatView 选区
+    /// 记账同步写入——控制器分流时该键的重配一律
+    /// 暂存（选区在场期间该行托管视图不许换代，
+    /// 与 OB selecting 态关行手势同构：平台文本视
+    /// 图在场时行 machinery 让路）；清账时经
+    /// noteSelectionProtectionEnded 唤醒 flush。
+    /// 纯引用记账、无观察语义
+    var selectionActiveRowKey: String?
+
+    func noteSelectionProtectionEnded() {
+        controller?.selectionProtectionEnded()
     }
 
     func captureAnchor() -> ChatListAnchor? {
@@ -1527,7 +1550,11 @@ final class ChatRootViewController: UIViewController,
         let (reconfigureKeys, touchStaged) =
             partitionTouchStaged(candidateKeys)
         touchStagedReconfigureKeys = touchStaged
-        if !touchStaged.isEmpty {
+        // 续排口径同 flush：纯选区暂存不陪跑、靠清
+        // 账回调唤醒
+        if touchStaged.contains(
+            where: { $0 != handle?.selectionActiveRowKey }
+        ) {
             scheduleSettle(delay: 0.3)
         }
         let wasEmpty = rows.isEmpty
@@ -1610,22 +1637,37 @@ final class ChatRootViewController: UIViewController,
     /// 摸序列门——未闭合者暂存（留账待闭合后
     /// flush）、已闭合者本拍落写。门只认行键与
     /// 时刻，不读 cell、不普查识别器状态
+    /// 141/142 根治追加一类暂存：选区在场行（句柄
+    /// selectionActiveRowKey）——触摸序列闭合后选
+    /// 区仍在场（长按选字/双击选词的常态），只靠
+    /// 序列门挡不住随后的重配；选区清账前该行一
+    /// 律暂存，清账回调唤醒后由 flush 复读本分流
+    /// 自然放行
     private func partitionTouchStaged(
         _ candidates: [String]
     ) -> (ready: [String], staged: Set<String>) {
         var ready: [String] = []
         var staged: Set<String> = []
         let now = CACurrentMediaTime()
+        let selectionKey = handle?.selectionActiveRowKey
         for key in candidates {
             if touchSequenceGate.isUnclosed(
                 rowKey: key, at: now
-            ) {
+            ) || key == selectionKey {
                 staged.insert(key)
             } else {
                 ready.append(key)
             }
         }
         return (ready, staged)
+    }
+
+    /// 选区保护结束（句柄转达）：有暂存即排一拍
+    /// flush——分流复读时选区键已清、暂存自然放行
+    func selectionProtectionEnded() {
+        if !touchStagedReconfigureKeys.isEmpty {
+            scheduleSettle()
+        }
     }
 
     /// §332（题 1）暂存重配的落写口（落定拍在整
@@ -1654,7 +1696,12 @@ final class ChatRootViewController: UIViewController,
                 snapshot, animatingDifferences: false
             )
         }
-        if !staged.isEmpty {
+        // 续排只为触摸门暂存（等序列闭合）；纯选区
+        // 暂存不续排——它由选区清账回调唤醒（选区
+        // 可停留任意久，不许陪跑定时器）
+        if staged.contains(
+            where: { $0 != handle?.selectionActiveRowKey }
+        ) {
             scheduleSettle(delay: 0.3)
         }
     }

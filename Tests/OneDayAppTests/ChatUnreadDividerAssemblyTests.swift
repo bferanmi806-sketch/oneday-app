@@ -32,11 +32,11 @@ final class ChatUnreadDividerAssemblyTests: XCTestCase {
         )
         let plain = ChatNativeRowRevision.entry(
             entry, dividerText: nil, highlighted: false,
-            selectionActive: false, styleKey: "s"
+            styleKey: "s"
         )
         let flagged = ChatNativeRowRevision.entry(
             entry, dividerText: nil, highlighted: false,
-            selectionActive: false, styleKey: "s",
+            styleKey: "s",
             showsUnreadDivider: true
         )
         XCTAssertNotEqual(

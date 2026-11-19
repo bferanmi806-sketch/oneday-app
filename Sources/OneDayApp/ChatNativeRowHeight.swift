@@ -2361,7 +2361,6 @@ struct ChatNativeRowHeightComposer {
             entry,
             dividerText: dividerText,
             highlighted: false,
-            selectionActive: false,
             styleKey: "",
             showsUnreadDivider: showsUnreadDivider
         )

@@ -614,38 +614,93 @@ struct SelectableTextRepresentable: UIViewRepresentable {
         uiView: SelectableUITextView,
         context: Context
     ) -> CGSize? {
-        let size = Self.measuredSize(
+        Self.measuredSize(
             attributed: attributed, proposal: proposal
         )
+    }
+
+    /// 量测备忘（143 根治）：（串实例身份 × 量化
+    /// 宽）→尺寸——SwiftUI 在滚动中对同一行反复布
+    /// 局、每次都全量 TextKit 现量是滚动路径同步量
+    /// 测的大头；§168 拼装缓存保证同内容恒同实例，
+    /// 身份键即内容键。备忘命中＝零量测（与 OB/
+    /// LegendList「滚动不现量、尺寸来自既有产物」
+    /// 同构）；未命中才真量一次并落账。容量有界、
+    /// 超限整表重置（尺寸可重算、不许备忘自带无界
+    /// 内存）
+    /// 备忘值持串本体：钉住实例身份——实例活着，
+    /// 其 ObjectIdentifier 就不会被新串复用（防地
+    /// 址回收串键）；命中时再以 === 复核一次
+    private static var measuredSizeCache: [
+        MeasuredSizeKey: (string: NSAttributedString, size: CGSize)
+    ] = [:]
+    private static let measuredSizeCacheLock = NSLock()
+    private static let measuredSizeCacheLimit = 1024
+
+    private struct MeasuredSizeKey: Hashable {
+        let instance: ObjectIdentifier
+        let length: Int
+        let widthBits: Int
+    }
+
+    /// 现量测本体（§168 离屏量测视图）：sizeThatFits
+    /// 与产物层对拍基准共用——基准与现行路径同源
+    /// 一台，不许有第二台「测试用量测」。143 根治
+    /// 后本体先查备忘：真量只在未命中时发生一次；
+    /// §251 影子对拍随之只在真量时记账（旧制每趟
+    /// sizeThatFits 都付一遍全串 FNV 哈希＋串拷贝
+    /// ——滚动路径的同步税，备忘命中后归零）
+    static func measuredSize(
+        attributed: NSAttributedString,
+        proposal: ProposedViewSize
+    ) -> CGSize {
+        let width = measuredWidth(proposal)
+        let key = MeasuredSizeKey(
+            instance: ObjectIdentifier(attributed),
+            length: attributed.length,
+            widthBits: Int((width * 2).rounded())
+        )
+        measuredSizeCacheLock.lock()
+        let cached = measuredSizeCache[key]
+        measuredSizeCacheLock.unlock()
+        if let cached, cached.string === attributed {
+            return cached.size
+        }
+        let measure = Self.measuringView
+        if !measure.attributedText.isEqual(to: attributed) {
+            measure.attributedText = attributed
+        }
+        let size = measure.sizeThatFits(
+            CGSize(
+                width: width,
+                height: CGFloat.greatestFiniteMagnitude
+            )
+        )
+        measuredSizeCacheLock.lock()
+        if measuredSizeCache.count
+            >= measuredSizeCacheLimit {
+            measuredSizeCache.removeAll()
+        }
+        measuredSizeCache[key] = (attributed, size)
+        measuredSizeCacheLock.unlock()
         // §251 影子对拍：同串同宽投后台量测池复量、
         // 与本值在 LayoutShadowLedger 记账比对——只
         // 记账不消费，返回值仍是现量测（行高来源不
-        // 变、呈现零改动）
+        // 变、呈现零改动）；143 后只在真量时记（见上）
         LayoutShadowLedger.shared.record(
             attributed: attributed,
-            width: Self.measuredWidth(proposal),
+            width: width,
             referenceHeight: size.height
         )
         return size
     }
 
-    /// 现量测本体（§168 离屏量测视图）：sizeThatFits
-    /// 与产物层对拍基准共用——基准与现行路径同源
-    /// 一台，不许有第二台「测试用量测」
-    static func measuredSize(
-        attributed: NSAttributedString,
-        proposal: ProposedViewSize
-    ) -> CGSize {
-        let measure = Self.measuringView
-        if !measure.attributedText.isEqual(to: attributed) {
-            measure.attributedText = attributed
-        }
-        return measure.sizeThatFits(
-            CGSize(
-                width: measuredWidth(proposal),
-                height: CGFloat.greatestFiniteMagnitude
-            )
-        )
+    /// 备忘命中读数（测试口：与布局匣计数口同式，
+    /// 生产路径只多一次加锁查表）
+    static var measuredSizeCacheCount: Int {
+        measuredSizeCacheLock.lock()
+        defer { measuredSizeCacheLock.unlock() }
+        return measuredSizeCache.count
     }
 
     /// 对拍基准高（产物层/单测入口）：按给定宽走现
