@@ -206,14 +206,15 @@ struct ChatNativeRowRevision: Equatable {
 
 // MARK: - 行描述（ChatView 喂入）
 
-/// 原生面行菜单描述（§330，0.50.70 热修题 2）：
-/// 行菜单的动作集——与 SwiftUI MessageMenu-
-/// Modifier 同源同序同图符（回复／在旁聊里接着
-/// 问／复制／选择／分享），由 ChatView 在行构造
-/// 点以条目现成闭包组装。原生面自 §330 起菜单
-/// 承载换 UIKit UIContextMenuInteraction 挂
-/// cell 本体（见托管 cell 节）；gen3 面不消费本
-/// 描述（其菜单仍走 SwiftUI .contextMenu）
+/// 原生面行菜单描述（§330，0.50.70 热修题 2；
+/// §332 二次修复换代）：行菜单的动作集——与
+/// SwiftUI MessageMenuModifier 同源同序同图符
+/// （回复／在旁聊里接着问／复制／选择／分享），
+/// 由 ChatView 在行构造点以条目现成闭包组装。
+/// 原生面菜单承载走集合视图 delegate 的
+/// contextMenuConfigurationForItemAt 内建通道
+/// （见控制器节）；gen3 面不消费本描述（其菜
+/// 单仍走 SwiftUI .contextMenu）
 struct ChatNativeRowContextMenu {
     let plainText: String
     let onReply: () -> Void
@@ -340,47 +341,29 @@ private final class ChatNativeLayoutBox {
 /// 内容以行键为 SwiftUI 身份（复用时状态不跨条
 /// 目串行，施工图 §七风险 2）；拟合尺寸由集合视
 /// 图布局自己消费，本类不读、不记（H10）
-/// §330（0.50.70 热修题 2）：行菜单承载在本类——
-/// UIContextMenuInteraction 直接挂 cell 本体，
-/// 不再走托管内容内的 SwiftUI .contextMenu（强
-/// 加帧内托管视图的布局结果不可恃、.69 真机长
-/// 按全灭，定因见 hotfix-05070-diagnosis）。点
-/// 位否决沿 §265：点落在任一文本视图帧内→归文
-/// 本体系（选字/编辑菜单），行菜单不触发；非文
-/// 本区（气泡背景/内边距带/行内铬件）→出行菜单
+/// §332（二次修复题 2）：cell 本体不再挂任何
+/// UIContextMenuInteraction（§265 禁令：交互挂
+/// 文本视图祖先会压死原生选字/编辑菜单）——行
+/// 菜单改由控制器的集合视图 delegate 内建通道
+/// 承载，cell 只渲染。菜单点位分工的 hitTest 判
+/// 读口在本类（静态、无状态）
 /// （internal 而非 private：装配测试须以生产原
-/// 物读配置普查与菜单 delegate——与控制器/合成
-/// 器的 internal 测试面同式）
-final class ChatNativeHostingCell: UICollectionViewCell,
-    UIContextMenuInteractionDelegate
-{
+/// 物读配置普查——与控制器/合成器的 internal
+/// 测试面同式）
+final class ChatNativeHostingCell: UICollectionViewCell {
     static let reuseID = "ChatNativeHostingCell"
 
     /// 配置普查（测试读口，与布局匣计数口同式：
     /// 生产路径只多两次赋值、无行为影响）：本
-    /// cell 的配置次数与最近配置行键——§330 在
-    /// 途延后的断言以此为据（在途行计数不动、清
-    /// 零后恰涨一次）
+    /// cell 的配置次数与最近配置行键——§332 触
+    /// 摸序列暂存的断言以此为据（未闭合行计数不
+    /// 动、闭合后恰涨一次）
     private(set) var configureCount = 0
     private(set) var configuredKey: String?
-
-    /// 本行菜单描述（configure 落写、复用清零）；
-    /// nil＝本行无菜单（门控与 ChatView 构造点同
-    /// 口径：正文空的纯图片行不挂）
-    private var rowMenu: ChatNativeRowContextMenu?
-    private var menuInteraction: UIContextMenuInteraction?
-    /// 行菜单呈现中（willDisplay→willEnd 记账）：
-    /// 呈现中的菜单锚在本 cell 上，本标记供题 1
-    /// 在途读数——呈现期间不许换代本 cell 内容
-    private(set) var isContextMenuPresented = false
 
     func configure(with row: ChatNativeRow) {
         configureCount += 1
         configuredKey = row.key
-        rowMenu = row.contextMenu
-        if rowMenu != nil {
-            installMenuInteractionIfNeeded()
-        }
         var config = UIHostingConfiguration {
             row.makeView()
                 .id(row.key)
@@ -397,129 +380,166 @@ final class ChatNativeHostingCell: UICollectionViewCell,
     override func prepareForReuse() {
         super.prepareForReuse()
         contentConfiguration = nil
-        rowMenu = nil
         configuredKey = nil
-        isContextMenuPresented = false
     }
 
-    private func installMenuInteractionIfNeeded() {
-        guard menuInteraction == nil else { return }
-        let interaction = UIContextMenuInteraction(
-            delegate: self
-        )
-        addInteraction(interaction)
-        menuInteraction = interaction
-    }
-
-    // MARK: 行菜单（UIContextMenuInteraction）
-
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        configurationForMenuAtLocation location: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard let rowMenu else { return nil }
-        // §265 点位否决：点在文本视图帧内不出行菜单
-        if Self.pointIsOnTextView(location, in: self) {
-            return nil
-        }
-        return UIContextMenuConfiguration(
-            identifier: nil, previewProvider: nil
-        ) { _ in rowMenu.makeMenu() }
-    }
-
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        willDisplayMenuFor configuration:
-            UIContextMenuConfiguration,
-        animator: UIContextMenuInteractionAnimating?
-    ) {
-        isContextMenuPresented = true
-    }
-
-    func contextMenuInteraction(
-        _ interaction: UIContextMenuInteraction,
-        willEndFor configuration:
-            UIContextMenuConfiguration,
-        animator: UIContextMenuInteractionAnimating?
-    ) {
-        isContextMenuPresented = false
-    }
-
-    // willPerformPreviewAction 不实现：预览即 cell
-    // 本体（previewProvider 恒 nil 的系统默认形
-    // 态）、点预览无导航语义，delegate 缺省收口即
-    // 标准路（本 SDK 的 CommitAnimating 无 commit
-    // 成员，自实现反而越界）
-
-    /// 点位否决判据：点（cell 坐标）落在托管内容
-    /// 子树任一 UITextView 的帧内——文本视图是
-    /// 选字/编辑菜单的辖区（§265），行菜单让行。
-    /// internal：装配测试以生产原物验本判据
-    static func pointIsOnTextView(
-        _ point: CGPoint, in cell: UIView
+    /// hitTest 命中判读（§332 题 1/题 2 共用）：
+    /// 命中视图沿父链上溯到 boundary 为止，途经
+    /// 任一 UITextView 即判「落在文本视图内」——
+    /// 文本视图是选字/编辑菜单的辖区（§265）。
+    /// 与旧帧否决的区别：hitTest 走系统命中链
+    /// （含托管视图的真实命中结果），不再以帧矩
+    /// 形普查把可达域压到内边距窄带
+    static func hitTestLandsOnTextView(
+        _ hitView: UIView?, stopAt boundary: UIView
     ) -> Bool {
-        for frame in textViewFrames(in: cell) {
-            if frame.contains(point) { return true }
+        var current = hitView
+        while let view = current, view !== boundary {
+            if view is UITextView { return true }
+            current = view.superview
         }
         return false
     }
+}
 
-    private static func textViewFrames(
-        in root: UIView
-    ) -> [CGRect] {
-        var frames: [CGRect] = []
-        func walk(_ view: UIView) {
-            for subview in view.subviews {
-                if let textView = subview as? UITextView {
-                    frames.append(
-                        textView.convert(
-                            textView.bounds, to: root
-                        )
-                    )
-                }
-                walk(subview)
-            }
+// MARK: - 触摸序列门（§332 题 1，纯逻辑）
+
+/// 触摸生命周期门：单序列状态机——按下未抬＝
+/// 未闭合；抬起时落点在文本视图上＝进入双击间
+/// 隔等待（间隔内仍未闭合，等第二击或超时闭
+/// 合）；抬起时落点不在文本上＝立即闭合；新序
+/// 列在另一行按下＝旧等待作废（跨行不算第二
+/// 击）。识别器状态不入本门：§330 的状态普查读
+/// 不到停在 .possible 的双击待定识别器、结构性
+/// 失明，本门只认触摸生命周期本身。时刻由调用
+/// 方注入（生产＝CACurrentMediaTime、测试＝假
+/// 时钟），判定纯函数化可测
+struct ChatNativeTouchSequenceGate {
+    /// 双击间隔（与系统双击判定同量级）：抬起后
+    /// 在此窗口内同行再按下视为同一序列
+    var doubleTapInterval: TimeInterval = 0.35
+
+    private var activeRowKey: String?
+    private var activeTouchOnTextView = false
+    private var awaitingRowKey: String?
+    private var awaitingDeadline: TimeInterval = 0
+
+    /// 按下：本行进入未闭合；若此前有另一行在双
+    /// 击等待，该等待作废（跨行落点不是第二击）
+    mutating func touchBegan(
+        rowKey: String, onTextView: Bool,
+        at time: TimeInterval
+    ) {
+        if awaitingRowKey != nil
+            && awaitingRowKey != rowKey {
+            awaitingRowKey = nil
         }
-        walk(root)
-        return frames
+        if activeRowKey == nil
+            || activeRowKey == rowKey {
+            activeRowKey = rowKey
+            activeTouchOnTextView = onTextView
+        }
     }
 
-    // MARK: 手势在途读数（§330 题 1）
-
-    /// 本 cell 辖内有手势在途：任一识别器处于
-    /// began/changed（文本选字长按/拖选、行菜单
-    /// 长按、右滑桥 pan——桥识别器本体在宿主滚
-    /// 动视图上、经其安装视图的普查读口读），或
-    /// 行菜单呈现中。在途为真时控制器延后本行
-    /// reconfigure：托管视图中途换代会令识别器
-    /// 随宿主消亡、双击序列与长按计时被静默吞掉
-    /// （.69 真机双击/长按全灭的候选机理 C）
-    var hasGestureInFlight: Bool {
-        if isContextMenuPresented { return true }
-        return Self.subtreeHasActiveGesture(self)
+    /// 抬起：落点（按下点）在文本上→转双击等待
+    /// （deadline＝抬起＋间隔）；不在文本上→闭合
+    mutating func touchEnded(
+        rowKey: String, at time: TimeInterval
+    ) {
+        guard activeRowKey == rowKey else { return }
+        activeRowKey = nil
+        if activeTouchOnTextView {
+            awaitingRowKey = rowKey
+            awaitingDeadline = time + doubleTapInterval
+        } else if awaitingRowKey == rowKey {
+            awaitingRowKey = nil
+        }
+        activeTouchOnTextView = false
     }
 
-    private static func subtreeHasActiveGesture(
-        _ view: UIView
+    /// 取消：序列直接闭合、不进双击等待
+    mutating func touchCancelled(rowKey: String) {
+        if activeRowKey == rowKey {
+            activeRowKey = nil
+            activeTouchOnTextView = false
+        }
+        if awaitingRowKey == rowKey {
+            awaitingRowKey = nil
+        }
+    }
+
+    /// 本行序列是否未闭合（按下中，或双击等待未
+    /// 超时）
+    func isUnclosed(
+        rowKey: String, at time: TimeInterval
     ) -> Bool {
-        for recognizer in view.gestureRecognizers ?? [] {
-            if recognizer.state == .began
-                || recognizer.state == .changed {
-                return true
-            }
+        if activeRowKey == rowKey { return true }
+        return awaitingRowKey == rowKey
+            && time <= awaitingDeadline
+    }
+}
+
+// MARK: - 触摸观察识别器（§332 题 1）
+
+/// 观察型识别器：只旁观集合视图的触摸流（按下/
+/// 抬起/取消转发给控制器喂触摸序列门），自身永
+/// 不识别成功、永不取消/延迟触摸——状态恒
+/// .possible，不与文本选字、长按菜单、滚动任
+/// 何既有识别器竞争。同时识别由控制器的
+/// UIGestureRecognizerDelegate 全放行
+final class ChatNativeTouchObserverGestureRecognizer:
+    UIGestureRecognizer
+{
+    var onTouchBegan: ((UITouch) -> Void)?
+    var onTouchEnded: ((UITouch) -> Void)?
+    var onTouchCancelled: ((UITouch) -> Void)?
+
+    init() {
+        super.init(target: nil, action: nil)
+        cancelsTouchesInView = false
+        delaysTouchesBegan = false
+        delaysTouchesEnded = false
+    }
+
+    override func touchesBegan(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        super.touchesBegan(touches, with: event)
+        if let touch = touches.first {
+            onTouchBegan?(touch)
         }
-        if let installer =
-            view as? SwipeReplyPanInstallerView,
-           let pan = installer.installedRecognizer,
-           pan.state == .began || pan.state == .changed {
-            return true
+    }
+
+    override func touchesEnded(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        super.touchesEnded(touches, with: event)
+        if let touch = touches.first {
+            onTouchEnded?(touch)
         }
-        for subview in view.subviews {
-            if subtreeHasActiveGesture(subview) {
-                return true
-            }
+    }
+
+    override func touchesCancelled(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        super.touchesCancelled(touches, with: event)
+        if let touch = touches.first {
+            onTouchCancelled?(touch)
         }
-        return false
+    }
+
+    override func canBePrevented(
+        by preventingGestureRecognizer:
+            UIGestureRecognizer
+    ) -> Bool {
+        false
+    }
+
+    override func canPrevent(
+        _ preventedGestureRecognizer:
+            UIGestureRecognizer
+    ) -> Bool {
+        false
     }
 }
 
@@ -559,7 +579,7 @@ final class ChatNativeListHandle {
 }
 
 final class ChatRootViewController: UIViewController,
-    UICollectionViewDelegate
+    UICollectionViewDelegate, UIGestureRecognizerDelegate
 {
     let collectionView: UICollectionView
     /// 与布局提供者闭包捕获的是同一个实例（init
@@ -666,15 +686,24 @@ final class ChatRootViewController: UIViewController,
         var arrowView: AnyView?
     }
     private var pendingApply: PendingApply?
-    /// §330（0.50.70 热修题 1）：手势在途延后重配
-    /// 的留账键集——落写时可见 cell 正有识别器在
-    /// 途的行，其 reconfigure 延后一拍（托管视图
-    /// 中途换代会吞掉在途的双击/长按）；键留本集
-    /// 作重试源（修订记账已按新行落写、修订差不
-    /// 会再检出本键），后续每趟 apply 与每记落定
-    /// 拍都复读在途态重试、在途清零即落写
-    private var gestureDeferredReconfigureKeys:
+    /// §332（二次修复题 1）：触摸序列未闭合行暂
+    /// 存重配的键集——落写时该行触摸序列未闭合
+    /// （按下未抬，或抬起后尚在双击间隔内），其
+    /// reconfigure 暂存（托管视图中途换代会吞掉
+    /// 双击序列的第一击）；键留本集作重试源（修
+    /// 订记账已按新行落写、修订差不会再检出本
+    /// 键），序列闭合后一拍 flush 落写
+    private var touchStagedReconfigureKeys:
         Set<String> = []
+    /// 触摸序列门（§332）：观察识别器喂入、落写
+    /// 分流读数——只认触摸生命周期，不普查识别
+    /// 器状态（§330 失明定因）
+    private var touchSequenceGate =
+        ChatNativeTouchSequenceGate()
+    /// 触摸观察识别器（§332）：装配期挂集合视图，
+    /// 只旁观不竞争（见其类型注）
+    private let touchObserver =
+        ChatNativeTouchObserverGestureRecognizer()
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
     /// 判达标＋几何跨拍稳定后消（§302.3）、或用
     /// 户拖动接管即消
@@ -743,6 +772,22 @@ final class ChatRootViewController: UIViewController,
     /// 册与数据源不许等装载拍）
     private func setUpCollectionView() {
         collectionView.delegate = self
+        // §332（题 1）：触摸观察识别器挂集合视图
+        // ——触摸流（按下/抬起/取消）转发触摸序列
+        // 门；识别器恒 .possible、不取消不延迟触
+        // 摸，同时识别经本控制器 delegate 放行
+        touchObserver.delegate = self
+        touchObserver.onTouchBegan = { [weak self] touch in
+            self?.touchSequenceTouchBegan(touch)
+        }
+        touchObserver.onTouchEnded = { [weak self] touch in
+            self?.touchSequenceTouchEnded(touch)
+        }
+        touchObserver.onTouchCancelled = {
+            [weak self] touch in
+            self?.touchSequenceTouchCancelled(touch)
+        }
+        collectionView.addGestureRecognizer(touchObserver)
         // 自适应行高失效口径（iOS 16+ UICollection-
         // View 属性、非 layout 属性）：托管内容
         // （SwiftUI 拟合）的尺寸变化即自动重测，不
@@ -1449,26 +1494,23 @@ final class ChatRootViewController: UIViewController,
                 && revisionsByKey[$0]
                     != newByKey[$0]?.revision
         }
-        // §330（题 1）手势在途分流：候选＝修订差
-        // ∪ 在途留账（留账键的修订差已被上趟记账
-        // 吃掉、只认本集重试）；逐键读其可见 cell
-        // 的在途态（cell 尚按旧行序在屏、索引走旧
-        // 键序）——在途者本拍不重配、留账下拍重试，
-        // 其余照旧落写。高度-only 变化不入候选（候
-        // 选只由修订差与留账构成）、本就不触发重
-        // 配——回归断言在装配测试钉住
+        // §332（题 1）触摸序列分流：候选＝修订差
+        // ∪ 暂存留账（留账键的修订差已被上趟记账
+        // 吃掉、只认本集重试）；逐键读触摸序列门
+        // ——未闭合者本拍不重配、暂存待序列闭合后
+        // flush，其余照旧落写。高度-only 变化不入
+        // 候选（候选只由修订差与留账构成）、本就
+        // 不触发重配——回归断言在装配测试钉住
         var candidateKeys = revisionMismatchKeys
-        for key in gestureDeferredReconfigureKeys
+        for key in touchStagedReconfigureKeys
         where newByKey[key] != nil
             && !candidateKeys.contains(key) {
             candidateKeys.append(key)
         }
-        let (reconfigureKeys, gestureDeferred) =
-            partitionGestureDeferred(
-                candidateKeys, orderedKeys: oldKeys
-            )
-        gestureDeferredReconfigureKeys = gestureDeferred
-        if !gestureDeferred.isEmpty {
+        let (reconfigureKeys, touchStaged) =
+            partitionTouchStaged(candidateKeys)
+        touchStagedReconfigureKeys = touchStaged
+        if !touchStaged.isEmpty {
             scheduleSettle(delay: 0.3)
         }
         let wasEmpty = rows.isEmpty
@@ -1547,57 +1589,41 @@ final class ChatRootViewController: UIViewController,
         applyArrow(view: arrowView)
     }
 
-    /// §330（题 1）在途分流：候选键逐个读其可见
-    /// cell 的手势在途态——在途者延后（留账下拍
-    /// 重试）、其余本拍落写。cell 不在屏（无 cell
-    /// 可读）或键不在现行序内恒落写：在途只存在
-    /// 于可见 cell
-    private func partitionGestureDeferred(
-        _ candidates: [String],
-        orderedKeys: [String]
-    ) -> (ready: [String], deferred: Set<String>) {
+    /// §332（题 1）触摸序列分流：候选键逐个读触
+    /// 摸序列门——未闭合者暂存（留账待闭合后
+    /// flush）、已闭合者本拍落写。门只认行键与
+    /// 时刻，不读 cell、不普查识别器状态
+    private func partitionTouchStaged(
+        _ candidates: [String]
+    ) -> (ready: [String], staged: Set<String>) {
         var ready: [String] = []
-        var deferred: Set<String> = []
+        var staged: Set<String> = []
+        let now = CACurrentMediaTime()
         for key in candidates {
-            guard let index = orderedKeys
-                    .firstIndex(of: key),
-                  let cell = collectionView
-                    .cellForItem(
-                        at: IndexPath(
-                            item: 0, section: index
-                        )
-                    ) as? ChatNativeHostingCell
-            else {
-                ready.append(key)
-                continue
-            }
-            if cell.hasGestureInFlight {
-                deferred.insert(key)
+            if touchSequenceGate.isUnclosed(
+                rowKey: key, at: now
+            ) {
+                staged.insert(key)
             } else {
                 ready.append(key)
             }
         }
-        return (ready, deferred)
+        return (ready, staged)
     }
 
-    /// §330（题 1）在途延后重配的落写口（落定拍
-    /// 在整笔喂入消费后调用）：留账键逐个复读在
-    /// 途态，清零者以现行快照 reconfigure 落写
-    /// （cell 供应器读 rowsByKey 现行行）；仍在途
-    /// 者留账并续排一拍。在途窗口以秒计（长按菜
-    /// 单呈现/拖选），0.3s 一拍的重试成本只是一
-    /// 次可见 cell 读数
-    private func flushGestureDeferredReconfigures() {
-        guard !gestureDeferredReconfigureKeys.isEmpty
+    /// §332（题 1）暂存重配的落写口（落定拍在整
+    /// 笔喂入消费后调用）：留账键逐个复读序列
+    /// 门，闭合者以现行快照 reconfigure 落写
+    /// （cell 供应器读 rowsByKey 现行行）；仍未
+    /// 闭合者留账并续排一拍
+    private func flushTouchStagedReconfigures() {
+        guard !touchStagedReconfigureKeys.isEmpty
         else { return }
-        let present = gestureDeferredReconfigureKeys
+        let present = touchStagedReconfigureKeys
             .filter { rowsByKey[$0] != nil }
-        let (ready, deferred) =
-            partitionGestureDeferred(
-                Array(present),
-                orderedKeys: rows.map(\.key)
-            )
-        gestureDeferredReconfigureKeys = deferred
+        let (ready, staged) =
+            partitionTouchStaged(Array(present))
+        touchStagedReconfigureKeys = staged
         let snapshotItems = Set(
             dataSource.snapshot().itemIdentifiers
         )
@@ -1611,9 +1637,160 @@ final class ChatRootViewController: UIViewController,
                 snapshot, animatingDifferences: false
             )
         }
-        if !deferred.isEmpty {
+        if !staged.isEmpty {
             scheduleSettle(delay: 0.3)
         }
+    }
+
+    // MARK: 触摸序列喂入（§332 题 1）
+
+    /// 触摸定位解析：触摸（集合视图坐标）→行键＋
+    /// 落点是否在该行文本视图上（cell hitTest 命
+    /// 中链判读，与题 2 菜单分工同判据）
+    private func touchRowContext(
+        _ touch: UITouch
+    ) -> (rowKey: String, onTextView: Bool)? {
+        let location = touch.location(in: collectionView)
+        guard let indexPath = collectionView
+                .indexPathForItem(at: location),
+              indexPath.section < rows.count,
+              let cell = collectionView.cellForItem(
+                at: indexPath
+              ) as? ChatNativeHostingCell
+        else { return nil }
+        let cellPoint = touch.location(in: cell)
+        let hitView = cell.hitTest(cellPoint, with: nil)
+        return (
+            rows[indexPath.section].key,
+            ChatNativeHostingCell.hitTestLandsOnTextView(
+                hitView, stopAt: cell
+            )
+        )
+    }
+
+    private func touchSequenceTouchBegan(_ touch: UITouch) {
+        guard let context = touchRowContext(touch)
+        else { return }
+        touchSequenceTouchBegan(
+            rowKey: context.rowKey,
+            onTextView: context.onTextView
+        )
+    }
+
+    private func touchSequenceTouchEnded(_ touch: UITouch) {
+        guard let context = touchRowContext(touch)
+        else { return }
+        touchSequenceTouchEnded(rowKey: context.rowKey)
+    }
+
+    private func touchSequenceTouchCancelled(
+        _ touch: UITouch
+    ) {
+        guard let context = touchRowContext(touch)
+        else { return }
+        touchSequenceGate.touchCancelled(
+            rowKey: context.rowKey
+        )
+        if !touchStagedReconfigureKeys.isEmpty {
+            scheduleSettle()
+        }
+    }
+
+    /// 序列门喂入（按下）：internal——装配测试以
+    /// 本口模拟真触摸序列驱动生产分流（真触摸的
+    /// 端到端信号 CI 无效，见测试文件头注）
+    func touchSequenceTouchBegan(
+        rowKey: String, onTextView: Bool
+    ) {
+        let now = CACurrentMediaTime()
+        touchSequenceGate.touchBegan(
+            rowKey: rowKey, onTextView: onTextView,
+            at: now
+        )
+        // 跨行按下作废旧行的双击等待：暂存键里若
+        // 有因此闭合者，排一拍 flush（flush 自会
+        // 逐键复读门态分流）
+        if touchStagedReconfigureKeys.contains(
+            where: {
+                !touchSequenceGate.isUnclosed(
+                    rowKey: $0, at: now
+                )
+            }
+        ) {
+            scheduleSettle()
+        }
+    }
+
+    /// 序列门喂入（抬起）：落点在文本上→进双击
+    /// 等待，排间隔后一拍（超时闭合即 flush）；
+    /// 不在文本上→已闭合，有暂存即排一拍 flush
+    func touchSequenceTouchEnded(rowKey: String) {
+        touchSequenceGate.touchEnded(
+            rowKey: rowKey, at: CACurrentMediaTime()
+        )
+        guard !touchStagedReconfigureKeys.isEmpty
+        else { return }
+        if touchSequenceGate.isUnclosed(
+            rowKey: rowKey, at: CACurrentMediaTime()
+        ) {
+            scheduleSettle(
+                delay: touchSequenceGate
+                    .doubleTapInterval + 0.05
+            )
+        } else {
+            scheduleSettle()
+        }
+    }
+
+    /// 观察识别器与一切既有识别器同时识别（旁观
+    /// 不竞争的构造保证）
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith
+            otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer === touchObserver
+            || otherGestureRecognizer === touchObserver
+    }
+
+    // MARK: 行菜单（§332 题 2，集合视图 delegate 内建通道）
+
+    /// 行菜单：系统内建通道——point 经 cell
+    /// hitTest 落在 UITextView 内→nil（归原生编
+    /// 辑菜单，§265）；其余→出行菜单（项集/序/
+    /// 图符由行描述 makeMenu 与 SwiftUI 承载逐项
+    /// 同）。预览不设 previewProvider＝系统默认
+    /// targeted preview；cell 本体不挂任何
+    /// UIContextMenuInteraction（§265 禁令）
+    func collectionView(
+        _ collectionView: UICollectionView,
+        contextMenuConfigurationForItemAt indexPath:
+            IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard indexPath.section < rows.count,
+              let rowMenu =
+                rows[indexPath.section].contextMenu
+        else { return nil }
+        if let cell = collectionView.cellForItem(
+            at: indexPath
+        ) as? ChatNativeHostingCell {
+            let cellPoint = collectionView.convert(
+                point, to: cell
+            )
+            let hitView = cell.hitTest(
+                cellPoint, with: nil
+            )
+            if ChatNativeHostingCell
+                .hitTestLandsOnTextView(
+                    hitView, stopAt: cell
+                ) {
+                return nil
+            }
+        }
+        return UIContextMenuConfiguration(
+            identifier: nil, previewProvider: nil
+        ) { _ in rowMenu.makeMenu() }
     }
 
     // MARK: 落定拍（§259 合并调度，与 gen3 同式）
@@ -1668,11 +1845,11 @@ final class ChatRootViewController: UIViewController,
                 arrowView: pending.arrowView
             )
         }
-        // §330（题 1）：在途延后重配的落写——须在
-        // 整笔喂入消费之后（行集已是最新），布局失
-        // 效施工之前（重配引发的布局需求由紧随的
-        // 合并口同拍消费）
-        flushGestureDeferredReconfigures()
+        // §332（题 1）：触摸序列暂存重配的落写——
+        // 须在整笔喂入消费之后（行集已是最新），布
+        // 局失效施工之前（重配引发的布局需求由紧
+        // 随的合并口同拍消费）
+        flushTouchStagedReconfigures()
         if pendingLayoutInvalidation {
             // §325.2：布局失效的唯一施工口——落定拍
             // 在布局 pass 外、同拍合并执行一次，随后

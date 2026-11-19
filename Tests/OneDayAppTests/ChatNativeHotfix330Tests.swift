@@ -5,24 +5,27 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §330（0.50.70 热修）三件的单元层验收：
-/// 题 1 在途保护——落定拍/连发 apply 拍下，可见
-/// cell 有识别器处 began/changed 时其 reconfigure
-/// 延后、在途清零后一拍恰落写一次；高度-only 变
-/// 化不触发 reconfigure（回归断言）；
-/// 题 2 承载换代——cell 的 UIContextMenuInteraction
-/// 点位否决（文本帧内→nil、非文本区→出菜单）＋菜单
-/// 项集与 SwiftUI 承载逐项同（标题序＋图符在席）；
+/// §330（0.50.70 热修）三件的单元层验收，§332
+/// （二次修复）题 1/题 2 换代后本文件同步换代：
+/// 题 1 触摸序列门——纯逻辑门序列开闭判定（按
+/// 下/抬起/间隔超时/跨行）＋装配层：序列未闭合
+/// 行 reconfigure 暂存、闭合后一拍恰落写一次；
+/// 高度-only 变化不触发 reconfigure（回归断言）；
+/// 题 2 承载换代——集合视图 delegate 内建通道的
+/// point 分工（cell hitTest 落文本内→nil、文本
+/// 外→出菜单且项集与 SwiftUI 承载逐项同）＋cell
+/// 本体不挂 UIContextMenuInteraction；
 /// 题 3 整行备忘——真实形态行集（含表格/工具卡/
 /// 引用/审批/交付）预填后重复多趟（模拟滚动期
 /// body 求值＋合成器每趟现建）实算计数不涨、高
 /// 度逐值不变；账本翻转只失效其行；245 行形态同
 /// 口径。
-/// 覆盖边界（诚实标注）：在途态以 KVC 强制识别器
-/// 状态模拟（生产分流逻辑本体为被测物）；原生面
-/// 手势的端到端真触摸序列 CI 无有效信号（基线红
-/// 族＋AX 环境所限，定因报告题 2 对账在案），流
-/// 式进行中的双击/长按终判归用户真机（交卷清单）
+/// 覆盖边界（诚实标注）：装配层序列以控制器喂入
+/// 口模拟真触摸驱动生产分流（门本体另有纯逻辑
+/// 测）；原生面手势的端到端真触摸序列 CI 无有效
+/// 信号（基线红族＋AX 环境所限，定因报告题 2 对
+/// 账在案），流式进行中的双击/长按终判归用户真
+/// 机（交卷清单）
 @MainActor
 final class ChatNativeHotfix330Tests: XCTestCase {
     private var window: UIWindow?
@@ -139,22 +142,103 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         )
     }
 
-    private func forceGestureState(
-        _ recognizer: UIGestureRecognizer,
-        _ state: UIGestureRecognizer.State
-    ) {
-        recognizer.setValue(
-            state.rawValue, forKey: "state"
+    // MARK: - 题 1：触摸序列门（§332）
+
+    /// 纯逻辑门：按下未抬＝未闭合；抬起落点在文
+    /// 本上＝双击间隔内仍未闭合、超时闭合；抬起
+    /// 落点不在文本上＝立即闭合；跨行按下作废旧
+    /// 行等待；同行第二击续接序列；取消直接闭合
+    func testTouchSequenceGateOpenCloseLifecycle() {
+        var gate = ChatNativeTouchSequenceGate()
+        XCTAssertEqual(gate.doubleTapInterval, 0.35)
+        // 按下未抬
+        gate.touchBegan(
+            rowKey: "b", onTextView: true, at: 100
+        )
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 100),
+            "按下未抬须未闭合"
+        )
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "a", at: 100),
+            "他行不受本序列影响"
+        )
+        // 抬起（落点在文本上）→双击等待
+        gate.touchEnded(rowKey: "b", at: 100.1)
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 100.1),
+            "抬起后双击间隔内须未闭合"
+        )
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 100.44),
+            "间隔截止前须仍未闭合（恰等截止点的浮点"
+                + "边界不作产品断言）"
+        )
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "b", at: 100.46),
+            "间隔超时须闭合"
+        )
+        // 抬起落点不在文本上→立即闭合
+        gate.touchBegan(
+            rowKey: "c", onTextView: false, at: 200
+        )
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "c", at: 200)
+        )
+        gate.touchEnded(rowKey: "c", at: 200.1)
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "c", at: 200.1),
+            "非文本抬起须立即闭合（无双击等待）"
+        )
+        // 跨行：b 双击等待中，c 按下→b 等待作废
+        gate.touchBegan(
+            rowKey: "b", onTextView: true, at: 300
+        )
+        gate.touchEnded(rowKey: "b", at: 300.1)
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 300.2)
+        )
+        gate.touchBegan(
+            rowKey: "c", onTextView: true, at: 300.2
+        )
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "b", at: 300.2),
+            "跨行按下须作废旧行双击等待"
+        )
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "c", at: 300.2)
+        )
+        gate.touchCancelled(rowKey: "c")
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "c", at: 300.2),
+            "取消须直接闭合"
+        )
+        // 同行第二击：等待内按下续接、再抬起重进等待
+        gate.touchBegan(
+            rowKey: "b", onTextView: true, at: 400
+        )
+        gate.touchEnded(rowKey: "b", at: 400.1)
+        gate.touchBegan(
+            rowKey: "b", onTextView: true, at: 400.2
+        )
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 400.2),
+            "第二击按下仍未闭合"
+        )
+        gate.touchEnded(rowKey: "b", at: 400.3)
+        XCTAssertTrue(
+            gate.isUnclosed(rowKey: "b", at: 400.6),
+            "第二击抬起后重新进入双击等待"
+        )
+        XCTAssertFalse(
+            gate.isUnclosed(rowKey: "b", at: 400.66)
         )
     }
 
-    // MARK: - 题 1：在途保护
-
-    /// 落定语义下的一拍 apply：无在途行当拍落写、
-    /// 在途行延后；识别器清零后经 0.3s 重试拍＋落
-    /// 定拍 flush 恰落写一次（生产读口＝cell 配置
-    /// 普查）
-    func testInFlightCellReconfigureDeferredUntilGestureEnds()
+    /// 装配层：序列未闭合行当拍暂存、无序列行当
+    /// 拍落写；序列闭合（抬起＋间隔超时）后经 flush
+    /// 恰落写一次（生产读口＝cell 配置普查）
+    func testTouchSequenceDefersReconfigureUntilClose()
         throws
     {
         assemble()
@@ -169,34 +253,34 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         let cellC = try hostingCell(at: 2)
         let baseB = cellB.configureCount
         let baseC = cellC.configureCount
-        let press = UILongPressGestureRecognizer()
-        cellB.contentView.addGestureRecognizer(press)
-        forceGestureState(press, .began)
+        controller?.touchSequenceTouchBegan(
+            rowKey: "b", onTextView: true
+        )
         rows[1] = textRow("b", text: "b-v2")
         rows[2] = textRow("c", text: "c-v2")
         apply(rows)
         XCTAssertEqual(
             cellC.configureCount, baseC + 1,
-            "无在途行须当拍落写"
+            "无序列行须当拍落写"
         )
         XCTAssertEqual(
             cellB.configureCount, baseB,
-            "在途行 reconfigure 须延后、不冲手势"
+            "序列未闭合行 reconfigure 须暂存、不冲双击"
         )
-        forceGestureState(press, .ended)
+        controller?.touchSequenceTouchEnded(rowKey: "b")
         drain(1.2)
         XCTAssertEqual(
             cellB.configureCount, baseB + 1,
-            "在途清零后须恰落写一次"
+            "序列闭合后须恰落写一次"
         )
         XCTAssertEqual(cellB.configuredKey, "b")
     }
 
     /// 流式工况的形状：连发三拍修订（模拟流式期
-    /// body 求值连拍），在途行全程零重配、无在途
-    /// 行逐拍落写；在途清零后在途行只补写一次
+    /// body 求值连拍），未闭合行全程零重配、无序
+    /// 列行逐拍落写；闭合后未闭合行只补写一次
     /// （最新修订）
-    func testStreamingPatsNeverReconfigureInFlightCell()
+    func testStreamingPatsNeverReconfigureUnclosedRow()
         throws
     {
         assemble()
@@ -211,9 +295,9 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         let cellC = try hostingCell(at: 2)
         let baseB = cellB.configureCount
         let baseC = cellC.configureCount
-        let press = UILongPressGestureRecognizer()
-        cellB.contentView.addGestureRecognizer(press)
-        forceGestureState(press, .began)
+        controller?.touchSequenceTouchBegan(
+            rowKey: "b", onTextView: true
+        )
         for version in 2...4 {
             rows[1] = textRow(
                 "b", text: "b-v\(version)"
@@ -225,17 +309,17 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         }
         XCTAssertEqual(
             cellB.configureCount, baseB,
-            "连发拍下在途行须零重配"
+            "连发拍下未闭合行须零重配"
         )
         XCTAssertEqual(
             cellC.configureCount, baseC + 3,
-            "无在途行须逐拍落写"
+            "无序列行须逐拍落写"
         )
-        forceGestureState(press, .ended)
+        controller?.touchSequenceTouchEnded(rowKey: "b")
         drain(1.2)
         XCTAssertEqual(
             cellB.configureCount, baseB + 1,
-            "清零后只补写一次（最新修订）"
+            "闭合后只补写一次（最新修订）"
         )
     }
 
@@ -314,11 +398,13 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         return nil
     }
 
-    /// §265 点位否决（生产 delegate 本体）：点落
-    /// 文本视图帧内→不给行菜单；点落非文本区→给
-    /// 菜单；菜单项集与 SwiftUI 承载逐项同序、图
-    /// 符在席
-    func testRowMenuVetoOnTextAndItemsMatchSwiftUICarrier()
+    /// §332 delegate 内建通道 point 分工（生产
+    /// delegate 本体）：point 经 cell hitTest 落文
+    /// 本内→nil（归原生编辑菜单，§265）；落文本
+    /// 外→出配置且其菜单项集与 SwiftUI 承载逐项
+    /// 同序、图符在席；cell 本体不挂任何
+    /// UIContextMenuInteraction（§265 禁令）
+    func testRowMenuDelegatePointDivisionAndItemsMatch()
         throws
     {
         assemble()
@@ -348,41 +434,52 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         apply([row])
         drain(0.8)
         let cell = try hostingCell(at: 0)
-        let interaction = try XCTUnwrap(
-            cell.interactions.compactMap {
-                $0 as? UIContextMenuInteraction
-            }.first,
-            "带菜单描述的行 cell 须装 UIContextMenuInteraction"
+        XCTAssertFalse(
+            cell.interactions.contains {
+                $0 is UIContextMenuInteraction
+            },
+            "cell 本体不许挂 UIContextMenuInteraction"
         )
-        let delegate = try XCTUnwrap(
-            interaction.delegate
-        )
+        let list = try XCTUnwrap(controller)
+        let collectionView = list.collectionView
+        let indexPath = IndexPath(item: 0, section: 0)
         let textView = try XCTUnwrap(
             firstTextView(in: cell),
             "探针行须含 UITextView"
         )
-        let textFrame = textView.convert(
-            textView.bounds, to: cell
+        let onTextPoint = textView.convert(
+            CGPoint(
+                x: textView.bounds.midX,
+                y: textView.bounds.midY
+            ),
+            to: collectionView
         )
-        let onText = delegate.contextMenuInteraction(
-            interaction,
-            configurationForMenuAtLocation: CGPoint(
-                x: textFrame.midX, y: textFrame.midY
-            )
+        let onText = list.collectionView(
+            collectionView,
+            contextMenuConfigurationForItemAt: indexPath,
+            point: onTextPoint
         )
         XCTAssertNil(
-            onText, "文本帧内点位须否决行菜单（§265）"
+            onText, "文本内点位须归原生编辑菜单（§265）"
         )
-        let offText = delegate.contextMenuInteraction(
-            interaction,
-            configurationForMenuAtLocation: CGPoint(
+        let offTextPoint = cell.convert(
+            CGPoint(
                 x: cell.bounds.maxX - 8,
                 y: cell.bounds.midY
-            )
+            ),
+            to: collectionView
+        )
+        let offText = list.collectionView(
+            collectionView,
+            contextMenuConfigurationForItemAt: indexPath,
+            point: offTextPoint
         )
         XCTAssertNotNil(
-            offText, "非文本区点位须给出行菜单"
+            offText, "文本外点位须给出行菜单配置"
         )
+        // 配置的菜单本体即行描述 makeMenu（delegate
+        // 闭包直返，本 SDK 无 actionProvider 读回
+        // 口）——项集/序/图符以 makeMenu 为准断言
         let actions = menu.makeMenu().children
             .compactMap { $0 as? UIAction }
         XCTAssertEqual(
