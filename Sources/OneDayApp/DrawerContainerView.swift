@@ -231,9 +231,9 @@ final class DrawerContainerController: UIViewController,
     /// 动画在途时为 presentation 层逐帧采样、其余
     /// 时刻为 model 值——桥接回 AppRouter 的进度喂
     /// 入口（判定在 Core DrawerDeferredNavigation）。
-    /// 本口报的是 DrawerMotion.progress 关合度
-    /// （0＝全开、1＝全合），开度换算在 Router 入口
-    /// 单点做（见 noteDrawerProgress 注）
+    /// 本口报的 DrawerMotion.progress 即开度（off-
+    /// set 为前景位移：0＝合、travel＝开），与状态
+    /// 机同口径、Router 直喂不换算
     var onDrawerProgress: ((Double) -> Void)?
     /// 关动画被另一运动打断的回写（台账 147）：桥
     /// 接回 AppRouter——待办导航即刻执行、不吞

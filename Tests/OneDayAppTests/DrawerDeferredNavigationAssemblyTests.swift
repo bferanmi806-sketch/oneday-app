@@ -56,10 +56,9 @@ final class DrawerDeferredNavigationAssemblyTests: XCTestCase {
     /// 行中待办不落值、近闭合（或落定兜底）后落值
     func testNavigationFiresOnlyNearClosed() {
         controller.setDrawer(true, animated: false)
-        XCTAssertNil(
-            router.stageDrawerThreadSelection(threadID),
-            "抽屉开着点行不得立即导航"
-        )
+        // 置位口返回 Void——「不得立即导航」由下两
+        // 行断言（待办在位＋真值未落）钉住
+        router.stageDrawerThreadSelection(threadID)
         XCTAssertTrue(router.hasPendingDrawerNavigation)
         XCTAssertNil(router.drawerThreadSelection)
         controller.setDrawer(false, animated: true)
@@ -75,7 +74,8 @@ final class DrawerDeferredNavigationAssemblyTests: XCTestCase {
     /// 即使抽屉最终停在打开态
     func testCloseInterruptedFiresImmediately() {
         controller.setDrawer(true, animated: false)
-        XCTAssertNil(router.stageDrawerThreadSelection(threadID))
+        router.stageDrawerThreadSelection(threadID)
+        XCTAssertTrue(router.hasPendingDrawerNavigation)
         controller.setDrawer(false, animated: true)
         controller.setDrawer(true, animated: true)
         XCTAssertEqual(
@@ -92,7 +92,8 @@ final class DrawerDeferredNavigationAssemblyTests: XCTestCase {
     func testReduceMotionInstantCloseFires() {
         controller.reduceMotion = true
         controller.setDrawer(true, animated: true)
-        XCTAssertNil(router.stageDrawerThreadSelection(threadID))
+        router.stageDrawerThreadSelection(threadID)
+        XCTAssertTrue(router.hasPendingDrawerNavigation)
         controller.setDrawer(false, animated: true)
         XCTAssertEqual(router.drawerThreadSelection, threadID)
     }

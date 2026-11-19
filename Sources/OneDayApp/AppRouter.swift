@@ -233,9 +233,9 @@ final class AppRouter {
     @ObservationIgnored
     private var deferredDrawerNavigation =
         DrawerDeferredNavigation()
-    /// 最近一次开度事实（状态机口径：1＝全开、0＝
-    /// 全合；容器喂入的是 DrawerMotion.progress 关
-    /// 合度、noteDrawerProgress 处单点翻转，见彼注）
+    /// 最近一次开度事实（1＝全开、0＝全合；容器喂
+    /// 入的 DrawerMotion.progress 即开度——控制器
+    /// offset 语义为前景位移：0＝合、travel＝开）
     @ObservationIgnored
     private var lastDrawerProgress: Double = 1
 
@@ -256,20 +256,17 @@ final class AppRouter {
     }
 
     /// 抽屉呈现进度喂入（容器桥）：待办在位且降到
-    /// 阈值即落真值执行。
-    /// 【坐标翻转】容器喂的是 DrawerMotion.prog-
-    /// ress＝offset/travel＝关合度（0＝全开、1＝全
-    /// 合），状态机用开度（1＝全开、0＝全合，与 OB
-    /// 呈现进度同向）——在本口单点翻转（1−x），全
-    /// 仓只此一处换算（装配测试 DrawerDeferred-
-    /// NavigationAssemblyTests 首轮实证：不翻转时
-    /// 开抽屉报关合度 0 被状态机读成「已近闭合」、
-    /// 点行立即跳页，147 反而失效）
+    /// 阈值即落真值执行。容器喂的 DrawerMotion.-
+    /// progress 与状态机同口径（开度：offset 为前
+    /// 景位移、0＝合 travel＝开，比值即开度），直
+    /// 喂不换算。（沿革：曾误判其为关合度而加 1−x
+    /// 翻转，装配测试实证翻转后点行立即跳页、已回
+    /// 滚——几何方向以 setDrawer 的 target＝open ?
+    /// travel : 0 为准）
     func noteDrawerProgress(_ progress: Double) {
-        let openness = 1 - progress
-        lastDrawerProgress = openness
+        lastDrawerProgress = progress
         if let fire = deferredDrawerNavigation
-            .progressSample(openness) {
+            .progressSample(progress) {
             drawerThreadSelection = fire
         }
     }
