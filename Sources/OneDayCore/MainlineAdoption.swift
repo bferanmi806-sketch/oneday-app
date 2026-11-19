@@ -24,19 +24,27 @@ public enum GatewayErrorCode {
     }
 }
 
-/// 收养候选（服务端会话名单的最小投影）：标题取服务
-/// 端标题本体（state.db title 列的回包字段），活动时
-/// 刻为 endedAt ?? startedAt 的 epoch 秒（名单投影无
-/// last_activity 字段，以此为最近活动代理口径）
+/// 收养/认领候选（服务端会话名单的最小投影）：标
+/// 题取服务端标题本体（state.db title 列的回包字
+/// 段），活动时刻为 endedAt ?? startedAt 的 epoch
+/// 秒（名单投影无 last_activity 字段，以此为最近活
+/// 动代理口径）；isArchived 为服务端归档位（§330
+/// 认领用：归档候选保持归档认领；§220 收养不读此
+/// 位、默认 false 不改变其判定）
 public struct MainlineAdoptionCandidate: Sendable, Equatable {
     public let id: String
     public let title: String?
     public let lastActivityAt: TimeInterval?
+    public let isArchived: Bool
 
-    public init(id: String, title: String?, lastActivityAt: TimeInterval?) {
+    public init(
+        id: String, title: String?,
+        lastActivityAt: TimeInterval?, isArchived: Bool = false
+    ) {
         self.id = id
         self.title = title
         self.lastActivityAt = lastActivityAt
+        self.isArchived = isArchived
     }
 }
 
@@ -68,21 +76,22 @@ public enum MainlineAdoptionDirective: Sendable, Equatable {
         guard status == 400, serverCode == "invalid_title" else {
             return .notApplicable
         }
-        let matches = candidates.filter { $0.title == title }
+        // 匹配与选定走共用核（§330 提取，Mainline-
+        // CandidateSelection）：与认领同一套标题全等
+        // ＋前缀池＋最近活动＋id 升序口径，本处只保留
+        // 触发面与结果映射，行为与提取前逐字一致
+        let matches = MainlineCandidateSelection.matches(
+            title: title, candidates: candidates
+        )
         switch matches.count {
         case 0:
             return .noCandidate
         case 1:
             return .adopt(sessionID: matches[0].id)
         default:
-            let prefixed = matches.filter { $0.id.hasPrefix("oneday-main-") }
-            let pool = prefixed.isEmpty ? matches : prefixed
-            let pick = pool.sorted { lhs, rhs in
-                let l = lhs.lastActivityAt ?? -.infinity
-                let r = rhs.lastActivityAt ?? -.infinity
-                if l != r { return l > r }
-                return lhs.id < rhs.id
-            }.first ?? pool[0]
+            let pick = MainlineCandidateSelection.pick(
+                from: matches
+            ) ?? matches[0]
             return .adoptAmongMultiple(
                 sessionID: pick.id, matchCount: matches.count
             )
