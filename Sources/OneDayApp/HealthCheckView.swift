@@ -72,7 +72,7 @@ struct HealthCheckView: View {
                     }
                     Text(
                         "上次体检 · "
-                            + DisplayDateFormatting.relativeDateTime(
+                            + DisplayDate.relativeDateTime(
                                 summary.date
                             )
                     )

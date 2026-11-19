@@ -359,7 +359,7 @@ struct StatusView: View {
             return "还没做过体检"
         }
         return summary.overall.word + " · "
-            + DisplayDateFormatting.relativeDateTime(summary.date)
+            + DisplayDate.relativeDateTime(summary.date)
     }
 
     private var lastHealthColor: Color {
