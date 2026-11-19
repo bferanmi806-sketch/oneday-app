@@ -561,6 +561,18 @@ struct ChatView: View {
             carrierHandle.scrollToEntry(id, animated: animated)
         }
     }
+
+    /// 搜索落点分发（台账 150）：原生面走收敛式落
+    /// 点（多次重滚＋漂移容差）；gen3 回退面只做
+    /// 一次性定位、不做收敛迭代（回退面口径，见交
+    /// 卷对位表）
+    private func surfaceFocusEntry(_ id: UUID) {
+        if nativeListEnabled {
+            nativeHandle.focusEntry(id)
+        } else {
+            carrierHandle.scrollToEntry(id, animated: false)
+        }
+    }
     /// §247（换代包 4）：流式呈现开关（Core Chat-
     /// StreamingFeature，缺省 true＝块级增量新
     /// 路；关＝流式行回 TokenFlow 逐词渐显旧路，
@@ -576,6 +588,12 @@ struct ChatView: View {
     /// （沿 §123 枢纽聚焦同手法）；消费锚点请求的
     /// Task 持有清零，不叠加多行点亮
     @State private var anchorHighlightEntryID: UUID?
+    /// 台账 148：NEW 未读分界线的水位店与本次观看
+    /// 的定格锚——打开线程时以水位解析一次锚（见
+    /// refreshUnreadAnchor）、随即推进水位，锚在
+    /// 本次观看内不动、新消息到达不移位
+    @State private var readMarkStore = ThreadReadMarkStore()
+    @State private var unreadAnchorEntryID: UUID?
     /// 0.4.0（§3.4）：服务端会话导入进行中的 id（防重复
     /// 触发并发导入同一条会话）
     @State private var importingSessionID: String?
@@ -672,12 +690,9 @@ struct ChatView: View {
     /// §330：原生面 UIKit 行菜单「分享」的分享单
     /// 状态口（见 MessageSharePayload）
     @State private var messageSharePayload: MessageSharePayload?
-    /// §152：正文选区在场的条目 id（选字期间关该行
-    /// 右滑引用防拖柄误触）；消选经延迟清账（块间
-    /// 切换选区时旧块先报消、新块后报选，立即清账
-    /// 会误关新选区的行保护）
-    @State private var activeSelectionEntryID: UUID?
-    @State private var selectionClearTask: Task<Void, Never>?
+    /// §152 的选区在场记账已迁 ChatRowStateLedger
+    /// （141/142 根治：选区永不进 @State/行修订，
+    /// 见 noteTextSelection 与账本注）
     /// 0.8.0（P1 富内容）：图片全屏查看与文件 QuickLook
     /// 预览的呈现载荷；流式工具卡列（累积完成即入列、
     /// 本轮收尾落盘，见 driveRun）
@@ -951,6 +966,12 @@ struct ChatView: View {
             // 次对话（页签不与主线绑定）；这是全仓唯一
             // 写入点，置空（删当前线程）即清记录
             appState.sideChats.setLastThreadID(newID)
+            // 台账 148：切入线程即解析一次未读分界锚
+            // 并推进水位（锚定格本次观看，见 refresh-
+            // UnreadAnchor）
+            if oldID != newID {
+                refreshUnreadAnchor()
+            }
             // 0.7.0（M1 轻保活）：切走前把输入框草稿存回
             // 旁聊状态、切入后恢复目标线程的草稿（发送后
             // 的空串存回即删草稿）；线程已被删的切走不回
@@ -1610,6 +1631,9 @@ struct ChatView: View {
             // 引用（口径同 currentThreadID 变更点；
             // 0.36.29 改经同一同步函数、含频道出处）
             syncDrawerObjectFromCurrentThread()
+            // 台账 148：首现线程同口径解析未读分界锚
+            // （onChange 只管其后的切换）
+            refreshUnreadAnchor()
             // 本页首次出现时若已有待续聊会话（如从其他格
             // 首次切入），onChange 可能先于挂载发生、在此补消费
             if let id = appState.router.pendingChatSessionID {
@@ -2813,7 +2837,6 @@ struct ChatView: View {
                                 entry,
                                 dividerText: plan.dividers[entry.id],
                                 highlighted: false,
-                                selectionActive: false,
                                 styleKey: nativeRowStyleKey
                             ).parts)
                     }
@@ -3026,11 +3049,15 @@ struct ChatView: View {
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
         let key = settledKey ?? "entry-\(entry.id.uuidString)"
+        // 台账 148：NEW 分界线只挂未读锚条目（本次
+        // 观看定格，见 refreshUnreadAnchor）
+        let showsUnread = entry.id == unreadAnchorEntryID
         // §331：行高先查整行备忘（命中＝确定高）；
         // 未命中投量测台后台预排版、当趟用上次高/
         // 兜底高，回填后经发布代次以确定高重喂
         let memoKey = composer.entryMemoKey(
-            for: entry, dividerText: dividerText
+            for: entry, dividerText: dividerText,
+            showsUnreadDivider: showsUnread
         )
         let resolved = rowMeasureDesk.resolve(
             memoKey: memoKey, rowKey: key,
@@ -3042,6 +3069,7 @@ struct ChatView: View {
                 composer.makeEntryMeasureJob(
                     for: entry,
                     dividerText: dividerText,
+                    showsUnreadDivider: showsUnread,
                     memoKey: memoKey, rowKey: key
                 )
             )
@@ -3053,14 +3081,15 @@ struct ChatView: View {
                 entry,
                 dividerText: dividerText,
                 highlighted: entry.id == anchorHighlightEntryID,
-                selectionActive: activeSelectionEntryID == entry.id,
-                styleKey: nativeRowStyleKey
+                styleKey: nativeRowStyleKey,
+                showsUnreadDivider: showsUnread
             ),
             height: resolved.height,
             makeView: {
                 AnyView(
                     entryRowContent(
-                        entry, dividerText: dividerText
+                        entry, dividerText: dividerText,
+                        showsUnreadDivider: showsUnread
                     )
                     // §330（题 2）／§332 换代：本面菜单
                     // 由集合视图 delegate 的内建上下文
@@ -3550,19 +3579,35 @@ struct ChatView: View {
         // 装的键面）；未命中（非流式落定/映射被
         // 首占拒）回本名键、常规口径
         let settledKey = streamSettleMap.rowKey(for: entry.id)
+        // 台账 148：NEW 分界线在 gen3 面同呈现（共用
+        // entryRowContent）；估算高在模型输出上补一
+        // 个分界槽（footnote 一行＋spacingS，与原生
+        // 面合成槽同值，量实到达后覆盖）
+        let showsUnread = entry.id == unreadAnchorEntryID
+        var estimate = carrierRowEstimate(
+            for: entry, hasDivider: dividerText != nil
+        )
+        if showsUnread {
+            let traits = UITraitCollection(
+                preferredContentSizeCategory:
+                    dynamicTypeSize.contentSizeCategory
+            )
+            estimate += UIFont.preferredFont(
+                forTextStyle: .footnote, compatibleWith: traits
+            ).lineHeight + OneDayMetrics.spacingS
+        }
         return ChatCarrierRow(
             key: settledKey ?? "entry-\(entry.id.uuidString)",
             entryID: entry.id,
             version: carrierEntryVersion(entry),
-            estimatedHeight: carrierRowEstimate(
-                for: entry, hasDivider: dividerText != nil
-            ),
+            estimatedHeight: estimate,
             keepsMeasuredHeightOnVersionChange:
                 settledKey != nil,
             makeView: {
                 AnyView(
                     entryRowContent(
-                        entry, dividerText: dividerText
+                        entry, dividerText: dividerText,
+                        showsUnreadDivider: showsUnread
                     )
                 )
             }
@@ -3593,6 +3638,11 @@ struct ChatView: View {
         version = version &* 31 &+ entry.remoteFilePaths.count
         if entry.id == anchorHighlightEntryID {
             version &+= 0x9e37
+        }
+        // 台账 148：未读锚翻转同属版本输入（锚行重
+        // 托管才画得出/撤得下分界线）
+        if entry.id == unreadAnchorEntryID {
+            version &+= 0x51ab
         }
         return version
     }
@@ -3795,6 +3845,36 @@ struct ChatView: View {
 
     // MARK: - 消息列表
 
+    /// NEW 未读分界锚解析（台账 148）：打开/切入线
+    /// 程时执行一次——以持久水位经 Core Unread-
+    /// Divider 解析锚（第一条未读消息），随即把水
+    /// 位推进到当前末条：锚在本次观看内定格（新消
+    /// 息到达不移位、只演一次），下次打开水位已在
+    /// 末条、无锚不画线。无线程/空线程只清锚
+    private func refreshUnreadAnchor() {
+        guard let thread = currentThread else {
+            unreadAnchorEntryID = nil
+            return
+        }
+        let entries = thread.sortedEntries
+        unreadAnchorEntryID = UnreadDivider.anchorEntryID(
+            entries: entries.map {
+                UnreadDivider.EntryStub(
+                    id: $0.id, role: $0.role,
+                    createdAt: $0.createdAt,
+                    isToolCard: $0.toolCard != nil
+                )
+            },
+            watermark: readMarkStore.watermark(for: thread.id)
+        )
+        if let last = entries.last {
+            readMarkStore.advance(
+                for: thread.id, entryID: last.id,
+                date: last.createdAt
+            )
+        }
+    }
+
     /// 时间分隔条落点（0.30.0，Core ChatTimeline）：只
     /// 对会话条目走查——工具卡条目（toolCard 非 nil）
     /// 不单独占分隔、也不重置锚点，以其所属回合的会
@@ -3815,6 +3895,24 @@ struct ChatView: View {
             )
         }
         return result
+    }
+
+    /// NEW 未读分界线（台账 148）：挂在未读锚条目
+    /// 的气泡上方、时间分隔条之下；入场只演一次
+    /// （账本记账、键由 ChatRowStateKeys 单点派生，
+    /// 节拍与形态见 ChatUnreadDividerView）
+    private func unreadDivider(for entry: ChatEntry) -> some View {
+        let key = ChatRowStateKeys.unreadDivider(entry.id)
+        return ChatUnreadDividerView(
+            arrived: rowStateLedger.hasAnimatedUnreadDivider(
+                forKey: key
+            ),
+            onArrive: { [rowStateLedger] in
+                rowStateLedger.markUnreadDividerAnimated(
+                    forKey: key
+                )
+            }
+        )
     }
 
     /// 时间分隔条（0.30.0，微信式素字）：居中、Foot-
@@ -5608,7 +5706,8 @@ struct ChatView: View {
     /// 本一处出处
     @ViewBuilder
     private func entryRowContent(
-        _ entry: ChatEntry, dividerText: String?
+        _ entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false
     ) -> some View {
         VStack(
             alignment: .leading,
@@ -5616,6 +5715,9 @@ struct ChatView: View {
         ) {
             if let dividerText {
                 timelineDivider(dividerText)
+            }
+            if showsUnreadDivider {
+                unreadDivider(for: entry)
             }
             bubble(entry)
         }
@@ -6459,24 +6561,32 @@ struct ChatView: View {
         composerFocusHandle.focus()
     }
 
-    /// §152 选区在场记账：正文文本块（Selectable-
-    /// InlineText）经 onSelectionChange 回报——选
-    /// 区在场时该行右滑引用停用（拖选字手柄的横向
-    /// 位移不许误触引用，DESIGN §152.3 第 4 条）；
-    /// 消选延迟 350ms 清账，防同一条内换块选字时
-    /// 旧块消选先于新块报选到达、把保护误清
+    /// §152 选区在场记账（141/142 根治后形态）：
+    /// 正文文本块（SelectableInlineText）经 onSe-
+    /// lectionChange 回报——记账只落 ChatRowState-
+    /// Ledger（永不进 @State：@State 写触发 body
+    /// 重算、旧制还把选区折进行修订，选区一形成
+    /// 该行即被重配换代、文本视图本体被拆，选区/
+    /// 编辑菜单当场被冲——141/142 的共同病根）。
+    /// 两个消费方都在事件时刻直读账本/句柄，不经
+    /// 渲染管线：①右滑引用在 pan 回调时刻查账本
+    /// 停用（SwipeReplyModifier.isSuppressed）；
+    /// ②原生面把选区行键同步给句柄，控制器分流
+    /// 据此暂存该行重配（选区清账后 flush）。消选
+    /// 延迟 350ms 清账在账本内（防同条换块选字时
+    /// 旧块消选先于新块报选到达、把保护误清）
     private func noteTextSelection(entryID: UUID, active: Bool) {
-        if active {
-            selectionClearTask?.cancel()
-            selectionClearTask = nil
-            activeSelectionEntryID = entryID
-        } else if activeSelectionEntryID == entryID {
-            selectionClearTask?.cancel()
-            selectionClearTask = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(350))
-                guard !Task.isCancelled else { return }
-                activeSelectionEntryID = nil
+        rowStateLedger.noteTextSelection(
+            entryID: entryID, active: active,
+            onProtectionEnded: { [nativeHandle] in
+                nativeHandle.selectionActiveRowKey = nil
+                nativeHandle.noteSelectionProtectionEnded()
             }
+        )
+        if active {
+            nativeHandle.selectionActiveRowKey =
+                streamSettleMap.rowKey(for: entryID)
+                ?? "entry-\(entryID.uuidString)"
         }
     }
 
@@ -6509,12 +6619,17 @@ struct ChatView: View {
     /// 重叠）
     private func swipeReply(for entry: ChatEntry) -> SwipeReplyModifier {
         SwipeReplyModifier(
-            // §152：本行正文有选区在场时停用——拖
-            // 选字手柄与右滑引用同为横向拖动手势，
-            // 选字优先（仲裁见 DESIGN §152.3 第 4
-            // 条）；选区清空（延迟清账后）自动恢复
-            isEnabled: !entry.content.isEmpty
-                && activeSelectionEntryID != entry.id,
+            // §152 的选区停用自 141/142 根治起不再
+            // 走 isEnabled（结构翻转＝行重渲染＝原
+            // 生面托管换代、冲选区）：改经 isSup-
+            // pressed 在 pan 回调时刻直读账本停用
+            // （选字优先，DESIGN §152.3 第 4 条）；
+            // isEnabled 只余「空文本不挂」的稳定口径
+            isEnabled: !entry.content.isEmpty,
+            isSuppressed: { [rowStateLedger] in
+                rowStateLedger.textSelectionEntryID
+                    == entry.id
+            },
             onReply: {
                 beginReply(to: entry)
             }
@@ -9531,7 +9646,17 @@ private struct ComposerBarLayout: Layout {
         appState.router.pendingChatSessionID = nil
         let channelID = appState.router.pendingChatChannelID
         appState.router.pendingChatChannelID = nil
-        await runImport(sessionID: id, channelID: channelID)
+        // 台账 150：搜索落点请求同行消费（置位—消费
+        // —清零同式）；失败重试行不带落点（runImport
+        // 默认参数 nil），重试只开会话不落点
+        let focusSnippet = appState.router.pendingSearchFocusSnippet
+        let focusRole = appState.router.pendingSearchFocusRole
+        appState.router.pendingSearchFocusSnippet = nil
+        appState.router.pendingSearchFocusRole = nil
+        await runImport(
+            sessionID: id, channelID: channelID,
+            focusSnippet: focusSnippet, focusRole: focusRole
+        )
     }
 
     /// 导入执行体（消费口与失败重试行共用）：出处先
@@ -9539,7 +9664,8 @@ private struct ComposerBarLayout: Layout {
     /// 文（基础止血包 P6——旧口径失败只剩一句横幅、
     /// 想重试只能回列表再点一次）
     private func runImport(
-        sessionID id: String, channelID: String?
+        sessionID id: String, channelID: String?,
+        focusSnippet: String? = nil, focusRole: String? = nil
     ) async {
         importRetryContext = nil
         // 出处先行落位：导入途中 currentThreadID 变
@@ -9567,6 +9693,50 @@ private struct ComposerBarLayout: Layout {
         }
         if outcome == .failed {
             importRetryContext = (sessionID: id, channelID: channelID)
+        }
+        // 台账 150：落点已定的打开才排搜索落点（失
+        // 败/已删不落点——人还停在原线程）
+        if outcome == .switchedExisting
+            || outcome == .importedNew,
+           let focusSnippet {
+            scheduleSearchFocus(
+                snippet: focusSnippet, role: focusRole
+            )
+        }
+    }
+
+    /// 搜索落点排期（台账 150）：在当前线程里按摘
+    /// 要回找目标条目（Core SearchTargetResolu-
+    /// tion）——找到才排落点：等一拍让条目进行集，
+    /// 点亮目标行（§165 同手法、2.5 秒清）＋经面
+    /// 分发器下达收敛落点；找不到如实落空（会话照
+    /// 常开着、不假装定位）。线程在等待间被切走即
+    /// 作废
+    private func scheduleSearchFocus(
+        snippet: String, role: String?
+    ) {
+        guard let thread = currentThread,
+              let targetID = SearchTargetResolution
+                .targetEntryID(
+                    entries: thread.sortedEntries.map {
+                        SearchTargetResolution.EntryStub(
+                            id: $0.id, role: $0.role,
+                            content: $0.content
+                        )
+                    },
+                    snippet: snippet, role: role
+                )
+        else { return }
+        let threadID = thread.id
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard currentThreadID == threadID else { return }
+            anchorHighlightEntryID = targetID
+            surfaceFocusEntry(targetID)
+            try? await Task.sleep(for: .seconds(2.5))
+            if anchorHighlightEntryID == targetID {
+                anchorHighlightEntryID = nil
+            }
         }
     }
 
@@ -12165,6 +12335,11 @@ private struct MessageMenuModifier: ViewModifier {
 /// 制一份同形修饰符充数
 struct SwipeReplyModifier: ViewModifier {
     let isEnabled: Bool
+    /// 选区抑制（141/142 根治）：pan 回调时刻直读
+    /// （账本选区在场即抑制）——不经 body 重算、
+    /// 不翻结构，托管视图零换代（与 OB selecting
+    /// 态只切手势 enabled 同构）。默认不抑制
+    var isSuppressed: () -> Bool = { false }
     let onReply: () -> Void
 
     @State private var dragOffset: CGFloat = 0
@@ -12226,7 +12401,13 @@ struct SwipeReplyModifier: ViewModifier {
     /// （整段只一次）。起始点排除已由桥在 sho-
     /// uldBegin 判死（识别器根本不开始），本处
     /// 不再复查
+    /// 选区抑制在场时整段不消费：位移归零待命
+    /// （拖选字手柄的横移不许把行拖出引用位）
     private func handlePanChanged(_ translationX: CGFloat) {
+        if isSuppressed() {
+            if dragOffset != 0 { dragOffset = 0 }
+            return
+        }
         let newOffset = SwipeReplyMotion.dragOffset(
             translationWidth: translationX,
             currentOffset: dragOffset
@@ -12246,7 +12427,9 @@ struct SwipeReplyModifier: ViewModifier {
     }
 
     /// 桥回调·收尾：松手/取消/失败同口——复位触
-    /// 发标记、动画回位、不再判触发
+    /// 发标记、动画回位、不再判触发。选区抑制在
+    /// 场时同样只复位（抑制中不判触发，见
+    /// handlePanChanged）
     private func handlePanEnded() {
         hasTriggered = false
         withAnimation(

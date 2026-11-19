@@ -225,6 +225,21 @@ struct ContentView: View {
                     selection = .chat
                     appState.router.pendingChatSessionID = id
                 },
+                onOpenSearchHit: { hit in
+                    // 台账 150：搜索命中打开——同路打开
+                    // 会话，另置落点请求（先置摘要/角
+                    // 色、后置会话 id，与频道标记同式），
+                    // ChatView 消费导入后回找命中消息收
+                    // 敛落点
+                    showAllConversations = false
+                    selection = .chat
+                    appState.router.pendingSearchFocusSnippet =
+                        hit.snippet
+                    appState.router.pendingSearchFocusRole =
+                        hit.role
+                    appState.router.pendingChatSessionID =
+                        hit.sessionID
+                },
                 onClose: { showAllConversations = false }
             )
         }

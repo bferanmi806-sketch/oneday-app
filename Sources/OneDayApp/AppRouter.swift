@@ -221,6 +221,74 @@ final class AppRouter {
     /// 抽屉点选/新建的线程 id（DrawerView 写，ChatView
     /// 消费后切 currentThreadID 并清零）
     var drawerThreadSelection: UUID?
+    /// 抽屉点行延迟导航（台账 147）：会话行的点按先
+    /// 经 stageDrawerThreadSelection 入账待办，关抽
+    /// 屉进度降到近闭合（Core DrawerDeferredNavi-
+    /// gation 阈值 0.05）才落进 drawerThreadSelec-
+    /// tion 真正跳页——跳页不再与关抽屉动画抢帧。
+    /// 进度事实由抽屉容器经桥喂入（noteDrawerPro-
+    /// gress，呈现层逐帧采样，非观察属性、不触发
+    /// 任何视图重算）；关动画被打断/关落定由容器
+    /// 回调同一组口径收口
+    @ObservationIgnored
+    private var deferredDrawerNavigation =
+        DrawerDeferredNavigation()
+    /// 最近一次开度事实（1＝全开、0＝全合；容器喂
+    /// 入的 DrawerMotion.progress 即开度——控制器
+    /// offset 语义为前景位移：0＝合、travel＝开）
+    @ObservationIgnored
+    private var lastDrawerProgress: Double = 1
+
+    /// 是否已有延迟导航待办在位（抽屉行点按的连点
+    /// 守卫：待办在位时后续点按整下忽略，OB 同口径）
+    var hasPendingDrawerNavigation: Bool {
+        deferredDrawerNavigation.hasPending
+    }
+
+    /// 会话行点按的置位口：进度已近闭合（抽屉本就
+    /// 关着/瞬时关）时立即落真值，否则入账待触发
+    func stageDrawerThreadSelection(_ id: UUID) {
+        if let fire = deferredDrawerNavigation.stage(
+            id, currentProgress: lastDrawerProgress
+        ) {
+            drawerThreadSelection = fire
+        }
+    }
+
+    /// 抽屉呈现进度喂入（容器桥）：待办在位且降到
+    /// 阈值即落真值执行。容器喂的 DrawerMotion.-
+    /// progress 与状态机同口径（开度：offset 为前
+    /// 景位移、0＝合 travel＝开，比值即开度），直
+    /// 喂不换算。（沿革：曾误判其为关合度而加 1−x
+    /// 翻转，装配测试实证翻转后点行立即跳页、已回
+    /// 滚——几何方向以 setDrawer 的 target＝open ?
+    /// travel : 0 为准）
+    func noteDrawerProgress(_ progress: Double) {
+        lastDrawerProgress = progress
+        if let fire = deferredDrawerNavigation
+            .progressSample(progress) {
+            drawerThreadSelection = fire
+        }
+    }
+
+    /// 关动画被另一运动打断（容器桥）：待办即刻执
+    /// 行、不吞（理由见 Core 文件头）
+    func noteDrawerCloseInterrupted() {
+        if let fire = deferredDrawerNavigation
+            .closeInterrupted() {
+            drawerThreadSelection = fire
+        }
+    }
+
+    /// 搜索落点请求（台账 150）：会话搜索命中点按时
+    /// 与 pendingChatSessionID 同行置位（先置本两
+    /// 件、后置 id，与 pendingChatChannelID 同式），
+    /// ChatView 在导入/切换落定后消费——按摘要在本
+    /// 地线程回找目标条目并收敛落点；消费后清零。
+    /// 无此两件（其余入口打开会话）＝不落点、照常
+    /// 开会话
+    var pendingSearchFocusSnippet: String?
+    var pendingSearchFocusRole: String?
     /// 抽屉刚删掉的线程 id（DrawerView 写，ChatView 若
     /// 正显示该线程则置空 currentThreadID 并清零）
     var drawerDeletedThreadID: UUID?

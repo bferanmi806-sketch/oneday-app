@@ -299,7 +299,6 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
                 entry,
                 dividerText: nil,
                 highlighted: false,
-                selectionActive: false,
                 styleKey: "style-a"
             )
         }
@@ -327,7 +326,6 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
             entry,
             dividerText: "今天 09:41",
             highlighted: false,
-            selectionActive: false,
             styleKey: "style-a"
         )
         XCTAssertNotEqual(revision(), envChanged)
@@ -335,7 +333,6 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
             entry,
             dividerText: nil,
             highlighted: false,
-            selectionActive: false,
             styleKey: "style-b"
         )
         XCTAssertNotEqual(revision(), styleChanged)

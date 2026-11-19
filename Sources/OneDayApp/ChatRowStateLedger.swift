@@ -35,6 +35,62 @@ final class ChatRowStateLedger {
         expansionOverrides[key] = expanded
     }
 
+    /// NEW 未读分界线已演过入场动画的锚键（台账
+    /// 148）：分界线入场只演一次——行随滚动重建时
+    /// 查本账，已演过的直接静态呈现（与 OB 以 Set
+    /// 记已演行同构）；纯呈现记账、不影响行高，不
+    /// 入 §329 的两类收编范围
+    private(set) var animatedUnreadDividers: Set<String> = []
+
+    func hasAnimatedUnreadDivider(forKey key: String) -> Bool {
+        animatedUnreadDividers.contains(key)
+    }
+
+    func markUnreadDividerAnimated(forKey key: String) {
+        animatedUnreadDividers.insert(key)
+    }
+
+    /// 正文选区在场记账（141/142 根治）：哪个条目
+    /// 的文本视图正持有选区——自此只存本账、永不
+    /// 进 @State/行修订（理由见 ChatNativeRow-
+    /// Revision.entry 的「选区在场永不入账」注）。
+    /// 消费方全部在事件/手势时刻直读：右滑引用修
+    /// 饰符在 pan 回调里查、ChatView 在选区回报时
+    /// 把行键同步给原生面句柄作重配暂存凭据。视图
+    /// body 不读本值（读了就会把选区变化变成重渲
+    /// 染——正是要拆的回路）
+    private(set) var textSelectionEntryID: UUID?
+    /// 消选延迟清账的任务句柄（§152 旧制 350ms：
+    /// 同一条内换块选字时旧块消选先于新块报选到
+    /// 达，立即清账会把保护误清）
+    var textSelectionClearTask: Task<Void, Never>?
+
+    /// 选区回报入口：active＝该条目文本视图选区形
+    /// 成；inactive＝消选（延迟 350ms 清账）。保护
+    /// 真正结束（延迟清账落下）时回调 onProtect-
+    /// ionEnded——ChatView 据此让原生面把暂存的该
+    /// 行重配 flush 出去
+    func noteTextSelection(
+        entryID: UUID, active: Bool,
+        onProtectionEnded: (() -> Void)? = nil
+    ) {
+        if active {
+            textSelectionClearTask?.cancel()
+            textSelectionClearTask = nil
+            textSelectionEntryID = entryID
+        } else if textSelectionEntryID == entryID {
+            textSelectionClearTask?.cancel()
+            textSelectionClearTask = Task { @MainActor in
+                try? await Task.sleep(
+                    for: .milliseconds(350)
+                )
+                guard !Task.isCancelled else { return }
+                textSelectionEntryID = nil
+                onProtectionEnded?()
+            }
+        }
+    }
+
     func approvalDetail(for recordID: String) -> ApprovalDetailState {
         approvalDetails[recordID] ?? ApprovalDetailState()
     }
@@ -89,5 +145,11 @@ enum ChatRowStateKeys {
     /// （item.id 恒为 toolgroup-<首卡 id>）
     static func liveToolGroup(_ itemID: String) -> String {
         "live-\(itemID)"
+    }
+
+    /// NEW 未读分界线锚键（台账 148）：分界线挂在
+    /// 锚条目上方、入场动画记账以锚条目为键
+    static func unreadDivider(_ entryID: UUID) -> String {
+        "unread-divider-\(entryID.uuidString)"
     }
 }

@@ -156,13 +156,25 @@ struct ChatNativeRowRevision: Equatable {
     /// 等无一例外），字段值不变则渲染输入不变、任
     /// 一字段变则修订必变，不存在「漏折一项」的清
     /// 单可漏。环境侧渲染输入（分隔文案/锚点点亮/
-    /// 选区在场/样式键）同列入账。
+    /// 样式键）同列入账。
+    /// 【选区在场永不入账】（141/142 根治，2026-
+    /// 11-19 用户令对话页按 OpenBot 做法）：选区是
+    /// 平台文本视图的内部状态、不是渲染输入——它
+    /// 曾以 selectionActive 旗入账，结果选区一形成
+    /// →修订翻转→该行重配→托管视图换代→UITextView
+    /// 本体被拆、选区与编辑菜单当场被冲（§332 触
+    /// 摸门只能把冲毁推迟到序列闭合后 0.35s，治标
+    /// 不治本）。OB 的同构做法：selecting 态只切已
+    /// 建手势的 enabled、不重建任何视图。自此选区
+    /// 的跨界影响只走两条不重配的路：右滑引用在手
+    /// 势回调时刻读账本停用、选区行重配在控制器分
+    /// 流处暂存（见 partitionTouchStaged）。
     static func entry(
         _ entry: ChatEntry,
         dividerText: String?,
         highlighted: Bool,
-        selectionActive: Bool,
-        styleKey: String
+        styleKey: String,
+        showsUnreadDivider: Bool = false
     ) -> ChatNativeRowRevision {
         var revision = ChatNativeRowRevision()
         revision.addText(entry.role)
@@ -197,8 +209,10 @@ struct ChatNativeRowRevision: Equatable {
             .real(entry.createdAt.timeIntervalSinceReferenceDate)
         )
         revision.addText(dividerText)
+        // 台账 148：NEW 分界线在席与否是渲染输入、
+        // 同列入账（在席变化必触发重配与重测高）
+        revision.addFlag(showsUnreadDivider)
         revision.addFlag(highlighted)
-        revision.addFlag(selectionActive)
         revision.addText(styleKey)
         return revision
     }
@@ -569,6 +583,26 @@ final class ChatNativeListHandle {
         controller?.scrollToEntry(id, animated: animated)
     }
 
+    /// 搜索落点（台账 150）：收敛式定位到目标条目
+    /// （多次重滚＋漂移容差，判定在 Core Search-
+    /// FocusConvergence）
+    func focusEntry(_ id: UUID) {
+        controller?.focusEntry(id)
+    }
+
+    /// 选区在场行键（141/142 根治）：ChatView 选区
+    /// 记账同步写入——控制器分流时该键的重配一律
+    /// 暂存（选区在场期间该行托管视图不许换代，
+    /// 与 OB selecting 态关行手势同构：平台文本视
+    /// 图在场时行 machinery 让路）；清账时经
+    /// noteSelectionProtectionEnded 唤醒 flush。
+    /// 纯引用记账、无观察语义
+    var selectionActiveRowKey: String?
+
+    func noteSelectionProtectionEnded() {
+        controller?.selectionProtectionEnded()
+    }
+
     func captureAnchor() -> ChatListAnchor? {
         controller?.captureAnchor()
     }
@@ -717,6 +751,12 @@ final class ChatRootViewController: UIViewController,
     /// 冲刷、迟到回调未现形），意图置真/消解时清零
     private var landingSettleContentSize: CGFloat?
     private var userInteracting = false
+    /// 搜索落点收敛（台账 150）：进行中的收敛机与
+    /// 目标条目——落定拍逐拍喂屏上位置评估（判定
+    /// 在 Core SearchFocusConvergence）；用户拖动
+    /// 即弃、目标行消失即弃
+    private var focusConvergence = SearchFocusConvergence()
+    private var focusTargetID: UUID?
     /// 布局未就绪时到达的恢复命令（先记账、落定
     /// 拍执行——与 gen3 restore 的等拍口径同义）
     private var pendingAnchor: ChatListAnchor?
@@ -1510,7 +1550,11 @@ final class ChatRootViewController: UIViewController,
         let (reconfigureKeys, touchStaged) =
             partitionTouchStaged(candidateKeys)
         touchStagedReconfigureKeys = touchStaged
-        if !touchStaged.isEmpty {
+        // 续排口径同 flush：纯选区暂存不陪跑、靠清
+        // 账回调唤醒
+        if touchStaged.contains(
+            where: { $0 != handle?.selectionActiveRowKey }
+        ) {
             scheduleSettle(delay: 0.3)
         }
         let wasEmpty = rows.isEmpty
@@ -1593,22 +1637,37 @@ final class ChatRootViewController: UIViewController,
     /// 摸序列门——未闭合者暂存（留账待闭合后
     /// flush）、已闭合者本拍落写。门只认行键与
     /// 时刻，不读 cell、不普查识别器状态
+    /// 141/142 根治追加一类暂存：选区在场行（句柄
+    /// selectionActiveRowKey）——触摸序列闭合后选
+    /// 区仍在场（长按选字/双击选词的常态），只靠
+    /// 序列门挡不住随后的重配；选区清账前该行一
+    /// 律暂存，清账回调唤醒后由 flush 复读本分流
+    /// 自然放行
     private func partitionTouchStaged(
         _ candidates: [String]
     ) -> (ready: [String], staged: Set<String>) {
         var ready: [String] = []
         var staged: Set<String> = []
         let now = CACurrentMediaTime()
+        let selectionKey = handle?.selectionActiveRowKey
         for key in candidates {
             if touchSequenceGate.isUnclosed(
                 rowKey: key, at: now
-            ) {
+            ) || key == selectionKey {
                 staged.insert(key)
             } else {
                 ready.append(key)
             }
         }
         return (ready, staged)
+    }
+
+    /// 选区保护结束（句柄转达）：有暂存即排一拍
+    /// flush——分流复读时选区键已清、暂存自然放行
+    func selectionProtectionEnded() {
+        if !touchStagedReconfigureKeys.isEmpty {
+            scheduleSettle()
+        }
     }
 
     /// §332（题 1）暂存重配的落写口（落定拍在整
@@ -1637,7 +1696,12 @@ final class ChatRootViewController: UIViewController,
                 snapshot, animatingDifferences: false
             )
         }
-        if !staged.isEmpty {
+        // 续排只为触摸门暂存（等序列闭合）；纯选区
+        // 暂存不续排——它由选区清账回调唤醒（选区
+        // 可停留任意久，不许陪跑定时器）
+        if staged.contains(
+            where: { $0 != handle?.selectionActiveRowKey }
+        ) {
             scheduleSettle(delay: 0.3)
         }
     }
@@ -1901,8 +1965,71 @@ final class ChatRootViewController: UIViewController,
                 landingSettleContentSize = nil
             }
         }
+        stepSearchFocus()
         layoutArrow()
         report()
+    }
+
+    /// 搜索落点的一拍（台账 150）：量目标行屏上位
+    /// 置喂收敛机——停稳/预算尽即收官，仍漂移则再
+    /// 滚一次；目标行已不在行集（切线程/数据变）
+    /// 即弃（OB 同口径：失败保留现位置、聊天照常）
+    private func stepSearchFocus() {
+        guard focusConvergence.isActive,
+              let targetID = focusTargetID
+        else { return }
+        guard let index = rows.firstIndex(
+            where: { $0.entryID == targetID }
+        ),
+              let attrs = collectionView
+                .layoutAttributesForItem(
+                    at: IndexPath(item: 0, section: index)
+                )
+        else {
+            focusConvergence.abort()
+            focusTargetID = nil
+            return
+        }
+        let shown = attrs.frame.minY
+            - collectionView.contentOffset.y
+        switch focusConvergence.evaluate(
+            shownPosition: shown
+        ) {
+        case .scrollAgain:
+            performFocusScroll()
+        case .converged, .exhausted:
+            focusTargetID = nil
+        }
+    }
+
+    /// 搜索落点的一次滚动：目标行顶停到顶留位下
+    /// 方 topGap 处（Core 常量），无动画直达（收敛
+    /// 靠多拍校正、不靠动画掩盖漂移，OB 同式）
+    private func performFocusScroll() {
+        guard let targetID = focusTargetID,
+              let index = rows.firstIndex(
+                  where: { $0.entryID == targetID }
+              )
+        else { return }
+        collectionView.layoutIfNeeded()
+        guard let attrs = collectionView
+            .layoutAttributesForItem(
+                at: IndexPath(item: 0, section: index)
+            )
+        else { return }
+        let target = min(
+            max(
+                attrs.frame.minY
+                    - collectionView.contentInset.top
+                    - SearchFocusConvergence.topGap,
+                -collectionView.contentInset.top
+            ),
+            maxOffsetY()
+        )
+        collectionView.setContentOffset(
+            CGPoint(x: 0, y: target), animated: false
+        )
+        scheduleSettle()
     }
 
     /// 实测对账（inset 唯一施工口，R2 收口）：每
@@ -2095,6 +2222,10 @@ final class ChatRootViewController: UIViewController,
         userInteracting = true
         landingIntent = false
         landingSettleContentSize = nil
+        // 台账 150：搜索落点同弃——读者的位置优先
+        // 于机器落点（OB 的 drags 计数同口径）
+        focusConvergence.abort()
+        focusTargetID = nil
     }
 
     func scrollViewDidEndDragging(
@@ -2180,6 +2311,21 @@ final class ChatRootViewController: UIViewController,
         collectionView.setContentOffset(
             CGPoint(x: 0, y: target), animated: animated
         )
+    }
+
+    /// 搜索落点命令口（台账 150）：起收敛机并执行
+    /// 第一次滚动；先撤落点意图——冷开钉底与搜索
+    /// 落点是两种落位意图、后到者为准，不许落定拍
+    /// 再把读者钉回底部。目标不在行集即无声落空
+    /// （会话照常开在原落点）
+    func focusEntry(_ id: UUID) {
+        guard rows.contains(where: { $0.entryID == id })
+        else { return }
+        landingIntent = false
+        landingSettleContentSize = nil
+        focusTargetID = id
+        focusConvergence.begin()
+        performFocusScroll()
     }
 
     func captureAnchor() -> ChatListAnchor? {

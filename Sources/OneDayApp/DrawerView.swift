@@ -542,6 +542,11 @@ struct DrawerView: View {
                 // 不再是「人在聊天表面」的指示（§10.2）
                 selected: drawerSelection == .main
             ) {
+                // 台账 147：延迟导航待办在位时整下忽
+                // 略（OB 连点口径——关抽屉途中第二下
+                // 点按不重复跳页、首个待办为准）
+                guard !appState.router.hasPendingDrawerNavigation
+                else { return }
                 onClose()
                 // 0.30.0（用户 12:56 录屏点名 Muse 模
                 // 型）：本行是显式回主线的唯一入口——经
@@ -551,8 +556,16 @@ struct DrawerView: View {
                 // 话，见 ChatLandingResolution）。钦定尚
                 // 未落定时只切页签，ChatView 落点解析会
                 // 以主线兜底
+                // 台账 147：线程切换改经延迟导航置位
+                // 口——关到近闭合才落真值跳页（落真值
+                // 时 ContentView 的 onChange 自会切格，
+                // 与旁聊行同一条路）；钦定尚未落定（无
+                // 主线 id）时无线程可延迟、仍即时只切
+                // 页签（旧口径兜底不变）
                 if let mainID = appState.sessionLedger.mainThreadID {
-                    appState.router.drawerThreadSelection = mainID
+                    appState.router.stageDrawerThreadSelection(mainID)
+                } else {
+                    onSelectTab(.chat)
                 }
                 // 0.36.7（§10.3 置位纪律）：导航动作显
                 // 式写当前对象引用，胶囊随点按即归主线
@@ -561,7 +574,6 @@ struct DrawerView: View {
                 // 回 .channel
                 appState.router.channelViewingOrigin = nil
                 appState.router.currentDrawerObject = .main
-                onSelectTab(.chat)
             }
             // 枢纽行已删（0.36.5，用户 19:24 点名）：
             // 枢纽 sheet 本体长在聊天页，删行后的入口
@@ -1103,7 +1115,13 @@ struct DrawerView: View {
         // 看这条旁聊时胶囊只归本行、主线聊天行无胶囊
         let isCurrent = drawerSelection == .side(thread.id)
         return Button {
-            appState.router.drawerThreadSelection = thread.id
+            // 台账 147：延迟导航待办在位时整下忽略
+            // （OB 连点口径）；切换改经延迟置位口，
+            // 关到近闭合才跳页（对象引用仍即时写——
+            // 胶囊是抽屉内呈现、随点按即归位）
+            guard !appState.router.hasPendingDrawerNavigation
+            else { return }
+            appState.router.stageDrawerThreadSelection(thread.id)
             // 0.36.7（§10.3 置位纪律）：导航动作显式
             // 写当前对象引用
             // 0.36.29（§10.4-⑤）：从旁聊区进入即离频
@@ -1664,8 +1682,12 @@ struct DrawerView: View {
                 systemName: "square.and.pencil",
                 label: "新建会话"
             ) {
-                createThread()
-                onClose()
+                // 台账 147：延迟导航待办在位时整下忽
+                // 略（不建新线程、不重复跳页）
+                if !appState.router.hasPendingDrawerNavigation {
+                    createThread()
+                    onClose()
+                }
             }
         }
         .padding(.horizontal, OneDayMetrics.spacingSM)
@@ -1709,7 +1731,9 @@ struct DrawerView: View {
         let thread = ChatThread()
         modelContext.insert(thread)
         try? modelContext.save()
-        appState.router.drawerThreadSelection = thread.id
+        // 台账 147：新建同走延迟导航置位口（关到近
+        // 闭合才切过去）
+        appState.router.stageDrawerThreadSelection(thread.id)
     }
 }
 
