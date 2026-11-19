@@ -2,12 +2,14 @@ import OneDayDesign
 import OneDayCore
 import SwiftUI
 
-/// 体检面（H1-a，台账 158）：设置 → 服务器管理 →
-/// 维护 →「体检与存档」。本包只落体检段——自检
-/// （doctor）＋安全审计（security-audit）两组依次跑、
-/// 出人话结论、留摘要痕；存档段（H1-b）与诊断段
-/// （H1-c，探活实证服务端只有外发形态、已缓办）不在
-/// 本面出现，不留假按钮。
+/// 体检面（H1-a 体检段＋H1-b 存档段，台账 158）：
+/// 设置 → 服务器管理 → 维护 →「体检与存档」。体检
+/// 段——自检（doctor）＋安全审计（security-audit）
+/// 两组依次跑、出人话结论、留摘要痕；存档段——备
+/// 份（同为 spawn＋poll、三态判读）＋检查点如实呈
+/// 现＋升级前检查单联动行。诊断段（H1-c，探活实证
+/// 服务端只有外发形态、已缓办）不在本面出现，不留
+/// 假按钮；检查点清理（prune）行为未知，同样不放行。
 /// 数据口径：结论全部来自 HealthCheckStore 本轮解析
 /// 结果与 HealthSummaryStore 留痕，两处同源；状态页
 /// 的「看现在」与本面的「跑一遍查问题」分工不混。
@@ -15,6 +17,8 @@ struct HealthCheckView: View {
     @Environment(AppState.self) private var appState
     @State private var store = HealthCheckStore()
     @State private var summaryStore = HealthSummaryStore.shared
+    @State private var archiveStore = ArchiveStore()
+    @State private var backupRecordStore = BackupRecordStore.shared
 
     var body: some View {
         List {
@@ -32,6 +36,8 @@ struct HealthCheckView: View {
             runButtonSection
             doctorSection
             auditSection
+            archiveSection
+            checkpointsSection
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
@@ -39,6 +45,11 @@ struct HealthCheckView: View {
         .background(Palette.settingsBG)
         .navigationTitle("体检与存档")
         .navigationBarTitleDisplayMode(.large)
+        .task {
+            await archiveStore.loadCheckpointsIfNeeded(
+                appState: appState
+            )
+        }
     }
 
     // MARK: - 结论卡
@@ -306,6 +317,289 @@ struct HealthCheckView: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(Palette.inkSecondary)
             }
+        }
+        .padding(.vertical, OneDayMetrics.spacingXS)
+    }
+
+    // MARK: - 存档段（H1-b）
+
+    private var archiveSection: some View {
+        Section {
+            readinessRow
+            backupStatusRow
+            backupButtonRow
+        } header: {
+            sectionHeader("存档")
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(settingsRowInsets)
+    }
+
+    /// 升级前检查单联动行（存档段顶部）：新鲜备份＋
+    /// 体检留痕合成一句人话判断，只呈现、不执行升级
+    private var readinessRow: some View {
+        let readiness = ArchiveReadinessJudge.judge(
+            backup: backupRecordStore.record(
+                for: appState.config?.baseString
+            ),
+            health: savedSummary,
+            now: Date()
+        )
+        return HStack(spacing: OneDayMetrics.spacingS) {
+            StatusDot(
+                color: readiness.ready
+                    ? Palette.success : Palette.warning
+            )
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingMicro
+            ) {
+                Text("升级前检查")
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+                Text(readiness.headline)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+            }
+            Spacer(minLength: OneDayMetrics.spacingS)
+        }
+        .padding(.vertical, OneDayMetrics.spacingXS)
+    }
+
+    /// 备份状态行：跑中（进度＋已用时）／本轮判读／
+    /// 引擎失败（人话原因，下方按钮即重试）／未跑
+    /// （有留痕读留痕、无留痕显说明）
+    @ViewBuilder
+    private var backupStatusRow: some View {
+        switch archiveStore.backupPhase {
+        case .running(let since):
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    ProgressView()
+                    Text(
+                        "正在备份… 已用 "
+                            + "\(Int(context.date.timeIntervalSince(since))) 秒"
+                    )
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        case .finished:
+            if let run = archiveStore.backupRun {
+                backupResultRows(
+                    headline: run.headline,
+                    state: run.state,
+                    archiveName: run.archiveName,
+                    caption: nil
+                )
+            }
+        case .failed(let message):
+            HStack(spacing: OneDayMetrics.spacingS) {
+                StatusDot(color: Palette.warning)
+                Text(message)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: OneDayMetrics.spacingS)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
+        case .idle:
+            if let record = backupRecordStore.record(
+                for: appState.config?.baseString
+            ) {
+                backupResultRows(
+                    headline: record.headline,
+                    state: record.state,
+                    archiveName: record.archiveName,
+                    caption: "上次备份 · "
+                        + DisplayDate.relativeDateTime(record.date)
+                )
+            } else {
+                Text("还没备过份——备份会在服务器上生成一份完整存档")
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        }
+    }
+
+    private func backupResultRows(
+        headline: String, state: BackupRun.State,
+        archiveName: String?, caption: String?
+    ) -> some View {
+        VStack(
+            alignment: .leading, spacing: OneDayMetrics.spacingMicro
+        ) {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                StatusDot(color: backupStateColor(state))
+                Text(headline)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: OneDayMetrics.spacingS)
+            }
+            if let caption {
+                Text(caption)
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            if let archiveName {
+                Text(archiveName)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.vertical, OneDayMetrics.spacingXS)
+    }
+
+    private var backupButtonRow: some View {
+        Button {
+            Task {
+                await archiveStore.runBackup(appState: appState)
+                // 备份完成后顺手刷新检查点呈现（同一件
+                // 「存档现状」，不让用户看旧数）
+                await archiveStore.loadCheckpoints(
+                    appState: appState
+                )
+            }
+        } label: {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                Image(systemName: "archivebox")
+                    .foregroundStyle(Palette.ink)
+                    .accessibilityHidden(true)
+                Text("立即备份")
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: OneDayMetrics.spacingS)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            .contentShape(Rectangle())
+        }
+        .disabled(!archiveStore.canStartBackup)
+    }
+
+    private func backupStateColor(
+        _ state: BackupRun.State
+    ) -> Color {
+        switch state {
+        case .clean: return Palette.success
+        case .attention: return Palette.warning
+        case .failed: return Palette.danger
+        }
+    }
+
+    // MARK: - 检查点段（H1-b）
+
+    /// 检查点如实呈现：现役实例恒空就是「暂无检查
+    /// 点」的诚实空状态；不做假数据、不当新鲜度数
+    /// 据源；清理（prune）不放行——本段没有清理按钮。
+    private var checkpointsSection: some View {
+        Section {
+            switch archiveStore.checkpointsPhase {
+            case .failed(let message):
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    StatusDot(color: Palette.warning)
+                    Text(message)
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                Button {
+                    Task {
+                        await archiveStore.loadCheckpoints(
+                            appState: appState
+                        )
+                    }
+                } label: {
+                    HStack(spacing: OneDayMetrics.spacingS) {
+                        Image(systemName: "arrow.clockwise")
+                            .foregroundStyle(Palette.ink)
+                            .accessibilityHidden(true)
+                        Text("重新读取")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Spacer(minLength: OneDayMetrics.spacingS)
+                    }
+                    .frame(
+                        minHeight: OneDayMetrics.settingsRowHeight
+                    )
+                    .contentShape(Rectangle())
+                }
+            case .finished:
+                if let checkpoints = archiveStore.checkpoints {
+                    if checkpoints.isEmpty {
+                        OneDayDesign.EmptyState(
+                            icon: "clock.arrow.circlepath",
+                            title: "暂无检查点",
+                            message: "这台服务器上还没有检查点记录。"
+                        )
+                        .padding(.vertical, OneDayMetrics.spacingM)
+                    } else {
+                        ForEach(
+                            Array(
+                                checkpoints.sessions.enumerated()
+                            ),
+                            id: \.offset
+                        ) { _, session in
+                            checkpointRow(session)
+                        }
+                        Text(
+                            "共 \(checkpoints.sessions.count) 个会话 · "
+                                + ByteCountFormatter.string(
+                                    fromByteCount: Int64(
+                                        checkpoints.totalBytes
+                                    ),
+                                    countStyle: .file
+                                )
+                        )
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                    }
+                }
+            case .idle, .running:
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    ProgressView()
+                    Text("正在读取检查点…")
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
+        } header: {
+            sectionHeader("检查点")
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(settingsRowInsets)
+    }
+
+    private func checkpointRow(
+        _ session: CheckpointsResponse.Session
+    ) -> some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingMicro
+            ) {
+                Text(session.session)
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                Text("\(session.files) 个文件")
+                    .font(.rowSubtitle)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            Spacer(minLength: OneDayMetrics.spacingS)
+            Text(
+                ByteCountFormatter.string(
+                    fromByteCount: Int64(session.bytes),
+                    countStyle: .file
+                )
+            )
+            .font(.rowSubtitle)
+            .foregroundStyle(Palette.inkSecondary)
         }
         .padding(.vertical, OneDayMetrics.spacingXS)
     }
