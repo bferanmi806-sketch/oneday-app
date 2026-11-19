@@ -474,6 +474,7 @@ struct ChatNativeRowHeightComposer {
     @MainActor
     func makeEntryMeasureJob(
         for entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false,
         memoKey: String, rowKey: String
     ) -> ChatNativeRowMeasureJob {
         let facets: ChatNativeRowFacets
@@ -492,7 +493,8 @@ struct ChatNativeRowHeightComposer {
             facets: facets
         ) {
             $0.entryHeightCore(
-                snapshot, dividerText: dividerText
+                snapshot, dividerText: dividerText,
+                showsUnreadDivider: showsUnreadDivider
             )
         }
     }
@@ -2331,15 +2333,18 @@ struct ChatNativeRowHeightComposer {
     /// 派生）＋facet 状态摘要＋环境指纹
     @MainActor
     func entryHeight(
-        _ entry: ChatEntry, dividerText: String?
+        _ entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false
     ) -> CGFloat {
         rowMemo(
             entryMemoKey(
-                for: entry, dividerText: dividerText
+                for: entry, dividerText: dividerText,
+                showsUnreadDivider: showsUnreadDivider
             )
         ) {
             entryHeightWithFacets(
-                entry, dividerText: dividerText
+                entry, dividerText: dividerText,
+                showsUnreadDivider: showsUnreadDivider
             )
         }
     }
@@ -2349,14 +2354,16 @@ struct ChatNativeRowHeightComposer {
     /// 只此一处，不许两路各算一份
     @MainActor
     func entryMemoKey(
-        for entry: ChatEntry, dividerText: String?
+        for entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false
     ) -> String {
         let revision = ChatNativeRowRevision.entry(
             entry,
             dividerText: dividerText,
             highlighted: false,
             selectionActive: false,
-            styleKey: ""
+            styleKey: "",
+            showsUnreadDivider: showsUnreadDivider
         )
         return "e|\(entry.id.uuidString)"
             + "|\(Self.revisionDigest(revision))"
@@ -2370,7 +2377,8 @@ struct ChatNativeRowHeightComposer {
     /// 对拍测试钉住
     @MainActor
     func entryHeightWithFacets(
-        _ entry: ChatEntry, dividerText: String?
+        _ entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false
     ) -> CGFloat {
         var core = self
         if let ledger, let hubStore {
@@ -2382,7 +2390,8 @@ struct ChatNativeRowHeightComposer {
         }
         return core.entryHeightCore(
             ChatEntryHeightSnapshot(entry),
-            dividerText: dividerText
+            dividerText: dividerText,
+            showsUnreadDivider: showsUnreadDivider
         )
     }
 
@@ -2393,12 +2402,23 @@ struct ChatNativeRowHeightComposer {
     /// 用户→助手）
     func entryHeightCore(
         _ entry: ChatEntryHeightSnapshot,
-        dividerText: String?
+        dividerText: String?,
+        showsUnreadDivider: Bool = false
     ) -> CGFloat {
         var total: CGFloat = 0
         if let dividerText {
             total += plainHeight(
                 dividerText, .footnote,
+                width: contentWidth
+            ) + OneDayMetrics.spacingS
+        }
+        if showsUnreadDivider {
+            // 台账 148：NEW 分界槽与时间分隔槽同式
+            // （徽标一行＋spacingS 行间隙）——呈现
+            // 侧 ChatUnreadDividerView 的高由徽标文
+            // 本单行决定、与本槽逐值同高
+            total += plainHeight(
+                L10n.string("新消息"), .footnote,
                 width: contentWidth
             ) + OneDayMetrics.spacingS
         }

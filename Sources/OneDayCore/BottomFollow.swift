@@ -446,3 +446,31 @@ public struct AwayUnreadCounter: Equatable, Sendable {
         return count > Self.displayCap ? "\(Self.displayCap)+" : "\(count)"
     }
 }
+
+/// 贴底跟随触发源枚举（台账 149，学 OpenBot 的
+/// maintainScrollAtEnd 触发清单——其 FOLLOW_END
+/// 把「保持贴底」的触发写死四源：dataChange／
+/// itemLayout／footerLayout／layout；OneDay 侧四
+/// 源不在一个框架开关里、分布在不同机制，本枚举
+/// 即验收清单本体：逐源构造用例钉住「在底时该源
+/// 触发后仍在底、离底时不被拽回」，清单增删必须
+/// 过本枚举（防验收口径静默漂移）。各源在原生面
+/// 的落点：
+/// - dataChange：条目增删/流式生长——ChatView 条
+///   目数与流式两条 onChange 跟随链在「在底」时下
+///   达贴底命令（句柄 scrollToBottom 重立落点意
+///   图、落定拍钉底）；控制器内冷开首装同路。
+/// - itemLayout：单行量实高变化——回喂高落写→布
+///   局失效记账→布局拍以变化前在底事实钉底。
+/// - footerLayout：输入舱高变化（键盘/多行生长）
+///   ——容器布局拍同 itemLayout 一路钉底＋落定拍
+///   inset 实测对账。
+/// - layout：整体布局变化（旋转/壳层帧变）——
+///   viewDidLayoutSubviews 以旧帧在底事实钉底、
+///   不在底者原样不动。
+public enum BottomFollowTrigger: String, CaseIterable, Sendable {
+    case dataChange
+    case itemLayout
+    case footerLayout
+    case layout
+}

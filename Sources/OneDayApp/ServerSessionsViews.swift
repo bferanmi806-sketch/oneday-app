@@ -306,6 +306,11 @@ struct ServerSessionsView: View {
     private func searchHitRow(_ hit: SessionSearchHit) -> some View {
         Button {
             // 与正表同路：交聊天页按服务端会话续聊
+            // 台账 150：命中行同置落点请求（先置摘
+            // 要/角色、后置会话 id），打开后回找命中
+            // 消息收敛落点
+            appState.router.pendingSearchFocusSnippet = hit.snippet
+            appState.router.pendingSearchFocusRole = hit.role
             appState.router.pendingChatSessionID = hit.sessionID
         } label: {
             HStack(spacing: OneDayMetrics.spacingSM) {

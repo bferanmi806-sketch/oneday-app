@@ -177,6 +177,14 @@ struct DrawerContainer<Content: View>: UIViewControllerRepresentable {
         let modelContext = modelContext
         let locale = locale
         controller.reduceMotion = reduceMotion
+        // 台账 147：呈现进度与关打断回写 Router 的
+        // 延迟导航喂入口（判定在 Core 状态机）
+        controller.onDrawerProgress = { progress in
+            appState.router.noteDrawerProgress(progress)
+        }
+        controller.onDrawerCloseInterrupted = {
+            appState.router.noteDrawerCloseInterrupted()
+        }
         controller.drawerBuilder = { width in
             AnyView(
                 DrawerView(
@@ -219,6 +227,14 @@ final class DrawerContainerController: UIViewController,
     var reduceMotion = false
     /// 容器开合变化回写（桥接回 AppState）
     var onPresentedChange: ((Bool) -> Void)?
+    /// 呈现进度回写（台账 147 延迟导航的事实源）：
+    /// 动画在途时为 presentation 层逐帧采样、其余
+    /// 时刻为 model 值——桥接回 AppRouter 的进度喂
+    /// 入口（判定在 Core DrawerDeferredNavigation）
+    var onDrawerProgress: ((Double) -> Void)?
+    /// 关动画被另一运动打断的回写（台账 147）：桥
+    /// 接回 AppRouter——待办导航即刻执行、不吞
+    var onDrawerCloseInterrupted: (() -> Void)?
     /// 抽屉根视图 builder（桥注入；travel 变化时容器
     /// 以新宽重取根视图，闭包内回调恒取最新桥状态）
     var drawerBuilder: ((CGFloat) -> AnyView)? {
@@ -254,6 +270,16 @@ final class DrawerContainerController: UIViewController,
     /// 派生只许经 applyOffset 由本值写出（§313 A-01）
     private var offset: CGFloat = 0
     private var animator: UIViewPropertyAnimator?
+    /// 在途 animator 的目标方向（true＝开）：停
+    /// animator 时据此分「关被打断」（147 待办即刻
+    /// 执行）与「开被顶替」（待办继续等关）
+    private var animatorHeadingOpen = false
+    /// 动画在途的呈现进度采样链（台账 147）：anim-
+    /// ator 只写 model 值、呈现位移在 presenta-
+    /// tion 层——延迟导航的触发事实必须读呈现层
+    /// 逐帧采样（与 OB 以共享进度值反应式触发同
+    /// 构）；动画落定/被停即拆链
+    private var progressDisplayLink: CADisplayLink?
     /// 手势会话：接管起点位移＋锁定段（nil＝未锁定）
     private var dragStartOffset: CGFloat = 0
     private var dragLockTranslation: CGFloat?
@@ -489,6 +515,44 @@ final class DrawerContainerController: UIViewController,
         contentHost.view.isUserInteractionEnabled =
             newOffset <= 0 && animator == nil
         edgeView.isHidden = semanticPresented || newOffset > 0
+        // 台账 147：无动画在途时 model 值即呈现事
+        // 实、就地回写进度（拖动逐帧/瞬时关/布局重
+        // 派生都经本口）；动画在途时 model 已跳目标
+        // 值、进度归采样链逐帧回写，不在此抢报
+        if animator == nil {
+            onDrawerProgress?(progress)
+        }
+    }
+
+    /// 呈现进度采样（台账 147）：读 foreground
+    /// presentation 层的当前 tx 换算进度回写——关
+    /// 动画途中 model 恒为目标值，唯呈现层是逐帧
+    /// 真值（stopAnimatorCapturingPresentation 读
+    /// 呈现层接管同源）
+    @objc private func samplePresentationProgress() {
+        guard travel > 0 else { return }
+        let presented = foreground.layer.presentation()?
+            .transform.m41 ?? offset
+        onDrawerProgress?(
+            DrawerMotion.progress(
+                offset: presented, travel: travel
+            )
+        )
+    }
+
+    private func startProgressSampling() {
+        guard progressDisplayLink == nil else { return }
+        let link = CADisplayLink(
+            target: self,
+            selector: #selector(samplePresentationProgress)
+        )
+        link.add(to: .main, forMode: .common)
+        progressDisplayLink = link
+    }
+
+    private func stopProgressSampling() {
+        progressDisplayLink?.invalidate()
+        progressDisplayLink = nil
     }
 
     // MARK: - 开合
@@ -543,10 +607,19 @@ final class DrawerContainerController: UIViewController,
             self.finishSettle(open: open)
         }
         self.animator = animator
+        animatorHeadingOpen = open
+        startProgressSampling()
         animator.startAnimation()
     }
 
     private func finishSettle(open: Bool) {
+        stopProgressSampling()
+        // 台账 147：落定回写终值进度——关落定的 0
+        // 是延迟导航的兜底 flush 事实（采样漏过阈
+        // 值时在此补达，判定在 Router/Core）
+        onDrawerProgress?(
+            DrawerMotion.progress(offset: offset, travel: travel)
+        )
         if !open {
             drawerHost.view.isHidden = true
         }
@@ -586,6 +659,11 @@ final class DrawerContainerController: UIViewController,
             self.animator = nil
             return
         }
+        // 台账 147：被停的若是关动画——延迟导航待
+        // 办即刻执行（OB 口径：关被另一运动打断也
+        // 推、只推一次）；被停的是开动画则待办继
+        // 续等随后的关（点行本人在停后即下达关令）
+        let interruptedClose = !animatorHeadingOpen
         animator.pauseAnimation()
         if let presentation = foreground.layer.presentation() {
             offset = presentation.transform.m41
@@ -593,6 +671,10 @@ final class DrawerContainerController: UIViewController,
         animator.stopAnimation(false)
         animator.finishAnimation(at: .current)
         self.animator = nil
+        stopProgressSampling()
+        if interruptedClose {
+            onDrawerCloseInterrupted?()
+        }
         // 呈现位回写走唯一呈现口（§313：transform 不
         // 许有第二写点；animator 已清零、交互派生按
         // 捕获位成立，随后 setDrawer/手势流程再行对账）

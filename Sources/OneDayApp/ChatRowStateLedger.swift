@@ -35,6 +35,21 @@ final class ChatRowStateLedger {
         expansionOverrides[key] = expanded
     }
 
+    /// NEW 未读分界线已演过入场动画的锚键（台账
+    /// 148）：分界线入场只演一次——行随滚动重建时
+    /// 查本账，已演过的直接静态呈现（与 OB 以 Set
+    /// 记已演行同构）；纯呈现记账、不影响行高，不
+    /// 入 §329 的两类收编范围
+    private(set) var animatedUnreadDividers: Set<String> = []
+
+    func hasAnimatedUnreadDivider(forKey key: String) -> Bool {
+        animatedUnreadDividers.contains(key)
+    }
+
+    func markUnreadDividerAnimated(forKey key: String) {
+        animatedUnreadDividers.insert(key)
+    }
+
     func approvalDetail(for recordID: String) -> ApprovalDetailState {
         approvalDetails[recordID] ?? ApprovalDetailState()
     }
@@ -89,5 +104,11 @@ enum ChatRowStateKeys {
     /// （item.id 恒为 toolgroup-<首卡 id>）
     static func liveToolGroup(_ itemID: String) -> String {
         "live-\(itemID)"
+    }
+
+    /// NEW 未读分界线锚键（台账 148）：分界线挂在
+    /// 锚条目上方、入场动画记账以锚条目为键
+    static func unreadDivider(_ entryID: UUID) -> String {
+        "unread-divider-\(entryID.uuidString)"
     }
 }

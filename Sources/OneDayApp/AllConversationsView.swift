@@ -31,6 +31,11 @@ import SwiftUI
 struct AllConversationsView: View {
     /// 打开会话（宿主关页＋切聊天格＋走续聊通道）
     var onOpenSession: (String) -> Void
+    /// 打开搜索命中（台账 150）：与 onOpenSession
+    /// 同路，但把命中本体（摘要＋角色）一并交给宿
+    /// 主——ChatView 据此在打开后收敛落点到命中消
+    /// 息；宿主未提供时命中行回落 onOpenSession
+    var onOpenSearchHit: ((SessionSearchHit) -> Void)? = nil
     var onClose: () -> Void
 
     @Environment(AppState.self) private var appState
@@ -416,7 +421,14 @@ struct AllConversationsView: View {
             } else {
                 ForEach(searchResults) { hit in
                     Button {
-                        onOpenSession(hit.sessionID)
+                        // 台账 150：命中行优先走落点通
+                        // 道（带摘要回找目标消息），宿
+                        // 主未提供时回落普通打开
+                        if let onOpenSearchHit {
+                            onOpenSearchHit(hit)
+                        } else {
+                            onOpenSession(hit.sessionID)
+                        }
                     } label: {
                         VStack(alignment: .leading, spacing: OneDayMetrics.stackGap) {
                             Text(hit.displayTitle)

@@ -162,7 +162,8 @@ struct ChatNativeRowRevision: Equatable {
         dividerText: String?,
         highlighted: Bool,
         selectionActive: Bool,
-        styleKey: String
+        styleKey: String,
+        showsUnreadDivider: Bool = false
     ) -> ChatNativeRowRevision {
         var revision = ChatNativeRowRevision()
         revision.addText(entry.role)
@@ -197,6 +198,9 @@ struct ChatNativeRowRevision: Equatable {
             .real(entry.createdAt.timeIntervalSinceReferenceDate)
         )
         revision.addText(dividerText)
+        // 台账 148：NEW 分界线在席与否是渲染输入、
+        // 同列入账（在席变化必触发重配与重测高）
+        revision.addFlag(showsUnreadDivider)
         revision.addFlag(highlighted)
         revision.addFlag(selectionActive)
         revision.addText(styleKey)
@@ -569,6 +573,13 @@ final class ChatNativeListHandle {
         controller?.scrollToEntry(id, animated: animated)
     }
 
+    /// 搜索落点（台账 150）：收敛式定位到目标条目
+    /// （多次重滚＋漂移容差，判定在 Core Search-
+    /// FocusConvergence）
+    func focusEntry(_ id: UUID) {
+        controller?.focusEntry(id)
+    }
+
     func captureAnchor() -> ChatListAnchor? {
         controller?.captureAnchor()
     }
@@ -717,6 +728,12 @@ final class ChatRootViewController: UIViewController,
     /// 冲刷、迟到回调未现形），意图置真/消解时清零
     private var landingSettleContentSize: CGFloat?
     private var userInteracting = false
+    /// 搜索落点收敛（台账 150）：进行中的收敛机与
+    /// 目标条目——落定拍逐拍喂屏上位置评估（判定
+    /// 在 Core SearchFocusConvergence）；用户拖动
+    /// 即弃、目标行消失即弃
+    private var focusConvergence = SearchFocusConvergence()
+    private var focusTargetID: UUID?
     /// 布局未就绪时到达的恢复命令（先记账、落定
     /// 拍执行——与 gen3 restore 的等拍口径同义）
     private var pendingAnchor: ChatListAnchor?
@@ -1901,8 +1918,71 @@ final class ChatRootViewController: UIViewController,
                 landingSettleContentSize = nil
             }
         }
+        stepSearchFocus()
         layoutArrow()
         report()
+    }
+
+    /// 搜索落点的一拍（台账 150）：量目标行屏上位
+    /// 置喂收敛机——停稳/预算尽即收官，仍漂移则再
+    /// 滚一次；目标行已不在行集（切线程/数据变）
+    /// 即弃（OB 同口径：失败保留现位置、聊天照常）
+    private func stepSearchFocus() {
+        guard focusConvergence.isActive,
+              let targetID = focusTargetID
+        else { return }
+        guard let index = rows.firstIndex(
+            where: { $0.entryID == targetID }
+        ),
+              let attrs = collectionView
+                .layoutAttributesForItem(
+                    at: IndexPath(item: 0, section: index)
+                )
+        else {
+            focusConvergence.abort()
+            focusTargetID = nil
+            return
+        }
+        let shown = attrs.frame.minY
+            - collectionView.contentOffset.y
+        switch focusConvergence.evaluate(
+            shownPosition: shown
+        ) {
+        case .scrollAgain:
+            performFocusScroll()
+        case .converged, .exhausted:
+            focusTargetID = nil
+        }
+    }
+
+    /// 搜索落点的一次滚动：目标行顶停到顶留位下
+    /// 方 topGap 处（Core 常量），无动画直达（收敛
+    /// 靠多拍校正、不靠动画掩盖漂移，OB 同式）
+    private func performFocusScroll() {
+        guard let targetID = focusTargetID,
+              let index = rows.firstIndex(
+                  where: { $0.entryID == targetID }
+              )
+        else { return }
+        collectionView.layoutIfNeeded()
+        guard let attrs = collectionView
+            .layoutAttributesForItem(
+                at: IndexPath(item: 0, section: index)
+            )
+        else { return }
+        let target = min(
+            max(
+                attrs.frame.minY
+                    - collectionView.contentInset.top
+                    - SearchFocusConvergence.topGap,
+                -collectionView.contentInset.top
+            ),
+            maxOffsetY()
+        )
+        collectionView.setContentOffset(
+            CGPoint(x: 0, y: target), animated: false
+        )
+        scheduleSettle()
     }
 
     /// 实测对账（inset 唯一施工口，R2 收口）：每
@@ -2095,6 +2175,10 @@ final class ChatRootViewController: UIViewController,
         userInteracting = true
         landingIntent = false
         landingSettleContentSize = nil
+        // 台账 150：搜索落点同弃——读者的位置优先
+        // 于机器落点（OB 的 drags 计数同口径）
+        focusConvergence.abort()
+        focusTargetID = nil
     }
 
     func scrollViewDidEndDragging(
@@ -2180,6 +2264,21 @@ final class ChatRootViewController: UIViewController,
         collectionView.setContentOffset(
             CGPoint(x: 0, y: target), animated: animated
         )
+    }
+
+    /// 搜索落点命令口（台账 150）：起收敛机并执行
+    /// 第一次滚动；先撤落点意图——冷开钉底与搜索
+    /// 落点是两种落位意图、后到者为准，不许落定拍
+    /// 再把读者钉回底部。目标不在行集即无声落空
+    /// （会话照常开在原落点）
+    func focusEntry(_ id: UUID) {
+        guard rows.contains(where: { $0.entryID == id })
+        else { return }
+        landingIntent = false
+        landingSettleContentSize = nil
+        focusTargetID = id
+        focusConvergence.begin()
+        performFocusScroll()
     }
 
     func captureAnchor() -> ChatListAnchor? {
