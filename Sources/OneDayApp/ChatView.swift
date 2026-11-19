@@ -3054,8 +3054,9 @@ struct ChatView: View {
                     entryRowContent(
                         entry, dividerText: dividerText
                     )
-                    // §330（题 2）：本面菜单由 cell 的
-                    // UIKit 交互承载——内容内的 SwiftUI
+                    // §330（题 2）／§332 换代：本面菜单
+                    // 由集合视图 delegate 的内建上下文
+                    // 菜单通道承载——内容内的 SwiftUI
                     // .contextMenu 在本面关停（见
                     // ChatRowSwiftUIMenuEnabledKey）
                     .environment(
@@ -7729,48 +7730,58 @@ struct ChatView: View {
     /// 不变），引用块高计入舱高、不挤占打字行数
     private var composerCard: some View {
         VStack(spacing: 0) {
-            // 引用块出现/消失走 SmoothExpand 平滑高度
-            // （条 7）；分隔线随引用块同进同出；满宽
-            // claim 落在本层（卡 VStack 的直接子层）——
-            // P-13 续案口径与附件条同，见下方附件条注
-            SmoothExpand(isExpanded: pendingQuote != nil || pendingFeedQuote != nil || pendingSourceQuote != nil) {
-                if let pendingQuote {
-                    VStack(spacing: 0) {
-                        quoteBar(pendingQuote)
-                        Rectangle()
-                            .fill(Palette.hairline)
-                            .frame(height: 1)
-                            .padding(
-                                .horizontal, OneDayMetrics.spacingSM
-                            )
-                    }
-                } else if let pendingFeedQuote {
-                    // §208：动态引用与消息引用共用本槽
-                    // 位（至多一个在场），feed 变体渲染
-                    VStack(spacing: 0) {
-                        feedQuoteBar(pendingFeedQuote)
-                        Rectangle()
-                            .fill(Palette.hairline)
-                            .frame(height: 1)
-                            .padding(
-                                .horizontal, OneDayMetrics.spacingSM
-                            )
-                    }
-                } else if let pendingSourceQuote {
-                    // §219：点子／文件引用同槽（至多一
-                    // 个在场），按族分发条形态
-                    VStack(spacing: 0) {
-                        sourceQuoteBar(pendingSourceQuote)
-                        Rectangle()
-                            .fill(Palette.hairline)
-                            .frame(height: 1)
-                            .padding(
-                                .horizontal, OneDayMetrics.spacingSM
-                            )
-                    }
+            // §332（二次修复题 3）：引用块移出
+            // SmoothExpand——与附件条同构造（卡
+            // VStack 直接子级＋条件包含，引用块＋
+            // 分隔线同进同出）。定因：引用块在
+            // SmoothExpand 的 @State 高度量测反馈环
+            // 内时，舱体落位读到滞后卡高、引用浮卡
+            // 压输入框（附件条当年移出该环后同病消
+            // 失）；高度变化改由卡根事务插值承接
+            // （见下方 attachments.count 动画注，键
+            // 扩至引用在场态）。quote/feed/source
+            // 三变体共用本槽位（至多一个在场）
+            if let pendingQuote {
+                VStack(spacing: 0) {
+                    quoteBar(pendingQuote)
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(height: 1)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            } else if let pendingFeedQuote {
+                // §208：动态引用与消息引用共用本槽
+                // 位（至多一个在场），feed 变体渲染
+                VStack(spacing: 0) {
+                    feedQuoteBar(pendingFeedQuote)
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(height: 1)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            } else if let pendingSourceQuote {
+                // §219：点子／文件引用同槽（至多一
+                // 个在场），按族分发条形态
+                VStack(spacing: 0) {
+                    sourceQuoteBar(pendingSourceQuote)
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(height: 1)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             // 待发附件条（0.36.19 入舱 §84.4；0.36.26
             // §95 移出量测层）：0.36.19 把满宽锚加在条
             // 内部两层、0.36.23 上移到卡直接子层，两
@@ -7846,6 +7857,17 @@ struct ChatView: View {
                 MotionTokens.swap, reduceMotion: reduceMotion
             ),
             value: attachments.count
+        )
+        // §332（题 3）：引用块移出 SmoothExpand 后
+        // 其显隐高变同理由卡根事务插值承接——键＝
+        // 三变体在场态（至多一个在场，布尔即全量）
+        .animation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            ),
+            value: pendingQuote != nil
+                || pendingFeedQuote != nil
+                || pendingSourceQuote != nil
         )
         // 第 1 修（P0 键盘不弹）的聚焦保底层：整卡背景
         // 命中域内点按（文本区外的卡面空隙，含引用块
@@ -11473,13 +11495,13 @@ private struct ComposerBarLayout: Layout {
 }
 
 /// 原生面行菜单承载开关（§330，0.50.70 热修题
-/// 2）：原生面行菜单改由 cell 的 UIContextMenu-
-/// Interaction 承载（ChatNativeList），托管内容
-/// 内的 SwiftUI .contextMenu 须在本面关闭——两
-/// 承载同挂会双出菜单、且 SwiftUI 承载正是 .69
-/// 真机长按全灭的当事层。仅原生面行构造点置
-/// false；gen3 面无此环境值、默认 true、行为逐
-/// 字不变
+/// 2；§332 换代）：原生面行菜单改由集合视图
+/// delegate 的内建上下文菜单通道承载（Chat-
+/// NativeList），托管内容内的 SwiftUI
+/// .contextMenu 须在本面关闭——两承载同挂会双
+/// 出菜单、且 SwiftUI 承载正是 .69 真机长按全
+/// 灭的当事层。仅原生面行构造点置 false；gen3
+/// 面无此环境值、默认 true、行为逐字不变
 private struct ChatRowSwiftUIMenuEnabledKey: EnvironmentKey {
     static let defaultValue = true
 }
@@ -11513,9 +11535,9 @@ private struct MessageMenuModifier: ViewModifier {
     let onFork: () -> Void
     let onSelect: () -> Void
 
-    /// §330：原生面关停本承载（菜单已由 cell 的
-    /// UIKit 交互承载，见 ChatRowSwiftUIMenu-
-    /// EnabledKey）；gen3 面恒 true
+    /// §330／§332：原生面关停本承载（菜单已由集
+    /// 合视图 delegate 内建通道承载，见 ChatRow-
+    /// SwiftUIMenuEnabledKey）；gen3 面恒 true
     @Environment(\.chatRowSwiftUIMenuEnabled)
     private var swiftUIMenuEnabled
 
