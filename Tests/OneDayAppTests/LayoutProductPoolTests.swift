@@ -290,8 +290,17 @@ final class LayoutProductPoolTests: XCTestCase {
     // MARK: - 影子账本
 
     func testShadowLedgerRecordsConsistentPairs() async throws {
-        let ledger = LayoutShadowLedger.shared
-        ledger.reset()
+        // 用本测试独占的账本实例、不碰共享单例
+        // （台账 180）：共享账本的 record 把复量
+        // 派进 detached 任务、reset 只清计数不排
+        // 空在途任务——进程内其他布局触发的在途
+        // 落账会漏进 reset 后的账面，与本测试的
+        // 精确计数断言有固有竞态（连红三轮「23
+        // vs 3」＝本轮 3 笔＋20 笔外来落账）。
+        // 独占实例无外部写者：计数只由本轮
+        // record 决定，竞态结构性消除；下方断言
+        // 口径一字不动
+        let ledger = LayoutShadowLedger()
         // 空串走豁免口径、不进对拍
         ledger.record(
             attributed: NSAttributedString(string: ""),
