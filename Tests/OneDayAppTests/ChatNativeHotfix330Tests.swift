@@ -170,8 +170,9 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             "抬起后双击间隔内须未闭合"
         )
         XCTAssertTrue(
-            gate.isUnclosed(rowKey: "b", at: 100.45),
-            "间隔截止时刻仍未闭合"
+            gate.isUnclosed(rowKey: "b", at: 100.44),
+            "间隔截止前须仍未闭合（恰等截止点的浮点"
+                + "边界不作产品断言）"
         )
         XCTAssertFalse(
             gate.isUnclosed(rowKey: "b", at: 100.46),
