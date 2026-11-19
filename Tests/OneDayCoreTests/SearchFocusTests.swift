@@ -120,7 +120,7 @@ final class SearchFocusTests: XCTestCase {
     func testExhaustsAfterSixScrolls() {
         var machine = SearchFocusConvergence()
         machine.begin()
-        var verdicts: [SearchFocusConvergence.Verdict] = []
+        var verdicts: [SearchFocusConvergence.Evaluation] = []
         var position = 500.0
         while machine.isActive {
             verdicts.append(machine.evaluate(shownPosition: position))
