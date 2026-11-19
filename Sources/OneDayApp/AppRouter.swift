@@ -233,6 +233,9 @@ final class AppRouter {
     @ObservationIgnored
     private var deferredDrawerNavigation =
         DrawerDeferredNavigation()
+    /// 最近一次开度事实（状态机口径：1＝全开、0＝
+    /// 全合；容器喂入的是 DrawerMotion.progress 关
+    /// 合度、noteDrawerProgress 处单点翻转，见彼注）
     @ObservationIgnored
     private var lastDrawerProgress: Double = 1
 
@@ -253,11 +256,20 @@ final class AppRouter {
     }
 
     /// 抽屉呈现进度喂入（容器桥）：待办在位且降到
-    /// 阈值即落真值执行
+    /// 阈值即落真值执行。
+    /// 【坐标翻转】容器喂的是 DrawerMotion.prog-
+    /// ress＝offset/travel＝关合度（0＝全开、1＝全
+    /// 合），状态机用开度（1＝全开、0＝全合，与 OB
+    /// 呈现进度同向）——在本口单点翻转（1−x），全
+    /// 仓只此一处换算（装配测试 DrawerDeferred-
+    /// NavigationAssemblyTests 首轮实证：不翻转时
+    /// 开抽屉报关合度 0 被状态机读成「已近闭合」、
+    /// 点行立即跳页，147 反而失效）
     func noteDrawerProgress(_ progress: Double) {
-        lastDrawerProgress = progress
+        let openness = 1 - progress
+        lastDrawerProgress = openness
         if let fire = deferredDrawerNavigation
-            .progressSample(progress) {
+            .progressSample(openness) {
             drawerThreadSelection = fire
         }
     }

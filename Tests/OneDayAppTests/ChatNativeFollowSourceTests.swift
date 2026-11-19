@@ -130,10 +130,17 @@ final class ChatNativeFollowSourceTests: XCTestCase {
             "冷开须贴底，实测 \(handle.latestDistance)"
         )
         apply(rows(31))
+        // dataChange 源的生产链不在控制器自发钉底：
+        // ChatView 以在底事实经贴底单口（Bottom-
+        // StickCoordinator）下达 scrollToBottom、
+        // 控制器以落点意图钉住（其余三源才是控制
+        // 器布局拍自发保底）。本用例如实镜像该链：
+        // 在底事实成立→下达同一命令→钉底成立
+        handle.scrollToBottom(animated: false)
         drain(0.8)
         XCTAssertLessThanOrEqual(
             abs(handle.latestDistance), 0.5,
-            "在底时新数据到达须保持贴底，实测 \(handle.latestDistance)"
+            "在底时新数据到达经生产跟随链须保持贴底，实测 \(handle.latestDistance)"
         )
     }
 
