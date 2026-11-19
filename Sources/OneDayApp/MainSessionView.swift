@@ -42,10 +42,9 @@ struct MainSessionView: View {
                 .frame(minHeight: OneDayMetrics.settingsRowHeight)
                 .listRowBackground(Palette.surface)
 
-                // 会话 ID 行（已链接时显示）
-                if let sessionID = appState.sessionLedger.mainServerSessionID,
-                   appState.sessionLedger.mainServerConfirmed,
-                   appState.sessionLedger.mainServerSeeded {
+                // 会话 ID 行（§331：id 已知即已链接类
+                // 呈现——种子位退出显形条件）
+                if let sessionID = appState.sessionLedger.mainServerSessionID {
                     LabeledContent {
                         HStack(spacing: OneDayMetrics.spacingSM) {
                             Text(sessionID)
@@ -66,6 +65,24 @@ struct MainSessionView: View {
                         }
                     } label: {
                         Text("会话 ID")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                    .listRowBackground(Palette.surface)
+                }
+
+                // 历史同步行（§331）：回补/种子的记账
+                // 快照如实呈现——已齐/补齐中（带进度）/
+                // 仅文本/仅本地/失败待重试；无快照（本
+                // 进程还没跑过同步动作）不出现本行
+                if let sync = appState.sessionLedger.mainSyncStatus {
+                    LabeledContent {
+                        Text(syncStatusText(sync))
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                    } label: {
+                        Text("历史同步")
                             .font(.rowTitleL)
                             .foregroundStyle(Palette.inkSecondary)
                     }
@@ -253,17 +270,43 @@ struct MainSessionView: View {
         }
     }
 
-    /// 主线会话状态文案（监工纠正②：复用现行 mainSessionStatusText 逻辑）
+    /// 主线会话状态文案（§331 改判：链接态只认 id
+    /// 已知——与发送闸 mainSendGate 同口径；种子/
+    /// 回补的细分状态走「历史同步」行，不挤状态行）
     private var statusText: String {
         let store = appState.sessionLedger
-        if store.mainServerConfirmed, store.mainServerSeeded,
-           store.mainServerSessionID != nil {
+        if case .ready = store.mainSendGate() {
             return "已链接"
         }
         if let error = store.mainLinkLastError {
             return "未链接 · \(error)"
         }
         return "未链接（打开聊天页或发送时自动链接）"
+    }
+
+    /// 历史同步快照 → 人话（§331）：未同步完优先报
+    /// 进度；种子态其次（仅文本/仅本地/失败/同步
+    /// 中）；全清＝已同步
+    private func syncStatusText(_ sync: MainSyncStatus) -> String {
+        if sync.historyUnsynced {
+            return "补齐中 · "
+                + SessionHistorySync.progressText(
+                    loaded: sync.historyLoaded,
+                    serverTotal: sync.historyTotal
+                )
+        }
+        switch sync.seedState {
+        case .syncedTextOnly:
+            return "已同步（本地历史仅文本）"
+        case .localOnly:
+            return "部分本地历史仅保存在本机"
+        case .failed:
+            return "本地历史同步失败，稍后自动重试"
+        case .pending, .importing:
+            return "本地历史同步中…"
+        case .notOwed, .serverHeld:
+            return "已同步"
+        }
     }
 
     private var settingsRowInsets: EdgeInsets {

@@ -19,20 +19,12 @@ final class SessionLinkHotfixTests: XCTestCase {
     }
 
     func testBucketBoundThreadMustRelink() {
-        // 绑合并桶＝按未链接处理：种子位无论真假都
-        // 先解绑重链——桶里混着主线历史，会话模式直
-        // 发等于继续往桶里写
+        // 绑合并桶＝按未链接处理（§331 后计划只看绑
+        // 定、本闸不变）：先解绑重链——桶里混着主线
+        // 历史，会话模式直发等于继续往桶里写
         for bucket in SideChatLink.mergeBucketSessionIDs {
             XCTAssertEqual(
-                SideChatLink.sendPlan(
-                    serverSessionID: bucket, serverSeeded: true
-                ),
-                .linkAndSeed
-            )
-            XCTAssertEqual(
-                SideChatLink.sendPlan(
-                    serverSessionID: bucket, serverSeeded: false
-                ),
+                SideChatLink.sendPlan(serverSessionID: bucket),
                 .linkAndSeed
             )
         }

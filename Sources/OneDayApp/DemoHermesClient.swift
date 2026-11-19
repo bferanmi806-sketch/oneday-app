@@ -508,10 +508,14 @@ struct DemoHermesClient: HermesClientProtocol {
     func sessionMessagesPage(
         config: ServerConfig, id: String, limit: Int, offset: Int
     ) async throws -> [SessionMessage] {
+        // §331：模拟服务端 latest 语义——offset 自
+        // 最新端量、取最新页、页内按 id 升序（时序）
+        // 返回（调用方本就按 id 重排落盘，编排等价）
         let all = try await sessionMessages(config: config, id: id)
-        let descending = all.sorted { $0.id > $1.id }
-        guard offset < descending.count else { return [] }
-        return Array(descending.dropFirst(offset).prefix(limit))
+        let ascending = all.sorted { $0.id < $1.id }
+        let end = max(ascending.count - max(offset, 0), 0)
+        let start = max(end - max(limit, 0), 0)
+        return Array(ascending[start..<end])
     }
 
     /// 演示搜索（P10）：在演示会话标题/预览里按词过滤，

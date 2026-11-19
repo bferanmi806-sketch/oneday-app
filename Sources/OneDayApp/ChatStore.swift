@@ -46,11 +46,25 @@ final class ChatThread {
     /// 服务端种子已落位（0.27.0）：本线程的历史已
     /// 经导入导入其自有 oneday- 会话（或线程出生即
     /// 带服务端历史——续聊导入线程落盘时直接置
-    /// true）。自有会话未种子前不许进会话模式发送
-    /// （发送计划见 SideChatLink.sendPlan）；合并桶
-    /// 解绑重链时随新绑定重新种子（默认 false、
-    /// SwiftData 轻量迁移）
+    /// true）。§331 起本位退出发送计划（种子改后
+    /// 台同步、见 seedSyncState），只留作「种子义务
+    /// 已结清」的历史记账；合并桶解绑重链时随新绑
+    /// 定重新种子（默认 false、SwiftData 轻量迁移）
     var serverSeeded: Bool = false
+    /// §331（根治版包 2）历史回补记账（带默认值＝
+    /// 轻量迁移，旧库恒「无待补」起步）：服务端历
+    /// 史尚未补齐（分页降级/中途失败后置位，后台
+    /// 回补拉齐清零；呈现走会话头安静标记，不许再
+    /// 整段「载入失败」）
+    var historyUnsynced: Bool = false
+    /// 服务端消息总数（回补进度的分母；0＝未知）
+    var historyServerCount: Int = 0
+    /// 进度分子记账：回补/导入最近一次记下的本地
+    /// 现有条目数（呈现读它报「已载入 N 条」）
+    var historyLoadedCount: Int = 0
+    /// 种子同步态原文（Core SeedSyncState 口径，
+    /// 读写走下方计算属性；旧库缺省 notOwed）
+    var seedSyncStateRaw: String = "notOwed"
 
     /// 乐观删除墓碑（§232）：用户已确认删除、服务
     /// 端后台删除未落定期间置 true——本地一切名单
@@ -75,6 +89,13 @@ final class ChatThread {
     /// 按时间排序的消息（视图层统一走它，不散落 sort）
     var sortedEntries: [ChatEntry] {
         entries.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    /// 种子同步态（§331）：原文落盘、枚举呈现——
+    /// 未知原文回 notOwed（SeedSyncState 口径）
+    var seedSyncState: SeedSyncState {
+        get { SeedSyncState(storedValue: seedSyncStateRaw) }
+        set { seedSyncStateRaw = newValue.rawValue }
     }
 }
 
