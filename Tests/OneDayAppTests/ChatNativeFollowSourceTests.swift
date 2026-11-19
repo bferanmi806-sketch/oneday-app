@@ -1,6 +1,9 @@
+import OneDayCore
+import OneDayDesign
+import SwiftUI
+import UIKit
 import XCTest
 @testable import OneDayApp
-@testable import OneDayCore
 
 /// 台账 149（贴底四触发源验收清单）：数据到达/
 /// 行布局变化/页脚变化/整体布局变化四源，逐源成

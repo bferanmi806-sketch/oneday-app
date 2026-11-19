@@ -1,6 +1,9 @@
+import OneDayCore
+import OneDayDesign
+import SwiftUI
+import UIKit
 import XCTest
 @testable import OneDayApp
-@testable import OneDayCore
 
 /// 台账 147 装配层：抽屉控制器呈现进度/打断回调
 /// → AppRouter 延迟导航状态机的整链——点行只置

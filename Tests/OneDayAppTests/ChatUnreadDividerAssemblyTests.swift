@@ -1,6 +1,9 @@
+import OneDayCore
+import OneDayDesign
+import SwiftUI
+import UIKit
 import XCTest
 @testable import OneDayApp
-@testable import OneDayCore
 
 /// 台账 148 装配层：未读分界的修订/行高/账本/水
 /// 位店四处接线——锚翻转必须进修订（行重托管）、
@@ -48,15 +51,12 @@ final class ChatUnreadDividerAssemblyTests: XCTestCase {
             role: "assistant", content: "一条回复", thread: nil
         )
         let snapshot = ChatEntryHeightSnapshot(entry)
-        let contentWidth: CGFloat = 402
-            - OneDayMetrics.pageGutter * 2
         let plain = composer.entryHeightCore(
-            snapshot, contentWidth: contentWidth,
-            dividerText: nil
+            snapshot, dividerText: nil
         )
         let flagged = composer.entryHeightCore(
-            snapshot, contentWidth: contentWidth,
-            dividerText: nil, showsUnreadDivider: true
+            snapshot, dividerText: nil,
+            showsUnreadDivider: true
         )
         XCTAssertGreaterThan(
             flagged, plain + 10,
@@ -67,12 +67,14 @@ final class ChatUnreadDividerAssemblyTests: XCTestCase {
 
     func testLedgerPlaysAnimationOnce() {
         let ledger = ChatRowStateLedger()
-        let key = ChatRowStateKeys.unreadDivider(
-            entryID: UUID()
+        let key = ChatRowStateKeys.unreadDivider(UUID())
+        XCTAssertFalse(
+            ledger.hasAnimatedUnreadDivider(forKey: key)
         )
-        XCTAssertFalse(ledger.hasAnimatedUnreadDivider(key))
-        ledger.markAnimatedUnreadDivider(key)
-        XCTAssertTrue(ledger.hasAnimatedUnreadDivider(key))
+        ledger.markUnreadDividerAnimated(forKey: key)
+        XCTAssertTrue(
+            ledger.hasAnimatedUnreadDivider(forKey: key)
+        )
     }
 
     func testReadMarkStoreRoundTrips() {

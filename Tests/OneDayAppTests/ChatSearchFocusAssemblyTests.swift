@@ -1,6 +1,9 @@
+import OneDayCore
+import OneDayDesign
+import SwiftUI
+import UIKit
 import XCTest
 @testable import OneDayApp
-@testable import OneDayCore
 
 /// 台账 150 装配层：控制器收敛落点——目标行停到
 /// 顶留位（顶内边距＋12）且漂移后能自校正、用户
