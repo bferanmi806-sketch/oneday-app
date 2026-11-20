@@ -350,12 +350,15 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
     /// 同一条→停；活动中的另一条→先拆后发（切换）
     @discardableResult
     public mutating func tap(entryID: UUID) -> [Effect] {
+        // 显式嵌套判定（不用多模式 case＋where 的组合
+        // 形态：该形态在请求中切换一条上出过实测与推
+        // 演不符的匹配结果，见 H2-a CI 第四轮记录）
         switch state {
-        case .requesting(let id), .playing(let id)
-            where id == entryID:
-            state = .idle
-            return [.tearDown]
-        case .requesting, .playing:
+        case .requesting(let id), .playing(let id):
+            if id == entryID {
+                state = .idle
+                return [.tearDown]
+            }
             state = .requesting(entryID: entryID)
             return [.tearDown, .startRequest(entryID: entryID)]
         case .idle, .failed:
