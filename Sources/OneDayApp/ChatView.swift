@@ -265,6 +265,11 @@ struct ChatView: View {
     /// 时投单后台量测、回填后经发布代次重喂列表
     @State private var rowMeasureDesk =
         ChatNativeRowMeasureDesk()
+    /// 2026-11-20 卡顿修复包：行描述备忘——未变
+    /// 行整行复用上趟描述（喂入层增量化，见
+    /// ChatNativeRowDescriptorMemo）
+    @State private var nativeRowMemo =
+        ChatNativeRowDescriptorMemo()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
     /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
@@ -2799,6 +2804,21 @@ struct ChatView: View {
     /// 派生（条目快照/卡与通知编码本体/锚定集本
     /// 体逐值入账），不再复用 gen3 的版本与估算
     private func nativeRows() -> [ChatNativeRow] {
+        // 卡顿探针（2026-11-20）：每趟喂入耗时＋行
+        // 构建/复用数——只记账、无行为影响
+        let probeToken = ChatLagProbe.beginFeedPass()
+        let probeBuildBase = nativeRowMemo.buildCount
+        let probeReuseBase = nativeRowMemo.reuseCount
+        defer {
+            ChatLagProbe.endFeedPass(
+                probeToken,
+                built: nativeRowMemo.buildCount
+                    - probeBuildBase,
+                reused: nativeRowMemo.reuseCount
+                    - probeReuseBase,
+                streaming: isStreaming
+            )
+        }
         var rows: [ChatNativeRow] = []
         // §329：行高合成器（每趟行构建现建——环境
         // 口径[字阶/粗体/屏宽]与本趟同值；账本为
@@ -2816,6 +2836,9 @@ struct ChatView: View {
             emptyStateAvatarSize: avatarTier
                 .emptyStatePointSize
         )
+        // 样式键每趟只算一份（旧形态逐行重算）：行
+        // 修订与备忘戳共用本值
+        let styleKey = nativeRowStyleKey
         if let thread = currentThread {
             let plan = renderPlan(for: thread)
             for item in plan.items {
@@ -2825,7 +2848,8 @@ struct ChatView: View {
                         nativeEntryRow(
                             entry,
                             dividerText: plan.dividers[entry.id],
-                            composer: composer
+                            composer: composer,
+                            styleKey: styleKey
                         )
                     )
                 case .toolGroup(let groupEntries):
@@ -3031,6 +3055,10 @@ struct ChatView: View {
         // §331：本趟收集的量测工单统一投递（逆序
         // ——最新行先量先就绪）
         rowMeasureDesk.flushCollected()
+        // 行描述备忘趟末清账：只留本趟在席行键
+        nativeRowMemo.prune(
+            keeping: Set(rows.map(\.key))
+        )
         return rows
     }
 
@@ -3045,19 +3073,28 @@ struct ChatView: View {
     /// 希与产物层行高估算
     private func nativeEntryRow(
         _ entry: ChatEntry, dividerText: String?,
-        composer: ChatNativeRowHeightComposer
+        composer: ChatNativeRowHeightComposer,
+        styleKey: String
     ) -> ChatNativeRow {
         let settledKey = streamSettleMap.rowKey(for: entry.id)
         let key = settledKey ?? "entry-\(entry.id.uuidString)"
         // 台账 148：NEW 分界线只挂未读锚条目（本次
         // 观看定格，见 refreshUnreadAnchor）
         let showsUnread = entry.id == unreadAnchorEntryID
+        // 2026-11-20 卡顿修复包：修订基段每趟只建
+        // 一遍——量测键与行修订共用同一基段（旧形
+        // 态两路各建一份全量快照、是每遍双构建的
+        // 一半）；行修订＝基段＋点亮/样式键尾段
+        let baseRevision = ChatNativeRowRevision.entryBase(
+            entry,
+            dividerText: dividerText,
+            showsUnreadDivider: showsUnread
+        )
         // §331：行高先查整行备忘（命中＝确定高）；
         // 未命中投量测台后台预排版、当趟用上次高/
         // 兜底高，回填后经发布代次以确定高重喂
         let memoKey = composer.entryMemoKey(
-            for: entry, dividerText: dividerText,
-            showsUnreadDivider: showsUnread
+            baseRevision: baseRevision, entry: entry
         )
         let resolved = rowMeasureDesk.resolve(
             memoKey: memoKey, rowKey: key,
@@ -3074,35 +3111,42 @@ struct ChatView: View {
                 )
             )
         }
-        return ChatNativeRow(
-            key: key,
-            entryID: entry.id,
-            revision: ChatNativeRowRevision.entry(
-                entry,
-                dividerText: dividerText,
-                highlighted: entry.id == anchorHighlightEntryID,
-                styleKey: nativeRowStyleKey,
-                showsUnreadDivider: showsUnread
-            ),
-            height: resolved.height,
-            makeView: {
-                AnyView(
-                    entryRowContent(
-                        entry, dividerText: dividerText,
-                        showsUnreadDivider: showsUnread
+        let highlighted = entry.id == anchorHighlightEntryID
+        // 行描述备忘戳：构建输入全量（量测键含修订
+        // 基段摘要＋facet 摘要＋环境指纹；落定高；
+        // 点亮；样式键）——戳不变整行复用上趟描述，
+        // makeView/行菜单（含 plainText 提取）只在
+        // 戳变时重建
+        let stamp = "\(memoKey)|\(resolved.height)"
+            + "|\(highlighted ? "1" : "0")|\(styleKey)"
+        return nativeRowMemo.row(key: key, stamp: stamp) {
+            var revision = baseRevision
+            revision.addFlag(highlighted)
+            revision.addText(styleKey)
+            return ChatNativeRow(
+                key: key,
+                entryID: entry.id,
+                revision: revision,
+                height: resolved.height,
+                makeView: {
+                    AnyView(
+                        entryRowContent(
+                            entry, dividerText: dividerText,
+                            showsUnreadDivider: showsUnread
+                        )
+                        // §330（题 2）／§332 换代：本面菜单
+                        // 由集合视图 delegate 的内建上下文
+                        // 菜单通道承载——内容内的 SwiftUI
+                        // .contextMenu 在本面关停（见
+                        // ChatRowSwiftUIMenuEnabledKey）
+                        .environment(
+                            \.chatRowSwiftUIMenuEnabled, false
+                        )
                     )
-                    // §330（题 2）／§332 换代：本面菜单
-                    // 由集合视图 delegate 的内建上下文
-                    // 菜单通道承载——内容内的 SwiftUI
-                    // .contextMenu 在本面关停（见
-                    // ChatRowSwiftUIMenuEnabledKey）
-                    .environment(
-                        \.chatRowSwiftUIMenuEnabled, false
-                    )
-                )
-            },
-            contextMenu: nativeRowContextMenu(for: entry)
-        )
+                },
+                contextMenu: nativeRowContextMenu(for: entry)
+            )
+        }
     }
 
     /// 原生面行菜单描述（§330，题 2）：与 message-
