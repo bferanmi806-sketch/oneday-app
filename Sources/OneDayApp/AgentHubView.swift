@@ -10,7 +10,9 @@ import SwiftUI
 /// 核、监测三段撤出分段栏，内容并入活动段：任务与
 /// 审批本就在工作台账里有同源条目（伴生采集器
 /// kanban／write-gate 两源），下钻在台账详情里补齐
-/// （任务详情、审批改动与原对话锚点、审批规则）；
+/// （任务详情、审批改动与原对话锚点）；审批规则本
+/// 体已按 §244 归设置页权限区、本段只留审批记录
+/// （归位合流 2026-11-20 注释订正）；
 /// 监测变化由客户端合成同形条目（LedgerMonitor-
 /// Synthesis）。三段的 Section 视图与各自 store 的
 /// 段内呈现随之退役，数据面（KanbanStore/Monitors-
@@ -611,9 +613,10 @@ struct AgentHubView: View {
             // 下钻打开会话走既有 pendingChatSessionID
             // 通道，与旧活动行同路（sheet 模式关页、
             // 活动模式只置位）。§217：三段并入后本段
-            // 兼收审批规则区、任务/审批下钻补齐与监测
-            // 合成条目——共享 hubStore 一并注入（规则
-            // 与锚点数据在 store 里，与聊天就地卡同源）
+            // 兼收任务/审批下钻补齐与监测合成条目——
+            // 共享 hubStore 一并注入（锚点数据在 store
+            // 里，与聊天就地卡同源；审批规则本体已按
+            // §244 归设置页权限区，本段只留审批记录）
             HubLedgerSection(hubStore: store, onOpenSession: { sessionID in
                 appState.router.pendingChatSessionID = sessionID
                 if mode == .sheet {

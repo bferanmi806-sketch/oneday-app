@@ -50,98 +50,10 @@ final class SectionCollapseTests: XCTestCase {
             DrawerSectionKey.sideChats)
     }
 
-    // MARK: - 显隐账（§198）
-
-    func testVisibilityDefaultsToVisibleWhenKeyMissing() {
-        let keys = [
-            DrawerSectionKey.navigation,
-            DrawerSectionKey.channels,
-            DrawerSectionKey.sideChats,
-        ]
-        for key in keys {
-            XCTAssertTrue(
-                SectionVisibilityState.isVisible(key: key, in: [:]),
-                key)
-        }
-    }
-
-    func testVisibilityToggleAndSetting() {
-        var store = SectionVisibilityState.toggled(
-            key: DrawerSectionKey.channels, in: [:])
-        XCTAssertFalse(SectionVisibilityState.isVisible(
-            key: DrawerSectionKey.channels, in: store))
-        store = SectionVisibilityState.toggled(
-            key: DrawerSectionKey.channels, in: store)
-        XCTAssertTrue(SectionVisibilityState.isVisible(
-            key: DrawerSectionKey.channels, in: store))
-        // 直置同值不翻转（分区管理面选择器口径：选的
-        // 就是目标态，不经切换推导）
-        store = SectionVisibilityState.setting(
-            key: DrawerSectionKey.channels, visible: false, in: store)
-        store = SectionVisibilityState.setting(
-            key: DrawerSectionKey.channels, visible: false, in: store)
-        XCTAssertFalse(SectionVisibilityState.isVisible(
-            key: DrawerSectionKey.channels, in: store))
-    }
-
-    func testVisibilityEncodeDecodeRoundTripAndGarbage() {
-        let data = SectionVisibilityState.encode(
-            [DrawerSectionKey.channels: false])
-        XCTAssertEqual(
-            SectionVisibilityState.decode(data),
-            [DrawerSectionKey.channels: false])
-        XCTAssertEqual(
-            SectionVisibilityState.decode(Data("junk".utf8)), [:])
-        XCTAssertEqual(SectionVisibilityState.decode(nil), [:])
-    }
-
-    // MARK: - 三区渲染合成（§198 显隐账；频道内容闸
-    // 于 2026-11-13 频道扩展一期退役——清单恒显；
-    // 管理行随管理收口包补件退役、合成自四区收三区）
-
-    func testDrawerSectionGatesDefaultAllPresent() {
-        let gates = DrawerSectionGates.resolve(visibility: [:])
-        XCTAssertEqual(
-            gates,
-            DrawerSectionGates(
-                navigation: true, channels: true,
-                sideChats: true))
-    }
-
-    func testDrawerSectionGatesChannelsAlwaysListed() {
-        // 恒显口径：频道区不再有成员内容闸——账面显
-        // 示即在场（未配对行/冻结行靠它才有地方站）
-        let gates = DrawerSectionGates.resolve(visibility: [:])
-        XCTAssertTrue(gates.channels)
-        XCTAssertTrue(gates.navigation)
-        XCTAssertTrue(gates.sideChats)
-    }
-
-    func testDrawerSectionGatesChannelsHiddenByLedgerOnly() {
-        // 整区退场只剩一条路：用户在分区管理里隐藏
-        let gates = DrawerSectionGates.resolve(
-            visibility: [DrawerSectionKey.channels: false])
-        XCTAssertFalse(gates.channels)
-    }
-
-    func testDrawerSectionGatesEachEntryIndependent() {
-        // 三条目各自独立：导航账隐藏不连带其余两区
-        // （各区显隐只由自家账管，§198 规格 §2.2 第
-        // 6 条；管理行退役后合成只剩三区）
-        let gates = DrawerSectionGates.resolve(
-            visibility: [
-                DrawerSectionKey.navigation: false,
-                DrawerSectionKey.sideChats: false,
-            ])
-        XCTAssertFalse(gates.navigation)
-        XCTAssertFalse(gates.sideChats)
-        XCTAssertTrue(gates.channels)
-        let channelsOff = DrawerSectionGates.resolve(
-            visibility: [DrawerSectionKey.channels: false])
-        XCTAssertFalse(channelsOff.channels)
-        XCTAssertTrue(channelsOff.navigation)
-        XCTAssertTrue(channelsOff.sideChats)
-    }
+    // （显隐账与三区合成用例已随显隐账整套退役摘
+    // 除——归位合流 2026-11-20 对接点：SectionVisibi-
+    // lityState／DrawerSectionGates 本体已删，本文件
+    // 只钉折叠账与服务商可见性两套活口径）
 
     // MARK: - 分组样本（生产定型：网关组＋具名组＋两家内置行）
 

@@ -36,7 +36,7 @@ final class SettingsCatalogTests: XCTestCase {
             "server", "gateway", "restartGateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
             "status", "computer", "serverFiles", "voice",
-            "appearance", "sidebar", "help", "about",
+            "appearance", "help", "about",
             "disconnect",
         ] {
             XCTAssertTrue(ids.contains(id), "索引缺条目 \(id)")
@@ -58,7 +58,7 @@ final class SettingsCatalogTests: XCTestCase {
             .serverDetail, .connectors, .devicePermissions,
             .approvalRules,
             .gateway, .logs, .status, .computer, .serverFiles,
-            .appearance, .sidebar, .allConversations, .help, .about, .privacy, .terms,
+            .appearance, .help, .about, .privacy, .terms,
             // prototype-2 叶子（枢纽目的地已退役）
             .mainSession, .restartGateway,
             // H1-a 新增（台账 158）
@@ -95,39 +95,34 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// prototype-2：preferences 组四行（§198 侧边栏行
-    /// 插在 appearance 与 connectors 之间）；管理收
-    /// 口包补件起五行——全部对话行紧随侧边栏之后
-    /// （用户 2026-11-13 18:57 拍板挪进设置页）
+    /// preferences 组四行（归位合流 2026-11-20 对接
+    /// 点修订：侧边栏行随分区管理面整套退役、全部对
+    /// 话行随其入口升一级归抽屉独占，两行同摘）
     func testPreferencesGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).map(\.id),
-            ["appearance", "sidebar", "allConversations", "connectors", "devicePermissions", "approvalRules"]
+            ["appearance", "connectors", "devicePermissions", "approvalRules"]
         )
     }
 
-    /// 全部对话行（管理收口包补件，用户 2026-11-13
-    /// 18:57 拍板）：行在偏好组内、与侧边栏行同组相
-    /// 邻（侧边栏在其上、连接器在其下），行名用页面
-    /// 自身标题「全部对话」不带「管理」二字，目的地
-    /// 是专设的 .allConversations（设置页据此渲动作
-    /// 行、走原抽屉入口同一根级呈现路）
-    func testAllConversationsEntrySitsNextToSidebar() {
-        let browse = SettingsCatalog.browseEntries(in: .preferences)
-        guard let idx = browse.firstIndex(where: { $0.id == "allConversations" })
-        else {
-            XCTFail("偏好组缺全部对话行")
-            return
-        }
-        XCTAssertEqual(browse[idx].title, "全部对话")
-        XCTAssertEqual(browse[idx].destination, .allConversations)
-        XCTAssertEqual(browse[idx - 1].id, "sidebar")
-        XCTAssertEqual(browse[idx + 1].id, "connectors")
-        // 搜索点达同源：标题直搜命中本行
-        XCTAssertTrue(
-            SettingsCatalog.search("全部对话").contains {
+    /// 全部对话在设置内无门（归位合流 2026-11-20，
+    /// 纲要 D2-1／原则 6 列表只住一级面）：目录无此
+    /// 条目、标题直搜不点达——入口只剩抽屉名单收尾
+    /// 行一处，不许在设置里再长第二扇门
+    func testAllConversationsHasNoSettingsEntry() {
+        XCTAssertFalse(
+            SettingsCatalog.entries.contains {
                 $0.id == "allConversations"
             }
+        )
+        XCTAssertTrue(SettingsCatalog.search("全部对话").isEmpty)
+    }
+
+    /// 侧边栏行已退役（归位合流 2026-11-20）：分区
+    /// 管理面整套退役后目录不许残留 phantom 入口
+    func testSidebarEntryIsRetired() {
+        XCTAssertFalse(
+            SettingsCatalog.entries.contains { $0.id == "sidebar" }
         )
     }
 

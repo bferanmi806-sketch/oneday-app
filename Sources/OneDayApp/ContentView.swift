@@ -159,14 +159,10 @@ struct ContentView: View {
     /// 纲要 D2-1，用户亲批逐页归位、新令覆盖 11-13
     /// 旧拍板）：入口升一级——抽屉名单收尾行「全部
     /// 对话」经 allConversationsRequested 直置本旗
-    /// （消费点见 body），设置行入口与 AfterSettings
-    /// 链暂并存、摘除归合并时对接
+    /// （消费点见 body）。设置行入口与 AfterSettings
+    /// 链已于归位合流（2026-11-20）摘除：列表只住一
+    /// 级面（纲要终局），设置页不再设第二扇门
     @State private var showAllConversations = false
-    /// 设置页「全部对话」行点按后的待呈现旗：设置
-    /// sheet 先关、cover 后开——同 tick 关 sheet 又
-    /// 开 cover 会被系统吞掉呈现，故经 sheet 的
-    /// onDismiss 在关闭落定后转置 showAllConversations
-    @State private var showAllConversationsAfterSettings = false
     /// 频道页呈现（0.36.29，频道规格 §4.1；2026-11
     /// -13 频道一期扩为按频道 id 路由）：抽屉频道行
     /// 置位，全屏页承载与管理页同通道（本层
@@ -313,9 +309,8 @@ struct ContentView: View {
         // 结构归位第二批（2026-11-20，纲要 D2-1）：
         // 抽屉名单收尾行「全部对话」置位请求 → 直开
         // 全屏页（抽屉已由行动作先行收回、cover 升起
-        // 时名单不在场）；与设置页行的 AfterSettings
-        // 链并存同旗——设置行入口的摘除归第一批/合
-        // 并时对接（见本包交卷对接点）
+        // 时名单不在场）；本旗自此只有这一条置位链
+        // （设置行 AfterSettings 链已于合流摘除）
         .onChange(of: appState.router.allConversationsRequested) { _, requested in
             if requested {
                 appState.router.allConversationsRequested = false
@@ -337,14 +332,7 @@ struct ContentView: View {
                 appState.router.drawerPresented = false
             }
         }
-        .sheet(isPresented: $showSettings, onDismiss: {
-            // 设置页「全部对话」行的链式呈现：sheet 关
-            // 闭落定后才开全屏页（旗的来历见其声明注）
-            if showAllConversationsAfterSettings {
-                showAllConversationsAfterSettings = false
-                showAllConversations = true
-            }
-        }) {
+        .sheet(isPresented: $showSettings) {
             SettingsView(
                 onClose: { showSettings = false },
                 onRequestChat: {
@@ -356,10 +344,6 @@ struct ContentView: View {
                     // showSettings 声明注）；抽屉本关着
                     // 时为无副作用对账
                     appState.router.drawerPresented = false
-                },
-                onRequestAllConversations: {
-                    showAllConversationsAfterSettings = true
-                    showSettings = false
                 }
             )
         }

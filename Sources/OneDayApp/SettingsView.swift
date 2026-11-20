@@ -48,13 +48,7 @@ struct SettingsView: View {
     /// 「去聊天」类动作（总览 sheet 内快捷动作）：关
     /// 设置并切聊天格（ContentView 注入）
     var onRequestChat: (() -> Void)? = nil
-    /// 「全部对话」行的跳出请求（管理收口包补件，用
-    /// 户 2026-11-13 18:57 拍板入口自抽屉迁入）：全
-    /// 部对话页是根级全屏页、不在本导航栈里——同
-    /// onRequestChat 口径，本面只发请求，关面与呈现
-    /// 由 ContentView 承接（走原抽屉入口同一呈现路）
-    var onRequestAllConversations: (() -> Void)? = nil
-    /// 「工作区」组三页的 sheet 呈现（总览/电脑自带导
+    /// 「工作区」组两页的 sheet 呈现（电脑自带导
     /// 航栈、服务器文件由本页包一层栈）：不进本页导航
     /// 栈——三页都是整面工作区、且各自带栈，套栈必乱；
     /// sheet 呈现与 Muse 设置里连接器/设备行打开整
@@ -201,8 +195,6 @@ struct SettingsView: View {
                     LogsView()
                 case .appearance:
                     AppearanceView()
-                case .sidebar:
-                    DrawerSectionsView()
                 case .identity:
                     IdentityDetailView(
                         serverStatusText: identityServerStatusText,
@@ -638,14 +630,12 @@ struct SettingsView: View {
         .settingsSeparatorToIconEdge()
     }
 
-    /// 搜索点达分发：管理三件开 sheet、全部对话发跳
-    /// 出请求、断开连接起确认框、余者压设置栈（与深
-    /// 链消费同一落点口径）
+    /// 搜索点达分发：管理两件开 sheet、断开连接起确
+    /// 认框、余者压设置栈（与深链消费同一落点口径）
     private func activate(_ entry: SettingsCatalogEntry) {
         switch entry.destination {
         case .computer: manageSheet = .computer
         case .serverFiles: manageSheet = .serverFiles
-        case .allConversations: onRequestAllConversations?()
         case .disconnect: showDisconnectConfirm = true
         default:
             if let route = route(for: entry.destination) {
@@ -682,13 +672,12 @@ struct SettingsView: View {
         case .gateway: return .gateway
         case .logs: return .logs
         case .appearance: return .appearance
-        case .sidebar: return .sidebar
         case .help: return .help
         case .about: return .about
         case .privacy: return .privacy
         case .terms: return .terms
         case .computer, .serverFiles,
-             .allConversations, .disconnect: return nil
+             .disconnect: return nil
         // prototype-2 叶子（枢纽页撤销后直达）
         case .status: return .status
         case .mainSession: return .mainSession
@@ -720,10 +709,6 @@ struct SettingsView: View {
         case "computer": return "display"
         case "serverFiles": return "folder"
         case "appearance": return "sun.max"
-        case "sidebar": return "sidebar.left"
-        // 全部对话行沿原抽屉管理行的字形（rectangle.
-        // stack），入口换了、认页的记号不变
-        case "allConversations": return "rectangle.stack"
         case "help": return "questionmark.circle"
         case "about": return "info.circle"
         case "privacy": return "lock.shield"

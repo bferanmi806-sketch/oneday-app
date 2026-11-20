@@ -62,7 +62,8 @@ public enum SectionCollapseStorageKeys {
 }
 
 /// 抽屉分区键：分区头折叠键的唯一拼装口，不许呈现
-/// 层散写字面量（§198 起同册兼作显隐账三键；§198
+/// 层散写字面量（§198 起同册曾兼作显隐账三键、显
+/// 隐账已退役见下节；§198
 /// 曾有的 manage 键已随管理行迁出抽屉退役——管理
 /// 收口包补件，用户 2026-11-13 18:57 拍板「挪进设
 /// 置页、抽屉不再放」，旧落盘显隐账里残留的
@@ -80,103 +81,17 @@ public enum DrawerSectionKey {
     }
 }
 
-// MARK: - 分区显隐账（§198，抽屉包题二）
+// MARK: - 分区显隐账（已退役）
 
-/// 显隐账的存储键：与折叠账分册——折叠管收起/展开、
-/// 显隐管在/不在，是两件事、两本账，键不共用不合
-/// 并（§198 规格新面四问②）
-public enum SectionVisibilityStorageKeys {
-    /// 抽屉分区的显隐账（键＝DrawerSectionKey 三键）
-    public static let drawerSections = "drawerSectionVisibility"
-}
-
-/// 分区显隐状态账：分区键 → 是否显示。落盘形态与折
-/// 叠账同式（UserDefaults 一份 JSON [String: Bool]）；
-/// 与折叠账的差别只在默认：缺键恒**显示**——分区管
-/// 理面出现之前各区恒在场，新账不得让老用户升级后
-/// 凭空少区。解码失败/脏数据回落空账＝全显示
-public enum SectionVisibilityState {
-
-    /// 判定：账里有值用账里的，没有恒显示
-    public static func isVisible(
-        key: String, in store: [String: Bool]
-    ) -> Bool {
-        store[key] ?? true
-    }
-
-    /// 切换：返回新账（不可变风格，与折叠账同式）
-    public static func toggled(
-        key: String, in store: [String: Bool]
-    ) -> [String: Bool] {
-        var next = store
-        next[key] = !isVisible(key: key, in: store)
-        return next
-    }
-
-    /// 显式置值（管理面选择器直写目标态，不经切换推
-    /// 导——重复点选同一值不许把状态翻回去）
-    public static func setting(
-        key: String, visible: Bool, in store: [String: Bool]
-    ) -> [String: Bool] {
-        var next = store
-        next[key] = visible
-        return next
-    }
-
-    public static func encode(_ store: [String: Bool]) -> Data? {
-        try? JSONEncoder().encode(store)
-    }
-
-    public static func decode(_ data: Data?) -> [String: Bool] {
-        guard let data,
-              let decoded = try? JSONDecoder().decode(
-                  [String: Bool].self, from: data
-              )
-        else { return [:] }
-        return decoded
-    }
-}
-
-/// 抽屉三区的渲染合成（§198 规格 §2.2 第 6 条）：每
-/// 区呈现只认显隐账，无内容闸。频道区旧有内容闸
-/// （全量分类的频道成员 ≥1 才显）于 2026-11-13
-/// 频道扩展一期退役——新口径是清单恒显：支持的平
-/// 台都列（含未配对行与冻结行），区里有没有会话
-/// 不再决定整区在不在（规格 §4.1 覆盖 0.36.29「通
-/// 一个显一个」）；用户仍可在分区管理里整区隐藏。
-/// 第四区「管理行」已随管理收口包补件退役（用户
-/// 2026-11-13 18:57 拍板入口挪设置页，抽屉不再
-/// 有进全部对话页的路径），合成自四区收三区。呈
-/// 现层只消费本结果排版，不许私算合成
-public struct DrawerSectionGates: Equatable, Sendable {
-    public let navigation: Bool
-    public let channels: Bool
-    public let sideChats: Bool
-
-    public init(
-        navigation: Bool, channels: Bool, sideChats: Bool
-    ) {
-        self.navigation = navigation
-        self.channels = channels
-        self.sideChats = sideChats
-    }
-
-    public static func resolve(
-        visibility: [String: Bool]
-    ) -> DrawerSectionGates {
-        DrawerSectionGates(
-            navigation: SectionVisibilityState.isVisible(
-                key: DrawerSectionKey.navigation, in: visibility
-            ),
-            channels: SectionVisibilityState.isVisible(
-                key: DrawerSectionKey.channels, in: visibility
-            ),
-            sideChats: SectionVisibilityState.isVisible(
-                key: DrawerSectionKey.sideChats, in: visibility
-            )
-        )
-    }
-}
+/// 显隐账整套（SectionVisibilityStorageKeys／
+/// SectionVisibilityState／DrawerSectionGates）已于
+/// 归位合流（2026-11-20）退役：抽屉归位包已断显隐
+/// 账消费（分区恒显、合成归呈现层），其治理面
+/// （设置页「侧边栏」行＋DrawerSectionsView）留着
+/// 只是无人消费的 phantom 开关，随本合流一并摘除。
+/// 旧落盘键 "drawerSectionVisibility" 不再被任何
+/// 判定消费、无害忽略，不做迁移。折叠账（上一节）
+/// 与服务商判定（下一节）是活口径，不受影响。
 
 // MARK: - 服务商分组判定与隐藏
 
