@@ -1621,107 +1621,7 @@ struct ChatView: View {
                 )
             }
         }
-        .onAppear {
-            // H2-a：进对话页刷新朗读可用性（节流在播
-            // 放器内；拉不到保持未知、菜单先按未确认
-            // 处理，不造假）
-            SpeechPlayer.shared.refreshAvailabilityOnAppear(
-                appState: appState
-            )
-            // 0.36.6：语音控制器回调接线——识别文本回
-            // 写 input（落稿后即普通草稿、可改可发）；
-            // 预备页选键盘听写时聚焦输入框
-            dictation.onTextChange = { text, _ in
-                input = text
-            }
-            // 0.36.17：听写发送钮——控制器保证先落稿
-            // 回写 input、后触发本回调，本处只管走正
-            // 常发送路（send 自带空文/在飞守卫）
-            dictation.onSendRequest = {
-                send()
-            }
-            dictation.onUseKeyboardDictation = {
-                composerFocusHandle.focus()
-            }
-            // 0.36.15：进聊天页即预热语音分析器（背
-            // 景构造＋资产确保＋prepareToAnalyze），
-            // 点麦克风时只剩开录与喂入——首结果 10
-            // 秒迟到的对症面（DESIGN-V4 §80）
-            dictation.armPreheat()
-            // 0.7.0（D1 主线钦定）：先落钦定——存量钦定且
-            // 线程还在则沿用，否则新建本地主线并钦定。
-            // （0.30.0 注：0.7.0 的「冷启落点永远先落主
-            // 线」已被用户 12:56 录屏纠正作废——落点改
-            // 走下方 ChatLandingResolution 恢复上次线
-            // 程，本步只保证钦定主线存在、供解析兜底）
-            let mainID = ensureMainThread()
-            // 0.4.5：同理补消费抽屉线程选择（从其他格开
-            // 抽屉选线程切过来时，本页可能尚未挂载、
-            // onChange 不重放）
-            if let id = appState.router.drawerThreadSelection {
-                appState.router.drawerThreadSelection = nil
-                currentThreadID = id
-            } else if appState.router.pendingChatSessionID == nil {
-                // 0.30.0（用户 12:56 录屏点名 Muse 模
-                // 型，取代 0.7.0「冷启永远先落主线」）：
-                // 落点走 Core ChatLandingResolution——
-                // 进程内已在某线程（页签切回）保持、冷
-                // 启恢复上次线程、记录失效回主线；显式
-                // 回主线只剩抽屉「主线聊天」行一个入口
-                switch ChatLandingResolution.landing(
-                    currentID: currentThreadID,
-                    lastThreadID: appState.sideChats.lastThreadID,
-                    existingIDs: threads.map(\.id),
-                    mainThreadID: mainID
-                ) {
-                case .keep(let id), .restore(let id), .main(let id):
-                    if currentThreadID != id {
-                        currentThreadID = id
-                    }
-                case .none:
-                    // 当前/上次/主线均不在名单（钦定失败
-                    // 的极端情形）：沿旧兜底落第一条
-                    if currentThread == nil {
-                        currentThreadID = threads.first?.id
-                    }
-                }
-            }
-            // 0.36.7：当前线程初始同步为抽屉当前对象
-            // 引用（口径同 currentThreadID 变更点；
-            // 0.36.29 改经同一同步函数、含频道出处）
-            syncDrawerObjectFromCurrentThread()
-            // 台账 148：首现线程同口径解析未读分界锚
-            // （onChange 只管其后的切换）
-            refreshUnreadAnchor()
-            // 本页首次出现时若已有待续聊会话（如从其他格
-            // 首次切入），onChange 可能先于挂载发生、在此补消费
-            if let id = appState.router.pendingChatSessionID {
-                Task { await consumePendingChatSession(id) }
-            }
-            // 0.27.0：主线链接预热（未链才走；失败原因
-            // 落 SideChatStore 设置页可见、发送前还会
-            // 再试——旧「失败静默」口径已作废）
-            Task { await ensureMainLink() }
-            // 0.32.1（F05 止血）：原选模型已停用、选择
-            // 被落回默认时的一次性如实提示——消费后落
-            // 回值落盘、不再重现；已有提示在显时不抢占
-            if let modelNotice = appState.modelFallbackNotice {
-                if !noticePresentation.isPresenting {
-                    showNotice(modelNotice)
-                }
-                appState.consumeModelFallbackNotice()
-            }
-            // §232：恢复提醒若在本页出现前已置位（续
-            // 跑失败等），onChange 不补发——在此与模型
-            // 落回提示同口消费一次
-            if let deletionNotice =
-                appState.sessionDeletionFailureNotice {
-                if !noticePresentation.isPresenting {
-                    showNotice(deletionNotice, tier: .extended)
-                }
-                appState.consumeSessionDeletionFailureNotice()
-            }
-        }
+        .onAppear { handleChatAppear() }
         // 0.7.0（D2 回告）：总览快照随前台 30 秒轮询换新
         // 时顺带拉新通知——回告卡与铃铛/通知 sheet 读
         // 同一份通知状态，不另开轮询
@@ -2274,6 +2174,111 @@ struct ChatView: View {
             ),
             value: SpeechPlayer.shared.machine.showsPlaybackBar
         )
+    }
+
+    /// body 的 onAppear 闭包体（整段抽出为方法：
+    /// 巨链上只留一行调用——闭包内联百行语句曾
+    /// 令类型检查器在链上超时，CI 实证 2026-11-20）
+    private func handleChatAppear() {
+        // H2-a：进对话页刷新朗读可用性（节流在播
+        // 放器内；拉不到保持未知、菜单先按未确认
+        // 处理，不造假）
+        SpeechPlayer.shared.refreshAvailabilityOnAppear(
+            appState: appState
+        )
+        // 0.36.6：语音控制器回调接线——识别文本回
+        // 写 input（落稿后即普通草稿、可改可发）；
+        // 预备页选键盘听写时聚焦输入框
+        dictation.onTextChange = { text, _ in
+            input = text
+        }
+        // 0.36.17：听写发送钮——控制器保证先落稿
+        // 回写 input、后触发本回调，本处只管走正
+        // 常发送路（send 自带空文/在飞守卫）
+        dictation.onSendRequest = {
+            send()
+        }
+        dictation.onUseKeyboardDictation = {
+            composerFocusHandle.focus()
+        }
+        // 0.36.15：进聊天页即预热语音分析器（背
+        // 景构造＋资产确保＋prepareToAnalyze），
+        // 点麦克风时只剩开录与喂入——首结果 10
+        // 秒迟到的对症面（DESIGN-V4 §80）
+        dictation.armPreheat()
+        // 0.7.0（D1 主线钦定）：先落钦定——存量钦定且
+        // 线程还在则沿用，否则新建本地主线并钦定。
+        // （0.30.0 注：0.7.0 的「冷启落点永远先落主
+        // 线」已被用户 12:56 录屏纠正作废——落点改
+        // 走下方 ChatLandingResolution 恢复上次线
+        // 程，本步只保证钦定主线存在、供解析兜底）
+        let mainID = ensureMainThread()
+        // 0.4.5：同理补消费抽屉线程选择（从其他格开
+        // 抽屉选线程切过来时，本页可能尚未挂载、
+        // onChange 不重放）
+        if let id = appState.router.drawerThreadSelection {
+            appState.router.drawerThreadSelection = nil
+            currentThreadID = id
+        } else if appState.router.pendingChatSessionID == nil {
+            // 0.30.0（用户 12:56 录屏点名 Muse 模
+            // 型，取代 0.7.0「冷启永远先落主线」）：
+            // 落点走 Core ChatLandingResolution——
+            // 进程内已在某线程（页签切回）保持、冷
+            // 启恢复上次线程、记录失效回主线；显式
+            // 回主线只剩抽屉「主线聊天」行一个入口
+            switch ChatLandingResolution.landing(
+                currentID: currentThreadID,
+                lastThreadID: appState.sideChats.lastThreadID,
+                existingIDs: threads.map(\.id),
+                mainThreadID: mainID
+            ) {
+            case .keep(let id), .restore(let id), .main(let id):
+                if currentThreadID != id {
+                    currentThreadID = id
+                }
+            case .none:
+                // 当前/上次/主线均不在名单（钦定失败
+                // 的极端情形）：沿旧兜底落第一条
+                if currentThread == nil {
+                    currentThreadID = threads.first?.id
+                }
+            }
+        }
+        // 0.36.7：当前线程初始同步为抽屉当前对象
+        // 引用（口径同 currentThreadID 变更点；
+        // 0.36.29 改经同一同步函数、含频道出处）
+        syncDrawerObjectFromCurrentThread()
+        // 台账 148：首现线程同口径解析未读分界锚
+        // （onChange 只管其后的切换）
+        refreshUnreadAnchor()
+        // 本页首次出现时若已有待续聊会话（如从其他格
+        // 首次切入），onChange 可能先于挂载发生、在此补消费
+        if let id = appState.router.pendingChatSessionID {
+            Task { await consumePendingChatSession(id) }
+        }
+        // 0.27.0：主线链接预热（未链才走；失败原因
+        // 落 SideChatStore 设置页可见、发送前还会
+        // 再试——旧「失败静默」口径已作废）
+        Task { await ensureMainLink() }
+        // 0.32.1（F05 止血）：原选模型已停用、选择
+        // 被落回默认时的一次性如实提示——消费后落
+        // 回值落盘、不再重现；已有提示在显时不抢占
+        if let modelNotice = appState.modelFallbackNotice {
+            if !noticePresentation.isPresenting {
+                showNotice(modelNotice)
+            }
+            appState.consumeModelFallbackNotice()
+        }
+        // §232：恢复提醒若在本页出现前已置位（续
+        // 跑失败等），onChange 不补发——在此与模型
+        // 落回提示同口消费一次
+        if let deletionNotice =
+            appState.sessionDeletionFailureNotice {
+            if !noticePresentation.isPresenting {
+                showNotice(deletionNotice, tier: .extended)
+            }
+            appState.consumeSessionDeletionFailureNotice()
+        }
     }
 
     /// 朗读播放条（台账 183）：形态沿本页条族画法
