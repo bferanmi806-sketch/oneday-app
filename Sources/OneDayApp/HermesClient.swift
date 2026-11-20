@@ -405,6 +405,21 @@ protocol HermesClientProtocol: Sendable {
     /// 见 VoiceSpeech 头注）
     func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse
 
+    // MARK: 设备认领（配对一期，台账 153/160）
+
+    /// POST /v1/enrollment/codes（Bearer）：已登录侧
+    /// 出码——领一次性认领码（5 分钟、待领上限 3），
+    /// 给新设备扫码入驻（设置「添加设备」面）
+    func issueEnrollmentCode(
+        config: ServerConfig, apiKey: String
+    ) async throws -> EnrollmentIssue
+    /// POST /v1/enrollment/claim（免鉴权，码即凭据）：
+    /// 扫码侧认领——成功回登录密钥＋服务器指纹；失
+    /// 败按网关错误码分型（无效/过期/锁定）
+    func claimEnrollment(
+        config: ServerConfig, code: String
+    ) async throws -> EnrollmentClaim
+
     // MARK: 工作区文件与系统（0.2.1）
 
     /// GET /api/files?path=（path 为 nil 时服务端回默认根，
@@ -2025,6 +2040,89 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         return (try? JSONDecoder().decode(
             DetailBody.self, from: data
         ))?.detail
+    }
+
+    /// 网关面失败体 {"error": {"code": …}} 的码提取：
+    /// 只作失败分型输入，取不到返回 nil（与 error-
+    /// Detail 同口径）
+    private static func gatewayErrorCode(from data: Data) -> String? {
+        struct Body: Decodable {
+            struct Inner: Decodable { let code: String? }
+            let error: Inner?
+        }
+        return (try? JSONDecoder().decode(
+            Body.self, from: data
+        ))?.error?.code
+    }
+
+    // MARK: - 设备认领（配对一期，台账 153/160）
+
+    func issueEnrollmentCode(
+        config: ServerConfig, apiKey: String
+    ) async throws -> EnrollmentIssue {
+        var request = URLRequest(
+            url: config.endpoint("/v1/enrollment/codes")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        let (data, http) = try await dataRequest(request)
+        guard http.statusCode == 200 else {
+            if Self.gatewayErrorCode(from: data)
+                == "enrollment_too_many_pending" {
+                throw HermesError.enrollmentTooManyPending
+            }
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("认领码"), status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(EnrollmentIssue.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("认领码")
+            )
+        }
+    }
+
+    func claimEnrollment(
+        config: ServerConfig, code: String
+    ) async throws -> EnrollmentClaim {
+        var request = URLRequest(
+            url: config.endpoint("/v1/enrollment/claim")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try encoder.encode(["code": code])
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            switch Self.gatewayErrorCode(from: data) {
+            case "enrollment_code_expired":
+                throw HermesError.enrollmentCodeExpired
+            case "enrollment_locked":
+                throw HermesError.enrollmentLocked
+            case "enrollment_code_invalid":
+                throw HermesError.enrollmentCodeInvalid
+            default:
+                throw HermesError.unexpectedStatus(
+                    endpoint: L10n.string("认领"),
+                    status: http.statusCode
+                )
+            }
+        }
+        do {
+            return try decoder.decode(EnrollmentClaim.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("认领")
+            )
+        }
     }
 
     // MARK: - 工作区文件与系统（0.2.1）

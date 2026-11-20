@@ -297,3 +297,37 @@ public enum ChatStreamEvent: Equatable, Sendable {
     case reasoning(String)
     case toolCall(ToolCard)
 }
+
+// MARK: - 设备认领（配对一期，台账 153/160；网关面 /v1/enrollment/*）
+
+/// POST /v1/enrollment/codes 回执（Bearer 鉴权，已登录
+/// 侧出码）：码本体只出现这一次、服务端只存盐化哈希；
+/// fingerprint 是服务器实例指纹（实例 id 的 sha256 前
+/// 16 位），扫码侧认领后必须与二维码里带的指纹对上
+/// 才走连接流水线（防码被搬到另一台服务器兑现）
+public struct EnrollmentIssue: Decodable, Sendable, Equatable {
+    public let code: String
+    public let expiresAt: Double
+    public let ttlSeconds: Int
+    public let fingerprint: String
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case expiresAt = "expires_at"
+        case ttlSeconds = "ttl_seconds"
+        case fingerprint
+    }
+}
+
+/// POST /v1/enrollment/claim 回执（公开，码即凭据）：
+/// 认领成功一次性下发本服务器的登录密钥（凭据落盘
+/// 走既有 Keychain 单钥通道，与手填密钥同账一份）
+public struct EnrollmentClaim: Decodable, Sendable, Equatable {
+    public let apiKey: String
+    public let fingerprint: String?
+
+    enum CodingKeys: String, CodingKey {
+        case apiKey = "api_key"
+        case fingerprint
+    }
+}

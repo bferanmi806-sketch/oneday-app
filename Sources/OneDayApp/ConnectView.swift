@@ -1,3 +1,4 @@
+import AVFoundation
 import OneDayDesign
 import OneDayCore
 import SwiftUI
@@ -28,7 +29,13 @@ struct ConnectView: View {
     }
 
     private enum LoginMode: String, CaseIterable {
-        case password, key
+        case password, key, scan
+    }
+
+    /// 扫码认领阶段（配对一期）：idle 待扫／claiming
+    /// 认领请求在飞／denied 相机权限已拒绝（降级文案）
+    private enum ScanPhase {
+        case idle, claiming, denied
     }
 
     private enum Field: Hashable {
@@ -52,6 +59,8 @@ struct ConnectView: View {
     @State private var stepStates: [OnboardingStep: StepState] = [:]
     @State private var failure: OnboardingFailure?
     @State private var serviceInfo: ConnectionServiceInfo?
+    @State private var scanPhase: ScanPhase = .idle
+    @State private var showScanner = false
     @State private var isConnecting = false
     @State private var appeared = false
     @FocusState private var focusedField: Field?
@@ -63,6 +72,7 @@ struct ConnectView: View {
         switch mode {
         case .password: return !password.isEmpty
         case .key: return !apiKey.isEmpty
+        case .scan: return false  // 扫码走认领流、不经底部提交钮
         }
     }
 
@@ -96,6 +106,28 @@ struct ConnectView: View {
                 )
             ) {
                 appeared = true
+            }
+        }
+        .sheet(isPresented: $showScanner) {
+            NavigationStack {
+                QRScannerView(
+                    onCode: { raw in
+                        showScanner = false
+                        handleScanned(raw)
+                    },
+                    onUnavailable: {
+                        showScanner = false
+                        formError = "这台设备上用不了相机。可以改用密码或密钥登录。"
+                    }
+                )
+                .ignoresSafeArea()
+                .navigationTitle("扫码连接")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("取消") { showScanner = false }
+                    }
+                }
             }
         }
     }
@@ -245,6 +277,7 @@ struct ConnectView: View {
             Picker("登录方式", selection: $mode) {
                 Text("密码登录").tag(LoginMode.password)
                 Text("密钥登录").tag(LoginMode.key)
+                Text("扫码").tag(LoginMode.scan)
             }
             .pickerStyle(.segmented)
             .padding(.top, OneDayMetrics.spacingL)
@@ -253,8 +286,10 @@ struct ConnectView: View {
             Group {
                 if mode == .password {
                     passwordFields
-                } else {
+                } else if mode == .key {
                     keyFields
+                } else {
+                    scanFields
                 }
             }
             .padding(.top, OneDayMetrics.spacingL)
@@ -271,12 +306,14 @@ struct ConnectView: View {
                     .padding(.top, OneDayMetrics.spacingM)
             }
 
-            Button(mode == .password ? "验证并连接" : "测试并连接") {
-                submit()
+            if mode != .scan {
+                Button(mode == .password ? "验证并连接" : "测试并连接") {
+                    submit()
+                }
+                .buttonStyle(.odPrimary)
+                .disabled(!canSubmit)
+                .padding(.top, OneDayMetrics.spacingXL)
             }
-            .buttonStyle(.odPrimary)
-            .disabled(!canSubmit)
-            .padding(.top, OneDayMetrics.spacingXL)
 
             Button("需要帮助？") { helpReturn = .login; page = .help }
                 .font(.callout)
@@ -332,6 +369,103 @@ struct ConnectView: View {
             }
         }
         .odGroup()
+    }
+
+    /// 扫码字段区（配对一期）：说明＋扫码主按钮＋权
+    /// 限降级文案。认领成功后回填地址/密钥、转密钥
+    /// 模式走 submit() 既有四步流水线——连接状态不
+    /// 在本面另立账
+    private var scanFields: some View {
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingM) {
+            noticeRow(
+                "在已经连好的手机或电脑上打开 OneDay，进「设置 → 添加设备」生成认领二维码，对准扫一下就连上，不用手填地址和密钥。二维码 5 分钟内有效、只能用一次。"
+            )
+            if scanPhase == .denied {
+                InlineError(
+                    "相机权限没开。去系统「设置 → OneDay」里打开相机，再回来扫码；也可以改用密码或密钥登录。"
+                )
+            }
+            Button {
+                beginScan()
+            } label: {
+                if scanPhase == .claiming {
+                    HStack(spacing: OneDayMetrics.spacingS) {
+                        ProgressView()
+                        Text("正在认领…")
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    Text("打开相机扫码")
+                }
+            }
+            .buttonStyle(.odPrimary)
+            .disabled(scanPhase == .claiming)
+        }
+    }
+
+    /// 扫码入口（授权铁律）：先同步读相机授权状态
+    /// ——已授权直达取景、已拒绝只给降级文案，只有
+    /// 未决定才发那一次请求（承接见 CameraPermissionGate）
+    private func beginScan() {
+        formError = nil
+        scanPhase = .idle
+        switch CameraPermissionGate.currentStatus() {
+        case .authorized:
+            showScanner = true
+        case .notDetermined:
+            Task {
+                if await CameraPermissionGate.requestAccess() {
+                    showScanner = true
+                } else {
+                    scanPhase = .denied
+                }
+            }
+        case .denied, .restricted:
+            scanPhase = .denied
+        @unknown default:
+            scanPhase = .denied
+        }
+    }
+
+    /// 扫码认领：载荷先在 Core 验形，认领走网关公
+    /// 开端点（码即凭据）；回执指纹必须与二维码所
+    /// 带指纹对上，才把地址＋密钥回填表单、转密钥
+    /// 模式走既有四步流水线（submit 单路）
+    private func handleScanned(_ raw: String) {
+        guard let payload = EnrollmentPayload.parse(raw) else {
+            formError = "这不是 OneDay 的连接二维码。在已登录的设备上打开「设置 → 添加设备」生成一个，再扫一次。"
+            Haptics.error()
+            return
+        }
+        scanPhase = .claiming
+        Task {
+            do {
+                let claim = try await appState.client.claimEnrollment(
+                    config: payload.config, code: payload.code
+                )
+                guard claim.fingerprint == payload.fingerprint else {
+                    scanPhase = .idle
+                    formError = "二维码和服务器对不上：认领回来的不是出码的那台服务器。这次连接没有继续。"
+                    Haptics.error()
+                    return
+                }
+                serverText = payload.config.baseString
+                apiKey = claim.apiKey
+                mode = .key
+                scanPhase = .idle
+                submit()
+            } catch let error as HermesError {
+                scanPhase = .idle
+                formError = error.userMessage
+                Haptics.error()
+            } catch {
+                scanPhase = .idle
+                formError = OnboardingFailure(
+                    step: .serviceInfo, kind: .other
+                ).advice()
+                Haptics.error()
+            }
+        }
     }
 
     /// 密钥/密码输入行：SecureField＋显隐切换（原型
@@ -650,6 +784,11 @@ struct ConnectView: View {
                     systemImage: "key", title: "密钥登录",
                     detail: "密钥是这台 Hermes 的登录密钥，在服务器配置中生成。只保存在本机钥匙串，不会上传到别处。"
                 )
+                GroupDivider()
+                helpRow(
+                    systemImage: "qrcode.viewfinder", title: "扫码连接",
+                    detail: "新设备最快的连法：在已经连好的设备上打开「设置 → 添加设备」生成认领二维码，新设备在这里选「扫码」对准即可。二维码 5 分钟内有效、只能用一次。"
+                )
             }
             .odGroup()
 
@@ -767,7 +906,10 @@ struct ConnectView: View {
                         config: config,
                         password: password, onStep: onStep
                     )
-                case .key:
+                case .key, .scan:
+                    // 扫码认领成功后先回填密钥并转 .key
+                    // 才进 submit；.scan 在此只是穷尽兜
+                    // 底，与密钥同路（同一条四步流水线）
                     info = try await appState.connectWithKey(
                         config: config, apiKey: apiKey, onStep: onStep
                     )

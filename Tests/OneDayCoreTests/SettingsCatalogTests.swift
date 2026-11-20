@@ -67,6 +67,8 @@ final class SettingsCatalogTests: XCTestCase {
             .disconnect,
             // H2-a 新增（台账 159）
             .voice,
+            // 配对一期新增（台账 153/160）
+            .addDevice,
         ]
         XCTAssertEqual(covered, Set(all))
     }
@@ -91,6 +93,7 @@ final class SettingsCatalogTests: XCTestCase {
                 "mainSession", "serverSessions",
                 "status", "computer", "serverFiles",
                 "envVars", "restartGateway", "healthCheck", "voice",
+                "addDevice",
             ]
         )
     }
@@ -216,6 +219,22 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(
             SettingsCatalog.search("朗读").contains {
                 $0.id == "voice"
+            }
+        )
+    }
+
+    /// 配对一期（台账 153/160）：添加设备条目——标
+    /// 题直搜命中、归服务器组维护尾段浏览直达；扫码
+    /// 关键词同达
+    func testAddDeviceEntryIsSearchable() {
+        let hits = SettingsCatalog.search("添加设备")
+        XCTAssertEqual(hits.first?.id, "addDevice")
+        XCTAssertEqual(hits.first?.destination, .addDevice)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertTrue(hits.first?.showsInBrowse ?? false)
+        XCTAssertTrue(
+            SettingsCatalog.search("扫码").contains {
+                $0.id == "addDevice"
             }
         )
     }
