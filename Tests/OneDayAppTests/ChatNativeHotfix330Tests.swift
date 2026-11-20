@@ -398,13 +398,16 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         return nil
     }
 
-    /// §332 delegate 内建通道 point 分工（生产
-    /// delegate 本体）：point 经 cell hitTest 落文
-    /// 本内→nil（归原生编辑菜单，§265）；落文本
-    /// 外→出配置且其菜单项集与 SwiftUI 承载逐项
-    /// 同序、图符在席；cell 本体不挂任何
-    /// UIContextMenuInteraction（§265 禁令）
-    func testRowMenuDelegatePointDivisionAndItemsMatch()
+    /// §332 delegate 内建通道＋台账 186 菜单先行
+    /// （生产 delegate 本体）：长按落点不分工——
+    /// 落文本内与落文本外都出行菜单配置（旧 §265
+    /// 落点分工已被 2026-11-20 用户拍板覆盖：长
+    /// 按先出动作菜单、「选择」是菜单内一项、点
+    /// 它才进既有选择 sheet；选区机制本体不动）；
+    /// 菜单项集与 SwiftUI 承载逐项同序、图符在
+    /// 席；cell 本体不挂任何 UIContextMenu-
+    /// Interaction（§265 禁令此条不变）
+    func testRowMenuDelegateMenuFirstAndItemsMatch()
         throws
     {
         assemble()
@@ -459,8 +462,10 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             contextMenuConfigurationForItemAt: indexPath,
             point: onTextPoint
         )
-        XCTAssertNil(
-            onText, "文本内点位须归原生编辑菜单（§265）"
+        XCTAssertNotNil(
+            onText,
+            "文本内点位须先出行菜单（台账 186 菜单先行，"
+                + "不再直达选区）"
         )
         let offTextPoint = cell.convert(
             CGPoint(
@@ -490,6 +495,26 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         XCTAssertTrue(
             actions.allSatisfy { $0.image != nil },
             "菜单图符须在席"
+        )
+    }
+
+    /// 台账 186：纯图片消息（plainText 空）的菜
+    /// 单组装——文本依赖项（复制/选择/分享）不
+    /// 出（不给假动作），条目动作（回复/接问）
+    /// 在席；有文本时五项全序不变（与上例同口径
+    /// 的组装层直证）
+    func testRowMenuOmitsTextItemsWhenPlainTextEmpty() {
+        let imageOnlyMenu = ChatNativeRowContextMenu(
+            plainText: "",
+            onReply: {}, onFork: {},
+            onSelect: {}, onShare: {}
+        )
+        let titles = imageOnlyMenu.makeMenu().children
+            .compactMap { $0 as? UIAction }
+            .map(\.title)
+        XCTAssertEqual(
+            titles, ["回复", "在旁聊里接着问"],
+            "纯图片消息菜单只许条目动作，实得 \(titles)"
         )
     }
 

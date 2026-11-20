@@ -1350,17 +1350,21 @@ struct ChatNativeRowHeightComposer {
 
     /// AssistantFileChip：确证存在出牌、否则路径
     /// 原文 .callout 一行（可折行）——与视图存在
-    /// 性门同判据（FileMetadataStore 同源读）
+    /// 性门同判据（FileMetadataStore 同源读）。
+    /// 台账 185 占位口径：存在性未定（unverified/
+    /// 未读到）时先按牌高占位——旧口径未定即按文
+    /// 本高、确证后翻牌高，整行凭空换高（与图片
+    /// 槽 0↔190 同源病）；确证 missing 才落文本高
     func assistantFileChipHeight(
         path: String
     ) -> CGFloat {
-        if facetFileExistence(path) == .exists {
-            return fileChipHeight(
-                path: path, width: contentWidth
+        if facetFileExistence(path) == .missing {
+            return plainHeight(
+                path, .callout, width: contentWidth
             )
         }
-        return plainHeight(
-            path, .callout, width: contentWidth
+        return fileChipHeight(
+            path: path, width: contentWidth
         )
     }
 
@@ -1391,13 +1395,16 @@ struct ChatNativeRowHeightComposer {
     // MARK: - 交付项
 
     /// AssistantDeliveryItem 高（DeliveryViews 状
-    /// 态机同判）：meta 未到＝0（EmptyView）、查
-    /// 无＝标记原文 .callout、gone＝一行 .callout、
-    /// image＝§130 定高卡 190、其余＝封面卡
+    /// 态机同判）：meta 未到＝先按 §130 定高卡 190
+    /// 占位（台账 185：旧口径 0 与 meta 到达后的
+    /// 高翻转、整行凭空长高；占位后翻转方向只剩
+    /// 「确证为小件时塌一次」）、查无＝标记原文
+    /// .callout、gone＝一行 .callout、image＝§130
+    /// 定高卡 190、其余＝封面卡
     func deliveryItemHeight(id: String) -> CGFloat {
         switch facetDeliveryMeta(id) {
         case nil:
-            return 0
+            return ChatImageSizing.cardHeight
         case .notFound:
             return plainHeight(
                 DeliveryMarker.markerText(for: id),
@@ -2332,13 +2339,35 @@ struct ChatNativeRowHeightComposer {
         var total: CGFloat = 0
         for (index, part) in parts.enumerated() {
             total += markdownHeight(part.source)
-            total += StreamingBlockText.gapAfter(
-                index: index, parts: parts
-            )
+            // 空尾时末块后间隙不计（与光标行同为流
+            // 式专属项，见下空尾对齐注）
+            if !(tail.isEmpty && index == parts.count - 1) {
+                total += StreamingBlockText.gapAfter(
+                    index: index, parts: parts
+                )
+            }
         }
         if tail.isEmpty {
-            // 尾块空：只剩流式光标一元、占一行
-            total += spec(.body)
+            // 空尾两态对齐（台账 185）：光标行（呈现
+            // 侧 StreamingCaret 恒占一行）与末块后间
+            // 隙（gapAfter 末块恒 spacingSM）都是流
+            // 式专属项、落定整段量测里没有对应项——
+            // 计入即落定瞬间整行塌约 34pt（用户报
+            // 「间距有时会变」的落点之一）。两项同
+            // 步不计、与落定逐值对齐：呈现侧光标在
+            // 空尾态可能被行高框轻微裁切（瞬态、只
+            // 发生在块边界拍），换落定不跳高——与本
+            // 函数「落定不跳高」的既有口径同向
+        } else if Self.tailUsesMarkdownMeasure(tail) {
+            // 结构化尾块（台账 185）：尾块含列表/
+            // 代码/表格/标题时，纯文本近似与落定
+            // markdown 口径差出整行级偏差、块闭合/
+            // 落定瞬间跳高——改走落定同口径整段量
+            // 测（markdownHeight 内容备忘与闭合块
+            // 同路）。纯散文尾块保留 plainHeight 近
+            // 似（两口径差只在结构化内容上、散文近
+            // 等，卡顿包既有结论不动）
+            total += markdownHeight(tail)
         } else {
             total += memoized(
                 "stream", tail, assistantTextWidth
@@ -2350,6 +2379,57 @@ struct ChatNativeRowHeightComposer {
             }
         }
         return total + bubbleVertical
+    }
+
+    /// 尾块结构化判定（台账 185）：含列表/代码围
+    /// 栏/表格/标题任一结构标记→纯文本近似失效。
+    /// 逐行扫（尾块为当前生长块、行数有界）；标记
+    /// 集与诊断四类对齐——标题＝1–6 个 #＋空格起
+    /// 行、无序列表＝- ／* ／+ 起行、有序列表＝
+    /// 数字＋.／)＋空格、围栏＝```／~~~、表格＝
+    /// 竖线起行或行内含 " | " 分隔
+    static func tailUsesMarkdownMeasure(
+        _ tail: String
+    ) -> Bool {
+        for rawLine in tail.split(
+            separator: "\n", omittingEmptySubsequences: false
+        ) {
+            let line = rawLine.trimmingCharacters(
+                in: .whitespaces
+            )
+            if line.hasPrefix("```") || line.hasPrefix("~~~") {
+                return true
+            }
+            if line.hasPrefix("#") {
+                let hashes = line.prefix { $0 == "#" }
+                if hashes.count <= 6,
+                   line.dropFirst(hashes.count)
+                    .hasPrefix(" ") {
+                    return true
+                }
+            }
+            if line.hasPrefix("- ") || line.hasPrefix("* ")
+                || line.hasPrefix("+ ") {
+                return true
+            }
+            if line.hasPrefix("|") || line.contains(" | ") {
+                return true
+            }
+            var idx = line.startIndex
+            var digits = 0
+            while idx < line.endIndex, line[idx].isNumber {
+                idx = line.index(after: idx)
+                digits += 1
+            }
+            if digits > 0, idx < line.endIndex,
+               line[idx] == "." || line[idx] == ")" {
+                let after = line.index(after: idx)
+                if after < line.endIndex, line[after] == " " {
+                    return true
+                }
+            }
+        }
+        return false
     }
 
     // MARK: - 条目行（与 ChatView.bubble 分流同序）
@@ -2697,16 +2777,23 @@ struct ChatNativeRowHeightComposer {
         for _ in entry.remoteImagePaths {
             slots.append(ChatImageSizing.cardHeight)
         }
+        // 图片槽占位（台账 185）：存在性未定先按
+        // 190 占位、确证 missing 才塌 0——旧口径未
+        // 定即 0、解析回来凭空长高 190（用户报
+        // 「间距有时会变」的最吻合落点）。视图侧
+        // AssistantMediaImage 未确证时整行不显
+        // 示，占位期该槽为空白填充、确证存在图在
+        // 原位填入
         for path in mediaSplit.imagePaths {
             slots.append(
-                facetFileExistence(path) == .exists
-                    ? ChatImageSizing.cardHeight : 0
+                facetFileExistence(path) == .missing
+                    ? 0 : ChatImageSizing.cardHeight
             )
         }
         for ref in inlineImages {
             slots.append(
-                facetFileExistence(ref.path) == .exists
-                    ? ChatImageSizing.cardHeight : 0
+                facetFileExistence(ref.path) == .missing
+                    ? 0 : ChatImageSizing.cardHeight
             )
         }
         for deliveryID in deliverySplit.deliveryIDs {

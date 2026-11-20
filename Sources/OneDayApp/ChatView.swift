@@ -1375,6 +1375,11 @@ struct ChatView: View {
                 let action = attachPanelPendingAction
                 attachPanelPendingAction = nil
                 action?()
+                // 台账 182：面板收起真完成点——原生
+                // 面静息锚离散重解析（呈现期间 TabView
+                // 层级/变换态变化是锚失真触发条件，须
+                // 在恢复后的层级上立即重算）
+                nativeHandle.reresolveAnchorsAfterPresentation()
             }
         ) {
             AttachmentPanelView(
@@ -1425,6 +1430,30 @@ struct ChatView: View {
                 onCancel: { showCamera = false }
             )
             .ignoresSafeArea()
+        }
+        // 台账 182：其余覆盖层（照片/视频选择器、文
+        // 件选择器、相机）的呈现与收起两边沿同走离
+        // 散重解析——呈现型覆盖层无 onDismiss 口，
+        // 以呈现旗两边沿为完成点（与附件面板
+        // onDismiss 同列触发点）
+        .onChange(of: showPhotoPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showVideoPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showDocumentPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showCamera) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showAttachPanel) { _, presented in
+            // 面板呈现边沿（收起边沿由上方 onDismiss
+            // 真完成点承担，此处只补呈现侧）
+            if presented {
+                nativeHandle.reresolveAnchorsAfterPresentation()
+            }
         }
         // 0.4.0（§3.4）：消费待续聊会话（四处入口经
         // AppState.router.pendingChatSessionID 置位、ContentView
@@ -2186,6 +2215,17 @@ struct ChatView: View {
                 }
                 .padding(.trailing, OneDayMetrics.spacingM)
             }
+            // 朗读播放条（台账 183）：输入舱装配的
+            // 一员（本栈内、舱正上方一行），非 overlay
+            // 野挂——舱高账与落位随栈自洽。显隐/文案
+            // 只读 SpeechPlayer 既有可观察面（Core 状
+            // 态机派生 showsPlaybackBar/playbackBar-
+            // Text），不新开状态通道；手动朗读与自动
+            // 朗读同走状态机、同一条出口
+            if SpeechPlayer.shared.machine.showsPlaybackBar {
+                speechPlaybackBar
+                    .transition(.opacity)
+            }
             inputBar
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -2227,6 +2267,68 @@ struct ChatView: View {
             ),
             value: showsBackToBottomButton
         )
+        // 台账 183：播放条显隐作第四键、同口径滑动
+        .animation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            ),
+            value: SpeechPlayer.shared.machine.showsPlaybackBar
+        )
+    }
+
+    /// 朗读播放条（台账 183）：形态沿本页条族画法
+    /// （发丝线＋pageBG＋gutter 横距，与 noticeBar
+    /// 同族）；参照 OpenBot voice-call-bar「声音正
+    /// 在出声时、控制面就长在输入舱上」降维为单钮
+    /// 条——文案（Core 派生）＋停止钮常驻可见。引
+    /// 擎层只有 stop、无 pause（与 OpenBot 朗读
+    /// stop-only 同构），本条不造暂停。停止走
+    /// SpeechPlayer.stop() 既有出口（与离页/发送/
+    /// 听写共用同一停因口）
+    private var speechPlaybackBar: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Palette.hairline)
+                .frame(height: 1)
+            HStack(spacing: OneDayMetrics.spacingS) {
+                Image(systemName: MessageActionSymbols.speak)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .accessibilityHidden(true)
+                Text(
+                    SpeechPlayer.shared.machine
+                        .playbackBarText ?? ""
+                )
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+                Spacer()
+                Button {
+                    SpeechPlayer.shared.stop()
+                } label: {
+                    HStack(spacing: OneDayMetrics.spacingXS) {
+                        Image(
+                            systemName:
+                                MessageActionSymbols.speakStop
+                        )
+                        .font(.system(size: 13, weight: .regular))
+                        Text("停止")
+                            .font(.subheadline)
+                    }
+                    .foregroundStyle(Palette.ink)
+                    // 命中域 44（条族审计口径）：字形
+                    // 行高不变、命中纵向撑满条高
+                    .frame(
+                        minHeight: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+                }
+                .accessibilityLabel("停止朗读")
+                .buttonStyle(.odPressable)
+            }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.vertical, OneDayMetrics.spacingXS)
+        }
+        .background(Palette.pageBG)
     }
 
     /// 回到底部圆钮（0.2.4 曾换原生玻璃；0.3.8 第 28 条
@@ -3175,16 +3277,20 @@ struct ChatView: View {
     }
 
     /// 原生面行菜单描述（§330，题 2）：与 message-
-    /// Menu(for:) 同门控同动作——纯图片消息（正文
-    /// 空）不挂；动作闭包逐项复用 SwiftUI 菜单的同
-    /// 一批入口（beginReply/forkToSideChat/选择
-    /// sheet），仅分享改走 UIKit 分享单状态口
-    /// （ShareLink 是 SwiftUI 视图、UIKit 菜单内
-    /// 无处安放）
+    /// Menu(for:) 同门控同动作；动作闭包逐项复用
+    /// SwiftUI 菜单的同一批入口（beginReply/fork-
+    /// ToSideChat/选择 sheet），仅分享改走 UIKit
+    /// 分享单状态口（ShareLink 是 SwiftUI 视图、
+    /// UIKit 菜单内无处安放）
+    /// 台账 186：门控放宽——条目行恒挂菜单（纯图
+    /// 片消息旧口径不挂、长按没反应，是本条报障
+    /// 之一）；文本依赖项由 makeMenu 按 plainText
+    /// 有无组装，恒非 nil（返回类型保留 Optional
+    /// 是行描述的既有形态、其余行型恒 nil 的口径
+    /// 不变）
     private func nativeRowContextMenu(
         for entry: ChatEntry
     ) -> ChatNativeRowContextMenu? {
-        guard !entry.content.isEmpty else { return nil }
         let text = plainText(for: entry)
         return ChatNativeRowContextMenu(
             plainText: text,
@@ -6704,7 +6810,13 @@ struct ChatView: View {
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
         let text = plainText(for: entry)
         return MessageMenuModifier(
-            isEnabled: !entry.content.isEmpty,
+            // 台账 186：与原生面同门控——纯图片条
+            // 目同挂（旧口径正文空不挂、长按没反
+            // 应）；文本依赖项在修饰内按 plainText
+            // 有无组装
+            isEnabled: !entry.content.isEmpty
+                || !entry.imageDatas.isEmpty
+                || !entry.remoteImagePaths.isEmpty,
             plainText: text,
             onReply: {
                 beginReply(to: entry)
@@ -12383,7 +12495,8 @@ extension EnvironmentValues {
 /// ／复制／选择／分享，全系统件、禁自绘菜单。复制走
 /// Pasteboard 收敛口径（与 CopyButton 同源一处）；分享
 /// 走 ShareLink 系统分享单；选择打开纯文本 sheet。
-/// isEnabled=false（纯图片消息）时不挂菜单，见
+/// 台账 186：isEnabled 门控与原生面同口径（纯图片
+/// 条目同挂、文本依赖项按 plainText 有无组装），见
 /// messageMenu(for:) 的口径注
 /// §265（换代包 5·S3）：挂载面自此只许落在非文本层
 /// ——气泡背景层（背景＋内边距带）与行内铬件（图
@@ -12393,6 +12506,14 @@ extension EnvironmentValues {
 /// UITextView 原生选字＋编辑菜单（审计 S3 定性）。
 /// 文本区长按自此归文本体系；「选择」sheet 降为
 /// 跨段选段的兜底口（仍挂菜单内、非文本区可达）
+/// 台账 186（2026-11-20 用户拍板）：长按分工改判
+/// 已在原生面（出货面）落地——delegate 通道全行
+/// 先出菜单、「选择」为菜单内一项（见 ChatNative-
+/// List 行菜单注）。本 SwiftUI 承载（gen3 回落
+/// 面）的挂载面纪律不变：其文本区长按仍归文本
+/// 体系——根挂载翻转须连同 §265 的双承载冲突一
+/// 并另案验证，不在本包以未验状态翻面（两面差
+/// 异如实登记于本包交卷）
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
     let plainText: String
@@ -12420,16 +12541,21 @@ private struct MessageMenuModifier: ViewModifier {
                 Button(action: onFork) {
                     Label("在旁聊里接着问", systemImage: MessageActionSymbols.fork)
                 }
-                Button {
-                    Pasteboard.copy(plainText)
-                } label: {
-                    Label("复制", systemImage: MessageActionSymbols.copy)
-                }
-                Button(action: onSelect) {
-                    Label("选择", systemImage: MessageActionSymbols.select)
-                }
-                ShareLink(item: plainText) {
-                    Label("分享", systemImage: MessageActionSymbols.share)
+                // 台账 186：文本依赖项（复制/选择/
+                // 分享）仅 plainText 非空时组装——
+                // 与原生面 makeMenu 逐项同口径
+                if !plainText.isEmpty {
+                    Button {
+                        Pasteboard.copy(plainText)
+                    } label: {
+                        Label("复制", systemImage: MessageActionSymbols.copy)
+                    }
+                    Button(action: onSelect) {
+                        Label("选择", systemImage: MessageActionSymbols.select)
+                    }
+                    ShareLink(item: plainText) {
+                        Label("分享", systemImage: MessageActionSymbols.share)
+                    }
                 }
                 if let speakItem {
                     Button(action: speakItem.action) {

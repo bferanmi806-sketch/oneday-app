@@ -331,6 +331,31 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
         }
     }
 
+    /// 播放条呈现派生（台账 183）：请求中/播放中
+    /// 为真——出声（含即将出声）必有当场可见、可
+    /// 停的控制面（输入舱上瘦播放条，落点在 App
+    /// 层输入舱装配内）；静默为假；失败为假（失败
+    /// 走既有通知口给人话，不占舱面）。本派生是播
+    /// 放条显隐的单一出处——视图层只读本值，不许
+    /// 各自重判状态机
+    public var showsPlaybackBar: Bool {
+        switch state {
+        case .requesting, .playing: return true
+        case .idle, .failed: return false
+        }
+    }
+
+    /// 播放条文案派生（与 showsPlaybackBar 同出
+    /// 处）：请求中＝正在准备、播放中＝正在朗读；
+    /// 不出条的态为 nil
+    public var playbackBarText: String? {
+        switch state {
+        case .requesting: return "正在准备朗读"
+        case .playing: return "正在朗读"
+        case .idle, .failed: return nil
+        }
+    }
+
     /// 是否正在出声/取声（菜单标题判读用）
     public func isActive(entryID: UUID) -> Bool {
         switch state {

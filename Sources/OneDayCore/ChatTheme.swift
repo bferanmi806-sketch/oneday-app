@@ -158,6 +158,103 @@ public enum ChatThemes {
     }
 }
 
+/// 气泡浓淡两式（台账 184，0.50.74 真机题 3 拍板
+/// 落地）：同一款主题给两档用户泡呈现——solid＝
+/// 实填（同系既有饱和值实填＋白字，开箱默认，泡
+/// 面与页底有明确层级）；tint＝加深（以固定 share
+/// 把同档强调色混入现泡色得中间档，仍配现泡字，
+/// 是用户显式选的淡档）。结构参照 OpenBot
+/// message-color 的 solid/tint 两式（其 TINT_SHARE
+/// 浅 0.20／暗 0.34 是把颜色混入**界面面**的口
+/// 径；本表混入对象是现泡色、基底不同，share 按
+/// 本表实算另定，见 ChatTheme.bubbleFill 的注）。
+/// 解析只在本层（令牌层）发生：视图层只读解析结
+/// 果、不许硬编码颜色、不许自算混色。
+public enum BubbleFillStyle: String, CaseIterable,
+    Identifiable, Sendable
+{
+    case solid
+    case tint
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .solid: return "实填"
+        case .tint: return "加深"
+        }
+    }
+}
+
+extension ChatTheme {
+    /// tint 混色 share（固定值，全款同）：浅档
+    /// 0.30／暗档 0.08。实算依据（WCAGContrast 同
+    /// 式，2026-11-20 全款逐值算）：浅档 share 自
+    /// 0.20 起逐档试——0.30 是泡面 vs 页底全款
+    /// ≥1.74 且泡字 vs 泡面全款 ≥5.37 的取值；
+    /// 暗档现泡本已深饱、混入的是浅档强调色（提
+    /// 亮向），share 大于 0.10 起默认款白字对比跌
+    /// 破 4.5 闸（0.10→4.51／0.12→4.45），故暗档
+    /// 取 0.08（全款白字 ≥4.57、泡面 vs 页底
+    /// ≥1.95）。暗档两式差异因此小于浅档——是白
+    /// 字闸约束下的实算结论、非漏做
+    public static let bubbleTintShareLight: Double = 0.30
+    public static let bubbleTintShareDark: Double = 0.08
+
+    /// sRGB 通道线性混色（UInt32 同式，逐通道四
+    /// 舍五入——与实算脚本同口径，测试闸按本函数
+    /// 的实际输出断言、不另算一份）
+    public static func mix(
+        _ base: UInt32, _ overlay: UInt32, share: Double
+    ) -> UInt32 {
+        func channel(_ shift: UInt32) -> UInt32 {
+            let b = Double((base >> shift) & 0xFF)
+            let o = Double((overlay >> shift) & 0xFF)
+            return UInt32((b * (1 - share) + o * share).rounded())
+        }
+        return (channel(16) << 16) | (channel(8) << 8) | channel(0)
+    }
+
+    /// 用户泡底解析（浓淡×明暗的唯一出口）：solid
+    /// 浅档＝同款 accentLight 实填（诊断实证：对
+    /// 页底全款 ≥5.10、白字全款 ≥5.23）；solid 暗
+    /// 档＝现 bubbleDark（本就是深饱实填、白字已
+    /// 过既有闸）；tint＝同档现泡混同档强调
+    public func bubbleFill(
+        dark: Bool, style: BubbleFillStyle
+    ) -> UInt32 {
+        switch style {
+        case .solid:
+            return dark ? bubbleDark : accentLight
+        case .tint:
+            return dark
+                ? Self.mix(
+                    bubbleDark, accentDark,
+                    share: Self.bubbleTintShareDark
+                )
+                : Self.mix(
+                    bubbleLight, accentLight,
+                    share: Self.bubbleTintShareLight
+                )
+        }
+    }
+
+    /// 用户泡字解析（与 bubbleFill 同出口成对）：
+    /// solid 浅档＝纯白（压 accentLight 实算全款
+    /// ≥5.23）；solid 暗档与 tint 两档＝现泡字
+    /// （tint 混色后仍过 4.5 闸，见 share 注）
+    public func bubbleText(
+        dark: Bool, style: BubbleFillStyle
+    ) -> UInt32 {
+        switch style {
+        case .solid:
+            return dark ? bubbleTextDark : 0xFFFFFF
+        case .tint:
+            return dark ? bubbleTextDark : bubbleTextLight
+        }
+    }
+}
+
 /// 虚拟形象大小三档（0.26.0）：作用面＝聊天页顶部身
 /// 份胶囊头像＋聊天空态形象（枢纽大头像 110 与连接页
 /// 吉祥物不在辖区——那是品牌呈现面、非聊天形象）。
@@ -206,6 +303,8 @@ public enum AppearanceStorageKeys {
     public static let appearanceMode = "appearanceMode"
     public static let chatTheme = "chatTheme"
     public static let avatarSize = "avatarSize"
+    /// 气泡浓淡（台账 184）：缺省 solid（实填）
+    public static let bubbleFillStyle = "chatBubbleFillStyle"
 }
 
 /// 外观偏好读口（0.26.0）：UserDefaults 之上的类型化
@@ -225,6 +324,28 @@ public enum AppearancePreferences {
         id: String, in defaults: UserDefaults = .standard
     ) {
         defaults.set(id, forKey: AppearanceStorageKeys.chatTheme)
+    }
+
+    /// 气泡浓淡读口（台账 184）：未设/脏值一律回
+    /// solid——开箱即实填（用户拍板：默认实填档，
+    /// 淡档须用户显式选）
+    public static func bubbleFillStyle(
+        in defaults: UserDefaults = .standard
+    ) -> BubbleFillStyle {
+        let raw = defaults.string(
+            forKey: AppearanceStorageKeys.bubbleFillStyle
+        )
+        return BubbleFillStyle(rawValue: raw ?? "") ?? .solid
+    }
+
+    public static func setBubbleFillStyle(
+        _ style: BubbleFillStyle,
+        in defaults: UserDefaults = .standard
+    ) {
+        defaults.set(
+            style.rawValue,
+            forKey: AppearanceStorageKeys.bubbleFillStyle
+        )
     }
 
     public static func avatarTier(

@@ -204,9 +204,14 @@ public enum Palette {
     /// 0.26.0 起主题化：值自当前主题表——默认「三狗」
     /// 行与上述旧值逐字相同，切回默认即回原貌。
     public static var userBubbleFill: Color {
+        // 台账 184：浓淡两式经 Core 解析出口（缺省
+        // solid 实填）——本层只取解析结果，不自算
+        // 混色、不硬编码色值
         let theme = currentChatTheme
+        let style = AppearancePreferences.bubbleFillStyle()
         return themedColor(
-            light: theme.bubbleLight, dark: theme.bubbleDark
+            light: theme.bubbleFill(dark: false, style: style),
+            dark: theme.bubbleFill(dark: true, style: style)
         )
     }
 
@@ -216,10 +221,13 @@ public enum Palette {
     /// #EDF1F3、对暗泡实算对比仅 4.28 压线，本版随主
     /// 题表修正为 4.87（§53 登记）
     public static var userBubbleText: Color {
+        // 台账 184：与 userBubbleFill 同一解析出口
+        // 成对取值（浓淡切换时填充与字色同拍换）
         let theme = currentChatTheme
+        let style = AppearancePreferences.bubbleFillStyle()
         return themedColor(
-            light: theme.bubbleTextLight,
-            dark: theme.bubbleTextDark
+            light: theme.bubbleText(dark: false, style: style),
+            dark: theme.bubbleText(dark: true, style: style)
         )
     }
 
@@ -348,10 +356,11 @@ public enum Palette {
     /// 0.26.0 起主题化＝主题气泡行（同源关系的字面
     /// 落实：与 userBubbleFill 恒同值）
     public static var primaryPale: Color {
-        let theme = currentChatTheme
-        return themedColor(
-            light: theme.bubbleLight, dark: theme.bubbleDark
-        )
+        // 台账 184：「与 userBubbleFill 恒同值」的
+        // 既有不变量改由别名构造保全——浓淡切换后
+        // 主按钮面与用户泡恒同值，不许两路各解析
+        // 一份漂移
+        userBubbleFill
     }
     /// 强调弱面（OpenMuse sky #EDF7FD，ui.tsx:26——图
     /// 标盒/附件牌/聚焦钮面；取代旧 accentColor 12% 透
@@ -369,11 +378,10 @@ public enum Palette {
     /// 0.26.0 起主题化＝主题泡字行（浅档与旧值同；
     /// 暗档随泡字修正 #EDF1F3→#FFFFFF，§53）
     public static var onPrimary: Color {
-        let theme = currentChatTheme
-        return themedColor(
-            light: theme.bubbleTextLight,
-            dark: theme.bubbleTextDark
-        )
+        // 台账 184：消费面恒骑 primaryPale——字色随
+        // 之别名 userBubbleText（与泡字恒同值，浓
+        // 淡两式下主按钮字/面配对不脱钩）
+        userBubbleText
     }
 
     // pastel 点缀家族（OpenMuse 图标盒/chip/状态卡的轮
