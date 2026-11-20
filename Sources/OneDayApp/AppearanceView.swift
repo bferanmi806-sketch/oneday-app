@@ -62,10 +62,9 @@ struct AppearanceView: View {
     private var appearanceModeRaw = AppearanceMode.system.rawValue
     @AppStorage(AppearanceStorageKeys.chatTheme)
     private var chatThemeID = ChatThemes.defaultID
-    /// 气泡浓淡（台账 184）：与主题同面同键族——
-    /// 本页写、Palette 解析读；缺省 solid 实填
-    @AppStorage(AppearanceStorageKeys.bubbleFillStyle)
-    private var bubbleFillStyleRaw = BubbleFillStyle.solid.rawValue
+    // 气泡浓淡（台账 184）已随 188 定版整套退役：
+    // 用户泡单档定死（饱和实填＋白字），本页不再
+    // 有浓淡写口、chatBubbleFillStyle 键无消费方
     @AppStorage(AppearanceStorageKeys.avatarSize)
     private var avatarSizeRaw = AvatarSizeTier.medium.rawValue
     /// 语言四档（§145）：与模式同形态——AppStorage
@@ -91,17 +90,6 @@ struct AppearanceView: View {
 
     private var theme: ChatTheme {
         ChatThemes.theme(forID: chatThemeID)
-    }
-
-    private var bubbleStyle: BubbleFillStyle {
-        BubbleFillStyle(rawValue: bubbleFillStyleRaw) ?? .solid
-    }
-
-    private var bubbleStyleBinding: Binding<BubbleFillStyle> {
-        Binding(
-            get: { bubbleStyle },
-            set: { bubbleFillStyleRaw = $0.rawValue }
-        )
     }
 
     private var tier: AvatarSizeTier {
@@ -172,7 +160,7 @@ struct AppearanceView: View {
     /// 档——三组选择任一改动在此立即可见
     private var previewCard: some View {
         let bubble = hexColor(
-            theme.bubbleFill(dark: previewIsDark, style: bubbleStyle)
+            theme.bubbleFill(dark: previewIsDark)
         )
         let accent = hexColor(
             previewIsDark ? theme.accentDark : theme.accentLight
@@ -266,27 +254,8 @@ struct AppearanceView: View {
             .listRowInsets(
                 EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 0)
             )
-            // 气泡浓淡（台账 184）：与主题选择同面同
-            // 区——两式由 Core 解析（实填＝饱和实填、
-            // 加深＝accent 混入现泡的中间档），点按
-            // 写键即全 App 生效（Palette 现读现解）
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                Text("气泡浓淡")
-                    .font(.rowTitleL)
-                    .foregroundStyle(Palette.ink)
-                Spacer()
-                Picker("气泡浓淡", selection: bubbleStyleBinding) {
-                    ForEach(BubbleFillStyle.allCases) { style in
-                        Text(style.displayName).tag(style)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .fixedSize()
-                .labelsHidden()
-            }
-            .listRowInsets(
-                EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
-            )
+            // 气泡浓淡分段（台账 184）已随 188 定版
+            // 删除：用户泡单档定死、本区只剩主题选择
         } header: {
             appearanceHeader("聊天主题")
         }
@@ -300,7 +269,7 @@ struct AppearanceView: View {
     private func themeSwatch(_ item: ChatTheme) -> some View {
         let selected = item.id == theme.id
         let checkColor = hexColor(
-            item.bubbleText(dark: previewIsDark, style: bubbleStyle)
+            item.bubbleText(dark: previewIsDark)
         )
         return Button {
             withAnimation(
@@ -319,10 +288,7 @@ struct AppearanceView: View {
                 } else {
                     Circle().fill(
                         hexColor(
-                            item.bubbleFill(
-                                dark: previewIsDark,
-                                style: bubbleStyle
-                            )
+                            item.bubbleFill(dark: previewIsDark)
                         )
                     )
                 }
