@@ -198,6 +198,33 @@ final class ChatLagFeedLayerTests: XCTestCase {
             Array(sources3.prefix(2)), sources1,
             "新块闭合后旧闭合块仍居原位、源不变"
         )
+        // 间隙两级口径（与落定整段呈现同规）：段
+        // 落→段落＝paragraphSpacing、末块（其后尾
+        // 块）＝spacingSM；段落→代码＝spacingSM
+        let parts = StreamingBlockText.closedParts(
+            for: head + "尾块还在生长"
+        )
+        XCTAssertEqual(parts.count, 2)
+        XCTAssertEqual(
+            StreamingBlockText.gapAfter(index: 0, parts: parts),
+            OneDayMetrics.paragraphSpacing,
+            "散文相邻必须走段内段距、否则落定帧段距跳变"
+        )
+        XCTAssertEqual(
+            StreamingBlockText.gapAfter(index: 1, parts: parts),
+            OneDayMetrics.spacingSM
+        )
+        let codeParts = StreamingBlockText.closedParts(
+            for: "先说结论。\n\n```\nlet a = 1\n```\n\n尾巴在长"
+        )
+        XCTAssertEqual(codeParts.count, 2)
+        XCTAssertEqual(
+            StreamingBlockText.gapAfter(
+                index: 0, parts: codeParts
+            ),
+            OneDayMetrics.spacingSM,
+            "段落→代码是段界、走 spacingSM"
+        )
     }
 
     // MARK: - ④ 直播行高

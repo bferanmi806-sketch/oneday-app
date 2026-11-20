@@ -2272,9 +2272,12 @@ struct ChatNativeRowHeightComposer {
     /// 量分段＋闭合前缀整段重算。改后不再走整行
     /// 备忘：闭合块逐块走 markdownHeight 的内容
     /// 备忘（块内容冻结→恒命中）、累加求和，只
-    /// 现算尾块增量；总高与旧式逐值同式（逐块高
-    /// ＋块间 spacingSM＝整段量测的段间口径，呈
-    /// 现侧同日改逐块呈现、两侧同构）
+    /// 现算尾块增量；块间间隙走呈现侧同一两级口
+    /// 径（StreamingBlockText.gapAfter：散文相邻
+    /// paragraphSpacing、其余 spacingSM），与落
+    /// 定整段量测的段内＋段间两级口径逐值等值、
+    /// 落定不跳高（呈现侧同日改逐块呈现、两侧同
+    /// 构）
     func liveTextHeight(
         text: String,
         isUploading: Bool
@@ -2302,31 +2305,30 @@ struct ChatNativeRowHeightComposer {
         )
         let tail = StreamingBlockSegmenter
             .tailSource(of: blocks)
-        var parts: [CGFloat] = []
-        for block in blocks where !block.isTail {
-            let source = StreamingBlockSegmenter
-                .closedPrefix(of: [block])
-            if !source.isEmpty {
-                parts.append(markdownHeight(source))
-            }
+        // 逐块累加（与呈现侧 closedParts 同一分
+        // 解）：闭合块高走内容备忘恒命中、块后间
+        // 隙走 gapAfter 两级口径（含末块到尾块的
+        // spacingSM），尾块单独现算
+        let parts = StreamingBlockText.closedParts(for: text)
+        var total: CGFloat = 0
+        for (index, part) in parts.enumerated() {
+            total += markdownHeight(part.source)
+            total += StreamingBlockText.gapAfter(
+                index: index, parts: parts
+            )
         }
         if tail.isEmpty {
             // 尾块空：只剩流式光标一元、占一行
-            parts.append(spec(.body))
+            total += spec(.body)
         } else {
-            parts.append(memoized(
+            total += memoized(
                 "stream", tail, assistantTextWidth
             ) {
                 plainHeight(
                     tail, .body,
                     width: assistantTextWidth
                 )
-            })
-        }
-        var total = parts.reduce(0, +)
-        if parts.count > 1 {
-            total += OneDayMetrics.spacingSM
-                * CGFloat(parts.count - 1)
+            }
         }
         return total + bubbleVertical
     }

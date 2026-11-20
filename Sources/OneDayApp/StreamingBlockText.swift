@@ -14,14 +14,9 @@ import SwiftUI
 /// 事实），落定不过是尾块也闭合的终态，故落定
 /// 前后呈现同构、无整树换装。
 ///
-/// 段间口径：外层段距取 spacingSM，与 Mark-
-/// downText 内部段距同值——闭合前缀的末段与尾
-/// 块的衔接距和落定后同一位置的段距一致，落定
-/// 帧不因呈现拼合方式产生段距跳变
-///
-/// （全面对
-/// 比报告 chat-lag-full-comparison-20261120 §3
-/// 处方）：旧形态把闭合前缀拼成一整串塞进单个
+/// 2026-11-20 卡顿修复包改逐块沉淀（全面对比报
+/// 告 chat-lag-full-comparison-20261120 §3 处
+/// 方）：旧形态把闭合前缀拼成一整串塞进单个
 /// MarkdownText——每闭合一块，前缀串变长、整段
 /// 重建＋其内单 UITextView 全文重排，成本随已
 /// 生成长度线性涨。改后闭合块逐块成 Markdown-
@@ -29,43 +24,82 @@ import SwiftUI
 /// 输入串不变→解析备忘/属性串缓存恒命中、视图
 /// 不重排；每拍新增劳动只剩新闭合的那一块与尾
 /// 块。高度侧同日改逐块累加（合成器 liveText-
-/// Height），两侧同构、段距同值不跳变
+/// Height），两侧同构。
+///
+/// 段距两级口径（与落定整段呈现逐值一致、不产
+/// 生落定跳变）：装配器把连续散文块（段落／标
+/// 题／列表）并成一个 prose 段、段内段距走
+/// paragraphSpacing；段界与其余相邻走 spacing-
+/// SM；闭合前缀末块与尾块的衔接恒 spacingSM
+/// （旧形态前缀视图与尾视图的栈距）。逐块呈现
+/// 以 VStack 零距＋逐块底衬补出同一间隙序列
 struct StreamingBlockText: View {
-let text: String
+    let text: String
 
-/// 闭合块的呈现源序列（逐块、与块序同序）：
-/// 追加式增长下前缀恒定——尾块生长/新块闭合
-/// 都不改已闭合块的源（沉淀断言的落点）
-static func closedBlockSources(
-for text: String
-) -> [String] {
-StreamingBlockSegmenter.blocks(for: text)
-.filter {!$0.isTail}
-.map {
-StreamingBlockSegmenter
-.closedPrefix(of: [$0])
-}
-.filter {!$0.isEmpty}
-}
+    var body: some View {
+        let parts = Self.closedParts(for: text)
+        let tail = StreamingBlockSegmenter.tailSource(
+            of: StreamingBlockSegmenter.blocks(for: text)
+        )
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(
+                Array(parts.enumerated()),
+                id: \.element.block.index
+            ) { pair in
+                MarkdownText(pair.element.source)
+                    .padding(
+                        .bottom,
+                        Self.gapAfter(
+                            index: pair.offset, parts: parts
+                        )
+                    )
+            }
+            StreamingText(tail)
+        }
+    }
 
-var body: some View {
-let blocks = StreamingBlockSegmenter.blocks(
-for: text
-)
-let closed = blocks.filter {!$0.isTail}
-let tail = StreamingBlockSegmenter
-.tailSource(of: blocks)
-VStack(
-alignment:.leading,
-spacing: OneDayMetrics.spacingSM
-) {
-ForEach(closed, id: \.index) { block in
-MarkdownText(
-StreamingBlockSegmenter
-.closedPrefix(of: [block])
-)
-}
-StreamingText(tail)
-}
-}
+    /// 闭合块分解（呈现与量测共用单点）：逐块规
+    /// 范源（空源块剔除）＋块本体。块一经闭合其
+    /// 源即冻结——尾块生长、新块闭合都不改已闭
+    /// 合块的源（沉淀断言的落点）
+    static func closedParts(
+        for text: String
+    ) -> [(block: StreamingBlock, source: String)] {
+        StreamingBlockSegmenter.blocks(for: text).compactMap { block in
+            guard !block.isTail else { return nil }
+            let source = StreamingBlockSegmenter
+                .closedPrefix(of: [block])
+            return source.isEmpty ? nil : (block: block, source: source)
+        }
+    }
+
+    /// 闭合块逐块源（沉淀断言用）
+    static func closedBlockSources(for text: String) -> [String] {
+        closedParts(for: text).map(\.source)
+    }
+
+    /// 块后间隙：散文相邻（两侧都可并段）＝
+    /// paragraphSpacing；其余相邻＝spacingSM；
+    /// 末闭合块（其后是尾块）恒 spacingSM
+    static func gapAfter(
+        index: Int,
+        parts: [(block: StreamingBlock, source: String)]
+    ) -> CGFloat {
+        guard index < parts.count - 1 else {
+            return OneDayMetrics.spacingSM
+        }
+        let here = parts[index].block.kind
+        let next = parts[index + 1].block.kind
+        return isProseMergeable(here) && isProseMergeable(next)
+            ? OneDayMetrics.paragraphSpacing
+            : OneDayMetrics.spacingSM
+    }
+
+    /// 装配器并段集（MarkdownMessageAssembler 的
+    /// prose 累积口径）：段落／标题／列表进同一
+    /// 散文段；引用／代码／表格／任务列表／分隔
+    /// 各自成段
+    static func isProseMergeable(_ kind: StreamingBlockKind) -> Bool {
+        kind == .paragraph || kind == .heading || kind == .list
+    }
 }
