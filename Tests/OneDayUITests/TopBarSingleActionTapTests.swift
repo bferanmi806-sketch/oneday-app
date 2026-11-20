@@ -146,8 +146,8 @@ final class TopBarSingleActionTapTests: XCTestCase {
     /// 的形态逐项验（定案见 hub-tap-misfire-hunt-
     /// self-20261113 与 hub-layout-overflow 报告）：
     /// - 点头像开枢纽：页头 ✕ 与分享钮完整在屏内；
-    /// - 模型单行入口（当前模型名＋chevron）在屏内
-    ///   且可点，点开的是正牌模型选择面；
+    /// - 枢纽内无模型单行入口（结构归位包撤除，
+    ///   纲要 D4-2：模型切换正主＝聊天页胶囊）；
     /// - 枢纽内不存在目录行（抽查目录深处三 id）；
     /// - 四段逐段可达、每次切段后页头仍在屏内；末
     ///   段（身份）内容区可滚到底且页头不失（§217
@@ -227,16 +227,14 @@ final class TopBarSingleActionTapTests: XCTestCase {
             lines.append("shareKin=\(labels)")
         }
 
-        // 模型单行入口在屏内
+        // 模型单行入口已撤（结构归位包，纲要
+        // D4-2）：枢纽回归只读档案面，入口不许在屏内
+        // 出现；模型切换的在屏验证归聊天页胶囊面
         let entry = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH '会话模型：'")
         ).firstMatch
-        if entry.waitForExistence(timeout: 5), entry.isHittable,
-           isFullyOnScreen(entry.frame, in: win) {
-            lines.append(
-                "modelEntry=\(fmt(entry.frame)) label=\(entry.label)")
-        } else {
-            violations.append("模型单行入口不在屏内或不可点")
+        if entry.exists {
+            violations.append("枢纽内出现已撤的模型单行入口")
         }
 
         // 枢纽内不存在目录行：三 id 只可能以目录行
@@ -251,57 +249,6 @@ final class TopBarSingleActionTapTests: XCTestCase {
             }
         }
 
-        // 入口点开正牌选择面（以探针行 deepseek-v4-
-        // pro 在面内出现为据，与派发门口径同源）
-        if entry.exists, entry.isHittable {
-            entry.tap()
-            if modelRow(app).waitForExistence(timeout: 6) {
-                lines.append("picker=open via hub entry")
-                // 关面：取消钮（本环境本地化串解析为英
-                // 文 Cancel——首轮 CI 树扫描实证；双标
-                // 签都试）→ 兜底点当前模型行（选中即关
-                // 面、同模型重选无副作用）
-                var closed = false
-                for label in ["取消", "Cancel"] {
-                    let cancel = app.buttons[label]
-                    if cancel.exists, cancel.isHittable {
-                        cancel.tap()
-                        break
-                    }
-                }
-                var deadline = Date().addingTimeInterval(8)
-                while Date() < deadline {
-                    if !modelRow(app).exists { closed = true; break }
-                    Thread.sleep(forTimeInterval: 0.25)
-                }
-                if !closed {
-                    let current = app.buttons.matching(
-                        NSPredicate(format:
-                            "label CONTAINS[c] 'deepseek-flash'"
-                            + " AND label CONTAINS 'Via gateway'")
-                    ).firstMatch
-                    if current.exists, current.isHittable {
-                        current.tap()
-                        deadline = Date().addingTimeInterval(8)
-                        while Date() < deadline {
-                            if !modelRow(app).exists {
-                                closed = true
-                                break
-                            }
-                            Thread.sleep(forTimeInterval: 0.25)
-                        }
-                    }
-                }
-                if !closed {
-                    violations.append("选择面关不掉")
-                }
-                if hubCloseButton(app) == nil {
-                    violations.append("关选择面后枢纽页头 ✕ 不在屏内")
-                }
-            } else {
-                violations.append("模型入口未打开选择面")
-            }
-        }
 
         // 四段逐段可达＋切段后页头不失（§217 收段口径）
         for name in ["活动", "定时", "浏览器", "身份"] {

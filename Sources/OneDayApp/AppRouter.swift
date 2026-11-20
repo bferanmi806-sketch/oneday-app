@@ -62,12 +62,14 @@ enum SettingsRoute: Hashable {
     case healthCheck
 }
 
-/// 「工作区」组三页的 sheet 呈现槽枚举（原定义在
+/// 「工作区」组两页的 sheet 呈现槽枚举（原定义在
 /// SettingsView 内部、WorkspaceHubView 反向借用——
 /// §305 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
 /// 协调方，本枚举自此与 AppRouter 同文件公共层）
 enum ManageSheet: String, Identifiable {
-    case overview, computer, serverFiles
+    // overview 已撤（结构归位包，纲要 D5-1：总览撤
+    // 独立页，状态归服务器管理、最近会话归抽屉）
+    case computer, serverFiles
     var id: String { rawValue }
 }
 

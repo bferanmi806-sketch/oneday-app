@@ -3,7 +3,9 @@ import OneDayCore
 import SwiftUI
 
 /// 工作区枢纽页（prototype-2，DESIGN §164 升级）：
-/// 总览／电脑／服务器文件三件——保持现行 sheet 机制
+/// 电脑／服务器文件两件——保持现行 sheet 机制
+/// （总览已随结构归位包撤页，纲要 D5-1：状态归服
+/// 务器管理、最近会话归抽屉，不再经本页转接）
 struct WorkspaceHubView: View {
     @Binding var manageSheet: ManageSheet?
 
@@ -11,7 +13,7 @@ struct WorkspaceHubView: View {
         List {
             // Lead 副标题
             Section {
-                Text("了解运行情况，访问与你的智能体协作的设备和文件。")
+                Text("访问与你的智能体协作的设备和文件。")
                     .font(.rowSubtitle)
                     .foregroundStyle(Palette.inkSecondary)
             }
@@ -19,18 +21,6 @@ struct WorkspaceHubView: View {
             .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20))
 
             Section {
-                Button {
-                    manageSheet = .overview
-                } label: {
-                    rowContent(
-                        icon: "chart.xyaxis.line",
-                        title: "总览",
-                        subtitle: "服务器与智能体的运行概况"
-                    )
-                }
-                .buttonStyle(.odPressable)
-                .settingsSeparatorToIconEdge()
-
                 Button {
                     manageSheet = .computer
                 } label: {

@@ -46,7 +46,9 @@ public enum SettingsDestination: Equatable, Sendable {
     case approvalRules
     case gateway
     case logs
-    case overview
+    // 总览目的地已撤（结构归位包，纲要 D5-1：总览撤
+    // 独立页、入口摘除，状态归服务器管理、待处理归
+    // 聊天/枢纽记录、最近会话归抽屉）
     case computer
     case serverFiles
     case appearance
@@ -181,8 +183,8 @@ public enum SettingsCatalog {
         SettingsCatalogEntry(
             id: "workspace", group: .serverAndWorkspace,
             title: "工作区",
-            summary: "总览、电脑与资源库",
-            keywords: ["工作区", "总览", "电脑", "文件", "资源库", "workspace"],
+            summary: "电脑与资源库",
+            keywords: ["工作区", "电脑", "文件", "资源库", "workspace"],
             destination: .workspaceHub
         ),
         // 服务器管理页内子项（不在根页显示）
@@ -251,13 +253,8 @@ public enum SettingsCatalog {
             destination: .serverSessions, showsInBrowse: false
         ),
         // 工作区枢纽页内子项（不在根页显示）
-        SettingsCatalogEntry(
-            id: "overview", group: .serverAndWorkspace,
-            title: "总览",
-            summary: "状态与最近活动",
-            keywords: ["状态", "活动", "overview"],
-            destination: .overview, showsInBrowse: false
-        ),
+        // （原「总览」条目已随结构归位包摘除：纲要
+        // D5-1 总览撤页、D5-2 入口提浅归正主）
         SettingsCatalogEntry(
             id: "computer", group: .serverAndWorkspace,
             title: "电脑",

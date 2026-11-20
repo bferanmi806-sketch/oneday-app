@@ -3,8 +3,12 @@ import OneDayCore
 import SwiftUI
 
 /// 服务器管理枢纽页（prototype-2，DESIGN §164 升级）：
-/// 顶部服务器卡片＋运行与用量组（网关/日志/用量）＋维护组
+/// 顶部服务器卡片＋运行与用量组（状态/网关/日志/用量）＋维护组
 /// （密钥/重启网关）＋底部断开连接行
+/// 结构归位包（2026-11-20，纲要 D5-1）：总览撤独立
+/// 页后，服务器状态的家收归本页——卡片呈状态词、
+/// 「状态」行进状态详情页（StatusView：活动/定时/
+/// 系统三段），本页成为服务器唯一总页
 struct ServerManagementView: View {
     @Environment(AppState.self) private var appState
     /// 体检留痕：维护段「体检与存档」行副题读上次结论
@@ -35,6 +39,23 @@ struct ServerManagementView: View {
 
             // 运行与用量组
             Section {
+                // 状态详情入口（结构归位包，纲要
+                // D5-1）：原总览状态卡的下钻页自此归
+                // 本页当家；会话点按走全 App 同一路由
+                // 通道（与服务端会话页同口径）
+                NavigationLink {
+                    StatusView(onOpenSession: { id in
+                        appState.router.pendingChatSessionID = id
+                    })
+                } label: {
+                    rowContent(
+                        icon: "waveform.path.ecg",
+                        title: "状态",
+                        subtitle: gatewayStateWord
+                    )
+                }
+                .settingsSeparatorToIconEdge()
+
                 NavigationLink(value: SettingsRoute.gateway) {
                     rowContent(
                         icon: "network",

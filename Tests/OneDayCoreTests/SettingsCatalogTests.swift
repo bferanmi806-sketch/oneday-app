@@ -34,7 +34,7 @@ final class SettingsCatalogTests: XCTestCase {
             "mainSession", "serverSessions",
             "server", "gateway", "restartGateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
-            "overview", "computer", "serverFiles",
+            "computer", "serverFiles",
             "appearance", "sidebar", "help", "about",
         ] {
             XCTAssertTrue(ids.contains(id), "原型索引缺条目 \(id)")
@@ -51,7 +51,7 @@ final class SettingsCatalogTests: XCTestCase {
             .serverSessions, .models, .envVars, .usage,
             .serverDetail, .connectors, .devicePermissions,
             .approvalRules,
-            .gateway, .logs, .overview, .computer, .serverFiles,
+            .gateway, .logs, .computer, .serverFiles,
             .appearance, .sidebar, .allConversations, .help, .about, .privacy, .terms,
             // prototype-2 新增
             .agentConfig, .serverManagement, .sessionManagement,
@@ -130,8 +130,9 @@ final class SettingsCatalogTests: XCTestCase {
                 "healthCheck",
                 // sessionManagement 页内
                 "mainSession", "serverSessions",
-                // workspace 页内
-                "overview", "computer", "serverFiles",
+                // workspace 页内（总览条目已随结构归位
+                // 包摘除，纲要 D5-1）
+                "computer", "serverFiles",
             ]
         )
     }
