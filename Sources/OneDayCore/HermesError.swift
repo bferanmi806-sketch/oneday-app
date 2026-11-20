@@ -42,6 +42,12 @@ public enum HermesError: Error, Sendable {
     case serverError(endpoint: String, status: Int, code: String)
     /// 响应解码失败（版本不匹配的典型信号）
     case decodingFailed(endpoint: String)
+    /// 朗读 provider 未开通（H2-a，台账 159）：speak
+    /// 400 的 detail 明示「No TTS provider availa-
+    /// ble」——与裸状态码分开：客户端据此把朗读可
+    /// 用性精修为「未开通」并收起入口，文案不许把
+    /// 「还没开通」说成「朗读失败」
+    case speechProviderUnavailable
     /// 会话过期且自动重登失败
     case sessionExpired
     /// 模型不在上游候选集内（网关别名等），写入已被拦截
@@ -133,6 +139,10 @@ public enum HermesError: Error, Sendable {
                 "%@ 的返回看不懂，可能是服务端版本与 App 不匹配。",
                 locale: locale, endpoint
             )
+        case .speechProviderUnavailable:
+            return L10n.string(
+                "这台服务器还没开通朗读。", locale: locale
+            )
         case .sessionExpired:
             return L10n.string("登录已过期，重新登录后再试。", locale: locale)
         case .modelNotUpstream(let model):
@@ -179,6 +189,12 @@ public enum HermesError: Error, Sendable {
     /// Network——其余失败（鉴权/状态码/解码）重试无益
     public var isTransient: Bool {
         if case .transientNetwork = self { return true }
+        return false
+    }
+
+    /// 是否朗读未开通（H2-a）：可用性精修的真值信号
+    public var isSpeechProviderUnavailable: Bool {
+        if case .speechProviderUnavailable = self { return true }
         return false
     }
 

@@ -60,6 +60,8 @@ enum SettingsRoute: Hashable {
     case restartGateway     // 重启网关页
     /// 体检面（H1-a，台账 158）：服务器管理「维护」段
     case healthCheck
+    /// 语音面（H2-a，台账 159）：服务器管理「维护」段
+    case voice
 }
 
 /// 「工作区」组三页的 sheet 呈现槽枚举（原定义在

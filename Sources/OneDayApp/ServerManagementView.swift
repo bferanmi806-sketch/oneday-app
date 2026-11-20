@@ -82,6 +82,15 @@ struct ServerManagementView: View {
                     )
                 }
                 .settingsSeparatorToIconEdge()
+
+                NavigationLink(value: SettingsRoute.voice) {
+                    rowContent(
+                        icon: "speaker.wave.2",
+                        title: "语音",
+                        subtitle: voiceAvailabilityWord
+                    )
+                }
+                .settingsSeparatorToIconEdge()
             } header: {
                 Text("维护")
                     .font(.sectionLabel)
@@ -178,6 +187,13 @@ struct ServerManagementView: View {
         healthSummaryStore
             .summary(for: appState.config?.baseString)?
             .overall.word
+    }
+
+    /// 朗读可用性一词（未知为 nil、不占副题位；与
+    /// 语音面/聊天页共读 SpeechPlayer 同一份判定）
+    private var voiceAvailabilityWord: String? {
+        let availability = SpeechPlayer.shared.availability
+        return availability == .unknown ? nil : availability.word
     }
 
     private var gatewayStateWord: String {

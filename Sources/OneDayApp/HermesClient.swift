@@ -388,6 +388,23 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig
     ) async throws -> CheckpointsResponse
 
+    // MARK: 服务端语音（H2-a，台账 159；契约据 H2-0
+    // 探活＋开通复探冻结，见 OneDayCore.VoiceSpeech）
+
+    /// GET /api/audio/voice-config：语音配置读面（可
+    /// 用性总闸的数据源；判定口径在 Core VoiceAvai-
+    /// lability，不许只读 mode/reason 判可用）
+    func voiceConfig(config: ServerConfig) async throws -> VoiceConfigResponse
+    /// POST /api/audio/speak {text}：服务端合成，回
+    /// 执 JSON 内嵌 base64 data_url（非二进制流）；
+    /// provider 未开通时 400 detail 明示， 实现映射
+    /// 为 HermesError.speechProviderUnavailable
+    func speak(config: ServerConfig, text: String) async throws -> SpeakResponse
+    /// GET /api/audio/elevenlabs/voices：只读（现役
+    /// 实例未配该 provider；音色展示不以它为准，
+    /// 见 VoiceSpeech 头注）
+    func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse
+
     // MARK: 工作区文件与系统（0.2.1）
 
     /// GET /api/files?path=（path 为 nil 时服务端回默认根，
@@ -1937,6 +1954,77 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
             config: config, path: "/api/ops/checkpoints",
             endpoint: L10n.string("检查点")
         )
+    }
+
+    // MARK: - 服务端语音（H2-a）
+
+    func voiceConfig(
+        config: ServerConfig
+    ) async throws -> VoiceConfigResponse {
+        try await getJSON(
+            config: config, path: "/api/audio/voice-config",
+            endpoint: L10n.string("语音配置")
+        )
+    }
+
+    func elevenLabsVoices(
+        config: ServerConfig
+    ) async throws -> ElevenLabsVoicesResponse {
+        try await getJSON(
+            config: config, path: "/api/audio/elevenlabs/voices",
+            endpoint: L10n.string("音色列表")
+        )
+    }
+
+    func speak(
+        config: ServerConfig, text: String
+    ) async throws -> SpeakResponse {
+        // 专用实现（不走 sendJSONDecoding）：失败分型
+        // 要读 400 的 detail 原文——provider 未开通与
+        // 其他合成失败在文案和可用性精修上完全不同，
+        // 裸状态码分不开。长回复的合成耗时远超普通
+        // 接口（服务端内部分块合成），超时单独放宽
+        // 到 120 秒
+        var request = URLRequest(
+            url: config.endpoint("/api/audio/speak")
+        )
+        request.httpMethod = "POST"
+        request.timeoutInterval = 120
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try encoder.encode(["text": text])
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            let kind = SpeakFailureKind.classify(
+                status: http.statusCode,
+                detail: Self.errorDetail(from: data)
+            )
+            if kind == .providerUnavailable {
+                throw HermesError.speechProviderUnavailable
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("朗读"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(SpeakResponse.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("朗读")
+            )
+        }
+    }
+
+    /// FastAPI 失败体 {"detail": "…"} 的原文提取：只
+    /// 作失败分型输入，取不到返回 nil；原文不许当
+    /// 用户文案直显（人话口径在 HermesError/呈现层）
+    private static func errorDetail(from data: Data) -> String? {
+        struct DetailBody: Decodable { let detail: String? }
+        return (try? JSONDecoder().decode(
+            DetailBody.self, from: data
+        ))?.detail
     }
 
     // MARK: - 工作区文件与系统（0.2.1）

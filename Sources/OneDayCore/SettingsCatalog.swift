@@ -72,6 +72,10 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 体检面（H1-a，台账 158）：服务器管理枢纽页
     /// 「维护」段内子项——自检＋安全审计＋结论留痕
     case healthCheck
+    /// 语音面（H2-a，台账 159）：服务器管理枢纽页
+    /// 「维护」段内子项——回复朗读可用性/自动朗读/
+    /// 音色展示（服务端语音能力，与体检面同组同例）
+    case voice
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -234,6 +238,13 @@ public enum SettingsCatalog {
             summary: "服务器管理 · 维护",
             keywords: ["体检", "自检", "安全审计", "健康", "health", "doctor", "audit"],
             destination: .healthCheck, showsInBrowse: false
+        ),
+        SettingsCatalogEntry(
+            id: "voice", group: .serverAndWorkspace,
+            title: "语音",
+            summary: "服务器管理 · 维护",
+            keywords: ["语音", "朗读", "音色", "回复朗读", "voice", "speak", "tts"],
+            destination: .voice, showsInBrowse: false
         ),
         // 会话管理页内子项（不在根页显示）
         SettingsCatalogEntry(

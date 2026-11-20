@@ -244,6 +244,8 @@ struct SettingsView: View {
                     )
                 case .healthCheck:
                     HealthCheckView()
+                case .voice:
+                    VoiceSettingsView()
                 }
             }
             .confirmationDialog(
@@ -694,6 +696,7 @@ struct SettingsView: View {
         case .mainSession: return .mainSession
         case .restartGateway: return .restartGateway
         case .healthCheck: return .healthCheck
+        case .voice: return .voice
         }
     }
 
@@ -736,6 +739,7 @@ struct SettingsView: View {
         case "mainSession": return "link"
         case "restartGateway": return "arrow.clockwise"
         case "healthCheck": return "stethoscope"
+        case "voice": return "speaker.wave.2"
         default: return "gearshape"
         }
     }

@@ -133,6 +133,11 @@ public enum MessageActionSymbols {
     public static let share = "square.and.arrow.up"
     /// 0.7.0（M4 分流动作）：「在旁聊里接着问」
     public static let fork = "arrow.triangle.branch"
+    /// H2-a（台账 159）：助手消息「朗读／停止朗读」
+    public static let speak = "speaker.wave.2"
+    public static let speakStop = "stop.circle"
 
-    public static let all = [reply, copy, select, share, fork]
+    public static let all = [
+        reply, copy, select, share, fork, speak, speakStop,
+    ]
 }

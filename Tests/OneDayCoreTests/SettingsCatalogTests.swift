@@ -58,6 +58,8 @@ final class SettingsCatalogTests: XCTestCase {
             .workspaceHub, .mainSession, .restartGateway,
             // H1-a 新增（台账 158）
             .healthCheck,
+            // H2-a 新增（台账 159）
+            .voice,
         ]
         XCTAssertEqual(covered, Set(all))
     }
@@ -127,7 +129,7 @@ final class SettingsCatalogTests: XCTestCase {
                 "profiles", "memory", "skills",
                 // serverManagement 页内
                 "server", "gateway", "logs", "usage", "envVars", "restartGateway",
-                "healthCheck",
+                "healthCheck", "voice",
                 // sessionManagement 页内
                 "mainSession", "serverSessions",
                 // workspace 页内
@@ -195,6 +197,22 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(
             SettingsCatalog.search("doctor").contains {
                 $0.id == "healthCheck"
+            }
+        )
+    }
+
+    /// H2-a（台账 159）：语音面条目——标题直搜命中、
+    /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
+    func testVoiceEntryIsSearchable() {
+        let hits = SettingsCatalog.search("语音")
+        XCTAssertEqual(hits.first?.id, "voice")
+        XCTAssertEqual(hits.first?.destination, .voice)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        // 朗读关键词同达
+        XCTAssertTrue(
+            SettingsCatalog.search("朗读").contains {
+                $0.id == "voice"
             }
         )
     }
