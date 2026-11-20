@@ -202,12 +202,16 @@ final class SettingsCatalogTests: XCTestCase {
 
     /// H2-a（台账 159）：语音面条目——标题直搜命中、
     /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
+    /// H2-a（台账 159）：语音条目——标题直搜命中；
+    /// 归位合流后已随维护尾段提回根页服务器组浏览
+    /// 态直达（原 H2-a 断言的「页内隐藏」口径随旧服
+    /// 务器管理页撤销失效，合流时同步）
     func testVoiceEntryIsSearchable() {
         let hits = SettingsCatalog.search("语音")
         XCTAssertEqual(hits.first?.id, "voice")
         XCTAssertEqual(hits.first?.destination, .voice)
         XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
-        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        XCTAssertTrue(hits.first?.showsInBrowse ?? false)
         // 朗读关键词同达
         XCTAssertTrue(
             SettingsCatalog.search("朗读").contains {
