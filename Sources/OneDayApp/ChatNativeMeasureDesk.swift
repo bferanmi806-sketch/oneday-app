@@ -157,6 +157,11 @@ final class ChatNativeRowMeasureDesk {
         height: CGFloat
     ) {
         inFlight.remove(memoKey)
+        // 工单本体留账清（已完成、不必再就地重
+        // 跑）；memoKey 留账保留——重喂到达前布
+        // 局侧 measureNow 仍可经它回缓存确定值，
+        // 待 resolve 命中时一并清
+        jobsByRowKey[rowKey] = nil
         ChatMeasureDeskBacklog.noteFinished()
         noteBacklog()
         guard lastKnownByRow[rowKey] != height
