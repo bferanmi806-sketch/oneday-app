@@ -770,12 +770,18 @@ struct DrawerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: OneDayMetrics.drawerNavRowHeight)
-            .padding(.horizontal, OneDayMetrics.spacingSM)
+            // OpenBot 样式采纳包（2026-11-20）：选中垫
+            // 改整行贴边填充——去旧外层 spacingS 缩进、
+            // 内边距改 drawerInset 直达（标题/图标起点
+            // 恒 20 线不变），圆角改 drawerSelection-
+            // Corner 16；三行（导航/频道/旁聊）同改同口径
+            .padding(.horizontal, OneDayMetrics.drawerInset)
             .background {
                 if selected {
                     Palette.drawerSelectionFill
                         .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
+                            cornerRadius: OneDayMetrics
+                                .drawerSelectionCorner,
                             style: .continuous
                         ))
                 }
@@ -783,7 +789,6 @@ struct DrawerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
-        .padding(.horizontal, OneDayMetrics.spacingS)
         .accessibilityLabel(
             accessory.word.map { "\(channel.name)，\($0)" }
                 ?? channel.name
@@ -1211,11 +1216,13 @@ struct DrawerView: View {
                     }
                 }
             }
-            // §157③：内外边距与导航行对齐（内 spacingSM
-            // ／外 spacingS）——选中胶囊左右边界与导航/
-            // 频道行同为 8 线、形状同为 fieldCorner 连
-            // 续圆角；标题起点仍恒 20（8＋12）不变
-            .padding(.horizontal, OneDayMetrics.spacingSM)
+            // §157③（OpenBot 样式采纳包 2026-11-20 订
+            // 正）：选中垫改整行贴边填充——旧「内
+            // spacingSM／外 spacingS、fieldCorner 圆角」
+            // 的缩进胶囊口径退役，现内边距改 drawerInset
+            // 直达、圆角改 drawerSelectionCorner 16，与
+            // 导航/频道行同一套；标题起点仍恒 20 不变
+            .padding(.horizontal, OneDayMetrics.drawerInset)
             .frame(
                 maxWidth: .infinity,
                 minHeight: OneDayMetrics.drawerRowHeight,
@@ -1225,7 +1232,8 @@ struct DrawerView: View {
                 if isCurrent {
                     Palette.drawerSelectionFill
                         .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
+                            cornerRadius: OneDayMetrics
+                                .drawerSelectionCorner,
                             style: .continuous
                         ))
                 }
@@ -1233,7 +1241,6 @@ struct DrawerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
-        .padding(.horizontal, OneDayMetrics.spacingS)
         // §157④：图钉是纯视觉标记——置顶状态经 acces-
         // sibilityValue 补播报（标题/时间的内容自读不
         // 受影响）；未置顶行值为空、不出声
@@ -1540,12 +1547,15 @@ struct DrawerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: OneDayMetrics.drawerNavRowHeight)
-            .padding(.horizontal, OneDayMetrics.spacingSM)
+            // OpenBot 样式采纳包（2026-11-20）：选中垫
+            // 改整行贴边填充（口径同频道行注）
+            .padding(.horizontal, OneDayMetrics.drawerInset)
             .background {
                 if selected {
                     Palette.drawerSelectionFill
                         .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
+                            cornerRadius: OneDayMetrics
+                                .drawerSelectionCorner,
                             style: .continuous
                         ))
                 }
@@ -1553,7 +1563,6 @@ struct DrawerView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
-        .padding(.horizontal, OneDayMetrics.spacingS)
         .accessibilityLabel(title)
         // 0.43.0（A11Y-V5）：选中态只靠浅灰垫——补
         // 已选特征，与频道行同式

@@ -583,6 +583,33 @@ public enum OneDayMetrics {
     /// §157 起本档只管旁聊会话行（56–60 区间内取 58
     /// 不动），导航簇改走 drawerNavRowHeight
     public static let drawerRowHeight: CGFloat = 58
+    /// 抽屉选中垫圆角（OpenBot 样式采纳包，2026-11-20
+    /// 用户亲批）：选中态改整行垫底填充——圆角取
+    /// OpenBot 抽屉行 rounded-2xl 的 16，取代旧挂
+    /// fieldCorner（19，输入字段圆角、与行垫无涉）；
+    /// 填充色仍走 Palette.drawerSelectionFill（浅
+    /// #E4E5E7 与 OpenBot 选中填充 #E9E9ED 同族冷中
+    /// 性浅灰，按「优先映射现有令牌」不新立色值；
+    /// 暗档 tertiarySystemBackground 与其深档
+    /// #212121 同为深面级）
+    public static let drawerSelectionCorner: CGFloat = 16
+    /// 顶栏圆钮直径（OpenBot 样式采纳包）：会话列表
+    /// 页顶栏按钮改 48 圆钮（OpenBot 首页栏钮 48 口
+    /// 径），画法走现行圆钮式（glassEffect 圆＋
+    /// odPressable，字形走 FrameworkIcon
+    /// .barButtonGlyphSize）
+    public static let barRoundButtonDiameter: CGFloat = 48
+    /// 会话列表页（全部对话）两行行最小高（OpenBot
+    /// 样式采纳包）：本页去分隔线、改靠留白分行，需
+    /// 比现行内容实高（题 22＋stackGap 3＋副题 20
+    /// ≈45）多一档呼吸——取 68（内容＋约 23 纵向留
+    /// 白）；不照搬 OpenBot 的 80（那是 54 头像＋三
+    /// 行字之设，本页两行制、密度优先，68 档一屏约
+    /// 多一行）。与 ListRowSpec.sessionRowMinHeight
+    /// （57）分工：57 仍管其余消费面（ContentRow/
+    /// UnifiedRow），本值只管本页行（rowLabel 与频
+    /// 道行），两档并存是本包明示切割、不互相冒充
+    public static let sessionListRowMinHeight: CGFloat = 68
     /// 抽屉导航簇行高（§157，用户 2026-11-11 21:01 补
     /// 充方案②）：导航行/频道行/管理行的最小行高——
     /// 导航紧一点、把空间让给会话。54 是设计起点值
