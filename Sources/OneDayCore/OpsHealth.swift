@@ -105,6 +105,57 @@ public enum OpsActionLog {
         guard indices.indices.contains(ordinal) else { return nil }
         return Array(lines[(indices[ordinal] + 1)...])
     }
+
+    /// 第 `index`（0 起）个 started 标记的整行文本
+    /// （去首尾空白）；越界返回 nil。标记行自带秒级
+    /// 时间戳，整行文本即这一轮的身份
+    public static func markerLine(
+        lines: [String], actionName: String, at index: Int
+    ) -> String? {
+        let indices = markerIndices(
+            lines: lines, actionName: actionName
+        )
+        guard indices.indices.contains(index) else { return nil }
+        return lines[indices[index]]
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 最后一个 started 标记的整行文本；无标记 nil
+    public static func lastMarkerLine(
+        lines: [String], actionName: String
+    ) -> String? {
+        guard let marker = markerIndices(
+            lines: lines, actionName: actionName
+        ).last else { return nil }
+        return lines[marker].trimmingCharacters(in: .whitespaces)
+    }
+
+    /// 按标记身份认本轮（引擎现行口径，替代序号认
+    /// 轮）：`baselineMarkerLine` 是触发前最后一个标
+    /// 记的整行文本；当前窗口最后一个标记与它不同
+    /// （基线为 nil 时只要有标记）才算本轮已落盘，
+    /// 切出该标记之后的内容；最后一个标记仍是基线
+    /// 本人（或窗口无标记）返回 nil。
+    /// 为什么弃序号：状态端点只回文件尾的滑动窗口，
+    /// 本轮输出会把旧标记挤出窗口，序号在窗口内永远
+    /// 凑不齐——2026-11-20 真机定因：doctor 日志被本
+    /// 轮从 362 行推到 518 行、首标记滑出 500 行窗，
+    /// 结果已落盘 App 却判超时（诊断报告 pkg-h1-
+    /// device-diagnosis-20261120 A 节）。
+    public static func sliceForNewRound(
+        lines: [String], actionName: String,
+        baselineMarkerLine: String?
+    ) -> [String]? {
+        guard let marker = markerIndices(
+            lines: lines, actionName: actionName
+        ).last else { return nil }
+        let lastLine = lines[marker]
+            .trimmingCharacters(in: .whitespaces)
+        if let baselineMarkerLine, lastLine == baselineMarkerLine {
+            return nil
+        }
+        return Array(lines[(marker + 1)...])
+    }
 }
 
 // MARK: - 结论四态
