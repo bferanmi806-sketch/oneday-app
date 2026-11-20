@@ -178,7 +178,7 @@ struct ChatNativeRowRevision: Equatable, Hashable {
             max(0, mid - window / 2)..<min(count, mid + window / 2),
             max(0, count - window)..<count,
         ]
-        value.withUnsafeBytes { buffer in
+        value.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
             for range in ranges {
                 for index in range {
                     mixByte(buffer[index])
