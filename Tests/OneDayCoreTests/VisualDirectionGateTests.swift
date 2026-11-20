@@ -236,6 +236,61 @@ final class VisualDirectionGateTests: XCTestCase {
         )
     }
 
+    /// 对比闸⑧（2026-11-21，台账 191／DESIGN
+    /// §334，与用户泡闸⑦成套）：AI 泡走中性令牌
+    /// Palette.bubbleFill（主题无关）——正文字
+    /// （bodyInk）/泡 ≥4.5 且次级字（inkSecondary-
+    /// OnFill）/泡 ≥4.5（浅实算 15.36/5.04、暗
+    /// 13.94/≈5.29）；泡/页（chatSurface）∈
+    /// [1.10, 1.60]——下限保可辨、上限保安静（浅
+    /// 1.13、暗 1.51；恒低于用户泡闸⑦的 2.9 线，
+    /// 大厂入泡同级：iMessage 1.21/微信 1.17）。
+    /// 次级字浅档与暗档合成口径同 testTextContrast-
+    /// Gates 既有断言（彼处散列、本闸成套立名）；
+    /// 令牌值本体由 RenderMeasureTests 逐值钉
+    /// （浅 #EEEEF0/暗 #2C2C2E）
+    func testAssistantBubbleContrastGate() {
+        // 正文字/泡：两档 ≥4.5
+        XCTAssertGreaterThanOrEqual(
+            ratio(Palette.bodyInk, on: Palette.bubbleFill, dark: false),
+            4.5
+        )
+        XCTAssertGreaterThanOrEqual(
+            ratio(Palette.bodyInk, on: Palette.bubbleFill, dark: true),
+            4.5
+        )
+        // 次级字/泡：浅档直算、暗档 α 合成（secondary-
+        // Label 压泡面），两档 ≥4.5
+        XCTAssertGreaterThanOrEqual(
+            ratio(
+                Palette.inkSecondaryOnFill, on: Palette.bubbleFill,
+                dark: false
+            ),
+            4.5
+        )
+        XCTAssertGreaterThanOrEqual(
+            compositedRatio(
+                Palette.inkSecondaryOnFill, on: Palette.bubbleFill,
+                dark: true
+            ),
+            4.5
+        )
+        // 泡/页：两档同入 [1.10, 1.60]
+        for dark in [false, true] {
+            let bubbleVsPage = ratio(
+                Palette.bubbleFill, on: Palette.chatSurface, dark: dark
+            )
+            XCTAssertGreaterThanOrEqual(
+                bubbleVsPage, 1.10,
+                "dark=\(dark) AI 泡/页 \(bubbleVsPage)＜可辨下限 1.10"
+            )
+            XCTAssertLessThanOrEqual(
+                bubbleVsPage, 1.60,
+                "dark=\(dark) AI 泡/页 \(bubbleVsPage)＞安静上限 1.60"
+            )
+        }
+    }
+
     /// WCAG 公式自证（对审计报告的实算原值复算）
     func testWCAGFormulaAgainstAuditValues() {
         // inkSecondary #697176 on 页面底 #FCFCFC ≈ 4.84
