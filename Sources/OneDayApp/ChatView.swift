@@ -18,7 +18,10 @@ import UIKit
 /// 2026-11-13 割裂感 A 止血档再改判回落面（散文直落大面、
 /// 异构件才成卡，见 assistantBubble 注），填充泡口径一度
 /// 作废；2026-11-14 §225 用户点选三项全改恢复气泡（中性
-/// 浅灰容器＋纯文字内容，A1 撤泡口径作废，见 §225.2）。
+/// 浅灰容器＋纯文字内容，A1 撤泡口径作废，见 §225.2）；
+/// 2026-11-17 §321 再撤填充对齐大厂无气泡；2026-11-20
+/// §334 用户真机看后亲点定版恢复极浅卡片底（bubbleFill，
+/// §321 作废，详见 assistantBubble 注）。
 /// 0.1.3 导航（§7）：会话历史改左侧抽屉（顶栏左键＋左缘手势
 /// 唤出），顶栏中 = 会话名＋模型名副题，右 = 新建会话。
 
@@ -6906,6 +6909,21 @@ struct ChatView: View {
     /// cell 当时同步撤填充（§321 注）；§325 起散
     /// 文 cell 整件退役、本函数即唯一呈现口径。
     /// 全档 reply-rendering-alignment-20261117.md。
+    /// §334 四度改判（2026-11-20，用户真机看 0.50.73
+    /// 散文直落面后亲点定版「加极浅卡片底」）：§321 无
+    /// 气泡口径**作废**——恢复卡片底：背景层填充回
+    /// Palette.bubbleFill（与 §225 同一库存令牌：浅档
+    /// #EEEEF0 冷中性极浅、暗档 tertiarySystemBack-
+    /// ground #2C2C2E 挂背景三级梯，不新造色、不描边
+    /// 不加阴影）。与 §225 的差别仅在沿革：几何（§263
+    /// 列宽/左缘/内边距/圆角 22）逐字不动、量测喂入
+    /// 同值、行高产物零失效；正文排版/字阶/字色不动；
+    /// 卡只包本函数承接的散文正文段（落定正文＋流式
+    /// 半截＋等待点），思考块/工具卡/图片行/交付项/
+    /// 文件牌都在本函数之外、各自呈现逐字不动。泡内
+    /// 子件对比回 §225 原账（inkSecondaryOnFill 对
+    /// #EEEEF0＝5.04:1）。§265 菜单宿主层即本背景层，
+    /// 挂载点与命中带不变、填充色不影响长按分流。
     private func assistantBubble<Content: View>(
         menuEntry: ChatEntry? = nil,
         @ViewBuilder _ content: () -> Content
@@ -6942,11 +6960,15 @@ struct ChatView: View {
                     // 作菜单宿主、不再是可见气泡面（助
                     // 手散文直落 chatSurface）；形状与
                     // 挂载点逐字不动，菜单命中带不变
+                    // §334（2026-11-20 用户亲点定版）：
+                    // 填充回 bubbleFill 极浅卡片底——
+                    // 本层兼作菜单宿主与可见卡面，形
+                    // 状与挂载点仍逐字不动
                     let shape = RoundedRectangle(
                         cornerRadius:
                             OneDayMetrics.assistantBubbleCorner
                     )
-                    .fill(Color.clear)
+                    .fill(Palette.bubbleFill)
                     if let menuEntry {
                         shape.modifier(
                             messageMenu(for: menuEntry)

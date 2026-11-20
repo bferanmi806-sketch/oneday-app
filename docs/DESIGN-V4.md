@@ -13924,3 +13924,13 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **首轮族外红 1 件定因（flake，非本包）**：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 首轮红（112.1s、四点长压均未出整行菜单）、复跑同树翻绿（仲裁套件复跑 5 件仅基线 4 红）——与 §331.1 在案的同测 flake 完全同型（§331 首轮亦此件红、复跑翻绿，§329.1 亦有同测异签名红记录；其 NativeSurface 孪生件为基线族恒红）。本包对其无作用面：改动面限于本地库地基（ChatSchema/ChatStoreBackup/容器工厂）与 SessionLedger/SideChatStore 解码留痕路径，未碰手势仲裁/行布局/UI 呈现。按同树复跑定因后不计入本包签名，登记备查。
 
 **未合 main、未打 tag、未组版**（归主线组根治版；真机门随规格 §四全版共同门·升级程：装有 .69 数据的真机覆盖升级根治版→本地线程/草稿完好、主线不失联、无降级提示；实验室绿不作真机宣称）。
+
+## §334 助手消息恢复极浅卡片底（2026-11-20；分支 feat/pkg-ai-message-card，基线 rel-05070@bb1a4d6；用户 2026-11-20 真机看 0.50.73 后亲点定版）
+
+**定案：助手散文正文恢复卡片底——§321 无气泡口径作废（四度改判）。** 用户在选项卡点选「加极浅卡片底」：散文直落 chatSurface 大面时长文与短句都无承载感、行与行之间分不清界，改回极浅底圆角卡片承载正文。
+
+**落法（纯呈现层，行为层零改动）**：唯一改动点＝ChatView.assistantBubble 的背景层填充——由 §321 的 Color.clear 回到 Palette.bubbleFill（与 §225 同一库存令牌：浅档 #EEEEF0 冷中性极浅；暗档 tertiarySystemBackground #2C2C2E，挂背景三级梯第三级、压暗档 chatSurface（纯黑）成可见台阶，不发黑发闷）。不新造色值、不描边、不加阴影。几何逐字不动：圆角 OneDayMetrics.assistantBubbleCorner（22）、内外边距 bubblePaddingH/V、§263 列宽/左缘比例全保留——量测喂入同值、行高产物零失效、贴底跟随与滚动判定零回归面。卡只包 assistantBubble 承接的散文正文段（落定正文＋流式半截＋等待点，流式时卡随内容生长、背景层随 padded 内容同尺寸、无独立动画不跳动）；思考块（ReasoningBlock）、工具卡、图片行、交付项、文件牌都在本函数之外，各自呈现逐字不动、不套娃。§265 整行菜单宿主仍是本背景层，挂载点与内边距命中带不变，141/142 选区与长按菜单分流零影响；§194 键盘跟随不碰。泡内子件对比回 §225 原账（inkSecondaryOnFill 对 #EEEEF0＝5.04:1，§225 已逐项复核）。
+
+**验收口径**：既有对话页测试保绿、CI 红集对 0.50.73 发版轮基线 12 件零新增；构造自查——填充为背景层随 padded 内容定尺寸，多行文本恒在内边距内、圆角不切字，长文（千字级）与短句（一行）内边距同出 bubblePaddingH/V 一致；暗档令牌有对应面（tertiarySystemBackground）。真机观感（最大字号档＋深色模式截帧）留用户终验，实验室不作真机宣称。
+
+### §334.1 CI 判读（回填）
