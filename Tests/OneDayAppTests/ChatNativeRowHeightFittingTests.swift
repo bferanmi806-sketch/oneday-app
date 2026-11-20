@@ -630,7 +630,9 @@ final class ChatNativeRowHeightFittingTests: XCTestCase {
     /// 与确证存在两态行高逐值相等（不再 0↔190
     /// 翻转），确证不存在时恰少一个卡高
     func testUnverifiedSlotsReserveCardHeight() {
-        let path = "/tmp/pic-185.png"
+        // 路径须在下载根内（MediaMarker 摘行门：
+        // 根外路径整行留作纯文本、不进图片槽）
+        let path = "/opt/data/cache/images/pic-185.png"
         let entry = ChatEntry(
             role: "assistant",
             content: "图在下面：\nMEDIA:\(path)",

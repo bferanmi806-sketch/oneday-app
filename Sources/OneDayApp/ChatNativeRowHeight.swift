@@ -2333,9 +2333,14 @@ struct ChatNativeRowHeightComposer {
             .tailSource(of: blocks)
         // 逐块累加（与呈现侧 closedParts 同一分
         // 解）：闭合块高走内容备忘恒命中、块后间
-        // 隙走 gapAfter 两级口径（含末块到尾块的
-        // spacingSM），尾块单独现算
+        // 隙走 gapAfter 两级口径（末块到尾块同
+        // 走，见 gapAfter 注），尾块单独现算
         let parts = StreamingBlockText.closedParts(for: text)
+        // 末块→尾块衔接与呈现侧同口径（gapAfter 两
+        // 级口径须知尾块类别，台账 185）；空尾无衔接
+        let tailKind = tail.isEmpty
+            ? nil
+            : blocks.last(where: { $0.isTail })?.kind
         var total: CGFloat = 0
         for (index, part) in parts.enumerated() {
             total += markdownHeight(part.source)
@@ -2343,15 +2348,16 @@ struct ChatNativeRowHeightComposer {
             // 式专属项，见下空尾对齐注）
             if !(tail.isEmpty && index == parts.count - 1) {
                 total += StreamingBlockText.gapAfter(
-                    index: index, parts: parts
+                    index: index, parts: parts,
+                    tailKind: tailKind
                 )
             }
         }
         if tail.isEmpty {
             // 空尾两态对齐（台账 185）：光标行（呈现
             // 侧 StreamingCaret 恒占一行）与末块后间
-            // 隙（gapAfter 末块恒 spacingSM）都是流
-            // 式专属项、落定整段量测里没有对应项——
+            // 隙（空尾时 gapAfter 的 spacingSM 兜底
+            // 值）都是流式专属项、落定量测无对应项——
             // 计入即落定瞬间整行塌约 34pt（用户报
             // 「间距有时会变」的落点之一）。两项同
             // 步不计、与落定逐值对齐：呈现侧光标在

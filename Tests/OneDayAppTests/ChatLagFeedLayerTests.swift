@@ -199,8 +199,10 @@ final class ChatLagFeedLayerTests: XCTestCase {
             "新块闭合后旧闭合块仍居原位、源不变"
         )
         // 间隙两级口径（与落定整段呈现同规）：段
-        // 落→段落＝paragraphSpacing、末块（其后尾
-        // 块）＝spacingSM；段落→代码＝spacingSM
+        // 落→段落＝paragraphSpacing、末块→散文尾
+        // 块同走 paragraphSpacing（旧断言 spacing-
+        // SM 即台账 185 的 4pt 残差来源，2026-11-
+        // 20 修正）；段落→代码＝spacingSM
         let parts = StreamingBlockText.closedParts(
             for: head + "尾块还在生长"
         )
@@ -211,8 +213,11 @@ final class ChatLagFeedLayerTests: XCTestCase {
             "散文相邻必须走段内段距、否则落定帧段距跳变"
         )
         XCTAssertEqual(
-            StreamingBlockText.gapAfter(index: 1, parts: parts),
-            OneDayMetrics.spacingSM
+            StreamingBlockText.gapAfter(
+                index: 1, parts: parts, tailKind: .paragraph
+            ),
+            OneDayMetrics.paragraphSpacing,
+            "末块→散文尾块同属可并段集、落定并段后界距为段距"
         )
         let codeParts = StreamingBlockText.closedParts(
             for: "先说结论。\n\n```\nlet a = 1\n```\n\n尾巴在长"
