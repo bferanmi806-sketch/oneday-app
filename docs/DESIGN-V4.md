@@ -13942,3 +13942,11 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **改动面**：ChatView.swift（assistantBubble 填充单点＋沿革注）、MarkdownText.swift（codeView 块面 fieldFill→codeFill 一处；波及面说明：MarkdownText 的其他消费面——动态/会话/技能面——的代码块同换 codeFill，那正是在册代码面令牌的设计用途、两档在页底上均可辨）、VisualDirectionGateTests.swift（闸⑧新测一件）、本节登记。量级 S、独立小包，不与 190 留账两小件同包（彼等动行树类型层与缓存键、风险不同级）。
 
 **验收门（本包）**：自动化——闸⑧新测绿；CI 红集与同基线（591cf3d）逐条对账零新增红；深色＋最大字号各验一帧（覆盖口径见 §334.1 回填）。真机门留用户：浅/暗各一帧 AI 长回复（含代码块＋表格）泡面采样逐值命中 #EEEEF0/#2C2C2E 级、流式全程填充无闪、pill 压泡角形态、深色＋最大字号一帧。**未合 main、未打 tag、未组版**（冻分支待 0.50.77 组版并入，届时与 187 分支一同对账）。
+
+### §334.1 CI 判读（回填）
+
+**判绿（2026-11-21）**：最终树 984cc81（单提交落码＋本回填另笔）。run 44777177339 全日志核账：Core 2284/2284 零失败（基线 188 树 2283＋本包闸⑧新测 1 恰合）；红集 11 件与基线 188 树轮（run 44763174514）**逐件相同**（R2 装配 2＋EdgeEffect 1＋手势仲裁 2＋手势原生面 5＋键盘矩阵 1），对基线族 12 件（并根治包轮 run 44753969277）差集为空、**签名外新红零**；基线族第 12 件 ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu（根治包在案的轮换观察件）本轮绿、与 188 树轮同向。本包新测 VisualDirectionGateTests.testAssistantBubbleContrastGate 绿；关联既有测闸⑦ testSingleBubbleContrastGates、testTextContrastGates、RenderMeasure 泡色逐值钉、ReplyRenderingAlignment 单宿主断言全绿。构建（no codesign）＋打包未签名 IPA＋上传三步 success。
+
+**深色＋最大字号帧覆盖口径**：未新增帧测——ChatPageDeviceConditionProbeTests 既有 Dark trait 帧与 BoldAX（AX5）帧以真实 ChatView 宿主窗口呈现生产行装配、本包填充经此两帧出面（该探针断言帧几何/栏位存活、非像素色值）；色值层由 RenderMeasure 逐值钉（暗 #2C2C2E）＋闸⑧暗档两口实算断言守。残余明示：泡面像素采样帧测不存在，采样验收按 §334 验收门留真机。
+
+**未合 main、未打 tag、未组版**（冻分支 feat/191-ai-bubble@984cc81 待 0.50.77 组版并入；组版接手项：187 分支并入时 pill 注释口径按 §334 正名对齐，坐标零改动）。
