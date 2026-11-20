@@ -102,7 +102,8 @@ struct RestartGatewayView: View {
         .navigationBarTitleDisplayMode(.large)
     }
 
-    /// 网关状态文案（与 ServerManagementView.gatewayStateWord 同口径）
+    /// 网关状态文案（与设置根页 gatewayStateWord 同口径，
+    /// 原出自已撤销的服务器管理枢纽页）
     private var gatewayStatusText: String {
         switch status?.gatewayState?.lowercased() {
         case "running": return "运行中"

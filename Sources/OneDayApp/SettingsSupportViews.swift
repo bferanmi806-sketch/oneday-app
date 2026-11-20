@@ -210,6 +210,7 @@ struct AboutView: View {
             serviceSection
             legalSection
             openSourceSection
+            labSection
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
@@ -352,6 +353,89 @@ struct AboutView: View {
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())
         }
+    }
+
+    // MARK: - 内部实验（结构归位 2026-11-20 沉底）
+
+    /// 会话页新承载开关（Core ChatCarrierFeature，
+    /// 与 ChatView 同键同源）：施工期机制、默认关；
+    /// 开后消息列表与回底钮换新承载（几何/跟随口
+    /// 径不变），关掉即回旧承载、无数据迁移。蓝图
+    /// A/B/F 组真机验收后由换代包 6 处置去留
+    @AppStorage(ChatCarrierFeature.defaultsKey)
+    private var gen3CarrierEnabled = false
+
+    /// §247（换代包 4）流式呈现开关（Core Chat-
+    /// StreamingFeature，与 ChatView 同键同源）：
+    /// 默认开＝块级增量新路；关＝流式正文回逐词
+    /// 渐显旧路（TokenFlow），只影响新承载下的流
+    /// 式行呈现、不动承载与落定形态。包 6 清理
+    @AppStorage(ChatStreamingFeature.defaultsKey)
+    private var gen4StreamingEnabled = true
+
+    /// §291（原生重建 R1）原生面开关（Core Chat-
+    /// NativeListFeature，与 ChatView 同键同源）：
+    /// 消息列表换 UICollectionView 原生承载，关掉
+    /// 即回现行面、无数据迁移。§297（R4）：默认改
+    /// 开，本开关自此为浸泡期回退口（R5 随三旗本
+    /// 体一并退役）
+    @AppStorage(ChatNativeListFeature.defaultsKey)
+    private var nativeListEnabled = true
+
+    /// 内部实验节（原设置根「实验」组整组迁入，纲要
+    /// D6-2／原则 7）：三面旗是施工期内部机制，不与
+    /// 用户功能同级——沉本页末节并明示内部属性；开
+    /// 关本体、键与文案随迁不改
+    private var labSection: some View {
+        Section {
+            Toggle(isOn: $gen3CarrierEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("会话页新承载"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("实验开关：开启后消息列表与回到底部按钮换用新承载，出问题关掉即回旧承载。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $gen4StreamingEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("流式增量呈现"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：回复逐块成形、已成形的部分先按正式排版显示；关掉回逐词渐显的旧呈现。仅在会话页新承载开启时生效。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $nativeListEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表原生重建"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：消息列表用系统集合视图承载（原生重建）；浸泡期回退口——关掉即回现行承载。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+        } header: {
+            supportHeader("内部实验")
+        } footer: {
+            Text("内部开关：仅供开发与排障使用，与正式功能无关；出问题时按每项说明关掉即回退。")
+                .font(.rowSubtitle)
+                .foregroundStyle(Palette.inkSecondary)
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(supportRowInsets)
     }
 }
 
