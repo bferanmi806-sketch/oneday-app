@@ -6815,7 +6815,7 @@ struct ChatView: View {
             // 应）；文本依赖项在修饰内按 plainText
             // 有无组装
             isEnabled: !entry.content.isEmpty
-                || !entry.imageDatas.isEmpty
+                || !entry.allImageDatas.isEmpty
                 || !entry.remoteImagePaths.isEmpty,
             plainText: text,
             onReply: {
