@@ -84,6 +84,19 @@ import UIKit
 /// §213 边缘注册一字不动。抽屉面板 §318 改实
 /// 色是同一收口先例（浮动层压面恒 chatSurface
 /// 实色）。
+///
+/// ## 背板入席闸门（2026-11-20，真机「实心白块」
+/// 复发兜底，诊断 pkg-topbar-white-diagnosis-
+/// 20261120）
+/// 背板是带内唯一无条件不透明层：控制器一 load
+/// 它就在，而控件经另一条 SwiftUI 内容链供给——
+/// 内容链某帧缺席时背板独自裸呈成整块实心白。
+/// 结构兜底：背板可见性与顶簇首个实测高挂钩，
+/// 实测高未到之前 hidden（带内退回 §213 透明形
+/// 态），首报即入席、单向不回退；内容在席时 §327
+/// 滚动态遮蔽语义一字不变。内容链关键节点另留
+/// ChatDiagTrace 取证（首达/首测/显形未齐），供
+/// 下次复发一帧定断点。
 struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -279,10 +292,23 @@ final class TopBarGuideHostController: UIViewController {
     var topBarRoot: AnyView? {
         didSet {
             if let topBarRoot {
+                if !hasReceivedTopBarRoot {
+                    hasReceivedTopBarRoot = true
+                    // 取证探针（2026-11-20 白块诊断）：
+                    // 内容链首达留痕——复发时与「首个
+                    // 实测高」留痕对拍，分清断点在
+                    // apply 前还是量测前；纯留证
+                    ChatDiagTrace.record(
+                        "顶簇内容链首达（topBarRoot 首刷）"
+                    )
+                }
                 barHost.rootView = topBarRoot
             }
         }
     }
+    /// 内容链首达闩（取证探针用；只记账、不参与
+    /// 任何判定）
+    private var hasReceivedTopBarRoot = false
     /// 顶簇实高变化回调（桥接回 SwiftUI 状态；本
     /// 类内先做等值守卫、变化 >0.5pt 才外发）
     var onBarHeightChange: ((CGFloat) -> Void)?
@@ -302,6 +328,14 @@ final class TopBarGuideHostController: UIViewController {
     /// View 的活帧闸门（背板只是子视图、闸门口径
     /// 不变：带外点仍按顶簇活帧裁决穿透）
     private let backingView = UIView()
+    /// 背板入席闸门（2026-11-20 白块结构兜底）：
+    /// 顶簇首个实测高未到之前背板 hidden——实测高
+    /// 只认 updateBarContentHeight 的 >0 喂入（托
+    /// 管树内容真量到的第一笔）；reportBarHeight
+    /// 报的是含种子 60 的记账值、内容缺席时照样
+    /// 发，不作实测信号。单向闩：首报即入席，此
+    /// 后进展胶囊生长/消失不许把它翻回去
+    private var hasBarContentMeasure = false
     private var backingTopConstraint: NSLayoutConstraint!
     /// 顶边位置引导线：top 由 topGuideTopConstraint
     /// 的常量定位（syncTopConstant 唯一计算点）
@@ -354,6 +388,19 @@ final class TopBarGuideHostController: UIViewController {
     /// 报不能只靠 viewDidLayoutSubviews 兜底（与舱
     /// 宿主 updateBarFrame 同判）
     func updateBarContentHeight(_ height: CGFloat) {
+        if height > 0, !hasBarContentMeasure {
+            // 首个实测高：内容链已把真内容量进带
+            // 内——背板自此入席（§327 遮蔽照常）；
+            // 在改高守卫之前记账：实测高恰与种子
+            // 同值时也不能漏掉这一笔首报
+            hasBarContentMeasure = true
+            if isViewLoaded {
+                backingView.isHidden = false
+            }
+            ChatDiagTrace.record(
+                "顶簇首个实测高 \(height)（背板入席）"
+            )
+        }
         guard height > 0,
               abs(height - barContentHeight) > 0.5
         else { return }
@@ -385,6 +432,10 @@ final class TopBarGuideHostController: UIViewController {
         // 是仓内既有转换式，动态色随 trait 自解析
         backingView.backgroundColor =
             UIColor(Palette.chatSurface)
+        // 闸门初态：装配先于内容链是常态，实测高
+        // 未到先 hidden，首报到时在 updateBar-
+        // ContentHeight 放行（视图后加载时按闩复位）
+        backingView.isHidden = !hasBarContentMeasure
         backingView.translatesAutoresizingMaskIntoConstraints =
             false
         view.addSubview(backingView)
@@ -446,6 +497,18 @@ final class TopBarGuideHostController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        // 取证探针（2026-11-20 白块诊断）：显形时
+        // 内容链仍未齐＝故障帧的现场签名——留痕供
+        // 下次复发一帧定断点（root 未达＝候选②空
+        // 根停留、root 已达而实测未达＝量测回路）；
+        // 齐备时不留、不扰常态账，纯留证不改行为
+        if !hasReceivedTopBarRoot || !hasBarContentMeasure {
+            ChatDiagTrace.record(
+                "顶簇显形时内容链未齐：root达="
+                    + "\(hasReceivedTopBarRoot) 实测高达="
+                    + "\(hasBarContentMeasure)"
+            )
+        }
         // 显形重算（与舱宿主锚解析同触发口径）：切
         // 格往返/抽屉收合后本视图布局空间原点若变，
         // 常量在此对齐窗口真值
