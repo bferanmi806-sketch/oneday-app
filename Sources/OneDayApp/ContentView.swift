@@ -155,7 +155,12 @@ struct ContentView: View {
     /// 「全部对话」行经 AfterSettings 链置位（用户
     /// 2026-11-13 18:57 拍板「挪进设置页、抽屉不再
     /// 放」），呈现路本体（本旗＋下方 cover 装配）
-    /// 自始至终未变
+    /// 自始至终未变。结构归位第二批（2026-11-20，
+    /// 纲要 D2-1，用户亲批逐页归位、新令覆盖 11-13
+    /// 旧拍板）：入口升一级——抽屉名单收尾行「全部
+    /// 对话」经 allConversationsRequested 直置本旗
+    /// （消费点见 body），设置行入口与 AfterSettings
+    /// 链暂并存、摘除归合并时对接
     @State private var showAllConversations = false
     /// 设置页「全部对话」行点按后的待呈现旗：设置
     /// sheet 先关、cover 后开——同 tick 关 sheet 又
@@ -303,6 +308,18 @@ struct ContentView: View {
             if requested {
                 appState.router.settingsSheetRequested = false
                 showSettings = true
+            }
+        }
+        // 结构归位第二批（2026-11-20，纲要 D2-1）：
+        // 抽屉名单收尾行「全部对话」置位请求 → 直开
+        // 全屏页（抽屉已由行动作先行收回、cover 升起
+        // 时名单不在场）；与设置页行的 AfterSettings
+        // 链并存同旗——设置行入口的摘除归第一批/合
+        // 并时对接（见本包交卷对接点）
+        .onChange(of: appState.router.allConversationsRequested) { _, requested in
+            if requested {
+                appState.router.allConversationsRequested = false
+                showAllConversations = true
             }
         }
         // 0.29.0：设置内页面置位的切格请求（连接器目
