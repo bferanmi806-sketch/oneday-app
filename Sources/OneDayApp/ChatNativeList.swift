@@ -171,11 +171,12 @@ struct ChatNativeRowRevision: Equatable, Hashable {
         }
         mixValue(UInt64(value.count))
         let window = 512
+        let count = value.count
+        let mid = count / 2
         let ranges: [Range<Int>] = [
-            0..<min(window, value.count),
-            max(0, (value.count - window) / 2)
-                ..<min(value.count, (value.count + window) / 2),
-            max(0, value.count - window)..<value.count,
+            0..<min(window, count),
+            max(0, mid - window / 2)..<min(count, mid + window / 2),
+            max(0, count - window)..<count,
         ]
         value.withUnsafeBytes { buffer in
             for range in ranges {
