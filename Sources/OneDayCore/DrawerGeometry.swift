@@ -21,7 +21,11 @@ public enum DrawerGeometry {
 
     // MARK: - 底条钉底（0.3.8 第 22 条）
 
-    /// 底条行高（圆钮 44 与搜索胶囊同高带，行盒 52）
+    /// 底条行高（圆钮/搜索胶囊 45 居中于 52 行盒——
+    /// 2026-11-21 抽屉样板对齐包实测：控件 Ø45、控件
+    /// 中心距屏底 64.2pt＝安全区 34＋底距 4＋行盒半高
+    /// 26，行盒 52 与控件 45 两数同归本口径，见
+    /// pkg-drawer-muse-look-delivery-20261121.md）
     public static let bottomBarRowHeight: CGFloat = 52
     /// 底条下边距＝安全区底 inset＋4：底条落进原底栏
     /// 坑位（第 3 条抽屉开时底栏隐藏，坑位空出）
@@ -50,13 +54,18 @@ public enum DrawerGeometry {
 /// 白名单改为转发本处、容器 travel 改走 travel(
 /// containerWidth:) 派生，不再有第二写点。
 public enum DrawerCardGeometry {
-    /// 推开量占容器宽比例（第 78 条 D2）：Muse 录屏
-    /// 逐帧实测 travel 301pt／402pt 屏宽＝75.0%±0.3%
-    /// （drawer-transform-prep-20261114.md §2.2，四地
-    /// 标 NCC 跟踪）。旧口径 min(宽×0.79, 400) 作废：
-    /// 0.79 为 Muse 旧版抽屉宽占比化石、400 cap 在
-    /// 402pt 屏上从未生效
-    public static let travelWidthFraction: CGFloat = 0.75
+    /// 推开量占容器宽比例：2026-11-21 抽屉样板对齐
+    /// 包改 0.79——用户当日亲递 Muse 现行版真机截
+    /// 图（402×874pt）两路独立量测互证：主面卡左直
+    /// 边 x＝951px→抽屉宽 317.0pt、底栏对称布局反
+    /// 推 317.5pt，占比 0.7886→取 0.79。第 78 条 D2
+    /// 的 0.75（2026-11-14 录屏拟合 301pt）是旧版
+    /// Muse 的数、被本量测覆盖；0.79 与第 78 条前
+    /// 「旧版化石」同值纯属版本漂移往返，以用户现
+    /// 行版实机截图为准（量测全表见 pkg-drawer-
+    /// muse-look-delivery-20261121.md）。400 cap 口
+    /// 径不变：无 cap
+    public static let travelWidthFraction: CGFloat = 0.79
     /// 前景卡圆角定值：§202 对 Muse 参照图拟合 54.5pt
     /// （出处见 DrawerMotion.cardCornerRadius 注）；
     /// 第 78 条录屏复测等效 ≈57pt、同档不改

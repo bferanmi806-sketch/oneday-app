@@ -40,6 +40,7 @@ public extension View {
 public struct GroupDivider: View {
     private let inset: CGFloat
     private let trailingInset: CGFloat
+    private let color: Color
     @Environment(\.displayScale) private var displayScale
 
     /// trailingInset（0.41.0 收口批 P3）：尾端内缩，
@@ -47,17 +48,24 @@ public struct GroupDivider: View {
     /// 点——抽屉形态定版为左右同 inset 的段内线（与
     /// 名单行同宽），由消费点显式传双侧同值，不改全
     /// App 贯通几何
+    /// color（2026-11-21 抽屉样板对齐包）：线色默认
+    /// Palette.separator 单源不变；抽屉消费点显式传
+    /// Palette.drawerHairline（样板实测发丝色、理由
+    /// 见该令牌注）——全 App 仍只此一处传色，不许
+    /// 其他消费点跟进私改线色
     public init(
         inset: CGFloat = OneDayMetrics.dividerInset,
-        trailingInset: CGFloat = 0
+        trailingInset: CGFloat = 0,
+        color: Color = Palette.separator
     ) {
         self.inset = inset
         self.trailingInset = trailingInset
+        self.color = color
     }
 
     public var body: some View {
         Rectangle()
-            .fill(Palette.separator)
+            .fill(color)
             .frame(height: 1 / max(displayScale, 1))
             .padding(.leading, inset)
             .padding(.trailing, trailingInset)

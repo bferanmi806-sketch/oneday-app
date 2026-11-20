@@ -24,8 +24,12 @@ final class VisualDirectionGateTests: XCTestCase {
         // §157 增抽屉局部三角色（用户 2026-11-11 补
         // 充方案：导航 medium/次要 regular/当前 semi-
         // bold，只许抽屉消费）——十二角色
+        // 2026-11-21 样板对齐包增 drawerTitle（抽屉身
+        // 份名 Title2 22 bold，见 TypeRole 头注）——
+        // 十三角色
         let expected: [TypeRole: (style: String, pt: CGFloat, weight: String)] = [
             .screenName: ("title", 28, "bold"),
+            .drawerTitle: ("title2", 22, "bold"),
             .rowTitleL: ("body", 17, "regular"),
             .rowTitle: ("body", 17, "regular"),
             .bodyText: ("body", 17, "regular"),
@@ -60,6 +64,9 @@ final class VisualDirectionGateTests: XCTestCase {
             ("captionText", .captionText),
             // §157 抽屉局部角色同受本闸把守（带字重的
             // 文本样式字体也必须真随 Dynamic Type 缩放）
+            // 2026-11-21：drawerTitle 同入闸——取文本
+            // 样式档而非钉死 24 的理由正在于此
+            ("drawerTitle", .drawerTitle),
             ("drawerNavTitle", .drawerNavTitle),
             ("drawerRowTitle", .drawerRowTitle),
             ("drawerRowTitleCurrent", .drawerRowTitleCurrent),
@@ -340,12 +347,15 @@ final class VisualDirectionGateTests: XCTestCase {
             OneDayMetrics.rowIconGlyph, FrameworkIcon.rowGlyphSize
         )
         // 单源定版值（0.22.0 探针定版回填，§49/§50 对
-        // 账表；0.24.0 抽屉/设置字形改 21，§51 对账）
+        // 账表；0.24.0 抽屉/设置字形改 21，§51 对账；
+        // 2026-11-21 样板对齐包抽屉名单字形改 24、底
+        // 条字形改 20——样板实测，见 IconTokens 两令
+        // 牌注）
         XCTAssertEqual(FrameworkIcon.tabGlyphSize, 22)
         XCTAssertEqual(FrameworkIcon.navGlyphSize, 21)
         XCTAssertEqual(FrameworkIcon.rowGlyphSize, 20)
-        XCTAssertEqual(FrameworkIcon.drawerGlyphSize, 21)
-        XCTAssertEqual(FrameworkIcon.drawerBarGlyphSize, 17)
+        XCTAssertEqual(FrameworkIcon.drawerGlyphSize, 24)
+        XCTAssertEqual(FrameworkIcon.drawerBarGlyphSize, 20)
         XCTAssertEqual(FrameworkIcon.settingsGlyphSize, 21)
         XCTAssertEqual(FrameworkIcon.composerGlyphSize, 15)
         XCTAssertEqual(FrameworkIcon.fileGlyphSize, 17)

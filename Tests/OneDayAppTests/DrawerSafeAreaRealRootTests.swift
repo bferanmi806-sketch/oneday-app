@@ -16,16 +16,17 @@ import XCTest
 /// 窗（402×874、安全区覆写顶 59／底 34，与诊断真
 /// 机同口径），断言渲染几何：
 /// - 名单 ScrollView 的 adjustedContentInset.top
-///   ＝131——量测口径经两轮实测定案：名单平台视
+///   ＝115——量测口径经两轮实测定案：名单平台视
 ///   图帧全幅（帧顶 0）、SwiftUI 自排的标题带空
-///   程 72 落 contentInset、宿主安全区派生经平台
-///   调整层到达（adjusted＝72＋59＝131）；宿主清
-///   零时调整层归零、adjusted 回 72。身份行是覆
-///   盖 VStack 的首行、与名单同受根 ZStack 的同
-///   一份宿主派生（行自排顶距 spacingL 24 出本
-///   体常量 ⟹ 身份行顶 59＋24＝83，诊断 §8 对账
-///   口径），故本值达标 ⟺ 派生到达 DrawerView
-///   本体。
+///   程 56 落 contentInset、宿主安全区派生经平台
+///   调整层到达（adjusted＝56＋59＝115）；宿主清
+///   零时调整层归零、adjusted 回 56。空程沿革：
+///   初定 72（adjusted 131）→2026-11-21 抽屉样板
+///   对齐包随身份行顶距改 56。身份行是覆盖
+///   VStack 的首行、与名单同受根 ZStack 的同一
+///   份宿主派生（行自排顶距 spacingS 8 出本体常
+///   量 ⟹ 身份行顶 59＋8＝67），故本值达标 ⟺ 派
+///   生到达 DrawerView 本体。
 /// - 底条搜索字段中心 y＝810：底条内容底缘停在安
 ///   全区线之上 4pt（距屏底 34＋4＝38，诊断 §8 口
 ///   径），胶囊高 52 居中于条内 → 中心距屏底 64；
@@ -141,8 +142,11 @@ final class DrawerSafeAreaRealRootTests: XCTestCase {
         XCTAssertFalse(drawerHostView.isHidden, "开态抽屉宿主应可见")
 
         // 名单安全区消费：宿主派生经平台调整层到达
-        // （见文件头注）——adjusted＝72（标题带空
-        // 程）＋59（宿主安全区顶）＝131
+        // （见文件头注）——adjusted＝56（标题带空
+        // 程）＋59（宿主安全区顶）＝115；空程沿革：
+        // §157 的 72 于 2026-11-21 抽屉样板对齐包随
+        // 身份行顶距 24→8 改 56（titleStripHeight
+        // 算式见 DrawerView 该令牌注）
         let scrollViews = findAll(UIScrollView.self, in: drawerHostView)
         let list = try XCTUnwrap(
             scrollViews.max(by: {
@@ -151,17 +155,19 @@ final class DrawerSafeAreaRealRootTests: XCTestCase {
             "真 DrawerView 内未找到名单 ScrollView"
         )
         XCTAssertEqual(
-            list.adjustedContentInset.top, 131, accuracy: 2,
-            "名单 adjustedContentInset.top 应为 131（标题带空程 72＋宿主安全区 59）；"
+            list.adjustedContentInset.top, 115, accuracy: 2,
+            "名单 adjustedContentInset.top 应为 115（标题带空程 56＋宿主安全区 59）；"
                 + "实测 adjusted=\(list.adjustedContentInset.top)、"
                 + "contentInset.top=\(list.contentInset.top)、"
                 + "帧顶=\(list.convert(list.bounds, to: window).minY)"
-                + "——宿主安全区派生若被清零 adjusted 回 72"
+                + "——宿主安全区派生若被清零 adjusted 回 56"
         )
 
         // 底条落位：搜索字段（底条三件中的平台视图）
-        // 中心距屏底应 64（安全区 34＋条内底距 4＋胶
-        // 囊半高 26）
+        // 中心距屏底应 64（安全区 34＋条内底距 4＋行
+        // 盒半高 26——2026-11-21 样板对齐包后控件 45
+        // 居中于 52 行盒、字段中心与行盒中心同线，
+        // 落位与改前同值；样板实测中心距屏底 64.2）
         let fields = findAll(UITextField.self, in: drawerHostView)
         let searchField = try XCTUnwrap(
             fields.first, "底条内未找到搜索 TextField"

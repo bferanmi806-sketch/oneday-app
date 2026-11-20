@@ -13,8 +13,14 @@ public enum FrameworkIcon {
     public static let weightGrade = 400
     /// 框架位禁 .fill 变体（选中也不许，选中靠浅灰垫）
     public static let fillVariantAllowed = false
-    /// 字形尺寸带（pt）：全 App 框架字形同带
-    public static let glyphSizeRange: ClosedRange<CGFloat> = 20...22
+    /// 字形尺寸带（pt）：全 App 框架字形同带。
+    /// 2026-11-21 抽屉样板对齐包上沿 22→24——Muse
+    /// 现行版抽屉线描图标框实测 24×24pt（图标墨迹
+    /// 宽达 23.7），抽屉名单字形随之出带上行，本带
+    /// 上沿同步抬至 24（其余字形仍在 20–22 旧带
+    /// 内，见 pkg-drawer-muse-look-delivery-
+    /// 20261121.md）
+    public static let glyphSizeRange: ClosedRange<CGFloat> = 20...24
 
     // MARK: - 0.23.0 单源化（视觉审计 G3）
     // 本表自本版起是全 App 框架字形尺寸的唯一源：旧三
@@ -49,13 +55,22 @@ public enum FrameworkIcon {
 
     /// 抽屉名单字形：第 15 条——与底栏同线宽档。尺寸
     /// 沿革：18（第 15 条）→27（0.20.0 Muse 图落值、
-    /// 0.22.0 追认，字重 light）；0.24.0 按用户当日
-    /// 指令改 21 regular——落 glyphSizeRange 20–22 带
-    /// 内、与设置行字形同值同档（HIG 侧栏/列表符号
-    /// 惯例带，两面自此同尺，见 §51）
-    public static let drawerGlyphSize: CGFloat = 21
-    /// 抽屉底条圆钮字形：第 24 条——齿轮与名单同线宽档
-    public static let drawerBarGlyphSize: CGFloat = 17
+    /// 0.22.0 追认，字重 light）→21 regular（0.24.0
+    /// HIG 落档）；2026-11-21 抽屉样板对齐包改 24：
+    /// 用户亲递 Muse 现行版截图实测图标框 24×24、
+    /// 墨迹宽达 23.7pt，SF 字形 21 渲染墨迹仅约
+    /// 20.5 宽、明显小于样板——字号取 24 使墨迹落
+    /// 样板带（约 23.5 宽），字重 regular 不变；
+    /// glyphSizeRange 上沿同步抬至 24（见本文件头注）
+    public static let drawerGlyphSize: CGFloat = 24
+    /// 抽屉底条圆钮字形：第 24 条——齿轮与名单同线宽
+    /// 档。2026-11-21 样板对齐包改 20：样板齿轮字形
+    /// 实测 20×20pt、新建字形约 17.5pt——SF 两符号
+    /// 墨迹比不同（gearshape 约 0.98、square.and.
+    /// pencil 约 0.87），同字号 20 时墨迹恰各落
+    /// 20/17.4，与样板两数同归一档（旧 17 齿轮墨迹
+    /// 仅约 16.7、偏小一圈）
+    public static let drawerBarGlyphSize: CGFloat = 20
     /// 设置页行字形：第 14 条——与同列统一复杂度档
     /// （密度上限由量测断言钉）；尺寸沿革：17（0.3.8）
     /// →24（0.20.0）→28（0.22.0 Muse 图量测追认）；

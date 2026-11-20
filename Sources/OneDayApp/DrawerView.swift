@@ -127,12 +127,16 @@ struct DrawerView: View {
 
     /// 顶部标题带高（0.36.5）：名单顶部空程
     /// （contentMargins）与标题浮层共用一数。
-    /// §157 身份行口径：顶距 24＋行高 36（小头像
-    /// 36 档＞Title1 行高约 34，取大者）＋底距 12
-    /// ＝72。Dynamic Type 极端档下名字行高变大、
-    /// 静止时首行可能被身份行略压（已知边界，待
-    /// 真机，与旧口径同界）
-    private static let titleStripHeight: CGFloat = 72
+    /// 沿革：§157 口径 72（顶距 24＋行 44＋底距
+    /// 12−名单顶距 8，首行与身份行底缘齐平）；
+    /// 2026-11-21 样板对齐包改 56——身份行顶距
+    /// 24→8（样板标题墨顶距安全区顶实测 13.7pt、
+    /// 本面名字墨顶 20.1，Δ6.4 是头像 44 同行居中
+    /// 的固有量，见交卷对位表），算式同构：8＋44
+    /// ＋12−8＝56，齐平关系不变。Dynamic Type 极
+    /// 端档下名字行高变大、静止时首行可能被身份
+    /// 行略压（已知边界，待真机，与旧口径同界）
+    private static let titleStripHeight: CGFloat = 56
 
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -481,10 +485,14 @@ struct DrawerView: View {
                 // 名字沿革：0.20.0 升 34pt（Muse 图推
                 // 算）→0.22.0 字重降 semibold→0.23.0 落
                 // 角色→0.24.0 改 Title1 28 bold（HIG 大
-                // 标题档，用户当日指令、§51）——现行角
-                // 色 screenName 不动
+                // 标题档，用户当日指令、§51）→2026-11-
+                // 21 样板对齐包改抽屉局部角色 drawer-
+                // Title（Title2 22 bold）：样板实测
+                // 24 bold、取最近文本样式档保缩放闸
+                // （Δ2 理由见 TypeRole 头注）；screen-
+                // Name 本体不动、其余露脸面照旧
                 Text(appState.agentDisplayName)
-                    .font(.screenName)
+                    .font(.drawerTitle)
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                 Spacer(minLength: 0)
@@ -497,7 +505,10 @@ struct DrawerView: View {
             .contentShape(Rectangle())
         }
         .padding(.horizontal, OneDayMetrics.drawerInset)
-        .padding(.top, OneDayMetrics.spacingL)
+        // 2026-11-21 样板对齐包：顶距 spacingL 24→
+        // spacingS 8（样板标题区收紧、见 titleStrip-
+        // Height 注）；底距 12 不变
+        .padding(.top, OneDayMetrics.spacingS)
         .padding(.bottom, OneDayMetrics.spacingSM)
     }
 
@@ -721,10 +732,19 @@ struct DrawerView: View {
                         Image(asset)
                             .resizable()
                             .scaledToFit()
-                            .frame(
-                                width: FrameworkIcon.drawerGlyphSize,
-                                height: FrameworkIcon.drawerGlyphSize
-                            )
+                            // 2026-11-21 样板对齐包：品牌资
+                            // 产 21→28＋圆角 6 裁形——样板
+                            // 彩色缩略图实测约 28×28、圆角
+                            // 约 6（28 的 22%、app-icon 比
+                            // 例）；§101「资产落字形档 21
+                            // 防卡片感」口径就此让位样板原
+                            // 形（用户当日亲令学全），资产
+                            // 在 30 槽内居中、左缘 21 对样
+                            // 板 22（Δ1）
+                            .frame(width: 28, height: 28)
+                            .clipShape(RoundedRectangle(
+                                cornerRadius: 6, style: .continuous
+                            ))
                     } else {
                         Image(systemName: "antenna.radiowaves.left.and.right")
                             .font(.system(
@@ -767,11 +787,13 @@ struct DrawerView: View {
             .padding(.horizontal, OneDayMetrics.spacingSM)
             .background {
                 if selected {
+                    // 2026-11-21 样板对齐包：选中垫改全
+                    // 圆角 Capsule——样板实测 stadium（高
+                    // 44、半径 22＝行高之半、圆拟合验
+                    // 证）；旧 fieldCorner 19 圆角矩形仅
+                    // 抽屉三行退场，字段面本体不动
                     Palette.drawerSelectionFill
-                        .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
-                            style: .continuous
-                        ))
+                        .clipShape(Capsule())
                 }
             }
             .contentShape(Rectangle())
@@ -871,11 +893,17 @@ struct DrawerView: View {
                 title: "旁聊",
                 isCollapsed: false,
                 titleFont: .sectionLabel,
+                // 2026-11-21 样板对齐包：与常态分区头
+                // 同形态（stateText＋块高 36＋样板头
+                // 墨，见 drawerCollapsibleHeader 注）；
+                // 搜索态恒展开、尾件自然留空
+                trailingStyle: .stateText,
+                minHeight: 36,
                 onToggle: {
                     toggleDrawerSection(DrawerSectionKey.sideChats)
                 }
             )
-            .foregroundStyle(Palette.inkSecondary)
+            .foregroundStyle(Palette.drawerSectionInk)
             .padding(.horizontal, OneDayMetrics.drawerInset)
             if sideRows.isEmpty {
                 Text("没有匹配的旁聊")
@@ -1207,8 +1235,9 @@ struct DrawerView: View {
             }
             // §157③：内外边距与导航行对齐（内 spacingSM
             // ／外 spacingS）——选中胶囊左右边界与导航/
-            // 频道行同为 8 线、形状同为 fieldCorner 连
-            // 续圆角；标题起点仍恒 20（8＋12）不变
+            // 频道行同为 8 线、形状同为全圆角 Capsule
+            // （2026-11-21 样板对齐包改，见频道行注）；
+            // 标题起点仍恒 20（8＋12）不变
             .padding(.horizontal, OneDayMetrics.spacingSM)
             .frame(
                 maxWidth: .infinity,
@@ -1217,11 +1246,10 @@ struct DrawerView: View {
             )
             .background {
                 if isCurrent {
+                    // 2026-11-21 样板对齐包：选中垫改全
+                    // 圆角 Capsule（口径见频道行注）
                     Palette.drawerSelectionFill
-                        .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
-                            style: .continuous
-                        ))
+                        .clipShape(Capsule())
                 }
             }
             .contentShape(Rectangle())
@@ -1441,9 +1469,17 @@ struct DrawerView: View {
 
     /// 可折叠分区头：公用件 CollapsibleSectionHeader
     /// 本体（标题角色与旧 drawerGroupHeader 同档
-    /// sectionLabel、颜色在本面补 inkSecondary——公用
-    /// 件不私定颜色，与旧头呈现一贯），外距与旧头同
-    /// 口径（drawerInset 横距＋上下 S/SM）
+    /// sectionLabel、颜色在本面补——公用件不私定颜
+    /// 色），外距 drawerInset 横距＋顶距 S
+    /// 2026-11-21 样板对齐包三改：①色 inkSecondary
+    /// →drawerSectionInk（样板分组头原值 #9D9DA2、
+    /// 代价与口径见该令牌注）；②尾件 chevron→
+    /// stateText（折叠出「显示」、展开留空，样板两
+    /// 态实测）；③块高 44→36、底距 SM→0——组节奏
+    /// 按样板实测重排：展开头墨底→首行 12.2（样板
+    /// 10.3、Δ1.9）、折叠头墨顶→线 31.9（32.0）、
+    /// 线→次头墨顶 20.2（20.0）、折叠块距 52.0
+    /// （52.0），逐项对账见交卷对位表
     private func drawerCollapsibleHeader(
         _ title: String, key: String
     ) -> some View {
@@ -1451,12 +1487,13 @@ struct DrawerView: View {
             title: title,
             isCollapsed: drawerSectionCollapsed(key),
             titleFont: .sectionLabel,
+            trailingStyle: .stateText,
+            minHeight: 36,
             onToggle: { toggleDrawerSection(key) }
         )
-        .foregroundStyle(Palette.inkSecondary)
+        .foregroundStyle(Palette.drawerSectionInk)
         .padding(.horizontal, OneDayMetrics.drawerInset)
         .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingSM)
     }
 
     /// 折叠内容必须是单列：ViewBuilder 的多条导航/会话
@@ -1537,11 +1574,10 @@ struct DrawerView: View {
             .padding(.horizontal, OneDayMetrics.spacingSM)
             .background {
                 if selected {
+                    // 2026-11-21 样板对齐包：选中垫改全
+                    // 圆角 Capsule（口径见频道行注）
                     Palette.drawerSelectionFill
-                        .clipShape(RoundedRectangle(
-                            cornerRadius: OneDayMetrics.fieldCorner,
-                            style: .continuous
-                        ))
+                        .clipShape(Capsule())
                 }
             }
             .contentShape(Rectangle())
@@ -1556,24 +1592,23 @@ struct DrawerView: View {
 
     /// 发丝线（左右留 drawerInset 20）：组间分隔的唯
     /// 一形态（立宪：分组＝灰标签＋发丝线，分隔几何
-    /// 全名单只此一种，宪法 §3）。色改挂 Palette
-    /// .separator（宪法 §3 定版的分隔单色、与全 App
-    /// GroupDivider 同源，α 语义压任何面保持可辨）：
-    /// 旧挂 hairline 的浅档 #EEEEF0 与抽屉磨砂底近
-    /// 同色、真机截图里三处组间线全不可见（用户
-    /// 05:34 对图点题），本包改挂显形、几何（20 线、
-    /// 高 1）不动，见 DESIGN §101
+    /// 全名单只此一种，宪法 §3）
     /// 0.41.0（收口批 P3）：实现收编 GroupDivider 本
     /// 体——旧自绘 Rectangle 高 1pt 是全 App 最后一处
     /// 分隔线私实现；改走 GroupDivider（物理发丝
-    /// 1/displayScale＋separator 同源），双侧 inset
-    /// 以 trailingInset 显式传同值保抽屉段内线几何。
-    /// 视觉变化点明：线高由 1pt 变物理发丝（更细、
-    /// 与全 App 其余分隔线同粗），待真机验
+    /// 1/displayScale），双侧 inset 以 trailingInset
+    /// 显式传同值保抽屉段内线几何
+    /// 2026-11-21 样板对齐包：线色 separator→drawer-
+    /// Hairline（#E3E3E3 样板原值）——separator 的加
+    /// 强档是材质面板时代「线不可见」（用户 05:34 点
+    /// 题）的对策，§318 面板改实色后前提已变、样板
+    /// 本体即此淡色且可辨，理由与数值见 drawer-
+    /// Hairline 令牌注；几何（20 线、物理发丝）不动
     private var drawerDivider: some View {
         GroupDivider(
             inset: OneDayMetrics.drawerInset,
-            trailingInset: OneDayMetrics.drawerInset
+            trailingInset: OneDayMetrics.drawerInset,
+            color: Palette.drawerHairline
         )
     }
 
@@ -1598,9 +1633,14 @@ struct DrawerView: View {
     /// Geometry 的量测纯函数本体保留作口径档案、单
     /// 测继续把守）
     private var drawerBottomBar: some View {
-        // 0.3.8 第 23 条：三件紧凑成组——横边距 20→12、
-        // 件间距 12→8，搜索胶囊随之拉长（面板宽约 310
-        // 时胶囊约 166–174，Muse 实测约 173）
+        // 0.3.8 第 23 条：三件紧凑成组、件间距 8
+        // 2026-11-21 样板对齐包：横边距 12→20 回样板
+        // 线——面板宽随 travel 0.79 涨到约 317.6 后，
+        // 边距 20＋钮 45＋间距 8 的算式恰使搜索胶囊
+        // 宽 171.6（样板实测约 172）、两钮中心 42.5/
+        // 275.1（样板 41.8/275），三数同归一线；行盒
+        // 高走 Core DrawerGeometry.bottomBarRowHeight
+        // 52、控件 45 居中（落位口径见该令牌注）
         HStack(spacing: OneDayMetrics.spacingS) {
             drawerRoundButton(
                 // 卡 18 纠正 4：左圆钮用独立齿轮 glyph，
@@ -1629,10 +1669,11 @@ struct DrawerView: View {
                 appState.router.settingsSheetRequested = true
             }
             HStack(spacing: OneDayMetrics.spacingS) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                // 2026-11-21 样板对齐包：放大镜字形删
+                // ——样板搜索胶囊内实测无图标（胶囊左
+                // 内区像素复测无字形墨迹、占位字距胶
+                // 囊左缘 17.4pt 即文字本体），只换皮
+                // 不换机制：过滤逻辑/清除钮一字不动
                 TextField("搜索会话", text: $drawerQuery)
                     // 0.20.0 字阶：底条搜索字约 18（图中占
                     // 位字量级介于分区头与行题之间）
@@ -1645,7 +1686,7 @@ struct DrawerView: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(Palette.inkMuted)
                             // 0.23.0（命中域审计）：字形不
-                            // 变、命中域外扩 44（胶囊高 52
+                            // 变、命中域外扩 44（胶囊高 45
                             // 可容纳），与文件页 ⋮ 同口径
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
@@ -1656,22 +1697,32 @@ struct DrawerView: View {
                     .buttonStyle(.odPressable)
                 }
             }
-            .padding(.horizontal, OneDayMetrics.spacingSM)
+            // 内距 12→16：占位字左缘距胶囊左 16（样
+            // 板实测 17.4、Δ1.4），与去放大镜同批
+            .padding(.horizontal, OneDayMetrics.spacingM)
             .frame(height: OneDayMetrics.drawerBarButton)
-            // 0.4.1 第 10 修：白浮纸（灰实填）换近白玻
-            // 璃（与圆钮同改）——.glassEffect(.regular)
-            // 系统玻璃（压在 #FCFCFC 面板上采样约
-            // #F9F9F9），玻璃施加于件本体、内容在其上。
-            // §162 材质减法（抽屉呈现第二批）：0.4.1 注
-            // 里「与发送舱同式」当时并不成立——发送舱
-            // 玻璃卡与身份胶囊从来只有裸玻璃，本件却
-            // 在玻璃之上又叠了发丝描边 overlay 与柔影
-            // 两层（玻璃本体自带边缘高光、描边是第二
-            // 次画边；本条注册在 safeAreaBar 内、下方
-            // 有名单 soft 边缘效果承接分离，影是第三
-            // 重分离机制）。本批两层一并删除，三件回
-            // 到裸玻璃、与发送舱/身份胶囊真正同式
-            .glassEffect(.regular, in: Capsule())
+            // 2026-11-21 样板对齐包：材质玻璃→实色白
+            // 卡＋发丝描边＋柔影（样板三件实测：填充
+            // #FFFFFF、描边约 #E2E2E6 0.5–1pt、柔影
+            // y 约 3/blur 约 10/黑约 7%）。§162 的裸玻
+            // 璃口径（描边/柔影是第二三重分离机制）就
+            // 此只对本底条让位——样板本体即白卡形态、
+            // 用户当日亲令学全；发送舱/身份胶囊的裸
+            // 玻璃口径不动。落法：填充走 Palette.
+            // surface（浅 #FFFFFF／暗 #1C1C1E 角色等
+            // 值）、描边走 hairline（浅 #EEEEF0 对样
+            // 板 Δ约 8 级、暗 opaqueSeparator）、柔影
+            // shadowBase 8%/半径 10/y 3
+            .background {
+                Capsule().fill(Palette.surface)
+            }
+            .overlay {
+                Capsule().stroke(Palette.hairline, lineWidth: 1)
+            }
+            .shadow(
+                color: Palette.shadowBase.opacity(0.08),
+                radius: 10, x: 0, y: 3
+            )
             drawerRoundButton(
                 systemName: "square.and.pencil",
                 label: "新建会话"
@@ -1684,7 +1735,8 @@ struct DrawerView: View {
                 }
             }
         }
-        .padding(.horizontal, OneDayMetrics.spacingSM)
+        .frame(height: DrawerGeometry.bottomBarRowHeight)
+        .padding(.horizontal, OneDayMetrics.drawerInset)
         .padding(.top, OneDayMetrics.spacingSM)
         .padding(.bottom, 4)
     }
@@ -1707,11 +1759,19 @@ struct DrawerView: View {
                     width: OneDayMetrics.drawerBarButton,
                     height: OneDayMetrics.drawerBarButton
                 )
-                // 0.4.1 第 10 修：白浮纸换近白玻璃（与
-                // 搜索胶囊同改，口径见彼处注）；§162 材
-                // 质减法：发丝描边 overlay 与柔影随搜索
-                // 胶囊同删，只剩裸玻璃（理由见胶囊处注）
-                .glassEffect(.regular, in: Circle())
+                // 2026-11-21 样板对齐包：与搜索胶囊同
+                // 改实色白卡＋发丝描边＋柔影（口径见
+                // 胶囊处注，§162 裸玻璃只对本底条让位）
+                .background {
+                    Circle().fill(Palette.surface)
+                }
+                .overlay {
+                    Circle().stroke(Palette.hairline, lineWidth: 1)
+                }
+                .shadow(
+                    color: Palette.shadowBase.opacity(0.08),
+                    radius: 10, x: 0, y: 3
+                )
                 .contentShape(Circle())
         }
         .buttonStyle(.odPressable)

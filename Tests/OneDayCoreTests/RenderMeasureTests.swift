@@ -353,15 +353,16 @@ final class RenderMeasureTests: XCTestCase {
         )
     }
 
-    /// 抽屉专用选中填充（§225，Muse 对齐三项包）：
-    /// selectionFill 本体不动（上一测已钉 #F0F1F2），
-    /// 抽屉三行改走 drawerSelectionFill——浅档解析钉
-    /// #E4E5E7、且压抽屉面板合成面（thinMaterial 压
-    /// pageBG，真机截图实测 #F2F2F2）逐通道 Δ≥10；
-    /// 暗档解析钉三级面 #2C2C2E、压面板暗档近似面
-    /// （材质压 systemBackground 的二级面级 #1C1C1E）
-    /// 逐通道 Δ≥10。Δ 以 0–255 通道值计
-    func testDrawerSelectionFillDeepenedForMaterialPanel() {
+    /// 抽屉专用选中填充：selectionFill 本体不动（上
+    /// 一测已钉 #F0F1F2），抽屉三行改走 drawerSelec-
+    /// tionFill。沿革：§225 钉 #E4E5E7（材质面板时
+    /// 代的加深档）；2026-11-21 样板对齐包改钉样板
+    /// 原值 #EEEFF1——面板已是 §318 实色 #FCFCFC、
+    /// 样板截图三点采样即此值，压实色面板逐通道
+    /// Δ14/13/11≥10；暗档解析钉三级面 #2C2C2E 不
+    /// 变、压纯黑面板（chatSurface 暗档）Δ44≥10。
+    /// Δ 以 0–255 通道值计
+    func testDrawerSelectionFillMatchesSampleOnSolidPanel() {
         let light = UITraitCollection(userInterfaceStyle: .light)
         let dark = UITraitCollection(userInterfaceStyle: .dark)
         let pillLight = UIColor(Palette.drawerSelectionFill)
@@ -369,8 +370,8 @@ final class RenderMeasureTests: XCTestCase {
         XCTAssertEqual(
             pillLight,
             UIColor(
-                red: 0xE4 / 255.0, green: 0xE5 / 255.0,
-                blue: 0xE7 / 255.0, alpha: 1
+                red: 0xEE / 255.0, green: 0xEF / 255.0,
+                blue: 0xF1 / 255.0, alpha: 1
             )
         )
         let pillDark = UIColor(Palette.drawerSelectionFill)
@@ -388,20 +389,22 @@ final class RenderMeasureTests: XCTestCase {
             color.getRed(&r, green: &g, blue: &b, alpha: &a)
             return [r * 255, g * 255, b * 255]
         }
+        // 面板参照随 §318 实色定案更新：浅 chatSur-
+        // face #FCFCFC／暗 systemBackground 纯黑（旧
+        // 材质合成面 #F2F2F2／二级面 #1C1C1E 参照退役）
         let panelLight = channels(UIColor(
-            red: 0xF2 / 255.0, green: 0xF2 / 255.0,
-            blue: 0xF2 / 255.0, alpha: 1
+            red: 0xFC / 255.0, green: 0xFC / 255.0,
+            blue: 0xFC / 255.0, alpha: 1
         ))
         let panelDark = channels(UIColor(
-            red: 0x1C / 255.0, green: 0x1C / 255.0,
-            blue: 0x1E / 255.0, alpha: 1
+            red: 0, green: 0, blue: 0, alpha: 1
         ))
         for (index, pair) in zip(
             channels(pillLight), panelLight
         ).enumerated() {
             XCTAssertGreaterThanOrEqual(
                 abs(pair.0 - pair.1), 10,
-                "浅档选中垫压面板合成面通道 \(index) Δ 须 ≥10"
+                "浅档选中垫压实色面板通道 \(index) Δ 须 ≥10"
             )
         }
         for (index, pair) in zip(
@@ -409,7 +412,7 @@ final class RenderMeasureTests: XCTestCase {
         ).enumerated() {
             XCTAssertGreaterThanOrEqual(
                 abs(pair.0 - pair.1), 10,
-                "暗档选中垫压面板近似面通道 \(index) Δ 须 ≥10"
+                "暗档选中垫压纯黑面板通道 \(index) Δ 须 ≥10"
             )
         }
     }
