@@ -26,8 +26,9 @@ struct ActionSheetTarget: Identifiable {
 }
 
 /// 反应 pill（台账 187，照 OpenBot 气泡底角形态）：
-/// 悬挂在气泡底角、朝聊天中线一侧（挂载点在 Chat-
-/// View 两支的 overlay）；面色走既有 surface 令
+/// 悬挂于气泡底角·朝中线侧（§334 正名：AI 行右
+/// 下、用户行左下；挂载点在 ChatView 两支的
+/// overlay）；面色走既有 surface 令
 /// 牌、描边走页面底色（在气泡上切出悬挂感）、色
 /// 调与 184 气泡档同源（自己的段以 primaryTint 轻
 /// 染标示）。双 author 都渲染：自己的段可点撤回

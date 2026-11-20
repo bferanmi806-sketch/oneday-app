@@ -190,8 +190,14 @@ struct MarkdownText: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(OneDayMetrics.spacingSM)
+        // §334（台账 191）：块面改 codeFill 次档——
+        // 正文进泡后本块是「泡中块」：fieldFill 暗档
+        // 与泡面同值 #2C2C2E、块界会整块消失；
+        // codeFill 本是在册代码面令牌（浅 #E2E4E7／
+        // 暗 secondarySystemFill 压泡面合成 ≈(68,68,
+        // 72)），且高亮三色对比账正以它为基面实算
         .background(
-            Palette.fieldFill,
+            Palette.codeFill,
             in: RoundedRectangle(
                 cornerRadius: OneDayMetrics.codeCorner
             )

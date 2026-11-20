@@ -6376,9 +6376,9 @@ struct ChatView: View {
                 // §265（S3）：整行菜单自此不在行根挂载
                 // （旧挂法罩住文本面、长按文本先出整行
                 // 菜单——已下移到各铬件面，见上）
-                // 台账 187：反应 pill 压气泡列底左角（己
-                // 方消息朝聊天中线一侧）、半身悬出——悬
-                // 出净深由行高合成器的 reactionReserve
+                // 台账 187：反应 pill 压气泡底角·朝中线
+                // 侧（用户行左下，§334 正名），半身悬出
+                // ——悬出净深由行高合成器的 reactionReserve
                 // 同步预留（ChatReactionMetrics 单源）
                 .overlay(alignment: .bottomLeading) {
                     reactionPill(for: entry)
@@ -6722,8 +6722,8 @@ struct ChatView: View {
             }
             // §265（S3）：整行菜单自此不在行根挂载（已
             // 下移到气泡背景层与各铬件面，见上）
-            // 台账 187：反应 pill 压气泡列底右角（助手
-            // 消息朝聊天中线一侧），余口径同用户支
+            // 台账 187：反应 pill 压气泡底角·朝中线
+            // 侧（AI 行右下，§334 正名），余口径同用户支
             .overlay(alignment: .bottomTrailing) {
                 reactionPill(for: entry)
                     .offset(
@@ -7325,6 +7325,22 @@ struct ChatView: View {
     /// cell 当时同步撤填充（§321 注）；§325 起散
     /// 文 cell 整件退役、本函数即唯一呈现口径。
     /// 全档 reply-rendering-alignment-20261117.md。
+    /// §334 四度改判（2026-11-21，台账 191，用户
+    /// 00:36 纠正＋00:38 拍板「AI 气泡也上底色、
+    /// 双边都有泡」）：§321 无气泡口径**作废**——
+    /// 背景层填充恢复 Palette.bubbleFill（浅
+    /// #EEEEF0／暗 #2C2C2E，令牌本体零改动、本函
+    /// 数是助手正文唯一填充口：落定/流式/等待点
+    /// 四态同宿主，grep 全量核对无第二填充口）。
+    /// §321 的正文排版口径（17/22、段距 16、字阶
+    /// 字色）保留不动、只改判容器；§263 几何逐值
+    /// 不动（列宽/左缘/内边距），行高产物零失效；
+    /// 进泡＝正文/引用/代码块（泡内 codeFill 次
+    /// 档）/表格（泡内横滚），推理块/工具卡/图
+    /// 片/文件牌/交付项维持独立承载。AI 泡对比走
+    /// 新立闸⑧（字/泡 ≥4.5、泡/页 ∈[1.10,1.60]，
+    /// 与用户泡闸⑦成套）；登记 DESIGN §334，出
+    /// 图 pkg-191-ai-bubble-design-20261121.md。
     private func assistantBubble<Content: View>(
         menuEntry: ChatEntry? = nil,
         @ViewBuilder _ content: () -> Content
@@ -7361,11 +7377,15 @@ struct ChatView: View {
                     // 作菜单宿主、不再是可见气泡面（助
                     // 手散文直落 chatSurface）；形状与
                     // 挂载点逐字不动，菜单命中带不变
+                    // §334（台账 191）：填充恢复
+                    // Palette.bubbleFill——双边都有泡；
+                    // 本层仍是 §265 菜单宿主，形状/挂载
+                    // 点/命中带逐字不动，只恢复填充
                     let shape = RoundedRectangle(
                         cornerRadius:
                             OneDayMetrics.assistantBubbleCorner
                     )
-                    .fill(Color.clear)
+                    .fill(Palette.bubbleFill)
                     if let menuEntry {
                         shape.modifier(
                             messageMenu(for: menuEntry)
