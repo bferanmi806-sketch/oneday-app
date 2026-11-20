@@ -93,7 +93,11 @@ final class HapticsMatrixTests: XCTestCase {
 
     func testMatrixCallSiteCounts() throws {
         let all = try callSiteText()
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 49)
+        // 配对一期（台账 153/160）：连接页扫码认领
+        // 新增四处失败落点（载荷验形不过／指纹对不
+        // 上／认领分型错／兜底错），与 submit() 失败
+        // 同口径用 error（49→53）
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 53)
         XCTAssertEqual(count(of: "Haptics.warning()", in: all), 6)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
