@@ -661,6 +661,12 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func opsCheckpoints(config: ServerConfig) async throws -> CheckpointsResponse { throw HermesError.demoLimitReached }
 
+    func voiceConfig(config: ServerConfig) async throws -> VoiceConfigResponse { throw HermesError.demoLimitReached }
+
+    func speak(config: ServerConfig, text: String) async throws -> SpeakResponse { throw HermesError.demoLimitReached }
+
+    func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse { throw HermesError.demoLimitReached }
+
     // MARK: - 工作区文件与系统（0.2.1 样本，结构对实查回执）
 
     func files(config: ServerConfig, path: String?) async throws -> FilesListing {

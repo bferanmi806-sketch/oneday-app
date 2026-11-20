@@ -247,6 +247,8 @@ struct SettingsView: View {
                     StatusView(onOpenSession: { id in
                         appState.router.pendingChatSessionID = id
                     })
+                case .voice:
+                    VoiceSettingsView()
                 }
             }
             .confirmationDialog(
@@ -447,6 +449,20 @@ struct SettingsView: View {
                     } else {
                         catalogNavRow(entry)
                     }
+                case .voice:
+                    // 语音行副题＝朗读可用性一词（未知不
+                    // 占副题位、降普通导航行；原服务器管
+                    // 理页同行同口径，合流对接点随行迁此）
+                    if let voiceAvailabilityWord {
+                        statusNavRow(
+                            icon: iconName(for: entry),
+                            title: L10n.string(entry.title),
+                            status: voiceAvailabilityWord,
+                            route: .voice
+                        )
+                    } else {
+                        catalogNavRow(entry)
+                    }
                 default:
                     catalogNavRow(entry)
                 }
@@ -489,6 +505,14 @@ struct SettingsView: View {
         healthSummaryStore
             .summary(for: appState.config?.baseString)?
             .overall.word
+    }
+
+    /// 朗读可用性一词（原服务器管理页同源同读法）：
+    /// 未知为 nil、不占副题位；与语音面/聊天页共读
+    /// SpeechPlayer 同一份判定
+    private var voiceAvailabilityWord: String? {
+        let availability = SpeechPlayer.shared.availability
+        return availability == .unknown ? nil : availability.word
     }
 
     // MARK: - 偏好与权限组（prototype-2 新组）
@@ -670,6 +694,7 @@ struct SettingsView: View {
         case .mainSession: return .mainSession
         case .restartGateway: return .restartGateway
         case .healthCheck: return .healthCheck
+        case .voice: return .voice
         }
     }
 
@@ -708,6 +733,7 @@ struct SettingsView: View {
         case "restartGateway": return "arrow.clockwise"
         case "healthCheck": return "stethoscope"
         case "status": return "waveform.path.ecg"
+        case "voice": return "speaker.wave.2"
         case "disconnect": return "rectangle.portrait.and.arrow.right"
         default: return "gearshape"
         }

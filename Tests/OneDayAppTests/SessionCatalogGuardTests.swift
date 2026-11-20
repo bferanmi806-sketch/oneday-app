@@ -899,6 +899,18 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func voiceConfig(config: ServerConfig) async throws -> VoiceConfigResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func speak(config: ServerConfig, text: String) async throws -> SpeakResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func files(config: ServerConfig, path: String?) async throws -> FilesListing {
         throw HermesError.unreachable("离线桩")
     }

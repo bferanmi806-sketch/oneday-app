@@ -66,6 +66,7 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
         case .invalidServerAddress, .decodingFailed,
              .modelNotUpstream, .cancelled,
              .demoLimitReached, .sessionBusy,
+             .speechProviderUnavailable,
              .runBillingExhausted, .runServiceUnavailable,
              .runTimedOut, .runNetworkInterrupted,
              .runFailedGeneric:
@@ -79,6 +80,9 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
             // run 五档（基础止血包 P5）：是落定失败的
             // 呈现值、由分型器合成，从不由文件取回路
             // 抛出；同理归 other，不冒充文件侧已分类
+            // speechProviderUnavailable（H2-a）：朗读
+            // 面的未开通信号，文件打开面不会收到；同
+            // 理归 other 兜底
             return .other
         }
     }

@@ -312,6 +312,11 @@ struct ChatNativeRowContextMenu {
     let onFork: () -> Void
     let onSelect: () -> Void
     let onShare: () -> Void
+    /// 朗读项（H2-a）：呈现时刻求值——播放态随时
+    /// 变，标题/在否不许在行构造时钉死；门控（只
+    /// 给助手落定回复、未开通不出项）在 ChatView
+    /// 的求值闭包内
+    var makeSpeakItem: (@MainActor () -> ChatRowSpeakItem?)? = nil
 
     /// 菜单本体：项集/序/图符与 MessageMenu-
     /// Modifier 的 SwiftUI 菜单逐项一致，不改产
@@ -354,8 +359,32 @@ struct ChatNativeRowContextMenu {
                     systemName: MessageActionSymbols.share
                 )
             ) { _ in onShare() },
-        ])
+        ] + speakActions)
     }
+
+    /// 朗读项（菜单末尾，与 SwiftUI 面同序）：求值
+    /// 为 nil（非助手消息/未开通）时整项不出
+    @MainActor
+    private var speakActions: [UIAction] {
+        guard let item = makeSpeakItem?() else { return [] }
+        return [
+            UIAction(
+                title: item.title,
+                image: UIImage(systemName: item.systemImage)
+            ) { _ in item.action() },
+        ]
+    }
+}
+
+/// 行菜单朗读项（H2-a，台账 159）：标题随播放态
+/// 变（朗读/停止朗读）——原生面在 makeMenu() 呈现
+/// 时刻求值、SwiftUI 面在 body 重算时求值，两面共
+/// 用本描述，项序恒在菜单末尾（与既有五项同菜单、
+/// 不占气泡常驻位，施工图 3.1）
+struct ChatRowSpeakItem {
+    let title: String
+    let systemImage: String
+    let action: () -> Void
 }
 
 /// 原生面行：身份键（diffable 条目身份，与 gen3

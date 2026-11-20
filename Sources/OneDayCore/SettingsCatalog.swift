@@ -86,6 +86,11 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 作，归位后落根页服务器组末行＋搜索点达，两路
     /// 都经 SettingsView 的确认框执行（口径不变）
     case disconnect
+    /// 语音面（H2-a，台账 159）：原服务器管理枢纽页
+    /// 「维护」段内子项——回复朗读可用性/自动朗读/
+    /// 音色展示（服务端语音能力）；合流对接点随页
+    /// 归位：与体检面同落根页服务器组维护尾段直达
+    case voice
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -175,7 +180,7 @@ public enum SettingsCatalog {
         // 理／工作区三张枢纽页撤销，全部子项提回根组
         // 直达。组内序＝服务器本体（地址/网关/日志/用
         // 量）→会话（主线/服务端）→工作区资源（状态/
-        // 电脑/文件）→维护尾段（密钥/重启/体检））
+        // 电脑/文件）→维护尾段（密钥/重启/体检/语音））
         SettingsCatalogEntry(
             id: "server", group: .serverAndWorkspace,
             title: "当前服务器",
@@ -264,6 +269,16 @@ public enum SettingsCatalog {
             summary: "自检、安全审计与备份存档",
             keywords: ["体检", "自检", "安全审计", "健康", "维护", "health", "doctor", "audit"],
             destination: .healthCheck
+        ),
+        // 语音（H2-a，台账 159）：原服务器管理枢纽页
+        // 「维护」段内子项，合流对接点随页归位——维护
+        // 尾段末位、浏览直达（与体检面同组同例）
+        SettingsCatalogEntry(
+            id: "voice", group: .serverAndWorkspace,
+            title: "语音",
+            summary: "回复朗读、自动朗读与音色",
+            keywords: ["语音", "朗读", "音色", "回复朗读", "voice", "speak", "tts"],
+            destination: .voice
         ),
         // 断开连接（动作条目，只进搜索：浏览态由根页
         // 服务器组末行手写呈现，点达经 activate 起确认框）

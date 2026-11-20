@@ -1539,6 +1539,25 @@ struct ChatView: View {
         // 0.36.15：离开聊天页关预热总闸并弃置产物
         .onDisappear {
             dictation.disarmPreheat()
+            // H2-a：离开页面停播（施工图 3.3 播放态
+            // 管理口径）
+            SpeechPlayer.shared.stop()
+        }
+        // H2-a：朗读态呈现——失败经既有通知口给人话
+        // （一次，不许静默吞）；开始播放给 Voice-
+        // Over 一句播报（VO 关时无声，同 A11y 口径）
+        .onChange(of: SpeechPlayer.shared.machine.state) {
+            _, newState in
+            switch newState {
+            case .failed(_, let message):
+                showNotice(message)
+            case .playing:
+                A11yAnnouncer.announce(
+                    L10n.string("正在朗读")
+                )
+            case .idle, .requesting:
+                break
+            }
         }
         .task(id: currentThreadID) {
             await resumeRunIfNeeded()
@@ -1574,6 +1593,12 @@ struct ChatView: View {
             }
         }
         .onAppear {
+            // H2-a：进对话页刷新朗读可用性（节流在播
+            // 放器内；拉不到保持未知、菜单先按未确认
+            // 处理，不造假）
+            SpeechPlayer.shared.refreshAvailabilityOnAppear(
+                appState: appState
+            )
             // 0.36.6：语音控制器回调接线——识别文本回
             // 写 input（落稿后即普通草稿、可改可发）；
             // 预备页选键盘听写时聚焦输入框
@@ -3177,6 +3202,43 @@ struct ChatView: View {
             onShare: {
                 messageSharePayload = MessageSharePayload(
                     text: text
+                )
+            },
+            makeSpeakItem: {
+                speakMenuItem(for: entry)
+            }
+        )
+    }
+
+    /// 朗读菜单项（H2-a，台账 159）：双承载共用的
+    /// 门控与求值——只给助手落定回复（工具卡/回响/
+    /// 锚定条目不是助手发言，用户消息不在此列），
+    /// 可用性已被实调证伪（未开通）时不出项（施工
+    /// 图失败降级表）；标题/图符按求值时刻的播放
+    /// 态（原生面＝呈现时刻、SwiftUI 面＝body 时刻）
+    private func speakMenuItem(
+        for entry: ChatEntry
+    ) -> ChatRowSpeakItem? {
+        guard entry.role == "assistant",
+              !entry.content.isEmpty,
+              entry.toolCardData == nil,
+              entry.echoKey == nil,
+              entry.approvalKey == nil else { return nil }
+        let player = SpeechPlayer.shared
+        guard player.availability != .unavailable
+        else { return nil }
+        let entryID = entry.id
+        let content = entry.content
+        return ChatRowSpeakItem(
+            title: player.machine.menuTitle(for: entryID),
+            systemImage: player.machine.isActive(
+                entryID: entryID
+            ) ? MessageActionSymbols.speakStop
+                : MessageActionSymbols.speak,
+            action: {
+                player.toggle(
+                    entryID: entryID, content: content,
+                    appState: appState
                 )
             }
         )
@@ -6652,7 +6714,8 @@ struct ChatView: View {
             },
             onSelect: {
                 selectionPayload = SelectionPayload(text: text)
-            }
+            },
+            speakItem: speakMenuItem(for: entry)
         )
     }
 
@@ -8408,6 +8471,9 @@ private struct ComposerBarLayout: Layout {
     private var micButton: some View {
         Button {
             composerFocusHandle.dismiss()
+            // H2-a：开始听写即停朗读（施工图 3.3——
+            // 录音与出声共用音频会话，先停后录）
+            SpeechPlayer.shared.stop()
             dictation.handleMicTap(baseDraft: input)
         } label: {
             Image(systemName: "mic")
@@ -10096,6 +10162,10 @@ private struct ComposerBarLayout: Layout {
         let combinedSourceQuote = sourceQuote
             ?? feedQuote.map(SourceQuote.feed)
         guard !isStreaming, !text.isEmpty || !pending.isEmpty else { return }
+        // H2-a：发送新消息即停播（施工图 3.3 播放态
+        // 管理口径）——只在真发送的路径上停，守卫退
+        // 回的空发不打扰正在听的朗读
+        SpeechPlayer.shared.stop()
         // 触感口径（2026-11-14 定版，覆盖 0.3.2「发送
         // 起手不挂触感」）：发送动作补最轻档 impact
         // .light，落点在条目落盘上屏处（见下方 insert
@@ -11843,6 +11913,11 @@ private struct ComposerBarLayout: Layout {
         thread: ChatThread, entry: RunLedgerEntry,
         settled: SettledRunTurn
     ) {
+        // H2-a 自动朗读的在场判读：本轮是不是用户在
+        // 本页亲手发出并看着落定的（发送打点起点只
+        // 在这种轮有；恢复轮/后台轮无起点）——必须
+        // 在下方打点消费清零之前先记下来
+        let watchedTurn = sendFrameStartedAt != nil
         // §135 D 案打点：发送→落定全程一段（仅用户
         // 在飞发送的落定轮有起点；恢复轮与后台轮无
         // 起点、不记）。入口先记先清：失败分支同样
@@ -11904,12 +11979,16 @@ private struct ComposerBarLayout: Layout {
             )
             modelContext.insert(cardEntry)
         }
+        // H2-a：本轮落定的助手条目（自动朗读的取材
+        // 口，与下方 finished 分支的触感同点消费）
+        var landedAssistantEntry: ChatEntry?
         if let text = settled.finalText, !text.isEmpty {
             let assistantEntry = ChatEntry(
                 role: "assistant", content: text,
                 thread: thread, reasoning: settled.reasoning,
                 reasoningSeconds: nil
             )
+            landedAssistantEntry = assistantEntry
             assistantEntry.createdAt = endDate
                 .addingTimeInterval(
                     Double(settled.toolCards.count) * 0.001
@@ -11943,6 +12022,20 @@ private struct ComposerBarLayout: Layout {
         if phase == .finished {
             if settled.finalText?.isEmpty == false {
                 Haptics.success()
+                // H2-a 自动朗读（设置开关默认关）：只
+                // 读用户在场看完的本轮——恢复/后台落
+                // 定沿 §140 静默口径不出声；开关关、
+                // 未开通、正在听别条时播放器内部自拒
+                if watchedTurn, let landedAssistantEntry,
+                   UserDefaults.standard.bool(
+                       forKey: VoiceSpeechPreferences.autoReadKey
+                   ) {
+                    SpeechPlayer.shared.autoRead(
+                        entryID: landedAssistantEntry.id,
+                        content: landedAssistantEntry.content,
+                        appState: appState
+                    )
+                }
             }
             // 标题回流触发（0.21.0 沿用）：已链接旁聊
             // 一轮完整落地后顶刷新令牌等服务端 AI 标题
@@ -12307,6 +12400,9 @@ private struct MessageMenuModifier: ViewModifier {
     /// 0.7.0（M4）：分流动作「在旁聊里接着问」
     let onFork: () -> Void
     let onSelect: () -> Void
+    /// H2-a：朗读项（菜单末尾，与原生面同序同门
+    /// 控）；nil＝本条不出朗读（非助手消息/未开通）
+    var speakItem: ChatRowSpeakItem? = nil
 
     /// §330／§332：原生面关停本承载（菜单已由集
     /// 合视图 delegate 内建通道承载，见 ChatRow-
@@ -12334,6 +12430,14 @@ private struct MessageMenuModifier: ViewModifier {
                 }
                 ShareLink(item: plainText) {
                     Label("分享", systemImage: MessageActionSymbols.share)
+                }
+                if let speakItem {
+                    Button(action: speakItem.action) {
+                        Label(
+                            speakItem.title,
+                            systemImage: speakItem.systemImage
+                        )
+                    }
                 }
             }
         } else {

@@ -35,7 +35,7 @@ final class SettingsCatalogTests: XCTestCase {
             "mainSession", "serverSessions",
             "server", "gateway", "restartGateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
-            "status", "computer", "serverFiles",
+            "status", "computer", "serverFiles", "voice",
             "appearance", "sidebar", "help", "about",
             "disconnect",
         ] {
@@ -65,6 +65,8 @@ final class SettingsCatalogTests: XCTestCase {
             .healthCheck,
             // 结构归位新增（断开连接动作）
             .disconnect,
+            // H2-a 新增（台账 159）
+            .voice,
         ]
         XCTAssertEqual(covered, Set(all))
     }
@@ -78,7 +80,7 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// 结构归位：serverAndWorkspace 组十二行——三张枢
+    /// 结构归位：serverAndWorkspace 组十三行——三张枢
     /// 纽页子项全数提回根组（服务器本体→会话→工作区
     /// 资源→维护尾段）
     func testServerAndWorkspaceGroupBrowseOrder() {
@@ -88,7 +90,7 @@ final class SettingsCatalogTests: XCTestCase {
                 "server", "gateway", "logs", "usage",
                 "mainSession", "serverSessions",
                 "status", "computer", "serverFiles",
-                "envVars", "restartGateway", "healthCheck",
+                "envVars", "restartGateway", "healthCheck", "voice",
             ]
         )
     }
@@ -138,7 +140,7 @@ final class SettingsCatalogTests: XCTestCase {
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-            ["identity", "privacy", "terms", "disconnect"]
+["identity","privacy","terms","disconnect"]
         )
     }
 
@@ -199,6 +201,22 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(
             SettingsCatalog.search("doctor").contains {
                 $0.id == "healthCheck"
+            }
+        )
+    }
+
+    /// H2-a（台账 159）：语音面条目——标题直搜命中、
+    /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
+    func testVoiceEntryIsSearchable() {
+        let hits = SettingsCatalog.search("语音")
+        XCTAssertEqual(hits.first?.id, "voice")
+        XCTAssertEqual(hits.first?.destination, .voice)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        // 朗读关键词同达
+        XCTAssertTrue(
+            SettingsCatalog.search("朗读").contains {
+                $0.id == "voice"
             }
         )
     }
