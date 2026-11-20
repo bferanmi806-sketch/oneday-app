@@ -271,4 +271,31 @@ final class TopBarBackingPlateTests: XCTestCase {
             "闸门单向：后续量测变化不许翻回 hidden"
         )
     }
+
+    // MARK: - ⑥ 树内契约（2026-11-20 结构归位·对话页）
+
+    /// 契约在内容缺席态成立：覆盖序/闸门初态/安全
+    /// 区纪律三条全过——「内容缺席时背板不可见」
+    /// 自此是装配不变量、不是单点行为巧合
+    func testAssemblyContractHoldsWhenContentAbsent() {
+        let (_, host) = mountTopHost(
+            topOffset: 0, barHeight: nil
+        )
+        XCTAssertEqual(
+            host.assemblyContractViolations(), [],
+            "内容缺席态装配契约须成立"
+        )
+    }
+
+    /// 契约在内容入席后仍成立：闸门翻转不破契约
+    /// （宿主下移补偿场景同验）
+    func testAssemblyContractHoldsAfterFirstMeasure() {
+        let (_, host) = mountTopHost(
+            topOffset: 49, barHeight: 52
+        )
+        XCTAssertEqual(
+            host.assemblyContractViolations(), [],
+            "内容入席后装配契约须成立"
+        )
+    }
 }

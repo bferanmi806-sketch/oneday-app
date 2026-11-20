@@ -97,6 +97,22 @@ import UIKit
 /// 滚动态遮蔽语义一字不变。内容链关键节点另留
 /// ChatDiagTrace 取证（首达/首测/显形未齐），供
 /// 下次复发一帧定断点。
+///
+/// ## 树内契约（2026-11-20 结构归位·对话页，
+/// 纲要原则 3/4、D3-1/D3-2）
+/// 白块事故的树形表述＝隐形层（背板）与可见兄弟
+/// （顶簇内容）两条独立供给链、覆盖无契约。本批
+/// 把兜底升为装配不变量，钉在控制器本体上：
+/// ①背板与顶簇宿主恒为本控制器子视图、背板恒在
+/// 宿主之下（覆盖序）；②背板可见性恒等于「已收
+/// 到首个实测高」——内容缺席时背板不可见是结构
+/// 保证而非运行时巧合；③宿主 safeAreaRegions 恒
+/// 空（托管树不许按安全区派生内边距）。契约自检
+/// ＝assemblyContractViolations()：装配完成
+/// （viewDidLoad）与闸门翻转（首个实测高）两拍
+/// 各断言一次，测试侧同口直读。常数回写（实高/
+/// 底缘）是记账通道、只喂列表留位、不驱动任何可
+/// 见层显隐——可见性契约的唯一持有者是背板闸门。
 struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -382,6 +398,54 @@ final class TopBarGuideHostController: UIViewController {
     /// §327 自述/测试定位口：顶簇背板本体
     var traceBackingView: UIView { backingView }
 
+    /// 装配契约自检（树内契约，见文件头）：返回
+    /// 违例清单，空＝契约成立。检查三条：子视图构
+    /// 成与覆盖序（背板在顶簇宿主之下）、背板可见
+    /// 性与首个实测高闩同值、宿主 safeAreaRegions
+    /// 为空。视图未加载时只回「未装配」一条（契约
+    /// 的适用面是装配完成后）
+    func assemblyContractViolations() -> [String] {
+        guard isViewLoaded else { return ["控制器视图未加载"] }
+        var violations: [String] = []
+        let subviews = view.subviews
+        guard let backingIndex = subviews.firstIndex(
+                of: backingView),
+              let barIndex = subviews.firstIndex(
+                of: barHost.view)
+        else {
+            return ["背板或顶簇宿主不在控制器子视图内"]
+        }
+        if backingIndex > barIndex {
+            violations.append(
+                "背板序位 \(backingIndex) 在顶簇宿主 "
+                    + "\(barIndex) 之上（覆盖序反转）"
+            )
+        }
+        if backingView.isHidden == hasBarContentMeasure {
+            violations.append(
+                "背板 isHidden=\(backingView.isHidden) 与"
+                    + "实测高闩 \(hasBarContentMeasure) 脱钩"
+                    + "（内容缺席时背板必须不可见）"
+            )
+        }
+        if !barHost.safeAreaRegions.isEmpty {
+            violations.append("顶簇宿主 safeAreaRegions 非空")
+        }
+        return violations
+    }
+
+    /// 契约断言（装配完成/闸门翻转两拍调用）：违例
+    /// 只在调试构建炸出——发布构建由测试侧同口自
+    /// 检守住（TopBarBackingPlateTests 契约组）
+    private func assertAssemblyContract() {
+        let violations = assemblyContractViolations()
+        assert(
+            violations.isEmpty,
+            "TopBarGuideHost 装配契约违例："
+                + violations.joined(separator: "；")
+        )
+    }
+
     /// 顶簇实高喂入点（托管树每次布局后经 onGeo-
     /// metryChange 上行）：定高＋回报——顶簇在树内
     /// 生长（进展胶囊出现）时本类未必有布局拍，回
@@ -396,6 +460,9 @@ final class TopBarGuideHostController: UIViewController {
             hasBarContentMeasure = true
             if isViewLoaded {
                 backingView.isHidden = false
+                // 树内契约：闸门翻转拍自检——入席后
+                // 背板可见性须与闩同值
+                assertAssemblyContract()
             }
             ChatDiagTrace.record(
                 "顶簇首个实测高 \(height)（背板入席）"
@@ -493,6 +560,9 @@ final class TopBarGuideHostController: UIViewController {
             topGuideTopConstraint,
             barHeightConstraint,
         ])
+        // 树内契约：装配完成即自检（背板序位/闸门
+        // 初态/安全区纪律，见文件头契约节）
+        assertAssemblyContract()
     }
 
     override func viewDidAppear(_ animated: Bool) {

@@ -199,6 +199,20 @@ import UIKit
 /// §194 常量机制与舱落位零改动；不自绘渐变擦淡
 /// （§173 红线）、内容全强度活到被系统效果化开
 /// 为止。
+///
+/// ## 树内契约（2026-11-20 结构归位·对话页，
+/// 纲要原则 3/4、D3-2）
+/// 本件的隐形层＝舱带（bandView）与常数回写族：
+/// 与顶簇背板同法收契约——①舱带恒在舱宿主之下
+/// （子视图序）；②舱带高只认实测帧：未喂入任何
+/// 有效舱帧前带高恒 0（不入席），帧到才按 A2 卡
+/// 段公式成高——隐形层与可见兄弟（舱本体）的实
+/// 测同生共死；③舱宿主 safeAreaRegions 恒空。
+/// 契约自检＝assemblyContractViolations()，
+/// 装配完成（viewDidLoad）断言一次、测试侧同口
+/// 直读。常数回写（舱顶/顶安全区/栈高/坞顶/键
+/// 盘帧）是记账通道：只喂留位与快照、不驱动任何
+/// 可见层显隐，§194 单常数口径一字不动。
 struct ComposerGuideHost<Content: View>: UIViewControllerRepresentable {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -613,6 +627,53 @@ final class ComposerGuideHostController: UIViewController {
     var traceComposerHostView: UIView { composerHost.view }
     var traceBandView: UIView { bandView }
 
+    /// 树内契约自检（见文件头契约节）：返回违例
+    /// 清单，空＝契约成立。检查三条：舱带与舱宿主
+    /// 的子视图序（带在宿主之下）、未喂实测帧时带
+    /// 高恒 0、舱宿主 safeAreaRegions 为空。视图
+    /// 未加载时只回「未装配」一条
+    func assemblyContractViolations() -> [String] {
+        guard isViewLoaded else { return ["控制器视图未加载"] }
+        var violations: [String] = []
+        let subviews = view.subviews
+        guard let bandIndex = subviews.firstIndex(
+                of: bandView),
+              let hostIndex = subviews.firstIndex(
+                of: composerHost.view)
+        else {
+            return ["舱带或舱宿主不在控制器子视图内"]
+        }
+        if bandIndex > hostIndex {
+            violations.append(
+                "舱带序位 \(bandIndex) 在舱宿主 "
+                    + "\(hostIndex) 之上（覆盖序反转）"
+            )
+        }
+        if barFrameInWindow.height <= 0,
+           bandHeightConstraint.constant != 0 {
+            violations.append(
+                "未喂实测舱帧时舱带高须为 0，实得 "
+                    + "\(bandHeightConstraint.constant)"
+                    + "（隐形层脱离可见兄弟实测）"
+            )
+        }
+        if !composerHost.safeAreaRegions.isEmpty {
+            violations.append("舱宿主 safeAreaRegions 非空")
+        }
+        return violations
+    }
+
+    /// 契约断言（装配完成拍调用）：违例只在调试
+    /// 构建炸出——发布构建由测试侧同口自检守住
+    private func assertAssemblyContract() {
+        let violations = assemblyContractViolations()
+        assert(
+            violations.isEmpty,
+            "ComposerGuideHost 装配契约违例："
+                + violations.joined(separator: "；")
+        )
+    }
+
     /// 舱帧喂入点（托管树每次布局后经 Preference 上
     /// 行）：存帧、同步给透传判定、并立即尝试回报——
     /// 舱在树内生长时本类未必有布局拍，回报不能只靠
@@ -765,6 +826,9 @@ final class ComposerGuideHostController: UIViewController {
             name: UIResponder.keyboardWillChangeFrameNotification,
             object: nil
         )
+        // 树内契约：装配完成即自检（舱带序位/未测
+        // 帧零高/安全区纪律，见文件头契约节）
+        assertAssemblyContract()
     }
 
     deinit {
