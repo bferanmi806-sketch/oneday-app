@@ -846,6 +846,135 @@ struct ChatView: View {
     }
 
     var body: some View {
+        chatScaffold
+        .onAppear { handleChatAppear() }
+        // 0.7.0（D2 回告）：总览快照随前台 30 秒轮询换新
+        // 时顺带拉新通知——回告卡与铃铛/通知 sheet 读
+        // 同一份通知状态，不另开轮询
+        .task(id: overviewStore?.snapshot?.generatedAt) {
+            if let overviewStore {
+                await overviewStore.loadNotifications(appState: appState)
+            }
+        }
+        .task {
+            await startDemoStreamIfNeeded()
+        }
+        // §232：乐观删除启动续跑——盘上待删队列逐
+        // 条重演隐藏并重跑后台删除（进程被杀/重启
+        // 的兜底；已落定条经回查自然收口，续跑失败
+        // 同样恢复＋提醒）。协调器内在飞去重＋队列
+        // 排空后为空操作，重复触发无副作用
+        .task {
+            appState.sessionDeletions.resumePending(
+                appState: appState, modelContext: modelContext
+            )
+        }
+        // §232：乐观删除最终失败的恢复提醒——协调
+        // 器置位即经聊天页提示条呈现（重要档），消
+        // 费后清位防重报（冷启动已置位者亦在此消费）
+        .onChange(
+            of: appState.sessionDeletionFailureNotice
+        ) { _, notice in
+            if let notice {
+                if !noticePresentation.isPresenting {
+                    showNotice(notice, tier: .extended)
+                }
+                appState.consumeSessionDeletionFailureNotice()
+            }
+        }
+        .task {
+            await appState.refreshModelCatalog()
+        }
+        // §237 P1：待发暂存清扫——条目已删除的暂存目
+        // 录随聊天页首启清掉，防只进不出积压；仍在
+        // 的条目（含失败/待发待重发）一律保留
+        .task {
+            let validIDs = Set(
+                threads.flatMap { $0.entries }.map(\.id)
+            )
+            try? stagedSendStore.prune(keeping: validIDs)
+        }
+        // 身份名全局解析（0.6.1）：聊天页是默认格、首
+        // 先出现，在此触发一次（AppState 内幂等）；胶
+        // 囊/抽屉/活动页三处显示名共用解析结果
+        .task {
+            await appState.resolveIdentityNameIfNeeded()
+        }
+        // 0.6.0（蓝图 §4 一期）：枢纽内容曾转正为活动格
+        // （AgentHubView 的 .activity 模式，全 App 只此
+        // 一份实现）；**0.17.0（真机五修⑤，用户点名）：
+        // 活动格撤销、枢纽回归 sheet**——身份胶囊点按与
+        // 回告卡点按开下方 showHub sheet（四段原样、枢
+        // 纽自带导航栈），换模型仍走胶囊内模型段 Menu
+        // （见 modelMenu）。本 sheet 是顶栏铃铛的通知面
+        // （总览桥驱动）
+        // §123（H2）：通知条目点达对象时先关本 sheet、
+        // 再开枢纽——两个呈现不能同帧抢，枢纽开启在此
+        // onDismiss 接力（落点字段已由通知行落 AppState）
+        // §165：锚点落点（approvalAnchorRequest 在位）不
+        // 开枢纽——落点在原对话里，本 sheet 关闭后由本
+        // 页消费请求切线程定位（onChange/onAppear 双触
+        // 发，此处补第三路防 sheet 关闭吞掉变更）
+        .sheet(isPresented: $showNotifications, onDismiss: {
+            if appState.router.approvalAnchorRequest != nil {
+                consumeApprovalAnchorRequest()
+            } else if appState.router.hubDestinationRequest != nil {
+                appState.router.hubOpenRequested = true
+            }
+        }) {
+            if let overviewStore {
+                NotificationsView(store: overviewStore)
+                    // §166：底部大面板——.large detent＝上缘
+                    // 留距的大 sheet 口径（原型同），内容内
+                    // NavigationStack 承载列表→详情推入
+                    .presentationDetents([.large])
+            }
+        }
+        // 0.17.0：枢纽 sheet（承载与 0.6.0–0.16.0 的活动
+        // 格本体逐字一致：同一 AgentHubView .activity＋
+        // 审批终态回调刷新总览桥、顶栏角标不等下一轮轮
+        // 询——原 ActivityView 包装层随活动格一并退役）
+        // 0.36.22（枢纽页对齐包）：呈现改整页 full-
+        // ScreenCover（用户学 Muse 智能体页：整页进、
+        // 左边缘右滑回、✕ 关闭）——内容与回调原样；呈
+        // 现机制取舍（cover 而非导航推入）见 §89
+        // §155（HUB-1）：呈现改 .sheet 全量形态（七段＋
+        // 模型常驻区、默认活动段），.activity 四段形态
+        // 退役无入口；审批终态回调保留（裁决自聊天就地
+        // 卡发生、经共享 store 触发同一回调）
+        // §217（2026-11-13，用户拍板对齐 Muse 枢纽
+        // 录屏）：呈现改系统 sheet 卡片式——大 detent
+        // 圆角卡浮起（初态四周留边、后景压暗、落定近
+        // 全屏），关闭反向回缩淡出，动画全走系统弹簧
+        // （hubSheetPresentation 一处收口）；fullScreen-
+        // Cover 的硬切感就此退场。枢纽内自带 sheet（分
+        // 享/模型/档案编辑）是嵌套呈现、照常工作；左
+        // 缘右滑与 ✕ 关闭口径不变
+        .sheet(isPresented: $showHub) {
+            // 结构归位（2026-11-20）：枢纽段外模型区已
+            // 撤、§263 的 followThread 跟随入参随之退役
+            // ——模型切换正主＝本页胶囊模型段 Menu 与模
+            // 型设置页，枢纽不再读当前会话
+            AgentHubView(
+                mode: .sheet,
+                onApprovalChanged: {
+                    Task { await overviewStore?.refresh(appState: appState) }
+                }
+            )
+            .hubSheetPresentation()
+        }
+        // 0.36.6：语音输入权限预备页（问前先讲用途，
+        // 续编 S1–S4；点麦克风且权限未定时才出现）
+        .sheet(isPresented: $dictation.showPrep) {
+            DictationPrepSheet(controller: dictation)
+        }
+    }
+
+    /// body 链前段（基视图＋首启 task 群）抽为
+    /// 独立属性：整链单表达式令类型检查器超时
+    /// （CI 三轮实证 2026-11-20），拆段各自求解；
+    /// 修饰顺序与语义逐字不变
+    private var chatScaffold: some View {
         // 0.4.5（§30）：抽屉覆盖层退役——抽屉承载已提
         // 到壳层（ContentView 根的推式结构），本页只剩
         // 聊天主面本体；旧结构里的 GeometryReader/ZStack
@@ -1620,127 +1749,6 @@ struct ChatView: View {
                     )
                 )
             }
-        }
-        .onAppear { handleChatAppear() }
-        // 0.7.0（D2 回告）：总览快照随前台 30 秒轮询换新
-        // 时顺带拉新通知——回告卡与铃铛/通知 sheet 读
-        // 同一份通知状态，不另开轮询
-        .task(id: overviewStore?.snapshot?.generatedAt) {
-            if let overviewStore {
-                await overviewStore.loadNotifications(appState: appState)
-            }
-        }
-        .task {
-            await startDemoStreamIfNeeded()
-        }
-        // §232：乐观删除启动续跑——盘上待删队列逐
-        // 条重演隐藏并重跑后台删除（进程被杀/重启
-        // 的兜底；已落定条经回查自然收口，续跑失败
-        // 同样恢复＋提醒）。协调器内在飞去重＋队列
-        // 排空后为空操作，重复触发无副作用
-        .task {
-            appState.sessionDeletions.resumePending(
-                appState: appState, modelContext: modelContext
-            )
-        }
-        // §232：乐观删除最终失败的恢复提醒——协调
-        // 器置位即经聊天页提示条呈现（重要档），消
-        // 费后清位防重报（冷启动已置位者亦在此消费）
-        .onChange(
-            of: appState.sessionDeletionFailureNotice
-        ) { _, notice in
-            if let notice {
-                if !noticePresentation.isPresenting {
-                    showNotice(notice, tier: .extended)
-                }
-                appState.consumeSessionDeletionFailureNotice()
-            }
-        }
-        .task {
-            await appState.refreshModelCatalog()
-        }
-        // §237 P1：待发暂存清扫——条目已删除的暂存目
-        // 录随聊天页首启清掉，防只进不出积压；仍在
-        // 的条目（含失败/待发待重发）一律保留
-        .task {
-            let validIDs = Set(
-                threads.flatMap { $0.entries }.map(\.id)
-            )
-            try? stagedSendStore.prune(keeping: validIDs)
-        }
-        // 身份名全局解析（0.6.1）：聊天页是默认格、首
-        // 先出现，在此触发一次（AppState 内幂等）；胶
-        // 囊/抽屉/活动页三处显示名共用解析结果
-        .task {
-            await appState.resolveIdentityNameIfNeeded()
-        }
-        // 0.6.0（蓝图 §4 一期）：枢纽内容曾转正为活动格
-        // （AgentHubView 的 .activity 模式，全 App 只此
-        // 一份实现）；**0.17.0（真机五修⑤，用户点名）：
-        // 活动格撤销、枢纽回归 sheet**——身份胶囊点按与
-        // 回告卡点按开下方 showHub sheet（四段原样、枢
-        // 纽自带导航栈），换模型仍走胶囊内模型段 Menu
-        // （见 modelMenu）。本 sheet 是顶栏铃铛的通知面
-        // （总览桥驱动）
-        // §123（H2）：通知条目点达对象时先关本 sheet、
-        // 再开枢纽——两个呈现不能同帧抢，枢纽开启在此
-        // onDismiss 接力（落点字段已由通知行落 AppState）
-        // §165：锚点落点（approvalAnchorRequest 在位）不
-        // 开枢纽——落点在原对话里，本 sheet 关闭后由本
-        // 页消费请求切线程定位（onChange/onAppear 双触
-        // 发，此处补第三路防 sheet 关闭吞掉变更）
-        .sheet(isPresented: $showNotifications, onDismiss: {
-            if appState.router.approvalAnchorRequest != nil {
-                consumeApprovalAnchorRequest()
-            } else if appState.router.hubDestinationRequest != nil {
-                appState.router.hubOpenRequested = true
-            }
-        }) {
-            if let overviewStore {
-                NotificationsView(store: overviewStore)
-                    // §166：底部大面板——.large detent＝上缘
-                    // 留距的大 sheet 口径（原型同），内容内
-                    // NavigationStack 承载列表→详情推入
-                    .presentationDetents([.large])
-            }
-        }
-        // 0.17.0：枢纽 sheet（承载与 0.6.0–0.16.0 的活动
-        // 格本体逐字一致：同一 AgentHubView .activity＋
-        // 审批终态回调刷新总览桥、顶栏角标不等下一轮轮
-        // 询——原 ActivityView 包装层随活动格一并退役）
-        // 0.36.22（枢纽页对齐包）：呈现改整页 full-
-        // ScreenCover（用户学 Muse 智能体页：整页进、
-        // 左边缘右滑回、✕ 关闭）——内容与回调原样；呈
-        // 现机制取舍（cover 而非导航推入）见 §89
-        // §155（HUB-1）：呈现改 .sheet 全量形态（七段＋
-        // 模型常驻区、默认活动段），.activity 四段形态
-        // 退役无入口；审批终态回调保留（裁决自聊天就地
-        // 卡发生、经共享 store 触发同一回调）
-        // §217（2026-11-13，用户拍板对齐 Muse 枢纽
-        // 录屏）：呈现改系统 sheet 卡片式——大 detent
-        // 圆角卡浮起（初态四周留边、后景压暗、落定近
-        // 全屏），关闭反向回缩淡出，动画全走系统弹簧
-        // （hubSheetPresentation 一处收口）；fullScreen-
-        // Cover 的硬切感就此退场。枢纽内自带 sheet（分
-        // 享/模型/档案编辑）是嵌套呈现、照常工作；左
-        // 缘右滑与 ✕ 关闭口径不变
-        .sheet(isPresented: $showHub) {
-            // 结构归位（2026-11-20）：枢纽段外模型区已
-            // 撤、§263 的 followThread 跟随入参随之退役
-            // ——模型切换正主＝本页胶囊模型段 Menu 与模
-            // 型设置页，枢纽不再读当前会话
-            AgentHubView(
-                mode: .sheet,
-                onApprovalChanged: {
-                    Task { await overviewStore?.refresh(appState: appState) }
-                }
-            )
-            .hubSheetPresentation()
-        }
-        // 0.36.6：语音输入权限预备页（问前先讲用途，
-        // 续编 S1–S4；点麦克风且权限未定时才出现）
-        .sheet(isPresented: $dictation.showPrep) {
-            DictationPrepSheet(controller: dictation)
         }
     }
 
