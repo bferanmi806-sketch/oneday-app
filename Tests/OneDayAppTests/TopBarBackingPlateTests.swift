@@ -44,8 +44,10 @@ final class TopBarBackingPlateTests: XCTestCase {
         wait(for: [exp], timeout: seconds + 5)
     }
 
+    /// barHeight 传 nil＝不喂实测高：模拟内容链
+    /// 缺席帧（空根停留/量测未达），供闸门断言用
     private func mountTopHost(
-        topOffset: CGFloat, barHeight: CGFloat
+        topOffset: CGFloat, barHeight: CGFloat?
     ) -> (PlateDeviceWindow, TopBarGuideHostController) {
         let window = PlateDeviceWindow(
             frame: CGRect(x: 0, y: 0, width: 402, height: 874)
@@ -83,7 +85,9 @@ final class TopBarBackingPlateTests: XCTestCase {
         ])
         window.rootViewController = wrapper
         window.makeKeyAndVisible()
-        host.updateBarContentHeight(barHeight)
+        if let barHeight {
+            host.updateBarContentHeight(barHeight)
+        }
         window.layoutIfNeeded()
         spinRunLoop(seconds: 0.6)
         window.layoutIfNeeded()
@@ -193,6 +197,78 @@ final class TopBarBackingPlateTests: XCTestCase {
         )
         assertColor(
             backing.backgroundColor, equalsChatSurfaceIn: window
+        )
+    }
+
+    // MARK: - ⑤ 内容链缺席：背板不入席（2026-11-20 白块兜底）
+
+    /// 故障帧复刻：控制器已装配、内容链未交付
+    /// （未报任何实测高——空根停留/量测未达同形）
+    /// ——背板须 hidden，带内退回透明形态，物理上
+    /// 不再可能「只剩实心白块」；序位不因闸门变
+    /// （仍在顶簇宿主之下在席，§213 注册序位断言
+    /// 的前提不变）
+    func testBackingStaysHiddenUntilFirstMeasuredHeight() throws {
+        let (_, host) = mountTopHost(
+            topOffset: 0, barHeight: nil
+        )
+        let backing = host.traceBackingView
+        XCTAssertTrue(
+            backing.isHidden,
+            "未报实测高时背板须 hidden，实得 isHidden="
+                + "\(backing.isHidden)"
+        )
+        let subviews = host.view.subviews
+        XCTAssertEqual(
+            subviews.count, 2,
+            "闸门不许改子视图构成，实得 \(subviews.count) 层"
+        )
+        XCTAssertTrue(subviews.first === backing)
+        XCTAssertTrue(subviews.last === host.traceBarView)
+    }
+
+    /// 另一向：首个实测高到达后背板入席，§327 的
+    /// 在席/实色/全带覆盖语义原样恢复；且闸门是
+    /// 单向闩——其后量测变化（进展胶囊生长）不许
+    /// 把它翻回 hidden
+    func testBackingJoinsAfterFirstMeasuredHeight() throws {
+        let (window, host) = mountTopHost(
+            topOffset: 0, barHeight: nil
+        )
+        let backing = host.traceBackingView
+        XCTAssertTrue(backing.isHidden)
+
+        host.updateBarContentHeight(52)
+        window.layoutIfNeeded()
+        spinRunLoop(seconds: 0.3)
+        window.layoutIfNeeded()
+
+        XCTAssertFalse(
+            backing.isHidden,
+            "报出首个实测高后背板须入席"
+        )
+        let backingFrame = backing.convert(
+            backing.bounds, to: window
+        )
+        let barFrame = host.traceBarView.convert(
+            host.traceBarView.bounds, to: window
+        )
+        XCTAssertEqual(
+            backingFrame.minY, 0, accuracy: 1,
+            "入席后背板顶须抵窗口顶，实得 \(backingFrame.minY)"
+        )
+        XCTAssertEqual(
+            backingFrame.maxY, barFrame.maxY, accuracy: 1,
+            "入席后背板底须贴顶簇底，\(backingFrame.maxY) vs \(barFrame.maxY)"
+        )
+        assertColor(
+            backing.backgroundColor, equalsChatSurfaceIn: window
+        )
+
+        host.updateBarContentHeight(104)
+        XCTAssertFalse(
+            backing.isHidden,
+            "闸门单向：后续量测变化不许翻回 hidden"
         )
     }
 }
