@@ -281,138 +281,72 @@ extension ChatThemeTests {
         }
     }
 
-    // MARK: - 气泡浓淡两式（台账 184）
+    // MARK: - 气泡单档定版（台账 188）
 
-    /// 解析口径钉：solid 浅＝accentLight 实填＋白
-    /// 字、solid 暗＝现 bubbleDark＋现泡字；tint＝
-    /// mix(现泡， 同档强调， 固定 share)、字随现泡
-    /// 字；浅紫 tint 浅档混色值与实算脚本逐值同
-    /// （0xB8A6E8＝#DCD2F5 混 #6440C8 @0.30）
-    func testBubbleFillStyleResolution() {
+    /// 解析口径钉（188 定版，184 两式退役后改钉）：
+    /// 浅＝accentLight 实填＋纯白字、暗＝现
+    /// bubbleDark＋现泡字，全款无第二路；曜黑暗档
+    /// 定值钉 0x585E65（旧 0x2C3138 对暗页底仅
+    /// 1.60 的留账清账值，回潮即红）
+    func testSingleBubbleResolution() {
         for theme in ChatThemes.all {
             XCTAssertEqual(
-                theme.bubbleFill(dark: false, style: .solid),
+                theme.bubbleFill(dark: false),
                 theme.accentLight, theme.id
             )
             XCTAssertEqual(
-                theme.bubbleText(dark: false, style: .solid),
+                theme.bubbleText(dark: false),
                 0xFFFFFF, theme.id
             )
             XCTAssertEqual(
-                theme.bubbleFill(dark: true, style: .solid),
+                theme.bubbleFill(dark: true),
                 theme.bubbleDark, theme.id
             )
             XCTAssertEqual(
-                theme.bubbleText(dark: true, style: .solid),
-                theme.bubbleTextDark, theme.id
-            )
-            XCTAssertEqual(
-                theme.bubbleFill(dark: false, style: .tint),
-                ChatTheme.mix(
-                    theme.bubbleLight, theme.accentLight,
-                    share: ChatTheme.bubbleTintShareLight
-                ),
-                theme.id
-            )
-            XCTAssertEqual(
-                theme.bubbleFill(dark: true, style: .tint),
-                ChatTheme.mix(
-                    theme.bubbleDark, theme.accentDark,
-                    share: ChatTheme.bubbleTintShareDark
-                ),
-                theme.id
-            )
-            XCTAssertEqual(
-                theme.bubbleText(dark: false, style: .tint),
-                theme.bubbleTextLight, theme.id
-            )
-            XCTAssertEqual(
-                theme.bubbleText(dark: true, style: .tint),
+                theme.bubbleText(dark: true),
                 theme.bubbleTextDark, theme.id
             )
         }
-        let lavender = ChatThemes.theme(forID: "lavender")
         XCTAssertEqual(
-            lavender.bubbleFill(dark: false, style: .tint),
-            0xB8A6E8
-        )
-        XCTAssertEqual(
-            ChatTheme.mix(0x000000, 0xFFFFFF, share: 0),
-            0x000000
-        )
-        XCTAssertEqual(
-            ChatTheme.mix(0x000000, 0xFFFFFF, share: 1),
-            0xFFFFFF
+            ChatThemes.theme(forID: "obsidian").bubbleDark,
+            0x585E65
         )
     }
 
-    /// 对比闸⑦（台账 184，与字面闸并列）：两式×
-    /// 两档全款——泡字 vs 泡面 ≥4.5（与闸①同线）；
-    /// 泡面 vs 页底（浅 #FCFCFC／暗 #000000）分式
-    /// 下限：solid 浅 ≥2.9（参照 OpenBot solid 实
-    /// 填量级、实算全款 ≥5.10）、tint 浅 ≥1.7（实
-    /// 算最低 iceBlue 1.74）、暗档两式 ≥1.5（实算
-    /// 最低 obsidian solid 1.60／tint 1.95）。下限
-    /// 为本包建议值（诊断口径：非参照原值），实
-    /// 算值逐款见交卷表
-    func testBubbleStyleContrastGates() {
+    /// 对比闸⑦（台账 188 单档口径，184 两式闸退
+    /// 役后改钉）：全款×两档——泡字 vs 泡面
+    /// ≥4.5（与闸①同线）；泡面 vs 页底（浅
+    /// #FCFCFC／暗 #000000）≥2.9（大厂参照线：
+    /// OpenBot solid 实填量级）。实算（2026-11-
+    /// 20 逐值）：浅 泡/页 5.10–6.58、字/泡
+    /// 5.23–6.75；暗 泡/页 3.12–4.32（最低浅
+    /// 紫 3.12；曜黑旧值 1.60 已定值 0x585E65
+    /// 至 3.20）、字/泡 4.87–6.72，全款过线
+    func testSingleBubbleContrastGates() {
         for theme in ChatThemes.all {
-            for style in BubbleFillStyle.allCases {
-                for dark in [false, true] {
-                    let fill = theme.bubbleFill(
-                        dark: dark, style: style
-                    )
-                    let text = theme.bubbleText(
-                        dark: dark, style: style
-                    )
-                    let textRatio = WCAGContrast.ratio(
-                        hexForeground: text, hexBackground: fill
-                    )
-                    XCTAssertGreaterThanOrEqual(
-                        textRatio, 4.5,
-                        "\(theme.id) \(style) dark=\(dark) 泡字对比 \(textRatio)"
-                    )
-                    let page: UInt32 = dark ? 0x000000 : 0xFCFCFC
-                    let pageRatio = WCAGContrast.ratio(
-                        hexForeground: fill, hexBackground: page
-                    )
-                    let floor: Double
-                    switch (style, dark) {
-                    case (.solid, false): floor = 2.9
-                    case (.tint, false): floor = 1.7
-                    case (.solid, true), (.tint, true):
-                        floor = 1.5
-                    }
-                    XCTAssertGreaterThanOrEqual(
-                        pageRatio, floor,
-                        "\(theme.id) \(style) dark=\(dark) 泡面对页底 \(pageRatio)＜下限 \(floor)"
-                    )
-                }
+            for dark in [false, true] {
+                let fill = theme.bubbleFill(dark: dark)
+                let text = theme.bubbleText(dark: dark)
+                let textRatio = WCAGContrast.ratio(
+                    hexForeground: text, hexBackground: fill
+                )
+                XCTAssertGreaterThanOrEqual(
+                    textRatio, 4.5,
+                    "\(theme.id) dark=\(dark) 泡字对比 \(textRatio)"
+                )
+                let page: UInt32 = dark ? 0x000000 : 0xFCFCFC
+                let pageRatio = WCAGContrast.ratio(
+                    hexForeground: fill, hexBackground: page
+                )
+                XCTAssertGreaterThanOrEqual(
+                    pageRatio, 2.9,
+                    "\(theme.id) dark=\(dark) 泡面对页底 \(pageRatio)＜下限 2.9"
+                )
             }
         }
     }
 
-    /// 浓淡偏好：缺省 solid（开箱实填）、round-
-    /// trip、脏值回 solid
-    func testBubbleFillStylePreference() {
-        XCTAssertEqual(
-            AppearancePreferences.bubbleFillStyle(in: defaults),
-            .solid
-        )
-        AppearancePreferences.setBubbleFillStyle(
-            .tint, in: defaults
-        )
-        XCTAssertEqual(
-            AppearancePreferences.bubbleFillStyle(in: defaults),
-            .tint
-        )
-        defaults.set(
-            "garbage",
-            forKey: AppearanceStorageKeys.bubbleFillStyle
-        )
-        XCTAssertEqual(
-            AppearancePreferences.bubbleFillStyle(in: defaults),
-            .solid
-        )
-    }
+    // 184 的浓淡偏好测试（testBubbleFillStyle-
+    // Preference）已随 188 删机制退役：键与读口
+    // 均不存在、无偏好可测
 }

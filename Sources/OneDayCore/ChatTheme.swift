@@ -96,7 +96,18 @@ public enum ChatThemes {
         ),
         ChatTheme(
             id: "obsidian", displayName: "曜黑",
-            bubbleLight: 0x23272B, bubbleDark: 0x2C3138,
+            bubbleLight: 0x23272B,
+            // 台账 188 定版（2026-11-20）：旧值
+            // 0x2C3138 对暗页底（#000000）实算仅
+            // 1.60——台账既有留账「曜黑 bubbleDark
+            // 未达下限」本次清账：向 accentDark 同
+            // 色相提亮定死 0x585E65（mix 口径 0.28
+            // 的落值、定死常量不留运行时混色），
+            // 实算泡/页 3.20（落同族暗档实测区间
+            // 3.12–4.32、不再全表最低贴线）、白字
+            // /泡 6.55，双闸过线（对比闸⑦单档口径
+            // 钉住，见 ChatThemeTests）
+            bubbleDark: 0x585E65,
             bubbleTextLight: 0xFFFFFF, bubbleTextDark: 0xFFFFFF,
             accentLight: 0x23272B, accentDark: 0xC9D1D9,
             tintLight: 0xECEEF0, tintDark: 0x1E2429
@@ -158,100 +169,33 @@ public enum ChatThemes {
     }
 }
 
-/// 气泡浓淡两式（台账 184，0.50.74 真机题 3 拍板
-/// 落地）：同一款主题给两档用户泡呈现——solid＝
-/// 实填（同系既有饱和值实填＋白字，开箱默认，泡
-/// 面与页底有明确层级）；tint＝加深（以固定 share
-/// 把同档强调色混入现泡色得中间档，仍配现泡字，
-/// 是用户显式选的淡档）。结构参照 OpenBot
-/// message-color 的 solid/tint 两式（其 TINT_SHARE
-/// 浅 0.20／暗 0.34 是把颜色混入**界面面**的口
-/// 径；本表混入对象是现泡色、基底不同，share 按
-/// 本表实算另定，见 ChatTheme.bubbleFill 的注）。
-/// 解析只在本层（令牌层）发生：视图层只读解析结
-/// 果、不许硬编码颜色、不许自算混色。
-public enum BubbleFillStyle: String, CaseIterable,
-    Identifiable, Sendable
-{
-    case solid
-    case tint
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .solid: return "实填"
-        case .tint: return "加深"
-        }
-    }
-}
-
+/// 用户泡单档定版（台账 188，2026-11-20 用户拍
+/// 板「大厂标准来」）：184 的浓淡两式（实填/加深
+/// 自选）整套退役——iMessage/Telegram/Signal/
+/// OpenBot 皆无气泡浓淡档：每款主题只给一个定死
+/// 处理，想要浅是换一款主题的事、不是给同一气泡
+/// 加浓淡开关。本层即该唯一处理：饱和实填＋白
+/// 字（浅档＝同款 accentLight 实填＋纯白字；暗档
+/// ＝同款 bubbleDark 深饱实填＋现泡字）。解析只
+/// 在本层（令牌层）发生：视图层只读解析结果、不
+/// 许硬编码颜色、不许自算混色。逐款定值与实算
+/// 对比由 ChatThemeTests 对比闸⑦（单档口径）钉
+/// 住：全款泡/页 ≥2.90（大厂参照线）、泡字/泡
+/// ≥4.50（浅 5.10–6.58／5.23–6.75、暗 3.12–
+/// 4.32／4.87–6.72，2026-11-20 逐值实算）。
 extension ChatTheme {
-    /// tint 混色 share（固定值，全款同）：浅档
-    /// 0.30／暗档 0.08。实算依据（WCAGContrast 同
-    /// 式，2026-11-20 全款逐值算）：浅档 share 自
-    /// 0.20 起逐档试——0.30 是泡面 vs 页底全款
-    /// ≥1.74 且泡字 vs 泡面全款 ≥5.37 的取值；
-    /// 暗档现泡本已深饱、混入的是浅档强调色（提
-    /// 亮向），share 大于 0.10 起默认款白字对比跌
-    /// 破 4.5 闸（0.10→4.51／0.12→4.45），故暗档
-    /// 取 0.08（全款白字 ≥4.57、泡面 vs 页底
-    /// ≥1.95）。暗档两式差异因此小于浅档——是白
-    /// 字闸约束下的实算结论、非漏做
-    public static let bubbleTintShareLight: Double = 0.30
-    public static let bubbleTintShareDark: Double = 0.08
-
-    /// sRGB 通道线性混色（UInt32 同式，逐通道四
-    /// 舍五入——与实算脚本同口径，测试闸按本函数
-    /// 的实际输出断言、不另算一份）
-    public static func mix(
-        _ base: UInt32, _ overlay: UInt32, share: Double
-    ) -> UInt32 {
-        func channel(_ shift: UInt32) -> UInt32 {
-            let b = Double((base >> shift) & 0xFF)
-            let o = Double((overlay >> shift) & 0xFF)
-            return UInt32((b * (1 - share) + o * share).rounded())
-        }
-        return (channel(16) << 16) | (channel(8) << 8) | channel(0)
-    }
-
-    /// 用户泡底解析（浓淡×明暗的唯一出口）：solid
-    /// 浅档＝同款 accentLight 实填（诊断实证：对
-    /// 页底全款 ≥5.10、白字全款 ≥5.23）；solid 暗
-    /// 档＝现 bubbleDark（本就是深饱实填、白字已
-    /// 过既有闸）；tint＝同档现泡混同档强调
-    public func bubbleFill(
-        dark: Bool, style: BubbleFillStyle
-    ) -> UInt32 {
-        switch style {
-        case .solid:
-            return dark ? bubbleDark : accentLight
-        case .tint:
-            return dark
-                ? Self.mix(
-                    bubbleDark, accentDark,
-                    share: Self.bubbleTintShareDark
-                )
-                : Self.mix(
-                    bubbleLight, accentLight,
-                    share: Self.bubbleTintShareLight
-                )
-        }
+    /// 用户泡底解析（明暗的唯一出口）：浅档＝同
+    /// 款 accentLight 实填；暗档＝同款 bubbleDark
+    public func bubbleFill(dark: Bool) -> UInt32 {
+        dark ? bubbleDark : accentLight
     }
 
     /// 用户泡字解析（与 bubbleFill 同出口成对）：
-    /// solid 浅档＝纯白（压 accentLight 实算全款
-    /// ≥5.23）；solid 暗档与 tint 两档＝现泡字
-    /// （tint 混色后仍过 4.5 闸，见 share 注）
-    public func bubbleText(
-        dark: Bool, style: BubbleFillStyle
-    ) -> UInt32 {
-        switch style {
-        case .solid:
-            return dark ? bubbleTextDark : 0xFFFFFF
-        case .tint:
-            return dark ? bubbleTextDark : bubbleTextLight
-        }
+    /// 浅档＝纯白（压 accentLight 实算全款
+    /// ≥5.23）；暗档＝现泡字（全款对暗泡 ≥4.87，
+    /// 闸①同线钉住）
+    public func bubbleText(dark: Bool) -> UInt32 {
+        dark ? bubbleTextDark : 0xFFFFFF
     }
 }
 
@@ -303,8 +247,10 @@ public enum AppearanceStorageKeys {
     public static let appearanceMode = "appearanceMode"
     public static let chatTheme = "chatTheme"
     public static let avatarSize = "avatarSize"
-    /// 气泡浓淡（台账 184）：缺省 solid（实填）
-    public static let bubbleFillStyle = "chatBubbleFillStyle"
+    // 台账 188 定版（2026-11-20）：184 的气泡浓淡
+    // 键 chatBubbleFillStyle 随两式机制整套退役、
+    // 键名常量一并删除——设备上可能残留的存量值
+    // 已无任何消费方（惰性残留，不读不写不清）
 }
 
 /// 外观偏好读口（0.26.0）：UserDefaults 之上的类型化
@@ -324,28 +270,6 @@ public enum AppearancePreferences {
         id: String, in defaults: UserDefaults = .standard
     ) {
         defaults.set(id, forKey: AppearanceStorageKeys.chatTheme)
-    }
-
-    /// 气泡浓淡读口（台账 184）：未设/脏值一律回
-    /// solid——开箱即实填（用户拍板：默认实填档，
-    /// 淡档须用户显式选）
-    public static func bubbleFillStyle(
-        in defaults: UserDefaults = .standard
-    ) -> BubbleFillStyle {
-        let raw = defaults.string(
-            forKey: AppearanceStorageKeys.bubbleFillStyle
-        )
-        return BubbleFillStyle(rawValue: raw ?? "") ?? .solid
-    }
-
-    public static func setBubbleFillStyle(
-        _ style: BubbleFillStyle,
-        in defaults: UserDefaults = .standard
-    ) {
-        defaults.set(
-            style.rawValue,
-            forKey: AppearanceStorageKeys.bubbleFillStyle
-        )
     }
 
     public static func avatarTier(

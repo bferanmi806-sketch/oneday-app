@@ -11,10 +11,12 @@ import SwiftUI
 /// 名的制度缺口），本面把四路读数收敛到一处：
 /// ①卡顿探针汇总（喂入/托管/解码份额）②量测
 /// 台积压（未量测行数与就地量测计数，190 验收
-/// 证据）③气泡浓淡键原文＋当前主题解析值（台
-/// 账 188 证据出口：键被写成何值、解析成何色，
-/// 不再靠截图反推）④诊断留痕全文（锚四值探针
-/// anchorQuad 在此回读）。
+/// 证据）③当前主题气泡解析值（台账 188 证据出
+/// 口：单档定版后填充/字色解析成何色，不再靠截
+/// 图反推；184 的浓淡键原文读口随 188 删机制一
+/// 并撤除——键已无消费方、原文读出只会误导）
+/// ④诊断留痕全文（锚四值探针 anchorQuad 在此
+/// 回读）。
 /// 纪律：只读呈现、不写任何业务状态；读数在出
 /// 现/手动刷新时快照，行文等宽小字、可选中复制
 struct ChatDiagnosticsView: View {
@@ -43,11 +45,11 @@ struct ChatDiagnosticsView: View {
             .listRowBackground(Palette.surface)
 
             Section {
-                Text(bubbleKeyLine())
+                Text(bubbleLine())
                     .font(.footnote.monospaced())
                     .textSelection(.enabled)
             } header: {
-                Text("气泡浓淡键（台账 188）")
+                Text("气泡解析（台账 188）")
             }
             .listRowBackground(Palette.surface)
 
@@ -86,26 +88,21 @@ struct ChatDiagnosticsView: View {
         }
     }
 
-    /// 气泡键读数一行：键原文（未设明示）＋解析
-    /// 档位＋当前主题浅/暗两档的填充与字色解析
-    /// 值——与 Palette.userBubbleFill 同一解析出
-    /// 口（AppearancePreferences.bubbleFillStyle
-    /// ＋ ChatTheme.bubbleFill/bubbleText）
-    private func bubbleKeyLine() -> String {
-        let raw = UserDefaults.standard.string(
-            forKey: AppearanceStorageKeys.bubbleFillStyle
-        )
-        let style = AppearancePreferences.bubbleFillStyle()
+    /// 气泡解析读数：当前主题浅/暗两档的填充与
+    /// 字色解析值——与 Palette.userBubbleFill 同
+    /// 一解析出口（ChatTheme.bubbleFill/bubble-
+    /// Text 单档口径）。188 定版前此节兼读浓淡键
+    /// 原文，键随机制删除后无原文可读，只剩解析
+    /// 值供颜色争议取证
+    private func bubbleLine() -> String {
         let theme = Palette.currentChatTheme
         func hex(_ value: UInt32) -> String {
             String(format: "#%06X", value)
         }
-        return "键原文 \(raw ?? "（未设）")"
-            + "·解析 \(style.rawValue)（\(style.displayName)）"
-            + "·主题 \(theme.displayName)"
-            + "\n浅 填充 \(hex(theme.bubbleFill(dark: false, style: style)))"
-            + " 字 \(hex(theme.bubbleText(dark: false, style: style)))"
-            + "\n暗 填充 \(hex(theme.bubbleFill(dark: true, style: style)))"
-            + " 字 \(hex(theme.bubbleText(dark: true, style: style)))"
+        return "主题 \(theme.displayName)（单档定死）"
+            + "\n浅 填充 \(hex(theme.bubbleFill(dark: false)))"
+            + " 字 \(hex(theme.bubbleText(dark: false)))"
+            + "\n暗 填充 \(hex(theme.bubbleFill(dark: true)))"
+            + " 字 \(hex(theme.bubbleText(dark: true)))"
     }
 }
