@@ -134,24 +134,52 @@ public enum Palette {
         light: 0xF0F1F2, dark: .systemFill
     )
     /// 抽屉专用选中填充（§225，Muse 对齐三项包）：
-    /// selectionFill 压抽屉面板（§225 当时为 thin-
-    /// Material 压 pageBG 的合成面、浅档实测
-    /// #F2F2F2）逐通道 Δ≈0–3、选中态被材质吃掉——
     /// 本令牌只供抽屉三行（导航/频道/旁聊当前行）
-    /// 选中垫：浅档 #E4E5E7 压合成面 Δ≈13（与 Muse
-    /// 「#EEEFF1 压 #FCFCFC」同级、亦即 selection-
-    /// Fill 在实色面上的原有效对比）；暗档挂
-    /// tertiarySystemBackground #2C2C2E——面板暗档近
-    /// 似面（二级面 #1C1C1E 级）之上 Δ≈16、与助手泡
-    /// 暗档同级语义。selectionFill 本体与其余消费面
-    /// 不动。§318 注记：面板材质本体已改实色（2026-
-    /// 11-17 用户拍板、0.36.3 thinMaterial 定案作
-    /// 废），压面现为 chatSurface 实色（浅 #FCFCFC
-    /// ／深纯黑）——本令牌浅档压新面 Δ≈24、暗档压
-    /// 纯黑 Δ 更大，均只增不减、选中态更立，令牌值
-    /// 不动
+    /// 选中垫。浅档沿革：§225 取 #E4E5E7（当时面板
+    /// 为 thinMaterial 合成面、需加深才立得住）；
+    /// 2026-11-21 抽屉样板对齐包改 #EEEFF1——§318
+    /// 后面板已是 chatSurface 实色 #FCFCFC，用户亲
+    /// 递 Muse 现行版截图三点采样选中胶囊正是
+    /// #EEEFF1 压 #FCFCFC（逐通道 Δ14/13/11），直
+    /// 接落样板原值、不再加深。暗档挂 tertiary-
+    /// SystemBackground #2C2C2E 不变——压纯黑面板
+    /// Δ44、与浅档「面上一档灰」语义等值（样板无
+    /// 深色图、按角色等值口径，见交卷报告）。selec-
+    /// tionFill 本体与其余消费面不动
     public static let drawerSelectionFill = appleColor(
-        light: 0xE4E5E7, dark: .tertiarySystemBackground
+        light: 0xEEEFF1, dark: .tertiarySystemBackground
+    )
+    /// 抽屉分区头墨（2026-11-21 样板对齐包）：只供
+    /// 抽屉分区头与折叠态「显示」字样。浅档 #9D9DA2
+    /// ——样板分组头核心色三点采样 #9FA0A2/#9D9DA2、
+    /// 「显示」#9B9C9E，同值落点。明示代价：本色压
+    /// 面板 #FCFCFC 对比约 2.6:1、不达 4.5 文字线
+    /// ——0.22.0 审计 G1/D2 正是因此把分区头自弱墨
+    /// 换到 inkSecondary（5.27:1）；本包按用户
+    /// 2026-11-21「颜色也要学」亲令只在**抽屉分区
+    /// 头**这一处回退到样板原值（装饰性导航标签、
+    /// 非正文），其余一切要读的字仍守 inkSecondary
+    /// 纪律、本令牌不许外溢。暗档挂 secondaryLabel
+    /// （压纯黑合成约 #8E8E96、对比约 6.9:1 自达
+    /// 标）——样板无深色图、按角色等值口径
+    public static let drawerSectionInk = appleColor(
+        light: 0x9D9DA2, dark: .secondaryLabel
+    )
+    /// 抽屉组间发丝线色（2026-11-21 样板对齐包）：
+    /// 只供抽屉 drawerDivider。浅档 #E3E3E3——样板
+    /// 分隔线核心色采样 #E2E2E2/#E3E3E3，压实色面
+    /// 板 #FCFCFC 逐通道 Δ25/25/25、淡但可辨
+    /// （样板本体即此观感）。沿革：抽屉线旧挂
+    /// Palette.separator（α 语义、压本面合成约
+    /// #C4C4C8、Δ约 56）——那是 0.36.x 材质面板时
+    /// 代「发丝线不可见」（用户 05:34 点题）后的加
+    /// 强档；§318 面板改实色后前提已变、本包按样
+    /// 板原值回落本令牌，全 App 其余分隔仍走
+    /// separator 单源不动。暗档挂 opaqueSeparator
+    /// #38383A（与 hairline 暗档同值、压纯黑 Δ56
+    /// 同级可辨）
+    public static let drawerHairline = appleColor(
+        light: 0xE3E3E3, dark: .opaqueSeparator
     )
     /// 设置页底（0.20.0，用户给的 Muse 设置页真机图
     /// 口径：浅灰底托白色分组卡，图中约 #F2F2F4 级）：
@@ -585,19 +613,20 @@ public enum OneDayMetrics {
     public static let drawerInset: CGFloat = 20
     /// 名单导航行高（0.3.6 实测约 47）
     public static let navRowHeight: CGFloat = 47
-    /// 抽屉导航/旁聊行高（0.20.0，用户给的 Muse 抽屉
-    /// 真机图推算：选中垫行高约 53、旁聊行距约 58，
-    /// 取 58 统一抽屉行档；推算锚点见 DESIGN-V4 §47）
-    /// §157 起本档只管旁聊会话行（56–60 区间内取 58
-    /// 不动），导航簇改走 drawerNavRowHeight
-    public static let drawerRowHeight: CGFloat = 58
+    /// 抽屉旁聊会话行高。沿革：0.20.0 按当时 Muse 图
+    /// 推算取 58；2026-11-21 抽屉样板对齐包改 44——
+    /// 用户亲递现行版截图五连行＋空间五行逐行实测
+    /// 行距恒 44.0pt（选中胶囊高＝行高 44），全抽屉
+    /// 行档自此统一 44（导航簇同值，见下）；仍是
+    /// minHeight 语义，大字体时随内容增长
+    public static let drawerRowHeight: CGFloat = 44
     /// 抽屉导航簇行高（§157，用户 2026-11-11 21:01 补
-    /// 充方案②）：导航行/频道行/管理行的最小行高——
-    /// 导航紧一点、把空间让给会话。54 是设计起点值
-    /// （建议区间 52–56 的中点），不是 Muse 实测参
-    /// 数；仍是 minHeight 语义，大字体时行高随内容
-    /// 增长，不钉死
-    public static let drawerNavRowHeight: CGFloat = 54
+    /// 充方案②）：导航行/频道行/管理行的最小行高。
+    /// 沿革：§157 取 54（设计起点值、非实测）；2026-
+    /// 11-21 样板对齐包改 44——样板导航行与会话行
+    /// 同距 44.0pt 实测，两档自此同值（量测全表见
+    /// 交卷报告）；仍是 minHeight 语义
+    public static let drawerNavRowHeight: CGFloat = 44
     /// 设置页行最小高（0.20.0，Muse 设置图推算行距
     /// 约 63 含卡内呼吸，行本体取 60）
     public static let settingsRowHeight: CGFloat = 60
@@ -624,9 +653,13 @@ public enum OneDayMetrics {
     public static let navGlyph: CGFloat = FrameworkIcon.navGlyphSize
     /// 底栏字形（0.23.0 单源化：同上，值 22 不变）
     public static let tabGlyph: CGFloat = FrameworkIcon.tabGlyphSize
-    /// 抽屉底部浮动条圆钮边长（0.3.6 实测约 52；搜索
-    /// 胶囊同高）
-    public static let drawerBarButton: CGFloat = 52
+    /// 抽屉底部浮动条圆钮边长（搜索胶囊同高）。沿
+    /// 革：0.3.6 取 52；2026-11-21 样板对齐包改
+    /// 45——样板圆钮 Ø45pt、搜索胶囊高 45 实测（±1）；
+    /// 控件居中于 52 行盒（Core DrawerGeometry.
+    /// bottomBarRowHeight），落位中心距屏底 64.0 与
+    /// 样板 64.2 同归一线
+    public static let drawerBarButton: CGFloat = 45
     /// 输入字段（0.6.1 改挂 OpenMuse input 圆角 19，
     /// ui.tsx:58）
     public static let fieldCorner: CGFloat = 19
@@ -742,9 +775,13 @@ public enum OneDayMetrics {
     /// 抽屉左缘唤出热区宽（手势值：够拇指起滑、不挡正文滚动）
     public static let drawerEdgeZone: CGFloat = 24
     /// 抽屉宽占屏比（0.3.6 立宪 peek 口径约 79%；
-    /// 0.4.1 第 10 修按用户逐像素采样改约 75%——
-    /// Muse 本体抽屉实测占比，§26.10）
-    public static let drawerWidthFraction: CGFloat = 0.75
+    /// 0.4.1 第 10 修按用户逐像素采样改约 75%；
+    /// 2026-11-21 样板对齐包改回 0.79——现行版截图
+    /// 实测 317.0pt/402pt＝0.7886，与 Core Drawer-
+    /// CardGeometry.travelWidthFraction 单源同值；
+    /// 本令牌现无消费面（容器走 Core 派生）、留作
+    /// 口径档案，两处不许再分叉）
+    public static let drawerWidthFraction: CGFloat = 0.79
     /// 抽屉宽上限（设备值，大屏不无限拉宽）
     public static let drawerMaxWidth: CGFloat = 340
     /// （tabBarZone 已于 0.4.0 删除，审计 §3.2：底栏回

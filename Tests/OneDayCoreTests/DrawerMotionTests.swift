@@ -346,9 +346,11 @@ final class DrawerMotionTests: XCTestCase {
             DrawerMotion.shadowMaxOpacity,
             DrawerCardGeometry.shadowMaxOpacity
         )
-        // 推开量派生：第 78 条 D2——宽×0.75、无 cap
-        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 402), 301.5, accuracy: 0.001)
-        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 393), 294.75, accuracy: 0.001)
+        // 推开量派生：宽×0.79、无 cap（2026-11-21 样
+        // 板对齐包改值，现行版 Muse 截图实测占比，
+        // 见 DrawerCardGeometry.travelWidthFraction 注）
+        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 402), 317.58, accuracy: 0.001)
+        XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 393), 310.47, accuracy: 0.001)
         XCTAssertEqual(DrawerCardGeometry.travel(containerWidth: 0), 0)
     }
 

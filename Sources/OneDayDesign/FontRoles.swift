@@ -65,6 +65,12 @@ public extension Font {
     /// 理全部对话」行题已随该行迁出抽屉退役——管理
     /// 收口包补件，用户 2026-11-13 18:57）
     static let drawerRowTitle: Font = .body
+    /// 抽屉身份名（2026-11-21 样板对齐包新增局部角
+    /// 色）：Title2 22 bold——样板名字实测 24 bold，
+    /// 24 无文本样式档、取最近档保 Dynamic Type 缩
+    /// 放（Δ2 与理由见 Core TypeRole 头注）；只许抽
+    /// 屉身份行消费，screenName 本体不动
+    static let drawerTitle: Font = .title2.weight(.bold)
     /// 抽屉当前行题（§157 局部角色）：Body 17 semi-
     /// bold——导航/频道/会话同一套选中规则的加重档，
     /// 恒与 selectionFill 浅灰底同出（Core TypeRole

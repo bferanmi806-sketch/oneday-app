@@ -46,9 +46,11 @@ final class DrawerContainerControllerTests: XCTestCase {
     }
 
     func testTravelEstablishedFromLayout() {
-        // §313：第 78 条 D2——宽×0.75、无 cap（单源
-        // DrawerCardGeometry.travel）
-        XCTAssertEqual(controller.travel, 393 * 0.75, accuracy: 0.5)
+        // §313 单源 DrawerCardGeometry.travel、无 cap；
+        // 占比 2026-11-21 样板对齐包改 0.79（现行版
+        // 截图实测 317pt/402pt，见 DrawerCardGeometry
+        // .travelWidthFraction 注）
+        XCTAssertEqual(controller.travel, 393 * 0.79, accuracy: 0.5)
     }
 
     /// 抽屉宿主视图＝容器 view 的第一个子视图（底层
