@@ -3291,11 +3291,11 @@ struct ChatView: View {
                 key: key,
                 entryID: entry.id,
                 revision: revision,
+                height: resolved.height,
                 // 台账 190②：非确定高（未量测/上次
                 // 高顶替）标临界——布局提供者对将入
                 // 视口的临界行就地量测给确定高
                 heightIsProvisional: !resolved.isExact,
-                height: resolved.height,
                 makeView: {
                     AnyView(
                         entryRowContent(
