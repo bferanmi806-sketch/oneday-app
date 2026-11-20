@@ -41,9 +41,45 @@ enum SessionHistoryInserter {
             if let date = item.date {
                 chatEntry.createdAt = date
             }
+            // 台账 187：落盘同点钉桩＋反应镜像（坐标
+            // 与真源镜像随条目出生即在位，呈现构建时
+            // 同步已知、无异步补钉翻转）
+            chatEntry.serverRowID = item.serverRowID
+            chatEntry.applyReactions(item.reactions)
             context.insert(chatEntry)
         }
         return items.count
+    }
+
+    /// 回补对账（台账 187）：拉回项与既有条目按回补
+    /// 指纹配对——命中且未钉桩则补钉 serverRowID；
+    /// 反应镜像恒以服务端值覆写（真源覆写自愈，
+    /// applyReactions 同值不落写）。同指纹多条目按
+    /// 序逐个配对（队列消费）：一条项只配一条目，
+    /// 不许覆写两处。指纹口径与去重同源（Session-
+    /// HistorySync.fingerprint），不另起配对口径
+    static func reconcileReactions(
+        items: [SessionHistoryImport.RichItem],
+        entries: [ChatEntry]
+    ) {
+        var byFingerprint: [HistoryFingerprint: [ChatEntry]] = [:]
+        for entry in entries {
+            byFingerprint[fingerprint(of: entry), default: []]
+                .append(entry)
+        }
+        for item in items {
+            guard let rowID = item.serverRowID else { continue }
+            let print = SessionHistorySync.fingerprint(of: item)
+            guard var queue = byFingerprint[print],
+                  !queue.isEmpty
+            else { continue }
+            let entry = queue.removeFirst()
+            byFingerprint[print] = queue
+            if entry.serverRowID == nil {
+                entry.serverRowID = rowID
+            }
+            entry.applyReactions(item.reactions)
+        }
     }
 
     /// 本地条目 → 回补指纹（与拉回项同口径组装，
@@ -134,6 +170,12 @@ final class SessionHistoryBackfiller {
                 .chronological(page)
             let items = SessionHistoryImport.richItems(
                 from: ordered
+            )
+            // 台账 187：先对账（既有条目补钉＋镜像覆
+            // 写）再落新项——新项落盘自带钉桩/镜像，
+            // 不走对账口（防同页内自配）
+            SessionHistoryInserter.reconcileReactions(
+                items: items, entries: thread.entries
             )
             let existing = Set(thread.entries.map {
                 SessionHistoryInserter.fingerprint(of: $0)

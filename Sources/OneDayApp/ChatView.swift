@@ -695,6 +695,15 @@ struct ChatView: View {
     /// §330：原生面 UIKit 行菜单「分享」的分享单
     /// 状态口（见 MessageSharePayload）
     @State private var messageSharePayload: MessageSharePayload?
+    /// 台账 187：自绘动作面（方案 A）的呈现目标（条
+    /// 目 id）——原生面经句柄回调、gen3 面经长按手
+    /// 势，两路只置本状态；呈现数据在呈现时刻按条
+    /// 目组装（actionSheetData），不预持行闭包
+    @State private var actionSheetTarget: ActionSheetTarget?
+    /// 台账 187：动作面内再呈一层（选择/分享）的延
+    /// 后动作——本面 onDismiss 落定后执行（两 sheet
+    /// 同呈会被系统吞掉，见 deferSheetAction）
+    @State private var pendingSheetAction: (() -> Void)?
     /// §152 的选区在场记账已迁 ChatRowStateLedger
     /// （141/142 根治：选区永不进 @State/行修订，
     /// 见 noteTextSelection 与账本注）
@@ -1031,6 +1040,27 @@ struct ChatView: View {
         // 选型见 DESIGN-V4 §26）
         .sheet(item: $selectionPayload) { payload in
             SelectableTextSheet(text: payload.text)
+        }
+        // 台账 187：自绘动作面（方案 A）——顶部反应
+        // 排＋下方动作列表，两面共用同一 sheet；条目
+        // 已不在当前线程（切换竞态）时呈空面、可滑关
+        .sheet(
+            item: $actionSheetTarget,
+            onDismiss: {
+                let action = pendingSheetAction
+                pendingSheetAction = nil
+                action?()
+            }
+        ) { target in
+            if let entry = currentThread?.entries.first(
+                where: { $0.id == target.id }
+            ) {
+                ChatActionSheetView(
+                    data: actionSheetData(for: entry)
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+            }
         }
         // §330：原生面 UIKit 行菜单「分享」的系统
         // 分享单（与「选择」sheet 同排）
@@ -2568,6 +2598,12 @@ struct ChatView: View {
         // §331：量测台发布代次入 body 依赖——后台
         // 量测回填缓存后 bump、本面以确定高重喂
         _ = rowMeasureDesk.publishedRevision
+        // 台账 187：动作面呈现回调接线——控制器长按
+        // 识别器命中条目行时经句柄回条目 id，本页只
+        // 置呈现状态（数据呈现时刻组装）
+        nativeHandle.onPresentActionSheet = { entryID in
+            actionSheetTarget = ActionSheetTarget(id: entryID)
+        }
         return ChatNativeListView(
             rows: nativeRows(),
             layout: ChatCarrierLayout(
@@ -3274,39 +3310,45 @@ struct ChatView: View {
                             entry, dividerText: dividerText,
                             showsUnreadDivider: showsUnread
                         )
-                        // §330（题 2）／§332 换代：本面菜单
-                        // 由集合视图 delegate 的内建上下文
-                        // 菜单通道承载——内容内的 SwiftUI
-                        // .contextMenu 在本面关停（见
+                        // §330（题 2）／§332 换代／台账
+                        // 187 再换代：本面动作面由控制器
+                        // 长按识别器触发（呈现走本页的
+                        // actionSheetTarget）——内容内的
+                        // SwiftUI 长按在本面关停（见
                         // ChatRowSwiftUIMenuEnabledKey）
                         .environment(
                             \.chatRowSwiftUIMenuEnabled, false
                         )
                     )
                 },
-                contextMenu: nativeRowContextMenu(for: entry)
+                // 台账 187：条目行恒挂动作面（台账 186
+                // 门控沿革——纯图片条目同挂）；呈现数
+                // 据不进行描述、呈现时刻按条目组装
+                presentsActionSheet: true
             )
         }
     }
 
-    /// 原生面行菜单描述（§330，题 2）：与 message-
-    /// Menu(for:) 同门控同动作；动作闭包逐项复用
-    /// SwiftUI 菜单的同一批入口（beginReply/fork-
-    /// ToSideChat/选择 sheet），仅分享改走 UIKit
-    /// 分享单状态口（ShareLink 是 SwiftUI 视图、
-    /// UIKit 菜单内无处安放）
-    /// 台账 186：门控放宽——条目行恒挂菜单（纯图
-    /// 片消息旧口径不挂、长按没反应，是本条报障
-    /// 之一）；文本依赖项由 makeMenu 按 plainText
-    /// 有无组装，恒非 nil（返回类型保留 Optional
-    /// 是行描述的既有形态、其余行型恒 nil 的口径
-    /// 不变）
-    private func nativeRowContextMenu(
+    /// 条目动作面描述（台账 187，呈现时刻组装）：
+    /// 与旧 nativeRowContextMenu 同门控同动作——动
+    /// 作闭包逐项复用既有入口（beginReply/forkTo-
+    /// SideChat/朗读求值），仅两处改道：选择/分享要
+    /// 再呈一层 sheet、经 deferSheetAction 等本面关
+    /// 净后再呈；反应排数据（canReact/现反应）以呈
+    /// 现时刻的条目状态为准
+    private func actionSheetData(
         for entry: ChatEntry
-    ) -> ChatNativeRowContextMenu? {
+    ) -> ChatRowActionSheetData {
         let text = plainText(for: entry)
-        return ChatNativeRowContextMenu(
+        return ChatRowActionSheetData(
             plainText: text,
+            canReact: entry.canReact,
+            ownEmoji: MessageReactions.ownEmoji(
+                in: entry.reactions
+            ),
+            onPickReaction: { emoji in
+                toggleReaction(emoji, for: entry)
+            },
             onReply: {
                 beginReply(to: entry)
             },
@@ -3314,19 +3356,107 @@ struct ChatView: View {
                 forkToSideChat(from: entry)
             },
             onSelect: {
-                selectionPayload = SelectionPayload(
-                    text: text
-                )
+                deferSheetAction {
+                    selectionPayload = SelectionPayload(
+                        text: text
+                    )
+                }
             },
             onShare: {
-                messageSharePayload = MessageSharePayload(
-                    text: text
-                )
+                deferSheetAction {
+                    messageSharePayload = MessageSharePayload(
+                        text: text
+                    )
+                }
             },
             makeSpeakItem: {
                 speakMenuItem(for: entry)
             }
         )
+    }
+
+    /// 动作面内再呈一层的延后口（台账 187）：先记
+    /// 账、关本面，本面 sheet 的 onDismiss 落定后执
+    /// 行记账（见 body 的 actionSheetTarget 挂载）
+    private func deferSheetAction(
+        _ action: @escaping () -> Void
+    ) {
+        pendingSheetAction = action
+        actionSheetTarget = nil
+    }
+
+    /// 点反应（台账 187，toggle 单点）：点自己已点
+    /// 的 emoji＝撤回、点别的＝替换/新点——与服务端
+    /// Tapback 同点取消同构；写口只有 applyReaction
+    private func toggleReaction(
+        _ emoji: String, for entry: ChatEntry
+    ) {
+        let own = MessageReactions.ownEmoji(
+            in: entry.reactions
+        )
+        applyReaction(own == emoji ? nil : emoji, for: entry)
+    }
+
+    /// 反应写口（台账 187）：乐观先行改镜像（行高
+    /// facet 与 pill 同拍翻）→端点回执覆写自愈→失
+    /// 败回滚＋人话提醒（showNotice 既有口）。凭据
+    /// 只读既有真源（当前连接配置＋登录密钥，与认
+    /// 领出码同路、不走 performAdmin 的面板会话通
+    /// 道——反应端点是网关 Bearer 面）；坐标/凭据缺
+    /// 一即不发（门控谓词 canReact 已先拦，此处是
+    /// 写口自守，不许乐观改了却无处落定）
+    private func applyReaction(
+        _ emoji: String?, for entry: ChatEntry
+    ) {
+        guard entry.canReact,
+              let rowID = entry.serverRowID,
+              let sessionID = entry.thread?.serverSessionID
+                ?? currentThread?.serverSessionID,
+              let config = appState.config,
+              let apiKey = appState.apiKey
+        else { return }
+        let previous = entry.reactions
+        entry.applyReactions(
+            MessageReactions.applying(
+                own: emoji, to: previous,
+                at: Date().timeIntervalSince1970
+            )
+        )
+        try? modelContext.save()
+        let client = appState.client
+        Task { @MainActor in
+            do {
+                let update: ReactionUpdate
+                if let emoji {
+                    update = try await client.setReaction(
+                        config: config, apiKey: apiKey,
+                        sessionID: sessionID, rowID: rowID,
+                        emoji: emoji
+                    )
+                } else {
+                    update = try await client.clearReaction(
+                        config: config, apiKey: apiKey,
+                        sessionID: sessionID, rowID: rowID
+                    )
+                }
+                // 回执覆写自愈：服务端全集为准（乐观
+                // 组装与服务端 Tapback 结果同构、此覆
+                // 写通常同值不落写）
+                entry.applyReactions(update.reactions)
+                try? modelContext.save()
+            } catch let error as HermesError {
+                entry.applyReactions(previous)
+                try? modelContext.save()
+                showNotice(error.userMessage, tier: .extended)
+            } catch {
+                entry.applyReactions(previous)
+                try? modelContext.save()
+                showNotice(
+                    L10n.string("反应没发出去，请稍后再试。"),
+                    tier: .extended
+                )
+            }
+        }
     }
 
     /// 朗读菜单项（H2-a，台账 159）：双承载共用的
@@ -6218,6 +6348,17 @@ struct ChatView: View {
                 // §265（S3）：整行菜单自此不在行根挂载
                 // （旧挂法罩住文本面、长按文本先出整行
                 // 菜单——已下移到各铬件面，见上）
+                // 台账 187：反应 pill 压气泡列底左角（己
+                // 方消息朝聊天中线一侧）、半身悬出——悬
+                // 出净深由行高合成器的 reactionReserve
+                // 同步预留（ChatReactionMetrics 单源）
+                .overlay(alignment: .bottomLeading) {
+                    reactionPill(for: entry)
+                        .offset(
+                            x: ChatReactionMetrics.cornerInset,
+                            y: ChatReactionMetrics.hangDepth
+                        )
+                }
                 .modifier(swipeReply(for: entry))
             }
         } else {
@@ -6553,7 +6694,33 @@ struct ChatView: View {
             }
             // §265（S3）：整行菜单自此不在行根挂载（已
             // 下移到气泡背景层与各铬件面，见上）
+            // 台账 187：反应 pill 压气泡列底右角（助手
+            // 消息朝聊天中线一侧），余口径同用户支
+            .overlay(alignment: .bottomTrailing) {
+                reactionPill(for: entry)
+                    .offset(
+                        x: -ChatReactionMetrics.cornerInset,
+                        y: ChatReactionMetrics.hangDepth
+                    )
+            }
             .modifier(swipeReply(for: entry))
+        }
+    }
+
+    /// 反应 pill（台账 187）：镜像非空才在场——构
+    /// 建时同步已知（导入/回补/乐观写都先落镜像），
+    /// 无异步翻转；点自己的段＝撤回（applyReaction
+    /// 单写口），助手段只读。视图本体在 ChatReac-
+    /// tionViews（用户/助手两支共用一份形态）
+    @ViewBuilder
+    private func reactionPill(for entry: ChatEntry) -> some View {
+        if !entry.reactions.isEmpty {
+            ReactionPillView(
+                reactions: entry.reactions,
+                onClearOwn: {
+                    applyReaction(nil, for: entry)
+                }
+            )
         }
     }
 
@@ -6815,32 +6982,24 @@ struct ChatView: View {
         }
     }
 
-    /// 气泡长按菜单挂载（0.4.1）：纯图片消息（正文空）
-    /// 不挂——四项全是文本动作，空文本挂上只剩坏体验
-    /// （引用摘要为空、复制/分享空串）
+    /// 气泡长按动作面挂载（0.4.1 立制；台账 187 换
+    /// 代）：门控与原生面同口径（台账 186——纯图片
+    /// 条目同挂、长按没反应的旧口径已废；文本依赖
+    /// 项在面内按 plainText 有无组装）
     /// §265（S3）：本修饰符只许挂非文本面（气泡背景
-    /// 层与铬件），挂载点清单见 DESIGN §265
+    /// 层与铬件），挂载点清单见 DESIGN §265；长按
+    /// 只置呈现状态，动作集在呈现时刻组装（action-
+    /// SheetData），与原生面开同一个自绘动作面
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
-        let text = plainText(for: entry)
-        return MessageMenuModifier(
-            // 台账 186：与原生面同门控——纯图片条
-            // 目同挂（旧口径正文空不挂、长按没反
-            // 应）；文本依赖项在修饰内按 plainText
-            // 有无组装
+        MessageMenuModifier(
             isEnabled: !entry.content.isEmpty
                 || !entry.allImageDatas.isEmpty
                 || !entry.remoteImagePaths.isEmpty,
-            plainText: text,
-            onReply: {
-                beginReply(to: entry)
-            },
-            onFork: {
-                forkToSideChat(from: entry)
-            },
-            onSelect: {
-                selectionPayload = SelectionPayload(text: text)
-            },
-            speakItem: speakMenuItem(for: entry)
+            onPresent: {
+                actionSheetTarget = ActionSheetTarget(
+                    id: entry.id
+                )
+            }
         )
     }
 
@@ -11967,6 +12126,12 @@ private struct ComposerBarLayout: Layout {
             if let date = message.date {
                 healed.createdAt = date
             }
+            // 台账 187：补回条目出自服务端行——同点
+            // 钉桩＋镜像（与导入落盘同口径）
+            if message.id > 0 {
+                healed.serverRowID = Int(exactly: message.id)
+            }
+            healed.applyReactions(message.reactions)
             modelContext.insert(healed)
         }
         try? modelContext.save()
@@ -12091,6 +12256,13 @@ private struct ComposerBarLayout: Layout {
            let userEntry = thread.entries.first(
                where: { $0.id.uuidString == entry.userEntryID }
            ) {
+            // 台账 187：落定同点钉桩——本轮锚点 user
+            // 行的服务端行 id 钉进本地条目（反应寻址
+            // 坐标）；已钉不覆（坐标恒定、覆写无义）
+            if let rowID = settled.userRowID,
+               userEntry.serverRowID == nil {
+                userEntry.serverRowID = rowID
+            }
             userEntry.markSendState(.delivered, in: modelContext)
         }
         let endDate = Date()
@@ -12114,6 +12286,10 @@ private struct ComposerBarLayout: Layout {
                 reasoningSeconds: nil
             )
             landedAssistantEntry = assistantEntry
+            // 台账 187：正文恰出自单条服务端行时同点
+            // 钉桩（多行拼接成文恒 nil、不钉错行——
+            // 见 SettledRunTurn.assistantRowID 口径）
+            assistantEntry.serverRowID = settled.assistantRowID
             assistantEntry.createdAt = endDate
                 .addingTimeInterval(
                     Double(settled.toolCards.count) * 0.001
@@ -12486,13 +12662,12 @@ private struct ComposerBarLayout: Layout {
 }
 
 /// 原生面行菜单承载开关（§330，0.50.70 热修题
-/// 2；§332 换代）：原生面行菜单改由集合视图
-/// delegate 的内建上下文菜单通道承载（Chat-
-/// NativeList），托管内容内的 SwiftUI
-/// .contextMenu 须在本面关闭——两承载同挂会双
-/// 出菜单、且 SwiftUI 承载正是 .69 真机长按全
-/// 灭的当事层。仅原生面行构造点置 false；gen3
-/// 面无此环境值、默认 true、行为逐字不变
+/// 2；§332 换代；台账 187 再换代）：原生面动作
+/// 面改由控制器长按识别器承载（ChatNative-
+/// List），托管内容内的 SwiftUI 长按须在本面关
+/// 闭——两承载同挂会双出面、且 SwiftUI 承载正
+/// 是 .69 真机长按全灭的当事层。仅原生面行构
+/// 造点置 false；gen3 面无此环境值、默认 true
 private struct ChatRowSwiftUIMenuEnabledKey: EnvironmentKey {
     static let defaultValue = true
 }
@@ -12504,42 +12679,28 @@ extension EnvironmentValues {
     }
 }
 
-/// 消息长按菜单（0.4.1）：系统 contextMenu 四项——回复
-/// ／复制／选择／分享，全系统件、禁自绘菜单。复制走
-/// Pasteboard 收敛口径（与 CopyButton 同源一处）；分享
-/// 走 ShareLink 系统分享单；选择打开纯文本 sheet。
-/// 台账 186：isEnabled 门控与原生面同口径（纯图片
-/// 条目同挂、文本依赖项按 plainText 有无组装），见
-/// messageMenu(for:) 的口径注
-/// §265（换代包 5·S3）：挂载面自此只许落在非文本层
-/// ——气泡背景层（背景＋内边距带）与行内铬件（图
-/// 片卡/文件牌/交付项/引用块/状态行）；不许再挂
-/// 行内容根——根挂载的 UIContextMenuInteraction
-/// 是文本视图的祖先、长按文本先出整行菜单、压死
-/// UITextView 原生选字＋编辑菜单（审计 S3 定性）。
-/// 文本区长按自此归文本体系；「选择」sheet 降为
-/// 跨段选段的兜底口（仍挂菜单内、非文本区可达）
-/// 台账 186（2026-11-20 用户拍板）：长按分工改判
-/// 已在原生面（出货面）落地——delegate 通道全行
-/// 先出菜单、「选择」为菜单内一项（见 ChatNative-
-/// List 行菜单注）。本 SwiftUI 承载（gen3 回落
-/// 面）的挂载面纪律不变：其文本区长按仍归文本
-/// 体系——根挂载翻转须连同 §265 的双承载冲突一
-/// 并另案验证，不在本包以未验状态翻面（两面差
-/// 异如实登记于本包交卷）
+/// 消息长按动作面挂载（0.4.1 立制；台账 187 换
+/// 代）：旧制是系统 contextMenu（回复／复制／选
+/// 择／分享，全系统件）；台账 187 起两面收敛为同
+/// 一个自绘动作面（方案 A：反应排＋动作列表）——
+/// 本修饰符只负责在挂载面长按时置 ChatView 的呈
+/// 现状态，动作集本体在呈现时刻组装（ChatView.
+/// actionSheetData，单源），修饰符不再持动作集
+/// §265（换代包 5·S3）挂载面纪律不变：只许落在
+/// 非文本层——气泡背景层（背景＋内边距带）与行
+/// 内铬件（图片卡/文件牌/交付项/引用块/状态行）；
+/// 不许挂行内容根（压死 UITextView 原生选字＋编
+/// 辑菜单，审计 S3 定性）。文本区长按仍归文本体
+/// 系——gen3 面与原生面（识别器全行覆盖）的这处
+/// 路由差异随 §265 双承载冲突留账（本包交卷明
+/// 示），不在未验状态下翻根挂载
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
-    let plainText: String
-    let onReply: () -> Void
-    /// 0.7.0（M4）：分流动作「在旁聊里接着问」
-    let onFork: () -> Void
-    let onSelect: () -> Void
-    /// H2-a：朗读项（菜单末尾，与原生面同序同门
-    /// 控）；nil＝本条不出朗读（非助手消息/未开通）
-    var speakItem: ChatRowSpeakItem? = nil
+    /// 长按成立时置呈现状态（ChatView 侧收口）
+    let onPresent: () -> Void
 
-    /// §330／§332：原生面关停本承载（菜单已由集
-    /// 合视图 delegate 内建通道承载，见 ChatRow-
+    /// §330／§332／台账 187：原生面关停本承载（动
+    /// 作面已由控制器长按识别器承载，见 ChatRow-
     /// SwiftUIMenuEnabledKey）；gen3 面恒 true
     @Environment(\.chatRowSwiftUIMenuEnabled)
     private var swiftUIMenuEnabled
@@ -12547,37 +12708,10 @@ private struct MessageMenuModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         if isEnabled && swiftUIMenuEnabled {
-            content.contextMenu {
-                Button(action: onReply) {
-                    Label("回复", systemImage: MessageActionSymbols.reply)
-                }
-                Button(action: onFork) {
-                    Label("在旁聊里接着问", systemImage: MessageActionSymbols.fork)
-                }
-                // 台账 186：文本依赖项（复制/选择/
-                // 分享）仅 plainText 非空时组装——
-                // 与原生面 makeMenu 逐项同口径
-                if !plainText.isEmpty {
-                    Button {
-                        Pasteboard.copy(plainText)
-                    } label: {
-                        Label("复制", systemImage: MessageActionSymbols.copy)
-                    }
-                    Button(action: onSelect) {
-                        Label("选择", systemImage: MessageActionSymbols.select)
-                    }
-                    ShareLink(item: plainText) {
-                        Label("分享", systemImage: MessageActionSymbols.share)
-                    }
-                }
-                if let speakItem {
-                    Button(action: speakItem.action) {
-                        Label(
-                            speakItem.title,
-                            systemImage: speakItem.systemImage
-                        )
-                    }
-                }
+            content.onLongPressGesture(
+                minimumDuration: 0.5
+            ) {
+                onPresent()
             }
         } else {
             content

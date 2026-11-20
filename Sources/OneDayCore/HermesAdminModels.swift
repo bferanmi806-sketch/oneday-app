@@ -631,6 +631,91 @@ public struct SessionToolCallLabel: Decodable, Sendable, Equatable {
     }
 }
 
+/// 消息反应一条（台账 187）：服务端 display_metadata
+/// ["reactions"] 的元素与 PUT/DELETE /v1/reactions
+/// 回执同形——{emoji, author, at, seen?}。author 只
+/// 两值："user"（本机用户）与 "agent"（助手经工具路
+/// 自点）；Tapback 语义由服务端强制（一人一条、异点
+/// 替换、同点取消），客户端只镜像不裁决。seen 是助
+/// 手感知公告的消费标记（服务端内部账），呈现不读
+public struct MessageReaction: Codable, Sendable, Equatable {
+    public let emoji: String
+    public let author: String
+    public let at: Double?
+    public let seen: Bool?
+
+    public init(
+        emoji: String, author: String,
+        at: Double? = nil, seen: Bool? = nil
+    ) {
+        self.emoji = emoji
+        self.author = author
+        self.at = at
+        self.seen = seen
+    }
+
+    /// 本机用户的反应（author 分型单点，不许散写字面量比对）
+    public var isOwn: Bool { author == "user" }
+}
+
+/// 反应口径收敛（台账 187）：动作面反应排的固定集与
+/// 镜像组装只此一处——排内集是用户拍板的样板 8 个
+/// （单排、无展开层）；乐观组装与服务端 Tapback 语
+/// 义同构（自己的至多一条、异点替换、nil 即撤回）
+public enum MessageReactions {
+    public static let palette: [String] = [
+        "👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "🎉",
+    ]
+
+    /// 自己的现反应（至多一个）
+    public static func ownEmoji(
+        in reactions: [MessageReaction]
+    ) -> String? {
+        reactions.first { $0.isOwn }?.emoji
+    }
+
+    /// 乐观镜像组装：以 emoji 替换自己的那条（nil＝
+    /// 撤回），助手的那条原样保留、序不变
+    public static func applying(
+        own emoji: String?, to reactions: [MessageReaction],
+        at: Double? = nil
+    ) -> [MessageReaction] {
+        var next = reactions.filter { !$0.isOwn }
+        if let emoji {
+            next.append(
+                MessageReaction(emoji: emoji, author: "user", at: at)
+            )
+        }
+        return next
+    }
+}
+
+/// PUT/DELETE /v1/reactions/{session_id}/{row_id} 回执
+/// （台账 187）：{row_id, reactions}——reactions 是该行
+/// 写后的服务端全集，客户端以它覆写镜像自愈
+public struct ReactionUpdate: Decodable, Sendable {
+    public let rowID: Double
+    public let reactions: [MessageReaction]
+
+    enum CodingKeys: String, CodingKey {
+        case rowID = "row_id"
+        case reactions
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rowID = try container.decodeIfPresent(Double.self, forKey: .rowID) ?? 0
+        reactions = try container.decodeIfPresent(
+            [MessageReaction].self, forKey: .reactions
+        ) ?? []
+    }
+
+    public init(rowID: Double, reactions: [MessageReaction]) {
+        self.rowID = rowID
+        self.reactions = reactions
+    }
+}
+
 /// 实测样本：{"session_id": "…", "profile": "default",
 /// "messages": [{"id": 1, "role": "user", "content": "…",
 /// "timestamp": 1762…, …}]}
@@ -659,6 +744,9 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
     /// hidden＝不呈现；0.31.0 起解码，run 落定提取
     /// 据此分型）
     public let displayKind: String?
+    /// 消息反应全集（台账 187 起解码；网关与面板两
+    /// 个 messages 投影面同形下发，缺键＝无反应）
+    public let reactions: [MessageReaction]
 
     enum CodingKeys: String, CodingKey {
         case id, role, content, timestamp
@@ -669,6 +757,7 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         case reasoningContent = "reasoning_content"
         case reasoning
         case displayKind = "display_kind"
+        case reactions
     }
 
     public init(from decoder: Decoder) throws {
@@ -695,6 +784,9 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         displayKind = try container.decodeIfPresent(
             String.self, forKey: .displayKind
         )
+        reactions = try container.decodeIfPresent(
+            [MessageReaction].self, forKey: .reactions
+        ) ?? []
     }
 
     /// 测试与拼装用直构（解码路径外）
@@ -704,7 +796,8 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         toolName: String? = nil,
         toolCallLabels: [String: [SessionToolCallLabel]] = [:],
         reasoningContent: String? = nil, reasoning: String? = nil,
-        displayKind: String? = nil
+        displayKind: String? = nil,
+        reactions: [MessageReaction] = []
     ) {
         self.id = id
         self.role = role
@@ -717,6 +810,7 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         self.reasoningContent = reasoningContent
         self.reasoning = reasoning
         self.displayKind = displayKind
+        self.reactions = reactions
     }
 
     public var date: Date? {

@@ -227,6 +227,22 @@ final class ChatEntry {
     /// 默认 nil、SwiftData 轻量迁移，同 toolCard-
     /// Data 先例）
     var traceEchoData: Data? = nil
+    /// 台账 187：服务端行 id 钉桩——本条目在服务端
+    /// messages 表的 row id（反应寻址的唯一坐标）。
+    /// 导入/回补落盘时由 RichItem 带入钉桩；存量条
+    /// 目由回补轮在指纹命中时补钉（见 SessionHistory-
+    /// Backfiller）；本地出生、服务端尚无此行（待
+    /// 发/种子未上行）恒 nil——nil 即不可反应（门
+    /// 控谓词 canReact）（可选＋默认 nil、SwiftData
+    /// 轻量迁移，同 quoteRole 先例）
+    var serverRowID: Int? = nil
+    /// 台账 187：反应镜像（[MessageReaction] 的 JSON
+    /// 编码）——服务端是唯一真源、本字段只是渲染缓
+    /// 存：导入/回补以服务端值覆写、点反应时乐观先
+    /// 行、端点回执覆写自愈、失败回滚。不进回补指
+    /// 纹、不进发送上下文（可选＋默认 nil、Swift-
+    /// Data 轻量迁移，同 toolCardData 先例）
+    var reactionsData: Data? = nil
     /// 基础止血包（P1/P2）：发送失败标记——本条用户
     /// 消息的一轮没能成立（上传/链接失败）或 run 落
     /// 定失败时置真：条目留原地、气泡旁挂失败标记、
@@ -332,6 +348,41 @@ final class ChatEntry {
         return try? JSONDecoder().decode(
             TraceEchoSnapshot.self, from: traceEchoData
         )
+    }
+
+    /// 反应镜像解码（台账 187；无或损坏为空集——
+    /// 渲染按无反应降级，不许因单条镜像损坏整行消
+    /// 失，同 traceEcho 口径）
+    var reactions: [MessageReaction] {
+        guard let reactionsData else { return [] }
+        return (try? JSONDecoder().decode(
+            [MessageReaction].self, from: reactionsData
+        )) ?? []
+    }
+
+    /// 反应镜像唯一写口（台账 187）：与现值相同不落
+    /// 写（回补每轮覆写不许无谓翻修订/重测高）；空
+    /// 集落 nil（与各 JSON 字段「空即 nil」同口径）
+    func applyReactions(_ next: [MessageReaction]) {
+        guard next != reactions else { return }
+        reactionsData = next.isEmpty
+            ? nil
+            : try? JSONEncoder().encode(next)
+    }
+
+    /// 可反应门控（台账 187，单点谓词）：已钉桩（服
+    /// 务端有此行）＋已落定（非待发/非发送失败）＋
+    /// 是发言行（user/assistant、非工具卡、非系统锚
+    /// 定回响）。直播行不是 ChatEntry、天生不在此列；
+    /// 动作面反应排与 pill 撤回两处共用本谓词，不许
+    /// 各写一份
+    var canReact: Bool {
+        serverRowID != nil
+            && (role == "user" || role == "assistant")
+            && toolCardData == nil
+            && !isSystemAnchored
+            && !isPendingSend
+            && !sendFailed
     }
 
     /// 待发条目（聊天可靠性包）：deliveryState 的
