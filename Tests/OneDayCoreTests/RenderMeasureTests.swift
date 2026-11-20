@@ -288,8 +288,14 @@ final class RenderMeasureTests: XCTestCase {
     /// #F0F0F2＋双泡中性断言）；0.6.1 用户亲令配色改用
     /// OpenMuse，封存口径正式让位，本测试改钉它的令牌：
     /// ①浅色解析值＝OpenMuse 原值（助手泡 #EEEEF0＝
-    /// chat.tsx:593、用户泡 #C8E7FF＝colors.blue、
+    /// chat.tsx:593、用户泡原 #C8E7FF＝colors.blue、
     /// selectionFill #F0F1F2＝底栏激活 App.tsx:464）；
+    /// 【台账 184（2026-11-20 用户拍板）】用户泡浅色
+    /// 钉改从本值：气泡浓淡两式进主题、默认实填档，
+    /// 浅色实填＝同款 accentLight #1268B8（原
+    /// #C8E7FF 降为淡档 tint 的混色基、逐款实算与
+    /// 两式解析钉在 ChatThemeTests）；暗色实填＝原
+    /// bubbleDark 不变、②的暗色钉不动；
     /// ②暗色解析值——0.36.1 批一B 起助手泡改挂语义
     /// 三级面 #2C2C2E（旧派生 #272E33 退役，见下方语
     /// 义梯专钉）；用户泡取主题表 blueDark #1473C8；
@@ -309,9 +315,10 @@ final class RenderMeasureTests: XCTestCase {
         XCTAssertEqual(
             UIColor(Palette.userBubbleFill).resolvedColor(with: light),
             UIColor(
-                red: 0xC8 / 255.0, green: 0xE7 / 255.0,
-                blue: 0xFF / 255.0, alpha: 1
-            )
+                red: 0x12 / 255.0, green: 0x68 / 255.0,
+                blue: 0xB8 / 255.0, alpha: 1
+            ),
+            "浅色用户泡默认实填档＝accentLight #1268B8（台账 184）"
         )
         XCTAssertEqual(
             UIColor(Palette.bubbleFill).resolvedColor(with: dark),
