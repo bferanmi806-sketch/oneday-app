@@ -24,7 +24,7 @@ protocol SpeechAudioEngine: AnyObject {
 /// 切 .playback 并激活、停/完后释放（与听写的录音
 /// 会话共用同一个 AVAudioSession 的分工：听写开始
 /// 前 ChatView 先停朗读，后到者重设类别，互不抢）
-final class AVSpeechAudioEngine: NSObject,
+final class AVSpeechAudioEngine: NSObject, SpeechAudioEngine,
     AVAudioPlayerDelegate, @unchecked Sendable {
     private let player: AVAudioPlayer
     var onNaturalFinish: (@MainActor () -> Void)?
@@ -120,7 +120,11 @@ final class SpeechPlayer {
     private var requestTask: Task<Void, Never>?
     private var lastConfigFetchAt: Date?
     private var configFetchInFlight = false
-    private var interruptionObserver: NSObjectProtocol?
+    /// 只在 init 写一次、deinit 读一次移除——deinit 是
+    /// 非隔离上下文，故标 nonisolated(unsafe)（写入发生
+    /// 在对象发布之前、无并发读者）
+    private nonisolated(unsafe) var interruptionObserver:
+        NSObjectProtocol?
 
     init(
         speakService: @escaping SpeakService = SpeechPlayer.liveSpeakService,
@@ -143,7 +147,7 @@ final class SpeechPlayer {
                 let raw = notification.userInfo?[
                     AVAudioSessionInterruptionTypeKey
                 ] as? UInt
-                guard raw == AVAudioSessionInterruptionType
+                guard raw == AVAudioSession.InterruptionType
                     .began.rawValue else { return }
                 Task { @MainActor [weak self] in
                     self?.stop()
