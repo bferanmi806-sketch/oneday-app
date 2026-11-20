@@ -490,12 +490,77 @@ struct ChatNativeRowHeightComposer {
         let snapshot = ChatEntryHeightSnapshot(entry)
         return makeJob(
             memoKey: memoKey, rowKey: rowKey,
-            facets: facets
+            facets: facets,
+            afterMeasure: makeEntryProductWork(for: entry)
         ) {
             $0.entryHeightCore(
                 snapshot, dividerText: dividerText,
                 showsUnreadDivider: showsUnreadDivider
             )
+        }
+    }
+
+    /// 条目排版产物副产（台账 190③）：工单量完行
+    /// 高后顺产该条目的排版产物（段属性串＋各段
+    /// 高）入 LayoutProductStore 同一本账——门控
+    /// 与文本口径与 ChatView 预热（preheatEntries）
+    /// 逐字同源（用户直取原文；助手过工具/留痕/
+    /// 回响/审批四闸后取摘记文本），键（条目 id×
+    /// 文本哈希×文本宽×样式键）与预热/流式估算
+    /// 读口同键。执行线程分工：量测台后台队列走
+    /// 同步产物口（拼装＋池同步量测）；主线程就
+    /// 地量测路（measureNow）改投产物服务异步补
+    /// 产（池同步口主线程禁用）
+    private func makeEntryProductWork(
+        for entry: ChatEntry
+    ) -> (() -> Void)? {
+        let renderedText: String
+        let isUser: Bool
+        if entry.role == "user" {
+            renderedText = entry.content
+            isUser = true
+        } else if entry.role == "assistant",
+                  entry.toolCard == nil,
+                  entry.traceKey == nil,
+                  entry.echoKey == nil,
+                  entry.approvalKey == nil {
+            renderedText = EntryScanMemo.scans(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            ).media.text
+            isUser = false
+        } else {
+            return nil
+        }
+        guard !renderedText.isEmpty else { return nil }
+        let entryID = entry.id
+        let width = LayoutProductService.textWidth(
+            isUser: isUser, screenWidth: screenWidth
+        )
+        let style = LayoutStyleContext(
+            sizeCategory: sizeCategory, boldText: boldText
+        )
+        return {
+            if Thread.isMainThread {
+                Task {
+                    _ = await LayoutProductService.shared
+                        .product(
+                            entryID: entryID,
+                            renderedText: renderedText,
+                            isUser: isUser, width: width,
+                            style: style
+                        )
+                }
+            } else {
+                _ = LayoutProductService.shared
+                    .productSynchronously(
+                        entryID: entryID,
+                        renderedText: renderedText,
+                        isUser: isUser, width: width,
+                        style: style
+                    )
+            }
         }
     }
 
@@ -567,6 +632,7 @@ struct ChatNativeRowHeightComposer {
         memoKey: String, rowKey: String,
         facets: ChatNativeRowFacets =
             ChatNativeRowFacets(),
+        afterMeasure: (() -> Void)? = nil,
         core: @escaping (
             ChatNativeRowHeightComposer
         ) -> CGFloat
@@ -593,7 +659,11 @@ struct ChatNativeRowHeightComposer {
                     emptyStateAvatarSize,
                 facets: facets
             )
-            return core(composer)
+            let height = core(composer)
+            // 台账 190③：行高落定后顺产排版产物
+            // （副产失败/缺产不影响行高本体）
+            afterMeasure?()
+            return height
         }
     }
 

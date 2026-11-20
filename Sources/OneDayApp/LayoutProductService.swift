@@ -99,6 +99,58 @@ final class LayoutProductService: @unchecked Sendable {
         return built
     }
 
+    /// 同步取产物（台账 190③）：量测台工单在后
+    /// 台队列量完整行高后顺产排版产物入同一缓存
+    /// ——「量测产物」自此不止行高：段属性串＋各
+    /// 段高一次算完存账，呈现/估算侧只取成品（学
+    /// 微信 CellLayout 的预排版全件）。拼装与异
+    /// 步口逐字同源（assembleWorks），量测走池
+    /// 同步口——**调用方须已在后台线程**（同步
+    /// 口主线程禁用，见 LayoutMeasurePool 注）；
+    /// 主线程调用方（就地量测路）应改走异步
+    /// product(...) 补产
+    func productSynchronously(
+        entryID: UUID,
+        renderedText: String,
+        isUser: Bool,
+        width: CGFloat,
+        style: LayoutStyleContext
+    ) -> LayoutProduct? {
+        guard !renderedText.isEmpty, width > 0
+        else { return nil }
+        let key = LayoutProductKey(
+            entryID: entryID,
+            content: renderedText,
+            width: Double(width),
+            style: style.coreKey
+        )
+        if let cached = LayoutProductStore.cache
+            .product(for: key) {
+            return cached
+        }
+        let (works, structuralCount) = assembleWorks(
+            renderedText: renderedText,
+            isUser: isUser, width: width, style: style
+        )
+        var segments: [LayoutSegmentProduct] = []
+        for work in works {
+            let height = pool.measureSizeSynchronously(
+                work.attributed, width: work.measureWidth
+            ).height
+            segments.append(LayoutSegmentProduct(
+                segmentIndex: work.index, kind: work.kind,
+                attributed: work.attributed,
+                height: Double(height)
+            ))
+        }
+        let built = LayoutProduct(
+            key: key, segments: segments,
+            structuralSegmentCount: structuralCount
+        )
+        LayoutProductStore.cache.store(built)
+        return built
+    }
+
     /// 预热入口（蓝图 §1.3：开线程时按可见区±一屏
     /// 预热的本期落法——线程打开时对其全部已载条
     /// 目在后台预产；LazyVStack 的物化范围≈可见区
@@ -168,6 +220,45 @@ final class LayoutProductService: @unchecked Sendable {
         width: CGFloat,
         style: LayoutStyleContext
     ) async -> LayoutProduct {
+        let (works, structuralCount) = assembleWorks(
+            renderedText: renderedText,
+            isUser: isUser, width: width, style: style
+        )
+        var segments: [LayoutSegmentProduct] = []
+        for work in works {
+            let height = await pool.measure(
+                work.attributed, width: work.measureWidth
+            )
+            segments.append(LayoutSegmentProduct(
+                segmentIndex: work.index, kind: work.kind,
+                attributed: work.attributed,
+                height: Double(height)
+            ))
+        }
+        return LayoutProduct(
+            key: key,
+            segments: segments,
+            structuralSegmentCount: structuralCount
+        )
+    }
+
+    /// 段拼装工件（量测前）：段序／段型／属性串／
+    /// 该段量测宽——异步 build 与同步 product-
+    /// Synchronously 共用本拼装（拼装单源纪律：
+    /// 两路只差量测口、不差拼装口）
+    private struct SegmentWork {
+        var index: Int
+        var kind: LayoutSegmentProduct.Kind
+        var attributed: NSAttributedString
+        var measureWidth: CGFloat
+    }
+
+    private func assembleWorks(
+        renderedText: String,
+        isUser: Bool,
+        width: CGFloat,
+        style: LayoutStyleContext
+    ) -> (works: [SegmentWork], structuralCount: Int) {
         let baseFont = InlineTextFonts.baseFont(
             textStyle: .body,
             category: style.sizeCategory,
@@ -194,7 +285,7 @@ final class LayoutProductService: @unchecked Sendable {
             )
         }
 
-        var segments: [LayoutSegmentProduct] = []
+        var works: [SegmentWork] = []
         var structuralCount = 0
         if isUser {
             let attributed = assemble(
@@ -207,12 +298,9 @@ final class LayoutProductService: @unchecked Sendable {
                 )],
                 foreground: Palette.userBubbleText
             )
-            let height = await pool.measure(
-                attributed, width: width
-            )
-            segments.append(LayoutSegmentProduct(
-                segmentIndex: 0, kind: .plain,
-                attributed: attributed, height: Double(height)
+            works.append(SegmentWork(
+                index: 0, kind: .plain,
+                attributed: attributed, measureWidth: width
             ))
         } else {
             let plan = LayoutProductPlan.plan(
@@ -222,44 +310,33 @@ final class LayoutProductService: @unchecked Sendable {
             for segment in plan.textSegments {
                 switch segment {
                 case .prose(let index, let paragraphs):
-                    let attributed = assemble(
-                        MarkdownText.proseParagraphs(paragraphs),
-                        foreground: Palette.bodyInk
-                    )
-                    let height = await pool.measure(
-                        attributed, width: width
-                    )
-                    segments.append(LayoutSegmentProduct(
-                        segmentIndex: index, kind: .prose,
-                        attributed: attributed,
-                        height: Double(height)
+                    works.append(SegmentWork(
+                        index: index, kind: .prose,
+                        attributed: assemble(
+                            MarkdownText.proseParagraphs(paragraphs),
+                            foreground: Palette.bodyInk
+                        ),
+                        measureWidth: width
                     ))
                 case .quote(let index, let lines):
-                    let attributed = assemble(
-                        MarkdownText.quoteParagraphs(lines),
-                        foreground: Palette.inkSecondaryOnFill
-                    )
                     // 引用文本可用宽＝气泡文本宽−（竖
                     // 条 3＋HStack 间距 spacingS）——
                     // 与 blockquoteView 的几何同值
                     let quoteWidth = width
                         - (3 + OneDayMetrics.spacingS)
-                    let height = await pool.measure(
-                        attributed, width: quoteWidth
-                    )
-                    segments.append(LayoutSegmentProduct(
-                        segmentIndex: index, kind: .quote,
-                        attributed: attributed,
-                        height: Double(height)
+                    works.append(SegmentWork(
+                        index: index, kind: .quote,
+                        attributed: assemble(
+                            MarkdownText.quoteParagraphs(lines),
+                            foreground: Palette
+                                .inkSecondaryOnFill
+                        ),
+                        measureWidth: quoteWidth
                     ))
                 }
             }
         }
-        return LayoutProduct(
-            key: key,
-            segments: segments,
-            structuralSegmentCount: structuralCount
-        )
+        return (works, structuralCount)
     }
 
     /// 环境外解析颜色：按当前 trait 的明暗档构造

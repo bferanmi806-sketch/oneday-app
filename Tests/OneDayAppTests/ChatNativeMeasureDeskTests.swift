@@ -457,4 +457,131 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             "重复趟须走 facet 备忘命中"
         )
     }
+    // MARK: - ④ 台账 190（方向感知／就地量测／积压账）
+
+    private final class LockedRecorder {
+        private let lock = NSLock()
+        private(set) var values: [String] = []
+        func append(_ value: String) {
+            lock.lock()
+            values.append(value)
+            lock.unlock()
+        }
+        func clear() {
+            lock.lock()
+            values = []
+            lock.unlock()
+        }
+    }
+
+    func testDeskResolveReportsExactness() async {
+        let desk = ChatNativeRowMeasureDesk()
+        let suffix = UUID().uuidString
+        let memoKey = "desk-exact-\(suffix)"
+        let rowKey = "desk-exact-row-\(suffix)"
+        let miss = desk.resolve(
+            memoKey: memoKey, rowKey: rowKey, fallback: 120
+        )
+        XCTAssertFalse(miss.isExact, "未量测行高不许报确定")
+        desk.collect(
+            ChatNativeRowMeasureJob(
+                memoKey: memoKey, rowKey: rowKey
+            ) { 77 }
+        )
+        desk.flushCollected()
+        let deadline = Date().addingTimeInterval(5)
+        while desk.publishedRevision == 0,
+              Date() < deadline {
+            try? await Task.sleep(
+                nanoseconds: 50_000_000
+            )
+        }
+        let hit = desk.resolve(
+            memoKey: memoKey, rowKey: rowKey, fallback: 120
+        )
+        XCTAssertTrue(hit.isExact, "量测回填后须报确定高")
+        XCTAssertEqual(hit.height, 77)
+    }
+
+    func testDeskMeasureNowRunsJobSynchronously() {
+        ChatMeasureDeskBacklog.reset()
+        let desk = ChatNativeRowMeasureDesk()
+        let suffix = UUID().uuidString
+        let memoKey = "desk-now-\(suffix)"
+        let rowKey = "desk-now-row-\(suffix)"
+        _ = desk.resolve(
+            memoKey: memoKey, rowKey: rowKey, fallback: 120
+        )
+        desk.collect(
+            ChatNativeRowMeasureJob(
+                memoKey: memoKey, rowKey: rowKey
+            ) { 55 }
+        )
+        // 未 flush 即就地量测：同步回确定高＋缓存落账
+        let measured = desk.measureNow(rowKey: rowKey)
+        XCTAssertEqual(measured, 55)
+        XCTAssertEqual(
+            ChatNativeRowHeightComposer
+                .cachedRowHeight(forKey: memoKey),
+            55
+        )
+        XCTAssertTrue(
+            ChatNativeRowMeasureDesk.backlogLine()
+                .contains("就地量测 1"),
+            "积压账须记就地量测一次"
+        )
+        // 无工单无缓存的行回 nil（布局侧保留喂入高）
+        XCTAssertNil(
+            desk.measureNow(rowKey: "no-such-row-\(suffix)")
+        )
+    }
+
+    func testDeskUpwardTrendDispatchesAnchorFirst() async {
+        let desk = ChatNativeRowMeasureDesk()
+        let suffix = UUID().uuidString
+        let recorder = LockedRecorder()
+        let rowKeys = (0..<5).map { "ord-r\($0)-\(suffix)" }
+        func runPass(tag: String) async {
+            for (index, rowKey) in rowKeys.enumerated() {
+                let memoKey = "ord-\(tag)-\(index)-\(suffix)"
+                _ = desk.resolve(
+                    memoKey: memoKey, rowKey: rowKey,
+                    fallback: 120
+                )
+                desk.collect(
+                    ChatNativeRowMeasureJob(
+                        memoKey: memoKey, rowKey: rowKey
+                    ) {
+                        recorder.append(rowKey)
+                        return 100
+                    }
+                )
+            }
+            desk.flushCollected()
+            let deadline = Date().addingTimeInterval(5)
+            while recorder.values.count < 5,
+                  Date() < deadline {
+                try? await Task.sleep(
+                    nanoseconds: 50_000_000
+                )
+            }
+        }
+        // 第一趟：建行序账（默认逆序＝最新先量）
+        await runPass(tag: "p1")
+        XCTAssertEqual(
+            recorder.values, Array(rowKeys.reversed()),
+            "无趋势时投单序恒逆序（现行口径）"
+        )
+        recorder.clear()
+        // 锚先落最底行、再上移到第 1 行＝上滑趋势
+        desk.noteTopVisible(rowKey: rowKeys[4])
+        desk.noteTopVisible(rowKey: rowKeys[1])
+        await runPass(tag: "p2")
+        XCTAssertEqual(
+            recorder.values,
+            [rowKeys[1], rowKeys[0], rowKeys[2],
+             rowKeys[3], rowKeys[4]],
+            "上滑趋势下投单序须锚上方最近行先量、锚下方次之"
+        )
+    }
 }

@@ -86,7 +86,14 @@ import UIKit
 ///   盘态＝通知广播的结束帧顶（窗口坐标）、静息
 ///   态＝坞实测顶、无坞回落窗口安全区底；状态翻
 ///   转与帧变化以通知动画参数原值推进布局（时
-///   长 0 的逐帧事件直接布局）。keyboardLayout-
+///   长 0 的逐帧事件直接布局）。台账 189（2026-
+///   11-20 结构根治）：静息态自常量链分出——
+///   「坞实测顶」实证是 UITabBar 帧顶、与可见
+///   胶囊顶差 39pt（帧内悬浮内距），静息落位
+///   改入布局流（bottomGuide.top 直约胶囊
+///   topAnchor，见 dockCapsuleView/updateDock-
+///   Mode）；常量链自此只辖键盘态与无胶囊回
+///   落态，§194 键盘单常数链一字未动。keyboardLayout-
 ///   Guide 自此退出驱动位、只在事件拍作采样对
 ///   照记入自述（预期仍停静息值、即根因本人）。
 ///   列表底 inset 仍每拍由舱子托管实测帧一处派
@@ -414,6 +421,13 @@ struct ChatNativeRow {
     /// 试手搓行等）回落固定常量——单值、永不随
     /// 行集聚合（兜底口径见 §329）
     let height: CGFloat
+    /// 台账 190②：本行高是否临界（量测未就绪、
+    /// 以兜底/上次高顶替）——布局提供者对将入视
+    /// 口的临界行就地量测换确定高；确定高行恒
+    /// false。就地量测换高只改布局匣、不改本描
+    /// 述（描述的戳含高值、量测台回填后经发布代
+    /// 次以新描述重喂，两路同值）
+    let heightIsProvisional: Bool
     let makeView: () -> AnyView
     /// §330 行菜单（原生面 UIKit 承载）：条目行
     /// 由 ChatView 喂入（台账 186 起纯图片条目同
@@ -426,6 +440,7 @@ struct ChatNativeRow {
         revision: ChatNativeRowRevision = ChatNativeRowRevision(),
         height: CGFloat = ChatNativeRowHeightComposer
             .fallbackHeight,
+        heightIsProvisional: Bool = false,
         makeView: @escaping () -> AnyView,
         contextMenu: ChatNativeRowContextMenu? = nil
     ) {
@@ -433,6 +448,7 @@ struct ChatNativeRow {
         self.entryID = entryID
         self.revision = revision
         self.height = height
+        self.heightIsProvisional = heightIsProvisional
         self.makeView = makeView
         self.contextMenu = contextMenu
     }
@@ -499,6 +515,24 @@ private final class ChatNativeLayoutBox {
     /// 高；apply 落写、提供者只读，两处不许各算
     /// 一份
     var rowHeights: [CGFloat] = []
+    /// 台账 190②：与 rowHeights 同序的临界标记
+    /// （高未量测确定）：提供者对可见窗内的临界
+    /// 行经 syncMeasure 就地量测换确定高并回写
+    /// 本表（学 Telegram 无估算高：估算兜底只留
+    /// 给从未接近视口的行）；窗外临界行不付主线
+    /// 程量测、等量测台后台回填
+    var provisionalFlags: [Bool] = []
+    /// 就地量测口（控制器装配：序→行键→量测台
+    /// measureNow）；nil＝无量测台在席（探针裸
+    /// 装配），提供者不就地量测
+    var syncMeasure: ((Int) -> CGFloat?)?
+    /// 可见窗（section 序，控制器按可见项±缓冲
+    /// 刷新）：syncMeasure 只许在本窗内触发
+    var visibleWindow: Range<Int> = 0..<0
+    /// 就地量测单窗预算（防整窗临界时主线程连
+    /// 量失控；窗口刷新时由控制器重置）
+    var syncMeasureBudget = 0
+    static let syncMeasureBudgetPerWindow = 12
     /// §325.2 布局 pass 计数口（section 提供者被调
     /// 用次数）：收敛压测的 pass 数读数——稳态下强
     /// 制布局/重复 apply 不得再触发 section 重建；
@@ -535,24 +569,45 @@ final class ChatNativeHostingCell: UICollectionViewCell {
     private(set) var configureCount = 0
     private(set) var configuredKey: String?
 
+    /// 台账 190④：持久行托管（控制器持有、随
+    /// cell 终身）：旧形态每次 configure 新建
+    /// UIHostingConfiguration 并整体换配——托管
+    /// 控制器与托管视图随之整套重建（WWDC23
+    /// 《Demystify SwiftUI Performance》对列表
+    /// 行托管换根的忌口在本仓的落点）。改收敛
+    /// 为：托管由控制器在 cell 首次配置时装配
+    /// 一次（子控制器收编、与舱托管同式），此
+    /// 后 configure 只换 rootView——托管本体不
+    /// 再换根，SwiftUI 侧按行键 .id 隔离逐行重
+    /// 渲的口径不变
+    weak var rowHost: UIHostingController<AnyView>?
+
     func configure(with row: ChatNativeRow) {
         configureCount += 1
         configuredKey = row.key
-        var config = UIHostingConfiguration {
-            // 卡顿探针（2026-11-20）：托管行构建耗时
-            // 在闭包被框架求值时计——只记账、无行为
-            // 影响（ChatLagProbe）
-            ChatLagProbe.measureHostingBuild {
-                row.makeView()
-            }
-                .id(row.key)
-                .frame(
-                    maxWidth: .infinity,
-                    alignment: .leading
-                )
+        // 卡顿探针（2026-11-20）：托管行构建耗时
+        // 在闭包被求值时计——只记账、无行为影响
+        // （ChatLagProbe）
+        let root = ChatLagProbe.measureHostingBuild {
+            row.makeView()
         }
-        config = config.margins(.all, 0)
-        contentConfiguration = config
+            .id(row.key)
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
+        if let host = rowHost {
+            host.rootView = AnyView(root)
+        } else {
+            // 托管未装配（探针裸装配等无控制器在
+            // 席的形态）：回落旧配置路，行为与旧
+            // 形态逐字一致
+            var config = UIHostingConfiguration {
+                root
+            }
+            config = config.margins(.all, 0)
+            contentConfiguration = config
+        }
         backgroundConfiguration = .clear()
     }
 
@@ -560,6 +615,9 @@ final class ChatNativeHostingCell: UICollectionViewCell {
         super.prepareForReuse()
         contentConfiguration = nil
         configuredKey = nil
+        // 持久托管不拆：内容在下次 configure 换
+        // rootView 时整体替换（行键 .id 隔离防
+        // 状态跨行串行，口径不变）
     }
 
     /// hitTest 命中判读（§332 题 1/题 2 共用）：
@@ -856,6 +914,25 @@ final class ChatRootViewController: UIViewController,
     private weak var dockBarView: UIView?
     private var dockIsFallback = false
     private weak var anchorWindow: UIWindow?
+    /// 台账 189（结构根治）：可见胶囊参照——iOS
+    /// 26 浮动坞的可见坞体是 UITabBar 子层级内
+    /// 的胶囊/platter 子视图（bar 本体帧顶比胶
+    /// 囊顶高 39pt，182/189 两轮实证）。静息落
+    /// 位自本包起入布局流：bottomGuide.top 直接
+    /// 约束到胶囊 topAnchor（布局引擎逐 pass 维
+    /// 护、无人工换算、无原点配对），本字段只持
+    /// 参照引用、由 resolveAnchors 在离散触发点
+    /// 重解析（实例被换即重建约束）
+    private weak var dockCapsuleView: UIView?
+    /// 静息入流约束（guide.top＝胶囊.top）：仅静
+    /// 息态＋胶囊在场时激活；键盘态/回落态由常
+    /// 量约束接管（§194 单常数链不动）。激活态
+    /// 切换只发生在离散事件点（锚重解析/键盘翻
+    /// 转），永不在布局拍内切换
+    private var dockFlowConstraint: NSLayoutConstraint?
+    /// 胶囊参照失效（移窗/被换）时布局拍自愈重
+    /// 解析的节流时刻（与回落态自愈同式）
+    private var lastCapsuleResolveAt: CFTimeInterval = 0
     /// §302.1 续作：回落态布局拍重解析的上次尝试
     /// 时刻——回落壳内恒无坞时每拍全窗遍历找坞会
     /// 扰动落定收敛时序，布局拍自愈加 0.3s 节流
@@ -936,6 +1013,75 @@ final class ChatRootViewController: UIViewController,
 
     private var arrowHost: UIHostingController<AnyView>?
     private var arrowVisible = false
+    /// 台账 190④：行持久托管池（按 cell 实例持
+    /// 有；cell 随集合视图回收复用、池规模＝在席
+    /// cell 数，控制器 deinit 时整池拆收）
+    private var rowHosts:
+        [ObjectIdentifier: UIHostingController<AnyView>] =
+        [:]
+    /// 台账 190②：就地量测口（ChatView 经 repre-
+    /// sentable 喂入：行键→量测台 measureNow 的
+    /// 确定高）；布局匣的 syncMeasure 经本口按序
+    /// 取行键转发
+    var exactHeightProvider: ((String) -> CGFloat?)?
+
+    /// 行持久托管装配（台账 190④）：cell 首次配
+    /// 置时建托管控制器收编为子控制器（与舱托管
+    /// installComposerIfNeeded 同式：safeArea-
+    /// Regions 清零防行内安全区污染、高由固有尺
+    /// 寸——sizingOptions 取 intrinsicContent-
+    /// Size，托管视图在 cell 内贴顶抱内容高，与
+    /// 旧 UIHostingConfiguration 的抱高口径同
+    /// 义）；托管视图入 cell 内容视图后随 cell
+    /// 终身，configure 只换其 rootView
+    private func ensureRowHost(
+        for cell: ChatNativeHostingCell
+    ) {
+        guard cell.rowHost == nil else { return }
+        let id = ObjectIdentifier(cell)
+        let host: UIHostingController<AnyView>
+        if let pooled = rowHosts[id] {
+            host = pooled
+        } else {
+            host = UIHostingController(
+                rootView: AnyView(EmptyView())
+            )
+            host.safeAreaRegions = []
+            host.sizingOptions = .intrinsicContentSize
+            host.view.backgroundColor = .clear
+            host.view.translatesAutoresizingMaskIntoConstraints =
+                false
+            addChild(host)
+            rowHosts[id] = host
+        }
+        if host.view.superview !== cell.contentView {
+            cell.contentView.addSubview(host.view)
+            NSLayoutConstraint.activate([
+                host.view.topAnchor.constraint(
+                    equalTo: cell.contentView.topAnchor
+                ),
+                host.view.leadingAnchor.constraint(
+                    equalTo: cell.contentView.leadingAnchor
+                ),
+                host.view.trailingAnchor.constraint(
+                    equalTo: cell.contentView.trailingAnchor
+                ),
+            ])
+            host.didMove(toParent: self)
+        }
+        cell.rowHost = host
+    }
+
+    /// 行托管整池拆收（deinit）：子控制器逐个移
+    /// 出收编，防收编关系悬挂
+    private func teardownRowHosts() {
+        for (_, host) in rowHosts {
+            host.willMove(toParent: nil)
+            host.view.removeFromSuperview()
+            host.removeFromParent()
+        }
+        rowHosts = [:]
+    }
     private var blankTapDelegate: ChatCarrierBlankTapDelegate?
 
     // MARK: 生命周期
@@ -1034,6 +1180,22 @@ final class ChatRootViewController: UIViewController,
         box: ChatNativeLayoutBox, sectionIndex: Int
     ) -> NSCollectionLayoutSection {
         let rowCount = box.rowHeights.count
+        // 台账 190②：将入视口的临界行在提供者问
+        // 高时就地量测——单行毫秒级、入屏前付清，
+        // 确定高直接回写匣内本序（本 section 与后
+        // 续布局 pass 同读新值）；窗外/预算尽/无
+        // 量测台时保留当趟喂入高（量测台回填后经
+        // 发布代次重喂，两路同值）
+        if sectionIndex < rowCount,
+           sectionIndex < box.provisionalFlags.count,
+           box.provisionalFlags[sectionIndex],
+           box.visibleWindow.contains(sectionIndex),
+           box.syncMeasureBudget > 0,
+           let measured = box.syncMeasure?(sectionIndex) {
+            box.rowHeights[sectionIndex] = measured
+            box.provisionalFlags[sectionIndex] = false
+            box.syncMeasureBudget -= 1
+        }
         let height = sectionIndex < rowCount
             ? box.rowHeights[sectionIndex]
             : ChatNativeLayoutBox.estimatedPlaceholder
@@ -1127,6 +1289,18 @@ final class ChatRootViewController: UIViewController,
         )
         installComposerIfNeeded()
         installBlankTapDismiss()
+        // 台账 190②：布局匣就地量测口装配（序→当
+        // 前行集行键→喂入口转发；行集以调用时刻
+        // 的 rows 为准，提供者在布局 pass 内同步
+        // 调用、只读本匣与行集）
+        layoutBox.syncMeasure = { [weak self] index in
+            guard let self,
+                  self.rows.indices.contains(index)
+            else { return nil }
+            return self.exactHeightProvider?(
+                self.rows[index].key
+            )
+        }
         ChatDiagTrace.record(
             "原生重建 R1 新面装配（开关开）："
                 + "UICollectionView＋diffable 就绪"
@@ -1135,6 +1309,7 @@ final class ChatRootViewController: UIViewController,
 
     deinit {
         NotificationCenter.default.removeObserver(self)
+        teardownRowHosts()
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -1225,7 +1400,12 @@ final class ChatRootViewController: UIViewController,
         }
         keyboardUp = up
         if !up { keyboardTopInWindow = nil }
-        syncBottomConstant()
+        // 台账 189：落位模式随键盘翻转同拍对账——
+        // 升起切常量链（§194 帧顶常量、本包不动）、
+        // 收起切回静息入流（胶囊参照已在上方
+        // resolveAnchors 刷过）；updateDockMode 在
+        // 常量模式内自带 syncBottomConstant
+        updateDockMode()
         animateLayout(with: note, immediateIfZero: false)
         reportKeyboardFrame(from: note)
         sampleGuideForTrace(event: up ? "kbShow" : "kbHide")
@@ -1286,7 +1466,100 @@ final class ChatRootViewController: UIViewController,
             dockBarView = nil
             dockIsFallback = true
         }
-        syncBottomConstant()
+        // 台账 189：胶囊参照随坞参照同拍重解析，
+        // 落位模式（入流/常量）随之对账
+        resolveDockCapsule()
+        updateDockMode()
+    }
+
+    /// 台账 189：可见胶囊重解析——胶囊实例变了
+    /// 才重建入流约束（旧约束先撤、参照先换）；
+    /// 找不到胶囊（层级形态漂移）时参照置 nil、
+    /// 落位回落常量链读 bar 帧顶（182 口径）＋
+    /// 探针留痕（sampleAnchorQuad 的 capsuleTop
+    /// 缺值即此态的证据）
+    private func resolveDockCapsule() {
+        let found = dockBarView.flatMap {
+            Self.findDockCapsule(in: $0)
+        }
+        guard found !== dockCapsuleView else { return }
+        dockFlowConstraint?.isActive = false
+        dockFlowConstraint = nil
+        dockCapsuleView = found
+        if let found {
+            dockFlowConstraint = bottomGuide.topAnchor
+                .constraint(equalTo: found.topAnchor)
+        }
+    }
+
+    /// 台账 189：落位模式对账（唯一切换点）——
+    /// 静息态＋胶囊在场＝入流约束激活、常量约束
+    /// 撤活；其余（键盘态/无胶囊/回落态）＝常量
+    /// 约束激活并同步常量（§194 链）。切换只在
+    /// 离散事件（锚重解析/键盘翻转）发生：先撤
+    /// 后立、同拍不双活
+    private func updateDockMode() {
+        guard let bottomGuideTopConstraint else { return }
+        let capsule = dockCapsuleView
+        let wantFlow = !keyboardUp
+            && capsule != nil
+            && capsule?.window === view.window
+        if wantFlow {
+            if dockFlowConstraint?.isActive != true {
+                bottomGuideTopConstraint.isActive = false
+                dockFlowConstraint?.isActive = true
+            }
+        } else {
+            if dockFlowConstraint?.isActive == true {
+                dockFlowConstraint?.isActive = false
+            }
+            if !bottomGuideTopConstraint.isActive {
+                bottomGuideTopConstraint.isActive = true
+            }
+            syncBottomConstant()
+        }
+    }
+
+    /// 台账 189：UITabBar 子层级内定位可见胶囊
+    /// ——全宽（≥bar 宽 85%）、胶囊高（36–90）、
+    /// 位于 bar 帧下部（顶边在帧高 20% 以下）、
+    /// 可见（非 hidden、alpha 有值）的子视图中
+    /// 取顶边最靠下者（可见坞体悬浮内嵌在帧下
+    /// 部，上部的全宽背景层帧高/位置不合本式自
+    /// 然出局）。坐标一律经 convert 折进 bar 系
+    /// 比较（与呈现帧同源）；找不到回 nil（形态
+    /// 漂移的降级口在 resolveDockCapsule）
+    /// （internal 而非 private：装配测试以合成层
+    /// 级钉本启发式，与合成器/控制器的 internal
+    /// 测试面同式）
+    static func findDockCapsule(
+        in bar: UIView
+    ) -> UIView? {
+        var best: UIView?
+        var bestTop: CGFloat = -.greatestFiniteMagnitude
+        func walk(_ view: UIView) {
+            for sub in view.subviews {
+                if !sub.isHidden, sub.alpha > 0.05 {
+                    let frame = sub.convert(
+                        sub.bounds, to: bar
+                    )
+                    let barWidth = bar.bounds.width
+                    let barHeight = bar.bounds.height
+                    if frame.width >= barWidth * 0.85,
+                       frame.height >= 36,
+                       frame.height <= 90,
+                       frame.minY >= barHeight * 0.2,
+                       frame.maxY <= barHeight + 1,
+                       frame.minY > bestTop {
+                        best = sub
+                        bestTop = frame.minY
+                    }
+                }
+                walk(sub)
+            }
+        }
+        walk(bar)
+        return best
     }
 
     /// 台账 182：呈现离散重解析入口——附件面板/
@@ -1310,6 +1583,12 @@ final class ChatRootViewController: UIViewController,
     /// 屏）。真机复现坏态时以本记录定案：常量推
     /// 得的坞顶与 ②差→锚读法问题；①②相合而 ③
     /// 不合→舱装配/布局问题
+    /// 台账 189 升四值：加采 ④可见胶囊顶（独立
+    /// convert 读数、与入流约束不同源——约束失
+    /// 效时本读数仍真）；判据改认舱底对胶囊顶
+    /// （胶囊在场时），胶囊缺席回落旧三值判据对
+    /// bar 帧顶。旧三值判据与锚同源、189 坏态下
+    /// 三值自洽不留痕的盲区由 ④补上
     private var lastAnchorProbeSignature: String?
     private var lastAnchorProbeAt: CFTimeInterval = 0
 
@@ -1323,14 +1602,25 @@ final class ChatRootViewController: UIViewController,
         let dockTop = bar.convert(
             bar.bounds, to: window
         ).minY
+        let capsuleTop = dockCapsuleView.flatMap {
+            capsule -> CGFloat? in
+            guard capsule.window === window else {
+                return nil
+            }
+            return capsule.convert(
+                capsule.bounds, to: window
+            ).minY
+        }
         let hostFrame = host.view.convert(
             host.view.bounds, to: window
         )
-        guard abs(hostFrame.maxY - dockTop) > 0.5
+        let referenceTop = capsuleTop ?? dockTop
+        guard abs(hostFrame.maxY - referenceTop) > 0.5
         else { return }
         let signature = String(
-            format: "%.0f|%.0f|%.0f|%.0f",
+            format: "%.0f|%.0f|%.0f|%.0f|%.0f",
             bottomGuideTopConstraint.constant, dockTop,
+            capsuleTop ?? -1,
             hostFrame.minY, hostFrame.maxY
         )
         let now = CACurrentMediaTime()
@@ -1339,19 +1629,37 @@ final class ChatRootViewController: UIViewController,
         else { return }
         lastAnchorProbeSignature = signature
         lastAnchorProbeAt = now
-        ChatDiagTrace.record(
-            "原生面 §302 [anchorTriad] constant="
-                + String(
-                    format: "%.1f",
-                    bottomGuideTopConstraint.constant
-                )
-                + " dockTopConvert="
-                + String(format: "%.1f", dockTop)
-                + " composerMinY="
-                + String(format: "%.1f", hostFrame.minY)
-                + " composerMaxY="
-                + String(format: "%.1f", hostFrame.maxY)
-        )
+        if let capsuleTop {
+            ChatDiagTrace.record(
+                "原生面 §302 [anchorQuad] constant="
+                    + String(
+                        format: "%.1f",
+                        bottomGuideTopConstraint.constant
+                    )
+                    + " dockTopConvert="
+                    + String(format: "%.1f", dockTop)
+                    + " capsuleTop="
+                    + String(format: "%.1f", capsuleTop)
+                    + " composerMinY="
+                    + String(format: "%.1f", hostFrame.minY)
+                    + " composerMaxY="
+                    + String(format: "%.1f", hostFrame.maxY)
+            )
+        } else {
+            ChatDiagTrace.record(
+                "原生面 §302 [anchorTriad] constant="
+                    + String(
+                        format: "%.1f",
+                        bottomGuideTopConstraint.constant
+                    )
+                    + " dockTopConvert="
+                    + String(format: "%.1f", dockTop)
+                    + " composerMinY="
+                    + String(format: "%.1f", hostFrame.minY)
+                    + " composerMaxY="
+                    + String(format: "%.1f", hostFrame.maxY)
+            )
+        }
     }
 
     /// §302 位置常量唯一计算点：bottomGuide 的
@@ -1638,6 +1946,9 @@ final class ChatRootViewController: UIViewController,
                         for: indexPath
                     ) as! ChatNativeHostingCell
                 if let row = self?.rowsByKey[key] {
+                    // 台账 190④：首次配置前装配持久
+                    // 行托管（子控制器收编本控制器）
+                    self?.ensureRowHost(for: cell)
                     cell.configure(with: row)
                 }
                 return cell
@@ -1664,6 +1975,16 @@ final class ChatRootViewController: UIViewController,
                 lastFallbackResolveAt = now
                 resolveAnchors()
             }
+        } else if dockFlowConstraint?.isActive == true,
+                  dockCapsuleView?.window !== view.window {
+            // 台账 189：入流参照失效自愈（胶囊被
+            // 换实例/移窗而离散触发未达）——节流
+            // 重解析，与回落态自愈同式
+            let now = CACurrentMediaTime()
+            if now - lastCapsuleResolveAt >= 0.3 {
+                lastCapsuleResolveAt = now
+                resolveAnchors()
+            }
         }
         syncBottomConstant()
         // 台账 182：坏态三值同拍探针（常量同步后、
@@ -1677,6 +1998,7 @@ final class ChatRootViewController: UIViewController,
             && currentDistance() <= 0.5
         collectionView.frame = view.bounds
         collectionView.layoutIfNeeded()
+        refreshVisibleWindow()
         // §325.2 守卫 1：inset 施工（reconcileInsets
         // 与 measureBottomSpace）迁出布局拍——本拍
         // 只记账排落定拍，施工归落定拍在 pass 外合
@@ -1827,6 +2149,15 @@ final class ChatRootViewController: UIViewController,
         if heightsChanged {
             layoutBox.rowHeights = newHeights
             pendingLayoutInvalidation = true
+        }
+        // 台账 190②：临界标记与行集同趟落写（标
+        // 记变而高未变时——如上次高被量测坐实同
+        // 值——不单独触发布局失效：匣内标记只供
+        // 提供者问高时消费，落定拍布局 pass 自会
+        // 读到）
+        let newFlags = newRows.map(\.heightIsProvisional)
+        if layoutBox.provisionalFlags != newFlags {
+            layoutBox.provisionalFlags = newFlags
         }
         if keysChanged {
             var snapshot =
@@ -2465,6 +2796,26 @@ final class ChatRootViewController: UIViewController,
         _ scrollView: UIScrollView
     ) {
         scheduleSettle()
+        refreshVisibleWindow()
+    }
+
+    /// 台账 190②：可见窗刷新——可见 section 序
+    /// ±4 行缓冲写入布局匣（就地量测只许窗内触
+    /// 发）；窗真变时重置单窗量测预算。只读可见
+    /// 项（至多一屏行数＋缓冲，与 §325.2 守卫 4
+    /// 同纪律、禁全 rows 遍历）
+    private func refreshVisibleWindow() {
+        let sections = collectionView
+            .indexPathsForVisibleItems.map(\.section)
+        guard let first = sections.min(),
+              let last = sections.max() else { return }
+        let window = max(0, first - 4)..<(last + 5)
+        if layoutBox.visibleWindow != window {
+            layoutBox.visibleWindow = window
+            layoutBox.syncMeasureBudget =
+                ChatNativeLayoutBox
+                    .syncMeasureBudgetPerWindow
+        }
     }
 
     func scrollViewWillBeginDragging(
@@ -2821,6 +3172,9 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     var handle: ChatNativeListHandle
     var callbacks: ChatListCarrierCallbacks
     var edgeScrollHandle: ChatListScrollViewHandle
+    /// 台账 190②：就地量测口（行键→确定高）；
+    /// 默认 nil（裸装配形态无量测台）
+    var exactHeightProvider: ((String) -> CGFloat?)? = nil
 
     func makeUIViewController(
         context: Context
@@ -2829,6 +3183,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
         controller.handle = handle
         controller.callbacks = callbacks
         controller.edgeScrollHandle = edgeScrollHandle
+        controller.exactHeightProvider = exactHeightProvider
         handle.controller = controller
         wireKeyboardFeed(to: controller)
         return controller
@@ -2841,6 +3196,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
         controller.handle = handle
         controller.callbacks = callbacks
         controller.edgeScrollHandle = edgeScrollHandle
+        controller.exactHeightProvider = exactHeightProvider
         handle.controller = controller
         wireKeyboardFeed(to: controller)
         controller.apply(
