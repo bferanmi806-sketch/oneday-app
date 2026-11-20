@@ -340,6 +340,17 @@ final class ChatNativeRowHeightFittingTests: XCTestCase {
         let key = ChatRowStateKeys.toolEntry(
             UUID()
         )
+        // 结构归位·对话页（活动线）：样本卡已落定
+        // ——收起态合成高须恰为活动线头行高
+        // minTapTarget（压线成立的数值钉）
+        XCTAssertEqual(
+            composer.toolCardHeight(
+                card: card, width: contentW,
+                expanded: false, plain: false
+            ),
+            OneDayMetrics.minTapTarget, accuracy: 0.5,
+            "落定独立卡收起态应压成活动线（44），而非卡面高"
+        )
         assertFit(
             "工具卡收起",
             view: AnyView(
@@ -370,6 +381,46 @@ final class ChatNativeRowHeightFittingTests: XCTestCase {
                 card: card, width: contentW,
                 expanded: true, plain: false
             )
+        )
+    }
+
+    /// 活动线的另一向：进行中卡不压线——保持卡
+    /// 面（过程反馈在场），合成高与视图拟合一致
+    /// 且大于活动线高
+    func testRunningToolCardKeepsCardForm() {
+        let ledger = ChatRowStateLedger()
+        let composer = makeComposer(ledger: ledger)
+        let running = ToolCard(
+            id: "tc-fit-running", toolName: "terminal",
+            category: .terminal,
+            title: "运行命令",
+            summary: "ls -la /opt/data",
+            result: nil,
+            resultFailed: false,
+            arguments: "{\"command\":\"ls -la /opt/data\"}"
+        )
+        let height = composer.toolCardHeight(
+            card: running, width: contentW,
+            expanded: false, plain: false
+        )
+        XCTAssertGreaterThan(
+            height, OneDayMetrics.minTapTarget,
+            "进行中卡应保持卡面高（>活动线 44），实得 \(height)"
+        )
+        assertFit(
+            "进行中工具卡",
+            view: AnyView(
+                ToolCardView(
+                    card: running,
+                    expansionKey: ChatRowStateKeys.toolEntry(
+                        UUID()
+                    ),
+                    ledger: ledger
+                )
+                .environment(\.dynamicTypeSize, .large)
+            ),
+            width: contentW,
+            expected: height
         )
     }
 

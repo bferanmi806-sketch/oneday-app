@@ -23,6 +23,16 @@ import UIKit
 /// 卡平铺＋结果内联＋整轮 isLive）退役。
 /// plain＝组内嵌模式：无自家卡面（组卡承接），行
 /// 本体与详情展开同口径。
+///
+/// 活动线形态（2026-11-20 结构归位·对话页，纲要
+/// 原则 10、D3-4）：独立落定卡（非 plain、状态非
+/// 进行中）默认压成一行活动线——类别字形＋标题＋
+/// 摘要＋状态同行小字呈现、无卡面，左界与气泡正
+/// 文对齐（与思考头行同为「线」族）；点开才成段
+/// （发丝线下展开既有详情区）。进行中卡保持卡面
+/// （过程反馈须在场）；组内嵌 plain 卡由组头承担
+/// 压线、不在此列。行高合成器同口径分支在
+/// ChatNativeRowHeight.toolCardHeightUncached。
 struct ToolCardView: View {
     let card: ToolCard
     var plain: Bool = false
@@ -55,7 +65,105 @@ struct ToolCardView: View {
         ToolCardPresentation.state(of: card)
     }
 
+    /// 活动线形态判据（与行高合成器同口径单点）：
+    /// 独立卡＋已落定（成功/失败）才压线；进行中与
+    /// 组内嵌恒走卡面/行本体
+    private var usesLineForm: Bool {
+        !plain && state != .running
+    }
+
     var body: some View {
+        if usesLineForm {
+            lineBody
+        } else {
+            cardBody
+        }
+    }
+
+    /// 活动线形态：头行一线（默认）＋展开成段（详
+    /// 情区与卡面展开同体，见 detailBody）
+    private var lineBody: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(
+                    MotionTokens.resolved(
+                        MotionTokens.swap, reduceMotion: reduceMotion
+                    )
+                ) {
+                    setExpanded(!expanded)
+                }
+            } label: {
+                lineContent
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel(
+                "\(card.title)，\(ToolCardPresentation.statusLine(of: card))"
+            )
+            .accessibilityHint(expanded ? "收起详情" : "展开详情")
+            if expanded {
+                Rectangle()
+                    .fill(Palette.hairline)
+                    .frame(height: 1)
+                    .padding(.top, OneDayMetrics.spacingS)
+                detailBody
+                    .padding(.top, OneDayMetrics.spacingS)
+            }
+        }
+        .padding(.leading, OneDayMetrics.bubblePaddingH)
+    }
+
+    /// 活动线头行：类别字形＋标题＋摘要＋状态，一
+    /// 行小字、无卡面；命中域纵向补到 minTapTarget
+    /// （与思考头行同式：视觉一行、命中 44）
+    private var lineContent: some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            Image(systemName: card.category.symbol)
+                .font(.footnote)
+                .foregroundStyle(Palette.inkSecondary)
+                .accessibilityHidden(true)
+            Text(card.title)
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: OneDayMetrics.spacingS)
+            lineStatusMark
+        }
+        .frame(minHeight: OneDayMetrics.minTapTarget)
+        .contentShape(Rectangle())
+    }
+
+    /// 活动线状态字：失败恒显徽标（失败不隐藏，与
+    /// 组头口径同）；成功＝展开指示 chevron
+    @ViewBuilder
+    private var lineStatusMark: some View {
+        switch state {
+        case .failed:
+            Text("失败")
+                .font(.badgeOnly.weight(.medium))
+                .foregroundStyle(Palette.danger)
+                .padding(.horizontal, 7)
+                .padding(.vertical, OneDayMetrics.stackGap)
+                .background(
+                    Palette.errorSurface,
+                    in: Capsule()
+                )
+        case .succeeded, .running:
+            Image(
+                systemName: expanded ? "chevron.up" : "chevron.down"
+            )
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(Palette.inkSecondary)
+            .accessibilityHidden(true)
+        }
+    }
+
+    private var cardBody: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
                 withAnimation(

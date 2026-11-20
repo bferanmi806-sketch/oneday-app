@@ -1627,11 +1627,30 @@ struct ChatNativeRowHeightComposer {
 
     /// ToolCardView 高：plain（组内嵌）无自家内
     /// 距、独立卡内距 15；展开＋spacingS＋发丝线
-    /// 1＋spacingS＋详情区
+    /// 1＋spacingS＋详情区。
+    /// 活动线分支（2026-11-20 结构归位·对话页，
+    /// 与 ToolCardView.usesLineForm 同口径）：独
+    /// 立落定卡默认压线——头行恒 minTapTarget
+    /// （视觉一行、命中 44，与思考头行同式）；展
+    /// 开＋spacingS＋发丝线 1＋spacingS＋详情区
+    /// （详情宽＝全宽−左距 bubblePaddingH，无卡
+    /// 面内距）
     func toolCardHeightUncached(
         card: ToolCard, width: CGFloat,
         expanded: Bool, plain: Bool
     ) -> CGFloat {
+        if !plain,
+           ToolCardPresentation.state(of: card) != .running {
+            var total = OneDayMetrics.minTapTarget
+            if expanded {
+                total += OneDayMetrics.spacingS * 2 + 1
+                total += toolCardDetailHeight(
+                    card,
+                    width: width - OneDayMetrics.bubblePaddingH
+                )
+            }
+            return total
+        }
         var total = toolCardRowHeight(card)
         if !plain { total += 30 }
         if expanded {
