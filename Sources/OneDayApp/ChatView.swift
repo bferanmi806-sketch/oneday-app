@@ -2650,7 +2650,13 @@ struct ChatView: View {
             arrowView: carrierArrowView,
             handle: nativeHandle,
             callbacks: nativeCallbacks,
-            edgeScrollHandle: listScrollHandle
+            edgeScrollHandle: listScrollHandle,
+            // 台账 190②：就地量测口——布局提供者
+            // 对将入视口的临界行经此同步取确定高
+            // （量测台 measureNow，单行毫秒级）
+            exactHeightProvider: { rowKey in
+                rowMeasureDesk.measureNow(rowKey: rowKey)
+            }
         )
         .ignoresSafeArea(edges: [.top, .bottom])
         .overlay { topBarHostOverlay }
@@ -2752,6 +2758,17 @@ struct ChatView: View {
                 }
             },
             onTopVisibleEntry: { entryID in
+                // 台账 190①：顶可见行锚同步报量测
+                // 台（方向感知投单的输入；只记账、
+                // 不触发重渲，与本回调的几何读数同
+                // 纪律）；行键与 nativeEntryRow 同源
+                if let entryID {
+                    rowMeasureDesk.noteTopVisible(
+                        rowKey: streamSettleMap.rowKey(
+                            for: entryID
+                        ) ?? "entry-\(entryID.uuidString)"
+                    )
+                }
                 DispatchQueue.main.async {
                     if topVisibleEntryID != entryID {
                         topVisibleEntryID = entryID
@@ -3072,6 +3089,8 @@ struct ChatView: View {
                             entryID: groupEntries[0].id,
                             revision: groupRevision,
                             height: groupResolved.height,
+                            heightIsProvisional:
+                                !groupResolved.isExact,
                             makeView: { [rowStateLedger] in
                                 AnyView(
                                     ToolCardGroupView(
@@ -3131,6 +3150,8 @@ struct ChatView: View {
                         entryID: nil,
                         revision: reportRevision,
                         height: reportResolved.height,
+                        heightIsProvisional:
+                            !reportResolved.isExact,
                         makeView: {
                             AnyView(
                                 reportCard(
@@ -3151,6 +3172,7 @@ struct ChatView: View {
         // 态高恒 0、无文本量测可言——同步确知，不
         // 走兜底高（免冷开时列表尾凭空闪 120 空行）
         let zoneHeight: CGFloat
+        var zoneIsProvisional = false
         if case .ready = appState.sharedHubStore()
             .approvalState {
             let zoneMemoKey = composer.zoneMemoKey()
@@ -3160,6 +3182,7 @@ struct ChatView: View {
                 fallback: ChatNativeRowHeightComposer
                     .fallbackHeight
             )
+            zoneIsProvisional = !zoneResolved.isExact
             if zoneResolved.needsJob {
                 rowMeasureDesk.collect(
                     composer.makeZoneMeasureJob(
@@ -3178,6 +3201,7 @@ struct ChatView: View {
                 entryID: nil,
                 revision: approvalRevision,
                 height: zoneHeight,
+                heightIsProvisional: zoneIsProvisional,
                 makeView: { [rowStateLedger] in
                     AnyView(
                         ChatApprovalZone(
@@ -3304,6 +3328,10 @@ struct ChatView: View {
                 entryID: entry.id,
                 revision: revision,
                 height: resolved.height,
+                // 台账 190②：非确定高（未量测/上次
+                // 高顶替）标临界——布局提供者对将入
+                // 视口的临界行就地量测给确定高
+                heightIsProvisional: !resolved.isExact,
                 makeView: {
                     AnyView(
                         entryRowContent(

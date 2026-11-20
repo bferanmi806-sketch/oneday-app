@@ -94,6 +94,13 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 设备扫码入驻；与体检/语音同落根页服务器组维
     /// 护尾段直达
     case addDevice
+    /// 聊天诊断（台账 189/190）：本机聊天面探针的
+    /// 可读面——卡顿探针汇总／量测台积压／诊断留
+    /// 痕（ChatDiagTrace）／气泡浓淡键值原文与解
+    /// 析值（台账 188 证据出口）。探针此前只写不
+    /// 读、真机回读无门，本面是其唯一消费方；落
+    /// 支持组（与帮助/关于同组，内部取证性质）
+    case chatDiagnostics
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -360,6 +367,13 @@ public enum SettingsCatalog {
             summary: "使用 OneDay 的条款",
             keywords: ["协议", "条款", "terms"],
             destination: .terms, showsInBrowse: false
+        ),
+        SettingsCatalogEntry(
+            id: "chatDiagnostics", group: .support,
+            title: "聊天诊断",
+            summary: "卡顿探针、量测积压与诊断留痕",
+            keywords: ["诊断", "卡顿", "探针", "量测", "diagnostics", "lag"],
+            destination: .chatDiagnostics
         ),
     ]
 

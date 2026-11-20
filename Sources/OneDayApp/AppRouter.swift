@@ -68,6 +68,10 @@ enum SettingsRoute: Hashable {
     /// 添加设备（配对一期，台账 153/160）：已登录侧
     /// 出码面，与语音同落设置根服务器组维护尾段
     case addDevice
+    /// 聊天诊断（台账 189/190）：本机聊天面探针可
+    /// 读面，落设置根支持组（Core 目录 chatDiag-
+    /// nostics 条目直达）
+    case chatDiagnostics
 }
 
 /// 「工作区」组两页的 sheet 呈现槽枚举（原定义在

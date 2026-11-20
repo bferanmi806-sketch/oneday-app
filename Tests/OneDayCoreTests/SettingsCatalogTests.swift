@@ -69,6 +69,8 @@ final class SettingsCatalogTests: XCTestCase {
             .voice,
             // 配对一期新增（台账 153/160）
             .addDevice,
+            // 聊天诊断新增（台账 189/190）
+            .chatDiagnostics,
         ]
         XCTAssertEqual(covered, Set(all))
     }

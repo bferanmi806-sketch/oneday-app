@@ -43,6 +43,16 @@ struct ChatNativeRowMeasureJob: @unchecked Sendable {
 /// - 队列串行：量测次序＝投单次序的逆序（趟末
 ///   flushCollected 按行序逆序投递——最新行靠
 ///   底、用户视线所在，先量先就绪）
+/// - 台账 190（上滑根治）：投单次序改方向感知
+///   ——resolve 调用序即行序（ChatView 每趟按行
+///   序逐行 resolve），本台据此自建行序账；顶可
+///   见行锚（noteTopVisible）向上移＝上滑趋势
+///   时，flush 改按「锚上方最近行优先」投单，
+///   不再让上滑方向排在队尾。另设 measureNow
+///   就地量测口：将入视口而未就绪的行在布局提
+///   供者问高时同步量出确定高（学 Telegram 无
+///   估算高——120 兜底只留给永不入视口的行）；
+///   积压计数入静态账盒供诊断面回读
 @MainActor
 @Observable
 final class ChatNativeRowMeasureDesk {
@@ -75,16 +85,26 @@ final class ChatNativeRowMeasureDesk {
     func resolve(
         memoKey: String, rowKey: String,
         fallback: CGFloat
-    ) -> (height: CGFloat, needsJob: Bool) {
+    ) -> (
+        height: CGFloat, needsJob: Bool, isExact: Bool
+    ) {
+        noteResolveOrder(rowKey)
         if let hit = ChatNativeRowHeightComposer
             .cachedRowHeight(forKey: memoKey) {
             lastKnownByRow[rowKey] = hit
-            return (hit, false)
+            // 命中即该行工单使命完成：清就地量测
+            // 留账（measureNow 再被问到时回缓存值
+            // 的路随之关闭——喂入链已以确定高重
+            // 喂、本行不再临界）
+            jobsByRowKey[rowKey] = nil
+            memoKeyByRowKey[rowKey] = nil
+            return (hit, false, true)
         }
         let needsJob = !inFlight.contains(memoKey)
             && !collectedKeys.contains(memoKey)
         return (
-            lastKnownByRow[rowKey] ?? fallback, needsJob
+            lastKnownByRow[rowKey] ?? fallback, needsJob,
+            false
         )
     }
 
@@ -96,12 +116,18 @@ final class ChatNativeRowMeasureDesk {
         else { return }
         collected.append(job)
         collectedKeys.insert(job.memoKey)
+        jobsByRowKey[job.rowKey] = job
+        memoKeyByRowKey[job.rowKey] = job.memoKey
+        noteBacklog()
     }
 
-    /// 趟末投递：逆序投单（最新行先量），清空收
-    /// 集箱
+    /// 趟末投递：默认逆序投单（最新行先量）；上
+    /// 滑趋势在场时按锚距投单（锚上方最近行先
+    /// 量、锚下方次之），清空收集箱。投递前先以
+    /// 本趟 resolve 序重建行序账
     func flushCollected() {
-        let jobs = collected.reversed()
+        rebuildRowIndex()
+        let jobs = orderedForDispatch(collected)
         collected = []
         collectedKeys = []
         for job in jobs {
@@ -131,10 +157,160 @@ final class ChatNativeRowMeasureDesk {
         height: CGFloat
     ) {
         inFlight.remove(memoKey)
+        // 工单本体留账清（已完成、不必再就地重
+        // 跑）；memoKey 留账保留——重喂到达前布
+        // 局侧 measureNow 仍可经它回缓存确定值，
+        // 待 resolve 命中时一并清
+        jobsByRowKey[rowKey] = nil
+        ChatMeasureDeskBacklog.noteFinished()
+        noteBacklog()
         guard lastKnownByRow[rowKey] != height
         else { return }
         lastKnownByRow[rowKey] = height
         schedulePublish()
+    }
+
+    // MARK: - 台账 190：方向感知／就地量测／积压账
+
+    /// 就地量测留账：已收集/在飞工单按行键留存，
+    /// measureNow 据此同步执行；resolve 命中或
+    /// 工单完成后清
+    @ObservationIgnored
+    private var jobsByRowKey:
+        [String: ChatNativeRowMeasureJob] = [:]
+    @ObservationIgnored
+    private var memoKeyByRowKey: [String: String] = [:]
+    /// 行序账：resolve 调用序（＝喂入行序）逐趟
+    /// 累积、flush 时折成行键→序映射
+    @ObservationIgnored
+    private var resolveOrderSeen: [String] = []
+    @ObservationIgnored
+    private var resolveOrderSet: Set<String> = []
+    @ObservationIgnored
+    private var rowIndexByKey: [String: Int] = [:]
+    /// 顶可见锚与上滑趋势（noteTopVisible 维护）
+    @ObservationIgnored
+    private var anchorRowKey: String?
+    @ObservationIgnored
+    private var lastAnchorIndex: Int?
+    @ObservationIgnored
+    private var trendUp = false
+
+    private func noteResolveOrder(_ rowKey: String) {
+        guard !resolveOrderSet.contains(rowKey)
+        else { return }
+        resolveOrderSet.insert(rowKey)
+        resolveOrderSeen.append(rowKey)
+    }
+
+    private func rebuildRowIndex() {
+        guard !resolveOrderSeen.isEmpty else { return }
+        for (index, key) in resolveOrderSeen
+            .enumerated() {
+            rowIndexByKey[key] = index
+        }
+        resolveOrderSeen = []
+        resolveOrderSet = []
+    }
+
+    /// 顶可见行上报（ChatView 原生面回调）：锚序
+    /// 下移（顶可见行变旧）＝上滑趋势；上滑期间
+    /// flush 按锚距投单。锚行不在行序账内（直播
+    /// 行等不经 resolve 的行）时不更新趋势
+    func noteTopVisible(rowKey: String) {
+        anchorRowKey = rowKey
+        guard let index = rowIndexByKey[rowKey]
+        else { return }
+        if let last = lastAnchorIndex, index != last {
+            trendUp = index < last
+        }
+        lastAnchorIndex = index
+    }
+
+    /// 投单次序：无上滑趋势＝逆序（最新先量，现
+    /// 行口径）；上滑趋势＋锚在账＝锚上方行按距
+    /// 锚近者先、锚下方行按序次之、无序行垫底
+    private func orderedForDispatch(
+        _ jobs: [ChatNativeRowMeasureJob]
+    ) -> [ChatNativeRowMeasureJob] {
+        guard trendUp,
+              let anchor = anchorRowKey,
+              let anchorIndex = rowIndexByKey[anchor]
+        else { return Array(jobs.reversed()) }
+        func index(of job: ChatNativeRowMeasureJob)
+            -> Int? {
+            rowIndexByKey[job.rowKey]
+        }
+        let above = jobs
+            .filter { (index(of: $0) ?? .max) <= anchorIndex }
+            .sorted {
+                (index(of: $0) ?? .max)
+                    > (index(of: $1) ?? .max)
+            }
+        let below = jobs
+            .filter { (index(of: $0) ?? .max) > anchorIndex }
+            .sorted {
+                (index(of: $0) ?? .max)
+                    < (index(of: $1) ?? .max)
+            }
+        return above + below
+    }
+
+    /// 就地量测（台账 190②）：行将入视口而当趟
+    /// 高仍非确定值时，布局侧经 ChatView 闭包调
+    /// 本口同步执行该行工单——单行量测毫秒级、
+    /// 入屏前付清，不让估算高在屏上跳。工单已
+    /// 在后台在飞时同闭包会并发执行一次（载荷
+    /// 是不可变快照、量测只写线程安全缓存、同
+    /// 输入同输出，后到 finish 以同值对账无害）；
+    /// 工单已完成则回缓存确定值；无工单无缓存
+    /// 回 nil（布局侧保留当趟喂入高）
+    func measureNow(rowKey: String) -> CGFloat? {
+        guard let job = jobsByRowKey[rowKey] else {
+            guard let memoKey = memoKeyByRowKey[rowKey]
+            else { return nil }
+            return ChatNativeRowHeightComposer
+                .cachedRowHeight(forKey: memoKey)
+        }
+        // 工单已在后台完成（缓存已落、留账未清）
+        // 时直回缓存值，不重跑量测
+        if let cached = ChatNativeRowHeightComposer
+            .cachedRowHeight(forKey: job.memoKey) {
+            jobsByRowKey[rowKey] = nil
+            return cached
+        }
+        let height = job.measure()
+        ChatNativeRowHeightComposer.storeRowHeight(
+            height, forKey: job.memoKey
+        )
+        if let position = collected.firstIndex(
+            where: { $0.memoKey == job.memoKey }
+        ) {
+            collected.remove(at: position)
+            collectedKeys.remove(job.memoKey)
+        }
+        jobsByRowKey[rowKey] = nil
+        ChatMeasureDeskBacklog.noteSyncMeasured()
+        noteBacklog()
+        if lastKnownByRow[rowKey] != height {
+            lastKnownByRow[rowKey] = height
+            schedulePublish()
+        }
+        return height
+    }
+
+    /// 积压账回写（静态账盒：诊断面无实例可读，
+    /// 与 ChatLagProbe 计数盒同式）
+    private func noteBacklog() {
+        ChatMeasureDeskBacklog.notePending(
+            collected: collected.count,
+            inFlight: inFlight.count
+        )
+    }
+
+    /// 诊断面读口（台账 190⑤）：量测台积压一行
+    static func backlogLine() -> String {
+        ChatMeasureDeskBacklog.line()
     }
 
     /// 发布合并：40ms 窗内多次完成只 bump 一次
@@ -148,5 +324,77 @@ final class ChatNativeRowMeasureDesk {
             self.publishTask = nil
             self.publishedRevision += 1
         }
+    }
+}
+
+/// 量测台积压账盒（台账 190⑤）：静态计数——收
+/// 集/在飞积压（最近一台量测台的回写，多台并存
+/// 时后写者为准）、完成总数、就地量测次数。诊
+/// 断面（ChatDiagnosticsView）经量测台的静态读
+/// 口回读，生产路径只记账、无行为影响（与
+/// ChatLagProbe 计数盒同式）
+enum ChatMeasureDeskBacklog {
+    private static let box = BacklogBox()
+
+    static func notePending(
+        collected: Int, inFlight: Int
+    ) {
+        box.notePending(
+            collected: collected, inFlight: inFlight
+        )
+    }
+
+    static func noteFinished() { box.noteFinished() }
+    static func noteSyncMeasured() {
+        box.noteSyncMeasured()
+    }
+
+    static func line() -> String { box.line() }
+
+    /// 测试读口：清账
+    static func reset() { box.reset() }
+}
+
+private final class BacklogBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pendingCollected = 0
+    private var pendingInFlight = 0
+    private var finishedTotal = 0
+    private var syncMeasuredTotal = 0
+
+    func notePending(collected: Int, inFlight: Int) {
+        lock.lock()
+        pendingCollected = collected
+        pendingInFlight = inFlight
+        lock.unlock()
+    }
+
+    func noteFinished() {
+        lock.lock()
+        finishedTotal += 1
+        lock.unlock()
+    }
+
+    func noteSyncMeasured() {
+        lock.lock()
+        syncMeasuredTotal += 1
+        lock.unlock()
+    }
+
+    func line() -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        return "积压 \(pendingCollected + pendingInFlight)"
+            + "（排队 \(pendingCollected)／在飞 \(pendingInFlight)）"
+            + "·已量 \(finishedTotal)·就地量测 \(syncMeasuredTotal)"
+    }
+
+    func reset() {
+        lock.lock()
+        pendingCollected = 0
+        pendingInFlight = 0
+        finishedTotal = 0
+        syncMeasuredTotal = 0
+        lock.unlock()
     }
 }

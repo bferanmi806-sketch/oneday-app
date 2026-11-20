@@ -243,6 +243,8 @@ struct SettingsView: View {
                     VoiceSettingsView()
                 case .addDevice:
                     AddDeviceView()
+                case .chatDiagnostics:
+                    ChatDiagnosticsView()
                 }
             }
             .confirmationDialog(
@@ -687,6 +689,7 @@ struct SettingsView: View {
         case .healthCheck: return .healthCheck
         case .voice: return .voice
         case .addDevice: return .addDevice
+        case .chatDiagnostics: return .chatDiagnostics
         }
     }
 
@@ -714,6 +717,7 @@ struct SettingsView: View {
         case "appearance": return "sun.max"
         case "help": return "questionmark.circle"
         case "about": return "info.circle"
+        case "chatDiagnostics": return "stethoscope"
         case "privacy": return "lock.shield"
         case "terms": return "doc.text"
         // prototype-2 叶子（枢纽页四行图标随页退役）
