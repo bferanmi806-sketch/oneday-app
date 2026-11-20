@@ -85,8 +85,12 @@ final class QRScannerEngine: NSObject, AVCaptureMetadataOutputObjectsDelegate {
         }
         delivered = true
         session.stopRunning()
-        let handler = onCode
-        DispatchQueue.main.async { handler?(value) }
+        // 交付走 [weak self] 主队列式（仓内 ChatList-
+        // Carrier 同式）：只把字符串值送过队列，闭包
+        // 本体不跨队列传（Swift 6 数据竞争检查口径）
+        DispatchQueue.main.async { [weak self] in
+            self?.onCode?(value)
+        }
     }
 }
 
