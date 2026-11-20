@@ -110,10 +110,6 @@ struct AgentHubView: View {
     }
 
     var mode: Mode = .sheet
-    /// 呈现方 ChatView 传入的当前会话线程：原供枢纽
-    /// 模型区跟随（§263）；结构归位包撤模型区后本入
-    /// 参暂留——呈现方仍在传，清理归对话页包
-    var followThread: ChatThread? = nil
     /// 审批终态回调（活动格据此刷新总览桥角标）
     var onApprovalChanged: (() -> Void)? = nil
 

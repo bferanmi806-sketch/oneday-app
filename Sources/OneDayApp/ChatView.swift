@@ -1796,12 +1796,12 @@ struct ChatView: View {
         // 享/模型/档案编辑）是嵌套呈现、照常工作；左
         // 缘右滑与 ✕ 关闭口径不变
         .sheet(isPresented: $showHub) {
-            // §263（第 80 条）：枢纽模型区跟随当前会话
-            // ——把本页 currentThread 本体传给枢纽作模
-            // 型账目标（与胶囊同源同键）；空态（无当前
-            // 线程）传 nil，枢纽回落主线口径
+            // 结构归位（2026-11-20）：枢纽段外模型区已
+            // 撤、§263 的 followThread 跟随入参随之退役
+            // ——模型切换正主＝本页胶囊模型段 Menu 与模
+            // 型设置页，枢纽不再读当前会话
             AgentHubView(
-                mode: .sheet, followThread: currentThread,
+                mode: .sheet,
                 onApprovalChanged: {
                     Task { await overviewStore?.refresh(appState: appState) }
                 }
