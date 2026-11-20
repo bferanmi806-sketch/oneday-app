@@ -43,9 +43,10 @@ enum HubSegment: String, CaseIterable, Identifiable {
 }
 
 /// 智能体枢纽页（三期，规格 phase3-hub-spec）：页头
-/// （圆钮行/头像/名/状态行）→ 模型常驻区 → 五段分段 →
-/// 段内容。本视图自带 NavigationStack，呈现方不要再包一层。
-/// 段切换只换内容区，页头与模型区常驻不动（规格 §0）。
+/// （圆钮行/头像/名/状态行）→ 分段 → 段内容（模型常
+/// 驻区已随结构归位包撤除，见文末新注）。本视图自带
+/// NavigationStack，呈现方不要再包一层。
+/// 段切换只换内容区，页头常驻不动（规格 §0）。
 /// 0.6.0 转正（蓝图 §4 一期）：枢纽页从「胶囊点开的
 /// sheet」转正为活动格本体——mode=.activity 时留
 /// 活动/任务/审核三段（任务段 0.10.0 增、监测段
@@ -89,6 +90,17 @@ enum HubSegment: String, CaseIterable, Identifiable {
 /// 一律不动，头像组件归头像呈现包、身份段正文提炼
 /// 归专包。全档＝hub-page-muse-parity-report-
 /// 20261114。
+/// 结构归位包（2026-11-20，纲要 D4-1/D4-2，用户亲
+/// 批「按纲要逐页归位」）：①页头状态行改「活动优
+/// 先、状态兜底」——台账有进行中条目时显其人话标题
+/// （多件显「正在进行 N 件 · 标题」，派生与进展胶
+/// 囊同源 ProgressCapsule.derive、枢纽看全局不剔
+/// 除任何会话），无进行中回落现行连接状态词；活动
+/// 态图标换系统转圈、兜底保留圆点（落法＝hub-
+/// muse-benchmark §3.2）。②段外「会话模型行」整
+/// 区撤除：枢纽回归只读档案面，模型切换正主＝聊天
+/// 页胶囊模型段 Menu 与模型设置页（本行自始即与
+/// 胶囊同面同账的第二入口，撤之不丢功能）。
 struct AgentHubView: View {
     enum Mode {
         case sheet
@@ -96,11 +108,9 @@ struct AgentHubView: View {
     }
 
     var mode: Mode = .sheet
-    /// 模型区跟随的当前会话线程（§263，第 80 条）：
-    /// 呈现方 ChatView 传入其 currentThread 本体——枢
-    /// 纽模型区据此读写当前会话那本账（与胶囊同源同
-    /// 键）；nil（呈现方无当前会话，如冷启空态）时枢
-    /// 纽回落钦定主线口径（§227），不留空、不报错
+    /// 呈现方 ChatView 传入的当前会话线程：原供枢纽
+    /// 模型区跟随（§263）；结构归位包撤模型区后本入
+    /// 参暂留——呈现方仍在传，清理归对话页包
     var followThread: ChatThread? = nil
     /// 审批终态回调（活动格据此刷新总览桥角标）
     var onApprovalChanged: (() -> Void)? = nil
@@ -108,10 +118,6 @@ struct AgentHubView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// 钦定主线线程的实际绑定是模型账的事实源（§227），
-    /// 枢纽取键须读到线程记录本体，不许只认 SideChat-
-    /// Store 的 id 副本
-    @Query private var threads: [ChatThread]
 
     @State private var store: AgentHubStore?
     @State private var segment: HubSegment = .activity
@@ -121,9 +127,6 @@ struct AgentHubView: View {
     /// 头像/名称编辑面（0.36.22 档案菜单两项）
     @State private var showAvatarEditor = false
     @State private var showNameEditor = false
-    /// 枢纽模型选择面（2026-11-13 单行入口点开，与
-    /// 顶栏胶囊同面同落账）
-    @State private var showHubModelPicker = false
     /// 分享名片（0.36.22）：名片图离屏渲染产物，随档
     /// 案修订/页头名/域名变化重算；未就绪时分享钮回
     /// 落纯文本名片
@@ -232,9 +235,6 @@ struct AgentHubView: View {
                 initialName: appState.identityName ?? ""
             )
         }
-        .sheet(isPresented: $showHubModelPicker) {
-            hubModelPickerSheet
-        }
         .task(id: shareRenderKey) {
             shareItem = AgentShareItem.make(
                 name: store?.displayName ?? appState.agentDisplayName,
@@ -258,6 +258,13 @@ struct AgentHubView: View {
                 store = shared
             }
             await store?.loadInitial()
+            // 页头状态行消费台账进行中集（结构归位
+            // 包，§3.2）：开枢纽时先踢一脚共享台账店
+            // 加载——与活动段 .task 的加载同店同守卫
+            // （在飞即跳过），不新增轮询回路；后续新
+            // 鲜度由活动段可见轮询同拍供给
+            await appState.sharedLedgerStore()
+                .load(appState: appState)
             // 共享 store 后 loadApproval 默认可复用缓存
             // （chat 刷新刚拉过会跳过），枢纽语义是「每
             // 次打开必刷新」——强制重拉保住（§155 起全
@@ -290,9 +297,6 @@ struct AgentHubView: View {
     private func content(_ store: AgentHubStore) -> some View {
         VStack(spacing: 0) {
             header(store)
-            if mode == .sheet {
-                modelZone
-            }
             segmentPicker
             segmentContent(store)
         }
@@ -415,14 +419,27 @@ struct AgentHubView: View {
                 .lineLimit(1)
                 .padding(.top, OneDayMetrics.spacingM)
 
+            // 状态行（结构归位包，D4-1）：第一语义＝
+            // 当前活动——台账有进行中条目时显活动行
+            // （转圈＋人话标题），连接状态降为兜底
+            // （无进行中时回落圆点＋现行状态词）
             HStack(spacing: OneDayMetrics.rowInnerGap) {
-                Circle()
-                    .fill(store.isOnline ? Palette.success : Palette.inkMuted)
-                    .frame(width: 8, height: 8)
-                Text(store.statusText)
-                    .font(.body)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
+                if let activityLine = hubActivityLine {
+                    ProgressView()
+                        .controlSize(.mini)
+                    Text(activityLine)
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                } else {
+                    Circle()
+                        .fill(store.isOnline ? Palette.success : Palette.inkMuted)
+                        .frame(width: 8, height: 8)
+                    Text(store.statusText)
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                }
             }
             .padding(.top, OneDayMetrics.spacingS)
         }
@@ -497,113 +514,18 @@ struct AgentHubView: View {
         }
     }
 
-    /// 枢纽的模型账取键入参（§263 目标改跟随当前会
-    /// 话，§227 账合一底座不变）：目标选择经 Core
-    /// SessionModelAccount.hubTargetAccountIDs 单派
-    /// 生——当前会话入参取呈现方传入的 followThread
-    /// 本体（与胶囊 currentThread 同一物），主线入参
-    /// 取钦定主线线程的实际绑定；有当前会话时与胶囊
-    /// 同键同账（当前＝主线时退化为 §227 同键定理），
-    /// 无当前会话时回落主线派生、行为与 §227 一字不
-    /// 变；账本的钦定 id 只作线程未落位时
-    /// 的回落缓存，不再独立成账
-    private var hubModelAccountIDs:
-        (serverSessionID: String?, threadID: UUID?)
-    {
-        let store = appState.sessionLedger
-        let mainThread = store.mainThreadID.flatMap { id in
-            threads.first { $0.id == id }
-        }
-        return SessionModelAccount.hubTargetAccountIDs(
-            currentThreadServerSessionID: followThread?.serverSessionID,
-            currentThreadID: followThread?.id,
-            mainThreadServerSessionID: mainThread?.serverSessionID,
-            mainThreadID: mainThread?.id,
-            mainServerSessionID: store.mainServerSessionID
-        )
-    }
-
-    /// 枢纽的会话选择（§153/§227/§263）：枢纽自聊天
-    /// 页打开，模型区跟随用户当前打开的会话——与顶
-    /// 栏胶囊共用同一条派生链、读写同一本账；无当前
-    /// 会话时回落主线
-    private var hubCurrentChoice: ChatModelChoice {
-        let ids = hubModelAccountIDs
-        return appState.sessionModelChoice(
-            serverSessionID: ids.serverSessionID,
-            threadID: ids.threadID
-        )
-    }
-
-    // MARK: - 模型常驻区（规格 §2：不做第六段）
-
-    /// 单行快切入口与聊天胶囊共用同一选择面及账本；
-    /// 模型管理仍由设置页承接。
-    private var modelZone: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                Button {
-                    showHubModelPicker = true
-                } label: {
-                    HStack(spacing: OneDayMetrics.spacingSM) {
-                        Text("会话模型")
-                            .font(.body)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .lineLimit(1)
-                        Spacer(minLength: OneDayMetrics.spacingS)
-                        Text(currentModelDisplayName)
-                            .font(.body)
-                            .foregroundStyle(Palette.ink)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Palette.inkMuted)
-                    }
-                    .padding(.horizontal, OneDayMetrics.spacingM)
-                    .frame(minHeight: OneDayMetrics.rowHeight)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel(
-                    "会话模型：\(currentModelDisplayName)"
-                )
-                .accessibilityHint("打开模型选择")
-            }
-            .odGroup()
-            .padding(.horizontal, OneDayMetrics.pageGutter)
-        }
-        .padding(.bottom, OneDayMetrics.spacingSM)
-    }
-
-    /// 入口行显名：与旧目录行同口径（展示名优先、
-    /// 回落原始 id）
-    private var currentModelDisplayName: String {
-        ModelDisplayNames.displayName(for: hubCurrentChoice.model)
-            ?? hubCurrentChoice.model
-    }
-
-    /// 枢纽模型选择面：与顶栏胶囊同面（ChatModel-
-    /// PickerView 本体一字不改）——分组走呈现口径
-    /// （pickerModelGroups，本机隐藏组不现身，与胶
-    /// 囊面一致）；选中落账与旧目录行同路（select-
-    /// SessionModel 写目标会话键——§263 起为当前会
-    /// 话键、无当前会话回落主线键，点行即落账关面）；
-    /// 隐藏组动作不给（onHideGroup=nil，该面注明的
-    /// 枢纽只读复用口径）
-    private var hubModelPickerSheet: some View {
-        ChatModelPickerView(
-            groups: appState.pickerModelGroups,
-            current: hubCurrentChoice,
-            onSelect: { choice in
-                let ids = hubModelAccountIDs
-                appState.selectSessionModel(
-                    choice,
-                    serverSessionID: ids.serverSessionID,
-                    threadID: ids.threadID
-                )
-                showHubModelPicker = false
-            }
-        )
+    /// 页头状态行第一语义＝当前活动（结构归位包，
+    /// benchmark §3.2）：台账进行中集派生与进展胶囊
+    /// 同源（ProgressCapsule.derive，单件显标题、多
+    /// 件显「正在进行 N 件 · 标题」）；枢纽是看全局
+    /// 的面，不剔除任何会话（currentSessionID 传
+    /// nil）。无进行中条目返回 nil，页头回落连接
+    /// 状态词（兜底）
+    private var hubActivityLine: String? {
+        ProgressCapsule.derive(
+            items: appState.sharedLedgerStore().items,
+            currentSessionID: nil
+        )?.headlineText
     }
 
     // MARK: - 四段分段控件（§222 胶囊条形态对齐）

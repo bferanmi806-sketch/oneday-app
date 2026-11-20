@@ -42,11 +42,6 @@ import SwiftUI
 struct ConnectorsView: View {
     @Environment(AppState.self) private var appState
 
-    /// 总览入口（设置页注入）：本机服务「总览数据」
-    /// 详情的跳转闭包——总览 sheet 的承载在设置页
-    /// 管理组，本页不另立第二份
-    var onOpenOverview: (() -> Void)? = nil
-
     // §259 起：面内状态与客户端全收 ConnectorsFacade
     // 门面，本 View 只持门面一个入口、状态只读门面派生
     @State private var facade = ConnectorsFacade()
@@ -1142,10 +1137,11 @@ struct ConnectorsView: View {
             entryRow("目标") { jumpTab(.goals) }
             entryRow("点子") { jumpTab(.ideas) }
         case .overviewBridge:
-            entryRow("总览") {
-                detailTarget = nil
-                onOpenOverview?()
-            }
+            // 原「总览」入口行已随结构归位包撤除
+            // （纲要 D5-1：总览撤独立页）；总览桥的
+            // 数据面（角标/进展胶囊）不受影响，本详
+            // 情只余状态呈现、无功能入口行
+            EmptyView()
         }
     }
 

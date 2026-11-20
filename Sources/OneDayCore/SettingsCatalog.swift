@@ -53,7 +53,13 @@ public enum SettingsDestination: Equatable, Sendable {
     case approvalRules
     case gateway
     case logs
-    case overview
+    // 总览目的地已撤（结构归位包，纲要 D5-1：总览撤
+    // 独立页、入口摘除，待处理归聊天/枢纽记录、最近
+    // 会话归抽屉）；状态详情页（StatusView）的家经
+    // 合流对接点落位：原拟归服务器管理页、该页已随
+    // 设置根归位撤销，改由本目录 status 条目在服务
+    // 与工作区组直达
+    case status
     case computer
     case serverFiles
     case appearance
@@ -168,7 +174,7 @@ public enum SettingsCatalog {
         // 服务与工作区（结构归位：服务器管理／会话管
         // 理／工作区三张枢纽页撤销，全部子项提回根组
         // 直达。组内序＝服务器本体（地址/网关/日志/用
-        // 量）→会话（主线/服务端）→工作区资源（总览/
+        // 量）→会话（主线/服务端）→工作区资源（状态/
         // 电脑/文件）→维护尾段（密钥/重启/体检））
         SettingsCatalogEntry(
             id: "server", group: .serverAndWorkspace,
@@ -212,12 +218,17 @@ public enum SettingsCatalog {
             keywords: ["会话", "网页端", "session", "sessions"],
             destination: .serverSessions
         ),
+        // 状态详情（StatusView）：原「总览」条目已随
+        // 枢纽/总览归位摘除（纲要 D5-1 总览撤页、D5-2
+        // 入口提浅归正主）；总览的状态下钻页不随页丢
+        // ——合流对接点落位为本条目，接替总览原位在工
+        // 作区资源段首位直达（活动/定时/系统三段）
         SettingsCatalogEntry(
-            id: "overview", group: .serverAndWorkspace,
-            title: "总览",
-            summary: "状态与最近活动",
-            keywords: ["状态", "活动", "overview", "工作区"],
-            destination: .overview
+            id: "status", group: .serverAndWorkspace,
+            title: "状态",
+            summary: "活动、定时与系统状态",
+            keywords: ["状态", "活动", "定时", "系统", "status", "overview", "工作区"],
+            destination: .status
         ),
         SettingsCatalogEntry(
             id: "computer", group: .serverAndWorkspace,

@@ -35,7 +35,7 @@ final class SettingsCatalogTests: XCTestCase {
             "mainSession", "serverSessions",
             "server", "gateway", "restartGateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
-            "overview", "computer", "serverFiles",
+            "status", "computer", "serverFiles",
             "appearance", "sidebar", "help", "about",
             "disconnect",
         ] {
@@ -57,7 +57,7 @@ final class SettingsCatalogTests: XCTestCase {
             .serverSessions, .models, .envVars, .usage,
             .serverDetail, .connectors, .devicePermissions,
             .approvalRules,
-            .gateway, .logs, .overview, .computer, .serverFiles,
+            .gateway, .logs, .status, .computer, .serverFiles,
             .appearance, .sidebar, .allConversations, .help, .about, .privacy, .terms,
             // prototype-2 叶子（枢纽目的地已退役）
             .mainSession, .restartGateway,
@@ -87,7 +87,7 @@ final class SettingsCatalogTests: XCTestCase {
             [
                 "server", "gateway", "logs", "usage",
                 "mainSession", "serverSessions",
-                "overview", "computer", "serverFiles",
+                "status", "computer", "serverFiles",
                 "envVars", "restartGateway", "healthCheck",
             ]
         )

@@ -240,6 +240,13 @@ struct SettingsView: View {
                     )
                 case .healthCheck:
                     HealthCheckView()
+                case .status:
+                    // 状态详情页落位（合流对接点 2026-11-20）：
+                    // 会话点按走全 App 同一路由通道（与枢纽
+                    // 包在旧服务器管理页的接线同口径）
+                    StatusView(onOpenSession: { id in
+                        appState.router.pendingChatSessionID = id
+                    })
                 }
             }
             .confirmationDialog(
@@ -286,10 +293,9 @@ struct SettingsView: View {
         case .serverSessionDetail(let id):
             ServerSessionDetailView(sessionID: id)
         case .mcp:
-            // 0.29.0：目录本机服务详情的「总览」入口经
-            // 本闭包回设置页开管理组总览 sheet（总览的
-            // 承载在本页 manageSheet、不另立第二份）
-            ConnectorsView(onOpenOverview: { manageSheet = .overview })
+            // 本机服务详情原有的「总览」入口已随结构
+            // 归位包撤除（纲要 D5-1 总览撤页）
+            ConnectorsView()
         case .devicePermissions:
             DevicePermissionsView()
         case .approvalRules:
@@ -411,7 +417,7 @@ struct SettingsView: View {
     /// 服务与工作区组（结构归位 2026-11-20）：三个二
     /// 级枢纽页撤销后，子项全部在本组直达——服务器本
     /// 体（当前服务器/网关/日志/用量）→会话（主线/服
-    /// 务端）→工作区资源（总览/电脑/文件，sheet 动作
+    /// 务端）→工作区资源（状态/电脑/文件，sheet 动作
     /// 行）→维护尾段（密钥/重启/体检），断开连接动作
     /// 行收组末（原服务器管理页页底行迁此，确认框与
     /// 执行口径不变）
@@ -525,31 +531,10 @@ struct SettingsView: View {
 
     // MARK: - 工作区 sheet 呈现（prototype-2 保持）
 
-    /// 工作区 sheet 内容：总览／电脑／服务器文件保持现行 sheet 机制
+    /// 工作区 sheet 内容：电脑／服务器文件保持现行 sheet 机制
     @ViewBuilder
     private func manageSheetContent(_ item: ManageSheet) -> some View {
         switch item {
-        case .overview:
-            OverviewView(
-                onOpenAgent: { route in
-                    manageSheet = nil
-                    path = [.agent(route)]
-                },
-                onOpenChatSession: { id in
-                    manageSheet = nil
-                    onClose?()
-                    appState.router.pendingChatSessionID = id
-                },
-                onOpenSettings: { route in
-                    manageSheet = nil
-                    path = [route]
-                },
-                onOpenChat: {
-                    manageSheet = nil
-                    onRequestChat?()
-                },
-                onBackToApps: { manageSheet = nil }
-            )
         case .computer:
             ComputerView(onBackToApps: { manageSheet = nil })
         case .serverFiles:
@@ -634,7 +619,6 @@ struct SettingsView: View {
     /// 链消费同一落点口径）
     private func activate(_ entry: SettingsCatalogEntry) {
         switch entry.destination {
-        case .overview: manageSheet = .overview
         case .computer: manageSheet = .computer
         case .serverFiles: manageSheet = .serverFiles
         case .allConversations: onRequestAllConversations?()
@@ -679,9 +663,10 @@ struct SettingsView: View {
         case .about: return .about
         case .privacy: return .privacy
         case .terms: return .terms
-        case .overview, .computer, .serverFiles,
+        case .computer, .serverFiles,
              .allConversations, .disconnect: return nil
         // prototype-2 叶子（枢纽页撤销后直达）
+        case .status: return .status
         case .mainSession: return .mainSession
         case .restartGateway: return .restartGateway
         case .healthCheck: return .healthCheck
@@ -707,7 +692,6 @@ struct SettingsView: View {
         case "logs": return "doc.text"
         case "envVars": return "key"
         case "usage": return "chart.bar"
-        case "overview": return "chart.xyaxis.line"
         case "computer": return "display"
         case "serverFiles": return "folder"
         case "appearance": return "sun.max"
@@ -723,6 +707,7 @@ struct SettingsView: View {
         case "mainSession": return "link"
         case "restartGateway": return "arrow.clockwise"
         case "healthCheck": return "stethoscope"
+        case "status": return "waveform.path.ecg"
         case "disconnect": return "rectangle.portrait.and.arrow.right"
         default: return "gearshape"
         }

@@ -60,15 +60,22 @@ enum SettingsRoute: Hashable {
     /// 体检面（H1-a，台账 158）：原服务器管理「维护」段，
     /// 结构归位后归设置根服务器组维护尾段
     case healthCheck
+    /// 状态详情页（StatusView）：总览撤页后状态的家
+    /// 原在服务器管理页（枢纽/总览归位对接点，合流
+    /// 2026-11-20 落位）——服务器管理页已随设置根归
+    /// 位撤销，入口改落设置根服务与工作区组直达
+    case status
 }
 
-/// 「工作区」三页的 sheet 呈现槽枚举（原定义在
+/// 「工作区」组两页的 sheet 呈现槽枚举（原定义在
 /// SettingsView 内部、旧工作区枢纽页反向借用——
 /// §305 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
 /// 协调方，本枚举自此与 AppRouter 同文件公共层；
-/// 结构归位后枢纽页撤销、三页改由设置根组行直开）
+/// 结构归位后枢纽页撤销、两页改由设置根组行直开）
 enum ManageSheet: String, Identifiable {
-    case overview, computer, serverFiles
+    // overview 已撤（结构归位包，纲要 D5-1：总览撤
+    // 独立页，状态归服务器管理、最近会话归抽屉）
+    case computer, serverFiles
     var id: String { rawValue }
 }
 
