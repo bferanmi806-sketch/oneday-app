@@ -350,7 +350,8 @@ final class HealthCheckStore {
     ) -> ActionExecutor {
         { action in
             let outcome = try await OpsActionRunner.run(
-                appState: appState, actionName: action.name
+                appState: appState, actionName: action.name,
+                timeout: action == .doctor ? 120 : 60
             ) { client, config in
                 switch action {
                 case .doctor:
@@ -443,12 +444,16 @@ final class HealthCheckStore {
 /// 1. 先读一次状态：同名动作已在跑（可能来自其他
 ///    客户端）就直接收养那一轮，不重复触发——服务
 ///    端按名只有一个跟踪槽，后触发会覆盖先触发；
-/// 2. 触发前数清日志里已有的 started 标记数作基
-///    线，轮询只认基线之后新落的本轮标记，旧轮的
-///    「已跑完」状态不许误收（日志多方共享）；
-/// 3. 2.5 秒一轮询，总超时 60 秒（实测每轮 10–15
-///    秒，60 秒是四倍余量）；超时抛 timedOut，界
-///    面落「没等到结果」＋重试，不无限转圈。
+/// 2. 触发前记下最后一个 started 标记的整行文本
+///    作基线身份，轮询只认「最后一个标记 ≠ 基线」
+///    的新轮，旧轮的「已跑完」状态不许误收（日志
+///    多方共享）。不数序号：状态端点只回文件尾的
+///    滑动窗口，本轮输出会把旧标记挤出窗口、序号
+///    永远凑不齐（2026-11-20 真机定因）；
+/// 3. 2.5 秒一轮询；总超时按动作传（缺省 60 秒；
+///    doctor 修复后常态约 46 秒，单独放宽到 120
+///    秒）；超时抛 timedOut，界面落「没等到结果」
+///    ＋重试，不无限转圈。
 enum OpsActionRunner {
     struct Outcome: Sendable {
         var lines: [String]
@@ -460,47 +465,51 @@ enum OpsActionRunner {
 
     static func run(
         appState: AppState, actionName: String,
+        timeout: TimeInterval = 60,
         spawn: @MainActor (
             HermesClientProtocol, ServerConfig
         ) async throws -> OpsSpawnResponse
     ) async throws -> Outcome {
         let pre = try await appState.performAdmin { client, config in
             try await client.opsActionStatus(
-                config: config, name: actionName, lines: 500
+                config: config, name: actionName, lines: 2000
             )
         }
-        let baseline: Int
+        // 基线身份＝触发前最后一个标记的整行文本；
+        // 收养在飞轮时该轮标记已在日志里，基线退到
+        // 它前一个标记（没有前一个就 nil），认轮时
+        // 在飞标记即被认作本轮
+        let markerTotal = OpsActionLog.markerCount(
+            lines: pre.lines, actionName: actionName
+        )
+        let baselineIndex = pre.running
+            ? markerTotal - 2 : markerTotal - 1
+        let baselineMarkerLine = baselineIndex >= 0
+            ? OpsActionLog.markerLine(
+                lines: pre.lines, actionName: actionName,
+                at: baselineIndex
+            )
+            : nil
         var spawnArchive: String?
-        if pre.running {
-            // 收养在飞的一轮：它的标记已在日志里，
-            // 基线退一格把该标记算作本轮
-            baseline = max(
-                OpsActionLog.markerCount(
-                    lines: pre.lines, actionName: actionName
-                ) - 1, 0
-            )
-        } else {
-            baseline = OpsActionLog.markerCount(
-                lines: pre.lines, actionName: actionName
-            )
+        if !pre.running {
             let receipt = try await appState.performAdmin {
                 client, config in
                 try await spawn(client, config)
             }
             spawnArchive = receipt.archive
         }
-        let deadline = Date().addingTimeInterval(60)
+        let deadline = Date().addingTimeInterval(timeout)
         while true {
             let status = try await appState.performAdmin {
                 client, config in
                 try await client.opsActionStatus(
-                    config: config, name: actionName, lines: 500
+                    config: config, name: actionName, lines: 2000
                 )
             }
             if !status.running,
-               let sliced = OpsActionLog.sliceAfterMarker(
+               let sliced = OpsActionLog.sliceForNewRound(
                    lines: status.lines, actionName: actionName,
-                   ordinal: baseline
+                   baselineMarkerLine: baselineMarkerLine
                ) {
                 return Outcome(
                     lines: sliced, exitCode: status.exitCode,

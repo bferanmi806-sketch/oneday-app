@@ -86,6 +86,176 @@ final class OpsHealthTests: XCTestCase {
         )
     }
 
+    // MARK: - 标记身份认轮（2026-11-20 真机定因回归）
+
+    private func startedMarker(_ timestamp: String) -> String {
+        "=== doctor started \(timestamp) ==="
+    }
+
+    func testMarkerLineAccessors() {
+        let lines = [
+            startedMarker("2026-11-19 23:14:46"),
+            "✓ 旧轮条目",
+            startedMarker("2026-11-19 23:26:02"),
+            "✓ 本轮条目",
+        ]
+        XCTAssertEqual(
+            OpsActionLog.markerLine(
+                lines: lines, actionName: "doctor", at: 0
+            ),
+            startedMarker("2026-11-19 23:14:46")
+        )
+        XCTAssertEqual(
+            OpsActionLog.lastMarkerLine(
+                lines: lines, actionName: "doctor"
+            ),
+            startedMarker("2026-11-19 23:26:02")
+        )
+        XCTAssertNil(
+            OpsActionLog.markerLine(
+                lines: lines, actionName: "doctor", at: 2
+            )
+        )
+        XCTAssertNil(
+            OpsActionLog.lastMarkerLine(
+                lines: lines, actionName: "security-audit"
+            )
+        )
+    }
+
+    func testSliceForNewRoundBasics() {
+        let baseline = startedMarker("2026-11-19 23:26:02")
+        let before = [
+            startedMarker("2026-11-19 23:14:46"),
+            "✓ 旧轮条目",
+            baseline,
+            "✓ 上轮条目",
+        ]
+        // 本轮还没落盘：最后一个标记仍是基线本人
+        XCTAssertNil(
+            OpsActionLog.sliceForNewRound(
+                lines: before, actionName: "doctor",
+                baselineMarkerLine: baseline
+            )
+        )
+        // 本轮落盘：认新标记之后的内容
+        let after = before + [
+            startedMarker("2026-11-20 07:51:46"),
+            "✓ 本轮条目",
+        ]
+        XCTAssertEqual(
+            OpsActionLog.sliceForNewRound(
+                lines: after, actionName: "doctor",
+                baselineMarkerLine: baseline
+            ),
+            ["✓ 本轮条目"]
+        )
+        // 无基线（日志里从没跑过）：有标记即认最后一轮
+        XCTAssertEqual(
+            OpsActionLog.sliceForNewRound(
+                lines: after, actionName: "doctor",
+                baselineMarkerLine: nil
+            ),
+            ["✓ 本轮条目"]
+        )
+        // 窗口无标记：不许拿整段尾巴冒充本轮
+        XCTAssertNil(
+            OpsActionLog.sliceForNewRound(
+                lines: ["✓ 条目"], actionName: "doctor",
+                baselineMarkerLine: nil
+            )
+        )
+    }
+
+    func testSliceForNewRoundAdoptionBaseline() {
+        // 收养在飞轮：基线退到在飞标记的前一个，在飞
+        // 那一轮即被认作本轮（引擎在 runner 侧这样取
+        // 基线，这里钉住 Core 语义）
+        let lines = [
+            startedMarker("2026-11-19 23:14:46"),
+            "✓ 旧轮条目",
+            startedMarker("2026-11-20 07:51:46"),
+            "✓ 在飞轮条目",
+        ]
+        XCTAssertEqual(
+            OpsActionLog.sliceForNewRound(
+                lines: lines, actionName: "doctor",
+                baselineMarkerLine: OpsActionLog.markerLine(
+                    lines: lines, actionName: "doctor", at: 0
+                )
+            ),
+            ["✓ 在飞轮条目"]
+        )
+    }
+
+    /// 复刻 2026-11-20 07:51 真机形态：触发前日志
+    /// 362 行、3 个标记（行 2/104/206）；本轮写 156
+    /// 行把文件推到 518 行，状态接口 500 行尾窗把第
+    /// 一个标记挤出窗口——旧序号口径永远凑不齐第 4
+    /// 个标记，结果已落盘却判超时；身份口径须切出
+    /// 本轮并正常判读
+    func testSliceForNewRoundSurvivesWindowSlide() {
+        let m1 = startedMarker("2026-11-19 23:14:46")
+        let m2 = startedMarker("2026-11-19 23:15:15")
+        let m3 = startedMarker("2026-11-19 23:26:02")
+        let m4 = startedMarker("2026-11-20 07:51:46")
+        var preLog = ["（日志头残留行）", m1]
+        preLog += Array(repeating: "· 旧轮输出", count: 101)
+        preLog.append(m2)
+        preLog += Array(repeating: "· 旧轮输出", count: 101)
+        preLog.append(m3)
+        preLog += Array(repeating: "· 旧轮输出", count: 156)
+        XCTAssertEqual(preLog.count, 362)
+
+        // 本轮 156 行：标记＋155 行检查输出（1 组
+        // 150✓/4⚠＋组标题行）
+        let roundContent = doctorLines(
+            [("Python Environment", 150, 4)]
+        )
+        XCTAssertEqual(roundContent.count, 155)
+        let fullLog = preLog + [m4] + roundContent
+        XCTAssertEqual(fullLog.count, 518)
+        // 状态接口的滑动尾窗（当时口径 500 行）
+        let window = Array(fullLog.suffix(500))
+
+        let baseline = OpsActionLog.lastMarkerLine(
+            lines: preLog, actionName: "doctor"
+        )
+        XCTAssertEqual(baseline, m3)
+        // 窗口内只剩 3 个标记，序号 3 永远不存在——
+        // 旧缺陷本体，钉住不许回潮
+        XCTAssertEqual(
+            OpsActionLog.markerCount(
+                lines: window, actionName: "doctor"
+            ),
+            3
+        )
+        XCTAssertNil(
+            OpsActionLog.sliceAfterMarker(
+                lines: window, actionName: "doctor", ordinal: 3
+            )
+        )
+        // 本轮落盘前（窗口最后一个标记还是基线）不误收
+        XCTAssertNil(
+            OpsActionLog.sliceForNewRound(
+                lines: Array(preLog.suffix(500)),
+                actionName: "doctor", baselineMarkerLine: baseline
+            )
+        )
+        // 身份口径：切出本轮并正常判读
+        let sliced = OpsActionLog.sliceForNewRound(
+            lines: window, actionName: "doctor",
+            baselineMarkerLine: baseline
+        )
+        XCTAssertEqual(sliced, roundContent)
+        let run = DoctorLogParser.parse(
+            lines: sliced ?? [], exitCode: 0
+        )
+        XCTAssertEqual(run.passCount, 150)
+        XCTAssertEqual(run.warnCount, 4)
+        XCTAssertEqual(run.verdict, .attention)
+    }
+
     // MARK: - doctor 正常轮（探活形态：10 组 32✓/4⚠，exit 0）
 
     /// 按（分组，通过数，注意数）生成探活同构日志
