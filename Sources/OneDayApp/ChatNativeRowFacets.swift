@@ -25,6 +25,11 @@ struct ChatEntryHeightSnapshot {
     let approvalKey: String?
     let traceKey: String?
     let traceEcho: TraceEchoSnapshot?
+    /// 台账 187：反应镜像（行高 facet——有反应即行
+    /// 高多一笔 pill 悬出预留；值在条目构建时同步已
+    /// 知、无异步翻转，同 toolCard/remoteImagePaths
+    /// 的 facet 纪律）
+    let reactions: [MessageReaction]
 
     init(_ entry: ChatEntry) {
         id = entry.id
@@ -44,6 +49,7 @@ struct ChatEntryHeightSnapshot {
         approvalKey = entry.approvalKey
         traceKey = entry.traceKey
         traceEcho = entry.traceEcho
+        reactions = entry.reactions
     }
 }
 

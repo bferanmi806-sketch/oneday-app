@@ -63,6 +63,11 @@ public enum HermesError: Error, Sendable {
     /// 出码超限（配对一期，网关 429 enrollment_too_
     /// many_pending）：未被认领的码已达上限（3 个）
     case enrollmentTooManyPending
+    /// 反应目标行已不在（台账 187，网关 404 message_
+    /// not_found）：会话谱系里已无此行（多为该消息已
+    /// 被删/会话已重建）——与裸 404 分开：客户端据此
+    /// 回滚乐观镜像并给人话，不许把状态码甩给用户
+    case reactionTargetGone
     /// 会话过期且自动重登失败
     case sessionExpired
     /// 模型不在上游候选集内（网关别名等），写入已被拦截
@@ -176,6 +181,11 @@ public enum HermesError: Error, Sendable {
         case .enrollmentTooManyPending:
             return L10n.string(
                 "等着被认领的码已经满了。等几分钟让旧码过期，或者先用掉一个再生成。",
+                locale: locale
+            )
+        case .reactionTargetGone:
+            return L10n.string(
+                "这条消息已不在了，反应没有生效。",
                 locale: locale
             )
         case .sessionExpired:

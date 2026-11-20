@@ -420,6 +420,26 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, code: String
     ) async throws -> EnrollmentClaim
 
+    // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
+
+    /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
+    /// 给一条服务端消息行点反应——服务端 Tapback 语
+    /// 义（一人一条、异点替换）＋handler 幂等归一（同
+    /// 值重试不撤回）；回执是该行写后反应全集，客户
+    /// 端以它覆写镜像。行不在会话谱系→404 message_
+    /// not_found，映射 HermesError.reactionTargetGone
+    func setReaction(
+        config: ServerConfig, apiKey: String,
+        sessionID: String, rowID: Int, emoji: String
+    ) async throws -> ReactionUpdate
+    /// DELETE /v1/reactions/{session_id}/{row_id}：撤
+    /// 回自己的反应——无反应时服务端同样回 200 空集
+    /// （幂等），回执同上
+    func clearReaction(
+        config: ServerConfig, apiKey: String,
+        sessionID: String, rowID: Int
+    ) async throws -> ReactionUpdate
+
     // MARK: 工作区文件与系统（0.2.1）
 
     /// GET /api/files?path=（path 为 nil 时服务端回默认根，
@@ -2121,6 +2141,73 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(
                 endpoint: L10n.string("认领")
+            )
+        }
+    }
+
+    // MARK: - 消息反应（台账 187）
+
+    func setReaction(
+        config: ServerConfig, apiKey: String,
+        sessionID: String, rowID: Int, emoji: String
+    ) async throws -> ReactionUpdate {
+        var request = URLRequest(
+            url: config.endpoint(
+                "/v1/reactions/\(sessionID)/\(rowID)"
+            )
+        )
+        request.httpMethod = "PUT"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try encoder.encode(["emoji": emoji])
+        return try await reactionUpdate(request)
+    }
+
+    func clearReaction(
+        config: ServerConfig, apiKey: String,
+        sessionID: String, rowID: Int
+    ) async throws -> ReactionUpdate {
+        var request = URLRequest(
+            url: config.endpoint(
+                "/v1/reactions/\(sessionID)/\(rowID)"
+            )
+        )
+        request.httpMethod = "DELETE"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        return try await reactionUpdate(request)
+    }
+
+    /// 反应两口的回执收口：200 系解 ReactionUpdate；
+    /// 网关错误码 message_not_found → reactionTarget-
+    /// Gone（回滚＋人话在调用方）；401/403 → 密钥被拒
+    private func reactionUpdate(
+        _ request: URLRequest
+    ) async throws -> ReactionUpdate {
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            if Self.gatewayErrorCode(from: data)
+                == "message_not_found" {
+                throw HermesError.reactionTargetGone
+            }
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("反应"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(ReactionUpdate.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("反应")
             )
         }
     }

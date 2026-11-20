@@ -11,10 +11,11 @@ import XCTest
 /// 下/抬起/间隔超时/跨行）＋装配层：序列未闭合
 /// 行 reconfigure 暂存、闭合后一拍恰落写一次；
 /// 高度-only 变化不触发 reconfigure（回归断言）；
-/// 题 2 承载换代——集合视图 delegate 内建通道的
-/// point 分工（cell hitTest 落文本内→nil、文本
-/// 外→出菜单且项集与 SwiftUI 承载逐项同）＋cell
-/// 本体不挂 UIContextMenuInteraction；
+/// 题 2 承载换代——历经 delegate 内建通道
+/// （§332）→控制器长按识别器＋自绘动作面（台账
+/// 187）：落点不分工（文本内/外同发呈现请求）、
+/// 选区在场行让路、动作项集与 186 菜单逐项同＋
+/// cell 本体不挂 UIContextMenuInteraction；
 /// 题 3 整行备忘——真实形态行集（含表格/工具卡/
 /// 引用/审批/交付）预填后重复多趟（模拟滚动期
 /// body 求值＋合成器每趟现建）实算计数不涨、高
@@ -398,26 +399,25 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         return nil
     }
 
-    /// §332 delegate 内建通道＋台账 186 菜单先行
-    /// （生产 delegate 本体）：长按落点不分工——
-    /// 落文本内与落文本外都出行菜单配置（旧 §265
-    /// 落点分工已被 2026-11-20 用户拍板覆盖：长
-    /// 按先出动作菜单、「选择」是菜单内一项、点
-    /// 它才进既有选择 sheet；选区机制本体不动）；
-    /// 菜单项集与 SwiftUI 承载逐项同序、图符在
-    /// 席；cell 本体不挂任何 UIContextMenu-
-    /// Interaction（§265 禁令此条不变）
-    func testRowMenuDelegateMenuFirstAndItemsMatch()
+    /// 台账 187 动作面触发（生产控制器本体）：长
+    /// 按落点不分工——落文本内与落文本外都发呈现
+    /// 请求（186 的「菜单先行」口径在自绘面承载下
+    /// 沿革：触发点由 delegate 通道换控制器长按识
+    /// 别器、判定口在此以同点位直证）；选区在场行
+    /// 不发（141/142 让路纪律）；未挂面行不发；
+    /// cell 本体不挂 UIContextMenuInteraction
+    /// （§265 禁令不变）；动作项集/序/图符以动作
+    /// 面单源组装（ChatRowActionSheetData.action-
+    /// Items）为准断言——与 186 菜单逐项同
+    func testActionSheetTriggerFiresForWholeRowAndItemsMatch()
         throws
     {
         assemble()
-        let menu = ChatNativeRowContextMenu(
-            plainText: "你好",
-            onReply: {}, onFork: {},
-            onSelect: {}, onShare: {}
-        )
+        let entryID = UUID()
+        var presented: [UUID] = []
+        handle?.onPresentActionSheet = { presented.append($0) }
         let row = ChatNativeRow(
-            key: "m", entryID: nil,
+            key: "m", entryID: entryID,
             revision: ChatNativeRowRevision(
                 parts: [.text("m")]
             ),
@@ -432,7 +432,7 @@ final class ChatNativeHotfix330Tests: XCTestCase {
                         )
                 )
             },
-            contextMenu: menu
+            presentsActionSheet: true
         )
         apply([row])
         drain(0.8)
@@ -445,7 +445,6 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         )
         let list = try XCTUnwrap(controller)
         let collectionView = list.collectionView
-        let indexPath = IndexPath(item: 0, section: 0)
         let textView = try XCTUnwrap(
             firstTextView(in: cell),
             "探针行须含 UITextView"
@@ -457,15 +456,10 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             ),
             to: collectionView
         )
-        let onText = list.collectionView(
-            collectionView,
-            contextMenuConfigurationForItemAt: indexPath,
-            point: onTextPoint
-        )
-        XCTAssertNotNil(
-            onText,
-            "文本内点位须先出行菜单（台账 186 菜单先行，"
-                + "不再直达选区）"
+        XCTAssertTrue(
+            list.presentActionSheet(at: onTextPoint),
+            "文本内点位须发动作面呈现请求（台账 186 "
+                + "菜单先行口径，187 换自绘面承载）"
         )
         let offTextPoint = cell.convert(
             CGPoint(
@@ -474,47 +468,66 @@ final class ChatNativeHotfix330Tests: XCTestCase {
             ),
             to: collectionView
         )
-        let offText = list.collectionView(
-            collectionView,
-            contextMenuConfigurationForItemAt: indexPath,
-            point: offTextPoint
-        )
-        XCTAssertNotNil(
-            offText, "文本外点位须给出行菜单配置"
-        )
-        // 配置的菜单本体即行描述 makeMenu（delegate
-        // 闭包直返，本 SDK 无 actionProvider 读回
-        // 口）——项集/序/图符以 makeMenu 为准断言
-        let actions = menu.makeMenu().children
-            .compactMap { $0 as? UIAction }
-        XCTAssertEqual(
-            actions.map(\.title),
-            ["回复", "在旁聊里接着问", "复制", "选择", "分享"],
-            "菜单项集/序须与 SwiftUI 承载逐项同"
-        )
         XCTAssertTrue(
-            actions.allSatisfy { $0.image != nil },
-            "菜单图符须在席"
+            list.presentActionSheet(at: offTextPoint),
+            "文本外点位须发动作面呈现请求"
         )
-    }
-
-    /// 台账 186：纯图片消息（plainText 空）的菜
-    /// 单组装——文本依赖项（复制/选择/分享）不
-    /// 出（不给假动作），条目动作（回复/接问）
-    /// 在席；有文本时五项全序不变（与上例同口径
-    /// 的组装层直证）
-    func testRowMenuOmitsTextItemsWhenPlainTextEmpty() {
-        let imageOnlyMenu = ChatNativeRowContextMenu(
-            plainText: "",
+        XCTAssertEqual(
+            presented, [entryID, entryID],
+            "两点位须各发一次呈现请求、条目 id 正确"
+        )
+        // 选区在场行让路：同点位不再发请求
+        handle?.selectionActiveRowKey = "m"
+        XCTAssertFalse(
+            list.presentActionSheet(at: onTextPoint),
+            "选区在场行长按不呈面（141/142 让路纪律）"
+        )
+        handle?.selectionActiveRowKey = nil
+        // 动作项集/序/图符：动作面单源组装为准（与
+        // 186 的 UIMenu 断言逐项同集同序）
+        let data = ChatRowActionSheetData(
+            plainText: "你好",
+            canReact: false, ownEmoji: nil,
+            onPickReaction: { _ in },
             onReply: {}, onFork: {},
             onSelect: {}, onShare: {}
         )
-        let titles = imageOnlyMenu.makeMenu().children
-            .compactMap { $0 as? UIAction }
-            .map(\.title)
+        let items = data.actionItems()
+        XCTAssertEqual(
+            items.map(\.title),
+            ["回复", "在旁聊里接着问", "复制", "选择", "分享"],
+            "动作项集/序须与 186 菜单逐项同"
+        )
+        XCTAssertEqual(
+            items.map(\.systemImage),
+            [
+                MessageActionSymbols.reply,
+                MessageActionSymbols.fork,
+                MessageActionSymbols.copy,
+                MessageActionSymbols.select,
+                MessageActionSymbols.share,
+            ],
+            "动作图符须与 186 菜单逐项同"
+        )
+    }
+
+    /// 台账 186 组装口径（187 动作面沿革）：纯图片
+    /// 消息（plainText 空）的动作列表——文本依赖项
+    /// （复制/选择/分享）不出（不给假动作），条目
+    /// 动作（回复/接问）在席；有文本时五项全序不
+    /// 变（与上例同口径的组装层直证）
+    func testActionSheetOmitsTextItemsWhenPlainTextEmpty() {
+        let imageOnlyData = ChatRowActionSheetData(
+            plainText: "",
+            canReact: false, ownEmoji: nil,
+            onPickReaction: { _ in },
+            onReply: {}, onFork: {},
+            onSelect: {}, onShare: {}
+        )
+        let titles = imageOnlyData.actionItems().map(\.title)
         XCTAssertEqual(
             titles, ["回复", "在旁聊里接着问"],
-            "纯图片消息菜单只许条目动作，实得 \(titles)"
+            "纯图片消息动作面只许条目动作，实得 \(titles)"
         )
     }
 

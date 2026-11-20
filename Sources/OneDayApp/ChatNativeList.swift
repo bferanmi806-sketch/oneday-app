@@ -281,6 +281,11 @@ struct ChatNativeRowRevision: Equatable, Hashable {
         revision.addText(entry.approvalKey)
         revision.addText(entry.traceKey)
         revision.addData(entry.traceEchoData)
+        // 台账 187：钉桩与反应镜像同列入账（字段枚
+        // 举全量纪律）——反应一变修订必变、行原位
+        // 重配出/收 pill
+        revision.addCount(entry.serverRowID ?? 0)
+        revision.addData(entry.reactionsData)
         revision.addFlag(entry.sendFailed)
         revision.addText(entry.sendStateRaw)
         revision.addText(entry.deliveryState)
@@ -297,17 +302,47 @@ struct ChatNativeRowRevision: Equatable, Hashable {
 
 // MARK: - 行描述（ChatView 喂入）
 
-/// 原生面行菜单描述（§330，0.50.70 热修题 2；
-/// §332 二次修复换代）：行菜单的动作集——与
-/// SwiftUI MessageMenuModifier 同源同序同图符
-/// （回复／在旁聊里接着问／复制／选择／分享），
-/// 由 ChatView 在行构造点以条目现成闭包组装。
-/// 原生面菜单承载走集合视图 delegate 的
-/// contextMenuConfigurationForItemAt 内建通道
-/// （见控制器节）；gen3 面不消费本描述（其菜
-/// 单仍走 SwiftUI .contextMenu）
-struct ChatNativeRowContextMenu {
+/// 动作面动作项（台账 187，方案 A）：自定义动作
+/// 面下半的动作列表一项——kind 供测试与无障碍标
+/// 识、title/systemImage 是呈现值、action 是
+/// ChatView 侧的既有入口闭包。项集/序/图符由
+/// ChatRowActionSheetData.actionItems 单源组装
+/// （与 186 菜单项集逐项同：回复／在旁聊里接着
+/// 问／复制／选择／分享／朗读），两面共用同一份
+/// 描述呈现同一个自绘 sheet，不再各持一套承载
+struct ChatRowActionItem: Identifiable {
+    enum Kind: Equatable {
+        case reply, fork, copy, select, share, speak
+    }
+
+    let kind: Kind
+    let title: String
+    let systemImage: String
+    let action: () -> Void
+
+    var id: Kind { kind }
+}
+
+/// 行动作面描述（台账 187 换代 §330/§332 承载）：
+/// 由 ChatView 在呈现时刻以条目现成闭包组装（不
+/// 在行构造时钉死——朗读项的播放态、自己的现反
+/// 应都以呈现时刻为准）。原生面经控制器长按识别
+/// 器回调、gen3 面经 MessageMenuModifier 的长按
+/// 手势，两路都只置 ChatView 的呈现状态、打开同
+/// 一个 ChatActionSheetView；186 的 UIMenu/
+/// delegate 承载与 gen3 的 .contextMenu 承载同
+/// 批退役（项集语义逐项搬家，见 actionItems）
+struct ChatRowActionSheetData {
     let plainText: String
+    /// 反应排在否（台账 187 门控谓词 ChatEntry.
+    /// canReact 的呈现时刻求值）：未钉桩/未落定行
+    /// 整排不出，不给假动作
+    let canReact: Bool
+    /// 自己的现反应（反应排高亮态；nil＝未点）
+    let ownEmoji: String?
+    /// 点反应排一项（toggle 语义在 ChatView 侧收
+    /// 口：点已点项＝撤回）
+    let onPickReaction: (String) -> Void
     let onReply: () -> Void
     let onFork: () -> Void
     let onSelect: () -> Void
@@ -318,78 +353,65 @@ struct ChatNativeRowContextMenu {
     /// 的求值闭包内
     var makeSpeakItem: (@MainActor () -> ChatRowSpeakItem?)? = nil
 
-    /// 菜单本体：项集/序/图符与 MessageMenu-
-    /// Modifier 的 SwiftUI 菜单逐项一致，不改产
-    /// 品语义；复制走 Pasteboard 收敛口径（与
-    /// CopyButton 同源一处）。@MainActor：本 SDK
-    /// 的 UIAction handler 带隔离要求，动作闭包
-    /// 须在主隔离内形成（非隔离上下文里组装会触
-    /// Swift 6 发送检查）；调用点恒为主线程菜单
-    /// 构建时刻，隔离与实际一致
-    /// 台账 186：plainText 为空（纯图片消息）时
-    /// 文本依赖项（复制/选择/分享）不出——复制空
-    /// 文、选空文是假动作；条目动作（回复/接问）
-    /// 与朗读（自带门控）照常
+    /// 动作列表组装（单源）：项集/序/图符与 186 菜
+    /// 单逐项同——回复／在旁聊里接着问恒在席；文
+    /// 本依赖项（复制/选择/分享）仅 plainText 非空
+    /// 时组装（复制空文、选空文是假动作；台账 186
+    /// 组装口径）；朗读项恒居末尾、求值 nil 整项
+    /// 不出。复制走 Pasteboard 收敛口径（与 Copy-
+    /// Button 同源一处）
     @MainActor
-    func makeMenu() -> UIMenu {
-        var children: [UIMenuElement] = [
-            UIAction(
-                title: "回复",
-                image: UIImage(
-                    systemName: MessageActionSymbols.reply
-                )
-            ) { _ in onReply() },
-            UIAction(
-                title: "在旁聊里接着问",
-                image: UIImage(
-                    systemName: MessageActionSymbols.fork
-                )
-            ) { _ in onFork() },
+    func actionItems() -> [ChatRowActionItem] {
+        var items: [ChatRowActionItem] = [
+            ChatRowActionItem(
+                kind: .reply, title: "回复",
+                systemImage: MessageActionSymbols.reply,
+                action: onReply
+            ),
+            ChatRowActionItem(
+                kind: .fork, title: "在旁聊里接着问",
+                systemImage: MessageActionSymbols.fork,
+                action: onFork
+            ),
         ]
         if !plainText.isEmpty {
-            children += [
-                UIAction(
-                    title: "复制",
-                    image: UIImage(
-                        systemName: MessageActionSymbols.copy
-                    )
-                ) { _ in Pasteboard.copy(plainText) },
-                UIAction(
-                    title: "选择",
-                    image: UIImage(
-                        systemName: MessageActionSymbols.select
-                    )
-                ) { _ in onSelect() },
-                UIAction(
-                    title: "分享",
-                    image: UIImage(
-                        systemName: MessageActionSymbols.share
-                    )
-                ) { _ in onShare() },
+            let text = plainText
+            items += [
+                ChatRowActionItem(
+                    kind: .copy, title: "复制",
+                    systemImage: MessageActionSymbols.copy,
+                    action: { Pasteboard.copy(text) }
+                ),
+                ChatRowActionItem(
+                    kind: .select, title: "选择",
+                    systemImage: MessageActionSymbols.select,
+                    action: onSelect
+                ),
+                ChatRowActionItem(
+                    kind: .share, title: "分享",
+                    systemImage: MessageActionSymbols.share,
+                    action: onShare
+                ),
             ]
         }
-        return UIMenu(children: children + speakActions)
-    }
-
-    /// 朗读项（菜单末尾，与 SwiftUI 面同序）：求值
-    /// 为 nil（非助手消息/未开通）时整项不出
-    @MainActor
-    private var speakActions: [UIAction] {
-        guard let item = makeSpeakItem?() else { return [] }
-        return [
-            UIAction(
-                title: item.title,
-                image: UIImage(systemName: item.systemImage)
-            ) { _ in item.action() },
-        ]
+        if let speak = makeSpeakItem?() {
+            items.append(
+                ChatRowActionItem(
+                    kind: .speak, title: speak.title,
+                    systemImage: speak.systemImage,
+                    action: speak.action
+                )
+            )
+        }
+        return items
     }
 }
 
 /// 行菜单朗读项（H2-a，台账 159）：标题随播放态
-/// 变（朗读/停止朗读）——原生面在 makeMenu() 呈现
-/// 时刻求值、SwiftUI 面在 body 重算时求值，两面共
-/// 用本描述，项序恒在菜单末尾（与既有五项同菜单、
-/// 不占气泡常驻位，施工图 3.1）
+/// 变（朗读/停止朗读）——台账 187 起两面同在动作
+/// 面呈现时刻求值（ChatRowActionSheetData.make-
+/// SpeakItem），共用本描述，项序恒在动作列表末尾
+/// （与既有五项同面、不占气泡常驻位，施工图 3.1）
 struct ChatRowSpeakItem {
     let title: String
     let systemImage: String
@@ -415,11 +437,13 @@ struct ChatNativeRow {
     /// 行集聚合（兜底口径见 §329）
     let height: CGFloat
     let makeView: () -> AnyView
-    /// §330 行菜单（原生面 UIKit 承载）：条目行
-    /// 由 ChatView 喂入（台账 186 起纯图片条目同
-    /// 挂——文本依赖项在 makeMenu 内按 plainText
-    /// 有无组装）；其余行恒 nil
-    let contextMenu: ChatNativeRowContextMenu?
+    /// 台账 187 行动作面在否：条目行由 ChatView 喂
+    /// 入 true（台账 186 起纯图片条目同挂——文本依
+    /// 赖项在动作面组装时按 plainText 有无处理）；
+    /// 其余行恒 false。控制器长按识别器据此决定是
+    /// 否呈面（呈现数据由 ChatView 在呈现时刻按条
+    /// 目组装，行描述不持闭包）
+    let presentsActionSheet: Bool
 
     init(
         key: String, entryID: UUID?,
@@ -427,14 +451,14 @@ struct ChatNativeRow {
         height: CGFloat = ChatNativeRowHeightComposer
             .fallbackHeight,
         makeView: @escaping () -> AnyView,
-        contextMenu: ChatNativeRowContextMenu? = nil
+        presentsActionSheet: Bool = false
     ) {
         self.key = key
         self.entryID = entryID
         self.revision = revision
         self.height = height
         self.makeView = makeView
-        self.contextMenu = contextMenu
+        self.presentsActionSheet = presentsActionSheet
     }
 }
 
@@ -518,9 +542,10 @@ private final class ChatNativeLayoutBox {
 /// §332（二次修复题 2）：cell 本体不再挂任何
 /// UIContextMenuInteraction（§265 禁令：交互挂
 /// 文本视图祖先会压死原生选字/编辑菜单）——行
-/// 菜单改由控制器的集合视图 delegate 内建通道
-/// 承载，cell 只渲染。菜单点位分工的 hitTest 判
-/// 读口在本类（静态、无状态）
+/// 菜单承载历经 delegate 内建通道（§332）→控制
+/// 器长按识别器＋自绘动作面（台账 187），cell 始
+/// 终只渲染。菜单点位分工的 hitTest 判读口在本
+/// 类（静态、无状态）
 /// （internal 而非 private：装配测试须以生产原
 /// 物读配置普查——与控制器/合成器的 internal
 /// 测试面同式）
@@ -764,6 +789,13 @@ final class ChatNativeListHandle {
     /// 纯引用记账、无观察语义
     var selectionActiveRowKey: String?
 
+    /// 台账 187：原生面动作面呈现请求——控制器长按
+    /// 识别器命中条目行时以条目 id 回调，ChatView 据
+    /// 此置呈现状态开自绘动作面（呈现数据在 Chat-
+    /// View 侧呈现时刻按条目组装，本句柄只传 id、
+    /// 不持行数据）
+    var onPresentActionSheet: ((UUID) -> Void)?
+
     func noteSelectionProtectionEnded() {
         controller?.selectionProtectionEnded()
     }
@@ -910,6 +942,17 @@ final class ChatRootViewController: UIViewController,
     /// 只旁观不竞争（见其类型注）
     private let touchObserver =
         ChatNativeTouchObserverGestureRecognizer()
+    /// 台账 187：行长按识别器（方案 A 动作面触发）：
+    /// 装配期挂集合视图——命中挂面条目行且该行无选
+    /// 区在场时，经句柄请 ChatView 呈自绘动作面。
+    /// 186 的 delegate 内建上下文菜单通道退役于此
+    /// （系统菜单装不下反应排）；选区在场行不触发
+    /// ——平台文本视图在场时行 machinery 让路
+    /// （141/142 纪律不变）；识别成立即取消触摸，
+    /// 文本视图侧待定的长按选字随之作废（与旧系统
+    /// 通道「菜单先行」的落点口径一致）
+    private let rowLongPress =
+        UILongPressGestureRecognizer()
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
     /// 判达标＋几何跨拍稳定后消（§302.3）、或用
     /// 户拖动接管即消
@@ -1000,6 +1043,18 @@ final class ChatRootViewController: UIViewController,
             self?.touchSequenceTouchCancelled(touch)
         }
         collectionView.addGestureRecognizer(touchObserver)
+        // 台账 187：行长按识别器装配——与触摸观察识
+        // 别器同时识别经本控制器 delegate 放行（序
+        // 列门照常旁观）；滚动 pan 不设失败依赖（静
+        // 止长按 pan 永不启动、滑动时 pan 启动本识别
+        // 器自败，系统仲裁即足）
+        rowLongPress.addTarget(
+            self, action: #selector(rowLongPressFired(_:))
+        )
+        rowLongPress.minimumPressDuration = 0.5
+        rowLongPress.cancelsTouchesInView = true
+        rowLongPress.delegate = self
+        collectionView.addGestureRecognizer(rowLongPress)
         // 自适应行高失效口径（iOS 16+ UICollection-
         // View 属性、非 layout 属性）：托管内容
         // （SwiftUI 拟合）的尺寸变化即自动重测，不
@@ -2073,40 +2128,44 @@ final class ChatRootViewController: UIViewController,
             || otherGestureRecognizer === touchObserver
     }
 
-    // MARK: 行菜单（§332 题 2，集合视图 delegate 内建通道）
+    // MARK: 行动作面（台账 187，方案 A 自绘面触发）
 
-    /// 行菜单：系统内建通道——行有菜单描述即全行
-    /// 出菜单（项集/序/图符由行描述 makeMenu 与
-    /// SwiftUI 承载逐项同）。预览不设 preview-
-    /// Provider＝系统默认 targeted preview；cell
-    /// 本体不挂任何 UIContextMenuInteraction
-    /// （§265 禁令不变）
-    /// 台账 186（2026-11-20 用户拍板，长按分工改
-    /// 判）：旧分工（§265）按落点分——point 经
-    /// cell hitTest 落在 UITextView 内→nil、长按
-    /// 文本直达原生选区。真机报障：同一条消息长
-    /// 按落点不同结果不同（文本上直达选择、图片
-    /// 行无菜单没反应），用户以 Muse 客户端为样
-    /// 板定版「长按先出动作菜单、『选择』是菜单
-    /// 里的一项」。本通道自此不按落点分工：全行
-    /// 先出菜单，点「选择」才进既有选择 sheet。
-    /// 选区机制本体（141/142）不动：双击选字、
-    /// 选区在场行保护链（selectionActiveRowKey）
-    /// 与触摸序列门照旧——改的只是长按的路由落
-    /// 点，不是选区机制
-    func collectionView(
-        _ collectionView: UICollectionView,
-        contextMenuConfigurationForItemAt indexPath:
-            IndexPath,
-        point: CGPoint
-    ) -> UIContextMenuConfiguration? {
-        guard indexPath.section < rows.count,
-              let rowMenu =
-                rows[indexPath.section].contextMenu
-        else { return nil }
-        return UIContextMenuConfiguration(
-            identifier: nil, previewProvider: nil
-        ) { _ in rowMenu.makeMenu() }
+    /// 行长按落点（台账 186 分工改判沿革）：旧分工
+    /// （§265）按落点分——落文本内直达选区、落文本
+    /// 外出菜单；186 改判为全行先出动作面（落点不
+    /// 分工），当时的承载是 delegate 内建上下文菜
+    /// 单。台账 187 起承载换自绘 sheet（系统菜单装
+    /// 不下反应排）：触发改本控制器长按识别器，落
+    /// 点口径不变（全行同触发）；选区机制本体
+    /// （141/142）不动——双击选字、选区在场行保护
+    /// 链与触摸序列门照旧，且选区在场的那一行长按
+    /// 不呈面（让路平台文本视图）
+    @objc private func rowLongPressFired(
+        _ recognizer: UILongPressGestureRecognizer
+    ) {
+        guard recognizer.state == .began else { return }
+        _ = presentActionSheet(
+            at: recognizer.location(in: collectionView)
+        )
+    }
+
+    /// 动作面呈现判定（测试缝：与识别器回调同一
+    /// 口）：点位命中行＋行挂动作面＋条目 id 在席＋
+    /// 该行无选区在场——全过才经句柄发呈现请求、
+    /// 回 true；任一不过回 false、不发请求
+    @discardableResult
+    func presentActionSheet(at point: CGPoint) -> Bool {
+        guard let indexPath = collectionView
+                .indexPathForItem(at: point),
+              indexPath.section < rows.count
+        else { return false }
+        let row = rows[indexPath.section]
+        guard row.presentsActionSheet,
+              let entryID = row.entryID,
+              handle?.selectionActiveRowKey != row.key
+        else { return false }
+        handle?.onPresentActionSheet?(entryID)
+        return true
     }
 
     // MARK: 落定拍（§259 合并调度，与 gen3 同式）

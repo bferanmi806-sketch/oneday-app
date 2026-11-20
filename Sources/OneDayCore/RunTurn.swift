@@ -496,10 +496,22 @@ public struct SettledRunTurn: Sendable, Equatable {
     public var failed: Bool
     /// 服务端失败边界行原文（横幅文案兜底）
     public var failureText: String?
+    /// 台账 187：本轮锚点 user 行的服务端行 id（段
+    /// 定位键即 transcript 末条 user 行——恒精确）：
+    /// 落定点据此给本地 user 条目钉 serverRowID（反
+    /// 应寻址坐标）；取不到（异常 id）为 nil
+    public var userRowID: Int?
+    /// 台账 187：终答正文的服务端行 id——仅当正文
+    /// 恰出自段内一条 assistant 行时给出；多行拼接
+    /// 成文时钉任一行都是错址，恒 nil（那类条目的
+    /// 钉桩留给导入/回补路径，行被拆开落盘后各自成
+    /// 条目、坐标自明）
+    public var assistantRowID: Int?
 
     public init(
         found: Bool, toolCards: [ToolCard], reasoning: String?,
-        finalText: String?, failed: Bool, failureText: String?
+        finalText: String?, failed: Bool, failureText: String?,
+        userRowID: Int? = nil, assistantRowID: Int? = nil
     ) {
         self.found = found
         self.toolCards = toolCards
@@ -507,6 +519,8 @@ public struct SettledRunTurn: Sendable, Equatable {
         self.finalText = finalText
         self.failed = failed
         self.failureText = failureText
+        self.userRowID = userRowID
+        self.assistantRowID = assistantRowID
     }
 
     public static let notFound = SettledRunTurn(
@@ -537,7 +551,8 @@ public enum RunTranscriptSettle {
             return SettledRunTurn(
                 found: true, toolCards: [], reasoning: nil,
                 finalText: nil, failed: true,
-                failureText: text.isEmpty ? nil : text
+                failureText: text.isEmpty ? nil : text,
+                userRowID: Self.rowID(messages[lastUserIndex])
             )
         }
 
@@ -557,17 +572,21 @@ public enum RunTranscriptSettle {
                     )
             }
             .filter { !$0.isEmpty }
-        let textParts = segment
+        let textRows = segment
             .filter {
                 $0.role == "assistant"
                     && $0.displayKind != "hidden"
             }
             .map {
-                $0.content.trimmingCharacters(
-                    in: .whitespacesAndNewlines
+                (
+                    row: $0,
+                    text: $0.content.trimmingCharacters(
+                        in: .whitespacesAndNewlines
+                    )
                 )
             }
-            .filter { !$0.isEmpty }
+            .filter { !$0.text.isEmpty }
+        let textParts = textRows.map(\.text)
         guard !cards.isEmpty || !textParts.isEmpty
                 || !reasoningParts.isEmpty
         else { return .notFound }
@@ -578,8 +597,18 @@ public enum RunTranscriptSettle {
                 ? nil : reasoningParts.joined(separator: "\n\n"),
             finalText: textParts.isEmpty
                 ? nil : textParts.joined(separator: "\n\n"),
-            failed: false, failureText: nil
+            failed: false, failureText: nil,
+            userRowID: Self.rowID(messages[lastUserIndex]),
+            assistantRowID: textRows.count == 1
+                ? Self.rowID(textRows[0].row) : nil
         )
+    }
+
+    /// 服务端行 id 的整数形（台账 187，与 Session-
+    /// HistoryImport 的钉桩口径同）：正整数才成坐标
+    private static func rowID(_ message: SessionMessage) -> Int? {
+        guard message.id > 0 else { return nil }
+        return Int(exactly: message.id)
     }
 
     /// 落定对账补缺（0.36.29，题 B 自愈）：服务端存档

@@ -2572,8 +2572,24 @@ struct ChatNativeRowHeightComposer {
         }
         if entry.role == "user" {
             return total + userEntryHeight(entry)
+                + reactionReserve(entry)
         }
         return total + assistantEntryHeight(entry)
+            + reactionReserve(entry)
+    }
+
+    /// 反应 pill 悬出预留（台账 187）：pill 压气泡底
+    /// 角、半身悬在泡外（ChatReactionMetrics 几何单
+    /// 源）——行高只多悬出净深一笔；无反应恒 0（两
+    /// 态差由测试以断言钉住）。只挂 user/assistant
+    /// 发言行（本函数只在 entryHeightCore 的两支尾
+    /// 部被调，工具卡/回响/锚定行走不到）
+    private func reactionReserve(
+        _ entry: ChatEntryHeightSnapshot
+    ) -> CGFloat {
+        entry.reactions.isEmpty
+            ? 0
+            : ChatReactionMetrics.rowReserve
     }
 
     /// 用户行高：HStack{Spacer(min 44)＋[失败钮

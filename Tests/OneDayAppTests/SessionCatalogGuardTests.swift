@@ -915,6 +915,14 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func clearReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int) async throws -> ReactionUpdate {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse {
         throw HermesError.unreachable("离线桩")
     }
