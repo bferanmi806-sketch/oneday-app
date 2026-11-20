@@ -1985,6 +1985,17 @@ final class ChatRootViewController: UIViewController,
                 lastCapsuleResolveAt = now
                 resolveAnchors()
             }
+        } else if !keyboardUp, dockBarView != nil,
+                  dockCapsuleView == nil {
+            // 台账 189：坞在场而胶囊未找到（首拍
+            // 层级未定型/形态漂移）——同节流自愈
+            // 重解析，胶囊一到即切入流；持续找不
+            // 到即维持常量链回落（探针缺值留痕）
+            let now = CACurrentMediaTime()
+            if now - lastCapsuleResolveAt >= 0.3 {
+                lastCapsuleResolveAt = now
+                resolveAnchors()
+            }
         }
         syncBottomConstant()
         // 台账 182：坏态三值同拍探针（常量同步后、
