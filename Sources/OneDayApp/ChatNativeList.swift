@@ -326,9 +326,13 @@ struct ChatNativeRowContextMenu {
     /// 须在主隔离内形成（非隔离上下文里组装会触
     /// Swift 6 发送检查）；调用点恒为主线程菜单
     /// 构建时刻，隔离与实际一致
+    /// 台账 186：plainText 为空（纯图片消息）时
+    /// 文本依赖项（复制/选择/分享）不出——复制空
+    /// 文、选空文是假动作；条目动作（回复/接问）
+    /// 与朗读（自带门控）照常
     @MainActor
     func makeMenu() -> UIMenu {
-        UIMenu(children: [
+        var children: [UIMenuElement] = [
             UIAction(
                 title: "回复",
                 image: UIImage(
@@ -341,25 +345,30 @@ struct ChatNativeRowContextMenu {
                     systemName: MessageActionSymbols.fork
                 )
             ) { _ in onFork() },
-            UIAction(
-                title: "复制",
-                image: UIImage(
-                    systemName: MessageActionSymbols.copy
-                )
-            ) { _ in Pasteboard.copy(plainText) },
-            UIAction(
-                title: "选择",
-                image: UIImage(
-                    systemName: MessageActionSymbols.select
-                )
-            ) { _ in onSelect() },
-            UIAction(
-                title: "分享",
-                image: UIImage(
-                    systemName: MessageActionSymbols.share
-                )
-            ) { _ in onShare() },
-        ] + speakActions)
+        ]
+        if !plainText.isEmpty {
+            children += [
+                UIAction(
+                    title: "复制",
+                    image: UIImage(
+                        systemName: MessageActionSymbols.copy
+                    )
+                ) { _ in Pasteboard.copy(plainText) },
+                UIAction(
+                    title: "选择",
+                    image: UIImage(
+                        systemName: MessageActionSymbols.select
+                    )
+                ) { _ in onSelect() },
+                UIAction(
+                    title: "分享",
+                    image: UIImage(
+                        systemName: MessageActionSymbols.share
+                    )
+                ) { _ in onShare() },
+            ]
+        }
+        return UIMenu(children: children + speakActions)
     }
 
     /// 朗读项（菜单末尾，与 SwiftUI 面同序）：求值
@@ -406,9 +415,10 @@ struct ChatNativeRow {
     /// 行集聚合（兜底口径见 §329）
     let height: CGFloat
     let makeView: () -> AnyView
-    /// §330 行菜单（原生面 UIKit 承载）：仅条目
-    /// 行由 ChatView 喂入（与 SwiftUI 菜单同门
-    /// 控——正文空不挂）；其余行恒 nil
+    /// §330 行菜单（原生面 UIKit 承载）：条目行
+    /// 由 ChatView 喂入（台账 186 起纯图片条目同
+    /// 挂——文本依赖项在 makeMenu 内按 plainText
+    /// 有无组装）；其余行恒 nil
     let contextMenu: ChatNativeRowContextMenu?
 
     init(
@@ -756,6 +766,13 @@ final class ChatNativeListHandle {
 
     func noteSelectionProtectionEnded() {
         controller?.selectionProtectionEnded()
+    }
+
+    /// 台账 182：覆盖层（附件面板/选择器/相机）
+    /// 呈现与收起完成点的离散重解析转手——控制器
+    /// 未装配（gen3 面）时空转无副作用
+    func reresolveAnchorsAfterPresentation() {
+        controller?.reresolveAnchorsAfterPresentation()
     }
 
     func captureAnchor() -> ChatListAnchor? {
@@ -1272,37 +1289,117 @@ final class ChatRootViewController: UIViewController,
         syncBottomConstant()
     }
 
+    /// 台账 182：呈现离散重解析入口——附件面板/
+    /// 系统选择器/相机等覆盖层的呈现与收起完成点
+    /// 由 ChatView 直调（经 ChatNativeListHandle）：
+    /// 呈现期间 TabView 内部层级与变换态变化正是
+    /// 静息锚失真的触发条件，收起后须在已恢复的
+    /// 层级上立即重找坞参照＋重算常量，不经回落
+    /// 态 0.3s 节流闸、不靠布局拍碰运气（与入窗/
+    /// 显形/键盘收起的既有离散触发点同列）
+    func reresolveAnchorsAfterPresentation() {
+        resolveAnchors()
+    }
+
+    /// 台账 182 坏态三值同拍探针（只记账、永不驱
+    /// 动）：静息态布局拍同拍采 ①bottomGuide 常
+    /// 量 ②convert 口径坞顶 ③舱托管实际帧（窗口
+    /// 系 minY/maxY）——健康态恒满足舱底＝坞顶；
+    /// 偏差 >0.5 才记 ChatDiagTrace，同签名去重
+    /// ＋1 秒节流（布局拍高频、坏态持续不许刷
+    /// 屏）。真机复现坏态时以本记录定案：常量推
+    /// 得的坞顶与 ②差→锚读法问题；①②相合而 ③
+    /// 不合→舱装配/布局问题
+    private var lastAnchorProbeSignature: String?
+    private var lastAnchorProbeAt: CFTimeInterval = 0
+
+    private func sampleAnchorTriadIfDiverged() {
+        guard !keyboardUp,
+              let window = view.window,
+              let bar = dockBarView, bar.window === window,
+              let host = composerHost,
+              let bottomGuideTopConstraint
+        else { return }
+        let dockTop = bar.convert(
+            bar.bounds, to: window
+        ).minY
+        let hostFrame = host.view.convert(
+            host.view.bounds, to: window
+        )
+        guard abs(hostFrame.maxY - dockTop) > 0.5
+        else { return }
+        let signature = String(
+            format: "%.0f|%.0f|%.0f|%.0f",
+            bottomGuideTopConstraint.constant, dockTop,
+            hostFrame.minY, hostFrame.maxY
+        )
+        let now = CACurrentMediaTime()
+        guard signature != lastAnchorProbeSignature,
+              now - lastAnchorProbeAt >= 1
+        else { return }
+        lastAnchorProbeSignature = signature
+        lastAnchorProbeAt = now
+        ChatDiagTrace.record(
+            "原生面 §302 [anchorTriad] constant="
+                + String(
+                    format: "%.1f",
+                    bottomGuideTopConstraint.constant
+                )
+                + " dockTopConvert="
+                + String(format: "%.1f", dockTop)
+                + " composerMinY="
+                + String(format: "%.1f", hostFrame.minY)
+                + " composerMaxY="
+                + String(format: "%.1f", hostFrame.maxY)
+        )
+    }
+
     /// §302 位置常量唯一计算点：bottomGuide 的
-    /// top 常量＝目标顶边－本视图布局空间顶边。
+    /// top 常量＝目标顶边－原点顶边（两项同坐标系
+    /// 成对取值，不许混系相减）。
     /// 目标顶边按当前输入取实测真值：键盘升起态
     /// ＝通知广播的键盘帧顶（窗口坐标——键盘升
     /// 起时抽屉必闭、祖先链 transform 恒等，窗口
     /// 坐标与布局空间累加坐标同值；无帧存账时保
-    /// 留上次常量、不许跌回坞值）；静息态＝坞参
-    /// 照的布局空间顶边（沿 superview 链累加
-    /// frame 原点——布局真值、忽略 transform，
-    /// 抽屉平移不假补偿、舱随前景同移）。逐布局
-    /// 拍调用（只读缓存值、无层级遍历），偏差
-    /// >0.5 才写（与 §194 syncBottomConstant 同式）
+    /// 留上次常量、不许跌回坞值），原点项沿用布
+    /// 局空间累加（§194 单常数链、本支不动）；
+    /// 静息态＝坞参照的 convert() 窗口真值（台账
+    /// 182 换代：layoutSpaceMinY 的原点累加在坞的
+    /// 祖先链含 TabView 内部带变换容器时失真——
+    /// §194 回报路注已自证偏 +83、锚本体当时冻结
+    /// 未改；本包把回报路已验证的 convert 读法升
+    /// 为锚本体唯一读法，累加近似在静息锚路退
+    /// 役），原点项同走 convert 成对换算（抽屉为
+    /// 水平平移、不入纵向读数，舱随前景同移的口
+    /// 径不变）；回落态沿用旧式（无坞环境、探针
+    /// 裸装配形态）。逐布局拍调用（只读缓存值、
+    /// 无层级遍历），偏差 >0.5 才写
     private func syncBottomConstant() {
         guard let window = view.window,
               let bottomGuideTopConstraint else { return }
         let targetTop: CGFloat
+        let originTop: CGFloat
         if keyboardUp {
             guard let kbTop = keyboardTopInWindow
             else { return }
             targetTop = kbTop
+            originTop = Self.layoutSpaceMinY(of: view)
         } else if let bar = dockBarView,
                   bar.window === window {
-            targetTop = Self.layoutSpaceMinY(of: bar)
+            targetTop = bar.convert(
+                bar.bounds, to: window
+            ).minY
+            originTop = view.convert(
+                view.bounds, to: window
+            ).minY
         } else if dockIsFallback {
             targetTop = window.bounds.height
                 - window.safeAreaInsets.bottom
+            originTop = Self.layoutSpaceMinY(of: view)
         } else {
             return
         }
-        let constant = targetTop
-            - Self.layoutSpaceMinY(of: view)
+        let constant = targetTop - originTop
         if abs(bottomGuideTopConstraint.constant - constant)
             > 0.5 {
             bottomGuideTopConstraint.constant = constant
@@ -1569,6 +1666,10 @@ final class ChatRootViewController: UIViewController,
             }
         }
         syncBottomConstant()
+        // 台账 182：坏态三值同拍探针（常量同步后、
+        // 本拍布局施工前采样——读的是上拍落定的舱
+        // 帧与本拍常量/坞顶的同拍对照）
+        sampleAnchorTriadIfDiverged()
         // 布局前先记在底事实（旧帧口径）：布局变化
         // （旋转/壳层帧变）后在底者钉底、不在底者不
         // 动——与 gen3 layoutContent 的位置保全同式
@@ -1974,13 +2075,25 @@ final class ChatRootViewController: UIViewController,
 
     // MARK: 行菜单（§332 题 2，集合视图 delegate 内建通道）
 
-    /// 行菜单：系统内建通道——point 经 cell
-    /// hitTest 落在 UITextView 内→nil（归原生编
-    /// 辑菜单，§265）；其余→出行菜单（项集/序/
-    /// 图符由行描述 makeMenu 与 SwiftUI 承载逐项
-    /// 同）。预览不设 previewProvider＝系统默认
-    /// targeted preview；cell 本体不挂任何
-    /// UIContextMenuInteraction（§265 禁令）
+    /// 行菜单：系统内建通道——行有菜单描述即全行
+    /// 出菜单（项集/序/图符由行描述 makeMenu 与
+    /// SwiftUI 承载逐项同）。预览不设 preview-
+    /// Provider＝系统默认 targeted preview；cell
+    /// 本体不挂任何 UIContextMenuInteraction
+    /// （§265 禁令不变）
+    /// 台账 186（2026-11-20 用户拍板，长按分工改
+    /// 判）：旧分工（§265）按落点分——point 经
+    /// cell hitTest 落在 UITextView 内→nil、长按
+    /// 文本直达原生选区。真机报障：同一条消息长
+    /// 按落点不同结果不同（文本上直达选择、图片
+    /// 行无菜单没反应），用户以 Muse 客户端为样
+    /// 板定版「长按先出动作菜单、『选择』是菜单
+    /// 里的一项」。本通道自此不按落点分工：全行
+    /// 先出菜单，点「选择」才进既有选择 sheet。
+    /// 选区机制本体（141/142）不动：双击选字、
+    /// 选区在场行保护链（selectionActiveRowKey）
+    /// 与触摸序列门照旧——改的只是长按的路由落
+    /// 点，不是选区机制
     func collectionView(
         _ collectionView: UICollectionView,
         contextMenuConfigurationForItemAt indexPath:
@@ -1991,22 +2104,6 @@ final class ChatRootViewController: UIViewController,
               let rowMenu =
                 rows[indexPath.section].contextMenu
         else { return nil }
-        if let cell = collectionView.cellForItem(
-            at: indexPath
-        ) as? ChatNativeHostingCell {
-            let cellPoint = collectionView.convert(
-                point, to: cell
-            )
-            let hitView = cell.hitTest(
-                cellPoint, with: nil
-            )
-            if ChatNativeHostingCell
-                .hitTestLandsOnTextView(
-                    hitView, stopAt: cell
-                ) {
-                return nil
-            }
-        }
         return UIContextMenuConfiguration(
             identifier: nil, previewProvider: nil
         ) { _ in rowMenu.makeMenu() }

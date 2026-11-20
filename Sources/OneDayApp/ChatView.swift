@@ -846,6 +846,135 @@ struct ChatView: View {
     }
 
     var body: some View {
+        chatScaffold
+        .onAppear { handleChatAppear() }
+        // 0.7.0（D2 回告）：总览快照随前台 30 秒轮询换新
+        // 时顺带拉新通知——回告卡与铃铛/通知 sheet 读
+        // 同一份通知状态，不另开轮询
+        .task(id: overviewStore?.snapshot?.generatedAt) {
+            if let overviewStore {
+                await overviewStore.loadNotifications(appState: appState)
+            }
+        }
+        .task {
+            await startDemoStreamIfNeeded()
+        }
+        // §232：乐观删除启动续跑——盘上待删队列逐
+        // 条重演隐藏并重跑后台删除（进程被杀/重启
+        // 的兜底；已落定条经回查自然收口，续跑失败
+        // 同样恢复＋提醒）。协调器内在飞去重＋队列
+        // 排空后为空操作，重复触发无副作用
+        .task {
+            appState.sessionDeletions.resumePending(
+                appState: appState, modelContext: modelContext
+            )
+        }
+        // §232：乐观删除最终失败的恢复提醒——协调
+        // 器置位即经聊天页提示条呈现（重要档），消
+        // 费后清位防重报（冷启动已置位者亦在此消费）
+        .onChange(
+            of: appState.sessionDeletionFailureNotice
+        ) { _, notice in
+            if let notice {
+                if !noticePresentation.isPresenting {
+                    showNotice(notice, tier: .extended)
+                }
+                appState.consumeSessionDeletionFailureNotice()
+            }
+        }
+        .task {
+            await appState.refreshModelCatalog()
+        }
+        // §237 P1：待发暂存清扫——条目已删除的暂存目
+        // 录随聊天页首启清掉，防只进不出积压；仍在
+        // 的条目（含失败/待发待重发）一律保留
+        .task {
+            let validIDs = Set(
+                threads.flatMap { $0.entries }.map(\.id)
+            )
+            try? stagedSendStore.prune(keeping: validIDs)
+        }
+        // 身份名全局解析（0.6.1）：聊天页是默认格、首
+        // 先出现，在此触发一次（AppState 内幂等）；胶
+        // 囊/抽屉/活动页三处显示名共用解析结果
+        .task {
+            await appState.resolveIdentityNameIfNeeded()
+        }
+        // 0.6.0（蓝图 §4 一期）：枢纽内容曾转正为活动格
+        // （AgentHubView 的 .activity 模式，全 App 只此
+        // 一份实现）；**0.17.0（真机五修⑤，用户点名）：
+        // 活动格撤销、枢纽回归 sheet**——身份胶囊点按与
+        // 回告卡点按开下方 showHub sheet（四段原样、枢
+        // 纽自带导航栈），换模型仍走胶囊内模型段 Menu
+        // （见 modelMenu）。本 sheet 是顶栏铃铛的通知面
+        // （总览桥驱动）
+        // §123（H2）：通知条目点达对象时先关本 sheet、
+        // 再开枢纽——两个呈现不能同帧抢，枢纽开启在此
+        // onDismiss 接力（落点字段已由通知行落 AppState）
+        // §165：锚点落点（approvalAnchorRequest 在位）不
+        // 开枢纽——落点在原对话里，本 sheet 关闭后由本
+        // 页消费请求切线程定位（onChange/onAppear 双触
+        // 发，此处补第三路防 sheet 关闭吞掉变更）
+        .sheet(isPresented: $showNotifications, onDismiss: {
+            if appState.router.approvalAnchorRequest != nil {
+                consumeApprovalAnchorRequest()
+            } else if appState.router.hubDestinationRequest != nil {
+                appState.router.hubOpenRequested = true
+            }
+        }) {
+            if let overviewStore {
+                NotificationsView(store: overviewStore)
+                    // §166：底部大面板——.large detent＝上缘
+                    // 留距的大 sheet 口径（原型同），内容内
+                    // NavigationStack 承载列表→详情推入
+                    .presentationDetents([.large])
+            }
+        }
+        // 0.17.0：枢纽 sheet（承载与 0.6.0–0.16.0 的活动
+        // 格本体逐字一致：同一 AgentHubView .activity＋
+        // 审批终态回调刷新总览桥、顶栏角标不等下一轮轮
+        // 询——原 ActivityView 包装层随活动格一并退役）
+        // 0.36.22（枢纽页对齐包）：呈现改整页 full-
+        // ScreenCover（用户学 Muse 智能体页：整页进、
+        // 左边缘右滑回、✕ 关闭）——内容与回调原样；呈
+        // 现机制取舍（cover 而非导航推入）见 §89
+        // §155（HUB-1）：呈现改 .sheet 全量形态（七段＋
+        // 模型常驻区、默认活动段），.activity 四段形态
+        // 退役无入口；审批终态回调保留（裁决自聊天就地
+        // 卡发生、经共享 store 触发同一回调）
+        // §217（2026-11-13，用户拍板对齐 Muse 枢纽
+        // 录屏）：呈现改系统 sheet 卡片式——大 detent
+        // 圆角卡浮起（初态四周留边、后景压暗、落定近
+        // 全屏），关闭反向回缩淡出，动画全走系统弹簧
+        // （hubSheetPresentation 一处收口）；fullScreen-
+        // Cover 的硬切感就此退场。枢纽内自带 sheet（分
+        // 享/模型/档案编辑）是嵌套呈现、照常工作；左
+        // 缘右滑与 ✕ 关闭口径不变
+        .sheet(isPresented: $showHub) {
+            // 结构归位（2026-11-20）：枢纽段外模型区已
+            // 撤、§263 的 followThread 跟随入参随之退役
+            // ——模型切换正主＝本页胶囊模型段 Menu 与模
+            // 型设置页，枢纽不再读当前会话
+            AgentHubView(
+                mode: .sheet,
+                onApprovalChanged: {
+                    Task { await overviewStore?.refresh(appState: appState) }
+                }
+            )
+            .hubSheetPresentation()
+        }
+        // 0.36.6：语音输入权限预备页（问前先讲用途，
+        // 续编 S1–S4；点麦克风且权限未定时才出现）
+        .sheet(isPresented: $dictation.showPrep) {
+            DictationPrepSheet(controller: dictation)
+        }
+    }
+
+    /// body 链前段（基视图＋首启 task 群）抽为
+    /// 独立属性：整链单表达式令类型检查器超时
+    /// （CI 三轮实证 2026-11-20），拆段各自求解；
+    /// 修饰顺序与语义逐字不变
+    private var chatScaffold: some View {
         // 0.4.5（§30）：抽屉覆盖层退役——抽屉承载已提
         // 到壳层（ContentView 根的推式结构），本页只剩
         // 聊天主面本体；旧结构里的 GeometryReader/ZStack
@@ -1375,6 +1504,11 @@ struct ChatView: View {
                 let action = attachPanelPendingAction
                 attachPanelPendingAction = nil
                 action?()
+                // 台账 182：面板收起真完成点——原生
+                // 面静息锚离散重解析（呈现期间 TabView
+                // 层级/变换态变化是锚失真触发条件，须
+                // 在恢复后的层级上立即重算）
+                nativeHandle.reresolveAnchorsAfterPresentation()
             }
         ) {
             AttachmentPanelView(
@@ -1425,6 +1559,30 @@ struct ChatView: View {
                 onCancel: { showCamera = false }
             )
             .ignoresSafeArea()
+        }
+        // 台账 182：其余覆盖层（照片/视频选择器、文
+        // 件选择器、相机）的呈现与收起两边沿同走离
+        // 散重解析——呈现型覆盖层无 onDismiss 口，
+        // 以呈现旗两边沿为完成点（与附件面板
+        // onDismiss 同列触发点）
+        .onChange(of: showPhotoPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showVideoPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showDocumentPicker) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showCamera) { _, _ in
+            nativeHandle.reresolveAnchorsAfterPresentation()
+        }
+        .onChange(of: showAttachPanel) { _, presented in
+            // 面板呈现边沿（收起边沿由上方 onDismiss
+            // 真完成点承担，此处只补呈现侧）
+            if presented {
+                nativeHandle.reresolveAnchorsAfterPresentation()
+            }
         }
         // 0.4.0（§3.4）：消费待续聊会话（四处入口经
         // AppState.router.pendingChatSessionID 置位、ContentView
@@ -1591,227 +1749,6 @@ struct ChatView: View {
                     )
                 )
             }
-        }
-        .onAppear {
-            // H2-a：进对话页刷新朗读可用性（节流在播
-            // 放器内；拉不到保持未知、菜单先按未确认
-            // 处理，不造假）
-            SpeechPlayer.shared.refreshAvailabilityOnAppear(
-                appState: appState
-            )
-            // 0.36.6：语音控制器回调接线——识别文本回
-            // 写 input（落稿后即普通草稿、可改可发）；
-            // 预备页选键盘听写时聚焦输入框
-            dictation.onTextChange = { text, _ in
-                input = text
-            }
-            // 0.36.17：听写发送钮——控制器保证先落稿
-            // 回写 input、后触发本回调，本处只管走正
-            // 常发送路（send 自带空文/在飞守卫）
-            dictation.onSendRequest = {
-                send()
-            }
-            dictation.onUseKeyboardDictation = {
-                composerFocusHandle.focus()
-            }
-            // 0.36.15：进聊天页即预热语音分析器（背
-            // 景构造＋资产确保＋prepareToAnalyze），
-            // 点麦克风时只剩开录与喂入——首结果 10
-            // 秒迟到的对症面（DESIGN-V4 §80）
-            dictation.armPreheat()
-            // 0.7.0（D1 主线钦定）：先落钦定——存量钦定且
-            // 线程还在则沿用，否则新建本地主线并钦定。
-            // （0.30.0 注：0.7.0 的「冷启落点永远先落主
-            // 线」已被用户 12:56 录屏纠正作废——落点改
-            // 走下方 ChatLandingResolution 恢复上次线
-            // 程，本步只保证钦定主线存在、供解析兜底）
-            let mainID = ensureMainThread()
-            // 0.4.5：同理补消费抽屉线程选择（从其他格开
-            // 抽屉选线程切过来时，本页可能尚未挂载、
-            // onChange 不重放）
-            if let id = appState.router.drawerThreadSelection {
-                appState.router.drawerThreadSelection = nil
-                currentThreadID = id
-            } else if appState.router.pendingChatSessionID == nil {
-                // 0.30.0（用户 12:56 录屏点名 Muse 模
-                // 型，取代 0.7.0「冷启永远先落主线」）：
-                // 落点走 Core ChatLandingResolution——
-                // 进程内已在某线程（页签切回）保持、冷
-                // 启恢复上次线程、记录失效回主线；显式
-                // 回主线只剩抽屉「主线聊天」行一个入口
-                switch ChatLandingResolution.landing(
-                    currentID: currentThreadID,
-                    lastThreadID: appState.sideChats.lastThreadID,
-                    existingIDs: threads.map(\.id),
-                    mainThreadID: mainID
-                ) {
-                case .keep(let id), .restore(let id), .main(let id):
-                    if currentThreadID != id {
-                        currentThreadID = id
-                    }
-                case .none:
-                    // 当前/上次/主线均不在名单（钦定失败
-                    // 的极端情形）：沿旧兜底落第一条
-                    if currentThread == nil {
-                        currentThreadID = threads.first?.id
-                    }
-                }
-            }
-            // 0.36.7：当前线程初始同步为抽屉当前对象
-            // 引用（口径同 currentThreadID 变更点；
-            // 0.36.29 改经同一同步函数、含频道出处）
-            syncDrawerObjectFromCurrentThread()
-            // 台账 148：首现线程同口径解析未读分界锚
-            // （onChange 只管其后的切换）
-            refreshUnreadAnchor()
-            // 本页首次出现时若已有待续聊会话（如从其他格
-            // 首次切入），onChange 可能先于挂载发生、在此补消费
-            if let id = appState.router.pendingChatSessionID {
-                Task { await consumePendingChatSession(id) }
-            }
-            // 0.27.0：主线链接预热（未链才走；失败原因
-            // 落 SideChatStore 设置页可见、发送前还会
-            // 再试——旧「失败静默」口径已作废）
-            Task { await ensureMainLink() }
-            // 0.32.1（F05 止血）：原选模型已停用、选择
-            // 被落回默认时的一次性如实提示——消费后落
-            // 回值落盘、不再重现；已有提示在显时不抢占
-            if let modelNotice = appState.modelFallbackNotice {
-                if !noticePresentation.isPresenting {
-                    showNotice(modelNotice)
-                }
-                appState.consumeModelFallbackNotice()
-            }
-            // §232：恢复提醒若在本页出现前已置位（续
-            // 跑失败等），onChange 不补发——在此与模型
-            // 落回提示同口消费一次
-            if let deletionNotice =
-                appState.sessionDeletionFailureNotice {
-                if !noticePresentation.isPresenting {
-                    showNotice(deletionNotice, tier: .extended)
-                }
-                appState.consumeSessionDeletionFailureNotice()
-            }
-        }
-        // 0.7.0（D2 回告）：总览快照随前台 30 秒轮询换新
-        // 时顺带拉新通知——回告卡与铃铛/通知 sheet 读
-        // 同一份通知状态，不另开轮询
-        .task(id: overviewStore?.snapshot?.generatedAt) {
-            if let overviewStore {
-                await overviewStore.loadNotifications(appState: appState)
-            }
-        }
-        .task {
-            await startDemoStreamIfNeeded()
-        }
-        // §232：乐观删除启动续跑——盘上待删队列逐
-        // 条重演隐藏并重跑后台删除（进程被杀/重启
-        // 的兜底；已落定条经回查自然收口，续跑失败
-        // 同样恢复＋提醒）。协调器内在飞去重＋队列
-        // 排空后为空操作，重复触发无副作用
-        .task {
-            appState.sessionDeletions.resumePending(
-                appState: appState, modelContext: modelContext
-            )
-        }
-        // §232：乐观删除最终失败的恢复提醒——协调
-        // 器置位即经聊天页提示条呈现（重要档），消
-        // 费后清位防重报（冷启动已置位者亦在此消费）
-        .onChange(
-            of: appState.sessionDeletionFailureNotice
-        ) { _, notice in
-            if let notice {
-                if !noticePresentation.isPresenting {
-                    showNotice(notice, tier: .extended)
-                }
-                appState.consumeSessionDeletionFailureNotice()
-            }
-        }
-        .task {
-            await appState.refreshModelCatalog()
-        }
-        // §237 P1：待发暂存清扫——条目已删除的暂存目
-        // 录随聊天页首启清掉，防只进不出积压；仍在
-        // 的条目（含失败/待发待重发）一律保留
-        .task {
-            let validIDs = Set(
-                threads.flatMap { $0.entries }.map(\.id)
-            )
-            try? stagedSendStore.prune(keeping: validIDs)
-        }
-        // 身份名全局解析（0.6.1）：聊天页是默认格、首
-        // 先出现，在此触发一次（AppState 内幂等）；胶
-        // 囊/抽屉/活动页三处显示名共用解析结果
-        .task {
-            await appState.resolveIdentityNameIfNeeded()
-        }
-        // 0.6.0（蓝图 §4 一期）：枢纽内容曾转正为活动格
-        // （AgentHubView 的 .activity 模式，全 App 只此
-        // 一份实现）；**0.17.0（真机五修⑤，用户点名）：
-        // 活动格撤销、枢纽回归 sheet**——身份胶囊点按与
-        // 回告卡点按开下方 showHub sheet（四段原样、枢
-        // 纽自带导航栈），换模型仍走胶囊内模型段 Menu
-        // （见 modelMenu）。本 sheet 是顶栏铃铛的通知面
-        // （总览桥驱动）
-        // §123（H2）：通知条目点达对象时先关本 sheet、
-        // 再开枢纽——两个呈现不能同帧抢，枢纽开启在此
-        // onDismiss 接力（落点字段已由通知行落 AppState）
-        // §165：锚点落点（approvalAnchorRequest 在位）不
-        // 开枢纽——落点在原对话里，本 sheet 关闭后由本
-        // 页消费请求切线程定位（onChange/onAppear 双触
-        // 发，此处补第三路防 sheet 关闭吞掉变更）
-        .sheet(isPresented: $showNotifications, onDismiss: {
-            if appState.router.approvalAnchorRequest != nil {
-                consumeApprovalAnchorRequest()
-            } else if appState.router.hubDestinationRequest != nil {
-                appState.router.hubOpenRequested = true
-            }
-        }) {
-            if let overviewStore {
-                NotificationsView(store: overviewStore)
-                    // §166：底部大面板——.large detent＝上缘
-                    // 留距的大 sheet 口径（原型同），内容内
-                    // NavigationStack 承载列表→详情推入
-                    .presentationDetents([.large])
-            }
-        }
-        // 0.17.0：枢纽 sheet（承载与 0.6.0–0.16.0 的活动
-        // 格本体逐字一致：同一 AgentHubView .activity＋
-        // 审批终态回调刷新总览桥、顶栏角标不等下一轮轮
-        // 询——原 ActivityView 包装层随活动格一并退役）
-        // 0.36.22（枢纽页对齐包）：呈现改整页 full-
-        // ScreenCover（用户学 Muse 智能体页：整页进、
-        // 左边缘右滑回、✕ 关闭）——内容与回调原样；呈
-        // 现机制取舍（cover 而非导航推入）见 §89
-        // §155（HUB-1）：呈现改 .sheet 全量形态（七段＋
-        // 模型常驻区、默认活动段），.activity 四段形态
-        // 退役无入口；审批终态回调保留（裁决自聊天就地
-        // 卡发生、经共享 store 触发同一回调）
-        // §217（2026-11-13，用户拍板对齐 Muse 枢纽
-        // 录屏）：呈现改系统 sheet 卡片式——大 detent
-        // 圆角卡浮起（初态四周留边、后景压暗、落定近
-        // 全屏），关闭反向回缩淡出，动画全走系统弹簧
-        // （hubSheetPresentation 一处收口）；fullScreen-
-        // Cover 的硬切感就此退场。枢纽内自带 sheet（分
-        // 享/模型/档案编辑）是嵌套呈现、照常工作；左
-        // 缘右滑与 ✕ 关闭口径不变
-        .sheet(isPresented: $showHub) {
-            // 结构归位（2026-11-20）：枢纽段外模型区已
-            // 撤、§263 的 followThread 跟随入参随之退役
-            // ——模型切换正主＝本页胶囊模型段 Menu 与模
-            // 型设置页，枢纽不再读当前会话
-            AgentHubView(
-                mode: .sheet,
-                onApprovalChanged: {
-                    Task { await overviewStore?.refresh(appState: appState) }
-                }
-            )
-            .hubSheetPresentation()
-        }
-        // 0.36.6：语音输入权限预备页（问前先讲用途，
-        // 续编 S1–S4；点麦克风且权限未定时才出现）
-        .sheet(isPresented: $dictation.showPrep) {
-            DictationPrepSheet(controller: dictation)
         }
     }
 
@@ -2186,6 +2123,17 @@ struct ChatView: View {
                 }
                 .padding(.trailing, OneDayMetrics.spacingM)
             }
+            // 朗读播放条（台账 183）：输入舱装配的
+            // 一员（本栈内、舱正上方一行），非 overlay
+            // 野挂——舱高账与落位随栈自洽。显隐/文案
+            // 只读 SpeechPlayer 既有可观察面（Core 状
+            // 态机派生 showsPlaybackBar/playbackBar-
+            // Text），不新开状态通道；手动朗读与自动
+            // 朗读同走状态机、同一条出口
+            if SpeechPlayer.shared.machine.showsPlaybackBar {
+                speechPlaybackBar
+                    .transition(.opacity)
+            }
             inputBar
         }
         .fixedSize(horizontal: false, vertical: true)
@@ -2227,6 +2175,173 @@ struct ChatView: View {
             ),
             value: showsBackToBottomButton
         )
+        // 台账 183：播放条显隐作第四键、同口径滑动
+        .animation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            ),
+            value: SpeechPlayer.shared.machine.showsPlaybackBar
+        )
+    }
+
+    /// body 的 onAppear 闭包体（整段抽出为方法：
+    /// 巨链上只留一行调用——闭包内联百行语句曾
+    /// 令类型检查器在链上超时，CI 实证 2026-11-20）
+    private func handleChatAppear() {
+        // H2-a：进对话页刷新朗读可用性（节流在播
+        // 放器内；拉不到保持未知、菜单先按未确认
+        // 处理，不造假）
+        SpeechPlayer.shared.refreshAvailabilityOnAppear(
+            appState: appState
+        )
+        // 0.36.6：语音控制器回调接线——识别文本回
+        // 写 input（落稿后即普通草稿、可改可发）；
+        // 预备页选键盘听写时聚焦输入框
+        dictation.onTextChange = { text, _ in
+            input = text
+        }
+        // 0.36.17：听写发送钮——控制器保证先落稿
+        // 回写 input、后触发本回调，本处只管走正
+        // 常发送路（send 自带空文/在飞守卫）
+        dictation.onSendRequest = {
+            send()
+        }
+        dictation.onUseKeyboardDictation = {
+            composerFocusHandle.focus()
+        }
+        // 0.36.15：进聊天页即预热语音分析器（背
+        // 景构造＋资产确保＋prepareToAnalyze），
+        // 点麦克风时只剩开录与喂入——首结果 10
+        // 秒迟到的对症面（DESIGN-V4 §80）
+        dictation.armPreheat()
+        // 0.7.0（D1 主线钦定）：先落钦定——存量钦定且
+        // 线程还在则沿用，否则新建本地主线并钦定。
+        // （0.30.0 注：0.7.0 的「冷启落点永远先落主
+        // 线」已被用户 12:56 录屏纠正作废——落点改
+        // 走下方 ChatLandingResolution 恢复上次线
+        // 程，本步只保证钦定主线存在、供解析兜底）
+        let mainID = ensureMainThread()
+        // 0.4.5：同理补消费抽屉线程选择（从其他格开
+        // 抽屉选线程切过来时，本页可能尚未挂载、
+        // onChange 不重放）
+        if let id = appState.router.drawerThreadSelection {
+            appState.router.drawerThreadSelection = nil
+            currentThreadID = id
+        } else if appState.router.pendingChatSessionID == nil {
+            // 0.30.0（用户 12:56 录屏点名 Muse 模
+            // 型，取代 0.7.0「冷启永远先落主线」）：
+            // 落点走 Core ChatLandingResolution——
+            // 进程内已在某线程（页签切回）保持、冷
+            // 启恢复上次线程、记录失效回主线；显式
+            // 回主线只剩抽屉「主线聊天」行一个入口
+            switch ChatLandingResolution.landing(
+                currentID: currentThreadID,
+                lastThreadID: appState.sideChats.lastThreadID,
+                existingIDs: threads.map(\.id),
+                mainThreadID: mainID
+            ) {
+            case .keep(let id), .restore(let id), .main(let id):
+                if currentThreadID != id {
+                    currentThreadID = id
+                }
+            case .none:
+                // 当前/上次/主线均不在名单（钦定失败
+                // 的极端情形）：沿旧兜底落第一条
+                if currentThread == nil {
+                    currentThreadID = threads.first?.id
+                }
+            }
+        }
+        // 0.36.7：当前线程初始同步为抽屉当前对象
+        // 引用（口径同 currentThreadID 变更点；
+        // 0.36.29 改经同一同步函数、含频道出处）
+        syncDrawerObjectFromCurrentThread()
+        // 台账 148：首现线程同口径解析未读分界锚
+        // （onChange 只管其后的切换）
+        refreshUnreadAnchor()
+        // 本页首次出现时若已有待续聊会话（如从其他格
+        // 首次切入），onChange 可能先于挂载发生、在此补消费
+        if let id = appState.router.pendingChatSessionID {
+            Task { await consumePendingChatSession(id) }
+        }
+        // 0.27.0：主线链接预热（未链才走；失败原因
+        // 落 SideChatStore 设置页可见、发送前还会
+        // 再试——旧「失败静默」口径已作废）
+        Task { await ensureMainLink() }
+        // 0.32.1（F05 止血）：原选模型已停用、选择
+        // 被落回默认时的一次性如实提示——消费后落
+        // 回值落盘、不再重现；已有提示在显时不抢占
+        if let modelNotice = appState.modelFallbackNotice {
+            if !noticePresentation.isPresenting {
+                showNotice(modelNotice)
+            }
+            appState.consumeModelFallbackNotice()
+        }
+        // §232：恢复提醒若在本页出现前已置位（续
+        // 跑失败等），onChange 不补发——在此与模型
+        // 落回提示同口消费一次
+        if let deletionNotice =
+            appState.sessionDeletionFailureNotice {
+            if !noticePresentation.isPresenting {
+                showNotice(deletionNotice, tier: .extended)
+            }
+            appState.consumeSessionDeletionFailureNotice()
+        }
+    }
+
+    /// 朗读播放条（台账 183）：形态沿本页条族画法
+    /// （发丝线＋pageBG＋gutter 横距，与 noticeBar
+    /// 同族）；参照 OpenBot voice-call-bar「声音正
+    /// 在出声时、控制面就长在输入舱上」降维为单钮
+    /// 条——文案（Core 派生）＋停止钮常驻可见。引
+    /// 擎层只有 stop、无 pause（与 OpenBot 朗读
+    /// stop-only 同构），本条不造暂停。停止走
+    /// SpeechPlayer.stop() 既有出口（与离页/发送/
+    /// 听写共用同一停因口）
+    private var speechPlaybackBar: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(Palette.hairline)
+                .frame(height: 1)
+            HStack(spacing: OneDayMetrics.spacingS) {
+                Image(systemName: MessageActionSymbols.speak)
+                    .font(.system(size: 15))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .accessibilityHidden(true)
+                Text(
+                    SpeechPlayer.shared.machine
+                        .playbackBarText ?? ""
+                )
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+                Spacer()
+                Button {
+                    SpeechPlayer.shared.stop()
+                } label: {
+                    HStack(spacing: OneDayMetrics.spacingXS) {
+                        Image(
+                            systemName:
+                                MessageActionSymbols.speakStop
+                        )
+                        .font(.system(size: 13, weight: .regular))
+                        Text("停止")
+                            .font(.subheadline)
+                    }
+                    .foregroundStyle(Palette.ink)
+                    // 命中域 44（条族审计口径）：字形
+                    // 行高不变、命中纵向撑满条高
+                    .frame(
+                        minHeight: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+                }
+                .accessibilityLabel("停止朗读")
+                .buttonStyle(.odPressable)
+            }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.vertical, OneDayMetrics.spacingXS)
+        }
+        .background(Palette.pageBG)
     }
 
     /// 回到底部圆钮（0.2.4 曾换原生玻璃；0.3.8 第 28 条
@@ -3175,16 +3290,20 @@ struct ChatView: View {
     }
 
     /// 原生面行菜单描述（§330，题 2）：与 message-
-    /// Menu(for:) 同门控同动作——纯图片消息（正文
-    /// 空）不挂；动作闭包逐项复用 SwiftUI 菜单的同
-    /// 一批入口（beginReply/forkToSideChat/选择
-    /// sheet），仅分享改走 UIKit 分享单状态口
-    /// （ShareLink 是 SwiftUI 视图、UIKit 菜单内
-    /// 无处安放）
+    /// Menu(for:) 同门控同动作；动作闭包逐项复用
+    /// SwiftUI 菜单的同一批入口（beginReply/fork-
+    /// ToSideChat/选择 sheet），仅分享改走 UIKit
+    /// 分享单状态口（ShareLink 是 SwiftUI 视图、
+    /// UIKit 菜单内无处安放）
+    /// 台账 186：门控放宽——条目行恒挂菜单（纯图
+    /// 片消息旧口径不挂、长按没反应，是本条报障
+    /// 之一）；文本依赖项由 makeMenu 按 plainText
+    /// 有无组装，恒非 nil（返回类型保留 Optional
+    /// 是行描述的既有形态、其余行型恒 nil 的口径
+    /// 不变）
     private func nativeRowContextMenu(
         for entry: ChatEntry
     ) -> ChatNativeRowContextMenu? {
-        guard !entry.content.isEmpty else { return nil }
         let text = plainText(for: entry)
         return ChatNativeRowContextMenu(
             plainText: text,
@@ -6704,7 +6823,13 @@ struct ChatView: View {
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
         let text = plainText(for: entry)
         return MessageMenuModifier(
-            isEnabled: !entry.content.isEmpty,
+            // 台账 186：与原生面同门控——纯图片条
+            // 目同挂（旧口径正文空不挂、长按没反
+            // 应）；文本依赖项在修饰内按 plainText
+            // 有无组装
+            isEnabled: !entry.content.isEmpty
+                || !entry.allImageDatas.isEmpty
+                || !entry.remoteImagePaths.isEmpty,
             plainText: text,
             onReply: {
                 beginReply(to: entry)
@@ -12383,7 +12508,8 @@ extension EnvironmentValues {
 /// ／复制／选择／分享，全系统件、禁自绘菜单。复制走
 /// Pasteboard 收敛口径（与 CopyButton 同源一处）；分享
 /// 走 ShareLink 系统分享单；选择打开纯文本 sheet。
-/// isEnabled=false（纯图片消息）时不挂菜单，见
+/// 台账 186：isEnabled 门控与原生面同口径（纯图片
+/// 条目同挂、文本依赖项按 plainText 有无组装），见
 /// messageMenu(for:) 的口径注
 /// §265（换代包 5·S3）：挂载面自此只许落在非文本层
 /// ——气泡背景层（背景＋内边距带）与行内铬件（图
@@ -12393,6 +12519,14 @@ extension EnvironmentValues {
 /// UITextView 原生选字＋编辑菜单（审计 S3 定性）。
 /// 文本区长按自此归文本体系；「选择」sheet 降为
 /// 跨段选段的兜底口（仍挂菜单内、非文本区可达）
+/// 台账 186（2026-11-20 用户拍板）：长按分工改判
+/// 已在原生面（出货面）落地——delegate 通道全行
+/// 先出菜单、「选择」为菜单内一项（见 ChatNative-
+/// List 行菜单注）。本 SwiftUI 承载（gen3 回落
+/// 面）的挂载面纪律不变：其文本区长按仍归文本
+/// 体系——根挂载翻转须连同 §265 的双承载冲突一
+/// 并另案验证，不在本包以未验状态翻面（两面差
+/// 异如实登记于本包交卷）
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
     let plainText: String
@@ -12420,16 +12554,21 @@ private struct MessageMenuModifier: ViewModifier {
                 Button(action: onFork) {
                     Label("在旁聊里接着问", systemImage: MessageActionSymbols.fork)
                 }
-                Button {
-                    Pasteboard.copy(plainText)
-                } label: {
-                    Label("复制", systemImage: MessageActionSymbols.copy)
-                }
-                Button(action: onSelect) {
-                    Label("选择", systemImage: MessageActionSymbols.select)
-                }
-                ShareLink(item: plainText) {
-                    Label("分享", systemImage: MessageActionSymbols.share)
+                // 台账 186：文本依赖项（复制/选择/
+                // 分享）仅 plainText 非空时组装——
+                // 与原生面 makeMenu 逐项同口径
+                if !plainText.isEmpty {
+                    Button {
+                        Pasteboard.copy(plainText)
+                    } label: {
+                        Label("复制", systemImage: MessageActionSymbols.copy)
+                    }
+                    Button(action: onSelect) {
+                        Label("选择", systemImage: MessageActionSymbols.select)
+                    }
+                    ShareLink(item: plainText) {
+                        Label("分享", systemImage: MessageActionSymbols.share)
+                    }
                 }
                 if let speakItem {
                     Button(action: speakItem.action) {

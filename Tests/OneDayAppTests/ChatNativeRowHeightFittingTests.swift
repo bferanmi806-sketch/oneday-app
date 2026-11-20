@@ -538,6 +538,161 @@ final class ChatNativeRowHeightFittingTests: XCTestCase {
         )
     }
 
+    // MARK: - 台账 185：间距跳变三落点
+
+    /// 快照形态合成器（facet 手工注入——存在性/
+    /// 交付 meta 逐值可控，不经实时 Store）
+    private func makeSnapshotComposer(
+        facets: ChatNativeRowFacets
+    ) -> ChatNativeRowHeightComposer {
+        ChatNativeRowHeightComposer(
+            screenWidth: screenW,
+            horizontalPadding: OneDayMetrics.pageGutter,
+            sizeCategory: .large,
+            boldText: false,
+            displayScale: 3,
+            agentDisplayName: "Hermes",
+            emptyStateAvatarSize: 72,
+            facets: facets
+        )
+    }
+
+    /// 尾块结构化判定：四类标记逐类命中、纯散文
+    /// 与行内符号不误报
+    func testTailStructureDetection() {
+        let structured = [
+            "先看结果：\n- 第一项\n- 第二项",
+            "步骤如下：\n1. 打开设置\n2. 保存",
+            "## 小标题\n正文跟随",
+            "代码：\n```swift\nlet a = 1",
+            "| 名称 | 状态 |\n| --- | --- |",
+            "名称 | 状态\n--- | ---",
+        ]
+        for text in structured {
+            XCTAssertTrue(
+                ChatNativeRowHeightComposer
+                    .tailUsesMarkdownMeasure(text),
+                "结构化尾块须命中：\(text)"
+            )
+        }
+        let prose = [
+            "这是一段普通散文，没有任何结构标记。",
+            "价格是 3.5 元，版本 1.2 已发布。",
+            "他说 #话题 不算标题，a|b 也不算表格。",
+            "第一行\n第二行仍然是散文。",
+        ]
+        for text in prose {
+            XCTAssertFalse(
+                ChatNativeRowHeightComposer
+                    .tailUsesMarkdownMeasure(text),
+                "纯散文尾块不许误报：\(text)"
+            )
+        }
+    }
+
+    /// 直播高＝落定高（落定口径＝整段 markdown
+    /// ＋气泡纵内距）：散文多段、结构化尾块（列
+    /// 表/标题/代码）逐样本逐值对齐（±1）——185
+    /// 的核心断言：状态切换不许再改行高
+    func testLiveHeightEqualsSettledHeight() {
+        let composer = makeComposer(
+            ledger: ChatRowStateLedger()
+        )
+        let settled: (String) -> CGFloat = { text in
+            composer.markdownHeight(text)
+                + OneDayMetrics.bubblePaddingV * 2
+        }
+        let samples = [
+            "第一段先讲结论，这一段是普通的散文内容。",
+            "第一段散文，交代背景与现状。\n\n第二段散文，"
+                + "给出处理办法与后续安排，文字稍长一些。",
+            "结论如下：\n\n- 第一项要做的事\n- 第二项要做的事\n"
+                + "- 第三项要做的事",
+            "先说背景，这是一段散文。\n\n## 处理办法",
+            "示例代码如下：\n\n```swift\nlet value = 42\n"
+                + "print(value)\n```",
+            "对比表：\n\n| 名称 | 状态 |\n| --- | --- |\n"
+                + "| 甲 | 好 |\n| 乙 | 坏 |",
+        ]
+        for text in samples {
+            let live = composer.liveTextHeight(
+                text: text, isUploading: false
+            )
+            XCTAssertEqual(
+                live, settled(text), accuracy: 1.0,
+                "直播高 \(live) 须＝落定高 \(settled(text))：\(text)"
+            )
+        }
+    }
+
+    /// 图片/交付/文件牌占位：存在性未定先按定高
+    /// 占位、确证 missing 才塌——同一条目在未定
+    /// 与确证存在两态行高逐值相等（不再 0↔190
+    /// 翻转），确证不存在时恰少一个卡高
+    func testUnverifiedSlotsReserveCardHeight() {
+        // 路径须在下载根内（MediaMarker 摘行门：
+        // 根外路径整行留作纯文本、不进图片槽）
+        let path = "/opt/data/cache/images/pic-185.png"
+        let entry = ChatEntry(
+            role: "assistant",
+            content: "图在下面：\nMEDIA:\(path)",
+            thread: nil
+        )
+        var unverifiedFacets = ChatNativeRowFacets()
+        unverifiedFacets.fileExistences = [:]
+        let unverified = makeSnapshotComposer(
+            facets: unverifiedFacets
+        )
+        var existsFacets = ChatNativeRowFacets()
+        existsFacets.fileExistences = [path: .exists]
+        let exists = makeSnapshotComposer(
+            facets: existsFacets
+        )
+        var missingFacets = ChatNativeRowFacets()
+        missingFacets.fileExistences = [path: .missing]
+        let missing = makeSnapshotComposer(
+            facets: missingFacets
+        )
+        let hUnverified = unverified.entryHeight(
+            entry, dividerText: nil
+        )
+        let hExists = exists.entryHeight(
+            entry, dividerText: nil
+        )
+        let hMissing = missing.entryHeight(
+            entry, dividerText: nil
+        )
+        XCTAssertEqual(
+            hUnverified, hExists, accuracy: 0.5,
+            "未定态行高须＝确证存在态（占位不翻转），"
+                + "\(hUnverified) vs \(hExists)"
+        )
+        XCTAssertEqual(
+            hExists - hMissing,
+            ChatImageSizing.cardHeight, accuracy: 0.5,
+            "确证不存在只塌一个卡高，差 \(hExists - hMissing)"
+        )
+        // 交付槽：meta 未到先按卡高占位（旧口径 0）
+        XCTAssertEqual(
+            unverified.deliveryItemHeight(id: "d-185"),
+            ChatImageSizing.cardHeight,
+            "交付 meta 未到须按卡高占位"
+        )
+        // 文件牌：未定按牌高、确证不存在落文本高
+        XCTAssertEqual(
+            unverified.assistantFileChipHeight(path: path),
+            exists.assistantFileChipHeight(path: path),
+            accuracy: 0.5,
+            "文件牌未定态须＝确证存在态（牌高占位）"
+        )
+        XCTAssertLessThan(
+            missing.assistantFileChipHeight(path: path),
+            exists.assistantFileChipHeight(path: path),
+            "文件牌确证不存在须落文本高（小于牌高）"
+        )
+    }
+
+
 }
 
 /// §329 验证重建（生产链压测）：种子线程经真

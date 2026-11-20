@@ -385,4 +385,49 @@ final class VoiceSpeechTests: XCTestCase {
         XCTAssertEqual(machine.state, .idle)
         XCTAssertNil(machine.activeEntryID)
     }
+
+    /// 播放条派生（台账 183）：显隐与文案只随状
+    /// 态机走——静默不出条、请求中出条（正在准备
+    /// 朗读）、播放中出条（正在朗读）、停止/失败/
+    /// 自然结束收条（失败走通知口不占舱面）
+    func testPlaybackBarDerivation() {
+        var machine = SpeechPlaybackMachine()
+        XCTAssertFalse(machine.showsPlaybackBar)
+        XCTAssertNil(machine.playbackBarText)
+
+        _ = machine.tap(entryID: entryA)
+        XCTAssertTrue(machine.showsPlaybackBar)
+        XCTAssertEqual(machine.playbackBarText, "正在准备朗读")
+
+        _ = machine.requestSucceeded(entryID: entryA)
+        XCTAssertTrue(machine.showsPlaybackBar)
+        XCTAssertEqual(machine.playbackBarText, "正在朗读")
+
+        // 条上停止＝状态机 stop 既有出口
+        _ = machine.stop()
+        XCTAssertFalse(machine.showsPlaybackBar)
+        XCTAssertNil(machine.playbackBarText)
+
+        // 请求失败：收条（人话走通知口）
+        _ = machine.tap(entryID: entryA)
+        _ = machine.requestFailed(
+            entryID: entryA, message: "这次朗读没成功。"
+        )
+        XCTAssertFalse(machine.showsPlaybackBar)
+        XCTAssertNil(machine.playbackBarText)
+
+        // 自然播完：收条
+        _ = machine.tap(entryID: entryA)
+        _ = machine.requestSucceeded(entryID: entryA)
+        _ = machine.playbackFinished(entryID: entryA)
+        XCTAssertFalse(machine.showsPlaybackBar)
+        XCTAssertNil(machine.playbackBarText)
+
+        // 切换条目：条不灭、文案随新条请求态
+        _ = machine.tap(entryID: entryA)
+        _ = machine.requestSucceeded(entryID: entryA)
+        _ = machine.tap(entryID: entryB)
+        XCTAssertTrue(machine.showsPlaybackBar)
+        XCTAssertEqual(machine.playbackBarText, "正在准备朗读")
+    }
 }

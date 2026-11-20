@@ -654,6 +654,54 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
         )
     }
 
+    // MARK: - 台账 182：静息锚 convert 读法
+
+    /// 静息锚认坞的渲染真值：坞祖先容器带 −40
+    /// 纵向变换（TabView 内部带变换容器的同型失
+    /// 真——旧 layoutSpaceMinY 累加口径读布局顶
+    /// 791、舱底随之压进坞渲染面 40pt，正是真机
+    /// 「带附件时输入舱被底栏压住」的同构复现）
+    /// 时，舱底须＝convert 渲染顶 751；呈现离散
+    /// 重解析入口调用后读数不坏
+    func testRestingAnchorUsesConvertedDockTop() throws {
+        assemble()
+        let dockContainer = UIView(
+            frame: CGRect(
+                x: 0, y: 0, width: windowW, height: windowH
+            )
+        )
+        dockContainer.transform = CGAffineTransform(
+            translationX: 0, y: -40
+        )
+        let bar = UITabBar(
+            frame: CGRect(
+                x: 0, y: windowH - 83,
+                width: windowW, height: 83
+            )
+        )
+        dockContainer.addSubview(bar)
+        controller.view.superview?.addSubview(dockContainer)
+        window.layoutIfNeeded()
+
+        apply(rows: [settledRow("only", "只有一条短回复的会话。")])
+        drain()
+        let renderedDockTop = windowH - 83 - 40
+        let bottom = try composerBottomInWindow()
+        XCTAssertEqual(
+            bottom, renderedDockTop, accuracy: 1.0,
+            "舱底须＝坞渲染顶 \(renderedDockTop)（convert 口径），"
+                + "实测 \(bottom)；若为 \(windowH - 83) 即累加旧口径回潮"
+        )
+        // 呈现重解析入口：调用后同拍重算、读数不变坏
+        handle.reresolveAnchorsAfterPresentation()
+        window.layoutIfNeeded()
+        let afterResolve = try composerBottomInWindow()
+        XCTAssertEqual(
+            afterResolve, renderedDockTop, accuracy: 1.0,
+            "重解析后舱底须仍＝坞渲染顶，实测 \(afterResolve)"
+        )
+    }
+
     // MARK: - ⑩ 流式跟随钉底（H6）
 
     func testStreamingGrowthKeepsBottomPin() throws {

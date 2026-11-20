@@ -30,17 +30,28 @@ import SwiftUI
 /// 生落定跳变）：装配器把连续散文块（段落／标
 /// 题／列表）并成一个 prose 段、段内段距走
 /// paragraphSpacing；段界与其余相邻走 spacing-
-/// SM；闭合前缀末块与尾块的衔接恒 spacingSM
-/// （旧形态前缀视图与尾视图的栈距）。逐块呈现
+/// SM；闭合前缀末块与尾块的衔接同走两级口径
+/// （同属可并段集＝paragraphSpacing，否则
+/// spacingSM——旧「恒 spacingSM」口径在散文
+/// 尾块落定时涨 4pt，台账 185 于 2026-11-20
+/// 修正）。逐块呈现
 /// 以 VStack 零距＋逐块底衬补出同一间隙序列
 struct StreamingBlockText: View {
     let text: String
 
     var body: some View {
+        let blocks = StreamingBlockSegmenter.blocks(
+            for: text
+        )
         let parts = Self.closedParts(for: text)
         let tail = StreamingBlockSegmenter.tailSource(
-            of: StreamingBlockSegmenter.blocks(for: text)
+            of: blocks
         )
+        // 末块→尾块衔接口径须知尾块类别（gapAfter
+        // 两级口径，台账 185）；空尾无衔接、传 nil
+        let tailKind = tail.isEmpty
+            ? nil
+            : blocks.last(where: { $0.isTail })?.kind
         VStack(alignment: .leading, spacing: 0) {
             ForEach(
                 Array(parts.enumerated()),
@@ -50,7 +61,8 @@ struct StreamingBlockText: View {
                     .padding(
                         .bottom,
                         Self.gapAfter(
-                            index: pair.offset, parts: parts
+                            index: pair.offset, parts: parts,
+                            tailKind: tailKind
                         )
                     )
             }
@@ -79,13 +91,26 @@ struct StreamingBlockText: View {
     }
 
     /// 块后间隙：散文相邻（两侧都可并段）＝
-    /// paragraphSpacing；其余相邻＝spacingSM；
-    /// 末闭合块（其后是尾块）恒 spacingSM
+    /// paragraphSpacing；其余相邻＝spacingSM。
+    /// 末闭合块（其后是尾块）同走此两级口径：
+    /// 尾块与末块同属可并段集时，落定装配器会
+    /// 把两者并入同一 prose 段、界距走 paragrap-
+    /// hSpacing——衔接先按 spacingSM 取值会在
+    /// 落定瞬间涨 4pt（16−12，台账 185 残差、
+    /// 2026-11-20 实测三样本恒差 4.0）；tailKind
+    /// 为 nil（调用方不知尾块类别）时保留旧
+    /// spacingSM 兜底
     static func gapAfter(
         index: Int,
-        parts: [(block: StreamingBlock, source: String)]
+        parts: [(block: StreamingBlock, source: String)],
+        tailKind: StreamingBlockKind? = nil
     ) -> CGFloat {
         guard index < parts.count - 1 else {
+            if let tailKind,
+               isProseMergeable(parts[index].block.kind),
+               isProseMergeable(tailKind) {
+                return OneDayMetrics.paragraphSpacing
+            }
             return OneDayMetrics.spacingSM
         }
         let here = parts[index].block.kind
