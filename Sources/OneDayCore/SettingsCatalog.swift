@@ -12,7 +12,9 @@ import Foundation
 /// （.top，浏览态以卡片形态居首、搜索态可命中）
 /// prototype-2（DESIGN §164 升级）：连接组改服务与工作区
 /// serverAndWorkspace、app 组改偏好与权限 preferences、
-/// workspace 旧组退役（改为二级枢纽页）
+/// workspace 旧组退役（改为二级枢纽页）；结构归位
+/// （2026-11-20）后枢纽页撤销、工作区子项并回本组尾段，
+/// 组名与组集不变
 public enum SettingsGroupID: String, CaseIterable, Sendable {
     case top
     case agent
@@ -24,10 +26,15 @@ public enum SettingsGroupID: String, CaseIterable, Sendable {
 /// 条目目的地：与 App 层 SettingsRoute／管理 sheet
 /// 一一对应（映射在 SettingsView.activate），Core 只
 /// 记语义、不依赖 App 层类型
-/// prototype-2（DESIGN §164 升级）：新增四个二级枢纽页
+/// prototype-2（DESIGN §164 升级）：曾新增四个二级枢纽页
 /// （agentConfig/serverManagement/sessionManagement/
 /// workspaceHub）、主线会话（mainSession）、重启网关页
 /// （restartGateway）
+/// 结构归位（2026-11-20，结构纲要 D7-1／原则 8）：四个
+/// 转接枢纽页撤销——叶子条目全部提回根组直达（层位降
+/// 级、入口零丢失），枢纽目的地随之退役；断开连接是
+/// 动作非页面，设专目的地（.disconnect，搜索可达、
+/// 浏览态由根页服务器组末行手写呈现）
 public enum SettingsDestination: Equatable, Sendable {
     case identity
     case profiles
@@ -62,16 +69,17 @@ public enum SettingsDestination: Equatable, Sendable {
     case about
     case privacy
     case terms
-    // prototype-2 新增
-    case agentConfig        // 智能体配置枢纽页
-    case serverManagement   // 服务器管理枢纽页
-    case sessionManagement  // 会话管理枢纽页
-    case workspaceHub       // 工作区枢纽页
+    // prototype-2 新增（结构归位后仅存叶子与动作）
     case mainSession        // 主线会话详情页
     case restartGateway     // 重启网关页
-    /// 体检面（H1-a，台账 158）：服务器管理枢纽页
-    /// 「维护」段内子项——自检＋安全审计＋结论留痕
+    /// 体检面（H1-a，台账 158）：原服务器管理枢纽页
+    /// 「维护」段子项，结构归位后提回根页服务器组——
+    /// 自检＋安全审计＋结论留痕
     case healthCheck
+    /// 断开连接（动作目的地）：原服务器管理页页底动
+    /// 作，归位后落根页服务器组末行＋搜索点达，两路
+    /// 都经 SettingsView 的确认框执行（口径不变）
+    case disconnect
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -119,7 +127,9 @@ public enum SettingsCatalog {
             keywords: ["头像", "名称", "显示名", "avatar", "name"],
             destination: .identity, showsInBrowse: false
         ),
-        // 智能体（prototype-2：只剩 models/agentConfig/cron，profiles/memory/skills 移入 agentConfig 枢纽页）
+        // 智能体（结构归位：智能体配置枢纽页撤销，原
+        // 页内三项 profiles/memory/skills 提回根组直达，
+        // 与 models/cron 同组并列——上下文同属智能体）
         SettingsCatalogEntry(
             id: "models", group: .agent,
             title: "模型与服务商",
@@ -128,11 +138,25 @@ public enum SettingsCatalog {
             destination: .models
         ),
         SettingsCatalogEntry(
-            id: "agentConfig", group: .agent,
-            title: "智能体配置",
-            summary: "配置档案、记忆与技能",
-            keywords: ["配置", "档案", "记忆", "技能", "agent config"],
-            destination: .agentConfig
+            id: "profiles", group: .agent,
+            title: "配置档案",
+            summary: "决定人设与系统提示，保存在服务器",
+            keywords: ["配置", "档案", "人设", "系统提示", "profile", "soul"],
+            destination: .profiles
+        ),
+        SettingsCatalogEntry(
+            id: "memory", group: .agent,
+            title: "记忆",
+            summary: "长期偏好与记忆条目",
+            keywords: ["长期记忆", "用户档案", "偏好", "memory"],
+            destination: .memory
+        ),
+        SettingsCatalogEntry(
+            id: "skills", group: .agent,
+            title: "技能",
+            summary: "智能体可用的能力，可启停",
+            keywords: ["技能商店", "能力", "skill", "skills"],
+            destination: .skills
         ),
         SettingsCatalogEntry(
             id: "cron", group: .agent,
@@ -141,136 +165,103 @@ public enum SettingsCatalog {
             keywords: ["计划", "定时", "自动", "cron"],
             destination: .cron
         ),
-        // 智能体配置页内子项（不在根页显示）
-        SettingsCatalogEntry(
-            id: "profiles", group: .agent,
-            title: "配置档案",
-            summary: "决定人设与系统提示，保存在服务器",
-            keywords: ["档案", "人设", "系统提示", "profile", "soul"],
-            destination: .profiles, showsInBrowse: false
-        ),
-        SettingsCatalogEntry(
-            id: "memory", group: .agent,
-            title: "记忆",
-            summary: "长期偏好与记忆条目",
-            keywords: ["长期记忆", "用户档案", "偏好", "memory"],
-            destination: .memory, showsInBrowse: false
-        ),
-        SettingsCatalogEntry(
-            id: "skills", group: .agent,
-            title: "技能",
-            summary: "智能体可用的能力，可启停",
-            keywords: ["技能商店", "能力", "skill", "skills"],
-            destination: .skills, showsInBrowse: false
-        ),
-        // 服务与工作区（prototype-2 新组）
-        SettingsCatalogEntry(
-            id: "serverManagement", group: .serverAndWorkspace,
-            title: "服务器管理",
-            summary: "连接、诊断与维护",
-            keywords: ["服务器", "连接", "诊断", "维护", "server", "断开连接"],
-            destination: .serverManagement
-        ),
-        SettingsCatalogEntry(
-            id: "sessionManagement", group: .serverAndWorkspace,
-            title: "会话管理",
-            summary: "主线对话与服务端历史",
-            keywords: ["会话", "对话", "历史", "session"],
-            destination: .sessionManagement
-        ),
-        SettingsCatalogEntry(
-            id: "workspace", group: .serverAndWorkspace,
-            title: "工作区",
-            summary: "总览、电脑与资源库",
-            keywords: ["工作区", "总览", "电脑", "文件", "资源库", "workspace"],
-            destination: .workspaceHub
-        ),
-        // 服务器管理页内子项（不在根页显示）
+        // 服务与工作区（结构归位：服务器管理／会话管
+        // 理／工作区三张枢纽页撤销，全部子项提回根组
+        // 直达。组内序＝服务器本体（地址/网关/日志/用
+        // 量）→会话（主线/服务端）→工作区资源（总览/
+        // 电脑/文件）→维护尾段（密钥/重启/体检））
         SettingsCatalogEntry(
             id: "server", group: .serverAndWorkspace,
             title: "当前服务器",
             summary: "地址、密钥与连接状态",
             keywords: ["服务器地址", "密钥", "连接", "server"],
-            destination: .serverDetail, showsInBrowse: false
+            destination: .serverDetail
         ),
         SettingsCatalogEntry(
             id: "gateway", group: .serverAndWorkspace,
             title: "网关状态",
             summary: "网关运行状态与重启",
             keywords: ["网关", "重启", "gateway"],
-            destination: .gateway, showsInBrowse: false
+            destination: .gateway
         ),
         SettingsCatalogEntry(
             id: "logs", group: .serverAndWorkspace,
             title: "日志",
             summary: "服务端运行日志",
             keywords: ["运行日志", "log", "logs"],
-            destination: .logs, showsInBrowse: false
+            destination: .logs
         ),
         SettingsCatalogEntry(
             id: "usage", group: .serverAndWorkspace,
             title: "用量",
             summary: "模型用量统计",
             keywords: ["统计", "消耗", "token", "usage"],
-            destination: .usage, showsInBrowse: false
+            destination: .usage
         ),
-        SettingsCatalogEntry(
-            id: "envVars", group: .serverAndWorkspace,
-            title: "密钥",
-            summary: "保存在服务器上的密钥",
-            keywords: ["环境变量", "key", "env"],
-            destination: .envVars, showsInBrowse: false
-        ),
-        SettingsCatalogEntry(
-            id: "restartGateway", group: .serverAndWorkspace,
-            title: "重启网关",
-            summary: "服务器管理 · 维护",
-            keywords: ["重启", "维护", "restart gateway"],
-            destination: .restartGateway, showsInBrowse: false
-        ),
-        SettingsCatalogEntry(
-            id: "healthCheck", group: .serverAndWorkspace,
-            title: "体检与存档",
-            summary: "服务器管理 · 维护",
-            keywords: ["体检", "自检", "安全审计", "健康", "health", "doctor", "audit"],
-            destination: .healthCheck, showsInBrowse: false
-        ),
-        // 会话管理页内子项（不在根页显示）
         SettingsCatalogEntry(
             id: "mainSession", group: .serverAndWorkspace,
             title: "主线会话",
             summary: "主要对话、会话 ID",
             keywords: ["主线", "当前会话", "main session"],
-            destination: .mainSession, showsInBrowse: false
+            destination: .mainSession
         ),
         SettingsCatalogEntry(
             id: "serverSessions", group: .serverAndWorkspace,
             title: "服务端会话",
             summary: "在网页端等其他入口产生的会话",
             keywords: ["会话", "网页端", "session", "sessions"],
-            destination: .serverSessions, showsInBrowse: false
+            destination: .serverSessions
         ),
-        // 工作区枢纽页内子项（不在根页显示）
         SettingsCatalogEntry(
             id: "overview", group: .serverAndWorkspace,
             title: "总览",
             summary: "状态与最近活动",
-            keywords: ["状态", "活动", "overview"],
-            destination: .overview, showsInBrowse: false
+            keywords: ["状态", "活动", "overview", "工作区"],
+            destination: .overview
         ),
         SettingsCatalogEntry(
             id: "computer", group: .serverAndWorkspace,
             title: "电脑",
             summary: "智能体使用的电脑",
-            keywords: ["云电脑", "桌面", "computer"],
-            destination: .computer, showsInBrowse: false
+            keywords: ["云电脑", "桌面", "computer", "工作区"],
+            destination: .computer
         ),
         SettingsCatalogEntry(
             id: "serverFiles", group: .serverAndWorkspace,
             title: "服务器文件",
             summary: "服务器上的文件",
-            keywords: ["文件", "files"],
-            destination: .serverFiles, showsInBrowse: false
+            keywords: ["文件", "files", "工作区", "资源库"],
+            destination: .serverFiles
+        ),
+        SettingsCatalogEntry(
+            id: "envVars", group: .serverAndWorkspace,
+            title: "密钥",
+            summary: "保存在服务器上的密钥",
+            keywords: ["环境变量", "key", "env", "维护"],
+            destination: .envVars
+        ),
+        SettingsCatalogEntry(
+            id: "restartGateway", group: .serverAndWorkspace,
+            title: "重启网关",
+            summary: "重启服务端网关",
+            keywords: ["重启", "维护", "restart gateway"],
+            destination: .restartGateway
+        ),
+        SettingsCatalogEntry(
+            id: "healthCheck", group: .serverAndWorkspace,
+            title: "体检与存档",
+            summary: "自检、安全审计与备份存档",
+            keywords: ["体检", "自检", "安全审计", "健康", "维护", "health", "doctor", "audit"],
+            destination: .healthCheck
+        ),
+        // 断开连接（动作条目，只进搜索：浏览态由根页
+        // 服务器组末行手写呈现，点达经 activate 起确认框）
+        SettingsCatalogEntry(
+            id: "disconnect", group: .serverAndWorkspace,
+            title: "断开连接",
+            summary: "清除本机保存的服务器凭据与登录会话",
+            keywords: ["断开", "退出登录", "disconnect"],
+            destination: .disconnect, showsInBrowse: false
         ),
         // 偏好与权限（prototype-2 新组）
         SettingsCatalogEntry(

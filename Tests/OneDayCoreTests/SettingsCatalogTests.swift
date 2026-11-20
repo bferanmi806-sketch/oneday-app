@@ -24,11 +24,12 @@ final class SettingsCatalogTests: XCTestCase {
         }
     }
 
-    /// 原型搜索索引（prototype-2，29 项）在清单里逐项有锚
+    /// 搜索索引在清单里逐项有锚（prototype-2 索引经
+    /// 结构归位 2026-11-20 修订：四个枢纽页条目退役、
+    /// 子项与断开连接动作条目续存）
     func testPrototypeIndexIsCovered() {
         let ids = Set(SettingsCatalog.entries.map(\.id))
         for id in [
-            "agentConfig", "serverManagement", "sessionManagement", "workspace",
             "privacy", "terms",
             "identity", "profiles", "memory", "skills", "models", "cron",
             "mainSession", "serverSessions",
@@ -36,8 +37,13 @@ final class SettingsCatalogTests: XCTestCase {
             "connectors", "devicePermissions",
             "overview", "computer", "serverFiles",
             "appearance", "sidebar", "help", "about",
+            "disconnect",
         ] {
-            XCTAssertTrue(ids.contains(id), "原型索引缺条目 \(id)")
+            XCTAssertTrue(ids.contains(id), "索引缺条目 \(id)")
+        }
+        // 枢纽页条目已退役、不许残留（点达不许有第二扇门）
+        for id in ["agentConfig", "serverManagement", "sessionManagement", "workspace"] {
+            XCTAssertFalse(ids.contains(id), "枢纽页条目 \(id) 应已退役")
         }
     }
 
@@ -53,28 +59,37 @@ final class SettingsCatalogTests: XCTestCase {
             .approvalRules,
             .gateway, .logs, .overview, .computer, .serverFiles,
             .appearance, .sidebar, .allConversations, .help, .about, .privacy, .terms,
-            // prototype-2 新增
-            .agentConfig, .serverManagement, .sessionManagement,
-            .workspaceHub, .mainSession, .restartGateway,
+            // prototype-2 叶子（枢纽目的地已退役）
+            .mainSession, .restartGateway,
             // H1-a 新增（台账 158）
             .healthCheck,
+            // 结构归位新增（断开连接动作）
+            .disconnect,
         ]
         XCTAssertEqual(covered, Set(all))
     }
 
-    /// prototype-2：agent 组只剩 models/agentConfig/cron 三行
+    /// 结构归位：agent 组五行——原智能体配置页内三项
+    /// （profiles/memory/skills）提回根组直达
     func testAgentGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .agent).map(\.id),
-            ["models", "agentConfig", "cron"]
+            ["models", "profiles", "memory", "skills", "cron"]
         )
     }
 
-    /// prototype-2：serverAndWorkspace 组三个枢纽页
+    /// 结构归位：serverAndWorkspace 组十二行——三张枢
+    /// 纽页子项全数提回根组（服务器本体→会话→工作区
+    /// 资源→维护尾段）
     func testServerAndWorkspaceGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
-            ["serverManagement", "sessionManagement", "workspace"]
+            [
+                "server", "gateway", "logs", "usage",
+                "mainSession", "serverSessions",
+                "overview", "computer", "serverFiles",
+                "envVars", "restartGateway", "healthCheck",
+            ]
         )
     }
 
@@ -114,41 +129,33 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// prototype-2：隐藏条目（不在根页显示）——identity/privacy/terms
-    /// ＋移入枢纽页的子项（profiles/memory/skills 等）
+    /// 隐藏条目（不在根页显示）：只剩身份（卡片形态
+    /// 单列）、隐私/协议（关于页内二级）与断开连接
+    /// （动作条目，浏览态由根页手写行呈现）——枢纽页
+    /// 子项已全部提回根组、无一再藏
     func testHiddenFromBrowseEntries() {
         let hidden = SettingsCatalog.entries
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-            [
-                "identity", "privacy", "terms",
-                // agentConfig 页内
-                "profiles", "memory", "skills",
-                // serverManagement 页内
-                "server", "gateway", "logs", "usage", "envVars", "restartGateway",
-                "healthCheck",
-                // sessionManagement 页内
-                "mainSession", "serverSessions",
-                // workspace 页内
-                "overview", "computer", "serverFiles",
-            ]
+            ["identity", "privacy", "terms", "disconnect"]
         )
     }
 
     func testSearchByChineseTitle() {
         let hits = SettingsCatalog.search("记忆")
         XCTAssertEqual(hits.first?.id, "memory")
-        // 标题命中优先；枢纽页「智能体配置」副行含「记忆」
-        // 仍须命中（零丢失），只是排在标题页之后
-        XCTAssertTrue(hits.contains { $0.id == "agentConfig" })
+        // 标题命中优先、且是唯一命中（枢纽页退役后无
+        // 副行搭载命中）
+        XCTAssertEqual(hits.map(\.id), ["memory"])
     }
 
     func testSearchMatchesSummaryAndKeywords() {
-        // 「服务器」命中服务器管理（标题）、配置档案
-        // （副行含「服务器」）等多条，按清单序返回
+        // 「服务器」命中当前服务器/服务器文件（标题）、
+        // 配置档案（副行含「服务器」）等多条，按清单序返回
         let hits = SettingsCatalog.search("服务器")
-        XCTAssertTrue(hits.contains { $0.id == "serverManagement" })
+        XCTAssertTrue(hits.contains { $0.id == "server" })
+        XCTAssertTrue(hits.contains { $0.id == "serverFiles" })
         XCTAssertTrue(hits.contains { $0.id == "profiles" })
         // 英文关键词大小写不敏感
         XCTAssertEqual(
@@ -157,12 +164,9 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(
             SettingsCatalog.search("mcp").map(\.id), ["connectors"]
         )
-        // prototype-2 监工纠正④：断开连接搜索命中服务器管理
+        // 断开连接搜索命中专设动作条目（标题直达）
         let disconnectHits = SettingsCatalog.search("断开连接")
-        XCTAssertTrue(
-            disconnectHits.contains { $0.id == "serverManagement" },
-            "断开连接应命中服务器管理（关键词含「断开连接」）"
-        )
+        XCTAssertEqual(disconnectHits.first?.id, "disconnect")
     }
 
     func testSearchTrimsAndEmptyReturnsAll() {
@@ -183,14 +187,14 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(SettingsCatalog.search("不存在的词条xyz").isEmpty)
     }
 
-    /// H1-a（台账 158）：体检面条目——标题直搜命中、
-    /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
+    /// H1-a（台账 158）：体检面条目——标题直搜命中；
+    /// 结构归位后已提回根页服务器组浏览态直达
     func testHealthCheckEntryIsSearchable() {
         let hits = SettingsCatalog.search("体检")
         XCTAssertEqual(hits.first?.id, "healthCheck")
         XCTAssertEqual(hits.first?.destination, .healthCheck)
         XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
-        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        XCTAssertTrue(hits.first?.showsInBrowse ?? false)
         // 英文关键词同达
         XCTAssertTrue(
             SettingsCatalog.search("doctor").contains {

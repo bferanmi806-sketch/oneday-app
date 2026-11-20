@@ -51,21 +51,22 @@ enum SettingsRoute: Hashable {
     case about
     case privacy
     case terms
-    /// prototype-2（DESIGN §164 升级）：四个二级枢纽页
-    case agentConfig        // 智能体配置枢纽页
-    case serverManagement   // 服务器管理枢纽页
-    case sessionManagement  // 会话管理枢纽页
-    case workspaceHub       // 工作区枢纽页
+    /// prototype-2（DESIGN §164 升级）曾设四个二级枢纽页；
+    /// 结构归位（2026-11-20，纲要 D7-1）后枢纽页撤销、
+    /// 路由随之退役——子项全部提回设置根组直达，深链
+    /// 落点改指叶子路由本身（迁移口径见 SettingsCatalog）
     case mainSession        // 主线会话详情页
     case restartGateway     // 重启网关页
-    /// 体检面（H1-a，台账 158）：服务器管理「维护」段
+    /// 体检面（H1-a，台账 158）：原服务器管理「维护」段，
+    /// 结构归位后归设置根服务器组维护尾段
     case healthCheck
 }
 
-/// 「工作区」组三页的 sheet 呈现槽枚举（原定义在
-/// SettingsView 内部、WorkspaceHubView 反向借用——
+/// 「工作区」三页的 sheet 呈现槽枚举（原定义在
+/// SettingsView 内部、旧工作区枢纽页反向借用——
 /// §305 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
-/// 协调方，本枚举自此与 AppRouter 同文件公共层）
+/// 协调方，本枚举自此与 AppRouter 同文件公共层；
+/// 结构归位后枢纽页撤销、三页改由设置根组行直开）
 enum ManageSheet: String, Identifiable {
     case overview, computer, serverFiles
     var id: String { rawValue }

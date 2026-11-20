@@ -32,6 +32,12 @@ import SwiftUI
 /// 体与连接两组续存。组头小字随 IA 回归本页（0.36.3
 /// 撤组头是无组名 IA 下的口径、四组命名 IA 需要组名
 /// 领读，范围仅本页组头）
+/// 结构归位（2026-11-20，纲要 D6/D7）：根页段序＝
+/// 身份卡→智能体→服务与工作区→偏好与权限→支持→版
+/// 本脚——上下文分组分根（智能体话题/服务器话题/本
+/// 机偏好各成一组、叶子直达）；prototype-2 的四个转
+/// 接枢纽页撤销（子项提回根组、断开连接落服务器组
+/// 末行）；实验组沉入关于页末节，不再占根层位
 struct SettingsView: View {
     /// 0.20.0：呈现形态改根级 sheet（ContentView 呈现）
     /// ——关闭走本回调（页内大标题＋右上圆 X 头照 Muse
@@ -61,7 +67,7 @@ struct SettingsView: View {
 
     // （ManageSheet 枚举已于 §305 随 A-03/A-28 上移
     // AppRouter.swift 公共层——呈现槽枚举归呈现协调
-    // 方，WorkspaceHubView 不再反向借用本页内部类型）
+    // 方，不再有枢纽页反向借用本页内部类型）
 
     @Environment(AppState.self) private var appState
     @State private var path: [SettingsRoute] = []
@@ -90,7 +96,6 @@ struct SettingsView: View {
                     agentSection
                     serverAndWorkspaceSection
                     preferencesSection
-                    labSection
                     supportSection
                     versionFooter
                 }
@@ -220,18 +225,9 @@ struct SettingsView: View {
                     LegalDocumentView(kind: .terms)
                 case .agent(let agentRoute):
                     agentDestination(agentRoute)
-                // prototype-2 新增枢纽页
-                case .agentConfig:
-                    AgentConfigView()
-                case .serverManagement:
-                    ServerManagementView(
-                        status: status,
-                        showDisconnectConfirm: $showDisconnectConfirm
-                    )
-                case .sessionManagement:
-                    SessionManagementView()
-                case .workspaceHub:
-                    WorkspaceHubView(manageSheet: $manageSheet)
+                // （prototype-2 四个枢纽页已于结构归位
+                // 2026-11-20 撤销：子项提回根组直达、
+                // 路由退役，见 SettingsCatalog 迁移口径）
                 case .mainSession:
                     MainSessionView(
                         onRequestChat: onRequestChat,
@@ -381,7 +377,9 @@ struct SettingsView: View {
             : L10n.string("已连接")
     }
 
-    /// 网关状态词派生（与 ServerManagementView.gatewayStateWord 同口径）
+    /// 网关状态词派生（原服务器管理页 gatewayStateWord
+    /// 同口径，归位后本页为唯一持有处；RestartGatewayView
+    /// 的同名派生照旧）
     private var gatewayStateWord: String {
         switch status?.gatewayState?.lowercased() {
         case "running": return "运行中"
@@ -393,8 +391,9 @@ struct SettingsView: View {
 
     // MARK: - 智能体组（prototype-2）
 
-    /// 智能体组（prototype-2 收敛）：只剩模型与服务商／智能体配置／
-    /// 定时任务三行——profiles/memory/skills 移入 agentConfig 枢纽页
+    /// 智能体组（结构归位 2026-11-20）：智能体配置枢
+    /// 纽页撤销，原页内三行（配置档案/记忆/技能）提回
+    /// 本组与模型与服务商／定时任务并列直达
     private var agentSection: some View {
         Section {
             ForEach(SettingsCatalog.browseEntries(in: .agent)) { entry in
@@ -409,18 +408,81 @@ struct SettingsView: View {
 
     // MARK: - 服务与工作区组（prototype-2 新组）
 
-    /// 服务与工作区组（prototype-2）：三个二级枢纽页——服务器管理／
-    /// 会话管理／工作区
+    /// 服务与工作区组（结构归位 2026-11-20）：三个二
+    /// 级枢纽页撤销后，子项全部在本组直达——服务器本
+    /// 体（当前服务器/网关/日志/用量）→会话（主线/服
+    /// 务端）→工作区资源（总览/电脑/文件，sheet 动作
+    /// 行）→维护尾段（密钥/重启/体检），断开连接动作
+    /// 行收组末（原服务器管理页页底行迁此，确认框与
+    /// 执行口径不变）
     private var serverAndWorkspaceSection: some View {
         Section {
             ForEach(SettingsCatalog.browseEntries(in: .serverAndWorkspace)) { entry in
-                catalogNavRow(entry)
+                switch entry.destination {
+                case .gateway:
+                    // 网关状态行：状态即行内容，走状态副
+                    // 行形态（原服务器管理页同行同口径）
+                    statusNavRow(
+                        icon: iconName(for: entry),
+                        title: L10n.string(entry.title),
+                        status: gatewayStateWord,
+                        route: .gateway
+                    )
+                case .healthCheck:
+                    // 体检行副题＝上次结论（没跑过不占副
+                    // 题位、降普通导航行；原枢纽页同口径）
+                    if let lastHealthWord {
+                        statusNavRow(
+                            icon: iconName(for: entry),
+                            title: L10n.string(entry.title),
+                            status: lastHealthWord,
+                            route: .healthCheck
+                        )
+                    } else {
+                        catalogNavRow(entry)
+                    }
+                default:
+                    catalogNavRow(entry)
+                }
             }
+            disconnectRow
         } header: {
             sectionHeader("服务与工作区")
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(settingsRowInsets)
+    }
+
+    /// 断开连接行（原服务器管理枢纽页页底动作迁此）：
+    /// 破坏性文案＋危险色，点按起根页既有确认框
+    private var disconnectRow: some View {
+        Button(role: .destructive) {
+            showDisconnectConfirm = true
+        } label: {
+            HStack(spacing: OneDayMetrics.spacingSM) {
+                rowIcon(
+                    "rectangle.portrait.and.arrow.right",
+                    color: Palette.danger
+                )
+                Text("断开连接")
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.danger)
+                Spacer(minLength: OneDayMetrics.spacingS)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            .contentShape(Rectangle())
+        }
+        .settingsSeparatorToIconEdge()
+    }
+
+    /// 体检留痕（原服务器管理页同源同读法）：「体检
+    /// 与存档」行副题的上次一词结论
+    @State private var healthSummaryStore = HealthSummaryStore.shared
+
+    private var lastHealthWord: String? {
+        healthSummaryStore
+            .summary(for: appState.config?.baseString)?
+            .overall.word
     }
 
     // MARK: - 偏好与权限组（prototype-2 新组）
@@ -438,80 +500,11 @@ struct SettingsView: View {
         .listRowInsets(settingsRowInsets)
     }
 
-    // MARK: - 实验组（§257 换代包 3）
-
-    /// 会话页新承载开关（Core ChatCarrierFeature，
-    /// 与 ChatView 同键同源）：施工期机制、默认关；
-    /// 开后消息列表与回底钮换新承载（几何/跟随口
-    /// 径不变），关掉即回旧承载、无数据迁移。蓝图
-    /// A/B/F 组真机验收后由换代包 6 处置去留
-    @AppStorage(ChatCarrierFeature.defaultsKey)
-    private var gen3CarrierEnabled = false
-
-    /// §247（换代包 4）流式呈现开关（Core Chat-
-    /// StreamingFeature，与 ChatView 同键同源）：
-    /// 默认开＝块级增量新路；关＝流式正文回逐词
-    /// 渐显旧路（TokenFlow），只影响新承载下的流
-    /// 式行呈现、不动承载与落定形态。包 6 清理
-    @AppStorage(ChatStreamingFeature.defaultsKey)
-    private var gen4StreamingEnabled = true
-
-    /// §291（原生重建 R1）原生面开关（Core Chat-
-    /// NativeListFeature，与 ChatView 同键同源）：
-    /// 消息列表换 UICollectionView 原生承载，关掉
-    /// 即回现行面、无数据迁移。§297（R4）：默认改
-    /// 开，本开关自此为浸泡期回退口（R5 随三旗本
-    /// 体一并退役）
-    @AppStorage(ChatNativeListFeature.defaultsKey)
-    private var nativeListEnabled = true
-
-    private var labSection: some View {
-        Section {
-            Toggle(isOn: $gen3CarrierEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("会话页新承载"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("实验开关：开启后消息列表与回到底部按钮换用新承载，出问题关掉即回旧承载。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $gen4StreamingEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("流式增量呈现"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：回复逐块成形、已成形的部分先按正式排版显示；关掉回逐词渐显的旧呈现。仅在会话页新承载开启时生效。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $nativeListEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表原生重建"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：消息列表用系统集合视图承载（原生重建）；浸泡期回退口——关掉即回现行承载。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-        } header: {
-            sectionHeader("实验")
-        }
-        .listRowBackground(Palette.surface)
-        .listRowInsets(settingsRowInsets)
-    }
+    // （实验组已于结构归位 2026-11-20 沉底：三面内部
+    // 实验旗（§257/§247/§291）不再占设置根层位，整组
+    // 迁入「关于 OneDay」页末节「内部实验」——开关本
+    // 体与 @AppStorage 键、文案口径随迁不改，见
+    // SettingsSupportViews.AboutView.labSection）
 
     // MARK: - 支持组（§164）
 
@@ -637,13 +630,15 @@ struct SettingsView: View {
     }
 
     /// 搜索点达分发：管理三件开 sheet、全部对话发跳
-    /// 出请求、余者压设置栈（与深链消费同一落点口径）
+    /// 出请求、断开连接起确认框、余者压设置栈（与深
+    /// 链消费同一落点口径）
     private func activate(_ entry: SettingsCatalogEntry) {
         switch entry.destination {
         case .overview: manageSheet = .overview
         case .computer: manageSheet = .computer
         case .serverFiles: manageSheet = .serverFiles
         case .allConversations: onRequestAllConversations?()
+        case .disconnect: showDisconnectConfirm = true
         default:
             if let route = route(for: entry.destination) {
                 path = [route]
@@ -685,12 +680,8 @@ struct SettingsView: View {
         case .privacy: return .privacy
         case .terms: return .terms
         case .overview, .computer, .serverFiles,
-             .allConversations: return nil
-        // prototype-2 新增
-        case .agentConfig: return .agentConfig
-        case .serverManagement: return .serverManagement
-        case .sessionManagement: return .sessionManagement
-        case .workspaceHub: return .workspaceHub
+             .allConversations, .disconnect: return nil
+        // prototype-2 叶子（枢纽页撤销后直达）
         case .mainSession: return .mainSession
         case .restartGateway: return .restartGateway
         case .healthCheck: return .healthCheck
@@ -728,31 +719,28 @@ struct SettingsView: View {
         case "about": return "info.circle"
         case "privacy": return "lock.shield"
         case "terms": return "doc.text"
-        // prototype-2 新增
-        case "agentConfig": return "slider.horizontal.3"
-        case "serverManagement": return "server.rack"
-        case "sessionManagement": return "bubble.left.and.bubble.right"
-        case "workspace": return "square.grid.2x2"
+        // prototype-2 叶子（枢纽页四行图标随页退役）
         case "mainSession": return "link"
         case "restartGateway": return "arrow.clockwise"
         case "healthCheck": return "stethoscope"
+        case "disconnect": return "rectangle.portrait.and.arrow.right"
         default: return "gearshape"
         }
     }
 
     /// 目录驱动导航行：图标/题自条目、去向自 route
-    /// 映射（条目必有路由——sheet 三件不走本行）
-    /// 唯一例外＝全部对话行（管理收口包补件）：目的
-    /// 地是根级全屏页、不在本栈内（route 恒 nil），
-    /// 渲动作 Button 行——行貌与 navRow 同构（图标＋
-    /// 标题、行高与分隔口径同），chevron 显式补（普
-    /// 通 Button 在 List 里没有系统自带的揭示箭头，
-    /// 与 searchRow 同式），点按发跳出请求
+    /// 映射。有栈内路由的走 navRow；无路由的是动作行
+    /// （全部对话＝根级全屏页、工作区三件＝sheet 呈
+    /// 现，route 恒 nil）——渲动作 Button 行，点按走
+    /// activate 与搜索点达同一分发。动作行行貌与
+    /// navRow 同构（图标＋标题、行高与分隔口径同），
+    /// chevron 显式补（普通 Button 在 List 里没有系
+    /// 统自带的揭示箭头，与 searchRow 同式）
     @ViewBuilder
     private func catalogNavRow(_ entry: SettingsCatalogEntry) -> some View {
-        if entry.destination == .allConversations {
+        if route(for: entry.destination) == nil {
             Button {
-                onRequestAllConversations?()
+                activate(entry)
             } label: {
                 HStack(spacing: OneDayMetrics.spacingSM) {
                     rowIcon(iconName(for: entry))
