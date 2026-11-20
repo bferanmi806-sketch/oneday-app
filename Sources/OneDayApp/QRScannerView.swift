@@ -31,7 +31,12 @@ enum CameraPermissionGate {
 /// 类是非隔离 NSObject——回调里只取字符串值、经主
 /// 队列交回上层，不碰任何 actor 隔离状态（回调隔
 /// 离铁律）；命中一次即停会话，防重复投递
-final class QRScannerEngine: NSObject, AVCaptureMetadataOutputObjectsDelegate {
+/// @unchecked Sendable 依据＝状态按队列分仓：delivered
+/// 与会话启停只在 callbackQueue 上读写；onCode/
+/// onUnavailable 只在主队列上写（呈现前由表示层设
+/// 入）与读（交付时），两仓不交叉
+final class QRScannerEngine: NSObject,
+    AVCaptureMetadataOutputObjectsDelegate, @unchecked Sendable {
     let session = AVCaptureSession()
     private let callbackQueue = DispatchQueue(
         label: "site.didichou.oneday.qr-scanner"
