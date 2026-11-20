@@ -44,6 +44,9 @@ final class DemoFreezeGuardTests: XCTestCase {
         }
         await assertDemoLimit { try await client.gatewayRestart(config: config) }
         await assertDemoLimit { try await client.deleteServerSession(config: config, id: "x") }
+        // 配对一期（台账 153/160）：认领两口同属清单外
+        await assertDemoLimit { try await client.issueEnrollmentCode(config: config, apiKey: "x") }
+        await assertDemoLimit { try await client.claimEnrollment(config: config, code: "x") }
     }
 
     /// 正对照：冻结清单内的连接页探活仍是活种子——证

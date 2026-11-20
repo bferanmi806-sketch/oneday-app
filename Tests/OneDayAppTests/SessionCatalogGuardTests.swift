@@ -907,6 +907,14 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func issueEnrollmentCode(config: ServerConfig, apiKey: String) async throws -> EnrollmentIssue {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func claimEnrollment(config: ServerConfig, code: String) async throws -> EnrollmentClaim {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse {
         throw HermesError.unreachable("离线桩")
     }

@@ -48,6 +48,21 @@ public enum HermesError: Error, Sendable {
     /// 用性精修为「未开通」并收起入口，文案不许把
     /// 「还没开通」说成「朗读失败」
     case speechProviderUnavailable
+    /// 认领码无效（配对一期，网关 401 enrollment_
+    /// code_invalid）：码不对、已被认领过、或出码太
+    /// 久已被清——服务端同码回应，客户端不许替用户
+    /// 猜是哪一种
+    case enrollmentCodeInvalid
+    /// 认领码过期（配对一期，网关 410 enrollment_
+    /// code_expired）：码还在但过了 5 分钟有效期，
+    /// 与「无效」分开说文案
+    case enrollmentCodeExpired
+    /// 认领被锁定（配对一期，网关 429 enrollment_
+    /// locked）：错码试太多次，服务端锁 10 分钟
+    case enrollmentLocked
+    /// 出码超限（配对一期，网关 429 enrollment_too_
+    /// many_pending）：未被认领的码已达上限（3 个）
+    case enrollmentTooManyPending
     /// 会话过期且自动重登失败
     case sessionExpired
     /// 模型不在上游候选集内（网关别名等），写入已被拦截
@@ -142,6 +157,26 @@ public enum HermesError: Error, Sendable {
         case .speechProviderUnavailable:
             return L10n.string(
                 "这台服务器还没开通朗读。", locale: locale
+            )
+        case .enrollmentCodeInvalid:
+            return L10n.string(
+                "这个认领码不对，或者已经被用过了。在出码的那台设备上重新生成一个，再扫一次。",
+                locale: locale
+            )
+        case .enrollmentCodeExpired:
+            return L10n.string(
+                "这个认领码过期了，只管用 5 分钟。在出码的那台设备上重新生成一个，再扫一次。",
+                locale: locale
+            )
+        case .enrollmentLocked:
+            return L10n.string(
+                "认领试错太多次，这台服务器先锁一会儿。过几分钟再试。",
+                locale: locale
+            )
+        case .enrollmentTooManyPending:
+            return L10n.string(
+                "等着被认领的码已经满了。等几分钟让旧码过期，或者先用掉一个再生成。",
+                locale: locale
             )
         case .sessionExpired:
             return L10n.string("登录已过期，重新登录后再试。", locale: locale)

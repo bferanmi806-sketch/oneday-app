@@ -67,6 +67,8 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
              .modelNotUpstream, .cancelled,
              .demoLimitReached, .sessionBusy,
              .speechProviderUnavailable,
+             .enrollmentCodeInvalid, .enrollmentCodeExpired,
+             .enrollmentLocked, .enrollmentTooManyPending,
              .runBillingExhausted, .runServiceUnavailable,
              .runTimedOut, .runNetworkInterrupted,
              .runFailedGeneric:
@@ -83,6 +85,9 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
             // speechProviderUnavailable（H2-a）：朗读
             // 面的未开通信号，文件打开面不会收到；同
             // 理归 other 兜底
+            // enrollment 四态（配对一期）：设备认领面
+            // 的分型信号，文件打开面不会收到；同理归
+            // other 兜底
             return .other
         }
     }

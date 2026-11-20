@@ -89,6 +89,11 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 音色展示（服务端语音能力）；合流对接点随页
     /// 归位：与体检面同落根页服务器组维护尾段直达
     case voice
+    /// 添加设备（配对一期，台账 153/160）：已登录侧
+    /// 出码面——向网关领一次性认领码、组二维码给新
+    /// 设备扫码入驻；与体检/语音同落根页服务器组维
+    /// 护尾段直达
+    case addDevice
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -178,7 +183,8 @@ public enum SettingsCatalog {
         // 理／工作区三张枢纽页撤销，全部子项提回根组
         // 直达。组内序＝服务器本体（地址/网关/日志/用
         // 量）→会话（主线/服务端）→工作区资源（状态/
-        // 电脑/文件）→维护尾段（密钥/重启/体检/语音））
+        // 电脑/文件）→维护尾段（密钥/重启/体检/语音/
+        // 添加设备））
         SettingsCatalogEntry(
             id: "server", group: .serverAndWorkspace,
             title: "当前服务器",
@@ -277,6 +283,16 @@ public enum SettingsCatalog {
             summary: "回复朗读、自动朗读与音色",
             keywords: ["语音", "朗读", "音色", "回复朗读", "voice", "speak", "tts"],
             destination: .voice
+        ),
+        // 添加设备（配对一期，台账 153/160）：已登录
+        // 侧出码面，维护尾段末位、浏览直达（与体检/
+        // 语音同组同例）
+        SettingsCatalogEntry(
+            id: "addDevice", group: .serverAndWorkspace,
+            title: "添加设备",
+            summary: "生成认领二维码，让新设备扫码连上这台服务器",
+            keywords: ["添加设备", "扫码", "二维码", "配对", "新设备", "enroll", "pairing", "qr"],
+            destination: .addDevice
         ),
         // 断开连接（动作条目，只进搜索：浏览态由根页
         // 服务器组末行手写呈现，点达经 activate 起确认框）

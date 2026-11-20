@@ -241,6 +241,8 @@ struct SettingsView: View {
                     })
                 case .voice:
                     VoiceSettingsView()
+                case .addDevice:
+                    AddDeviceView()
                 }
             }
             .confirmationDialog(
@@ -684,6 +686,7 @@ struct SettingsView: View {
         case .restartGateway: return .restartGateway
         case .healthCheck: return .healthCheck
         case .voice: return .voice
+        case .addDevice: return .addDevice
         }
     }
 
@@ -719,6 +722,7 @@ struct SettingsView: View {
         case "healthCheck": return "stethoscope"
         case "status": return "waveform.path.ecg"
         case "voice": return "speaker.wave.2"
+        case "addDevice": return "qrcode"
         case "disconnect": return "rectangle.portrait.and.arrow.right"
         default: return "gearshape"
         }

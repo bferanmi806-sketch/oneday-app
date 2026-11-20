@@ -665,6 +665,10 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func speak(config: ServerConfig, text: String) async throws -> SpeakResponse { throw HermesError.demoLimitReached }
 
+    func issueEnrollmentCode(config: ServerConfig, apiKey: String) async throws -> EnrollmentIssue { throw HermesError.demoLimitReached }
+
+    func claimEnrollment(config: ServerConfig, code: String) async throws -> EnrollmentClaim { throw HermesError.demoLimitReached }
+
     func elevenLabsVoices(config: ServerConfig) async throws -> ElevenLabsVoicesResponse { throw HermesError.demoLimitReached }
 
     // MARK: - 工作区文件与系统（0.2.1 样本，结构对实查回执）
