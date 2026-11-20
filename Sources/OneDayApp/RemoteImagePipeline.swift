@@ -57,8 +57,11 @@ final class RemoteImagePipeline {
 
     /// 查看器种子：已到手的图里从高到低找（影音格 360、
     /// 气泡已显图都在内存层）；内存没有再探磁盘 360 档
-    /// （解码快、够当首帧）。种子命中＝查看器第一帧有图
-    func seedImage(path: String, mtime: Double) -> UIImage? {
+    /// （解码快、够当首帧）。种子命中＝查看器第一帧有图。
+    /// 2026-11-20 卡顿修复包：改 async——磁盘档的降采样
+    /// 解码走 decodeOffMain、不再在主 actor 同步跑（内存
+    /// 档仍是直读、零等待）
+    func seedImage(path: String, mtime: Double) async -> UIImage? {
         for tier in [ImageRenditionTier.detail, .viewer, .thumb] {
             if let image = memoryImage(
                 path: path, mtime: mtime, tier: tier) {
@@ -66,7 +69,7 @@ final class RemoteImagePipeline {
             }
         }
         if let data = diskData(path: path, mtime: mtime, tier: .thumb),
-           let image = Self.downsampled(
+           let image = await Self.decodeOffMain(
                data: data, pixelSize: CGFloat(ImageRenditionTier.thumb.longEdge)) {
             storeMemory(image, path: path, mtime: mtime, tier: .thumb)
             return image
@@ -149,7 +152,7 @@ final class RemoteImagePipeline {
         if let data = diskData(path: path, mtime: mtime, tier: tier) {
             let pixelCap = tier == .original
                 ? 4096 : CGFloat(tier.longEdge)
-            if let image = Self.downsampled(
+            if let image = await Self.decodeOffMain(
                 data: data, pixelSize: pixelCap) {
                 storeMemory(
                     image, path: path, mtime: mtime, tier: tier)
@@ -161,7 +164,7 @@ final class RemoteImagePipeline {
            let config,
            let data = try? await bridgeClient.rendition(
                config: config, path: path, width: width),
-           let image = Self.downsampled(
+           let image = await Self.decodeOffMain(
                data: data, pixelSize: CGFloat(tier.longEdge)) {
             storeDisk(data, path: path, mtime: mtime, tier: tier)
             storeMemory(image, path: path, mtime: mtime, tier: tier)
@@ -173,7 +176,7 @@ final class RemoteImagePipeline {
         guard let data = await originalLoader() else { return nil }
         let pixelCap = tier == .original
             ? 4096 : CGFloat(tier.longEdge)
-        guard let image = Self.downsampled(
+        guard let image = await Self.decodeOffMain(
             data: data, pixelSize: pixelCap) else { return nil }
         if tier == .original {
             storeDisk(data, path: path, mtime: mtime, tier: tier)
@@ -184,9 +187,38 @@ final class RemoteImagePipeline {
         return image
     }
 
+    /// 解码落点（2026-11-20 卡顿修复包，全面对比报告
+    /// §4 处方）：降采样解码移出主 actor——管线账目
+    /// （缓存/合并/落盘）仍在主 actor 串行，只解码这
+    /// 段重活走独立任务（通行口径：解码在后台队列、
+    /// 主线程只收成品图）。耗时入卡顿探针回读
+    private static func decodeOffMain(
+        data: Data, pixelSize: CGFloat
+    ) async -> UIImage? {
+        let start = ContinuousClock.now
+        let boxed = await Task.detached(
+            priority: .userInitiated
+        ) {
+            // UIImage 跨线装箱（与 LayoutAttributedBox
+            // 的 @unchecked 口径同式：解码产物不可变、
+            // 跨线只读）
+            DecodedImageBox(
+                RemoteImagePipeline.downsampled(
+                    data: data, pixelSize: pixelSize
+                )
+            )
+        }.value
+        ChatLagProbe.noteDecode(
+            duration: start.duration(to: .now)
+        )
+        return boxed.image
+    }
+
     /// ImageIO 降采样：只解到目标像素量级，不整图入内存
-    /// （与 FileThumbnailStore 同法）
-    static func downsampled(
+    /// （与 FileThumbnailStore 同法）。nonisolated：本体
+    /// 无 actor 状态、只吃入参，供 decodeOffMain 在主
+    /// actor 外调用
+    nonisolated static func downsampled(
         data: Data, pixelSize: CGFloat
     ) -> UIImage? {
         let sourceOptions: [CFString: Any] = [
@@ -274,4 +306,12 @@ final class RemoteImagePipeline {
             total -= entry.size
         }
     }
+}
+
+/// 解码产物装箱：UIImage 非 Sendable——解码后不
+/// 可变、跨线只读，@unchecked 口径与 LayoutAttri-
+/// butedBox 同式
+private final class DecodedImageBox: @unchecked Sendable {
+    let image: UIImage?
+    init(_ image: UIImage?) { self.image = image }
 }

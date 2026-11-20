@@ -106,12 +106,21 @@ import UIKit
 /// 行修订值：行「变没变」的唯一判据——不再是手
 /// 工折算的 Int 哈希（carrierEntryVersion 一类：
 /// facet 枚举漏一项、该行永不重配，§320 文件牌
-/// 即此病），而是行渲染输入的**全量值**有序清单，
-/// Equatable 逐值比较。清单由构造点按渲染输入逐
-/// 项填入（文本填全文、数据填本体、标量填原值），
-/// 不折长度、不折哈希——比较的是值本身。
-struct ChatNativeRowRevision: Equatable {
-    enum Part: Equatable {
+/// 即此病），而是行渲染输入的有序清单，Equatable
+/// 逐项比较。清单由构造点按渲染输入逐项填入，完
+/// 整性靠 entry 单点枚举全字段保证（漏折防线在
+/// 枚举、不在值本体）。
+/// 【2026-11-20 卡顿修复包改摘要制】（全面对比报
+/// 告 chat-lag-full-comparison-20261120 §8 处方）：
+/// 文本/数据不再逐字入账——addText 存「长度＋
+/// FNV-1a」摘要串、addData 存「长度＋采样哈希」
+/// 定长字节。旧制每趟行构建把全语料（正文全文＋
+/// 图片 Data 本体）搬进清单再全量比较，是喂入层
+/// 每遍全量税的主体；摘要制后单项定长、比较与构
+/// 建都与语料量脱钩。碰撞后果仅一行漏重配，与备
+/// 忘键 fnv 同险同级（见合成器 revisionDigest 注）。
+struct ChatNativeRowRevision: Equatable, Hashable {
+    enum Part: Equatable, Hashable {
         case text(String)
         case data(Data)
         case flag(Bool)
@@ -127,12 +136,60 @@ struct ChatNativeRowRevision: Equatable {
 
     mutating func addText(_ value: String?) {
         parts.append(.flag(value != nil))
-        parts.append(.text(value ?? ""))
+        parts.append(.text(Self.textDigest(value ?? "")))
     }
 
     mutating func addData(_ value: Data?) {
         parts.append(.flag(value != nil))
-        if let value { parts.append(.data(value)) }
+        if let value {
+            parts.append(.data(Self.dataDigest(value)))
+        }
+    }
+
+    /// 文本摘要：长度＋FNV-1a（与 LayoutProductKey
+    /// 同算法同源）——定长短串，不留正文本体
+    static func textDigest(_ value: String) -> String {
+        "\(value.count):\(LayoutProductKey.fnv1a(value))"
+    }
+
+    /// 数据摘要：16 字节定长（长度 8B＋采样哈希
+    /// 8B，小端）。采样＝头/中/尾各 512B 窗口的
+    /// FNV-1a 混合（≤1536B 全覆盖）——大图本体不
+    /// 全量扫、不入账；同长度同采样窗才碰撞
+    static func dataDigest(_ value: Data) -> Data {
+        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+        func mixByte(_ byte: UInt8) {
+            hash ^= UInt64(byte)
+            hash &*= 0x0000_0100_0000_01b3
+        }
+        func mixValue(_ word: UInt64) {
+            var word = word
+            for _ in 0..<8 {
+                mixByte(UInt8(word & 0xff))
+                word >>= 8
+            }
+        }
+        mixValue(UInt64(value.count))
+        let window = 512
+        let ranges: [Range<Int>] = [
+            0..<min(window, value.count),
+            max(0, (value.count - window) / 2)
+                ..<min(value.count, (value.count + window) / 2),
+            max(0, value.count - window)..<value.count,
+        ]
+        value.withUnsafeBytes { buffer in
+            for range in ranges {
+                for index in range {
+                    mixByte(buffer[index])
+                }
+            }
+        }
+        var out = Data()
+        var length = UInt64(value.count).littleEndian
+        withUnsafeBytes(of: &length) { out.append(contentsOf: $0) }
+        var hashLE = hash.littleEndian
+        withUnsafeBytes(of: &hashLE) { out.append(contentsOf: $0) }
+        return out
     }
 
     mutating func addFlag(_ value: Bool) {
@@ -176,6 +233,27 @@ struct ChatNativeRowRevision: Equatable {
         styleKey: String,
         showsUnreadDivider: Bool = false
     ) -> ChatNativeRowRevision {
+        var revision = entryBase(
+            entry,
+            dividerText: dividerText,
+            showsUnreadDivider: showsUnreadDivider
+        )
+        revision.addFlag(highlighted)
+        revision.addText(styleKey)
+        return revision
+    }
+
+    /// 条目字段基段（§325 字段枚举的唯一落点）：
+    /// 条目本体字段＋分隔文案＋未读分界旗——entry
+    /// （行修订）与 entryMemoKey（高度备忘键的中性
+    /// 派生）共用本段，两路只在其后接各自的环境尾
+    /// 段（点亮/样式键 vs 中性占位），字段枚举不许
+    /// 在第二处重列（漏折防线）
+    static func entryBase(
+        _ entry: ChatEntry,
+        dividerText: String?,
+        showsUnreadDivider: Bool = false
+    ) -> ChatNativeRowRevision {
         var revision = ChatNativeRowRevision()
         revision.addText(entry.role)
         revision.addText(entry.content)
@@ -212,8 +290,6 @@ struct ChatNativeRowRevision: Equatable {
         // 台账 148：NEW 分界线在席与否是渲染输入、
         // 同列入账（在席变化必触发重配与重测高）
         revision.addFlag(showsUnreadDivider)
-        revision.addFlag(highlighted)
-        revision.addText(styleKey)
         return revision
     }
 }
@@ -322,6 +398,50 @@ struct ChatNativeRow {
     }
 }
 
+// MARK: - 行描述备忘（2026-11-20 卡顿修复包）
+
+/// 行描述备忘：nativeRows 每趟的产物缓存（全面
+/// 对比报告 §2/§8 处方——喂入层增量化）。调用方
+/// 给出行的全部构建输入折成的戳（stamp），戳不
+/// 变则整行复用上趟描述：makeView 闭包、行菜单
+/// （含 plainText 提取）、行描述组装全免；只有戳
+/// 变的行才走 build 全构建。计数口供测试与探针
+/// 读（构建数/复用数），生产路径只多字典读写。
+/// 趟末由 prune 清账：本趟未出现的行键出缓存
+@MainActor
+final class ChatNativeRowDescriptorMemo {
+    private var cache: [String: (stamp: String, row: ChatNativeRow)] = [:]
+    private(set) var buildCount = 0
+    private(set) var reuseCount = 0
+
+    func row(
+        key: String, stamp: String,
+        build: () -> ChatNativeRow
+    ) -> ChatNativeRow {
+        if let hit = cache[key], hit.stamp == stamp {
+            reuseCount += 1
+            return hit.row
+        }
+        buildCount += 1
+        let row = build()
+        cache[key] = (stamp, row)
+        return row
+    }
+
+    /// 趟末清账：只留本趟在席的行键（线程切换/行
+    /// 删除后不留陈账，防旧描述被后来的同键行误用
+    /// ——键含条目 id、同键复现时戳判定仍兜底）
+    func prune(keeping keys: Set<String>) {
+        cache = cache.filter { keys.contains($0.key) }
+    }
+
+    /// 测试读口：清计数不清缓存
+    func resetCounts() {
+        buildCount = 0
+        reuseCount = 0
+    }
+}
+
 // MARK: - 布局参数匣（compositional 布局提供者只认本匣、不认控制器本体）
 
 private final class ChatNativeLayoutBox {
@@ -379,7 +499,12 @@ final class ChatNativeHostingCell: UICollectionViewCell {
         configureCount += 1
         configuredKey = row.key
         var config = UIHostingConfiguration {
-            row.makeView()
+            // 卡顿探针（2026-11-20）：托管行构建耗时
+            // 在闭包被框架求值时计——只记账、无行为
+            // 影响（ChatLagProbe）
+            ChatLagProbe.measureHostingBuild {
+                row.makeView()
+            }
                 .id(row.key)
                 .frame(
                     maxWidth: .infinity,

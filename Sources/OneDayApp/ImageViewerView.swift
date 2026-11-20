@@ -755,7 +755,7 @@ private struct ImageViewerPage: View {
             // 种子先行：第一帧有图（管线内存/磁盘里
             // 入口已到手的那张）
             if displayedImage == nil,
-               let seed = RemoteImagePipeline.shared.seedImage(
+               let seed = await RemoteImagePipeline.shared.seedImage(
                    path: path, mtime: item.mtime) {
                 progression.seedArrived()
                 displayedImage = seed

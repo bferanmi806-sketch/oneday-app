@@ -2261,23 +2261,27 @@ struct ChatNativeRowHeightComposer {
     /// 直播正文行高（nativeStreamingContent）：
     /// 空文＝等待泡（打字点 6／上传行 callout，
     /// 内容纵内距 spacingXS×2＋气泡纵内距 26）；
-    /// 非空＝气泡内 StreamingBlockText（闭合前
-    /// 缀 MarkdownText＋尾块 StreamingText、段间
+    /// 非空＝气泡内 StreamingBlockText（闭合块逐
+    /// 块 MarkdownText＋尾块 StreamingText、段间
     /// spacingSM）＋气泡纵内距 26。尾块词元流高
     /// 以同字阶纯文本量测近似（直播行瞬态、落
     /// 定即被落定行替换，§329 口径）
+    /// 【2026-11-20 卡顿修复包改增量口径】（全面
+    /// 对比报告 §6 处方）：旧制整行备忘键＝全文
+    /// FNV——流式文本每拍都变、恒未命中，每拍全
+    /// 量分段＋闭合前缀整段重算。改后不再走整行
+    /// 备忘：闭合块逐块走 markdownHeight 的内容
+    /// 备忘（块内容冻结→恒命中）、累加求和，只
+    /// 现算尾块增量；总高与旧式逐值同式（逐块高
+    /// ＋块间 spacingSM＝整段量测的段间口径，呈
+    /// 现侧同日改逐块呈现、两侧同构）
     func liveTextHeight(
         text: String,
         isUploading: Bool
     ) -> CGFloat {
-        let key = "lt|\(LayoutProductKey.fnv1a(text))"
-            + "|\(isUploading ? "1" : "0")"
-            + "|\(environmentFingerprint)"
-        return rowMemo(key) {
-            liveTextHeightUncached(
-                text: text, isUploading: isUploading
-            )
-        }
+        liveTextHeightUncached(
+            text: text, isUploading: isUploading
+        )
     }
 
     func liveTextHeightUncached(
@@ -2296,13 +2300,15 @@ struct ChatNativeRowHeightComposer {
         let blocks = StreamingBlockSegmenter.blocks(
             for: text
         )
-        let prefix = StreamingBlockSegmenter
-            .closedPrefix(of: blocks)
         let tail = StreamingBlockSegmenter
             .tailSource(of: blocks)
         var parts: [CGFloat] = []
-        if !prefix.isEmpty {
-            parts.append(markdownHeight(prefix))
+        for block in blocks where !block.isTail {
+            let source = StreamingBlockSegmenter
+                .closedPrefix(of: [block])
+            if !source.isEmpty {
+                parts.append(markdownHeight(source))
+            }
         }
         if tail.isEmpty {
             // 尾块空：只剩流式光标一元、占一行
@@ -2357,13 +2363,29 @@ struct ChatNativeRowHeightComposer {
         for entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false
     ) -> String {
-        let revision = ChatNativeRowRevision.entry(
-            entry,
-            dividerText: dividerText,
-            highlighted: false,
-            styleKey: "",
-            showsUnreadDivider: showsUnreadDivider
+        entryMemoKey(
+            baseRevision: ChatNativeRowRevision.entryBase(
+                entry,
+                dividerText: dividerText,
+                showsUnreadDivider: showsUnreadDivider
+            ),
+            entry: entry
         )
+    }
+
+    /// 基段入参版（2026-11-20 卡顿修复包）：行构
+    /// 造点已为行修订建过同一基段时直喂本口——基
+    /// 段只建一遍，中性尾段（点亮 false/样式键空）
+    /// 在此接续，与上式逐字同键（字段枚举单点在
+    /// entryBase，两路不许各列一份）
+    @MainActor
+    func entryMemoKey(
+        baseRevision: ChatNativeRowRevision,
+        entry: ChatEntry
+    ) -> String {
+        var revision = baseRevision
+        revision.addFlag(false)
+        revision.addText("")
         return "e|\(entry.id.uuidString)"
             + "|\(Self.revisionDigest(revision))"
             + "|\(entryFacetDigest(entry))"
