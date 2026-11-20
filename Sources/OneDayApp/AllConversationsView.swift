@@ -28,6 +28,16 @@ import SwiftUI
 /// （分类 R4/R5＋清理区）。默认落地段改「我的对
 /// 话」。分类全走 Core SessionClassifier 现算，各
 /// 段不许再自拼「全量减主线」口径。
+/// 结构归位第二批（2026-11-20，用户亲批纲要
+/// D2-1/2/3）：本页升一级面（抽屉名单收尾行直
+/// 达，呈现路不变）；段序定版四段＝主线／我的
+/// 对话／频道／已归档——「系统」段连同其筛选开
+/// 关自本页退役，系统运行、批量多选、清理旧会
+/// 话（prune）、存量迁移留痕整体下沉到一层之
+/// 下的维护子页（ConversationMaintenanceView，
+/// 工具栏「维护」进入），本页只剩浏览与单条管
+/// 理（行长按四件）；一切写动作的行为与确认口
+/// 径随迁、不变。
 struct AllConversationsView: View {
     /// 打开会话（宿主关页＋切聊天格＋走续聊通道）
     var onOpenSession: (String) -> Void
@@ -44,7 +54,7 @@ struct AllConversationsView: View {
     /// 「会话」Rotor 命名空间（0.43.0，A11Y-V7）：
     /// 长列表里按标题直达任意一行——条目集随当前
     /// 段/搜索态现算（rotorTargets），行标记挂在
-    /// 各行分发处（selectableRow/mainRowButton/搜索
+    /// 各行分发处（sessionRow/mainRowButton/搜索
     /// 命中行），id 与条目一一对位
     @Namespace private var rotorNamespace
     /// 本地线程全集（分类 R2 的关联集派生用，与抽屉
@@ -55,10 +65,10 @@ struct AllConversationsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store = AllConversationsStore()
     @State private var segment: Segment = .mine
-    /// 「显示系统运行」筛选（0.36.29，规格 §5.2）：
-    /// 默认关、只存 @State **不落盘**——每次进页默
-    /// 认关是纪律，落盘会让开过一次的人默认变开
-    @State private var showSystemRuns = false
+    /// 维护子页呈现（结构归位第二批）：工具栏
+    /// 「维护」置位、导航栈推入 Conversation-
+    /// MaintenanceView
+    @State private var showMaintenance = false
     /// 频道段 Hermes 行的频道页呈现（本页内 full-
     /// ScreenCover，与抽屉入口同目的地同组件）
     @State private var showHermesChannel = false
@@ -69,30 +79,20 @@ struct AllConversationsView: View {
     @State private var searchText = ""
     @State private var searchResults: [SessionSearchHit] = []
     @State private var searching = false
-    @State private var editMode: EditMode = .inactive
-    @State private var selection = Set<String>()
-    @State private var showBatchDeleteConfirm = false
-    @State private var showBatchArchiveConfirm = false
-    @State private var showPruneConfirm = false
-    @State private var pruneDaysText = "90"
 
     enum Segment: String {
         case main = "主线"
         case mine = "我的对话"
         case channels = "频道"
         case archived = "已归档"
-        case system = "系统"
     }
 
-    /// 呈现段集（§5.2）：「系统」段只在筛选开启时挂
-    /// 进分段控件末位，关闭即消失（正处该段则由
-    /// showSystemRuns 的 onChange 回落「我的对话」）
+    /// 呈现段集（结构归位第二批定版）：四段恒定
+    /// ——旧第五段「系统」（0.36.29 §5.2 筛选开关
+    /// 开出）已随维护层下沉退役，系统运行只在维
+    /// 护子页呈现，不再与用户段同级（纲要 D2-2）
     private var visibleSegments: [Segment] {
-        var segments: [Segment] = [.main, .mine, .channels, .archived]
-        if showSystemRuns {
-            segments.append(.system)
-        }
-        return segments
+        [.main, .mine, .channels, .archived]
     }
 
     private var isSearching: Bool {
@@ -101,13 +101,6 @@ struct AllConversationsView: View {
 
     private var mainSessionID: String? {
         appState.sessionLedger.mainServerSessionID
-    }
-
-    /// 0.27.0：批量选择里是否含已判死的合并桶——含
-    /// 则归档/删除确认必须带牵连主线历史的说明（与
-    /// 单行菜单同一道闸，见 ServerSessionRow）
-    private var selectionHasMergeBucket: Bool {
-        selection.contains { SideChatLink.isMergeBucket($0) }
     }
 
     /// 未归档全量的分类分筐（0.36.29）：各段行源的
@@ -149,11 +142,6 @@ struct AllConversationsView: View {
             + rows.filter { $0.isPinned != true }
     }
 
-    /// 系统段行：分类为系统运行的全量行（服务端序）
-    private var systemRows: [ServerSession] {
-        partition.system
-    }
-
     /// 已归档段行：服务端 archived 全量减主线（归档
     /// 是正交维度、全量呈现不按层分类，规格 §2/§5.1；
     /// 主线剔除走 Core 单一判定）
@@ -186,16 +174,6 @@ struct AllConversationsView: View {
                 .padding(.horizontal, OneDayMetrics.spacingM)
                 .padding(.vertical, OneDayMetrics.spacingS)
                 .disabled(isSearching)
-                // 0.36.29（规格 §5.2）：分段控件下方一
-                // 行系统筛选——默认关、不落盘；开启后
-                // 分段末位多出「系统」一段
-                if !isSearching {
-                    Toggle("显示系统运行", isOn: $showSystemRuns)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .padding(.horizontal, OneDayMetrics.spacingM)
-                        .padding(.bottom, OneDayMetrics.spacingS)
-                }
                 content
             }
             .background(Palette.pageBG)
@@ -205,28 +183,12 @@ struct AllConversationsView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("完成") { onClose() }
                 }
-                if segment == .mine || segment == .archived
-                    || segment == .system {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button(editMode.isEditing ? "取消选择" : "选择") {
-                            // 0.25.0（动效专包）：原裸
-                            // withAnimation（隐式 .default）——
-                            // 收编 swap 令牌＋resolved 出口
-                            withAnimation(
-                                MotionTokens.resolved(
-                                    MotionTokens.swap,
-                                    reduceMotion: reduceMotion
-                                )
-                            ) {
-                                editMode = editMode.isEditing
-                                    ? .inactive : .active
-                            }
-                            if !editMode.isEditing {
-                                selection.removeAll()
-                            }
-                        }
+                // 结构归位第二批：原「选择」（多选批
+                // 量）钮随维护层下沉退役，本页工具栏
+                // 只剩「维护」一个出口（进维护子页）
+                ToolbarItem(placement: .primaryAction) {
+                    Button("维护") { showMaintenance = true }
                         .disabled(isSearching)
-                    }
                 }
             }
             .searchable(
@@ -234,10 +196,15 @@ struct AllConversationsView: View {
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: "搜索全部会话（服务端）"
             )
-            .safeAreaInset(edge: .bottom) {
-                if editMode.isEditing, !selection.isEmpty {
-                    batchBar
-                }
+            // 结构归位第二批：维护层推入点（系统运
+            // 行／批量管理／清理／迁移留痕，见
+            // ConversationMaintenanceView）；原挂底
+            // 批量栏随层下沉、本页不再有编辑态
+            .navigationDestination(isPresented: $showMaintenance) {
+                ConversationMaintenanceView(
+                    store: store,
+                    onOpenSession: onOpenSession
+                )
             }
         }
         .task {
@@ -245,17 +212,10 @@ struct AllConversationsView: View {
             // 存量迁移：挂载点已迁账本（第 90 条收
             // 尾）——全量刷新（reload→账本 refresh）
             // 归档段同步完成即触发，失败留痕在账本、
-            // 下方迁移区呈现，本页不再自持触发
+            // 维护子页迁移区呈现，本页不再自持触发
         }
         .task(id: searchText) {
             await runSearch()
-        }
-        // 0.36.29：筛选关掉而正处系统段时回落「我的
-        // 对话」（段集随开关动态增减，§5.2）
-        .onChange(of: showSystemRuns) { _, on in
-            if !on, segment == .system {
-                segment = .mine
-            }
         }
         // §232 恢复回行：本页名单读账本投影——删除
         // 引擎恢复时已解墓碑＋把名单回行落账本，本
@@ -286,53 +246,10 @@ struct AllConversationsView: View {
                 onClose: { presentedPlatformChannel = nil }
             )
         }
-        .alert(
-            "删除所选会话？",
-            isPresented: $showBatchDeleteConfirm
-        ) {
-            Button("删除", role: .destructive) {
-                // 触感矩阵（表 D）：删除确认落锤＝
-                // impact heavy；删除后不再叠 success
-                // （同一因果链只震一次）。与文件/交
-                // 付物/图片/富内容四面同式——本面批
-                // 量删除此前独缺，本包补齐
-                Haptics.impact(.heavy)
-                runBatch(.delete)
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            if selectionHasMergeBucket {
-                Text(SideChatLink.mergeBucketWarning)
-            } else {
-                Text("将删除 \(selection.count) 条会话，删除后不可恢复。")
-            }
-        }
-        .alert(
-            "归档所选会话？",
-            isPresented: $showBatchArchiveConfirm
-        ) {
-            Button("归档", role: .destructive) { runBatch(.archive) }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text(SideChatLink.mergeBucketWarning)
-        }
-        .alert(
-            "确认清理？",
-            isPresented: $showPruneConfirm
-        ) {
-            Button("清理", role: .destructive) {
-                // 清理即批量删除旧会话，同属删除确认
-                // 落锤口径（表 D），与上方批量删除同式
-                Haptics.impact(.heavy)
-                Task { await runPrune(dryRun: false) }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text(
-                "将删除 \(store.pruneDryRunCount ?? 0) 条超过 "
-                    + "\(pruneDaysText) 天的旧会话，删除后不可恢复。"
-            )
-        }
+        // 批量删除/归档与清理的三张确认弹窗已随维
+        // 护层迁往 ConversationMaintenanceView（结
+        // 构归位第二批）——确认文案与触感口径随迁
+        // 不变，本页不再持有批量/清理状态
     }
 
     // MARK: - 内容区
@@ -348,7 +265,6 @@ struct AllConversationsView: View {
                 case .mine: mineContent
                 case .channels: channelsContent
                 case .archived: archivedContent
-                case .system: systemContent
                 }
             }
         }
@@ -391,10 +307,6 @@ struct AllConversationsView: View {
             return []
         case .archived:
             return archivedRows.map {
-                RotorTarget(id: $0.id, title: rowTitle($0))
-            }
-        case .system:
-            return systemRows.map {
                 RotorTarget(id: $0.id, title: rowTitle($0))
             }
         }
@@ -476,8 +388,6 @@ struct AllConversationsView: View {
             } footer: {
                 Text("主线是你的唯一指挥席：受钦定保护，本页不提供改名、归档与删除。")
             }
-            migrationSection
-            noticeSection
         }
         .listStyle(.plain)
         .refreshable { await reload() }
@@ -487,9 +397,7 @@ struct AllConversationsView: View {
     /// 生/收养证明在身的服务端行——机器运行记录与
     /// 未认领的外部会话不再混列于此（规格 §5.1）
     private var mineContent: some View {
-        List(selection: $selection) {
-            migrationSection
-            noticeSection
+        List {
             if store.isLoading, ledgerVisibleSessions.isEmpty {
                 Text("正在读取…")
                     .font(.captionText)
@@ -505,12 +413,11 @@ struct AllConversationsView: View {
                 )
             } else {
                 ForEach(mineRows) { session in
-                    selectableRow(session)
+                    sessionRow(session)
                 }
             }
         }
         .listStyle(.plain)
-        .environment(\.editMode, $editMode)
         .refreshable { await reload() }
     }
 
@@ -544,8 +451,6 @@ struct AllConversationsView: View {
 
     private var channelsContent: some View {
         List {
-            migrationSection
-            noticeSection
             Section {
                 Button {
                     showHermesChannel = true
@@ -617,44 +522,9 @@ struct AllConversationsView: View {
         .refreshable { await reload() }
     }
 
-    /// 系统段（0.36.29，规格 §5.2）：分类为系统运行
-    /// 的全量行＋清理区（自旧站内段移来——清理是全
-    /// 服按天数执行、主要清的就是系统与频道存量，
-    /// 挂此最诚实）；行上不叠层标（本段本身即系统，
-    /// 与归档段不叠标同理）
-    private var systemContent: some View {
-        List(selection: $selection) {
-            migrationSection
-            noticeSection
-            if store.isLoading, ledgerVisibleSessions.isEmpty {
-                Text("正在读取…")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            } else if let error = store.loadError {
-                Text(error)
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            } else if systemRows.isEmpty {
-                ContentUnavailableView(
-                    "没有系统运行记录。",
-                    systemImage: "clock"
-                )
-            } else {
-                ForEach(systemRows) { session in
-                    selectableRow(session)
-                }
-            }
-            cleanupSection
-        }
-        .listStyle(.plain)
-        .environment(\.editMode, $editMode)
-        .refreshable { await reload() }
-    }
 
     private var archivedContent: some View {
-        List(selection: $selection) {
-            migrationSection
-            noticeSection
+        List {
             if store.isLoading, ledgerArchivedSessions.isEmpty {
                 Text("正在读取…")
                     .font(.captionText)
@@ -666,57 +536,47 @@ struct AllConversationsView: View {
                 )
             } else {
                 ForEach(archivedRows) { session in
-                    selectableRow(session)
+                    sessionRow(session)
                 }
             }
         }
         .listStyle(.plain)
-        .environment(\.editMode, $editMode)
         .refreshable { await reload() }
     }
 
     // MARK: - 行与小区
 
-    /// 可多选行：编辑态走 List 原生勾选（纯标签、无
-    /// 按钮菜单），常态走共用组件（点按打开＋长按四
-    /// 件）；两态同标题同副题
-    @ViewBuilder
-    private func selectableRow(_ session: ServerSession) -> some View {
-        if editMode.isEditing {
-            rowLabel(session)
-                .tag(session.id)
-                // 0.43.0（A11Y-V7）：Rotor 行标记
-                .accessibilityRotorEntry(
-                    id: session.id, in: rotorNamespace
+    /// 会话行（浏览态）：共用组件（点按打开＋长按
+    /// 四件）；多选批量形态已随维护层下沉到
+    /// ConversationMaintenanceView，本页行不再有
+    /// 编辑态分支
+    private func sessionRow(_ session: ServerSession) -> some View {
+        ServerSessionRow(
+            session: session,
+            title: rowTitle(session),
+            onOpen: { onOpenSession(session.id) },
+            onChanged: { Task { await reload() } },
+            onDeleteRequested: { session in
+                // §232 乐观删除：确认即同拍摘自家
+                // 名单行＋协调器起手（墓碑/目录摘
+                // 行/后台删）；最终失败由协调器恢
+                // 复，恢复信号触发本页重拉对齐
+                appState.sessionLedger.removeSession(sessionID: session.id)
+                appState.sessionDeletions.begin(
+                    sessionID: session.id,
+                    title: rowTitle(session),
+                    appState: appState,
+                    modelContext: modelContext
                 )
-        } else {
-            ServerSessionRow(
-                session: session,
-                title: rowTitle(session),
-                onOpen: { onOpenSession(session.id) },
-                onChanged: { Task { await reload() } },
-                onDeleteRequested: { session in
-                    // §232 乐观删除：确认即同拍摘自家
-                    // 名单行＋协调器起手（墓碑/目录摘
-                    // 行/后台删）；最终失败由协调器恢
-                    // 复，恢复信号触发本页重拉对齐
-                    appState.sessionLedger.removeSession(sessionID: session.id)
-                    appState.sessionDeletions.begin(
-                        sessionID: session.id,
-                        title: rowTitle(session),
-                        appState: appState,
-                        modelContext: modelContext
-                    )
-                }
-            ) {
-                rowLabel(session)
             }
-            .tag(session.id)
-            // 0.43.0（A11Y-V7）：Rotor 行标记
-            .accessibilityRotorEntry(
-                id: session.id, in: rotorNamespace
-            )
+        ) {
+            rowLabel(session)
         }
+        .tag(session.id)
+        // 0.43.0（A11Y-V7）：Rotor 行标记
+        .accessibilityRotorEntry(
+            id: session.id, in: rotorNamespace
+        )
     }
 
     /// 主线行（钦定保护）：纯打开按钮、无长按菜单
@@ -768,194 +628,18 @@ struct AllConversationsView: View {
         )
     }
 
-    /// 迁移留痕区：有失败项才出现，逐项人话（哪条、
-    /// 哪件、为什么没落定）＋本地值保留的说明
-    @ViewBuilder
-    private var migrationSection: some View {
-        if !appState.sessionLedger.migrationFailures.isEmpty {
-            Section("存量迁移未完成") {
-                ForEach(
-                    Array(appState.sessionLedger.migrationFailures.enumerated()),
-                    id: \.offset
-                ) { _, line in
-                    Text(line)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                Text("没改成的项先按你改的样子显示，下次打开本页刷新名单时会自动再试。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 操作结果人话条（批量/清理的落定汇总）
-    @ViewBuilder
-    private var noticeSection: some View {
-        if let notice = store.notice {
-            Section {
-                Text(notice)
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 清理区（系统段底部，0.36.29 自旧站内段移来）：
-    /// prune 两段式——先
-    /// dry_run 展示将删条数、确认后才真跑；施工期与
-    /// 真机同规：真跑只发生在用户在本页点「清理」后
-    private var cleanupSection: some View {
-        Section("清理旧会话") {
-            HStack(spacing: OneDayMetrics.spacingS) {
-                Text("删除超过")
-                TextField("天数", text: $pruneDaysText)
-                    .keyboardType(.numberPad)
-                    .frame(width: 56)
-                    .textFieldStyle(.roundedBorder)
-                Text("天的会话")
-                Spacer()
-                Button("预演") {
-                    Task { await runPrune(dryRun: true) }
-                }
-            }
-            .font(.bodyText)
-            Text("先预演看将删条数，确认后才会真删；真删不可恢复。")
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-        }
-    }
-
-    /// 批量操作栏（编辑态且有选中时挂底）
-    private var batchBar: some View {
-        HStack(spacing: OneDayMetrics.spacingM) {
-            Text("已选 \(selection.count) 条")
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            Spacer()
-            if segment == .archived {
-                Button("恢复") { runBatch(.restore) }
-            } else {
-                Button("归档") {
-                    // 0.27.0：选含合并桶时先过二次确认
-                    if selectionHasMergeBucket {
-                        showBatchArchiveConfirm = true
-                    } else {
-                        runBatch(.archive)
-                    }
-                }
-            }
-            Button("删除", role: .destructive) {
-                showBatchDeleteConfirm = true
-            }
-        }
-        .padding(.horizontal, OneDayMetrics.spacingM)
-        .padding(.vertical, OneDayMetrics.spacingS)
-        .background(Palette.pageBG)
-    }
-
     // MARK: - 动作
 
     /// 名单重拉唯一口（§223）：全量拉成后 store 内
     /// 顺带对账回收本地残留线程——本页所有重拉点
-    /// （首开/下拉/行变更/批量/清理）统一走此口，
-    /// 不许直调 store.load 漏掉对账
+    /// （首开/下拉/行变更）统一走此口，不许直调
+    /// store.load 漏掉对账（维护子页自持同口径的
+    /// reload，两页共用同一 store 与账本）
     private func reload() async {
         await store.load(
             appState: appState, localThreads: threads,
             modelContext: modelContext
         )
-    }
-
-    private enum BatchKind { case archive, restore, delete }
-
-    /// 批量：归档/恢复逐条经动作层（PATCH＋回读对
-    /// 账），未落定逐条计数、汇总人话呈现。删除自
-    /// §232 起不走本路——乐观删除专路（下方 run-
-    /// Batch 入口分流）：逐条本地先删、后台逐条删，
-    /// 成败不汇总（最终失败由协调器逐条恢复＋提醒，
-    /// 恢复信号触发本页重拉）
-    private func runBatch(_ kind: BatchKind) {
-        let ids = Array(selection)
-        guard !ids.isEmpty else { return }
-        if kind == .delete {
-            for id in ids {
-                let title = (ledgerVisibleSessions + ledgerArchivedSessions)
-                    .first { $0.id == id }.map { rowTitle($0) } ?? ""
-                appState.sessionLedger.removeSession(sessionID: id)
-                appState.sessionDeletions.begin(
-                    sessionID: id, title: title,
-                    appState: appState, modelContext: modelContext
-                )
-            }
-            selection.removeAll()
-            editMode = .inactive
-            return
-        }
-        Task {
-            var failedCount = 0
-            for id in ids {
-                let outcome: ServerSessionActions.Outcome
-                switch kind {
-                case .archive:
-                    outcome = await ServerSessionActions.setArchived(
-                        appState: appState, id: id, archived: true
-                    )
-                case .restore:
-                    outcome = await ServerSessionActions.setArchived(
-                        appState: appState, id: id, archived: false
-                    )
-                case .delete:
-                    outcome = .verified // 删除已在上方专路分流，不达此
-                }
-                if outcome != .verified {
-                    failedCount += 1
-                }
-            }
-            selection.removeAll()
-            editMode = .inactive
-            store.notice = failedCount == 0
-                ? "已处理 \(ids.count) 条，全部确认完成。"
-                : "\(ids.count - failedCount) 条已改好，\(failedCount) 条没改成——列表已按服务器现状刷新，你核对一下。"
-            await reload()
-        }
-    }
-
-    /// 清理两段：dryRun 只取将删条数（取不到数不许
-    /// 进入确认、更不许真跑）；真跑后回执条数入结果
-    /// 条、名单重拉对账
-    private func runPrune(dryRun: Bool) async {
-        guard let days = Int(pruneDaysText), days > 0 else {
-            store.notice = "天数要填正整数。"
-            return
-        }
-        do {
-            // 回执条数由客户端多键宽容提取（SessionPrune-
-            // Receipt）：取不到为 nil、如实呈现不编数
-            let count = try await appState.performAdmin { client, config in
-                try await client.pruneSessions(
-                    config: config,
-                    olderThanDays: Double(days), dryRun: dryRun
-                )
-            }
-            if dryRun {
-                guard let count else {
-                    store.notice = "服务端这次没回将删条数，无法预演——为稳妥起见没有执行清理。"
-                    return
-                }
-                store.pruneDryRunCount = count
-                showPruneConfirm = true
-            } else {
-                store.pruneDryRunCount = nil
-                store.notice = count.map {
-                    "已清理 \($0) 条旧会话。"
-                } ?? "清理已执行（服务端未回条数，以刷新后的名单为准）。"
-                await reload()
-            }
-        } catch {
-            store.notice = (error as? HermesError)?.userMessage
-                ?? "清理没完成，请稍后再试。"
-        }
     }
 
     /// 服务端搜索（与 0.16.0 会话搜索同一端点的管理

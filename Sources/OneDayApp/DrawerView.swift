@@ -99,6 +99,16 @@ import SwiftUI
 ///   下文 0.20.0 注中「顶条维持实色注册」只存沿革。
 ///   0.36.27 再订正：底条浮置＋霜层退役、改注册名
 ///   单 safeAreaBar 走纯系统朦胧，见 body 内注。）
+/// - 结构归位第二批（2026-11-20，用户亲批结构纲
+///   要 D0-1/D1-1/D2-1）：名单结构改定为——主线
+///   行（独立行、动作沿旧）→「旁聊」分区（升 L1
+///   顶点）→「频道」分区（降 L2）→「全部对话」
+///   收尾行（全量列表一级入口、经路由旗根级呈
+///   现）。旧「选项卡」分区整组退役（四行与底栏
+///   同目的地双挂收口，TabView 一处当家）；分区
+///   显隐账消费退役（两区恒在场、折叠保留），跨
+///   页可见性管理元层级自本面剥离。详见
+///   drawerNavList 注
 struct DrawerView: View {
     /// 面板宽＝容器量测给（§313：第 78 条 D2 录屏实
     /// 测 0.75×容器宽、无上限，单源 DrawerCard-
@@ -161,12 +171,11 @@ struct DrawerView: View {
     /// DrawerSectionKey），杀 App 重进保持
     @AppStorage(SectionCollapseStorageKeys.drawerSections)
     private var drawerCollapseData: Data = Data()
-    /// 分区显隐账（§198）：设置→侧边栏的分区管理面
-    /// 写、本面读（Core SectionVisibilityState 唯一口
-    /// 径，键同 DrawerSectionKey 三键）；与折叠账分
-    /// 册——折叠管收起/展开、本账管整区在/不在
-    @AppStorage(SectionVisibilityStorageKeys.drawerSections)
-    private var drawerVisibilityData: Data = Data()
+    /// 分区显隐账消费已退役（结构归位第二批，
+    /// 2026-11-20，纲要 D1-1）：本面不再读 Section-
+    /// VisibilityState——跨页可见性管理元层级自导
+    /// 航面剥离、两区恒在场。账本本体与设置→侧边
+    /// 栏管理面的退役归第一批对接（见本包交卷）
 
     var body: some View {
         // 0.36.27（§97 件三，用户 03:54 拍板「抽屉朦
@@ -502,169 +511,154 @@ struct DrawerView: View {
     /// 迁出——入口挪设置页「全部对话」行，用户
     /// 2026-11-13 18:57 拍板，本面不再有进全部对
     /// 话页的路径）
-    /// §157②：「选项卡」组头删除——其下五行已明示是
-    /// 导航，再挂一层小标签只是多一道分隔与留白；
-    /// 「频道」「旁聊」两组头保留（它们标的是名单分
-    /// 区、不是导航自明区）
-    /// §182.1：用户纠正口径——真问题是缺组标题，恢复
-    /// 「选项卡」组头（与频道/旁聊同口径），与 Muse
-    /// 参照对齐
-    /// §198 重排：分区呈现走三区合成（sectionGates＝
-    /// 显隐账 ∧ 内容闸）；分割线按统一口径 R1–R10：
-    /// 线属于边界、恒挂下行分区的组头上方、与任何
-    /// 区的折叠态无关（R2/R6）；首区无顶线（R8）；
-    /// 组头与子项之间永不划线（R3）；不渲染的区连
-    /// 线退场（R7）；线顶留白恒 spacingS 一处记账
-    /// （R10）。（§198 的组内分簇线 R5 是为管理行而
-    /// 设，管理行迁出后本组无簇可分，R5 随之退役；
-    /// 选项卡组被管理面隐藏时导航槽整体不在场，频
-    /// 道/旁聊的边界线按 R7/R8 自行退场/免顶线）
+    /// 名单结构（结构归位第二批，2026-11-20，纲要
+    /// D0-1/D1-1/D2-1）：自上而下＝主线行→「旁聊」
+    /// 分区（会话列表，本面顶点）→「频道」分区→
+    /// 「全部对话」收尾行。逐项口径：
+    /// ①旧「选项卡」分区整组退役——动态／点子／目
+    /// 标／资源库四行与前景 TabView 同目的地双挂
+    /// （D0-1、原则 2），收口后五个格只在底栏一处
+    /// 当家。其中「主线聊天」行语义不是切格而是回
+    /// 主线线程（底栏格不承担回主线语义，见主线行
+    /// 注），故以独立行形态留在名单顶部、动作与旧
+    /// 行一字不变，不随组退役。
+    /// ②分区次序对调：旁聊（会话列表）升 L1 顶点、
+    /// 频道降 L2（纲要抽屉目标树）；旧序「频道插在
+    /// 选项卡与旁聊之间」随选项卡组退役一并作废。
+    /// ③分区显隐账退役：本面不再读 SectionVisibi-
+    /// lityState、sectionGates 合成整件退役——两区
+    /// 恒在场（频道恒显清单、旁聊空时留弱字行），
+    /// 「配置我自己」的跨页可见性管理元层级自导航
+    /// 面剥离（D1-1、原则 2 的管理面收口）；折叠账
+    /// 保留（纲要明定折叠保留）。设置→侧边栏管理
+    /// 面与 Core 显隐账本体的退役归第一批对接（见
+    /// 本包交卷对接点），本面先断消费。
+    /// ④分割线沿 R1–R10 旧口径：线恒挂下行分区组
+    /// 头上方、与折叠态无关（R2/R6）；首行（主线
+    /// 行）无顶线（R8）；「全部对话」收尾行上方挂
+    /// 线与分区边界同式；不渲染的区连线退场（R7）
+    /// 在本面已无适用对象（两区恒在场）
     private var drawerNavList: some View {
-        // 在场合成：选项卡槽＝导航组本体；边界线只
-        // 许出现在「上方已有在场区」的区头顶
-        let navSlotPresent = sectionGates.navigation
-        let channelsPresent = sectionGates.channels
-        return VStack(alignment: .leading, spacing: 0) {
-            if sectionGates.navigation {
-            // §182.1：导航组头恢复标题「选项卡」，
-            // 与频道/旁聊组头同形态同口径
-            drawerCollapsibleHeader("选项卡", key: DrawerSectionKey.navigation)
-            drawerCollapsibleContent(
-                collapsed: drawerSectionCollapsed(
-                    DrawerSectionKey.navigation
-                )
-            ) {
-            drawerNavRow(
-                symbol: TabBarSymbols.chat.normal,
-                title: "主线聊天",
-                // 0.36.7：本行在单一政策里是主线会话的
-                // 代表行——只有「正在看主线」时带胶囊，
-                // 不再是「人在聊天表面」的指示（§10.2）
-                selected: drawerSelection == .main
-            ) {
-                // 台账 147：延迟导航待办在位时整下忽
-                // 略（OB 连点口径——关抽屉途中第二下
-                // 点按不重复跳页、首个待办为准）
-                guard !appState.router.hasPendingDrawerNavigation
-                else { return }
-                onClose()
-                // 0.30.0（用户 12:56 录屏点名 Muse 模
-                // 型）：本行是显式回主线的唯一入口——经
-                // 线程选择通道直切钦定主线（ChatView 消
-                // 费切换、并经落点记忆落盘）；底部页签本
-                // 身不再承担回主线语义（点页签回上次对
-                // 话，见 ChatLandingResolution）。钦定尚
-                // 未落定时只切页签，ChatView 落点解析会
-                // 以主线兜底
-                // 台账 147：线程切换改经延迟导航置位
-                // 口——关到近闭合才落真值跳页（落真值
-                // 时 ContentView 的 onChange 自会切格，
-                // 与旁聊行同一条路）；钦定尚未落定（无
-                // 主线 id）时无线程可延迟、仍即时只切
-                // 页签（旧口径兜底不变）
-                if let mainID = appState.sessionLedger.mainThreadID {
-                    appState.router.stageDrawerThreadSelection(mainID)
-                } else {
-                    onSelectTab(.chat)
-                }
-                // 0.36.7（§10.3 置位纪律）：导航动作显
-                // 式写当前对象引用，胶囊随点按即归主线
-                // 0.36.29：回主线即离频道出处（§10.3
-                // 置位点清零），防残留出处把后续同步带
-                // 回 .channel
-                appState.router.channelViewingOrigin = nil
-                appState.router.currentDrawerObject = .main
-            }
-            // 枢纽行已删（0.36.5，用户 19:24 点名）：
-            // 枢纽 sheet 本体长在聊天页，删行后的入口
-            // ＝聊天页身份胶囊点按与回告卡点按（均直
-            // 接置 showHub）；hubOpenRequested 请求通
-            // 道保留不动（ChatView 消费端在原处）
-            // 0.35.0（P3 五格）：动态行与底栏同序进
-            // 「选项卡」组
-            drawerNavRow(
-                symbol: TabBarSymbols.feed.normal,
-                title: "动态",
-                selected: drawerSelection == .surface(.feed)
-            ) {
-                onClose()
-                onSelectTab(.feed)
-            }
-            drawerNavRow(
-                symbol: TabBarSymbols.ideas.normal,
-                title: "点子",
-                selected: drawerSelection == .surface(.ideas)
-            ) {
-                onClose()
-                onSelectTab(.ideas)
-            }
-            drawerNavRow(
-                symbol: TabBarSymbols.goals.normal,
-                title: "目标",
-                selected: drawerSelection == .surface(.goals)
-            ) {
-                onClose()
-                onSelectTab(.goals)
-            }
-            drawerNavRow(
-                // 0.20.0 第七条：应用格改文件格，导航行
-                // 同步改「文件」（符号与底栏同源 files 对）
-                symbol: TabBarSymbols.files.normal,
-                title: "资源库",
-                selected: drawerSelection == .surface(.files)
-            ) {
-                onClose()
-                onSelectTab(.files)
-            }
-            }
-            }
-            // 0.36.29（频道规格 §3.1）：频道区插在选项
-            // 卡槽与旁聊区之间（面先于条，与 Muse 样
-            // 板同序）；§198：整区呈现＝显隐账 ∧ 全量
-            // 成员闸（sectionGates.channels），不渲染
-            // 时其头顶边界线一并退场（R7）
-            if channelsPresent {
-                if navSlotPresent {
-                    // R2 边界线：恒挂频道组头上方，与
-                    // 任何区的折叠态无关
-                    drawerDivider
-                        .padding(.top, OneDayMetrics.spacingS)
-                }
-                drawerChannelSection
-            }
-            if sectionGates.sideChats {
-                if navSlotPresent || channelsPresent {
-                    // R2 边界线：恒挂旁聊组头上方——旧
-                    // 挂法「旁聊展开才挂」就此退役，全
-                    // 折叠态本线仍在（验收第一帧）
-                    drawerDivider
-                        .padding(.top, OneDayMetrics.spacingS)
-                }
-                drawerSideSection
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            drawerMainThreadRow
+            drawerSideSection
+            // R2 边界线：恒挂频道组头上方，与频道区
+            // 折叠态无关
+            drawerDivider
+                .padding(.top, OneDayMetrics.spacingS)
+            drawerChannelSection
+            // 收尾行边界线：与分区边界同式
+            drawerDivider
+                .padding(.top, OneDayMetrics.spacingS)
+            drawerAllConversationsRow
             Color.clear
                 .frame(height: OneDayMetrics.spacingL)
         }
         .padding(.top, OneDayMetrics.spacingS)
     }
 
+    /// 主线行（旧「选项卡」组首行迁出，动作沿革见
+    /// 旧行注）：本行是显式回主线的唯一入口——经线
+    /// 程选择通道直切钦定主线（ChatView 消费切换、
+    /// 并经落点记忆落盘）；底部页签本身不承担回主
+    /// 线语义（点页签回上次对话，见 ChatLanding-
+    /// Resolution）。钦定尚未落定时只切页签，
+    /// ChatView 落点解析会以主线兜底
+    private var drawerMainThreadRow: some View {
+        drawerNavRow(
+            symbol: TabBarSymbols.chat.normal,
+            title: "主线聊天",
+            // 0.36.7：本行在单一政策里是主线会话的
+            // 代表行——只有「正在看主线」时带胶囊，
+            // 不再是「人在聊天表面」的指示（§10.2）
+            selected: drawerSelection == .main
+        ) {
+            // 台账 147：延迟导航待办在位时整下忽
+            // 略（OB 连点口径——关抽屉途中第二下
+            // 点按不重复跳页、首个待办为准）
+            guard !appState.router.hasPendingDrawerNavigation
+            else { return }
+            onClose()
+            // 0.30.0（用户 12:56 录屏点名 Muse 模
+            // 型）：经线程选择通道直切钦定主线；
+            // 台账 147：线程切换改经延迟导航置位
+            // 口——关到近闭合才落真值跳页（落真值
+            // 时 ContentView 的 onChange 自会切格，
+            // 与旁聊行同一条路）；钦定尚未落定（无
+            // 主线 id）时无线程可延迟、仍即时只切
+            // 页签（旧口径兜底不变）
+            if let mainID = appState.sessionLedger.mainThreadID {
+                appState.router.stageDrawerThreadSelection(mainID)
+            } else {
+                onSelectTab(.chat)
+            }
+            // 0.36.7（§10.3 置位纪律）：导航动作显
+            // 式写当前对象引用，胶囊随点按即归主线
+            // 0.36.29：回主线即离频道出处（§10.3
+            // 置位点清零），防残留出处把后续同步带
+            // 回 .channel
+            appState.router.channelViewingOrigin = nil
+            appState.router.currentDrawerObject = .main
+        }
+    }
+
+    /// 「全部对话」收尾行（结构归位第二批，纲要
+    /// D2-1）：全量会话列表升一级面，入口住名单自
+    /// 身的收尾行——与底条三件（设置/搜索/新建）同
+    /// 为名单的固定出口，不再埋设置三级路径。点按
+    /// 先收抽屉、再经路由旗请根级呈现（ContentView
+    /// 消费 allConversationsRequested，与设置齿轮
+    /// 的 settingsSheetRequested 同式）；行形态随
+    /// 导航行同簇（字形＋标题），行尾加 chevron 示
+    /// 「进一整页」（与全部对话页内频道行同式）
+    private var drawerAllConversationsRow: some View {
+        Button {
+            onClose()
+            appState.router.allConversationsRequested = true
+        } label: {
+            HStack(spacing: OneDayMetrics.spacingSM) {
+                Image(systemName: "rectangle.stack")
+                    // 字形口径随导航行同档（见
+                    // drawerNavRow 注）
+                    .font(.system(
+                        size: FrameworkIcon.drawerGlyphSize,
+                        weight: .regular
+                    ))
+                    .foregroundStyle(Palette.ink)
+                    .frame(
+                        width: OneDayMetrics.iconSlot,
+                        alignment: .center
+                    )
+                    .accessibilityHidden(true)
+                Text("全部对话")
+                    .font(.drawerNavTitle)
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Palette.inkMuted)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: OneDayMetrics.drawerNavRowHeight)
+            .padding(.horizontal, OneDayMetrics.spacingSM)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.odPressable)
+        .padding(.horizontal, OneDayMetrics.spacingS)
+        .accessibilityLabel("全部对话")
+    }
+
     // MARK: - 频道区（0.36.29，频道规格 §3）
 
-    /// 三区渲染合成（§198＋2026-11-13 频道一期）：
-    /// 只认显隐账（分区管理面）——频道区的成员内容
-    /// 闸已退役（恒显清单：未配对行与冻结行靠整区
-    /// 常在才有地方站），§198 的全量分类计数闸随之
-    /// 退场（drawerFullPartition 一并退役）；管理行
-    /// 亦已随收口包补件迁出（合成四区收三区）。合成
-    /// 走 Core DrawerSectionGates 唯一口径，本面只
-    /// 消费结论排版、不私算
-    private var sectionGates: DrawerSectionGates {
-        DrawerSectionGates.resolve(
-            visibility: SectionVisibilityState.decode(
-                drawerVisibilityData
-            )
-        )
-    }
+    /// 分区渲染合成（§198）已退役（结构归位第二
+    /// 批，2026-11-20，纲要 D1-1）：显隐账是合成的
+    /// 唯一输入、账退役则合成无物可合——两区恒在
+    /// 场，呈现不再经任何闸。Core DrawerSection-
+    /// Gates 与 SectionVisibilityState 本体随设
+    /// 置→侧边栏管理面一并归第一批对接退役，本面
+    /// 只断消费、不动 Core
 
     /// 频道配对状态（频道扩展一期）：行尾状态小字
     /// 的唯一来源——伴生频道桥回读，本面出现时拉

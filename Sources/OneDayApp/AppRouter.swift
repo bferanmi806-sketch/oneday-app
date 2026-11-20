@@ -102,6 +102,13 @@ final class AppRouter {
     /// 文件进设置「管理」组、文件格升底栏），不再有
     /// 「切格落位」这回事
     var settingsSheetRequested = false
+    /// 全部对话页打开请求（结构归位第二批，2026-11
+    /// -20，纲要 D2-1）：抽屉名单收尾行「全部对话」
+    /// 置位，ContentView 消费呈现根级 fullScreen-
+    /// Cover 后置 false——置位—消费—清零与 settings-
+    /// SheetRequested 同式。全量列表自此是一级面入
+    /// 口（抽屉名单自身），不再只经设置页行进入
+    var allConversationsRequested = false
     /// 底栏切格请求（0.29.0）：设置内页面（如连接器目
     /// 录的本机服务详情）要把用户送到目标/点子底栏格
     /// 时置位，ContentView 消费后关设置 sheet 并切格
