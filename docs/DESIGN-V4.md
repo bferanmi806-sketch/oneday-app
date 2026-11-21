@@ -14018,3 +14018,55 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **深色＋最大字号帧覆盖**：新测 ConnectGuideDeviceConditionTests 4 法覆盖两面两态——分叉首屏（深色帧：内容高落构成下限带且与浅色同高 ±2；AX 帧：内容高实际生长）、通知段（深色帧：拟合高落构成下限带且与浅色同高 ±1；AX 帧：拟合高实际生长），CI 实测全绿。残余明示：无像素级采样帧测，视觉观感与系统弹窗全程留真机（见 §337 验收门）。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/onboarding-guide-pack@2d95928 待后续组版并入）。
+
+## §338 设置收敛·单源化与归档（2026-11-21；分支 feat/198-settings-convergence，基线 rel-05070@1d04add；台账 198；用户 2026-11-21 09:40 拍板「全部按照推荐走、都要大厂的做法、不能止血要治本」；依据 settings-ia-audit-20261121.md（S1–S15）＋settings-hub-status-overlap-20261121.md（C1–C5）＋全 App 普查 R4/D2 追加条）
+
+**总纲：收敛＝删旧实现、只留单源，不做并行新路。** 本节登记的每条收敛都以「旧件删除清单」为验收凭据；数据层经审计查实单源清白、本包零接触存储。回原型枢纽（原型 P1）与 D7 拍板冲突、用户已确认不动；子页方言 B 十二页 List 化（S11 余项）未含本包、另立包处置，不以本节冒充全件。
+
+**S1 设备名单单源**：名单正主只留连接器页（ConnectorsView.deviceSection）；设备与权限页撤「你的设备」名单段＋overviewRow/overviewStatus（其授权卡镜像/通道状态/数据同步总览保留，定位句迁通道状态段脚、去掉只列名半句）；详情分发两份 switch 合一为共用件 `DeviceDetailDestination`（source＋inSheet 一参，两面同映射）。
+
+**S3 服务器表单单源**：新共用件 `ServerAddressFieldRow`/`ServerSecretFieldRow`（ServerCredentialForm.swift，FieldRow 形态、聚焦与显隐自持）；ConnectView 删 secretField/revealSecret/Field 枚举/focusedField、ServerDetailView 删 showAPIKey 与自有密钥行（显隐切换自此统一 eye 钮，详情页原文字钮退役）；演示圆点占位口径收进共用件 demoObscured。依赖注记：连接页引导小包在飞动 ConnectView，本包以基线形态落码，合流时主线按引导包合入后形态复核此件。
+
+**S4 重启单源**：重启只留网关状态页控制组一条执行路径（确认＋POST＋状态回读）；删 RestartGatewayView 整文件、SettingsView 根页重启确认框＋restartGateway() 执行副本、目录 restartGateway 条目/目的地、SettingsRoute.restartGateway。反馈口径随正主统一为回读确认，根页旧「已发送」文案随副本消亡。
+
+**S5 组卡键值行单源（溢出治本）**：设计层新共用件 `KeyValueRow`（OneDayDesign，ContentRow 同语法：spacingM 内边距＋rowHeight＋值 metaMonospaced/tabularDigits/inkSecondary＋单行中间截断）；odGroup 文档明示键值行只许本件、LabeledContent 合法住所是 List/Form。替换实锤 2 页（用量 totalsGroup 3 行、网关状态卡 2 行）＋嫌疑 5 页逐页查实替换 4 页（状态页系统段 9 行、定时详情摘要/详情 6 行——详情组顺带治首行悬线：块集枚举＋索引分隔、记忆提供方状态组 3 行、密钥详情键/类别 2 行、记忆条目元信息 2 行）；排除留证 3 处（MainSessionView、服务端会话详情元信息、关于页服务行——均在 List 内、LabeledContent 合法，保留）。
+
+**S6 流式旗单源**：键 chat.streaming.gen4 不变、无迁移；唯一写口归外观页「回复呈现」组，与打字动画（chat.streaming.typewriter，语义不同不合并）相邻成组、区脚文案互指；关于页 labSection 实验副本删除。
+
+**S7 四段分段渲染**：Core 目录条目加 `segment` 字段（SettingsSegmentID：server/sessions/workspace/maintenance，段题单源）＋`browseSegments(in:)`；设置根服务与工作区组按四段各成 Section（段题连读即组名全义、组题不再单独占行），断开连接收维护段末；行构建抽 browseRow(for:) 一处（网关/体检/状态三特型行）。
+
+**S9 页题对齐**：GatewayView 页题「网关」→「网关状态」、ProfilesView「档案」→「配置档案」，与目录题逐字一致。
+
+**S10 网关状态词单源**：Core 新增 `ServerLabels.gatewayStateWord(for:locale:)`（可选状态入参版：nil→「—」）；SettingsView 私有派生与已退役 RestartGatewayView 副本同删、改委托；身份状态文案的「异常」比较改同源取词（L10n 对 L10n），语言切换后判定不漂移。
+
+**S11 图标去重（部分）**：根行图标唯一真重名＝体检/聊天诊断同用 stethoscope——诊断行改 doc.text.magnifyingglass、体检保留。方言 B 十二页 List 化不在本包（见总纲）。
+
+**S12 人设正式入口**：配置档案页加「人设」组，行本体 PersonaEntryRow 就绪闸门（共享枢纽 store 的 soul 已读到才给入口、未读到补拉、失败如实行内错＋重试、不空开），点达既有 SoulEditorView、不新建编辑器；本页分工小字改实。已知边界：枢纽 store 冻结档案名与刚切换档案的时序差由编辑器 saveSoul 的 .profileChanged 拒存兜底，真机时序入待验清单。
+
+**S13 散行归组**：语音行自服务器组维护尾段迁偏好与权限组（紧随外观、可用性副题随迁保留）；添加设备迁服务器段（紧随当前服务器）；聊天诊断根行退役——入口迁关于页内部实验节（与承载/原生面两旗同置、行式同 legalRow），目录条目改仅搜索可达（showsInBrowse=false）。
+
+**S14 同名分清**：设置根「状态」行加副题「汇总」（statusNavRow 形态），与枢纽工作台账、服务端会话名单分清；状态页本体三段名（活动/定时/系统）不动。
+
+**S15/C2 注释改实**：GatewayView 文件头改实（重启只在本页）；StatusView 文件头改实（入口在设置根状态行）。
+
+**B7 行盒/组头单源**：设计层 `OneDayMetrics.settingsRowInsets`＋`SettingsSectionHeader`；SettingsView/AppearanceView/SettingsSupportViews 三页私有复刻（settingsRowInsets/rowInsets/supportRowInsets 与三份组头助手）全删改共用件（各页只留转发壳保调用点）。
+
+**C1 枢纽退役拼装流删除**：AgentHubStore.loadInitial 删 serverSessions(100) 拉取与 sessions/sessionsFailed；assembleActivity/loadRuns/loadJobs/reloadActivity 整段删除；Core HubActivity.swift（汇编器全家）＋HubActivityTests.swift 同删（全仓零消费者实证）。loadInitial 瘦身后只剩 profile 冻结＋status＋身份名。
+
+**C3 定时呈现分工**：枢纽保留全量分组概览（分组/最近运行/管理跳板）；状态页定时段收摘要＝接下来 3 条＋「全部定时任务」直达正主页（仿其体检行直达形态）。
+
+**C4 身份头共享取数**：AgentHubStore.serverStatus 改 private(set) 只读出口；StatusView 删自拉 status，身份头读共享快照，刷新经店内 refreshServerStatus() 回读口（取数仍只在店内一处）。
+
+**R4/D2 定时取数合一（数据侧，与 C3 呈现侧分开记）**：新 App 层共享店 `CronStore`（AppState.sharedCronStore() 懒建单例，与 sharedHubStore 同形态）——全 App 唯一 cron 取数与缓存：名单＋按配置标识失效、lastRuns 懒补拉（仅间隔型缺值、limit 1）；三面消费（CronJobsView 管理面删自拉 @State、HubCronSection 删 AgentHubStore 私拉 jobsCache/runsCache、StatusView 摘录删自拉）；行件合一为共用 `CronOverviewRow`（自 HubCronSection 原行抽出逐值不变）；写动作后经 reloadJob→store.refresh() 三面同帧同步。AgentHubStore 的 loadCronIfNeeded/cronGroups/cronFailed/cronLoading 随之删除。
+
+**本地化**：目录新增 11 键（三语齐全）：服务器/汇总/流式增量呈现/全部定时任务/正在读取定时任务…/回复呈现新版区脚/档案页新版分工小字/正在读取人设…/人设没读出来，检查连接后再试。/聊天诊断行副题/设备与权限页新版定位句。validate_i18n 仅余 1 条基线既有豁免失效（与本包无关、基线同失败）。
+
+**红线零接触**：数据层存储（审计已查单源）、§194 键盘链、141/142 选区、贴底判定、§327 遮蔽语义、朗读链回调隔离、SoulEditorView 本体、CronJobFormView 本体，均未动。
+
+**验收门（本包）**：CI 红集与基线 rel-05070（run 44795478758，红 11）逐名对账零新增；目录/状态词新钉测绿（SettingsCatalogTests 段序与归组、ServerLabelsTests 状态词全值域）。真机门留用户：溢出 5 页替换后帧（用量/网关/状态/定时详情/记忆与密钥详情）、名单收敛后连接器页与设备与权限页两页观感、设置根四段分段形态、语音行新组副题、人设入口就绪闸门三态、流式开关迁位后旧值保留（键不变验证）。**未合 main、未打 tag**（冻分支待 0.50.78 合流后由主线排序合入）。
+
+### §338.1 CI 判读（回填）
+
+**判绿（2026-11-21）**：最终树 b9090cc（落码 254ab7d＋改钉 1 笔）。两轮对账：首轮 run 44854562598 红 12＝基线 11＋1 件本包可归因新红（HapticsMatrixTests.testMatrixCallSiteCounts——S4 删根页重启执行副本带走其 Haptics.error/success 落点各一，计数钉 53/17 与实数 52/16 不符）；按矩阵钉测自家沿革口径改钉（53→52、17→16，注记落测内：触感由网关页正主 perform() 既有落点承接、行为不丢）。确认轮 run 44860126978：**红集 11 与 0.50.77 基线轮（run 44795478758）逐名完全一致、零新增红**；Core 2286/2286 零失败（基线 2291−删 HubActivityTests 8＋新测 3＝2286，逐项对平）；本包新测 testGatewayStateWordForSettings/testServerAndWorkspaceSegments/testChatDiagnosticsEntryIsSearchOnly 全绿；构建（no codesign）＋打包未签名 IPA＋上传三步 success。本地化 validate_i18n 与基线同结果（1 条基线既有豁免失效、与本包无关）。
+
+**未合 main、未打 tag**（冻分支 feat/198-settings-convergence@b9090cc 待 0.50.78 合流后由主线排序合入；合流接手项：①DESIGN 号与 197/引导小包同占 §335、主线顺延裁号；②S3 表单件按引导包合入后 ConnectView 形态复核；③需求账 198 行未验项原样保留）。

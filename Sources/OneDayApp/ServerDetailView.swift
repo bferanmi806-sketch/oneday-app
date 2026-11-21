@@ -15,7 +15,6 @@ struct ServerDetailView: View {
 
     @State private var serverText = ""
     @State private var apiKeyText = ""
-    @State private var showAPIKey = false
     @State private var isSaving = false
     @State private var saveResult: String?
     @State private var saveFailed = false
@@ -39,30 +38,16 @@ struct ServerDetailView: View {
                     .padding(.horizontal, OneDayMetrics.spacingM)
                     .frame(minHeight: OneDayMetrics.rowHeight)
                     GroupDivider()
-                    FieldRow(label: "服务器地址") {
-                        TextField("https://hermes.didichou.site", text: $serverText)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    }
+                    // 地址/密钥字段走共用件（台账 198 收
+                    // 敛 S3：ServerCredentialForm，与连接
+                    // 页同一份；显隐切换自此统一 eye 钮，
+                    // 本页原文字钮「显示/隐藏」退役）
+                    ServerAddressFieldRow(text: $serverText)
                     GroupDivider()
-                    FieldRow(label: "密钥") {
-                        HStack(spacing: OneDayMetrics.spacingS) {
-                            if showAPIKey {
-                                TextField("Hermes 的 Bearer 密钥", text: $apiKeyText)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                            } else {
-                                SecureField("Hermes 的 Bearer 密钥", text: $apiKeyText)
-                                    .textInputAutocapitalization(.never)
-                                    .autocorrectionDisabled()
-                            }
-                            Button(showAPIKey ? "隐藏" : "显示") {
-                                showAPIKey.toggle()
-                            }
-                            .font(.callout)
-                        }
-                    }
+                    ServerSecretFieldRow(
+                        label: "密钥", text: $apiKeyText,
+                        placeholder: "Hermes 的 Bearer 密钥"
+                    )
                 }
                 .odGroup()
 

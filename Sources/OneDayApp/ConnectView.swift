@@ -44,10 +44,6 @@ struct ConnectView: View {
         case idle, claiming, denied
     }
 
-    private enum Field: Hashable {
-        case server, password, apiKey
-    }
-
     private enum StepState {
         case waiting, active, done, failed
     }
@@ -60,7 +56,6 @@ struct ConnectView: View {
     @State private var serverText = "https://hermes.didichou.site"
     @State private var password = ""
     @State private var apiKey = ""
-    @State private var revealSecret = false
     @State private var formError: String?
     @State private var stepStates: [OnboardingStep: StepState] = [:]
     @State private var failure: OnboardingFailure?
@@ -73,7 +68,6 @@ struct ConnectView: View {
     @State private var showScanner = false
     @State private var isConnecting = false
     @State private var appeared = false
-    @FocusState private var focusedField: Field?
 
     private var canSubmit: Bool {
         guard !isConnecting,
@@ -352,50 +346,29 @@ struct ConnectView: View {
         }
     }
 
+    // 地址/秘密字段走共用件（台账 198 收敛 S3：
+    // ServerCredentialForm，与服务器详情页同一份）
     private var passwordFields: some View {
         VStack(spacing: 0) {
-            FieldRow(label: "服务器地址", isActive: focusedField == .server) {
-                TextField("https://hermes.didichou.site", text: $serverText)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .server)
-            }
+            ServerAddressFieldRow(text: $serverText)
             GroupDivider()
-            FieldRow(label: "密码", isActive: focusedField == .password) {
-                secretField(
-                    placeholder: "输入面板密码", text: $password,
-                    field: .password
-                )
-            }
+            ServerSecretFieldRow(
+                label: "密码", text: $password,
+                placeholder: "输入面板密码"
+            )
         }
         .odGroup()
     }
 
     private var keyFields: some View {
         VStack(spacing: 0) {
-            FieldRow(label: "服务器地址", isActive: focusedField == .server) {
-                TextField("https://hermes.didichou.site", text: $serverText)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($focusedField, equals: .server)
-            }
+            ServerAddressFieldRow(text: $serverText)
             GroupDivider()
-            FieldRow(label: "密钥", isActive: focusedField == .apiKey) {
-                if DemoMode.current == .connectPage {
-                    // 演示占位：与假串等长的圆点（0.1.3 截图
-                    // 实证：程序化给 SecureField 赋的值在模
-                    // 拟器里不渲染圆点且行高异常；生产路径
-                    // 是用户手输、不受此缺陷影响）
-                    Text(String(repeating: "•", count: 12))
-                } else {
-                    secretField(
-                        placeholder: "Hermes 的登录密钥", text: $apiKey,
-                        field: .apiKey
-                    )
-                }
-            }
+            ServerSecretFieldRow(
+                label: "密钥", text: $apiKey,
+                placeholder: "Hermes 的登录密钥",
+                demoObscured: DemoMode.current == .connectPage
+            )
         }
         .odGroup()
     }
@@ -494,37 +467,6 @@ struct ConnectView: View {
                 ).advice()
                 Haptics.error()
             }
-        }
-    }
-
-    /// 密钥/密码输入行：SecureField＋显隐切换（原型
-    /// secret 行同形态）
-    private func secretField(
-        placeholder: String, text: Binding<String>, field: Field
-    ) -> some View {
-        HStack(spacing: OneDayMetrics.spacingS) {
-            Group {
-                if revealSecret {
-                    TextField(placeholder, text: text)
-                } else {
-                    SecureField(placeholder, text: text)
-                }
-            }
-            .textInputAutocapitalization(.never)
-            .autocorrectionDisabled()
-            .focused($focusedField, equals: field)
-            Button {
-                revealSecret.toggle()
-            } label: {
-                Image(systemName: revealSecret ? "eye.slash" : "eye")
-                    .font(.system(size: FrameworkIcon.composerGlyphSize))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-            }
-            .accessibilityLabel(revealSecret ? "隐藏" : "显示")
         }
     }
 

@@ -63,9 +63,10 @@ final class AgentHubStore {
     /// 打开时冻结的 profile 名（请求键与页头名同源）
     private(set) var frozenProfileName: String?
     private(set) var headerLoaded = false
-    private var serverStatus: ServerStatus?
-    private(set) var sessions: [ServerSession] = []
-    private(set) var sessionsFailed = false
+    /// 网关状态快照：页头状态行自用＋状态页身份头共
+    /// 享读（台账 198 收敛 C4——同一份状态只此一处取
+    /// 数，状态页不再自拉一份）；写口仍只在本店
+    private(set) var serverStatus: ServerStatus?
 
     /// 身份名（0.6.1，用户真机点名）：soul 里取得到的
     /// 身份名（初始加载时顺带拉一次 soul 解析，见
@@ -122,21 +123,12 @@ final class AgentHubStore {
     // 取键读模型账的点，留着有朝一日被误接即复活账
     // 本分叉（见 DESIGN §227 第 4 条）
 
-    // MARK: - 活动段
-
-    private(set) var activityGroups: [HubActivityDayGroup]?
-    private(set) var activityLoading = false
-
-    // MARK: - 定时段
-
-    private(set) var cronGroups: [(kind: HubCronKind, items: [HubCronItem])]?
-    private(set) var cronFailed = false
-    private(set) var cronLoading = false
-
-    /// jobs 与 runs 跨段共享缓存（活动段与定时段同源，
-    /// 不重复请求，数据设计 §3.1/§4.1）
-    private var jobsCache: [CronJob]?
-    private var runsCache: [String: [ServerSession]] = [:]
+    // 活动段拼装与定时段取数已退役（台账 198 收敛
+    // C1＋普查 R4/D2）：旧「活动」拼装流（sessions＋
+    // logs＋cronRuns 汇编 HubActivity）全仓零消费者、
+    // 每次开枢纽白拉三路，已整段删除（Core 汇编器同
+    // 删）；定时数据归共享 CronStore 单源，本店不再
+    // 私拉一份。工作台账由 LedgerStore 自持、与此无关
 
     // MARK: - 身份段
 
@@ -179,15 +171,18 @@ final class AgentHubStore {
     // 由 BrowserFaceView 自持 BoxBridgeStore（见
     // HubBrowserSection），本 Store 不再留错位源状态。
 
-    // MARK: - 初始加载（页头＋活动段）
+    // MARK: - 初始加载（页头）
 
     private var didLoadInitial = false
     private var didRecheckProfile = false
 
+    /// 页头初始加载（台账 198 收敛 C1 瘦身后）：只剩
+    /// profile 冻结＋网关状态＋身份名解析三件——旧版
+    /// 顺带拉的 serverSessions 100 条只喂已退役的活
+    /// 动拼装流（零消费者），整段删除、不再白拉
     func loadInitial() async {
         guard !didLoadInitial else { return }
         didLoadInitial = true
-        activityLoading = true
 
         // 冻结 profile：首次请求前捕获
         if frozenProfileName == nil {
@@ -197,15 +192,6 @@ final class AgentHubStore {
         }
         serverStatus = try? await appState.performAdmin { client, config in
             try await client.status(config: config)
-        }
-        do {
-            let page = try await appState.performAdmin { client, config in
-                try await client.serverSessions(config: config, limit: 100)
-            }
-            sessions = page.sessions
-            sessionsFailed = false
-        } catch {
-            sessionsFailed = true
         }
         headerLoaded = true
         // 身份名顺带解析（0.6.1）：复用身份段的 soul 拉
@@ -225,9 +211,20 @@ final class AgentHubStore {
                 )
             }
         }
-        await assembleActivity()
-        activityLoading = false
         await recheckProfileOnce()
+    }
+
+    /// 网关状态回读（台账 198 收敛 C4）：状态页身份头
+    /// 改读本店快照后，其出现/下拉刷新经此触发回读
+    /// ——取数仍只在本店一处、消费方不自拉；失败保留
+    /// 旧快照（与 loadInitial 的 try? 口径一致，不拿
+    /// 一次失败冒充离线）
+    func refreshServerStatus() async {
+        if let loaded = try? await appState.performAdmin({ client, config in
+            try await client.status(config: config)
+        }) {
+            serverStatus = loaded
+        }
     }
 
     /// profile 一致性复查（数据设计原则 4）：加载完成后
@@ -240,141 +237,10 @@ final class AgentHubStore {
         } ?? nil
         guard let current, current != frozen else { return }
         frozenProfileName = current
-        sessions = []
-        jobsCache = nil
-        runsCache = [:]
-        activityGroups = nil
-        cronGroups = nil
         soulDocument = nil
         soulSections = nil
         didLoadInitial = false
         await loadInitial()
-    }
-
-    private func loadJobs() async -> [CronJob] {
-        if let jobsCache { return jobsCache }
-        let jobs = (try? await appState.performAdmin { client, config in
-            try await client.cronJobs(config: config)
-        }) ?? []
-        jobsCache = jobs
-        return jobs
-    }
-
-    /// runs 补拉：最多前 20 个 job、并发上限 4（数据设计
-    /// §4.1 预算）。走 performAdmin 后的新鲜 cookie 通道：
-    /// 此方法在 sessions 拉取（已含 401 重登）之后调用，
-    /// 这里直连 client 以便任务组并发，结果只作补充、
-    /// 失败可降级
-    private func loadRuns(for jobs: [CronJob]) async {
-        guard let config = appState.config else { return }
-        let client = appState.client
-        let targets = jobs.prefix(20).filter { runsCache[$0.id] == nil }
-        var index = 0
-        while index < targets.count {
-            let chunk = Array(targets[index..<min(index + 4, targets.count)])
-            let fetched = await withTaskGroup(
-                of: (String, [ServerSession]).self
-            ) { group in
-                for job in chunk {
-                    group.addTask {
-                        let runs = (try? await client.cronRuns(
-                            config: config, id: job.id, limit: 3
-                        )) ?? []
-                        return (job.id, runs)
-                    }
-                }
-                var collected: [String: [ServerSession]] = [:]
-                for await (id, runs) in group {
-                    collected[id] = runs
-                }
-                return collected
-            }
-            for (id, runs) in fetched {
-                runsCache[id] = runs
-            }
-            index += 4
-        }
-    }
-
-    private func assembleActivity() async {
-        // sessions 是主实体：它失败整段失败，日志再完整
-        // 也不能单独拼活动流（数据设计 §4.5）
-        guard !sessionsFailed else {
-            activityGroups = nil
-            return
-        }
-        let jobs = await loadJobs()
-        await loadRuns(for: jobs)
-        // 派生标题素材（0.6.1）：列表接口无标题字段，
-        // 先经全局解析器按预算补齐首条消息再拼装，与
-        // 抽屉行共用同一缓存/派生
-        await appState.sessionTitles.ensureTitles(
-            for: sessions, appState: appState, budget: 10
-        )
-        let logLines = (try? await appState.performAdmin { client, config in
-            try await client.logs(config: config, level: nil, search: nil, lines: 200)
-        })?.lines ?? []
-        let logs = logLines.map { LogEventParser.parse($0) }
-        var jobTitles: [String: String] = [:]
-        for job in jobs { jobTitles[job.id] = job.title }
-        activityGroups = HubActivityAssembler.assemble(
-            sessions: sessions,
-            runsByJobID: runsCache,
-            jobTitles: jobTitles,
-            logs: logs,
-            fetchedAt: Date(),
-            now: Date(),
-            firstUserMessages: appState.sessionTitles.firstUserMessages
-        )
-    }
-
-    /// 活动段重试（sessions 失败后的唯一恢复路径）
-    func reloadActivity() async {
-        didLoadInitial = false
-        await loadInitial()
-    }
-
-    // MARK: - 定时段（懒加载）
-
-    func loadCronIfNeeded() async {
-        guard cronGroups == nil, !cronLoading else { return }
-        cronLoading = true
-        cronFailed = false
-        // jobs 拉取失败与「真无任务」要分开：loadJobs 的
-        // 兜底空数组会把失败吞掉，这里直接请求判成败
-        if jobsCache == nil {
-            do {
-                jobsCache = try await appState.performAdmin { client, config in
-                    try await client.cronJobs(config: config)
-                }
-            } catch {
-                cronFailed = true
-                cronLoading = false
-                return
-            }
-        }
-        let jobs = jobsCache ?? []
-        // 间隔行上次运行补拉：优先用共享 runsCache，缺的
-        // 再单拉 limit 1（数据设计 §3.5，不为每个 job 拉）
-        var lastRuns: [String: Date] = [:]
-        for job in jobs {
-            let item = CronHubClassifier.classify(job)
-            if let cached = runsCache[job.id] {
-                if let latest = cached.compactMap(\.startedDate).max() {
-                    lastRuns[job.id] = latest
-                }
-            }
-            guard item.kind == .interval,
-                  item.lastRunAt == nil,
-                  lastRuns[job.id] == nil else { continue }
-            if let runs = try? await appState.performAdmin({ client, config in
-                try await client.cronRuns(config: config, id: job.id, limit: 1)
-            }), let latest = runs.compactMap(\.startedDate).max() {
-                lastRuns[job.id] = latest
-            }
-        }
-        cronGroups = CronHubClassifier.grouped(jobs, lastRuns: lastRuns)
-        cronLoading = false
     }
 
     // MARK: - 身份段（懒加载）

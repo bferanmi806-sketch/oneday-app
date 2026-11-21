@@ -2,9 +2,12 @@ import OneDayDesign
 import OneDayCore
 import SwiftUI
 
-/// 网关页（设置·网关）：状态详情（/api/status 全字段呈现）＋
-/// 启停控制。重启入口在设置首页与总览快捷动作也有，动作口径
-/// 一致：二次确认后 POST，状态靠回读确认不靠回执猜。
+/// 网关状态页（设置·服务器段）：状态详情（/api/status
+/// 全字段呈现）＋启停控制。重启自台账 198 收敛 S4 起
+/// 只在本页控制组一条执行路径（设置根行独立重启页与
+/// 根页执行副本已删、总览无此动作）：二次确认后 POST，
+/// 状态靠回读确认不靠回执猜。页题与设置目录题对齐
+/// 「网关状态」（S9，此前页题只写「网关」与目录题不一）
 struct GatewayView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
@@ -48,7 +51,7 @@ struct GatewayView: View {
             .padding(.bottom, OneDayMetrics.spacingXL)
         }
         .background(Palette.pageBG)
-        .navigationTitle("网关")
+        .navigationTitle("网关状态")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
@@ -117,16 +120,13 @@ struct GatewayView: View {
                 .padding(.horizontal, OneDayMetrics.spacingM)
                 .padding(.vertical, OneDayMetrics.spacingSM)
                 GroupDivider()
-                LabeledContent("服务端版本") {
-                    Text(status.version.map { "v\($0)" } ?? "—")
-                        .font(.system(.callout, design: .monospaced))
-                }
+                // 键值行走 KeyValueRow（台账 198 收敛
+                // S5：裸 LabeledContent 入组卡贴边溢出
+                // 的实锤页之一，自此只许共用件）
+                KeyValueRow("服务端版本", value: status.version.map { "v\($0)" } ?? "—")
                 if let date = status.releaseDate {
                     GroupDivider()
-                    LabeledContent("发布日期") {
-                        Text(date)
-                            .font(.system(.callout, design: .monospaced))
-                    }
+                    KeyValueRow("发布日期", value: date)
                 }
             }
             .odGroup()

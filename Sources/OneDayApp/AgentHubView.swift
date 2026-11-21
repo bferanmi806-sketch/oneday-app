@@ -308,7 +308,7 @@ struct AgentHubView: View {
         case .activity:
             break // 台账段自持 LedgerStore（段内 .task 驱动）；审批数据由开枢纽时的强制重拉保鲜（见 body .task），§217 后不再有独立审核段的切段加载
         case .cron:
-            await store.loadCronIfNeeded()
+            break // 定时段自持共享 CronStore（段内 .task 驱动，台账 198 收敛）
         case .browser:
             break // 0.9.0：浏览器面自带盒桥轮询（面内 .task 驱动）
         case .identity:
@@ -620,7 +620,9 @@ struct AgentHubView: View {
                 }
             })
         case .cron:
-            HubCronSection(store: store)
+            // 定时段数据自台账 198 收敛起走共享
+            // CronStore，不再经枢纽 store 私拉一份
+            HubCronSection(appState: appState)
         case .browser:
             HubBrowserSection()
         case .identity:

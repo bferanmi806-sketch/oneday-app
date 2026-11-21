@@ -43,7 +43,10 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 /// （勾选行与 ④ 同构、区脚注明系统托管面仍随系统
 /// 语言，见 languageSection）；第 104 条在模式与
 /// 语言之间续加 ⑤回复呈现（打字动画开关，见
-/// replyPresentationSection，语言顺延 ⑥）。全页
+/// replyPresentationSection，语言顺延 ⑥）；台账
+/// 198 收敛 S6 起同组并入「流式增量呈现」开关（键
+/// chat.streaming.gen4 与关于页旧实验开关同键同
+/// 源、旧写口已删）。全页
 /// 遵 0.24.0 定版：
 /// List(.insetGrouped)＋settingsBG、行题 Body 17
 /// regular（rowTitleL）、分区头 Footnote 13
@@ -79,6 +82,15 @@ struct AppearanceView: View {
     /// 读；缺省开
     @AppStorage(StreamingTypewriterFeature.defaultsKey)
     private var typewriterEnabled = true
+    /// 流式增量呈现（台账 198 收敛 S6 归位）：键
+    /// chat.streaming.gen4（Core ChatStreamingFeature
+    /// 单一事实源），本页写、聊天页读；缺省开。与关
+    /// 于页旧「内部实验」开关是同一键的第二个写口
+    /// ——旧写口已删、键不变无迁移，老用户已选值原
+    /// 样保留；两键语义不同不合并（增量方式 vs 渐显
+    /// 口味，见 replyPresentationSection 区脚互指）
+    @AppStorage(ChatStreamingFeature.defaultsKey)
+    private var streamingEnabled = true
 
     private var languagePreference: AppLanguagePreference {
         AppLanguagePreference(rawValue: appLanguageRaw) ?? .system
@@ -108,12 +120,10 @@ struct AppearanceView: View {
 
     private var previewIsDark: Bool { previewScheme == .dark }
 
-    /// 行盒与设置首页同值（其 settingsRowInsets 为该
-    /// 文件私有，本页复刻同口径：横向 20 与页 gutter
-    /// 对齐、纵向 0 靠行内容 minHeight 定高）
-    private var rowInsets: EdgeInsets {
-        EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
-    }
+    // （行盒已于台账 198 收敛 B7 上收设计层
+    // OneDayMetrics.settingsRowInsets 单源，本页不再
+    // 复刻；口径不变：横向 20 与页 gutter 对齐、纵
+    // 向 0 靠行内容 minHeight 定高）
 
     var body: some View {
         List {
@@ -132,13 +142,12 @@ struct AppearanceView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    // MARK: - 分区头（与设置首页 settingsHeader 同口径复刻）
+    // MARK: - 分区头（台账 198 收敛 B7：走设计层共
+    // 用件 SettingsSectionHeader，本页只留转发壳保
+    // 既有调用点不动）
 
     private func appearanceHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.sectionLabel)
-            .foregroundStyle(Palette.inkSecondary)
-            .textCase(nil)
+        SettingsSectionHeader(title)
     }
 
     // MARK: - ① 实时预览
@@ -365,7 +374,7 @@ struct AppearanceView: View {
             appearanceHeader("虚拟形象大小")
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(rowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     // MARK: - ④ 模式
@@ -410,18 +419,29 @@ struct AppearanceView: View {
             appearanceHeader("模式")
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(rowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     // MARK: - ⑤ 回复呈现（第 104 条）
 
-    /// 打字动画开关行：开＝流式回复的新一批文字带
-    /// 单次轻渐显（首批恒直显）；关＝整批直接显示。
-    /// Reduce Motion 的优先关系不在本行表达——它在
-    /// 入场计划层（Core StreamingEntrance）恒压过本
-    /// 开关，区脚只如实注明结果
+    /// 回复呈现组（第 104 条＋台账 198 收敛 S6）：
+    /// 两件相邻成组、文案互指——「流式增量呈现」管
+    /// 回复怎么长出来（按块增量／逐词出现），「打字
+    /// 动画」只管新文字带不带单次轻渐显（首批恒直
+    /// 显）；两键语义不同、不合并。流式开关原在关于
+    /// 页「内部实验」节（与本键同键的第二写口），已
+    /// 随 S6 删除、只留本页一位。Reduce Motion 的优
+    /// 先关系不在开关行表达——它在入场计划层（Core
+    /// StreamingEntrance）恒压过打字动画，区脚只如
+    /// 实注明结果
     private var replyPresentationSection: some View {
         Section {
+            Toggle(isOn: $streamingEnabled) {
+                Text(L10n.string("流式增量呈现"))
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
             Toggle(isOn: $typewriterEnabled) {
                 Text(L10n.string("打字动画"))
                     .font(.rowTitleL)
@@ -431,12 +451,12 @@ struct AppearanceView: View {
         } header: {
             appearanceHeader(L10n.string("回复呈现"))
         } footer: {
-            Text(L10n.string("关闭后，回复文字整批直接显示，不再逐批渐显。系统开启减弱动态效果时，始终直接显示。"))
+            Text(L10n.string("流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。"))
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(rowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     // MARK: - ⑥ 语言（§145）
@@ -484,7 +504,7 @@ struct AppearanceView: View {
                 .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(rowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     // MARK: - 工具

@@ -33,7 +33,7 @@ final class SettingsCatalogTests: XCTestCase {
             "privacy", "terms",
             "identity", "profiles", "memory", "skills", "models", "cron",
             "mainSession", "serverSessions",
-            "server", "gateway", "restartGateway", "logs", "envVars", "usage",
+            "server", "gateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
             "status", "computer", "serverFiles", "voice",
             "appearance", "help", "about",
@@ -45,6 +45,10 @@ final class SettingsCatalogTests: XCTestCase {
         for id in ["agentConfig", "serverManagement", "sessionManagement", "workspace"] {
             XCTAssertFalse(ids.contains(id), "枢纽页条目 \(id) 应已退役")
         }
+        // 重启网关独立页条目已退役（台账 198 收敛
+        // S4：重启只走网关状态页控制组，根行不许再
+        // 长第二扇门）
+        XCTAssertFalse(ids.contains("restartGateway"), "重启网关条目应已退役")
     }
 
     /// 现行主页全部目的地在清单里有锚（零丢失对账的
@@ -59,8 +63,9 @@ final class SettingsCatalogTests: XCTestCase {
             .approvalRules,
             .gateway, .logs, .status, .computer, .serverFiles,
             .appearance, .help, .about, .privacy, .terms,
-            // prototype-2 叶子（枢纽目的地已退役）
-            .mainSession, .restartGateway,
+            // prototype-2 叶子（枢纽目的地已退役；重启
+            // 网关目的地随台账 198 收敛 S4 一并退役）
+            .mainSession,
             // H1-a 新增（台账 158）
             .healthCheck,
             // 结构归位新增（断开连接动作）
@@ -84,29 +89,50 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// 结构归位：serverAndWorkspace 组十三行——三张枢
-    /// 纽页子项全数提回根组（服务器本体→会话→工作区
-    /// 资源→维护尾段）
+    /// 台账 198 收敛后：serverAndWorkspace 组十二行
+    /// ——四段序（服务器→会话→工作区→维护）；重启网
+    /// 关行退役（S4）、语音行迁偏好组（S13）、添加
+    /// 设备入服务器段（S13）
     func testServerAndWorkspaceGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
             [
-                "server", "gateway", "logs", "usage",
+                "server", "addDevice", "gateway", "logs", "usage",
                 "mainSession", "serverSessions",
                 "status", "computer", "serverFiles",
-                "envVars", "restartGateway", "healthCheck", "voice",
-                "addDevice",
+                "envVars", "healthCheck",
             ]
         )
     }
 
-    /// preferences 组四行（归位合流 2026-11-20 对接
-    /// 点修订：侧边栏行随分区管理面整套退役、全部对
-    /// 话行随其入口升一级归抽屉独占，两行同摘）
+    /// 台账 198 收敛 S7：四段分组与段内序——段题与
+    /// 段集是根页渲染的机器口径，不许渲染层另排
+    func testServerAndWorkspaceSegments() {
+        let segments = SettingsCatalog.browseSegments(in: .serverAndWorkspace)
+        XCTAssertEqual(
+            segments.map(\.segment),
+            [.server, .sessions, .workspace, .maintenance]
+        )
+        XCTAssertEqual(
+            segments.map { $0.entries.map(\.id) },
+            [
+                ["server", "addDevice", "gateway", "logs", "usage"],
+                ["mainSession", "serverSessions"],
+                ["status", "computer", "serverFiles"],
+                ["envVars", "healthCheck"],
+            ]
+        )
+        // 无段字段的组不分段（整组一个 Section）
+        XCTAssertTrue(SettingsCatalog.browseSegments(in: .agent).isEmpty)
+        XCTAssertTrue(SettingsCatalog.browseSegments(in: .preferences).isEmpty)
+    }
+
+    /// preferences 组五行（台账 198 收敛 S13：语音行
+    /// 自服务器组迁入、紧随外观）
     func testPreferencesGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).map(\.id),
-            ["appearance", "connectors", "devicePermissions", "approvalRules"]
+            ["appearance", "voice", "connectors", "devicePermissions", "approvalRules"]
         )
     }
 
@@ -131,17 +157,27 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// 隐藏条目（不在根页显示）：只剩身份（卡片形态
-    /// 单列）、隐私/协议（关于页内二级）与断开连接
-    /// （动作条目，浏览态由根页手写行呈现）——枢纽页
-    /// 子项已全部提回根组、无一再藏
+    /// 隐藏条目（不在根页显示）：身份（卡片形态单
+    /// 列）、隐私/协议（关于页内二级）、断开连接（动
+    /// 作条目，浏览态由根页手写行呈现）与聊天诊断
+    /// （台账 198 收敛 S13：入口迁关于页内部实验节，
+    /// 只进搜索索引）
     func testHiddenFromBrowseEntries() {
         let hidden = SettingsCatalog.entries
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-["identity","privacy","terms","disconnect"]
+["identity","privacy","terms","disconnect", "chatDiagnostics"]
         )
+    }
+
+    /// 台账 198 收敛 S13：聊天诊断根行退役后搜索仍
+    /// 须点达（入口迁关于页内部实验节、搜索是第二路）
+    func testChatDiagnosticsEntryIsSearchOnly() {
+        let hits = SettingsCatalog.search("聊天诊断")
+        XCTAssertEqual(hits.first?.id, "chatDiagnostics")
+        XCTAssertEqual(hits.first?.destination, .chatDiagnostics)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
     }
 
     func testSearchByChineseTitle() {
@@ -205,17 +241,15 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// H2-a（台账 159）：语音面条目——标题直搜命中、
-    /// 归服务器管理枢纽页内子项（不在根页浏览态出现）
     /// H2-a（台账 159）：语音条目——标题直搜命中；
-    /// 归位合流后已随维护尾段提回根页服务器组浏览
-    /// 态直达（原 H2-a 断言的「页内隐藏」口径随旧服
-    /// 务器管理页撤销失效，合流时同步）
+    /// 台账 198 收敛 S13 归组再裁：自服务器组维护尾
+    /// 段迁偏好与权限组（回复呈现偏好、与外观同族），
+    /// 浏览态直达不变
     func testVoiceEntryIsSearchable() {
         let hits = SettingsCatalog.search("语音")
         XCTAssertEqual(hits.first?.id, "voice")
         XCTAssertEqual(hits.first?.destination, .voice)
-        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertEqual(hits.first?.group, .preferences)
         XCTAssertTrue(hits.first?.showsInBrowse ?? false)
         // 朗读关键词同达
         XCTAssertTrue(
@@ -226,13 +260,15 @@ final class SettingsCatalogTests: XCTestCase {
     }
 
     /// 配对一期（台账 153/160）：添加设备条目——标
-    /// 题直搜命中、归服务器组维护尾段浏览直达；扫码
+    /// 题直搜命中；台账 198 收敛 S13：自维护尾段迁
+    /// 服务器段（连接引导、与当前服务器同段）；扫码
     /// 关键词同达
     func testAddDeviceEntryIsSearchable() {
         let hits = SettingsCatalog.search("添加设备")
         XCTAssertEqual(hits.first?.id, "addDevice")
         XCTAssertEqual(hits.first?.destination, .addDevice)
         XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertEqual(hits.first?.segment, .server)
         XCTAssertTrue(hits.first?.showsInBrowse ?? false)
         XCTAssertTrue(
             SettingsCatalog.search("扫码").contains {

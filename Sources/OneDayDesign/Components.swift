@@ -10,8 +10,10 @@ import UIKit
 
 public extension View {
     /// 分组容器：surface 底＋容器圆角，零描边零阴影（定版 §3.4）。
-    /// 行与分隔线由内容自行排入（行走 ContentRow/FieldRow，
-    /// 分隔走 GroupDivider），容器本身不加内边距。
+    /// 行与分隔线由内容自行排入（行走 ContentRow/FieldRow/
+    /// KeyValueRow，分隔走 GroupDivider），容器本身不加内边距。
+    /// 键值行只许走 KeyValueRow——LabeledContent 是 List/Form
+    /// 的行件，裸入本容器会贴边溢出（台账 198 收敛 S5 定案）。
     func odGroup() -> some View {
         self
             .background(
@@ -130,6 +132,27 @@ public struct SectionLabel: View {
     }
 }
 
+/// 设置页组头（台账 198 收敛 B7）：与 SectionLabel
+/// 同字阶同色，差别只在 textCase(nil)——设置页组题
+/// 是中文源串、经调用方 L10n 取词后传入，不许被系
+/// 统大写化。此前设置首页/外观页/支持组三页各写一
+/// 份同口径私有助手，自此单源；手搓管理面的组头仍
+/// 走 SectionLabel，两者分工按承载（List 页用本件）
+public struct SettingsSectionHeader: View {
+    private let title: String
+
+    public init(_ title: String) {
+        self.title = title
+    }
+
+    public var body: some View {
+        Text(title)
+            .font(.sectionLabel)
+            .foregroundStyle(Palette.inkSecondary)
+            .textCase(nil)
+    }
+}
+
 /// 状态点：只许出现在状态位（总览状态头、平台行），永远与状态
 /// 文字成对，本身不单独传意（定版 §3.5）。
 public struct StatusDot: View {
@@ -210,6 +233,52 @@ public struct ContentRow: View {
         .padding(.horizontal, OneDayMetrics.spacingM)
         .frame(minHeight: OneDayMetrics.rowHeight)
         .contentShape(Rectangle())
+    }
+}
+
+/// 键值行（odGroup 专用，台账 198 收敛 S5）：手工
+/// 组卡内的只读键值对——标签左、值右（等宽、次
+/// 色），几何与 ContentRow 同语法（spacingM 内边
+/// 距、rowHeight 行高）。LabeledContent 的合法住所
+/// 是 List/Form，裸放进 ScrollView 的 odGroup 卡会
+/// 脱离其他行的几何（无内边距无行高、贴边溢出，
+/// 用量/网关两页实拍定案）——组卡内的键值行自此
+/// 只许走本件，不许再裸放 LabeledContent。值截断
+/// 规则：单行、中间截断（版本/日期类长值两头都留）
+public struct KeyValueRow<Value: View>: View {
+    private let label: String
+    private let value: Value
+
+    public init(_ label: String, @ViewBuilder value: () -> Value) {
+        self.label = label
+        self.value = value()
+    }
+
+    public var body: some View {
+        HStack(spacing: OneDayMetrics.spacingSM) {
+            Text(label)
+                .font(.body)
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+            Spacer(minLength: OneDayMetrics.spacingS)
+            value
+                .font(.metaMonospaced)
+                .tabularDigits()
+                .foregroundStyle(Palette.inkSecondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .frame(minHeight: OneDayMetrics.rowHeight)
+        .contentShape(Rectangle())
+    }
+}
+
+public extension KeyValueRow where Value == Text {
+    /// 字符串值便捷形：值文案直传，字体/截断口径与
+    /// 视图形一致（等宽次色由 body 统一施加）
+    init(_ label: String, value: String) {
+        self.init(label) { Text(value) }
     }
 }
 

@@ -352,12 +352,16 @@ struct MemoryProviderConfigView: View {
             SectionLabel("状态")
                 .padding(.bottom, OneDayMetrics.spacingS)
             VStack(spacing: 0) {
-                LabeledContent("可用", value: provider.available == true ? "是" : "否")
+                // 键值行走 KeyValueRow（台账 198 收敛
+                // S5 嫌疑页查实：本组三行同构造，一并
+                // 替换；下方「当前提供方」状态行是自绘
+                // HStack、不在此列）
+                KeyValueRow("可用", value: provider.available == true ? "是" : "否")
                 GroupDivider()
-                LabeledContent("已配置", value: provider.configured == true ? "是" : "否")
+                KeyValueRow("已配置", value: provider.configured == true ? "是" : "否")
                 if let state = provider.status, !state.isEmpty {
                     GroupDivider()
-                    LabeledContent("状态", value: state)
+                    KeyValueRow("状态", value: state)
                 }
                 if isActive {
                     GroupDivider()
