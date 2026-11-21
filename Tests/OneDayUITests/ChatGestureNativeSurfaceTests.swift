@@ -74,12 +74,26 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
                     "TEST-PADDING point=\(attempt.name)"
                         + " result=rowMenu"
                 )
-                let item = app.buttons.matching(
+                // hittable 复核与 pollRowMenu 同口径
+                // 双查（台账 193 判读对齐）：台账 187
+                // 起动作面是自绘 sheet、项以标题在树，
+                // SF Symbol 标识只在已退役的系统菜单
+                // 形态在树——旧单查使本断言在面已呈
+                // 现时恒假（0.50.77 两轮：pollRowMenu
+                // 已命中、断言仍红，日志实证）
+                let bySymbol = app.buttons.matching(
                     NSPredicate(
                         format: "identifier == %@",
                         rowMenuReplySymbol
                     )
                 ).firstMatch
+                let byLabel = app.buttons.matching(
+                    NSPredicate(
+                        format: "label == %@", "回复"
+                    )
+                ).firstMatch
+                let item = bySymbol.exists
+                    ? bySymbol : byLabel
                 XCTAssertTrue(item.isHittable)
                 return
             }

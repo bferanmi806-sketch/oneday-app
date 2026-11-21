@@ -13950,3 +13950,15 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **深色＋最大字号帧覆盖口径**：未新增帧测——ChatPageDeviceConditionProbeTests 既有 Dark trait 帧与 BoldAX（AX5）帧以真实 ChatView 宿主窗口呈现生产行装配、本包填充经此两帧出面（该探针断言帧几何/栏位存活、非像素色值）；色值层由 RenderMeasure 逐值钉（暗 #2C2C2E）＋闸⑧暗档两口实算断言守。残余明示：泡面像素采样帧测不存在，采样验收按 §334 验收门留真机。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/191-ai-bubble@984cc81 待 0.50.77 组版并入；组版接手项：187 分支并入时 pill 注释口径按 §334 正名对齐，坐标零改动）。
+
+## §335 长按仲裁根治（2026-11-21；分支 fix/193-longpress，基线 rel-05070@1d04add；台账 193；用户 2026-11-21 08:15 真机报「长按不行」@0.50.77）
+
+**定案一（原生面·生产默认面）：186「全行同触发」与 UITextView 自家长按识别器的竞速——真故障、非轮换。** 台账 187 起原生面动作面由控制器 `rowLongPress`（UILongPressGestureRecognizer，0.5s，cancelsTouchesInView）承载，186 落点口径＝全行同触发（落文本亦呈面、文本侧待定选字随识别成立作废）。该识别器与 UITextView 内部长按（选字/编辑菜单）之间**无任何失败依赖**、同为 0.5 秒量级，谁先成立纯由时序定。实证：0.50.77 同树两轮 CI——run 44795478758 本件绿（编辑菜单胜出）、run 44802336777 本件红且失败快照按钮树为动作面全项（Sheet Grabber＋回复/在旁聊里接着问/复制/选择/分享，动作面胜出）；同一代码、同一手势、两轮异果，用户真机体感即「长按不行」。**留观口径（「手势时序轮换族」）自本节起作废**：轮换不是无故障的证据，而是仲裁缺失的症状本身；0.50.70 热修诊断（hotfix-05070-diagnosis-20261118.md 题 2 专项对账）早有明判「不许拿 flake 定性给真机件销账」，本节回归该判。
+
+**定案二（gen3 旧面）：失败为双层——判读过期＋（待本包 CI 取证的）挂载层命中存疑，旧「四点均未出菜单」结论不再可凭。** ChatGestureArbitrationTests 的菜单判读停在已退役的系统 .contextMenu 形态（只认 SF Symbol 标识＋Copy/拷贝标签）；台账 187 起两面动作面同为自绘 sheet（项以标题在树）。0.50.77 两轮实证：首点结果恒 none 后，第二点在 reveal() 断言处死亡（「目标文本滚动后仍不可命中」）——与「首点已呈面、旧 dismiss（对列表滚动视图下滑）够不到模态 sheet、次点元素被模态挡住」的链条逐节吻合；同轮原生面套件（pollRowMenu 已双查）实证首点即呈面。故 gen3 侧先对齐判读（双查＋sheet 感知 dismiss），再以干净取证梯判产品侧挂载（SwiftUI .onLongPressGesture 挂气泡背景层、§265 S3）是否真不响应——不在未证状态下先改挂载。
+
+**修法（平台回归，不叠补丁）**：原生面在识别器**投递口**恢复 §265 落点分工——`ChatRootViewController` 新增 `gestureRecognizer(_:shouldReceive:)`：`rowLongPress` 落点经既有 `touchRowContext`（cell hitTest 命中链、§332 与触摸序列门同判据，非帧普查）判为文本视图时**不接收该触摸**，文本区长按整段归 UITextView 原生选字＋编辑菜单；文本外（气泡边距带/行内铬件）照旧接收呈动作面。呈现判据 `presentActionSheet(at:)` 不动（全点位受理＋选区在场让路，单测 ChatNativeHotfix330Tests 钉住的是判据层，与投递分工两层各司其职）。186「全行同触发」口径自本节起退役；§265 双承载路由差异留账（MessageMenuModifier 注）销账——两面路由一致：文本→平台、文本外→动作面。红线零触：141/142 选区本体与在场保护链、双击选字、触摸序列门、贴底判定、§194、§327 均无 diff。
+
+**测试判读对齐（与产品修法分开记账）**：①原生面套件 testLongPressOnBubblePaddingShowsRowMenu 的 hittable 复核原只查 SF Symbol 标识——pollRowMenu 已双查命中、复核恒假，0.50.77 两轮恒红属判读缺陷，本包改双查同口径；②gen3 套件 pollRowMenu/assertRowMenuAbsent 改双查（Symbol 标识 OR 标题「回复」）、dismissMenus 增 sheet 路径（app 级下滑＋等面散）。两处均为「判读对齐到 187 现行呈现形态」，断言强度不变（在场须 hittable、不在场两口径皆无）。
+
+**关账门**：两条目标测（ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu、ChatGestureNativeSurfaceTests.testLongPressOnTextShowsEditMenuNotRowMenu）须同树连续两轮 CI 皆绿、记 run id；真机终验（长按文本出编辑菜单、长按边距带出动作面、各连试数次无翻转）留用户。

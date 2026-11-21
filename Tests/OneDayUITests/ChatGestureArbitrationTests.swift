@@ -83,12 +83,21 @@ final class ChatGestureArbitrationTests: XCTestCase {
                     "TEST-PADDING point=\(attempt.name)"
                         + " result=rowMenu"
                 )
-                let item = app.buttons.matching(
+                // hittable 复核双口径同 pollRowMenu
+                // 注（台账 193）：命中哪口径复核哪口径
+                let bySymbol = app.buttons.matching(
                     NSPredicate(
                         format: "identifier == %@",
                         rowMenuReplySymbol
                     )
                 ).firstMatch
+                let byLabel = app.buttons.matching(
+                    NSPredicate(
+                        format: "label == %@", "回复"
+                    )
+                ).firstMatch
+                let item = bySymbol.exists
+                    ? bySymbol : byLabel
                 XCTAssertTrue(item.isHittable)
                 return
             }
@@ -430,31 +439,50 @@ final class ChatGestureArbitrationTests: XCTestCase {
         }
     }
 
-    /// 整行菜单不出现的判据：回复项（SF Symbol
-    /// 标识）不存在
+    /// 整行菜单不出现的判据：回复项不存在——双
+    /// 口径（台账 193 判读对齐）：台账 187 起整行
+    /// 菜单换自绘动作面（项以标题「回复」在树），
+    /// SF Symbol 标识是已退役的系统 contextMenu
+    /// 形态口径；两口径任一在场即算菜单在场（与
+    /// 原生面套件 pollRowMenu 的双查同式）
     private func assertRowMenuAbsent(in app: XCUIApplication) {
-        let item = app.buttons.matching(
+        let bySymbol = app.buttons.matching(
             NSPredicate(
                 format: "identifier == %@",
                 rowMenuReplySymbol
             )
         ).firstMatch
+        let byLabel = app.buttons.matching(
+            NSPredicate(format: "label == %@", "回复")
+        ).firstMatch
         XCTAssertFalse(
-            item.exists,
+            bySymbol.exists || byLabel.exists,
             "文本区手势不许出整行菜单（S3 仲裁）"
         )
     }
 
-    /// 整行菜单出现的轮询判据（边距带取证梯用）
+    /// 整行菜单出现的轮询判据（边距带取证梯用；
+    /// 双口径同 assertRowMenuAbsent 注）
     private func pollRowMenu(
         in app: XCUIApplication, timeout: TimeInterval
     ) -> Bool {
-        app.buttons.matching(
+        let bySymbol = app.buttons.matching(
             NSPredicate(
                 format: "identifier == %@",
                 rowMenuReplySymbol
             )
-        ).firstMatch.waitForExistence(timeout: timeout)
+        ).firstMatch
+        let byLabel = app.buttons.matching(
+            NSPredicate(format: "label == %@", "回复")
+        ).firstMatch
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if bySymbol.exists || byLabel.exists {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return bySymbol.exists || byLabel.exists
     }
 
     /// 编辑菜单在场的判据（Copy 项，menuItems 与
@@ -483,10 +511,29 @@ final class ChatGestureArbitrationTests: XCTestCase {
             .map { $0.label }.filter { !$0.isEmpty }
     }
 
-    /// 菜单在场时以列表小滚 dismiss（滚动散编辑菜
-    /// 单与上下文菜单）；不在场不动列表，免扰动后
-    /// 续尝试的点位
+    /// 菜单在场时 dismiss（台账 193 判读对齐）：
+    /// 自绘动作面（sheet）以 app 级下滑收（下滑起
+    /// 点在屏中、落在 sheet 面内——旧法对列表滚
+    /// 动视图下滑够不到模态 sheet，面不散则下一
+    /// 点位的元素被模态挡住、reveal 恒死，0.50.
+    /// 77 两轮失败签名实证）；编辑菜单仍以列表小
+    /// 滚散。两者都不在场时不动列表，免扰动后续
+    /// 尝试的点位
     private func dismissMenus(in app: XCUIApplication) {
+        let sheetItem = app.buttons.matching(
+            NSPredicate(format: "label == %@", "回复")
+        ).firstMatch
+        if sheetItem.exists {
+            app.swipeDown()
+            let deadline = Date()
+                .addingTimeInterval(4)
+            while sheetItem.exists,
+                  Date() < deadline {
+                Thread.sleep(forTimeInterval: 0.3)
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+            return
+        }
         let rowItem = app.buttons.matching(
             NSPredicate(
                 format: "identifier == %@",
