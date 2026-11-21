@@ -28,28 +28,31 @@ final class TextPipelineRunLayerTests: XCTestCase {
         )
     }
 
-    // MARK: - shapeRuns 本体（与 prettyWrap 同口径）
+    // MARK: - shapeRuns 本体（台账 200 件四退役：恒原文直入）
 
-    func testShapeRunsBindsTailLikePrettyWrap() {
+    func testShapeRunsReturnsRunsVerbatim() {
+        // 台账 200 件四：整形退役——run 文本恒原样，
+        // 不再插入 U+2060（旧断言「尾部绑定」作废）
         let shaped = TextShaping.shapeRuns(
             InlineRunBuilder.plainRuns("服务器一切正常")
         )
-        XCTAssertEqual(shaped.map(\.text).joined(), "服务器一切正\u{2060}常")
+        XCTAssertEqual(shaped.map(\.text).joined(), "服务器一切正常")
         let punct = TextShaping.shapeRuns(
             InlineRunBuilder.plainRuns("已经处理完了。")
         )
         XCTAssertEqual(
-            punct.map(\.text).joined(), "已经处理完\u{2060}了\u{2060}。"
+            punct.map(\.text).joined(), "已经处理完了。"
         )
     }
 
     func testShapeRunsAppliesPerLine() {
+        // 台账 200 件四：多行同理恒原样返回
         let shaped = TextShaping.shapeRuns(
             InlineRunBuilder.plainRuns("第一行文字\n第二行")
         )
         XCTAssertEqual(
             shaped.map(\.text).joined(),
-            "第一行文\u{2060}字\n第二\u{2060}行"
+            "第一行文字\n第二行"
         )
     }
 

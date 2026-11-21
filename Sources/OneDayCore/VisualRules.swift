@@ -38,62 +38,18 @@ public enum TransparencyFallback {
 public enum TextShaping {
     /// WORD JOINER：零宽、禁断行
     public static let wordJoiner = "\u{2060}"
-    /// 句末/收尾标点：与前字绑定范围扩到三个字形
-    private static let closingPunctuation: Set<Character> = [
-        "。", "！", "？", "；", "：", "）", "】", "」", "』",
-        ".", "!", "?", ";", ":", ")", "]",
-    ]
-
     /// 对单个段落做尾行孤字防护。字形数 ≤2 的段落与含
     /// 换行的多行文本原样返回（调用方按段落逐段施加）
     public static func prettyWrap(_ paragraph: String) -> String {
-        guard !paragraph.contains("\n") else { return paragraph }
-        let chars = Array(paragraph)
-        guard chars.count > 2 else { return paragraph }
-        let bindCount = closingPunctuation.contains(chars[chars.count - 1])
-            ? 3 : 2
-        guard chars.count > bindCount else { return paragraph }
-        // WORD JOINER 插在尾部字形「之间」（逐对绑定）：
-        // 它禁止两侧断行，把最后 bindCount 个字形锁成
-        // 不可断单元——要防的是最后一字被断行孤立，绑
-        // 定点必须落在尾部内部而非尾部之前（0.3.0 首轮
-        // 单测以此定案：插在尾前时末字仍可被断开）
-        //
-        // §247（2026-11-14，包 4 追加验收）守卫：插点
-        // 若正落在同字定界符对（**／~~／``）的中间，
-        // 跳过该处插入——整形在行内解析之前施加，连接
-        // 符劈开闭合定界符对会使系统解析器把两半当空
-        // 斜体对吞掉、开标记随之失配字面化（用户真机
-        // 截图定案：`**标题**` 段尾闭合对被劈后呈现
-        // 为字面开标记＋无闭合＋无粗体；证据与回归在
-        // StreamingAssemblyFidelityTests）。跳过后该
-        // 段的孤字绑定在该点缺位（仅防孤字、纯排版
-        // 损），定界符完整性优先
-        var result = ""
-        for (index, character) in chars.enumerated() {
-            if index >= chars.count - bindCount + 1,
-               !splitsDelimiterPair(chars, at: index) {
-                result += wordJoiner
-            }
-            result.append(character)
-        }
-        return result
-    }
-
-    /// 插点是否正落在同字定界符对中间（§247 守卫
-    /// 的判定面）：index 处字符与前一字符相同且同
-    /// 属定界符字（*／~／`）时，连接符插在此处即
-    /// 把定界符对劈成两半
-    private static func splitsDelimiterPair(
-        _ chars: [Character], at index: Int
-    ) -> Bool {
-        guard index > 0 else { return false }
-        let character = chars[index]
-        guard character == chars[index - 1] else {
-            return false
-        }
-        return character == "*" || character == "~"
-            || character == "`"
+        // 台账 200 件四（2026-11-22，用户拍板）：整
+        // 形退役、原文直入。尾行孤字绑定靠往字间插
+        // U+2060 实现——污染找字（UI 测试按正文找不
+        // 到文本视图实证）、复制与读屏，且曾劈开数
+        // 据检测令牌；入口保留签名防调用方 churn，
+        // 恒原样返回。wordJoiner 常量保留：存量文本
+        // 的复制净化仍按它剥离（SelectableText-
+        // View §149）
+        paragraph
     }
 
     /// 全文版：按空行分段，逐段整形后拼回（段内换行不动）
@@ -122,70 +78,9 @@ public enum TextShaping {
     /// 链接 run 的可见标签文本可插（URL 属性不经文
     /// 本、不受影响）。输入为空／无可绑行时原样返回
     public static func shapeRuns(_ runs: [InlineRun]) -> [InlineRun] {
-        let fullText = runs.map(\.text).joined()
-        guard fullText.count > 2 else { return runs }
-        let chars = Array(fullText)
-        // run 起点字符下标（runs 文本拼接即全文）
-        var starts: [Int] = []
-        starts.reserveCapacity(runs.count)
-        var offset = 0
-        for run in runs {
-            starts.append(offset)
-            offset += run.text.count
-        }
-        func runIndex(containing charIndex: Int) -> Int {
-            var result = 0
-            for (index, start) in starts.enumerated() {
-                if start <= charIndex {
-                    result = index
-                } else {
-                    break
-                }
-            }
-            return result
-        }
-        // 逐行求插入点（在字符下标 i 之前插入连接符）
-        var insertions: Set<Int> = []
-        func collectLine(start: Int, end: Int) {
-            let count = end - start
-            guard count > 2 else { return }
-            let bindCount = closingPunctuation.contains(chars[end - 1])
-                ? 3 : 2
-            guard count > bindCount else { return }
-            for i in (end - bindCount + 1)..<end {
-                if chars[i - 1].isNumber, chars[i].isNumber {
-                    continue
-                }
-                if runs[runIndex(containing: i - 1)].code {
-                    continue
-                }
-                if runs[runIndex(containing: i)].code {
-                    continue
-                }
-                insertions.insert(i)
-            }
-        }
-        var lineStart = 0
-        for i in chars.indices where chars[i] == "\n" {
-            collectLine(start: lineStart, end: i)
-            lineStart = i + 1
-        }
-        collectLine(start: lineStart, end: chars.count)
-        guard !insertions.isEmpty else { return runs }
-        // 回填：插入符归 chars[i] 所在 run、落其本地
-        // 偏移（代码相邻点已在收集期豁免，不会落进
-        // 代码 run）
-        return runs.enumerated().map { index, run in
-            var text = ""
-            for (local, character) in run.text.enumerated() {
-                if insertions.contains(starts[index] + local) {
-                    text += wordJoiner
-                }
-                text.append(character)
-            }
-            var shaped = run
-            shaped.text = text
-            return shaped
-        }
+        // 台账 200 件四：同 prettyWrap——整形退役、
+        // 原文直入，恒原样返回（调用点四处保留，行
+        // 为自此与未整形一致）
+        runs
     }
 }

@@ -129,8 +129,10 @@ final class StreamingAssemblyFidelityTests: XCTestCase {
         // 删除线同面
         let strike = TextShaping.prettyWrap("这段~~删除~~")
         XCTAssertFalse(strike.contains("~\u{2060}~"))
-        // 常规段整形不误伤：尾部绑定照常发生
+        // 台账 200 件四：整形已退役——常规段恒原
+        // 样返回、不再插入任何连接符（上方「不劈
+        // 定界符对」自此恒成立）
         let plain = TextShaping.prettyWrap("普通段落文字")
-        XCTAssertTrue(plain.contains(TextShaping.wordJoiner))
+        XCTAssertEqual(plain, "普通段落文字")
     }
 }
