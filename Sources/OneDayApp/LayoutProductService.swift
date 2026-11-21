@@ -13,12 +13,20 @@ import UIKit
 /// 只记账，**没有任何呈现消费方**——行高来源仍是
 /// §168 现量测视图，消费切换归包 3。
 ///
+/// §335（台账 190 留账②）消费切换落地：产物自此
+/// 是三方单源——呈现（条目行段串直贴，Markdown-
+/// Text 产物注入）、预计算（量测未就绪时段高代
+/// 量测，见合成器 precomputedEntryHeight）、行高
+/// 估算（流式/承载既有读口）。入串色改 trait 动
+/// 态色（呈现级工件，见 assemble 注）；§168 拼装
+/// 缓存退为产物未就绪时的回落与非条目面的单源。
+///
 /// 拼装同源纪律：段落映射只用 MarkdownText 的单
 /// 源静态映射（proseParagraphs/quoteParagraphs）＋
 /// SelectableInlineText.build 本体——产物层不另拼
 /// 一套，否则影子对拍比的是两套拼装、毫无意义。
-/// 颜色按当前 trait 环境解析（量测工件用；颜色
-/// 不入样式键、不影响高，见 Core LayoutStyleKey）
+/// 颜色以 trait 动态色入串（§335；颜色不入样式
+/// 键、不影响高，见 Core LayoutStyleKey）
 
 // MARK: - 样式上下文
 
@@ -278,8 +286,16 @@ final class LayoutProductService: @unchecked Sendable {
                         boldText: style.boldText
                     )
                 },
-                textColor: Self.resolved(foreground),
-                dimmedColor: Self.resolved(
+                // §335：入串色改 trait 动态色——产
+                // 物串自此是呈现级工件（呈现直贴消
+                // 费，见 MarkdownText 产物注入），显
+                // 示时按承载视图 trait 解析（系统明
+                // 暗＋应用内外观覆盖同拍）；旧静态
+                // 解析色按构建拍 trait 定格、外观一
+                // 变即串色过期，是呈现不敢消费产物
+                // 串的根由。量测不读色、零影响
+                textColor: Self.dynamicColor(foreground),
+                dimmedColor: Self.dynamicColor(
                     Palette.inkSecondaryOnFill
                 )
             )
@@ -339,17 +355,25 @@ final class LayoutProductService: @unchecked Sendable {
         return (works, structuralCount)
     }
 
-    /// 环境外解析颜色：按当前 trait 的明暗档构造
-    /// 环境值解析（与视图内 resolve 同色值；仅作
-    /// 量测工件的属性，不影响高）
-    private static func resolved(_ color: Color) -> UIColor {
-        var environment = EnvironmentValues()
-        environment.colorScheme =
-            UITraitCollection.current.userInterfaceStyle == .dark
-                ? .dark : .light
-        return UIColor(
-            cgColor: color.resolve(in: environment).cgColor
-        )
+    /// trait 动态色（§335）：按承载视图 trait 的
+    /// 明暗档逐拍解析（解析式与视图内 resolve 同
+    /// 值——环境构造与旧 resolved 同式、只是延后
+    /// 到显示拍按 trait 求值）；产物串跨明暗/外
+    /// 观覆盖恒同串可用，颜色仍不入样式键、不影
+    /// 响高（Core LayoutStyleKey 纪律不变）
+    private static func dynamicColor(
+        _ color: Color
+    ) -> UIColor {
+        UIColor { trait in
+            var environment = EnvironmentValues()
+            environment.colorScheme =
+                trait.userInterfaceStyle == .dark
+                    ? .dark : .light
+            return UIColor(
+                cgColor: color.resolve(in: environment)
+                    .cgColor
+            )
+        }
     }
 }
 
