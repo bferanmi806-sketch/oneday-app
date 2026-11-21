@@ -74121,6 +74121,328 @@
           }
         }
       }
+    },
+    "连接已有服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to an existing server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "连接已有服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "連接已有服務器"
+          }
+        }
+      }
+    },
+    "还没有服务器？了解部署": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No server yet? See how to deploy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有服务器？了解部署"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還沒有服務器？了解部署"
+          }
+        }
+      }
+    },
+    "部署和连接是前后两步：还没有服务器，先部署一台；已经有了，回来连接。凭据只保存在这台手机的钥匙串里，不经过任何第三方。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deploying comes before connecting: if you don't have a server yet, deploy one first; if you already have one, come back and connect. Credentials are stored only in this phone's Keychain and never pass through any third party."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署和连接是前后两步：还没有服务器，先部署一台；已经有了，回来连接。凭据只保存在这台手机的钥匙串里，不经过任何第三方。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部署和連接是前後兩步：還沒有服務器，先部署一台；已經有了，回來連接。憑據只保存在這台手機的鑰匙串裡，不經過任何第三方。"
+          }
+        }
+      }
+    },
+    "任务在你的服务器上跑，手机锁屏后自己醒不来。这两种时刻，用一条通知把你带回来：": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tasks run on your server, and a locked phone can't wake itself up. At these two moments, a notification brings you back:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任务在你的服务器上跑，手机锁屏后自己醒不来。这两种时刻，用一条通知把你带回来："
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "任務在你的服務器上跑，手機鎖屏後自己醒不來。這兩種時刻，用一條通知把你帶回來："
+          }
+        }
+      }
+    },
+    "定时任务到点": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scheduled tasks come due"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定时任务到点"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "定時任務到點"
+          }
+        }
+      }
+    },
+    "例行任务和目标检查点在服务器上按时运行，到点提醒你回来看结果。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Routines and goal checkpoints run on your server on schedule — get reminded when it's time to check the results."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例行任务和目标检查点在服务器上按时运行，到点提醒你回来看结果。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例行任務和目標檢查點在服務器上按時運行，到點提醒你回來看結果。"
+          }
+        }
+      }
+    },
+    "长任务完成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Long tasks finish"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长任务完成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "長任務完成"
+          }
+        }
+      }
+    },
+    "交给智能体的活干完后第一时间告诉你，不用守在旁边等。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When work you handed to the agent is done, you're told right away — no need to sit and wait."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交给智能体的活干完后第一时间告诉你，不用守在旁边等。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "交給智能體的活幹完後第一時間告訴你，不用守在旁邊等。"
+          }
+        }
+      }
+    },
+    "允许通知": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow Notifications"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允许通知"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "允許通知"
+          }
+        }
+      }
+    },
+    "去系统设置开启": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open in Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去系统设置开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "去系統設置開啟"
+          }
+        }
+      }
+    },
+    "暂时跳过": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skip for Now"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂时跳过"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暫時跳過"
+          }
+        }
+      }
+    },
+    "没有通知，其他一切照常可用。想开时，在 iOS 设置 → OneDay 里随时开启。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Everything else works as usual without notifications. To turn them on later, open iOS Settings → OneDay anytime."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有通知，其他一切照常可用。想开时，在 iOS 设置 → OneDay 里随时开启。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有通知，其他一切照常可用。想開時，在 iOS 設置 → OneDay 裡隨時開啟。"
+          }
+        }
+      }
+    },
+    "通知已开启": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are on"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知已开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知已開啟"
+          }
+        }
+      }
+    },
+    "通知接下来会单独询问，其余需要时逐项开启": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are asked about separately next; everything else turns on only when needed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知接下来会单独询问，其余需要时逐项开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通知接下來會單獨詢問，其餘需要時逐項開啟"
+          }
+        }
+      }
     }
   }
 }

@@ -13950,3 +13950,19 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **深色＋最大字号帧覆盖口径**：未新增帧测——ChatPageDeviceConditionProbeTests 既有 Dark trait 帧与 BoldAX（AX5）帧以真实 ChatView 宿主窗口呈现生产行装配、本包填充经此两帧出面（该探针断言帧几何/栏位存活、非像素色值）；色值层由 RenderMeasure 逐值钉（暗 #2C2C2E）＋闸⑧暗档两口实算断言守。残余明示：泡面像素采样帧测不存在，采样验收按 §334 验收门留真机。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/191-ai-bubble@984cc81 待 0.50.77 组版并入；组版接手项：187 分支并入时 pill 注释口径按 §334 正名对齐，坐标零改动）。
+
+## §335 连接页引导小包·nanoMuse 引导三件（2026-11-21；分支 feat/onboarding-guide-pack，基线 rel-05070@1d04add；台账 193；依据 nanomuse-evaluation-20261121.md 线四「可学三件」；注：简报分支名 feat/onboarding-guide 与 §157 引导线历史分支同名占用，本包改用 feat/onboarding-guide-pack）
+
+**定案：连接页引导按 nanoMuse 六段状态机里可学的三件改造——分叉版式、权限段模板、needed() 判定；不学账号/密码段与模型来源分叉（OneDay 无账号制、模型在服务端），零 token 脚本化第一场对话属 Hermes 侧另线、不辖；配对扫码链路本体不动，只复用其入口（登录面扫码式）。**
+
+**①分叉版式（欢迎面）**：首屏按 nanoMuse Welcome 分叉形态重排——主路大按钮「连接已有服务器」（.odPrimary）进登录面、备路次按钮「还没有服务器？了解部署」（.odSecondary）进帮助面部署节、细字讲清两条路的关系（部署与连接是前后两步、凭据只存本机钥匙串）。两路都是现行连接流程的真实岔口、不虚构步骤：主路内含密码/密钥/扫码三式（扫码即配对一期入口，链路零改动）；备路落点是帮助面既有的「还没有服务器？」节（Hermes 官方仓库真实部署路径）。旧形态（「开始连接」单钮＋部署文字链＋锁行）退役，锁行事实并入细字。
+
+**②权限段模板（Core NotificationGuideSegment＋App NotificationGuideView/Gate）**：通知权限独立成段，插在连接成功面与进主界面之间。模板照 nanoMuse 通知页成套：用途先行（先讲「手机锁屏后自己醒不来」、再列两条具体用途——定时任务到点/长任务完成，各配一行，不泛泛要权限）、主按钮随状态变、次按钮「暂时跳过」、细字给退路（没有它一切照常＋想开时去 iOS 设置开）。状态→动作判定不自立第二套状态机：`NotificationGuideSegment.action(for:)` 直译 Core 既有 `DevicePermissionGate.decision`（proceed→继续/requestOnce→发那一次请求/degrade→去系统设置开启）——系统授权铁律（已决定状态绝不重走异步请求回调）由构造保证。引擎侧复用 NotificationEngine（UN 无同步状态 API、§113 既有登记：状态经异步刷新现读、先读真状态再过门，是铁律在异步读框架上的等价落法），段内请求/设置往返后现读刷新（从设置回来走 scenePhase 刷新）。模板与文案收在 Core 一处，后续权限申请面共用同一套口径。成功面的「设备权限」行文案随段在否改判（段将出时明说「通知接下来会单独询问」）。
+
+**③needed() 判定（Core OnboardingGuide.neededSegments）**：纯函数、单测钉死全矩阵——connect 段仅当无可用连接时需要；notifications 段仅当通知授权未决定（.notDetermined）时需要：已授权没什么可问、已拒绝不在引导里重问（想开走设置/既有权限面）。连接页消费点＝成功面路由：状态在成功面出现时现读，段缺则主按钮变「继续」先过通知段，已决定直达「开始聊天」；段内跳过与前进同路（段是邀请不是关卡），点「开始聊天」才 activatePreparedConnection 的既有口径不动。
+
+**红线与不辖**：配对扫码流程本体零改动（CameraPermissionGate 与认领链一字未动）；§194/选区等聊天面红线不相关、零接触；连接四步流水线与失败分面零改动。文案新键 14 条已入 Localizable.xcstrings（en/zh-Hant 齐全、纯插入零删改）。
+
+**改动面**：OneDayCore/Onboarding.swift（GuideSegment/OnboardingGuide/NotificationGuideSegment＋GuidePermissionUse）、OneDayApp/ConnectView.swift（Page 加 .notifications、欢迎面分叉、成功面 needed 路由＋状态现读、通知段接线）、OneDayApp/NotificationGuideView.swift（新，纯呈现＋回调注入）、OneDayApp/NotificationPermissionGate.swift（新，引擎侧薄门）、Tests（Core 矩阵＋模板 9 法、App 设备条件帧 4 法）、Localizable.xcstrings、本节登记。
+
+**验收门（本包）**：自动化——Core 新测全绿；App 新帧测（分叉首屏/通知段×深色/最大字号各一帧）全绿；CI 红集与 0.50.77 基线轮（run 44795478758 红 11）逐名对账零新增红。真机门留用户：首连全程——分叉首屏观感、通知段在未决定态弹系统请求且仅一次、拒绝后去设置开启往返翻态、跳过直达主界面、已授权/已拒绝设备重走连接时通知段自动跳过。**未合 main、未打 tag、未组版**（冻分支待后续组版并入）。
