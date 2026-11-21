@@ -13962,3 +13962,11 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **测试判读对齐（与产品修法分开记账）**：①原生面套件 testLongPressOnBubblePaddingShowsRowMenu 的 hittable 复核原只查 SF Symbol 标识——pollRowMenu 已双查命中、复核恒假，0.50.77 两轮恒红属判读缺陷，本包改双查同口径；②gen3 套件 pollRowMenu/assertRowMenuAbsent 改双查（Symbol 标识 OR 标题「回复」）、dismissMenus 增 sheet 路径（app 级下滑＋等面散）。两处均为「判读对齐到 187 现行呈现形态」，断言强度不变（在场须 hittable、不在场两口径皆无）。
 
 **关账门**：两条目标测（ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu、ChatGestureNativeSurfaceTests.testLongPressOnTextShowsEditMenuNotRowMenu）须同树连续两轮 CI 皆绿、记 run id；真机终验（长按文本出编辑菜单、长按边距带出动作面、各连试数次无翻转）留用户。
+
+### §335.1 CI 判读与关账（回填，2026-11-21）
+
+三轮 CI（workflow_dispatch @fix/193-longpress）：run 44844030942（树 b2ea43b）→ run 44849257895、44854255392（终树 08041fb，仅在 b2ea43b 上加一笔判读对齐补笔：原生面套件 assertRowMenuAbsent 改双查，产品代码与 b2ea43b 逐字同）。**三轮两条目标测皆绿**，终树连续两轮关账门达成；两套件手势测六件（双击选字／长按文本／长按边距带 ×两面）三轮全绿，141/142 侧无回退信号。红集：三轮恒为同一 9 件＝0.50.77 基线 11 减本包两件（两面边距带件），零新增、零漂移；残余 9 件（R2 装配 2／EdgeEffect 探针 1／电话链接两面 2／右滑回复两面 2／流式双击长按 1／键盘矩阵 1）均非本包辖区、与基线同签名。构建＋打包＋上传三轮 success。
+
+**gen3 产品侧定生死（定案二收口）**：判读对齐后三轮 TEST-PADDING 取证梯首点（左带）两面均记 result=rowMenu——gen3 的 SwiftUI .onLongPressGesture 挂气泡背景层在 187 换代后本就响应、呈面正常；慢性红全系判读过期＋dismiss 够不到模态 sheet 的级联，**gen3 产品侧无罪、不动挂载**（原候选「垫层容器加 contentShape」方案不启用）。
+
+**编号注记**：本包简报号 193 与台账登记冲突——施工期间连接页引导小包已占台账 193、190 留账包与引导包亦各用 DESIGN §335 编号；本包台账改登记 **200**，本节编号 §335 由主线合流时按惯例顺延改号（同 §299→§302 先例），分支名 fix/193-longpress 不改。
