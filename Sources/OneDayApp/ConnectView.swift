@@ -3,9 +3,14 @@ import OneDayDesign
 import OneDayCore
 import SwiftUI
 
-/// 引导线（欢迎／登录／连接中／成功／帮助五面，蓝本＝
-/// 用户 2026-11-11 亲递原型 oneday-prototype.html；本版
-/// 覆盖 0.6.0 直登单卡面貌）。与原型的口径差（定版优
+/// 引导线（欢迎／登录／连接中／成功／通知／帮助六面，
+/// 蓝本＝用户 2026-11-11 亲递原型 oneday-prototype.html；
+/// 本版覆盖 0.6.0 直登单卡面貌）。2026-11-21 引导小包
+/// （nanoMuse 引导线学习，§335）：欢迎面改分叉版式
+/// （连接已有服务器／部署新服务器两路＋细字讲清关
+/// 系）、成功与聊天之间插入通知权限段（模板在 Core
+/// NotificationGuideSegment，按 needed() 判定出现、
+/// 已决定自动跳过）。与原型的口径差（定版优
 /// 先）：①登录一步制——原型密码登录是「面板验证→再填
 /// 密钥」两步，与「用户只持一把凭据」定版冲突，已改：
 /// 密码（Hermes 面板账号＋密码）验证通过后由服务端
@@ -23,9 +28,10 @@ import SwiftUI
 struct ConnectView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     private enum Page {
-        case welcome, login, connecting, success, help
+        case welcome, login, connecting, success, notifications, help
     }
 
     private enum LoginMode: String, CaseIterable {
@@ -60,6 +66,10 @@ struct ConnectView: View {
     @State private var failure: OnboardingFailure?
     @State private var serviceInfo: ConnectionServiceInfo?
     @State private var scanPhase: ScanPhase = .idle
+    /// 通知授权真状态（成功面出现时现读；nil＝还没
+    /// 读到，按「段不需要」呈现，读到后自动改判——
+    /// needed() 判定走 Core OnboardingGuide 单源）
+    @State private var notificationState: DevicePermissionState?
     @State private var showScanner = false
     @State private var isConnecting = false
     @State private var appeared = false
@@ -84,6 +94,7 @@ struct ConnectView: View {
                 case .login: loginPage
                 case .connecting: connectingPage
                 case .success: successPage
+                case .notifications: notificationsPage
                 case .help: helpPage
                 }
             }
@@ -130,6 +141,17 @@ struct ConnectView: View {
                 }
             }
         }
+        .onChange(of: scenePhase) { _, newPhase in
+            // 通知段里去系统设置开完回来：现读真状态
+            // 刷新段面（已开启即翻成确认态，不重走请求）
+            guard newPhase == .active, page == .notifications else {
+                return
+            }
+            Task {
+                notificationState =
+                    await NotificationPermissionGate.currentState()
+            }
+        }
     }
 
     // MARK: - 欢迎面
@@ -165,22 +187,29 @@ struct ConnectView: View {
             demoPreviewCard
                 .padding(.top, OneDayMetrics.spacingXL)
 
-            Button("开始连接") { page = .login }
+            // 分叉版式（nanoMuse 引导线学习）：主路大
+            // 按钮＋备路次按钮＋细字讲清两条路的关系，
+            // 第一屏就摆明、不藏。两路都是现行连接流
+            // 程的真实岔口——主路进登录面（密码/密钥/
+            // 扫码三式），备路进帮助面的部署节。
+            Button("连接已有服务器") { page = .login }
                 .buttonStyle(.odPrimary)
                 .padding(.top, OneDayMetrics.spacingXL)
-            Button("还没有服务器？先看看怎么部署") { helpReturn = .welcome; page = .help }
-                .font(.callout)
-                .foregroundStyle(Palette.primary)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: OneDayMetrics.minTapTarget)
-            HStack(spacing: OneDayMetrics.spacingXS) {
-                Image(systemName: "lock.fill")
-                    .font(.caption2)
-                Text("凭据只保存在本机钥匙串")
-                    .font(.caption)
+            Button {
+                helpReturn = .welcome
+                page = .help
+            } label: {
+                Text("还没有服务器？了解部署")
+                    .frame(maxWidth: .infinity)
             }
-            .foregroundStyle(Palette.inkSecondary)
-            .frame(maxWidth: .infinity)
+            .buttonStyle(.odSecondary)
+            .padding(.top, OneDayMetrics.spacingM)
+            Text("部署和连接是前后两步：还没有服务器，先部署一台；已经有了，回来连接。凭据只保存在这台手机的钥匙串里，不经过任何第三方。")
+                .font(.footnote)
+                .foregroundStyle(Palette.inkSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, OneDayMetrics.spacingM)
         }
     }
 
@@ -723,16 +752,73 @@ struct ConnectView: View {
                 nextItem(
                     systemImage: "shield",
                     title: "设备权限",
-                    detail: "默认关闭，需要时逐项开启"
+                    detail: notificationsSegmentNeeded
+                        ? "通知接下来会单独询问，其余需要时逐项开启"
+                        : "默认关闭，需要时逐项开启"
                 )
             }
             .padding(.top, OneDayMetrics.spacingXL)
-            Button("开始聊天") {
+            // needed() 路由：通知段还缺（未决定）才先
+            // 过通知段，已决定直达聊天——判定走 Core
+            // OnboardingGuide 单源，本面不自立第二套
+            if notificationsSegmentNeeded {
+                Button("继续") { page = .notifications }
+                    .buttonStyle(.odPrimary)
+                    .padding(.top, OneDayMetrics.spacingXL)
+            } else {
+                Button("开始聊天") {
+                    appState.activatePreparedConnection()
+                }
+                .buttonStyle(.odPrimary)
+                .padding(.top, OneDayMetrics.spacingXL)
+            }
+        }
+        .padding(.top, OneDayMetrics.spacingXXL)
+        .task {
+            // 成功面出现即现读通知真状态（只读不请求），
+            // 供上面的 needed() 路由与权限行文案改判
+            if notificationState == nil {
+                notificationState =
+                    await NotificationPermissionGate.currentState()
+            }
+        }
+    }
+
+    /// 通知段是否还缺（连接已在本面内完成，hasCon-
+    /// nection 恒真；状态没读到时按不需要呈现，读到
+    /// 后自动改判）
+    private var notificationsSegmentNeeded: Bool {
+        guard let notificationState else { return false }
+        return OnboardingGuide.neededSegments(
+            hasConnection: true,
+            notificationState: notificationState
+        ).contains(.notifications)
+    }
+
+    // MARK: - 通知权限段（引导末段，模板见 Core）
+
+    /// 通知段：连接成功后、进主界面前的最后一课。
+    /// 呈现与文案全走 NotificationGuideView＋Core
+    /// 模板；本面只接线三件事——请求（过授权门）、
+    /// 去设置、前进（激活已备好的连接进主界面）。
+    /// 跳过同样走前进：段是邀请不是关卡。
+    private var notificationsPage: some View {
+        NotificationGuideView(
+            state: notificationState ?? .notDetermined,
+            advanceTitle: L10n.string("开始聊天"),
+            onRequest: {
+                Task {
+                    notificationState = await NotificationPermissionGate
+                        .requestAccess()
+                }
+            },
+            onOpenSettings: {
+                NotificationPermissionGate.openSystemSettings()
+            },
+            onAdvance: {
                 appState.activatePreparedConnection()
             }
-            .buttonStyle(.odPrimary)
-            .padding(.top, OneDayMetrics.spacingXL)
-        }
+        )
         .padding(.top, OneDayMetrics.spacingXXL)
     }
 
