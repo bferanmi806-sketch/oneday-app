@@ -1824,11 +1824,11 @@ struct ChatView: View {
                 if findMatches.isEmpty {
                     Text("无结果")
                         .font(.caption)
-                        .foregroundStyle(Palette.secondary)
+                        .foregroundStyle(Palette.inkSecondary)
                 } else {
                     Text("\(currentFindIndex + 1)/\(findMatches.count)")
                         .font(.caption)
-                        .foregroundStyle(Palette.secondary)
+                        .foregroundStyle(Palette.inkSecondary)
                         .monospacedDigit()
                 }
             }
