@@ -298,6 +298,36 @@ final class VisualDirectionGateTests: XCTestCase {
         }
     }
 
+    /// 字形/填充对闸（2026-11-21，台账 197／DESIGN
+    /// §335 补，与闸⑦成套）：浅填恢复后骑
+    /// primaryPale 的字形对恒守 ≥4.5——主钮/发送
+    /// 字（onPrimary＝泡字别名）压 primaryPale、
+    /// 回底钮字形（ink）压 primaryPale 实填盘，
+    /// 两档实算（默认款浅 13.84/13.84、暗 4.87/
+    /// 4.87；主题经 AppearancePreferences 读口取
+    /// 当前款、本测环境未设＝默认款）。配对纪律
+    /// 本体（浅填只配深字、白字不压浅填）由
+    /// ChatThemeTests 闸⑦的解析对全款钉守，本闸
+    /// 守 Palette 别名链落到视图令牌后不脱钩
+    func testPrimaryPaleGlyphPairingGate() {
+        for dark in [false, true] {
+            XCTAssertGreaterThanOrEqual(
+                ratio(
+                    Palette.onPrimary, on: Palette.primaryPale,
+                    dark: dark
+                ),
+                4.5, "dark=\(dark) onPrimary/primaryPale"
+            )
+            XCTAssertGreaterThanOrEqual(
+                ratio(
+                    Palette.ink, on: Palette.primaryPale,
+                    dark: dark
+                ),
+                4.5, "dark=\(dark) ink/primaryPale（回底钮字形）"
+            )
+        }
+    }
+
     /// WCAG 公式自证（对审计报告的实算原值复算）
     func testWCAGFormulaAgainstAuditValues() {
         // inkSecondary #697176 on 页面底 #FCFCFC ≈ 4.84
