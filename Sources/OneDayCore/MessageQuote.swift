@@ -136,8 +136,14 @@ public enum MessageActionSymbols {
     /// H2-a（台账 159）：助手消息「朗读／停止朗读」
     public static let speak = "speaker.wave.2"
     public static let speakStop = "stop.circle"
+    /// 台账 154（DESIGN §336）：发件箱三项——未发
+    /// 送条目动作面的重新发送／编辑／撤回
+    public static let resend = "arrow.clockwise"
+    public static let editUnsent = "pencil"
+    public static let withdrawUnsent = "trash"
 
     public static let all = [
         reply, copy, select, share, fork, speak, speakStop,
+        resend, editUnsent, withdrawUnsent,
     ]
 }

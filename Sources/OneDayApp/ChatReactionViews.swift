@@ -124,7 +124,12 @@ struct ChatActionSheetView: View {
                             .font(.body)
                         Spacer()
                     }
-                    .foregroundStyle(Palette.bodyInk)
+                    // 台账 154：破坏性项（撤回）危险色，
+                    // 与常规项区分只靠色不靠位置
+                    .foregroundStyle(
+                        item.isDestructive
+                            ? Palette.danger : Palette.bodyInk
+                    )
                     .padding(.horizontal, 20)
                     .frame(minHeight: 52)
                     .contentShape(Rectangle())

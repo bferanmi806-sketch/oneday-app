@@ -139,6 +139,11 @@ struct ChatView: View {
     /// 积——下一段的增量永不回流到这里
     @State private var sealedStreamSegments: [String] = []
     @State private var sendTask: Task<Void, Never>?
+    /// 发件箱自动重排在飞标记（台账 154，DESIGN
+    /// §336）：drain 重入闸——多触发点（回前台/网
+    /// 络恢复/切线程/进页）同拍到达只跑一趟，趟内
+    /// 串行逐条、await 发送任务收尾再看下一条
+    @State private var outboxDraining = false
     /// 本轮 run 的状态机（0.31.0）：相位与终态证据的
     /// 单一出处（Core RunTurnStateMachine），驱动见
     /// driveRun/reconcileRun。0.20.0 的切后台记账＋待
@@ -1677,6 +1682,10 @@ struct ChatView: View {
                 // 台时已弃置产物，见下方 background 分支）
                 dictation.armPreheat()
                 Task { await resumeRunIfNeeded() }
+                // 台账 154（DESIGN §336）：回前台同拍
+                // 排发件箱（对账之后——drain 内查账本
+                // 为空才动，与本处先后无关、双保险）
+                Task { drainOutboxIfNeeded() }
                 // 0.36.21：回前台刷新待批（就地卡）
                 Task {
                     await appState.sharedHubStore()
@@ -1694,6 +1703,9 @@ struct ChatView: View {
         // 路径信号只做触发器、不预判成败
         .onChange(of: appState.networkPathEpoch) {
             Task { await resumeRunIfNeeded() }
+            // 台账 154（DESIGN §336）：网络恢复同拍
+            // 排发件箱——离线失败条目的主复活点
+            Task { drainOutboxIfNeeded() }
             // 0.36.21：网络恢复同样刷新待批
             Task {
                 await appState.sharedHubStore().refreshApprovalForChat()
@@ -1722,6 +1734,10 @@ struct ChatView: View {
                 Task {
                     await refreshEchoTraces()
                 }
+                // 台账 154（DESIGN §336）：一轮落定同
+                // 沿排发件箱——刚恢复的连接顺手把队里
+                // 的旧失败条目带走，不必等下个触发点
+                Task { drainOutboxIfNeeded() }
             }
         }
         // 0.36.15：离开聊天页关预热总闸并弃置产物
@@ -1749,6 +1765,10 @@ struct ChatView: View {
         }
         .task(id: currentThreadID) {
             await resumeRunIfNeeded()
+            // 台账 154（DESIGN §336）：进/切对话排本
+            // 线程发件箱（对账收尾后同拍——账本轮落
+            // 定失败的条目正好接上自动重试）
+            drainOutboxIfNeeded()
             // 0.36.21：进/切对话刷新待批（就地卡数据源，
             // 与枢纽共享同一 store）
             await appState.sharedHubStore().refreshApprovalForChat()
@@ -3368,6 +3388,14 @@ struct ChatView: View {
         for entry: ChatEntry
     ) -> ChatRowActionSheetData {
         let text = plainText(for: entry)
+        // 台账 154（DESIGN §336）：发件箱条目的动作
+        // 面换发件箱项集——三项闭包只对未发送条目注
+        // 入（判定走 isOutboxEntry 单点），落定条目
+        // 恒 nil、项集逐项旧样。编辑/撤回经 defer-
+        // SheetAction 等本面关净后再执行（编辑要抢
+        // 输入舱焦点、撤回要删本行，都不许与关面动
+        // 画同拍打架）
+        let inOutbox = isOutboxEntry(entry)
         return ChatRowActionSheetData(
             plainText: text,
             canReact: entry.canReact,
@@ -3397,6 +3425,19 @@ struct ChatView: View {
                     )
                 }
             },
+            onResend: inOutbox ? {
+                resumeOutboxEntry(entry)
+            } : nil,
+            onEditUnsent: inOutbox ? {
+                deferSheetAction {
+                    editUnsentEntry(entry)
+                }
+            } : nil,
+            onWithdrawUnsent: inOutbox ? {
+                deferSheetAction {
+                    withdrawUnsentEntry(entry)
+                }
+            } : nil,
             makeSpeakItem: {
                 speakMenuItem(for: entry)
             }
@@ -11207,6 +11248,277 @@ private struct ComposerBarLayout: Layout {
                 thread: thread, tail: tail,
                 sessionID: shape.sessionID, userEntry: entry
             )
+        }
+    }
+
+    // MARK: - 发件箱（台账 154／G-04，DESIGN §336）
+
+    /// 发件箱成员判定（单点）：本条用户消息还没落
+    /// 定在服务端——失败（sendFailed）、待发（de-
+    /// liveryState=pending）、准备段瞬态被进程中断
+    /// （queued/uploading/linking 落盘后无人接管）、
+    /// 提交段孤儿（sending 但 run 账本无此轮且当前
+    /// 无流在跑）。呈现（动作面项集）、手动入口
+    /// （重发/编辑/撤回）与自动 drain 共用本判定，
+    /// 不许各写一份
+    private func isOutboxEntry(_ entry: ChatEntry) -> Bool {
+        guard entry.role == "user", !entry.isSystemAnchored,
+              entry.toolCardData == nil else { return false }
+        if entry.sendFailed || entry.isPendingSend {
+            return true
+        }
+        guard let state = entry.sendState else { return false }
+        switch state {
+        case .queued, .uploading, .linking, .failed:
+            return true
+        case .sending:
+            guard !isStreaming, !isDrivingRun,
+                  let thread = entry.thread else { return false }
+            return appState.runLedger.entry(
+                forThreadID: thread.id
+            ) == nil
+        case .delivered:
+            return false
+        }
+    }
+
+    /// 发件箱条目的统一重发口（动作面与 drain 共
+    /// 用）：失败条目走既有 resendFailedEntry；待
+    /// 发与准备段中断条目先折回待发巷（markPend-
+    /// ingSend——获得「未发送」可见标记与 resend-
+    /// Pending 的入场资格）再走 resendPending。不
+    /// 新建发送链、与手点同一条路
+    private func resumeOutboxEntry(_ entry: ChatEntry) {
+        // 在飞守卫与两个重发入口同口径前置：折回待
+        // 发巷的 markPendingSend 是状态写，不许落在
+        // launchTurn 正在驱动的条目身上
+        guard isOutboxEntry(entry), !isStreaming,
+              !isDrivingRun else { return }
+        if entry.sendFailed {
+            resendFailedEntry(entry)
+            return
+        }
+        if !entry.isPendingSend {
+            entry.markPendingSend(in: modelContext)
+        }
+        resendPending(entry)
+    }
+
+    /// 撤回未发送条目（台账 154）：本条从未在服务
+    /// 端落定（失败/待发/中断态），撤回是纯本地动
+    /// 作——删条目、清暂存载荷（内存格＋磁盘暂
+    /// 存）、清自动重试记账、清指向本条的失败横幅
+    /// 账。服务端无此条、不发任何请求
+    private func withdrawUnsentEntry(_ entry: ChatEntry) {
+        // 在飞守卫（与 editUnsentEntry 同口径）：正
+        // 被 launchTurn/driveRun 驱动的条目（发送在
+        // 飞的 queued/uploading 本体）不许删——驱动
+        // 链持其引用继续走，删之即与落定写口相撞。
+        // 孤儿态条目无流在跑、恒可撤
+        guard isOutboxEntry(entry), !isStreaming,
+              !isDrivingRun,
+              appState.runLedger.entry(
+                  forThreadID: entry.thread?.id ?? UUID()
+              ) == nil
+        else { return }
+        let entryID = entry.id
+        if failedResendEntryID == entryID {
+            failedResendEntryID = nil
+            errorMessage = nil
+        }
+        failedFilePayloads[entryID] = nil
+        pendingResendAttachments[entryID] = nil
+        try? stagedSendStore.remove(entryID: entryID)
+        appState.outboxRetry.clear(entryID: entryID)
+        modelContext.delete(entry)
+        try? modelContext.save()
+    }
+
+    /// 编辑未发送条目（台账 154）：把内容与附件回
+    /// 收进发送舱、改完再发——回收走既有载荷口径
+    /// （图片全集在条目本体、文件凭条目 id 回暂存
+    /// 重建、引用两槽按 send() 快照的同款互斥回
+    /// 填），原条目按撤回清理删除；新内容由用户点
+    /// 发送走正常 send() 链（新条目新一轮，不在旧
+    /// 条目上原地改字——出站上下文与种子口径都以
+    /// 落盘条目为准，原地改字会让已拼装的出站形态
+    /// 与条目静默分叉）
+    private func editUnsentEntry(_ entry: ChatEntry) {
+        guard isOutboxEntry(entry), !isStreaming,
+              let thread = entry.thread,
+              thread.id == currentThreadID else { return }
+        guard appState.runLedger.entry(
+            forThreadID: thread.id
+        ) == nil else {
+            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            return
+        }
+        // 发送舱有未发完的内容时不许回收覆盖（用户
+        // 亲笔优先）：正文/附件/引用槽任一在场都算
+        // 占用，先请用户处理完
+        guard input.trimmingCharacters(
+                  in: .whitespacesAndNewlines
+              ).isEmpty,
+              attachments.isEmpty, pendingQuote == nil,
+              pendingFeedQuote == nil,
+              pendingSourceQuote == nil
+        else {
+            showNotice("输入框里还有没发完的内容，先发掉或清空，再来编辑这条。")
+            return
+        }
+        let text = entry.content
+        let imageDatas = entry.allImageDatas
+        let filePayloads = resendFilePayloads(
+            entryID: entry.id
+        )
+        let quote = entry.quote
+        let sourceQuote = entry.sourceQuote
+        withdrawUnsentEntry(entry)
+        input = text
+        attachments = imageDatas.map {
+            PendingAttachment(kind: .image($0))
+        } + filePayloads.map {
+            PendingAttachment(
+                kind: .file(name: $0.name, data: $0.data)
+            )
+        }
+        pendingQuote = quote
+        switch sourceQuote {
+        case .feed(let feedQuote):
+            pendingFeedQuote = feedQuote
+        case .idea, .file, .goal:
+            pendingSourceQuote = sourceQuote
+        case nil:
+            break
+        }
+        composerFocusHandle.focus()
+    }
+
+    /// 发件箱自动重排触发口（台账 154／G-04）：
+    /// 回前台/网络恢复/切线程/进页四处同调本口，
+    /// 趟内逻辑在 drainOutboxLoop；守卫与 run 对账
+    /// 同口径——演示模式不跑、连接配置缺失不跑
+    /// （没连上时尝试只会白烧重试次数）、本线程有
+    /// 未落定 run 时不跑（对账链优先，落定后下一
+    /// 触发再排）
+    private func drainOutboxIfNeeded() {
+        guard !appState.isDemo, !outboxDraining,
+              !isStreaming, !isDrivingRun,
+              appState.config != nil, appState.apiKey != nil,
+              let thread = currentThread,
+              appState.runLedger.entry(
+                  forThreadID: thread.id
+              ) == nil
+        else { return }
+        outboxDraining = true
+        Task {
+            await drainOutboxLoop(thread: thread)
+            outboxDraining = false
+        }
+    }
+
+    /// drain 主循环：逐轮重扫当前线程发件箱（条目
+    /// 会在重发中被复制/落定/删除，恒以最新名单为
+    /// 准），按创建时间 FIFO 取首个可自动项派发、
+    /// await 其发送任务收尾后再扫下一轮；退避未满
+    /// 的队头挡住后续（保序），次数耗尽/人工接管
+    /// 的跳过不挡队。单趟派发上限 10 次防极端名单
+    /// 空转。自动尝试全程静默：不新拉失败横幅（失
+    /// 败呈现留气泡旁红叹号与未发送行），尝试前已
+    /// 在的横幅不碰
+    private func drainOutboxLoop(thread: ChatThread) async {
+        // 记账卫生：清条目已不存在的残账；已落定
+        // 条目的旧账同清（手点重发成功也走此清）
+        let validIDs = Set(
+            threads.flatMap {
+                $0.entries.map { $0.id.uuidString }
+            }
+        )
+        appState.outboxRetry.prune(validEntryIDs: validIDs)
+        clearDeliveredOutboxRecords(in: thread)
+        var dispatches = 0
+        while dispatches < 10 {
+            // 用户同拍手发/对账接管即收趟：不许在别
+            // 人在飞的轮次旁记自动尝试账
+            guard !isStreaming, !isDrivingRun,
+                  appState.runLedger.entry(
+                      forThreadID: thread.id
+                  ) == nil
+            else { return }
+            surfaceSendingOrphans(in: thread)
+            let candidates = thread.sortedEntries.filter {
+                isOutboxEntry($0)
+            }
+            var dispatched = false
+            for candidate in candidates {
+                let decision = OutboxAutoRetryPolicy.decision(
+                    state: candidate.sendState,
+                    record: appState.outboxRetry.record(
+                        for: candidate.id
+                    ),
+                    now: Date()
+                )
+                switch decision {
+                case .autoNow:
+                    appState.outboxRetry.noteAutoAttempt(
+                        entryID: candidate.id, at: Date()
+                    )
+                    let bannerBefore = errorMessage
+                    resumeOutboxEntry(candidate)
+                    if let task = sendTask {
+                        await task.value
+                    }
+                    dispatches += 1
+                    dispatched = true
+                    if bannerBefore == nil,
+                       errorMessage != nil {
+                        errorMessage = nil
+                    }
+                    clearDeliveredOutboxRecords(in: thread)
+                case .backoff:
+                    // 队头退避未满：保序收趟，不跃队
+                    return
+                case .manualOnly, .notInQueue,
+                     .ownedByRunLedger:
+                    continue
+                }
+                break
+            }
+            if !dispatched { return }
+        }
+    }
+
+    /// 提交段孤儿浮现（DESIGN §336）：状态 sending
+    /// 但 run 账本无此轮的条目——落账与提交之间极
+    /// 小窗口内进程身亡所致，服务端是否受理不可
+    /// 知。处置只两步：折回待发巷让它可见（未发送
+    /// 行）、打人工接管标记让自动链永不重发它，
+    /// 是否重发由用户看内容裁决。有账本在飞或正
+    /// 在驱动的 sending 不在此列（对账链管辖）
+    private func surfaceSendingOrphans(in thread: ChatThread) {
+        guard appState.runLedger.entry(
+                  forThreadID: thread.id
+              ) == nil,
+              !isStreaming, !isDrivingRun else { return }
+        for entry in thread.sortedEntries
+        where entry.sendState == .sending
+            && !entry.sendFailed && !entry.isPendingSend {
+            entry.markPendingSend(in: modelContext)
+            appState.outboxRetry.markManualOnly(
+                entryID: entry.id
+            )
+        }
+    }
+
+    /// 已落定条目的重试记账清账：投递成功（自动或
+    /// 手点）后次数账使命结束，下次失败从零起算，
+    /// 不许旧账把新失败直接顶到次数上限
+    private func clearDeliveredOutboxRecords(
+        in thread: ChatThread
+    ) {
+        for entry in thread.entries
+        where entry.role == "user" && !isOutboxEntry(entry) {
+            appState.outboxRetry.clear(entryID: entry.id)
         }
     }
 

@@ -320,11 +320,16 @@ struct ChatNativeRowRevision: Equatable, Hashable {
 struct ChatRowActionItem: Identifiable {
     enum Kind: Equatable {
         case reply, fork, copy, select, share, speak
+        /// 台账 154（DESIGN §336）：发件箱条目三项
+        case resend, editUnsent, withdrawUnsent
     }
 
     let kind: Kind
     let title: String
     let systemImage: String
+    /// 破坏性项（撤回）：动作面以危险色呈现，组装
+    /// 侧逐项明示、不靠标题猜
+    var isDestructive: Bool = false
     let action: () -> Void
 
     var id: Kind { kind }
@@ -354,6 +359,14 @@ struct ChatRowActionSheetData {
     let onFork: () -> Void
     let onSelect: () -> Void
     let onShare: () -> Void
+    /// 发件箱三项（台账 154，DESIGN §336）：未发送
+    /// 条目（失败/待发/准备段中断）才由 ChatView 侧
+    /// 注入——非 nil 即本条在发件箱内，组装改走发
+    /// 件箱项集（见 actionItems）；落定条目恒 nil、
+    /// 项集与旧口径逐项同
+    var onResend: (() -> Void)? = nil
+    var onEditUnsent: (() -> Void)? = nil
+    var onWithdrawUnsent: (() -> Void)? = nil
     /// 朗读项（H2-a）：呈现时刻求值——播放态随时
     /// 变，标题/在否不许在行构造时钉死；门控（只
     /// 给助手落定回复、未开通不出项）在 ChatView
@@ -369,18 +382,46 @@ struct ChatRowActionSheetData {
     /// Button 同源一处）
     @MainActor
     func actionItems() -> [ChatRowActionItem] {
-        var items: [ChatRowActionItem] = [
-            ChatRowActionItem(
-                kind: .reply, title: "回复",
-                systemImage: MessageActionSymbols.reply,
-                action: onReply
-            ),
-            ChatRowActionItem(
-                kind: .fork, title: "在旁聊里接着问",
-                systemImage: MessageActionSymbols.fork,
-                action: onFork
-            ),
-        ]
+        // 台账 154（DESIGN §336）：发件箱条目项集——
+        // 重新发送/编辑居首，回复/旁聊对一条从未发
+        // 出的消息无意义、不组装（假动作）；复制/
+        // 选择/分享对内容本体仍成立、照旧；撤回居
+        // 末、危险色。落定条目（onResend 为 nil）走
+        // 下方旧项集，逐项不变
+        let isOutbox = onResend != nil
+        var items: [ChatRowActionItem] = []
+        if let onResend {
+            items.append(
+                ChatRowActionItem(
+                    kind: .resend, title: "重新发送",
+                    systemImage: MessageActionSymbols.resend,
+                    action: onResend
+                )
+            )
+        }
+        if let onEditUnsent {
+            items.append(
+                ChatRowActionItem(
+                    kind: .editUnsent, title: "编辑",
+                    systemImage: MessageActionSymbols.editUnsent,
+                    action: onEditUnsent
+                )
+            )
+        }
+        if !isOutbox {
+            items += [
+                ChatRowActionItem(
+                    kind: .reply, title: "回复",
+                    systemImage: MessageActionSymbols.reply,
+                    action: onReply
+                ),
+                ChatRowActionItem(
+                    kind: .fork, title: "在旁聊里接着问",
+                    systemImage: MessageActionSymbols.fork,
+                    action: onFork
+                ),
+            ]
+        }
         if !plainText.isEmpty {
             let text = plainText
             items += [
@@ -407,6 +448,17 @@ struct ChatRowActionSheetData {
                     kind: .speak, title: speak.title,
                     systemImage: speak.systemImage,
                     action: speak.action
+                )
+            )
+        }
+        if let onWithdrawUnsent {
+            items.append(
+                ChatRowActionItem(
+                    kind: .withdrawUnsent, title: "撤回",
+                    systemImage: MessageActionSymbols
+                        .withdrawUnsent,
+                    isDestructive: true,
+                    action: onWithdrawUnsent
                 )
             )
         }

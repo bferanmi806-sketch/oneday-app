@@ -13950,3 +13950,29 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **深色＋最大字号帧覆盖口径**：未新增帧测——ChatPageDeviceConditionProbeTests 既有 Dark trait 帧与 BoldAX（AX5）帧以真实 ChatView 宿主窗口呈现生产行装配、本包填充经此两帧出面（该探针断言帧几何/栏位存活、非像素色值）；色值层由 RenderMeasure 逐值钉（暗 #2C2C2E）＋闸⑧暗档两口实算断言守。残余明示：泡面像素采样帧测不存在，采样验收按 §334 验收门留真机。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/191-ai-bubble@984cc81 待 0.50.77 组版并入；组版接手项：187 分支并入时 pill 注释口径按 §334 正名对齐，坐标零改动）。
+
+## §336 离线发件箱：自动重发＋失败可编辑/撤回（2026-11-21；分支 feat/154-outbox，基线 rel-05070@1d04add；台账 154 为主、151 与 G-04 并入）
+
+**定案：发件箱不是新造的队列，是既有发送状态机的可见面与自动面。** 盘点实证（基线 1d04add）：消息本体与发送状态早已落盘（ChatEntry 的 sendStateRaw/deliveryState/sendFailed＋文件载荷磁盘暂存 StagedSendAttachmentStore＋run 账本 RunLedgerStore），手动重发两入口在席（气泡旁红叹号 resendFailedEntry、未发送行 resendPending）。缺口只有三件：①失败/待发条目无人自动再发（G-04）——Core 的 ChatSendState.mayAutoResume/remainsInQueue 自 §237 落地后**零生产消费**，恢复逻辑从未接线；②准备段瞬态孤儿——进程在 queued/uploading/linking 段身亡后条目以普通气泡形态静默躺着（sendFailed 与 deliveryState 皆不在、facet 无其呈现、无任何重发入口），是发送链现存的静默丢失口；③失败条目无编辑/撤回（154 明列）。
+
+**自动重发（G-04 落法）**：新增 Core 纯判定 OutboxAutoRetryPolicy（状态×记账→五态裁决）＋App 记账 OutboxRetryStore（UserDefaults JSON、与 RunLedgerStore 同模式）＋ChatView 的 drain（drainOutboxIfNeeded/drainOutboxLoop）。触发四点与 run 对账同拍：回前台（scenePhase）、网络恢复（networkPathEpoch）、进/切线程（.task(id: currentThreadID)）、一轮落定下降沿（isStreaming）。趟内纪律：当前线程 FIFO 保序逐条派发、await 发送任务收尾再扫下一轮；退避队头挡后续、耗尽/接管项跳过不挡队；单趟派发上限 10。守卫：演示模式/连接配置缺失/本线程账本有未落定 run/发送在飞，任一成立不跑。**自动尝试全程静默**：不新拉失败横幅（drain 只收本趟新拉起的那条）、失败呈现回归条目本体标记。重试记账在派发前落账（noteAutoAttempt 先行），进程在重发途中身亡不亏退避。
+
+**§237 口径改判登记**：§237 当时定「failed 只许手点、不自动重发」，G-04（2026-11-18 大厂差距审计）改判补自动重发——本节承接改判并给失败态加界：自动重试上限 3 次、退避 30s×2^(n-1) 封顶 300s、首次自动重试不等退避；耗尽回落手点（红叹号/动作面恒在）。mayAutoResume 本体不动（它述「准备段瞬态无条件接管」的状态事实，其消费点即本策略的 queued/uploading/linking 臂）。
+
+**提交段孤儿（sending 无账本）**：落账（driveRun 内 upsert）与置 sending 之间是同拍同步段，窗口近零但非零——这类条目服务端是否受理不可知，自动重发有重复投递风险。处置＝drain 只浮现不重发：折回待发巷（markPendingSend 获得可见标记）＋记账打 manualOnly，是否重发由用户裁决。isOutboxEntry 对 sending 的判定以「账本无此轮＋无流在跑」为界，有账本恒归对账链（§58 铁律不动）。
+
+**失败可编辑/撤回（154 落法，收敛不另起）**：长按动作面（187 单源组装 actionItems）对发件箱条目换项集——重新发送/编辑居首、复制/选择/分享照旧、撤回居末危险色；回复/旁聊对未发出消息无意义、不组装。判定单点 isOutboxEntry（ChatView），呈现/手动/自动三路共用。撤回＝纯本地（删条目＋清内存/磁盘暂存＋清重试记账＋清指向本条的横幅账），服务端无此条不发请求。编辑＝回收进发送舱（正文/图片全集/文件凭暂存重建/引用两槽按 send() 快照互斥口径回填）＋原条目按撤回清理，用户改完走正常 send()——不在旧条目原地改字（出站上下文与种子以落盘条目为准，原地改字会与已拼装形态静默分叉）；发送舱被占用（正文/附件/引用任一在场）时拒绝回收并给人话提示，不许覆盖亲笔。
+
+**幂等口径（154 逐项对账）**：run 级幂等已对齐不动（G-04 注记）——提交前先落账、同 Idempotency-Key 重演回原 run、歧义转对账，账面「客户端幂等 ID＋主机重复提交只回首份收据」在 run 提交面已成立。**消息级去重未成立**：/v1/runs 载荷无客户端消息 id 字段，run 落定失败后重发同内容时服务端会话内可能双记用户消息——客户端无既有端点可依，**登记待服务端包**（/v1/runs 接受 client_message_id＝条目 id、同会话同 id 重复提交只回首份收据），本包不假造字段、不动生产。
+
+**151 分工对账**：发件箱落盘半边由本包兑现（条目＋状态＋载荷＋记账全落盘）。草稿半边账面作「草稿内存」，与现行实现冲突——草稿现经 SideChatStore 落 UserDefaults，且「切后台/被杀丢草稿」是基础止血包 P3 按用户实报修掉的（保活落盘是已出货的用户口径）。本包不动草稿，冲突证据与两口径沿革在交付报告摆明，归主线裁定。
+
+**跨线程边界（明示）**：drain 只排当前线程——发送驱动（launchTurn/driveRun 与全部呈现状态）是 ChatView 页级机器，跨线程无头驱动需把发送机从页面抽出（L 级结构件），不在本包。其他线程的失败条目在其线程被打开时即被 drain 接管，动作面手动入口恒在。
+
+**改动面**：OneDayCore——新增 OutboxAutoRetry.swift（OutboxRetryRecord＋OutboxAutoRetryPolicy）、MessageQuote.swift 符号三项（resend/editUnsent/withdrawUnsent 入 MessageActionSymbols.all 钉死集）；App——新增 OutboxRetryStore.swift、AppState 持有一份（outboxRetry）、ChatNativeList（动作项 kind 三件＋isDestructive＋组装改判）、ChatReactionViews（破坏性项危险色）、ChatView（isOutboxEntry/resumeOutboxEntry/withdrawUnsentEntry/editUnsentEntry/drain 两函数＋孤儿浮现＋触发四点＋动作面接线）；测试——OneDayCoreTests/OutboxAutoRetryTests 9 件、OneDayAppTests/OutboxActionSheetTests 4 件。红线零接触：§194 键盘链、141/142 手势选区、贴底判定、发送乐观时序本体（本地先行→后台→落定/失败标记的既有路径一字未改，drain 只调既有重发入口）。
+
+**验收门（本包）**：自动化——Core 策略矩阵全绿、动作面两态项集全绿、CI 红集与基线轮（run 44795478758 红 11）逐名 diff 零新增。真机门留用户：断网发一条→杀进程→联网回前台，条目自动发出且只发一份；连败条目自动重试止于 3 次后安静躺着、红叹号手点仍可发；长按失败条目出重新发送/编辑/撤回、编辑回收后改字发出、撤回后条目与附件暂存皆净；准备段杀进程（发图途中杀）重启后条目可见且自动补发。
+
+### §336.1 CI 判读（回填）
+
+（待 CI 完成后回填）

@@ -351,6 +351,8 @@ final class AppState {
     /// 未落定 run 账本（0.31.0）：生成中切后台/杀进程
     /// 后靠它恢复对账（ChatView 驱动消费）
     let runLedger: RunLedgerStore
+    /// 发件箱自动重试记账（台账 154，DESIGN §336）
+    let outboxRetry: OutboxRetryStore
     /// 设备会话控制器（0.34.0，本机连接器批一）：前
     /// 台＋已连接时向 device-bridge 注册会话、领智能
     /// 体的设备工具调用现读现回；生命周期由 RootView
@@ -756,6 +758,7 @@ final class AppState {
         sideChats = SideChatStore(persisted: !demoMode.isDemo)
         sessionLedger = SessionLedger(persisted: !demoMode.isDemo)
         runLedger = RunLedgerStore(persisted: !demoMode.isDemo)
+        outboxRetry = OutboxRetryStore(persisted: !demoMode.isDemo)
         deviceSession = DeviceSessionController()
         deviceSync = DeviceSyncController()
         deviceSync.dispatcher = deviceSession.dispatcher
