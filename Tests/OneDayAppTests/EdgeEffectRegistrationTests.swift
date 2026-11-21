@@ -126,17 +126,15 @@ final class EdgeEffectRegistrationTests: XCTestCase {
         let (_, host) = mountTopHost(
             topOffset: 0, barHeight: 72
         )
-        // 结构：§213 时代宿主层级内只剩顶簇宿主视
-        // 图（§200 材质片兄弟退役）；§327 起其下加
-        // 一层不透明背板（纯 UIView 实色、非材质
-        // 视图）——子视图恰两层：背板在下、顶簇宿
-        // 主在上；「无材质视图」的 §213 不变量不变
-        XCTAssertEqual(host.view.subviews.count, 2)
+        // 结构：宿主层级内只剩顶簇宿主视图一层
+        // （§200 材质片兄弟退役；§327 不透明背板
+        // 已于 2026-11-22 随带面构造改版整件退
+        // 役——带内不垫任何自绘层，朦胧归系统边
+        // 缘效果）；「无材质视图」的 §213 不变量
+        // 不变
+        XCTAssertEqual(host.view.subviews.count, 1)
         XCTAssertTrue(
-            host.view.subviews.first === host.traceBackingView
-        )
-        XCTAssertTrue(
-            host.view.subviews.last === host.traceBarView
+            host.view.subviews.first === host.traceBarView
         )
         XCTAssertTrue(
             findViews(host.view) {
