@@ -13975,4 +13975,4 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 **判绿（2026-11-21，三轮）**：最终树 957e6d0。首轮 run 44845965037（6m01s）Build 步编译失败——本包 §2.4 首稿按 196 诊断改时刻字阶 .caption，UIFont.TextStyle 无此成员（诊断字阶子项口径有误、SwiftUI .caption 与 UIKit .caption1 同档异名），实证回退（95cba4f，间距对齐保留）。二轮 run 44846802518（排队约 18 分＋job 42m22s）：红 12＝基线 11＋本包新测 testEntryFacetsSkipScanBranchForAnchoredRows 一件——失败在对照断言：recordFileState 的存在性路在账未落时不记录、对照组 fileExistences 同为空，改钉有同步种子口的 fileSizes 路（957e6d0）。**三轮 run 44853000793（job 46m48s）：红集 11 与 0.50.77 基线轮 run 44795478758 逐名完全一致**（R2 装配 2＋EdgeEffect 1＋手势仲裁 3＋手势原生面 4＋键盘矩阵 1）、**零新增红**；本包新测 8 件全绿（Chat190RemainderTests 6＋Chat190RemainderAssemblyTests 2）；构建（no codesign）＋打包未签名 IPA＋上传 success。手势留观项单独注记：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 在基线轮与本包三轮都在红集内——用户已真机定案为真故障、归 193 热修包，本包不认领、不以其红绿判本包。
 
-**未合 main、未打 tag、未组版**（冻分支 feat/190-remainder@957e6d0 待组版并入；组版接手项：与 fix/193-longpress 的 diff 做一次适配核对，见交卷报告 §六）。
+**未合 main、未打 tag、未组版**（冻分支 feat/190-remainder 待组版并入，CI 判读树 957e6d0；组版接手项：与 fix/193-longpress 的 diff 做一次适配核对，见交卷报告 §六）。
