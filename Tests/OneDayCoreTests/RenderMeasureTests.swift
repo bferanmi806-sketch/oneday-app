@@ -297,6 +297,10 @@ final class RenderMeasureTests: XCTestCase {
     /// 退为主题表色板行、逐款实算与单档解析钉在
     /// ChatThemeTests）；暗色定死＝原 bubbleDark
     /// 不变、②的暗色钉不动；
+    /// 【台账 197（2026-11-21 用户拍板，§335）】
+    /// 浅档改判「浅填＋深字」：浅色钉再改从新解析
+    /// 值＝默认款 bubbleLight #C8E7FF（与本测 0.6.1
+    /// 原钉同值——绕回原貌）；暗色钉仍不动；
     /// ②暗色解析值——0.36.1 批一B 起助手泡改挂语义
     /// 三级面 #2C2C2E（旧派生 #272E33 退役，见下方语
     /// 义梯专钉）；用户泡取主题表 blueDark #1473C8；
@@ -316,10 +320,10 @@ final class RenderMeasureTests: XCTestCase {
         XCTAssertEqual(
             UIColor(Palette.userBubbleFill).resolvedColor(with: light),
             UIColor(
-                red: 0x12 / 255.0, green: 0x68 / 255.0,
-                blue: 0xB8 / 255.0, alpha: 1
+                red: 0xC8 / 255.0, green: 0xE7 / 255.0,
+                blue: 0xFF / 255.0, alpha: 1
             ),
-            "浅色用户泡单档定死＝accentLight #1268B8（台账 188）"
+            "浅色用户泡定死＝默认款 bubbleLight #C8E7FF（台账 197／§335 浅填深字）"
         )
         XCTAssertEqual(
             UIColor(Palette.bubbleFill).resolvedColor(with: dark),

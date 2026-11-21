@@ -232,9 +232,10 @@ public enum Palette {
     /// 0.26.0 起主题化：值自当前主题表——默认「三狗」
     /// 行与上述旧值逐字相同，切回默认即回原貌。
     public static var userBubbleFill: Color {
-        // 台账 188 定版：单档处理经 Core 解析出口
-        // （饱和实填定死）——本层只取解析结果，不
-        // 自算混色、不硬编码色值
+        // 台账 197 定版（§335）：处理经 Core 解析
+        // 出口（浅档浅填＋深字／暗档深饱维持）——
+        // 本层只取解析结果，不自算混色、不硬编码
+        // 色值
         let theme = currentChatTheme
         return themedColor(
             light: theme.bubbleFill(dark: false),
@@ -248,8 +249,8 @@ public enum Palette {
     /// #EDF1F3、对暗泡实算对比仅 4.28 压线，本版随主
     /// 题表修正为 4.87（§53 登记）
     public static var userBubbleText: Color {
-        // 台账 188 定版：与 userBubbleFill 同一解析
-        // 出口成对取值（单档：浅白字/暗现泡字）
+        // 台账 197 定版（§335）：与 userBubbleFill
+        // 同一解析出口成对取值（浅深字/暗现泡字）
         let theme = currentChatTheme
         return themedColor(
             light: theme.bubbleText(dark: false),
@@ -382,11 +383,12 @@ public enum Palette {
     /// 0.26.0 起主题化＝主题气泡行（同源关系的字面
     /// 落实：与 userBubbleFill 恒同值）
     public static var primaryPale: Color {
-        // 台账 184/188：「与 userBubbleFill 恒同值」
-        // 的既有不变量由别名构造保全——主按钮面与
-        // 用户泡恒同值，不许两路各解析一份漂移；
-        // 188 单档定版后该值即各款定死实填（浅
-        // accentLight/暗 bubbleDark），无切档漂移面
+        // 台账 184/188/197：「与 userBubbleFill 恒
+        // 同值」的既有不变量由别名构造保全——主按
+        // 钮面与用户泡恒同值，不许两路各解析一份漂
+        // 移；197 定版后该值即各款定死处理（浅
+        // bubbleLight 浅填/暗 bubbleDark），无切档
+        // 漂移面
         userBubbleFill
     }
     /// 强调弱面（OpenMuse sky #EDF7FD，ui.tsx:26——图
@@ -405,10 +407,11 @@ public enum Palette {
     /// 0.26.0 起主题化＝主题泡字行（浅档与旧值同；
     /// 暗档随泡字修正 #EDF1F3→#FFFFFF，§53）
     public static var onPrimary: Color {
-        // 台账 184/188：消费面恒骑 primaryPale——字
-        // 色随之别名 userBubbleText（与泡字恒同值，
-        // 主按钮字/面配对不脱钩；188 单档后配对恒
-        // 为定死实填＋其上字色）
+        // 台账 184/188/197：消费面恒骑 primaryPale
+        // ——字色随之别名 userBubbleText（与泡字恒
+        // 同值，主按钮字/面配对不脱钩；197 定版后
+        // 配对恒为定死填充＋其上字色：浅填＋深字/
+        // 暗深饱＋现泡字）
         userBubbleText
     }
 

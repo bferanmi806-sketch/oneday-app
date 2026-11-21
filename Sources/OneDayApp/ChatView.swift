@@ -2380,6 +2380,10 @@ struct ChatView: View {
     /// .glassEffect(.regular)——与顶栏圆钮（本文件
     /// 1076/1122）同画法，属材质换代、与边缘溶化带
     /// 样式无关；34 视觉盘/44 命中域/角标层全不动）
+    /// 台账 197（§335，2026-11-21）：盘面材质再改
+    /// 判——primaryPale 实填（对齐 Muse 样板回底
+    /// 钮实填圆盘），§178 玻璃统一在此一处例外；
+    /// 字形与角标、尺寸口径全不动
     /// 0.41.0（收口批）：离底未读角标——计数出自 Core
     /// AwayUnreadCounter（displayText 封顶 99+），挂视
     /// 觉盘右上；点钮即清零（回底的 ingest 随后以在底
@@ -2395,7 +2399,14 @@ struct ChatView: View {
                 .font(.system(size: 13, weight: .regular))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 34, height: 34)
-                .glassEffect(.regular, in: Circle())
+                // 台账 197（§335）：盘面由系统玻璃改
+                // primaryPale 实填（样板 Muse 回底
+                // 钮为浅蓝实填圆盘＋黑箭头）——§178
+                // 「浮件统一系统玻璃」在此一处例外改
+                // 判，顶栏圆钮/顶簇/状态胶囊维持玻璃
+                // 不扩围；字形 ink、角标配对、34 盘/
+                // 44 命中域全不动
+                .background(Palette.primaryPale, in: Circle())
                 .overlay(alignment: .topTrailing) {
                     if let badge = awayUnread.displayText {
                         Text(badge)

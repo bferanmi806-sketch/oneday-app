@@ -281,22 +281,23 @@ extension ChatThemeTests {
         }
     }
 
-    // MARK: - 气泡单档定版（台账 188）
+    // MARK: - 气泡浅填深字定版（台账 197）
 
-    /// 解析口径钉（188 定版，184 两式退役后改钉）：
-    /// 浅＝accentLight 实填＋纯白字、暗＝现
-    /// bubbleDark＋现泡字，全款无第二路；曜黑暗档
-    /// 定值钉 0x585E65（旧 0x2C3138 对暗页底仅
-    /// 1.60 的留账清账值，回潮即红）
+    /// 解析口径钉（197 定版／§335，188 单档口径的
+    /// 浅档半边改判）：浅＝同款 bubbleLight 浅填＋
+    /// 同款 bubbleTextLight 深字、暗＝现 bubbleDark
+    /// ＋现泡字（188 暗档维持），全款无第二路；曜
+    /// 黑暗档定值钉 0x585E65（旧 0x2C3138 对暗页底
+    /// 仅 1.60 的留账清账值，回潮即红）
     func testSingleBubbleResolution() {
         for theme in ChatThemes.all {
             XCTAssertEqual(
                 theme.bubbleFill(dark: false),
-                theme.accentLight, theme.id
+                theme.bubbleLight, theme.id
             )
             XCTAssertEqual(
                 theme.bubbleText(dark: false),
-                0xFFFFFF, theme.id
+                theme.bubbleTextLight, theme.id
             )
             XCTAssertEqual(
                 theme.bubbleFill(dark: true),
@@ -313,15 +314,19 @@ extension ChatThemeTests {
         )
     }
 
-    /// 对比闸⑦（台账 188 单档口径，184 两式闸退
-    /// 役后改钉）：全款×两档——泡字 vs 泡面
-    /// ≥4.5（与闸①同线）；泡面 vs 页底（浅
-    /// #FCFCFC／暗 #000000）≥2.9（大厂参照线：
-    /// OpenBot solid 实填量级）。实算（2026-11-
-    /// 20 逐值）：浅 泡/页 5.10–6.58、字/泡
-    /// 5.23–6.75；暗 泡/页 3.12–4.32（最低浅
-    /// 紫 3.12；曜黑旧值 1.60 已定值 0x585E65
-    /// 至 3.20）、字/泡 4.87–6.72，全款过线
+    /// 对比闸⑦（台账 197 改判口径／§335，188 的
+    /// 2.90 参照线退役）：泡字 vs 泡面 ≥4.5 两档
+    /// 恒守（与闸①同线）；泡面 vs 页底（浅
+    /// #FCFCFC／暗 #000000）——浅档浅填款 ∈
+    /// [1.10, 1.60]（与闸⑧同带：可辨靠形不靠对
+    /// 比，样板 Muse 用户泡实测 1.26／iMessage
+    /// 同级 ≈1.2；2.90 线当年取自 OpenBot 饱和
+    /// 形态、不普适，退役）、深泡款曜黑浅档（泡/
+    /// 页 14.66）豁免带只守字闸、暗档维持 188 的
+    /// ≥2.9（深饱实填对黑页）。实算（2026-11-21
+    /// 逐值）：浅 字/泡 7.64–15.04、泡/页 1.16–
+    /// 1.50（曜黑 14.66 豁免）；暗 字/泡 4.87–
+    /// 6.72、泡/页 3.12–4.32，全款过线
     func testSingleBubbleContrastGates() {
         for theme in ChatThemes.all {
             for dark in [false, true] {
@@ -338,10 +343,21 @@ extension ChatThemeTests {
                 let pageRatio = WCAGContrast.ratio(
                     hexForeground: fill, hexBackground: page
                 )
-                XCTAssertGreaterThanOrEqual(
-                    pageRatio, 2.9,
-                    "\(theme.id) dark=\(dark) 泡面对页底 \(pageRatio)＜下限 2.9"
-                )
+                if dark {
+                    XCTAssertGreaterThanOrEqual(
+                        pageRatio, 2.9,
+                        "\(theme.id) dark=true 泡面对页底 \(pageRatio)＜下限 2.9"
+                    )
+                } else if theme.id != "obsidian" {
+                    XCTAssertGreaterThanOrEqual(
+                        pageRatio, 1.10,
+                        "\(theme.id) 浅填泡面对页底 \(pageRatio)＜带下限 1.10"
+                    )
+                    XCTAssertLessThanOrEqual(
+                        pageRatio, 1.60,
+                        "\(theme.id) 浅填泡面对页底 \(pageRatio)＞带上限 1.60"
+                    )
+                }
             }
         }
     }
