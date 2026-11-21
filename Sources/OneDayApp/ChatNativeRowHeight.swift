@@ -2025,8 +2025,8 @@ struct ChatNativeRowHeightComposer {
     }
 
     /// 审批区备忘键（§330/§331 共用单点）：区
-    /// facet 摘要（ready 态＋未锚定记录的卡面/
-    /// 详情摘要＋已决行 id 集）＋环境指纹
+    /// facet 摘要（ready 态＋活卡卡面/详情摘要
+    /// ＋未锚待批总数＋已决行 id 集）＋环境指纹
     @MainActor
     func zoneMemoKey() -> String {
         "az|\(approvalZoneFacetDigest())"
@@ -2034,20 +2034,29 @@ struct ChatNativeRowHeightComposer {
     }
 
     /// 审批区 facet 摘要：与 approvalZoneHeight
-    /// 的遍历同集同序（未锚定者入账、锚定集经遍
-    /// 历过滤间接在键内）
+    /// 的合成同源（D10 定版②）——活卡的记录/详
+    /// 情摘要＋未锚待批总数（计数行在席随总数
+    /// 变，键不含计数会留旧高）＋未锚定已决行
+    /// id 集；锚定集经派生过滤间接在键内
     private func approvalZoneFacetDigest() -> String {
         guard let inputs = facetZoneInputs()
         else { return "notready" }
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: inputs.records.map(\.id),
+            anchoredIDs: inputs.anchored
+        )
         var parts: [String] = []
-        for record in inputs.records
-        where !inputs.anchored.contains(record.id) {
+        if let activeID = queue.activeRecordID,
+           let record = inputs.records.first(
+               where: { $0.id == activeID }
+           ) {
             parts.append(
                 "r\(record.id)"
                     + "\(approvalRecordDigest(record))"
                     + "\(approvalDetailDigest(record.id))"
             )
         }
+        parts.append("n\(queue.pendingCount)")
         for lineID in inputs.resolvedLineIDs
         where !inputs.anchored.contains(lineID) {
             parts.append("l\(lineID)")
@@ -2070,17 +2079,31 @@ struct ChatNativeRowHeightComposer {
     }
 
     /// 审批区行高（ChatApprovalZone）：非 ready
-    /// ＝0；ready＝未锚定待批卡＋未锚定已决行、
-    /// VStack spacingM
+    /// ＝0；ready＝活卡一张（D10 定版②队列派
+    /// 生，Core ApprovalZoneQueue 单源）＋收纳
+    /// 计数行（余数 ≥1 时一行，与回执行同高
+    /// 式）＋未锚定已决行、VStack spacingM
     func approvalZoneHeightUncached() -> CGFloat {
         guard let inputs = facetZoneInputs()
         else { return 0 }
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: inputs.records.map(\.id),
+            anchoredIDs: inputs.anchored
+        )
         var items: [CGFloat] = []
-        for record in inputs.records
-        where !inputs.anchored.contains(record.id) {
+        if let activeID = queue.activeRecordID,
+           let record = inputs.records.first(
+               where: { $0.id == activeID }
+           ) {
             items.append(approvalCardHeight(
                 record: record, width: contentWidth
             ))
+        }
+        if queue.queuedCount > 0 {
+            items.append(
+                OneDayMetrics.spacingS * 2
+                    + spec(.footnote)
+            )
         }
         for lineID in inputs.resolvedLineIDs
         where !inputs.anchored.contains(lineID) {

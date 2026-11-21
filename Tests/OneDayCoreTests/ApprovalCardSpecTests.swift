@@ -74,4 +74,60 @@ final class ApprovalCardSpecTests: XCTestCase {
             ApprovalCardAction.reject.title(locale: zh), "驳回"
         )
     }
+
+    /// D10 定版②队列派生：无待批时无活卡无收纳
+    func testZoneQueueWhenEmpty() {
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: [], anchoredIDs: []
+        )
+        XCTAssertNil(queue.activeRecordID)
+        XCTAssertEqual(queue.queuedCount, 0)
+        XCTAssertEqual(queue.pendingCount, 0)
+    }
+
+    /// D10 定版②队列派生：单条即活卡、不收纳
+    func testZoneQueueSingle() {
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: ["a"], anchoredIDs: []
+        )
+        XCTAssertEqual(queue.activeRecordID, "a")
+        XCTAssertEqual(queue.queuedCount, 0)
+        XCTAssertEqual(queue.pendingCount, 1)
+    }
+
+    /// D10 定版②队列派生：多条只活第一条（桥
+    /// 序），其余全收纳——裁决落定后首条移出、
+    /// 次条顶上靠的正是此序
+    func testZoneQueueMultipleKeepsFirstOnly() {
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: ["a", "b", "c"], anchoredIDs: []
+        )
+        XCTAssertEqual(queue.activeRecordID, "a")
+        XCTAssertEqual(queue.queuedCount, 2)
+        XCTAssertEqual(queue.pendingCount, 3)
+    }
+
+    /// D10 定版②队列派生：锚定记录先排除（锚
+    /// 定行自承载、本包豁免）——首条已锚时次条
+    /// 顶上；全锚时流末区无活卡不收纳；锚定集
+    /// 含无关 id 不影响
+    func testZoneQueueSkipsAnchored() {
+        var queue = ApprovalZoneQueue.derive(
+            recordIDs: ["a", "b", "c"], anchoredIDs: ["a"]
+        )
+        XCTAssertEqual(queue.activeRecordID, "b")
+        XCTAssertEqual(queue.queuedCount, 1)
+        XCTAssertEqual(queue.pendingCount, 2)
+        queue = ApprovalZoneQueue.derive(
+            recordIDs: ["a", "b"], anchoredIDs: ["a", "b"]
+        )
+        XCTAssertNil(queue.activeRecordID)
+        XCTAssertEqual(queue.queuedCount, 0)
+        XCTAssertEqual(queue.pendingCount, 0)
+        queue = ApprovalZoneQueue.derive(
+            recordIDs: ["a", "b"], anchoredIDs: ["zzz"]
+        )
+        XCTAssertEqual(queue.activeRecordID, "a")
+        XCTAssertEqual(queue.queuedCount, 1)
+    }
 }

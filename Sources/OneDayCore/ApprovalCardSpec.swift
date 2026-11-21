@@ -77,3 +77,45 @@ public enum ApprovalCardSpec {
         }
     }
 }
+
+/// 审批区队列派生（D10 定版②「一次只活一张＋还
+/// 有 N 件待批」）：流末区活卡恒为未锚待批按桥序
+/// 的第一条，其余收纳成一行计数。纯派生、不持状
+/// 态——裁决落定后第一条移出、下一条自然顶上，
+/// 与既有刷新/对账同拍，不需要队列状态机。视图
+/// 渲染、行高合成、facet 摘要三处只许经此派生
+/// 取活卡与余数（§329–§331 备忘体系同型事故防
+/// 线：三处口径漏一处即裁剪/跳高）。
+///
+/// 锚定行豁免登记（主线裁定）：已落锚记录由其锚
+/// 定行自承载（§165 四态），不进本队列的「只活
+/// 一张」口径——derive 先按锚定集排除，锚定卡
+/// 的存灭不影响流末区活卡位。
+public struct ApprovalZoneQueue: Equatable, Sendable {
+    /// 当前活卡的记录 id；无未锚待批时为 nil
+    public let activeRecordID: String?
+    /// 收纳进计数行的件数（未锚待批去掉活卡后
+    /// 的余数）；计数行仅在 ≥1 时在席
+    public let queuedCount: Int
+
+    /// 未锚待批总数（活卡 0/1＋收纳数）：行高
+    /// 备忘键须含此数——计数行在席与否随总数
+    /// 变，键不含计数会留旧高
+    public var pendingCount: Int {
+        (activeRecordID == nil ? 0 : 1) + queuedCount
+    }
+
+    /// 派生：recordIDs 为桥序全量待批 id，
+    /// anchoredIDs 为已落锚排除集
+    public static func derive(
+        recordIDs: [String], anchoredIDs: Set<String>
+    ) -> ApprovalZoneQueue {
+        let unanchored = recordIDs.filter {
+            !anchoredIDs.contains($0)
+        }
+        return ApprovalZoneQueue(
+            activeRecordID: unanchored.first,
+            queuedCount: max(0, unanchored.count - 1)
+        )
+    }
+}
