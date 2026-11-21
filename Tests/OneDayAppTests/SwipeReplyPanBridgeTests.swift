@@ -157,14 +157,16 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
         let installer = try XCTUnwrap(installerViews().first)
         let pan = try XCTUnwrap(installer.installedRecognizer)
 
-        // 失败依赖（点按先行）：tap/longPress 恒真
-        XCTAssertTrue(
+        // 失败依赖收窄（仲裁重做 2026-11-22）：本口恒假——
+        // 不再等点按/长按先失败（慢半拍的病根），共存靠位移式
+        // 方向锁；对滚动的让行走安装时 require(toFail:) 单向声明
+        XCTAssertFalse(
             installer.gestureRecognizer(
                 pan, shouldRequireFailureOf:
                     UITapGestureRecognizer()
             )
         )
-        XCTAssertTrue(
+        XCTAssertFalse(
             installer.gestureRecognizer(
                 pan, shouldRequireFailureOf:
                     UILongPressGestureRecognizer()
@@ -194,12 +196,12 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
             installer.gestureRecognizerShouldBegin(pan),
             "起滑点落在排除帧内不许开始"
         )
-        // shouldBegin 负分支二：无排除帧但零速度过
-        // 不了方向门
+        // shouldBegin 正分支：无排除帧即放行——旧速度门已废，
+        // 方向判定移交 handlePan 的位移式方向锁，本口只判排除帧
         installer.excludedFrames = []
-        XCTAssertFalse(
+        XCTAssertTrue(
             installer.gestureRecognizerShouldBegin(pan),
-            "零速度过不了方向门"
+            "无排除帧应放行，方向由位移锁在 handlePan 内判定"
         )
     }
 
