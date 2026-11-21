@@ -109,6 +109,7 @@ final class SettingsCatalogTests: XCTestCase {
     /// 段集是根页渲染的机器口径，不许渲染层另排
     func testServerAndWorkspaceSegments() {
         let segments = SettingsCatalog.browseSegments(in: .serverAndWorkspace)
+        // 台账 199 合流对账：serverSessions 条目随 199 退役出段（仅留搜索路由、目的地归全部对话），段内只剩 mainSession
         XCTAssertEqual(
             segments.map(\.segment),
             [.server, .sessions, .workspace, .maintenance]
@@ -117,7 +118,7 @@ final class SettingsCatalogTests: XCTestCase {
             segments.map { $0.entries.map(\.id) },
             [
                 ["server", "addDevice", "gateway", "logs", "usage"],
-                ["mainSession", "serverSessions"],
+                ["mainSession"],
                 ["status", "computer", "serverFiles"],
                 ["envVars", "healthCheck"],
             ]
