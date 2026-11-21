@@ -97,7 +97,12 @@ final class HapticsMatrixTests: XCTestCase {
         // 新增四处失败落点（载荷验形不过／指纹对不
         // 上／认领分型错／兜底错），与 submit() 失败
         // 同口径用 error（49→53）
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 53)
+        // 台账 198 收敛 S4：设置根页重启执行副本删
+        // 除，其 error/success 落点各 −1（53→52、
+        // 17→16）；重启触感由网关状态页正主 perform()
+        // 的既有落点承接（成功 success／失败 error
+        // 原在位），行为不丢
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 52)
         XCTAssertEqual(count(of: "Haptics.warning()", in: all), 6)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
@@ -105,7 +110,7 @@ final class HapticsMatrixTests: XCTestCase {
         // 的 success 落点原在位，行为不丢。error 净不
         // 变：阅读页导出 PDF 的 error −1 与 QL 承载面
         // 新补 exportPDF 的 error ＋1 相抵（仍 49）
-        XCTAssertEqual(count(of: "Haptics.success()", in: all), 17)
+        XCTAssertEqual(count(of: "Haptics.success()", in: all), 16)
         XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 8)
         // §295（原生重建 R3）：右滑回复触发的最轻
         // impact 在原生散文 cell 增一落点（5→6）——
