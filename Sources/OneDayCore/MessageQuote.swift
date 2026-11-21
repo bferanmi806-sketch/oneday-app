@@ -136,12 +136,14 @@ public enum MessageActionSymbols {
     /// H2-a（台账 159）：助手消息「朗读／停止朗读」
     public static let speak = "speaker.wave.2"
     public static let speakStop = "stop.circle"
+    /// 0.50.80 热修：长按菜单「添加反应」子菜单图符
+    public static let react = "face.smiling"
     /// D1（台账 5）：播放条主钮——暂停/继续
     public static let speakPause = "pause.fill"
     public static let speakResume = "play.fill"
 
     public static let all = [
         reply, copy, select, share, fork, speak, speakStop,
-        speakPause, speakResume,
+        speakPause, speakResume, react,
     ]
 }

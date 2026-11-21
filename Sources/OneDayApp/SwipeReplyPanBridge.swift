@@ -3,15 +3,15 @@ import SwiftUI
 import UIKit
 
 /// 右滑回复的 UIKit 识别器桥（§265，换代包 5；
-/// 换代包 7 仲裁重做）：取代 SwipeReplyModifier
-/// 旧用的 SwiftUI `.simultaneousGesture(DragGes-
-/// ture)`——双审计（claude-/codex-chat-stack-
-/// audit-20261114）定性：SwiftUI 手势与子树 UI-
-/// Kit 手势同场时跟踪消耗触摸序列，UITextView
-/// 双击选字所需的两次完整 down→up 被打断。用
-/// 户 2026-11-14 亲令大厂机制三条之③：手势仲
-/// 裁＝方向门＋失败依赖，禁 simultaneousGes-
-/// ture 拖拽压文本手势。
+/// 换代包 7 仲裁重做；换代包 8 判定点前移）：取
+/// 代 SwipeReplyModifier 旧用的 SwiftUI `.sim-
+/// ultaneousGesture(DragGesture)`——双审计
+/// （claude-/codex-chat-stack-audit-20261114）
+/// 定性：SwiftUI 手势与子树 UIKit 手势同场时跟
+/// 踪消耗触摸序列，UITextView 双击选字所需的两
+/// 次完整 down→up 被打断。用户 2026-11-14 亲令
+/// 大厂机制三条之③：手势仲裁＝方向门＋失败依
+/// 赖，禁 simultaneousGesture 拖拽压文本手势。
 ///
 /// 构造（全走 UIKit 官方仲裁入口，不自研识别）：
 /// - UIPanGestureRecognizer 装在宿主滚动视图上
@@ -22,8 +22,8 @@ import UIKit
 ///   行帧内」圈定辖区（shouldReceive）；
 /// - 失败依赖（纵滚让行）：安装时令宿主滚动视
 ///   图的自家 pan require(toFail: 本识别器)，纵
-///   滚等本行横滑先失败（方向门判死即失败、延
-///   迟只有起滑判定的一小段位移）；
+///   滚等本行横滑先失败（方向判死即失败、延迟
+///   只有锁距一段位移）；
 /// - 起始点排除（代码块/表格横滚区）也在 should-
 ///   Begin 判：落在排除帧内直接 failed，触摸不
 ///   被 cancelsTouchesInView 吞掉、横滚区自家
@@ -37,14 +37,30 @@ import UIKit
 ///
 /// 换代包 7（0.50.78 真机反馈修复 B，仲裁重做）：
 /// 方向判定改位移式方向锁（Core SwipeReplyMo-
-/// tion.determineDirection，handlePan 早期消
-/// 费累计位移）——起手前约 10pt 位移内按位移
-/// 比判方向，横向锁定后立即 1:1 跟手；竖向判死
-/// 只针对明确竖向位移（|dy| > |dx|）；仲裁关系
-/// 收窄：只保留与滚动的失败依赖（纵滚等横滑）、
-/// 去掉等点按/长按的无谓等待（位移锁已足够快，
-/// 大厂通行做法）；触发阈值维持 60pt、越线给
-/// soft 触觉（带回程 re-arm 迟滞 55pt）。
+/// tion.determineDirection）——起手前约 10pt 位
+/// 移内按位移比判方向，横向锁定后立即 1:1 跟
+/// 手；竖向判死只针对明确竖向位移（|dy| > |dx|）；
+/// 仲裁关系收窄：只保留与滚动的失败依赖（纵滚
+/// 等横滑）、去掉等点按/长按的无谓等待（位移锁
+/// 已足够快，大厂通行做法）；触发阈值维持 60pt、
+/// 越线给 soft 触觉（带回程 re-arm 迟滞 55pt）。
+///
+/// 换代包 8（0.50.80 热修，0.50.79 真机反馈）：
+/// 修复 B 把方向判定放在 handlePan（识别器
+/// .began 之后消费位移）——纵滚的 require(to-
+/// Fail:) 在识别器 began 的同一拍即被判死，
+/// 10pt 后再把自己置 .failed 也救不回本段触
+/// 摸：0.50.79 真机聊天页按在消息行上竖滑全
+/// 灭（行间空隙无识别器、纵滚照常，故障形态
+/// 与构造逐项吻合）。判定搬回 began 之前：识
+/// 别器子类（DirectionLockPanGestureRecogni-
+/// zer）在 .possible 阶段吞位移、自算累计位
+/// 移，达锁距当场出结论——竖向/左向在开始之
+/// 前置 .failed（纵滚随即接管本段触摸）、右向
+/// 横滑才放行 super 开始识别。判据仍走 Core
+/// determineDirection 单源，数值口径（锁距
+/// 10/起滑 30/触发 60/re-arm 55）逐字不变；
+/// handlePan 自此只消费已锁定横向的位移与收尾。
 struct SwipeReplyPanInstaller: UIViewRepresentable {
     var excludedFrames: [CGRect]
     var onPanChanged: (CGFloat) -> Void
@@ -79,6 +95,129 @@ struct SwipeReplyPanInstaller: UIViewRepresentable {
     }
 }
 
+/// 方向锁识别器（换代包 8）：方向结论必须在
+/// began 之前出——纵滚经 require(toFail:) 等
+/// 本识别器先失败，本识别器一旦 began，纵滚在
+/// 同一拍被判死、事后再 fail 救不回本段触摸
+/// （0.50.79 事故形态）。故 .possible 阶段吞
+/// 掉位移事件、自算累计位移：未达锁距不放行
+/// super（识别器停在 .possible、纵滚同停
+/// .possible 等裁决）；达锁距按 Core deter-
+/// mineDirection 判向——右向横滑放行 super 开
+/// 始识别（super 的平移账自 touchesBegan 起
+/// 算、吞掉的锁距段不丢），竖向与左向当场置
+/// .failed 让纵滚接管。判定是纯位移比、不看
+/// 速度（慢拖/斜向起手不被一票否决——修复 B
+/// 的目标不变，只把判定点从 began 后搬回
+/// began 前）
+final class DirectionLockPanGestureRecognizer:
+    UIPanGestureRecognizer
+{
+    /// began 前裁决三态：继续观察/放行开始/当场判死
+    enum PreBeginVerdict {
+        case observe, begin, fail
+    }
+
+    /// began 前方向裁决（纯函数面，单测直钉）：
+    /// 位移未达锁距恒观察；达锁距走 Core deter-
+    /// mineDirection——横向（右滑）放行、竖向判
+    /// 死；Core 归未定的左向占优（|dx|>|dy| 且
+    /// dx<0）同判死（非本手势辖区，不许悬置占
+    /// 住纵滚），斜向未分继续观察
+    static func preBeginVerdict(
+        translationX dx: CGFloat,
+        translationY dy: CGFloat
+    ) -> PreBeginVerdict {
+        guard max(abs(dx), abs(dy))
+            >= SwipeReplyMotion.directionLockDistance
+        else { return .observe }
+        switch SwipeReplyMotion.determineDirection(
+            translationX: dx, translationY: dy
+        ) {
+        case .horizontal:
+            return .begin
+        case .vertical:
+            return .fail
+        case .undetermined:
+            return abs(dx) > abs(dy) ? .fail : .observe
+        }
+    }
+
+    /// 触摸起始点（识别器视图坐标系＝宿主滚动
+    /// 视图）：delegate 的排除帧判定以此为准
+    /// （began 时刻的当前点已漂移约一个锁距）
+    private(set) var touchStartLocation: CGPoint?
+
+    override func touchesBegan(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        touchStartLocation =
+            touches.first?.location(in: view)
+        super.touchesBegan(touches, with: event)
+    }
+
+    override func touchesMoved(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        guard state == .possible else {
+            super.touchesMoved(touches, with: event)
+            return
+        }
+        guard let start = touchStartLocation,
+              let view,
+              let touch = touches.first
+        else {
+            super.touchesMoved(touches, with: event)
+            return
+        }
+        let point = touch.location(in: view)
+        switch Self.preBeginVerdict(
+            translationX: point.x - start.x,
+            translationY: point.y - start.y
+        ) {
+        case .observe:
+            // 未出结论：吞掉本拍（不放行 super、
+            // 识别器与纵滚同停 .possible）
+            return
+        case .begin:
+            super.touchesMoved(touches, with: event)
+        case .fail:
+            // 在 began 之前判死：纵滚随即接管本
+            // 段触摸（换代包 8 的修复本体）
+            state = .failed
+        }
+    }
+
+    override func touchesEnded(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        if state == .possible {
+            // 未出结论触摸已收尾：判死收场，不留
+            // 悬置识别器
+            state = .failed
+        } else {
+            super.touchesEnded(touches, with: event)
+        }
+        touchStartLocation = nil
+    }
+
+    override func touchesCancelled(
+        _ touches: Set<UITouch>, with event: UIEvent
+    ) {
+        if state == .possible {
+            state = .failed
+        } else {
+            super.touchesCancelled(touches, with: event)
+        }
+        touchStartLocation = nil
+    }
+
+    override func reset() {
+        super.reset()
+        touchStartLocation = nil
+    }
+}
+
 /// 安装宿主视图兼识别器 delegate（与 TapDismiss-
 /// InstallerView 同分工：本体随 SwiftUI 桥存活，
 /// 识别器由滚动视图持有、target/delegate 指本
@@ -92,12 +231,11 @@ final class SwipeReplyPanInstallerView: UIView,
     var onPanEnded: (() -> Void)?
 
     private weak var installedScrollView: UIScrollView?
-    private var pan: UIPanGestureRecognizer?
+    private var pan: DirectionLockPanGestureRecognizer?
     private var retryScheduled = false
 
-    // MARK: - 方向锁定状态（换代包 7）
+    // MARK: - 触觉状态（换代包 7）
 
-    private var directionLocked: SwipeReplyMotion.SwipeDirection = .undetermined
     private var hasTriggeredHaptic = false
     private var currentOffset: CGFloat = 0
 
@@ -135,7 +273,7 @@ final class SwipeReplyPanInstallerView: UIView,
             return
         }
         uninstall()
-        let recognizer = UIPanGestureRecognizer(
+        let recognizer = DirectionLockPanGestureRecognizer(
             target: self,
             action: #selector(handlePan(_:))
         )
@@ -144,9 +282,9 @@ final class SwipeReplyPanInstallerView: UIView,
         recognizer.delegate = self
         scrollView.addGestureRecognizer(recognizer)
         // 失败依赖（纵滚让行）：列表纵滚须等本行
-        // 横滑先失败才开始——横滑的方向门判死发
-        // 生在位移判定点（约 10pt 内），纵滚延迟
-        // 以点计
+        // 横滑先失败才开始——横滑的方向判死发生
+        // 在识别器 began 之前的锁距判定点（换代
+        // 包 8），纵滚延迟以点计
         scrollView.panGestureRecognizer.require(
             toFail: recognizer
         )
@@ -188,81 +326,31 @@ final class SwipeReplyPanInstallerView: UIView,
         return nil
     }
 
-    // MARK: - 识别器动作（换代包 7 方向锁定重写）
+    // MARK: - 识别器动作（换代包 8：只消费已锁定横向）
 
     @objc private func handlePan(
         _ recognizer: UIPanGestureRecognizer
     ) {
         switch recognizer.state {
-        case .began:
-            // 重置状态
-            directionLocked = .undetermined
-            hasTriggeredHaptic = false
-            currentOffset = 0
-            // 开始判定方向
-            let translation = recognizer.translation(in: recognizer.view)
-            checkAndLockDirection(translation: translation, recognizer: recognizer)
-
-        case .changed:
-            let translation = recognizer.translation(in: recognizer.view)
-
-            // 方向未锁定时继续判定
-            if directionLocked == .undetermined {
-                checkAndLockDirection(translation: translation, recognizer: recognizer)
-            }
-
-            // 已锁定为竖向，不处理（识别器已 failed）
-            if directionLocked == .vertical {
-                return
-            }
-
-            // 横向锁定，处理位移并检查触觉
-            if directionLocked == .horizontal {
-                processPanTranslation(translation.x)
-                checkAndTriggerHaptic(translation.x)
-            }
+        case .began, .changed:
+            // 能走到本口的识别器必已在 began 之前
+            // 锁定右向横滑（DirectionLockPanGes-
+            // tureRecognizer 的前置判定），本口只
+            // 消费位移并检查触觉
+            let translation = recognizer.translation(
+                in: recognizer.view
+            )
+            processPanTranslation(translation.x)
+            checkAndTriggerHaptic(translation.x)
 
         case .ended, .cancelled, .failed:
             processPanEnd()
-            directionLocked = .undetermined
             hasTriggeredHaptic = false
             currentOffset = 0
 
         default:
             break
         }
-    }
-
-    /// 方向锁定判定（换代包 7）：累计位移达到
-    /// directionLockDistance（10pt）时按位移比判
-    /// 方向——横向锁定后开始跟手、竖向判死让滚动
-    private func checkAndLockDirection(
-        translation: CGPoint,
-        recognizer: UIPanGestureRecognizer
-    ) {
-        let absDx = abs(translation.x)
-        let absDy = abs(translation.y)
-
-        // 位移还不够，继续观察
-        if max(absDx, absDy) < SwipeReplyMotion.directionLockDistance {
-            return
-        }
-
-        // 判定方向
-        let direction = SwipeReplyMotion.determineDirection(
-            translationX: translation.x,
-            translationY: translation.y
-        )
-
-        if direction == .vertical {
-            // 竖向判死，让给滚动
-            directionLocked = .vertical
-            recognizer.state = .failed
-        } else if direction == .horizontal {
-            // 横向锁定，开始跟手
-            directionLocked = .horizontal
-        }
-        // .undetermined 继续观察
     }
 
     /// 触觉反馈检查（换代包 7）：越过触发线
@@ -316,19 +404,31 @@ final class SwipeReplyPanInstallerView: UIView,
         return rowFrame.contains(point)
     }
 
-    /// 起始点排除门（换代包 7 简化）：起滑点落在
-    /// 排除帧（代码块/表格横滚区）内——不许开始
-    /// （转 failed、触摸不被吞）。旧速度门已改位
-    /// 移式方向锁（handlePan 内消费），本口只留
-    /// 排除判定
+    /// 起始点排除门：起滑点落在排除帧（代码块/
+    /// 表格横滚区）内——不许开始（转 failed、触
+    /// 摸不被吞）。判定以触摸起始点为准：本口在
+    /// 识别器放行 super 开始识别时才被问（换代
+    /// 包 8），彼时当前点已漂移约一个锁距——子
+    /// 类留存的起始点（滚动视图坐标系）换算回本
+    /// 视图坐标系再判；无留存时回退当前点。方向
+    /// 判定不在本口（识别器子类的 began 前裁决）
     override func gestureRecognizerShouldBegin(
         _ gestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         guard let pan = gestureRecognizer
             as? UIPanGestureRecognizer
         else { return true }
+        let startLocation: CGPoint
+        if let lockPan = gestureRecognizer
+            as? DirectionLockPanGestureRecognizer,
+           let start = lockPan.touchStartLocation,
+           let hostView = lockPan.view {
+            startLocation = convert(start, from: hostView)
+        } else {
+            startLocation = pan.location(in: self)
+        }
         if SwipeReplyMotion.isExcluded(
-            startLocation: pan.location(in: self),
+            startLocation: startLocation,
             frames: excludedFrames
         ) {
             return false

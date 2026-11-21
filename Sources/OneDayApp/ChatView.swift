@@ -12883,8 +12883,13 @@ private struct ComposerBarLayout: Layout {
 /// 内容根。文本区长按归 UITextView 原生选字＋
 /// 编辑菜单（141/142 本体不动）。
 /// 动作集单源不变：呈现时刻经 makeData 组装
-/// （ChatView.actionSheetData）——反应排走菜单
-/// 顶部内联组，动作项走 actionItems() 逐项搬家
+/// （ChatView.actionSheetData）——反应走「添加
+/// 反应」子菜单，动作项走 actionItems() 逐项搬
+/// 家。反应排沿革：台账 187 起走菜单顶部内联
+/// ControlGroup，0.50.79 真机被系统拆成逐行陈
+/// 列（首行三枚、余者各占一整行）、形态全毁，
+/// 0.50.80 热修改子菜单原生陈列；Muse 式浮排
+/// 反应条（预览上方独立药丸）另包施工
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
     /// 呈现时刻组装菜单数据（动作集单源）
@@ -12896,7 +12901,7 @@ private struct MessageMenuModifier: ViewModifier {
             content.contextMenu {
                 let data = makeData()
                 if data.canReact {
-                    ControlGroup {
+                    Menu {
                         ForEach(
                             MessageReactions.palette,
                             id: \.self
@@ -12904,9 +12909,22 @@ private struct MessageMenuModifier: ViewModifier {
                             Button {
                                 data.onPickReaction(emoji)
                             } label: {
-                                Text(emoji)
+                                if emoji == data.ownEmoji {
+                                    Label(
+                                        emoji,
+                                        systemImage: "checkmark"
+                                    )
+                                } else {
+                                    Text(emoji)
+                                }
                             }
                         }
+                    } label: {
+                        Label(
+                            "添加反应",
+                            systemImage: MessageActionSymbols
+                                .react
+                        )
                     }
                 }
                 ForEach(data.actionItems()) { item in
@@ -12948,8 +12966,8 @@ private struct MessageMenuModifier: ViewModifier {
 /// simultaneousGesture 的跟踪消耗文本视图触摸
 /// 序列、双击选字被截流——识别改走 UIKit 识别
 /// 器桥（SwipeReplyPanBridge：UIPanGesture-
-/// Recognizer 装宿主滚动视图，方向门＝横向速
-/// 度占优才认＋失败依赖＝点按/长按先行＋纵滚
+/// Recognizer 装宿主滚动视图，方向门＝识别器
+/// 子类 began 前位移锁（换代包 8）＋纵滚
 /// require(toFail:) 让行），本修饰符只持拖动
 /// 状态、经桥的两条回调消费位移/收尾。与桥时
 /// 代（0.36.20）的差别：装配走 ScrollViewTap-

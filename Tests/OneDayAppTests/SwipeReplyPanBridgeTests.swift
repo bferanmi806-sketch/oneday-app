@@ -9,16 +9,18 @@ import XCTest
 /// 验四件：
 /// 1. 每行在宿主滚动视图上恰装一枚具名 UIPanGe-
 ///    stureRecognizer、delegate 为本行安装器；
-/// 2. 仲裁声明：点按/长按先行（shouldRequireFai-
-///    lureOf 对 tap/longPress 恒真、对 pan 恒
-///    假）、不同时识别、shouldBegin 在排除帧覆
-///    盖起滑点/零速度时恒假（正分支由 Core 方向
-///    门单测＋UI 测试真拖动覆盖）；
+/// 2. 仲裁声明：shouldRequireFailureOf 恒假（不
+///    等点按/长按、共存靠位移锁）、不同时识别、
+///    shouldBegin 在排除帧覆盖起始点时恒假；
 /// 3. 回调链：经安装器 processPanTranslation 直
 ///    驱生产修饰符状态——过线只触发一次、收尾
 ///    复位后可再触发；
 /// 4. isEnabled 翻假（选区在场关右滑的生产路径）
-///    →桥 dismantle、识别器自滚动视图摘除。
+///    →桥 dismantle、识别器自滚动视图摘除；
+/// 5. began 前裁决（换代包 8）：Direction-
+///    LockPanGestureRecognizer.preBeginVer-
+///    dict 决策表——锁距内观察、右向放行、竖
+///    向与左向判死（0.50.79 纵滚全灭的修复钉）。
 @MainActor
 final class SwipeReplyPanBridgeTests: XCTestCase {
 
@@ -196,8 +198,8 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
             installer.gestureRecognizerShouldBegin(pan),
             "起滑点落在排除帧内不许开始"
         )
-        // shouldBegin 正分支：无排除帧即放行——旧速度门已废，
-        // 方向判定移交 handlePan 的位移式方向锁，本口只判排除帧
+        // shouldBegin 正分支：无排除帧即放行——方向判定在识别器
+        // 子类的 began 前裁决（换代包 8），本口只判排除帧
         installer.excludedFrames = []
         XCTAssertTrue(
             installer.gestureRecognizerShouldBegin(pan),
@@ -220,6 +222,63 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
         installer.processPanTranslation(70)
         XCTAssertEqual(log.count, 2, "收尾复位后可再触发")
         installer.processPanEnd()
+    }
+
+    /// began 前裁决决策表（换代包 8）：0.50.79 的
+    /// 病根是方向判定在 began 之后——本表把判定
+    /// 点钉在 began 之前：锁距内只观察、右向放
+    /// 行、竖向/左向在开始之前判死（纵滚得救）
+    func testPreBeginVerdictTable() {
+        typealias Verdict =
+            DirectionLockPanGestureRecognizer
+                .PreBeginVerdict
+        // 锁距（10pt）内：只观察，不许出结论
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: 5, translationY: 0
+                ),
+            Verdict.observe
+        )
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: 0, translationY: 9
+                ),
+            Verdict.observe
+        )
+        // 右向占优：放行开始识别
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: 12, translationY: 3
+                ),
+            Verdict.begin
+        )
+        // 竖向占优：在 began 之前判死，纵滚接管
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: 3, translationY: 12
+                ),
+            Verdict.fail
+        )
+        // 左向占优：非本手势辖区，同判死不悬置
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: -12, translationY: 3
+                ),
+            Verdict.fail
+        )
+        // 斜向未分（|dx|＝|dy|）：继续观察
+        XCTAssertEqual(
+            DirectionLockPanGestureRecognizer
+                .preBeginVerdict(
+                    translationX: 10, translationY: 10
+                ),
+            Verdict.observe
+        )
     }
 
     func testDisablingSwipeDismantlesRecognizer() {
