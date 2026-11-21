@@ -7,17 +7,20 @@ import XCTest
 
 /// 台账 195 验收断言：引用条出现前后——输入舱位移
 /// 量 vs 条实高的等式关系，键盘收起/弹起两态各钉
-/// 一遍。诊断轮实测（run 44843567900，探针版）：
+/// 一遍。诊断轮实测（run 44843567900 探针版）：
 /// 静息态 growth=61.0／topDisp=61.0／bottomDrift
 /// =0.0、文本视图 y 不变——条在卡内生长区落位、
 /// 输入行底锚不动。本测试把该等式钉成可复测断言：
 ///   舱生长 == 卡生长 == 舱顶上移 == 条槽实高
-///   舱底漂移 == 0、输入行（文本视图）位移 == 0
-///   撤引用后舱高与舱底回基线、槽离场
-/// 装配＝生产全装配（RootView＋原生面默认开）＋
-/// AppState 待发引用表驱动引用槽（feed 变体与消息
-/// 变体同槽同几何，见 ChatView composerCard §332
-/// 槽位：条本体＋1pt 发丝线直挂卡根）。
+///   舱底漂移 == 0、输入行相对舱底位移 == 0
+///   撤引用后槽离场、舱高与舱底回基线
+/// 两态同一方法串行（静息先行：探针轮实证此序下
+/// 静息态不被键盘态污染；键盘态基线在引用已撤、
+/// 槽离场后取）。装配＝生产全装配（RootView＋原
+/// 生面默认开）＋AppState 待发引用表驱动引用槽
+/// （feed 变体与消息变体同槽同几何，见 ChatView
+/// composerCard §332 槽位：条本体＋1pt 发丝线直
+/// 挂卡根）。
 @MainActor
 final class ChatQuoteDock195Tests: XCTestCase {
 
@@ -55,6 +58,7 @@ final class ChatQuoteDock195Tests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        window?.endEditing(true)
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil
@@ -125,14 +129,17 @@ final class ChatQuoteDock195Tests: XCTestCase {
         return host.view.convert(host.view.bounds, to: window)
     }
 
-    /// 等帧落定：两读（间隔 0.4s）三值差 ≤0.5
+    /// 等帧落定：两读（间隔 0.4s）三值差 ≤0.5；
+    /// 每读前显式驱动一遍布局（真机显示链路逐帧
+    /// 驱动、工装内无此环，须手动补齐，否则固有
+    /// 尺寸生长/收缩不落帧）
     private func stableHostFrame(
         timeout: TimeInterval = 10
     ) -> CGRect? {
-        var previous = hostFrame()
+        var previous: CGRect?
         let deadline = Date().addingTimeInterval(timeout)
         while Date() < deadline {
-            spin(seconds: 0.4)
+            window.layoutIfNeeded()
             let current = hostFrame()
             if let p = previous, let c = current,
                abs(p.minY - c.minY) <= 0.5,
@@ -141,7 +148,9 @@ final class ChatQuoteDock195Tests: XCTestCase {
                 return c
             }
             previous = current
+            spin(seconds: 0.4)
         }
+        window.layoutIfNeeded()
         return hostFrame()
     }
 
@@ -177,14 +186,22 @@ final class ChatQuoteDock195Tests: XCTestCase {
             .first.map { $0.convert($0.bounds, to: window) }
     }
 
-    /// 引用槽在场直查：条标题标签（feedQuoteBar
-    /// 渲染帖题）是否在舱层级内
+    /// 引用槽在场直查：条标题（feedQuoteBar 渲染
+    /// 帖题）在舱层级内可寻——SwiftUI 文本落平台
+    /// 层为 attributedText，text 与 attributedText
+    /// 两口都查
     private func quoteSlotPresent() -> Bool {
         guard let host = findRootVC()?.composerHost
         else { return false }
         return findViews(host.view) { view in
-            (view as? UILabel)?.text?.contains("量测帖标题")
-                ?? false
+            guard let label = view as? UILabel else {
+                return false
+            }
+            if label.text?.contains("量测帖标题") == true {
+                return true
+            }
+            return label.attributedText?.string
+                .contains("量测帖标题") == true
         }.isEmpty == false
     }
 
@@ -243,19 +260,13 @@ final class ChatQuoteDock195Tests: XCTestCase {
         )
     }
 
-    /// 等式断言组（两态共用）：基线帧→引用帧→撤回帧
-    /// bottomTolerance：键盘态容忍键盘帧重申的整舱
-    /// 微移（诊断轮见 -2.0 的整舱同移：舱/卡/文本
-    /// 三帧同量，非引用几何）；静息态严判 0.6。
+    /// 一态的等式断言组：基线→引用→撤回。
+    /// bottomTolerance：键盘态容忍系统键盘帧重申
+    /// 的整舱微移（诊断轮见 -2.0 整舱同移：舱/
+    /// 卡/文本三帧同量，非引用几何）；静息严判。
     private func assertQuoteDockEqualities(
         state: String, bottomTolerance: CGFloat
     ) {
-        XCTAssertTrue(
-            spinUntil(timeout: 12) {
-                findRootVC()?.composerHost != nil
-            },
-            "\(state)：原生面舱宿主未装配"
-        )
         XCTAssertFalse(
             quoteSlotPresent(),
             "\(state)：基线不应有引用槽"
@@ -314,7 +325,8 @@ final class ChatQuoteDock195Tests: XCTestCase {
             accuracy: bottomTolerance,
             "\(state)：舱底漂移（底锚未钉住）"
         )
-        // 等式四：输入行不位移（生长全在输入行之上）
+        // 等式四：输入行相对舱底不位移（生长全在
+        // 输入行之上、输入行底锚跟随舱底）
         XCTAssertEqual(
             quotedText.minY - baseText.minY,
             quoted.maxY - base.maxY,
@@ -349,27 +361,31 @@ final class ChatQuoteDock195Tests: XCTestCase {
         )
     }
 
-    /// 静息态（键盘收起，189 入流锚）：严判
-    func testRestingStateQuoteDisplacementEqualsStripHeight() {
-        mountShell()
-        assertQuoteDockEqualities(
-            state: "REST", bottomTolerance: 0.6
-        )
-    }
-
-    /// 键盘态（合成键盘帧顶 541，§194 单常数链）：
-    /// 底漂容忍键盘重申整舱微移 2.5，其余等式严判
-    func testKeyboardStateQuoteDisplacementEqualsStripHeight() {
+    func testQuoteDockDisplacementEqualsStripHeightBothStates() {
         mountShell()
         XCTAssertTrue(
             spinUntil(timeout: 12) {
                 findRootVC()?.composerHost != nil
             },
-            "KB：原生面舱宿主未装配"
+            "原生面舱宿主未装配"
         )
+        // —— 静息态（189 入流锚）——
+        assertQuoteDockEqualities(
+            state: "REST", bottomTolerance: 0.6
+        )
+        // —— 键盘态（合成帧顶 541，§194 单常数链）——
         postKeyboard(
             name: UIResponder.keyboardWillShowNotification,
             top: 541, duration: 0
+        )
+        XCTAssertTrue(
+            spinUntil(timeout: 10) {
+                guard let f = hostFrame() else {
+                    return false
+                }
+                return abs(f.maxY - 541) <= 1.5
+            },
+            "KB：舱底未达键盘帧顶 541"
         )
         _ = stableHostFrame()
         assertQuoteDockEqualities(
@@ -380,5 +396,7 @@ final class ChatQuoteDock195Tests: XCTestCase {
             top: 874, duration: 0
         )
         _ = stableHostFrame()
+        window.endEditing(true)
+        spin(seconds: 0.6)
     }
 }
