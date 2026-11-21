@@ -366,8 +366,7 @@ final class SwipeReplyPanInstallerView: UIView,
         // 越过触发线且未触发过
         if !hasTriggeredHaptic && SwipeReplyMotion.shouldTrigger(offset: offset) {
             hasTriggeredHaptic = true
-            let generator = UIImpactFeedbackGenerator(style: .soft)
-            generator.impactOccurred()
+            Haptics.impact(.soft)
         }
 
         // 回程 re-arm：回拖到 rearm 线以下重新武装
