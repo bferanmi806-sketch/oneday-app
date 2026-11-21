@@ -594,6 +594,8 @@ struct ChatView: View {
     @State private var findMatches: [UUID] = []
     @State private var findScrollTrigger = UUID()
     @State private var currentFindIndex = 0
+    /// D9 补全：查找命中高亮的条目 id（1-2 秒后自动淡出）
+    @State private var findHighlightEntryID: UUID?
     /// 锚点点亮的条目 id（§165）：点达锚定行时置位，
     /// 行底色以 Palette.primaryTint 点亮、2.5 秒后清
     /// （沿 §123 枢纽聚焦同手法）；消费锚点请求的
@@ -1951,11 +1953,15 @@ struct ChatView: View {
                 // 未读通知＋待审批，总览桥聚合）。原右钮
                 // 「新建会话」退场——新建入口在抽屉底条与
                 // 抽屉空态行各有一处，不占顶栏三件套之位
-                // D9：查找按钮
-                Button {
-                    showFind = true
+                // D9 补全：顶栏菜单（查找功能收入菜单）
+                Menu {
+                    Button {
+                        showFind = true
+                    } label: {
+                        Label("在对话中查找", systemImage: "magnifyingglass")
+                    }
                 } label: {
-                    Image(systemName: "magnifyingglass")
+                    Image(systemName: "ellipsis.circle")
                         .font(.system(
                             size: HeaderButtonSpec.glyphPointSize,
                             weight: .regular
@@ -1973,7 +1979,7 @@ struct ChatView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.odPressable)
-                .accessibilityLabel("查找")
+                .accessibilityLabel("菜单")
 
                 Spacer(minLength: OneDayMetrics.spacingXS)
 
@@ -3371,7 +3377,7 @@ struct ChatView: View {
                 )
             )
         }
-        let highlighted = entry.id == anchorHighlightEntryID
+        let highlighted = entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID
         // 行描述备忘戳：构建输入全量（量测键含修订
         // 基段摘要＋facet 摘要＋环境指纹；落定高；
         // 点亮；样式键）——戳不变整行复用上趟描述，
@@ -4061,7 +4067,7 @@ struct ChatView: View {
             &+ (entry.toolCardData?.count ?? 0)
         version = version &* 31 &+ entry.remoteImagePaths.count
         version = version &* 31 &+ entry.remoteFilePaths.count
-        if entry.id == anchorHighlightEntryID {
+        if entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID {
             version &+= 0x9e37
         }
         // 台账 148：未读锚翻转同属版本输入（锚行重
@@ -4960,6 +4966,15 @@ struct ChatView: View {
             let targetID = findMatches[currentFindIndex]
             withAnimation {
                 proxy.scrollTo(targetID, anchor: .center)
+            }
+            // D9 补全：命中高亮（1.5秒后淡出）
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(350))
+                findHighlightEntryID = targetID
+                try? await Task.sleep(for: .seconds(1.5))
+                if findHighlightEntryID == targetID {
+                    findHighlightEntryID = nil
+                }
             }
         }
         .onChange(of: findQuery) { _, _ in
@@ -6218,7 +6233,7 @@ struct ChatView: View {
         // primaryTint 底色点亮（沿 §123 枢纽聚焦同
         // 手法），消费侧 2.5 秒后清
         .background(
-            entry.id == anchorHighlightEntryID
+            entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID
                 ? Palette.primaryTint
                 : Color.clear,
             in: RoundedRectangle(
