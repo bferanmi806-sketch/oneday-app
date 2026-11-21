@@ -69,50 +69,51 @@ import UIKit
 /// 融臂实证成立）。胶囊玻璃本体（§179 定式）一字
 /// 不动；栏位落位/记账口径零改动。
 ///
-/// ## §327 顶簇不透明背板（2026-11-17 小修批②，
-/// 同根审计 §3.4 裁决＋待办第 113 条）
+/// ## §327 顶簇不透明背板（2026-11-17 入席，
+/// 2026-11-22 退役，用户 0.50.78 真机反馈亲裁）
 /// §213 的内容驱动边缘效果治得了「静止自成色
 /// 带」，治不了滚动态正文滑入顶簇带后隔着半透
-/// 明胶囊与柔边可读（顶栏遮顶壳层小症的余项）。
-/// 本批按审计二选一裁决取背板路：控制器在顶簇
-/// 宿主之下加一层背板——Palette.chatSurface 实
-/// 色（与页面底同令牌同值：静止时与页面同色不
-/// 可见、滚动态对带下正文全遮蔽），覆盖窗口顶
-/// →顶簇底全带（顶边经 syncTopConstant 以布局
-/// 空间补偿抵到窗口顶，与顶簇钉位同式）；胶囊
-/// 玻璃本体（浮动导航层，U2 A 保守口径内）与
-/// §213 边缘注册一字不动。抽屉面板 §318 改实
-/// 色是同一收口先例（浮动层压面恒 chatSurface
-/// 实色）。
+/// 明胶囊与柔边可读，审计二选一裁决曾取背板
+/// 路：控制器在顶簇宿主之下垫 Palette.chat-
+/// Surface 实色背板（与页面底同令牌同值：静止
+/// 时与页面同色不可见、滚动态对带下正文全遮
+/// 蔽），覆盖窗口顶→顶簇底全带；胶囊玻璃本体
+/// 与 §213 边缘注册当时一字未动。2026-11-20
+/// 又因背板是带内唯一无条件不透明层、内容链
+/// 某帧缺席时独自裸呈成整块实心白，加「背板
+/// 入席闸门」（可见性与顶簇首个实测高挂钩、
+/// 单向入席）与树内契约兜底。2026-11-22 用
+/// 户真机反馈 0.50.78：顶栏实色块又在、朦胧
+/// 感没了——实色口径就此退役，背板整件删除，
+/// 带面回到 §213 系统边缘效果单机制（下节）。
 ///
-/// ## 背板入席闸门（2026-11-20，真机「实心白块」
-/// 复发兜底，诊断 pkg-topbar-white-diagnosis-
-/// 20261120）
-/// 背板是带内唯一无条件不透明层：控制器一 load
-/// 它就在，而控件经另一条 SwiftUI 内容链供给——
-/// 内容链某帧缺席时背板独自裸呈成整块实心白。
-/// 结构兜底：背板可见性与顶簇首个实测高挂钩，
-/// 实测高未到之前 hidden（带内退回 §213 透明形
-/// 态），首报即入席、单向不回退；内容在席时 §327
-/// 滚动态遮蔽语义一字不变。内容链关键节点另留
-/// ChatDiagTrace 取证（首达/首测/显形未齐），供
-/// 下次复发一帧定断点。
+/// ## 带面构造（2026-11-22 定版，取代 §327）
+/// 顶簇带面不垫任何自家层：控制器子视图只剩
+/// 顶簇宿主本体，带下透明——静止时控件自身玻
+/// 璃（§179 定式）直浮页面底；内容滚过带下时
+/// 由 §213 注册的系统滚动边缘效果在栏下沿生
+/// 成模糊渐变（interaction 挂顶簇宿主、样式由
+/// 列表顶缘 edge effect 承），§327 的透字问
+/// 题自此归系统机制覆盖（iOS 26 通行形态），
+/// 不再自绘不透明板。原入席闸门的等价物是结
+/// 构本身：带内无板即无裸板——内容链缺席帧
+/// 里带内只有透明宿主，白块无从产生。首个实
+/// 测高闩 hasBarContentMeasure 降为纯取证信
+/// 号（内容链齐备度留痕，见 viewDidAppear），
+/// 不再驱动任何可见层显隐。
 ///
-/// ## 树内契约（2026-11-20 结构归位·对话页，
-/// 纲要原则 3/4、D3-1/D3-2）
-/// 白块事故的树形表述＝隐形层（背板）与可见兄弟
-/// （顶簇内容）两条独立供给链、覆盖无契约。本批
-/// 把兜底升为装配不变量，钉在控制器本体上：
-/// ①背板与顶簇宿主恒为本控制器子视图、背板恒在
-/// 宿主之下（覆盖序）；②背板可见性恒等于「已收
-/// 到首个实测高」——内容缺席时背板不可见是结构
-/// 保证而非运行时巧合；③宿主 safeAreaRegions 恒
-/// 空（托管树不许按安全区派生内边距）。契约自检
-/// ＝assemblyContractViolations()：装配完成
-/// （viewDidLoad）与闸门翻转（首个实测高）两拍
-/// 各断言一次，测试侧同口直读。常数回写（实高/
-/// 底缘）是记账通道、只喂列表留位、不驱动任何可
-/// 见层显隐——可见性契约的唯一持有者是背板闸门。
+/// ## 树内契约（2026-11-20 立，2026-11-22 随
+/// 带面构造改版，纲要原则 3/4、D3-1/D3-2）
+/// 把装配不变量钉在控制器本体上：①控制器子
+/// 视图恒只含顶簇宿主一层——带内不许再垫任何
+/// 自绘层（背板/材质片/色片同禁），「内容缺席
+/// 时无裸块」是结构保证而非运行时巧合；②宿
+/// 主 safeAreaRegions 恒空（托管树不许按安全
+/// 区派生内边距）。契约自检＝assemblyContract-
+/// Violations()：装配完成（viewDidLoad）与首
+/// 个实测高两拍各断言一次，测试侧同口直读。
+/// 常数回写（实高/底缘）是记账通道、只喂列表
+/// 留位、不驱动任何可见层显隐。
 struct TopBarGuideHost<Content: View>: UIViewControllerRepresentable {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -337,22 +338,16 @@ final class TopBarGuideHostController: UIViewController {
     private let barHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
     )
-    /// §327：顶簇不透明背板（chatSurface 实色）——
-    /// 插在顶簇宿主之下，顶边经 backingTopConst-
-    /// raint 抵到窗口顶、底边贴顶簇底，带内滚动
-    /// 正文全遮蔽；命中仍走 TopBarPassthrough-
-    /// View 的活帧闸门（背板只是子视图、闸门口径
-    /// 不变：带外点仍按顶簇活帧裁决穿透）
-    private let backingView = UIView()
-    /// 背板入席闸门（2026-11-20 白块结构兜底）：
-    /// 顶簇首个实测高未到之前背板 hidden——实测高
-    /// 只认 updateBarContentHeight 的 >0 喂入（托
-    /// 管树内容真量到的第一笔）；reportBarHeight
-    /// 报的是含种子 60 的记账值、内容缺席时照样
-    /// 发，不作实测信号。单向闩：首报即入席，此
-    /// 后进展胶囊生长/消失不许把它翻回去
+    /// 内容链首个实测高闩（原 §327 背板入席闸门
+    /// 的信号源，2026-11-22 背板退役后降为纯取
+    /// 证）：实测高只认 updateBarContentHeight
+    /// 的 >0 喂入（托管树内容真量到的第一笔）；
+    /// reportBarHeight 报的是含种子 60 的记账
+    /// 值、内容缺席时照样发，不作实测信号。单
+    /// 向闩：首报即立、此后不回退——只喂 view-
+    /// DidAppear 的内容链齐备度留痕，不驱动任
+    /// 何可见层显隐（带面构造与契约见文件头）
     private var hasBarContentMeasure = false
-    private var backingTopConstraint: NSLayoutConstraint!
     /// 顶边位置引导线：top 由 topGuideTopConstraint
     /// 的常量定位（syncTopConstant 唯一计算点）
     private let topGuide = UILayoutGuide()
@@ -395,38 +390,26 @@ final class TopBarGuideHostController: UIViewController {
         edgeInteraction
     }
 
-    /// §327 自述/测试定位口：顶簇背板本体
-    var traceBackingView: UIView { backingView }
-
     /// 装配契约自检（树内契约，见文件头）：返回
-    /// 违例清单，空＝契约成立。检查三条：子视图构
-    /// 成与覆盖序（背板在顶簇宿主之下）、背板可见
-    /// 性与首个实测高闩同值、宿主 safeAreaRegions
-    /// 为空。视图未加载时只回「未装配」一条（契约
-    /// 的适用面是装配完成后）
+    /// 违例清单，空＝契约成立。检查两条：控制器
+    /// 子视图恒只含顶簇宿主一层（带内无任何自绘
+    /// 垫层——2026-11-22 带面构造的结构保证）、
+    /// 宿主 safeAreaRegions 为空。视图未加载时
+    /// 只回「未装配」一条（契约的适用面是装配完
+    /// 成后）
     func assemblyContractViolations() -> [String] {
         guard isViewLoaded else { return ["控制器视图未加载"] }
         var violations: [String] = []
         let subviews = view.subviews
-        guard let backingIndex = subviews.firstIndex(
-                of: backingView),
-              let barIndex = subviews.firstIndex(
-                of: barHost.view)
+        guard subviews.count == 1,
+              subviews.first === barHost.view
         else {
-            return ["背板或顶簇宿主不在控制器子视图内"]
-        }
-        if backingIndex > barIndex {
             violations.append(
-                "背板序位 \(backingIndex) 在顶簇宿主 "
-                    + "\(barIndex) 之上（覆盖序反转）"
+                "控制器子视图应只含顶簇宿主一层，实见 "
+                    + "\(subviews.count) 层"
+                    + "（带内不许垫任何自绘层）"
             )
-        }
-        if backingView.isHidden == hasBarContentMeasure {
-            violations.append(
-                "背板 isHidden=\(backingView.isHidden) 与"
-                    + "实测高闩 \(hasBarContentMeasure) 脱钩"
-                    + "（内容缺席时背板必须不可见）"
-            )
+            return violations
         }
         if !barHost.safeAreaRegions.isEmpty {
             violations.append("顶簇宿主 safeAreaRegions 非空")
@@ -434,9 +417,9 @@ final class TopBarGuideHostController: UIViewController {
         return violations
     }
 
-    /// 契约断言（装配完成/闸门翻转两拍调用）：违例
-    /// 只在调试构建炸出——发布构建由测试侧同口自
-    /// 检守住（TopBarBackingPlateTests 契约组）
+    /// 契约断言（装配完成/首个实测高两拍调用）：
+    /// 违例只在调试构建炸出——发布构建由测试侧
+    /// 同口自检守住（TopBarBandFaceTests 契约组）
     private func assertAssemblyContract() {
         let violations = assemblyContractViolations()
         assert(
@@ -454,18 +437,17 @@ final class TopBarGuideHostController: UIViewController {
     func updateBarContentHeight(_ height: CGFloat) {
         if height > 0, !hasBarContentMeasure {
             // 首个实测高：内容链已把真内容量进带
-            // 内——背板自此入席（§327 遮蔽照常）；
-            // 在改高守卫之前记账：实测高恰与种子
-            // 同值时也不能漏掉这一笔首报
+            // 内——在改高守卫之前记账：实测高恰与
+            // 种子同值时也不能漏掉这一笔首报。本
+            // 闩自 2026-11-22 起只作内容链取证
+            // （带内已无背板可入席），同拍跑一次契
+            // 约自检
             hasBarContentMeasure = true
             if isViewLoaded {
-                backingView.isHidden = false
-                // 树内契约：闸门翻转拍自检——入席后
-                // 背板可见性须与闩同值
                 assertAssemblyContract()
             }
             ChatDiagTrace.record(
-                "顶簇首个实测高 \(height)（背板入席）"
+                "顶簇首个实测高 \(height)"
             )
         }
         guard height > 0,
@@ -494,18 +476,10 @@ final class TopBarGuideHostController: UIViewController {
         // 管树的安全区归零——顶簇是自包含栈，不许
         // 宿主再按任何安全区给它派生一份内边距
         barHost.safeAreaRegions = []
-        // §327：背板先于顶簇宿主入层（恒在其下）；
-        // 实色取页面底同令牌——UIColor(Palette.x)
-        // 是仓内既有转换式，动态色随 trait 自解析
-        backingView.backgroundColor =
-            UIColor(Palette.chatSurface)
-        // 闸门初态：装配先于内容链是常态，实测高
-        // 未到先 hidden，首报到时在 updateBar-
-        // ContentHeight 放行（视图后加载时按闩复位）
-        backingView.isHidden = !hasBarContentMeasure
-        backingView.translatesAutoresizingMaskIntoConstraints =
-            false
-        view.addSubview(backingView)
+        // 带面构造（2026-11-22 定版）：带内不垫任
+        // 何自家层——顶簇宿主是控制器唯一子视图，
+        // 带下透明、朦胧归 §213 系统边缘效果（见
+        // 文件头带面构造节）
         addChild(barHost)
         barHost.view.backgroundColor = .clear
         barHost.view.translatesAutoresizingMaskIntoConstraints =
@@ -532,19 +506,7 @@ final class TopBarGuideHostController: UIViewController {
             .constraint(equalTo: view.topAnchor, constant: 0)
         barHeightConstraint = barHost.view.heightAnchor
             .constraint(equalToConstant: barContentHeight)
-        // §327：背板几何——左右贴本视图、底贴顶簇
-        // 底、顶经常量抵窗口顶（常量由 syncTop-
-        // Constant 与顶簇钉位同拍维护，见彼处）
-        backingTopConstraint = backingView.topAnchor
-            .constraint(equalTo: view.topAnchor, constant: 0)
         NSLayoutConstraint.activate([
-            backingView.leadingAnchor.constraint(
-                equalTo: view.leadingAnchor),
-            backingView.trailingAnchor.constraint(
-                equalTo: view.trailingAnchor),
-            backingView.bottomAnchor.constraint(
-                equalTo: barHost.view.bottomAnchor),
-            backingTopConstraint,
             barHost.view.leadingAnchor.constraint(
                 equalTo: view.leadingAnchor),
             barHost.view.trailingAnchor.constraint(
@@ -560,8 +522,8 @@ final class TopBarGuideHostController: UIViewController {
             topGuideTopConstraint,
             barHeightConstraint,
         ])
-        // 树内契约：装配完成即自检（背板序位/闸门
-        // 初态/安全区纪律，见文件头契约节）
+        // 树内契约：装配完成即自检（带内单层/安全
+        // 区纪律，见文件头契约节）
         assertAssemblyContract()
     }
 
@@ -630,19 +592,6 @@ final class TopBarGuideHostController: UIViewController {
         if abs(topGuideTopConstraint.constant - constant)
             > 0.5 {
             topGuideTopConstraint.constant = constant
-        }
-        // §327：背板顶边同拍维护——常量＝−本视图布
-        // 局空间顶边，背板顶由此恒抵窗口顶（本视
-        // 图帧被 SwiftUI 挪低多少、背板向上补多少，
-        // 与顶簇钉位同式补偿）
-        if let backingTopConstraint {
-            let backingConstant =
-                -Self.layoutSpaceMinY(of: view)
-            if abs(backingTopConstraint.constant
-                - backingConstant) > 0.5 {
-                backingTopConstraint.constant =
-                    backingConstant
-            }
         }
         // §213：顶缘绑定同路刷新——本函数是入窗/显
         // 形/逐布局拍的公共点，列表本体登记晚于本控
