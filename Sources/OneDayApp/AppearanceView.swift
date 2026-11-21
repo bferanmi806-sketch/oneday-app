@@ -304,7 +304,7 @@ struct AppearanceView: View {
             .overlay {
                 if selected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .bold))
                         .foregroundStyle(checkColor)
                 }
             }
@@ -354,7 +354,7 @@ struct AppearanceView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.inkSecondary)
                     Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                         .foregroundStyle(Palette.inkMuted)
                         .accessibilityHidden(true)
                 }

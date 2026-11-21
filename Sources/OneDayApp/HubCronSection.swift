@@ -143,7 +143,7 @@ struct HubCronSection: View {
                 ZStack {
                     Circle().fill(Self.amber)
                     Image(systemName: "clock.fill")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: FrameworkIcon.badgeGlyphSize, weight: .bold))
                         .foregroundStyle(.white)
                 }
                 .frame(width: 18, height: 18)

@@ -246,7 +246,7 @@ struct HubIdentitySection: View {
                 }
                 Spacer()
                 Image(systemName: glyph)
-                    .font(.system(size: 46, weight: .regular))
+                    .font(.system(size: FrameworkIcon.identityGlyphSize, weight: .regular))
                     .foregroundStyle(.white.opacity(0.5))
             }
         }

@@ -137,7 +137,7 @@ struct NotificationsView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                         .foregroundStyle(Palette.inkSecondary)
                         .frame(width: 30, height: 30)
                         .background(
@@ -718,7 +718,7 @@ private struct NotificationDetailView: View {
     ) -> some View {
         HStack(spacing: OneDayMetrics.spacingXS) {
             Image(systemName: outcome == .rejected ? "xmark" : "checkmark")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .semibold))
             Text(outcome.label())
                 .font(.footnote.weight(.medium))
         }
@@ -819,7 +819,7 @@ private struct NotificationDetailView: View {
                     .foregroundStyle(Palette.ink)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)
             }
             .padding(OneDayMetrics.spacingSM)
@@ -863,7 +863,7 @@ private struct NotificationDetailView: View {
                     Spacer()
                     Image(systemName: technicalExpanded
                         ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkMuted)
                 }
                 .frame(minHeight: OneDayMetrics.minTapTarget)

@@ -162,7 +162,7 @@ struct CronJobsView: View {
                     .font(.footnote)
                     .foregroundStyle(job.enabled ? Palette.successText : Palette.inkSecondary)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
@@ -364,7 +364,7 @@ struct CronJobDetailView: View {
                                     systemName: showErrorRaw
                                         ? "chevron.up" : "chevron.down"
                                 )
-                                .font(.system(size: 10, weight: .regular))
+                                .font(.system(size: FrameworkIcon.badgeGlyphSize, weight: .regular))
                                 .foregroundStyle(Palette.inkMuted)
                             }
                             .contentShape(Rectangle())
@@ -457,7 +457,7 @@ struct CronJobDetailView: View {
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }

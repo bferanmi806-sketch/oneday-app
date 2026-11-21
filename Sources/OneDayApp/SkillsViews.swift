@@ -40,7 +40,7 @@ struct SkillsView: View {
                             }
                             Spacer(minLength: OneDayMetrics.spacingS)
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .regular))
+                                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                                 .foregroundStyle(Palette.inkMuted)
                                 .accessibilityHidden(true)
                         }
@@ -137,7 +137,7 @@ struct SkillsView: View {
                                 .foregroundStyle(Palette.ink)
                             if skill.locked == true {
                                 Image(systemName: "lock")
-                                    .font(.system(size: 11))
+                                    .font(.system(size: FrameworkIcon.tinyGlyphSize))
                                     .foregroundStyle(Palette.inkMuted)
                                     .accessibilityLabel("已锁定")
                             }
@@ -155,7 +155,7 @@ struct SkillsView: View {
                     }
                     Spacer(minLength: OneDayMetrics.spacingS)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkMuted)
                         .accessibilityHidden(true)
                 }

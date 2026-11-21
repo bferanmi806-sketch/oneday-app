@@ -819,7 +819,7 @@ struct ConnectorsView: View {
                             detailTarget = nil
                         } label: {
                             Image(systemName: "xmark")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                         }
                         .accessibilityLabel("关闭")
                     }
@@ -962,7 +962,7 @@ struct ConnectorsView: View {
                                 ? "checkmark.circle.fill"
                                 : "xmark.circle.fill"
                         )
-                        .font(.system(size: 13))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize))
                         .foregroundStyle(
                             result.succeeded
                                 ? Palette.success : Palette.danger

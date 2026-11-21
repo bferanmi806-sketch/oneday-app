@@ -503,7 +503,7 @@ struct DrawerView: View {
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Image(systemName: "pencil")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .accessibilityHidden(true)
             }

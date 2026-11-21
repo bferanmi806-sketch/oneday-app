@@ -659,7 +659,7 @@ struct ConnectView: View {
 
     private func orb(systemImage: String, isDanger: Bool = false) -> some View {
         Image(systemName: systemImage)
-            .font(.system(size: 28))
+            .font(.system(size: FrameworkIcon.largeGlyphSize))
             .foregroundStyle(isDanger ? Palette.danger : Palette.primary)
             .frame(width: 70, height: 70)
             .background(

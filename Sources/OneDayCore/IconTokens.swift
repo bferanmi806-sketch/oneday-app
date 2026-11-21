@@ -80,6 +80,25 @@ public enum FrameworkIcon {
     /// 聊天气泡工具字形（＋/麦克风）：第 32 条——15pt
     /// regular，笔画目标约 1.8pt（16pt 时实测约 2.5）
     public static let composerGlyphSize: CGFloat = 15
+
+    // MARK: - 宪法收编一期补充令牌（2026-11-22，台账 17 补包）
+    // 上一包（提交 25561fe）收编一期范围内的图标字号时，
+    // 因本表缺对应令牌而跳过了 21 条：19 条 10–13pt 小
+    // 装饰图标 + 2 条 28/46pt 大图标。本节补齐实际用到
+    // 的 6 档令牌（10/11/12/13/28/46pt），按尺寸升序排列。
+
+    /// 徽标/角标字形：10pt（最小档，用于角标与极小装饰）
+    public static let badgeGlyphSize: CGFloat = 10
+    /// 极小装饰图标：11pt
+    public static let tinyGlyphSize: CGFloat = 11
+    /// 迷你装饰图标：12pt
+    public static let miniGlyphSize: CGFloat = 12
+    /// 小装饰图标：13pt（最常用的小图标尺寸）
+    public static let smallGlyphSize: CGFloat = 13
+    /// 大图标：28pt（连接状态等大型图标）
+    public static let largeGlyphSize: CGFloat = 28
+    /// 身份区超大字形：46pt（全仓最大字形，HubIdentitySection 专用）
+    public static let identityGlyphSize: CGFloat = 46
     /// 框架图标墨迹密度目标带（紧致 alpha 包围盒口径，
     /// RenderMeasureTests 同口径复量）：Muse 同位 13–21%
     /// ——注意本带是 17–18pt 小字形口径（0.3.6 定）；字

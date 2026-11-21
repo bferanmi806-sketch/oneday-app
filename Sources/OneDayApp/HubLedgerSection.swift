@@ -468,7 +468,7 @@ struct HubLedgerSection: View {
     ) -> some View {
         HStack(spacing: OneDayMetrics.spacingS) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
             VStack(alignment: .leading, spacing: 1) {
                 Text(text)
                     .font(.subheadline.weight(.semibold))
