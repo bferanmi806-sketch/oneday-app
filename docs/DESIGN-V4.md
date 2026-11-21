@@ -13970,3 +13970,7 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **改动面**：新增 ChannelPairingScaffold.swift、ModelListRow.swift；改 ChannelPairingView/TokenChannelPairingView（各删约 200 行重复骨架）、ChatModelPickerView、ModelSettingsView、AgentHubView、ChatView（枢纽入参＋注释）、AppState（两共享店）、IdeasView/GoalsView/FeedView/GoalDetailView（店消费改口）、ServerSessionsViews.swift→ServerSessionDetailView.swift（删名单页约 470 行）、SettingsView（路由/activate/深链消费）、AppRouter（删枚举 case）、ContentView（AfterSettings 序）、ConversationMaintenanceView（空清理段）、SettingsCatalog（目的地注记＋条目副行）、HubSegmentsConsolidationTests（单形态改钉）、本节登记。净删约 800 行。
 
 **验收门（本包）**：CI 红集与基线（rel-05070@1d04add，run 44795478758 红 11）逐名对账零新增；真机门留用户：①Telegram 与令牌四家任一家配对页全程（状态带四态＋正在生效轮询）②顶栏模型面与设置默认模型面各点选一次③枢纽开合与台账下钻关页④点子/目标/动态三格与目标详情数据一致⑤设置「服务端会话」行点按→设置收起→全部对话升起、维护子页空会话清理入口在位。**未合 main、未打 tag、未组版**（冻分支待主线排序合流，在 198 之后）。
+
+### §336.1 CI 判读（2026-11-21 回填）
+
+两轮 workflow_dispatch（ios-native.yml）：首轮 run 44852781671（fcb6f45）红集＝基线 11＋1 新红——SettingsCatalogTests.testAllConversationsHasNoSettingsEntry，系条 5 改判与旧钉正面冲突（旧钉「搜索不点达」），已按新口径改钉（提交 451c8bd）、非改码迁就。次轮 run 44857400855（451c8bd）：OneDayCoreTests 2291 件全绿（改钉测试与枢纽/账本/目录各测试在内）；全仓红集 11 件与基线轮 run 44795478758（rel-05070 @ 1d04add）逐名一致、零新增（2 Chat 组装＋1 边缘探针＋8 手势/键盘 UI 族，均为基线既有红、与本包改动面无交集）；构建无编译错误。判绿（实验室口径），真机待验五项见交卷报告 pkg-199-appwide-convergence-delivery-20261121.md。
