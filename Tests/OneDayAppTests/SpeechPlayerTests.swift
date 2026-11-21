@@ -16,8 +16,12 @@ final class SpeechPlayerTests: XCTestCase {
         @MainActor var onPlaybackFailure: (@MainActor (String) -> Void)?
         private(set) var started = false
         private(set) var stopped = false
+        private(set) var paused = false
+        private(set) var resumed = false
         func start() { started = true }
         func stop() { stopped = true }
+        func pause() { paused = true }
+        func resume() { resumed = true }
     }
 
     /// 脚本台：服务回执/失败可换，调用留痕
@@ -287,6 +291,63 @@ final class SpeechPlayerTests: XCTestCase {
         player.stop()
         XCTAssertEqual(player.machine.state, .idle)
         XCTAssertTrue(stub.engines[0].stopped)
+    }
+
+    /// 暂停/继续（D1）：转发当前引擎、不 tearDown
+    /// ——引擎仍是同一台、speak 不重发（断点续播）；
+    /// 暂停后 stop 仍全拆
+    func testPauseResumeForwardsWithoutTeardown() async {
+        let stub = Stub()
+        let player = makePlayer(stub: stub)
+        let appState = makeAppState()
+        player.toggle(
+            entryID: entryA, content: "甲", appState: appState
+        )
+        await waitForState(player, .playing(entryID: entryA))
+
+        player.pause()
+        XCTAssertEqual(
+            player.machine.state, .paused(entryID: entryA)
+        )
+        XCTAssertTrue(stub.engines[0].paused)
+        XCTAssertFalse(stub.engines[0].stopped)
+
+        player.resume()
+        XCTAssertEqual(
+            player.machine.state, .playing(entryID: entryA)
+        )
+        XCTAssertTrue(stub.engines[0].resumed)
+        XCTAssertEqual(stub.engines.count, 1)
+        XCTAssertEqual(stub.speakCalls.count, 1)
+
+        // 暂停中 stop：全拆
+        player.pause()
+        player.stop()
+        XCTAssertEqual(player.machine.state, .idle)
+        XCTAssertTrue(stub.engines[0].stopped)
+    }
+
+    /// 暂停中自动朗读不抢（D1）：用户主动暂停后，
+    /// 新回复的自动朗读不许打断、不许发新请求
+    func testAutoReadDoesNotInterruptPaused() async {
+        let stub = Stub()
+        let player = makePlayer(stub: stub)
+        let appState = makeAppState()
+        player.toggle(
+            entryID: entryA, content: "甲", appState: appState
+        )
+        await waitForState(player, .playing(entryID: entryA))
+        player.pause()
+        XCTAssertEqual(
+            player.machine.state, .paused(entryID: entryA)
+        )
+        player.autoRead(
+            entryID: entryB, content: "乙", appState: appState
+        )
+        XCTAssertEqual(
+            player.machine.state, .paused(entryID: entryA)
+        )
+        XCTAssertEqual(stub.speakCalls.count, 1)
     }
 }
 

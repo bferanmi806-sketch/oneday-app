@@ -1713,7 +1713,7 @@ struct ChatView: View {
                 A11yAnnouncer.announce(
                     L10n.string("正在朗读")
                 )
-            case .idle, .requesting:
+            case .idle, .requesting, .paused:
                 break
             }
         }
@@ -2289,15 +2289,19 @@ struct ChatView: View {
         }
     }
 
-    /// 朗读播放条（台账 183）：形态沿本页条族画法
-    /// （发丝线＋pageBG＋gutter 横距，与 noticeBar
-    /// 同族）；参照 OpenBot voice-call-bar「声音正
-    /// 在出声时、控制面就长在输入舱上」降维为单钮
-    /// 条——文案（Core 派生）＋停止钮常驻可见。引
-    /// 擎层只有 stop、无 pause（与 OpenBot 朗读
-    /// stop-only 同构），本条不造暂停。停止走
-    /// SpeechPlayer.stop() 既有出口（与离页/发送/
-    /// 听写共用同一停因口）
+    /// 朗读播放条（台账 183；D1 台账 5 补暂停/继
+    /// 续）：形态沿本页条族画法（发丝线＋pageBG＋
+    /// gutter 横距，与 noticeBar 同族）；参照
+    /// OpenBot voice-call-bar「声音正在出声时、控
+    /// 制面就长在输入舱上」——文案（Core 派生）＋
+    /// 主钮＋停止次钮常驻可见。主钮随状态机态切
+    /// 换：播放中＝暂停、已暂停＝继续（引擎 pause/
+    /// play 保断点）；请求中尚无音频实例、无可暂
+    /// 停之物，主钮不显、只留停止。停止走 Speech-
+    /// Player.stop() 既有出口（与离页/发送/听写共
+    /// 用同一停因口）。分工裁定（D1 对位表）：暂
+    /// 停/继续只住本条，长按菜单的朗读项保持朗读/
+    /// 停止朗读二义，不加第三义
     private var speechPlaybackBar: some View {
         VStack(spacing: 0) {
             Rectangle()
@@ -2315,33 +2319,58 @@ struct ChatView: View {
                 .font(.subheadline)
                 .foregroundStyle(Palette.inkSecondary)
                 Spacer()
-                Button {
-                    SpeechPlayer.shared.stop()
-                } label: {
-                    HStack(spacing: OneDayMetrics.spacingXS) {
-                        Image(
-                            systemName:
-                                MessageActionSymbols.speakStop
-                        )
-                        .font(.system(size: 13, weight: .regular))
-                        Text("停止")
-                            .font(.subheadline)
-                    }
-                    .foregroundStyle(Palette.ink)
-                    // 命中域 44（条族审计口径）：字形
-                    // 行高不变、命中纵向撑满条高
-                    .frame(
-                        minHeight: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
+                // 主钮（D1）：暂停/继续随态切换——播
+                // 放中显暂停、已暂停显继续；请求中不
+                // 显主钮（见函数头注）
+                switch SpeechPlayer.shared.machine.state {
+                case .playing:
+                    speechBarButton(
+                        symbol: MessageActionSymbols.speakPause,
+                        title: "暂停", label: "暂停朗读",
+                        style: Palette.ink
+                    ) { SpeechPlayer.shared.pause() }
+                case .paused:
+                    speechBarButton(
+                        symbol: MessageActionSymbols.speakResume,
+                        title: "继续", label: "继续朗读",
+                        style: Palette.ink
+                    ) { SpeechPlayer.shared.resume() }
+                case .requesting, .idle, .failed:
+                    EmptyView()
                 }
-                .accessibilityLabel("停止朗读")
-                .buttonStyle(.odPressable)
+                // 次钮：停止（放弃本次朗读）
+                speechBarButton(
+                    symbol: MessageActionSymbols.speakStop,
+                    title: "停止", label: "停止朗读",
+                    style: Palette.inkSecondary
+                ) { SpeechPlayer.shared.stop() }
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.vertical, OneDayMetrics.spacingXS)
         }
         .background(Palette.pageBG)
+    }
+
+    /// 播放条按钮画法（D1：主钮/停止钮同族单源）：
+    /// 图标＋文案横排，命中域 44（条族审计口径）——
+    /// 字形行高不变、命中纵向撑满条高
+    private func speechBarButton(
+        symbol: String, title: String, label: String,
+        style: some ShapeStyle, action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: OneDayMetrics.spacingXS) {
+                Image(systemName: symbol)
+                    .font(.system(size: 13, weight: .regular))
+                Text(title)
+                    .font(.subheadline)
+            }
+            .foregroundStyle(style)
+            .frame(minHeight: OneDayMetrics.minTapTarget)
+            .contentShape(Rectangle())
+        }
+        .accessibilityLabel(label)
+        .buttonStyle(.odPressable)
     }
 
     /// 回到底部圆钮（0.2.4 曾换原生玻璃；0.3.8 第 28 条
