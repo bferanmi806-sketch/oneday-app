@@ -3631,12 +3631,13 @@ struct ChatView: View {
     /// 态，非 gen4 回落路）
     @ViewBuilder
     private func nativeStreamingContent(
-        _ text: String
+        _ text: String,
+        menuEntry: ChatEntry? = nil
     ) -> some View {
         if text.isEmpty {
-            streamingBubble(text)
+            streamingBubble(text, menuEntry: menuEntry)
         } else {
-            assistantBubble {
+            assistantBubble(menuEntry: menuEntry) {
                 StreamingBlockText(text: text)
             }
         }
@@ -3888,14 +3889,15 @@ struct ChatView: View {
     /// Bubble 全形态（等待点/上传进度/逐词渐显）
     @ViewBuilder
     private func streamingBubbleIncremental(
-        _ text: String
+        _ text: String,
+        menuEntry: ChatEntry? = nil
     ) -> some View {
         if gen4StreamingEnabled, !text.isEmpty {
-            assistantBubble {
+            assistantBubble(menuEntry: menuEntry) {
                 StreamingBlockText(text: text)
             }
         } else {
-            streamingBubble(text)
+            streamingBubble(text, menuEntry: menuEntry)
         }
     }
 
@@ -6254,8 +6256,8 @@ struct ChatView: View {
                                     cornerRadius: OneDayMetrics.bubbleCorner
                                 )
                                 .fill(Palette.userBubbleFill)
-                                .modifier(messageMenu(for: entry))
                             }
+                            .modifier(messageMenu(for: entry))
                     }
                     // 0.46.1（§116）：用户附件文件牌——
                     // 展开块剥出的非图片附件（导入/补缺
@@ -7304,7 +7306,7 @@ struct ChatView: View {
             * OneDayMetrics.assistantTextLeadingFraction
             - OneDayMetrics.pageGutter
             - OneDayMetrics.bubblePaddingH
-        return HStack(alignment: .top) {
+        let base = HStack(alignment: .top) {
             content()
                 .padding(.horizontal, OneDayMetrics.bubblePaddingH)
                 .padding(.vertical, OneDayMetrics.bubblePaddingV)
@@ -7323,23 +7325,22 @@ struct ChatView: View {
                     // Palette.bubbleFill——双边都有泡；
                     // 本层仍是 §265 菜单宿主，形状/挂载
                     // 点/命中带逐字不动，只恢复填充
-                    let shape = RoundedRectangle(
+                    RoundedRectangle(
                         cornerRadius:
                             OneDayMetrics.assistantBubbleCorner
                     )
                     .fill(Palette.bubbleFill)
-                    if let menuEntry {
-                        shape.modifier(
-                            messageMenu(for: menuEntry)
-                        )
-                    } else {
-                        shape
-                    }
                 }
                 .frame(maxWidth: columnCap, alignment: .leading)
             Spacer(minLength: 0)
         }
         .padding(.leading, leading)
+
+        if let menuEntry {
+            return AnyView(base.modifier(messageMenu(for: menuEntry)))
+        } else {
+            return AnyView(base)
+        }
     }
 
     @ViewBuilder
@@ -7477,9 +7478,9 @@ struct ChatView: View {
     }
 
     @ViewBuilder
-    private func streamingBubble(_ text: String) -> some View {
+    private func streamingBubble(_ text: String, menuEntry: ChatEntry? = nil) -> some View {
         if text.isEmpty {
-            assistantBubble {
+            assistantBubble(menuEntry: menuEntry) {
                 // 0.32.1（F05 止血）：Qwen 冷启「模型唤醒中」
                 // 提示整路拆除——该模型已停用下线，不再有
                 // 唤醒态；等待一律只剩打字点
@@ -7517,7 +7518,7 @@ struct ChatView: View {
                 }
             }
         } else {
-            assistantBubble {
+            assistantBubble(menuEntry: menuEntry) {
                 // 条 4（§14）：流式走渐显组件逐字入场；
                 // Markdown 只在落盘成品上渲染
                 StreamingText(text)
