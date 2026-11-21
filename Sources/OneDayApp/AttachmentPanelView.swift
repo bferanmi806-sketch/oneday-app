@@ -33,6 +33,14 @@ import UIKit
 /// 只改内容不改高。代价如实记：无库态内容约
 /// 137pt、sheet 恒半高，内容顶锚、下方留白——
 /// 换来的是定高零自造、与系统 sheet 行为全同构。
+/// D5（台账 11）修订：定高条改系统 .height() 档
+/// 位＋Core 常量纯算贴合高（三态 137/305/373＋
+/// safeArea）——确认行增减时仅当用户停在贴合档
+/// 才跟随 ±68pt，手动拉到 .large 后保持不拽回；
+/// AX 大字体回落 [.medium, .large]。代价条（下方
+/// 留白）就此注销。§327 退役四件（custom detent
+/// resolver 桥、安全区反向补偿、指纹、§317 过渡
+/// 守卫）仍不得复活。
 ///
 /// 授权纪律：照片条只同步读 PHPhotoLibrary 现态
 /// （系统授权铁律：已决定绝不重走请求、未决定也不
@@ -65,12 +73,16 @@ struct AttachmentPanelView: View {
     /// 句柄，迟到回写按代次丢弃——面板快速开关/
     /// 重载后旧代的低清图不许覆写新代结果
     @State private var stripLoadGeneration = 0
-
-    /// 照片条格边长（形态值，§152 修订：照 Muse 截
-    /// 图近方形大格口径自 §147 的 76 放大；对屏宽约
-    /// 390 的实测占比约 30%，一屏约 3 格＋露边引导横
-    /// 滑；间距仍走 OneDayMetrics 梯队）
-    private static let cellSize: CGFloat = 118
+    
+    /// D5：选档状态——初值回贴合档，内容态变化时
+    /// 仅当停在贴合档才跟随（确认行 ±68pt），手动
+    /// 拉到 .large 后保持、不拽回
+    @State private var selectedDetent: PresentationDetent = .medium
+    /// D5：用户是否已手动拉到 .large（开局重置、
+    /// 手动拉大后置真，用于判断内容变化时是否跟随）
+    @State private var userSelectedLarge = false
+    
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     /// 同步读现态（不在此发任何授权请求）
     private var photoAccess: AttachmentPanel.PhotoAccess {
@@ -87,6 +99,25 @@ struct AttachmentPanelView: View {
     private var showsLibrary: Bool {
         AttachmentPanel.showsLibrary(access: photoAccess)
     }
+    
+    /// D5：贴合档位（按当前内容态算高）
+    private var fittedDetent: PresentationDetent {
+        let height = AttachmentPanel.fittedSheetHeight(
+            showsLibrary: showsLibrary,
+            hasSelection: !selectedIDs.isEmpty
+        )
+        return .height(height)
+    }
+    
+    /// D5：档位集（AX 大字体回落 [.medium, .large]、
+    /// 标准字阶用 [fitted, .large]）
+    private var detents: Set<PresentationDetent> {
+        if dynamicTypeSize.isAccessibilitySize {
+            return [.medium, .large]
+        } else {
+            return [fittedDetent, .large]
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingM) {
@@ -101,15 +132,38 @@ struct AttachmentPanelView: View {
             actionRows
         }
         .padding(OneDayMetrics.spacingM)
-        // §327：系统 detent 档位下 sheet 高恒大于内
-        // 容高——内容顶锚（顶左对齐、向下吃满），
-        // 不许居中漂浮
+        // D5：系统 detent 贴合档下内容恰满（不再留大
+        // 片空白），仍需顶锚防内容漂浮（.large 档下
+        // sheet 高仍大于内容）
         .frame(
             maxWidth: .infinity, maxHeight: .infinity,
             alignment: .topLeading
         )
+        .presentationDetents(
+            detents,
+            selection: Binding(
+                get: { selectedDetent },
+                set: { newValue in
+                    selectedDetent = newValue
+                    // D5：追踪用户是否手动拉到 .large
+                    userSelectedLarge = (newValue == .large)
+                }
+            )
+        )
+        .presentationDragIndicator(.visible)
         .task {
             loadStrip()
+            // D5：开局回贴合档
+            userSelectedLarge = false
+            selectedDetent = fittedDetent
+        }
+        .onChange(of: selectedIDs.isEmpty) { _, _ in
+            // D5：确认行增减时，仅当用户停在贴合档才跟随
+            // 新高度（±68pt 系统动画过渡）；已拉到 .large
+            // 不拽回；AX 档不自动跟随（回落 .medium 固定高）
+            if !userSelectedLarge && !dynamicTypeSize.isAccessibilitySize {
+                selectedDetent = fittedDetent
+            }
         }
     }
 
@@ -151,7 +205,10 @@ struct AttachmentPanelView: View {
             Image(systemName: "camera")
                 .font(.system(size: 30, weight: .regular))
                 .foregroundStyle(Palette.ink)
-                .frame(width: Self.cellSize, height: Self.cellSize)
+                .frame(
+                    width: AttachmentPanel.Layout.cellSize,
+                    height: AttachmentPanel.Layout.cellSize
+                )
                 .background(
                     Palette.bubbleFill,
                     in: RoundedRectangle(
@@ -188,7 +245,10 @@ struct AttachmentPanelView: View {
                         Palette.bubbleFill
                     }
                 }
-                .frame(width: Self.cellSize, height: Self.cellSize)
+                .frame(
+                    width: AttachmentPanel.Layout.cellSize,
+                    height: AttachmentPanel.Layout.cellSize
+                )
                 .clipShape(
                     RoundedRectangle(
                         cornerRadius: OneDayMetrics.radiusCard
@@ -235,7 +295,7 @@ struct AttachmentPanelView: View {
                     .foregroundStyle(Palette.primary)
                 Spacer()
             }
-            .frame(minHeight: 52)
+            .frame(minHeight: AttachmentPanel.Layout.rowHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
@@ -271,7 +331,7 @@ struct AttachmentPanelView: View {
                     .foregroundStyle(Palette.ink)
                 Spacer()
             }
-            .frame(minHeight: 52)
+            .frame(minHeight: AttachmentPanel.Layout.rowHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
@@ -304,7 +364,7 @@ struct AttachmentPanelView: View {
         let thumbOptions = PHImageRequestOptions()
         thumbOptions.deliveryMode = .opportunistic
         thumbOptions.resizeMode = .fast
-        let side = Self.cellSize * 2
+        let side = AttachmentPanel.Layout.cellSize * 2
         for id in ids {
             guard let asset = assets[id] else { continue }
             manager.requestImage(
@@ -327,13 +387,11 @@ struct AttachmentPanelView: View {
 }
 
 extension View {
-    /// 附件面板呈现口径单源——§327 起定高走系统
-    /// detent 档位 [.medium, .large]（开在 .medium、
-    /// 可上拖至 .large），拖拽指示同走 SwiftUI 声
-    /// 明；§303 的 AttachmentSheetDetentBridge
-    /// （custom detent 精确贴合＋安全区反向补偿）
-    /// 已整套退役、不得复活。ChatView 呈现点与装
-    /// 配测试共用本口径，不许在别处另抄一份
+    /// 附件面板呈现口径单源（D5 起弃用）——D5 起
+    /// presentation modifiers 在 AttachmentPanelView
+    /// 本体内施加（需访问视图状态算 fitted 档），
+    /// ChatView 呈现点只需 .sheet() 本体、不再调本
+    /// 方法。本方法保留供装配测试引用旧口径
     func attachmentPanelPresentation() -> some View {
         self
             .presentationDetents([.medium, .large])

@@ -1494,7 +1494,11 @@ struct ChatView: View {
         // §327（小修批①）：custom detent 精确贴合整
         // 套再退役——桥本体删除，定高改系统 detent
         // 档位 [.medium, .large]（attachmentPanel-
-        // Presentation 单源），确认行增减不再改高
+        // Presentation 单源），确认行增减不再改高。
+        // D5（台账 11）修订：定高条改系统 .height()
+        // 档＋常量纯算贴合（AttachmentPanelView 内施
+        // 加，ChatView 只留 .sheet() 本体不再调口径
+        // 配方），确认行增减仅当停在贴合档才跟随
         .sheet(
             isPresented: $showAttachPanel,
             onDismiss: {
@@ -1531,7 +1535,6 @@ struct ChatView: View {
                     afterAttachPanelDismiss { showVideoPicker = true }
                 }
             )
-            .attachmentPanelPresentation()
         }
         // 0.36.31（件二）：.fileImporter 已删——侧载
         // 设备类上其 coordinator 会死在被拆的呈现上

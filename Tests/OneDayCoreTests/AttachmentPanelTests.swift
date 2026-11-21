@@ -5,6 +5,7 @@ import XCTest
 /// 请求）、照片条拼装（相机恒首、去重、截断）、图片
 /// 接入闸与汇总文案（两条取图路共用）、视频入条命名。
 /// §152 修订二续：照片条多选（切换/呈现序/确认文案）。
+/// D5（台账 11）续：布局常量单源＋贴合高度三态逐值。
 final class AttachmentPanelTests: XCTestCase {
 
     // MARK: 授权政策
@@ -153,5 +154,48 @@ final class AttachmentPanelTests: XCTestCase {
             AttachmentPanel.videoFileName(preferredExtension: ".m4v"),
             "视频.m4v"
         )
+    }
+
+    // MARK: 布局常量与定高（D5，台账 11）
+
+    func testLayoutConstants() {
+        // 常量单源：与 AttachmentPanelView 引用同值
+        XCTAssertEqual(AttachmentPanel.Layout.cellSize, 118)
+        XCTAssertEqual(AttachmentPanel.Layout.rowHeight, 52)
+        XCTAssertEqual(AttachmentPanel.Layout.titleRowHeight, 22)
+    }
+
+    func testFittedSheetHeightThreeStates() {
+        // 无库态：32（padding）＋ 105（动作行）＝ 137
+        let noLibrary = AttachmentPanel.fittedSheetHeight(
+            showsLibrary: false,
+            hasSelection: false
+        )
+        XCTAssertEqual(noLibrary, 137)
+
+        // 有库未选：32 ＋ 152（库区）＋ 16 ＋ 105 ＝ 305
+        let libraryNoSelection = AttachmentPanel.fittedSheetHeight(
+            showsLibrary: true,
+            hasSelection: false
+        )
+        XCTAssertEqual(libraryNoSelection, 305)
+
+        // 有库已选：305 ＋ 16 ＋ 52（确认行）＝ 373
+        let libraryWithSelection = AttachmentPanel.fittedSheetHeight(
+            showsLibrary: true,
+            hasSelection: true
+        )
+        XCTAssertEqual(libraryWithSelection, 373)
+    }
+
+    func testFittedSheetHeightExcludesSafeArea() {
+        // D5 根因口径：贴合高只算内容、安全区不入参——系统 sheet 的
+        // detent 解析值已含安全区处理，函数再加一层即多算 34.3pt
+        // （装配测 testAttachPanelPresentsAtFittedHeight 钉死此口径）
+        let height = AttachmentPanel.fittedSheetHeight(
+            showsLibrary: false,
+            hasSelection: false
+        )
+        XCTAssertEqual(height, 137)
     }
 }
