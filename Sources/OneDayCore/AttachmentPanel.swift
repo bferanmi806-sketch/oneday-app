@@ -154,18 +154,22 @@ public enum AttachmentPanel {
     }
 
     /// 贴合档理想高度纯算（D5 立）：按与内容同一组常
-    /// 量算内容理想高、加底部安全区——无状态、无量
+    /// 量算内容理想高——无状态、无量
     /// 测、无回调。装配测试逐值对账防漂移
     ///
     /// - Parameters:
     ///   - showsLibrary: 资源库区是否呈现（授权相关）
     ///   - hasSelection: 是否有照片选中（确认行是否在场）
-    ///   - bottomSafeArea: 底部安全区高度（系统托管视图需含此层）
-    /// - Returns: presented 视图理想总高（内容＋安全区）
+    ///
+    /// SwiftUI `.height()` detent 参数是 detent 解析高度
+    /// （相当于 sheetHeight - safeAreaInsets.bottom），
+    /// 系统会自动加上安全区得到实际帧高，故此函数只返回
+    /// 纯内容高，不包含安全区。
+    ///
+    /// - Returns: detent 高度（纯内容高，系统自动加安全区）
     public static func fittedSheetHeight(
         showsLibrary: Bool,
-        hasSelection: Bool,
-        bottomSafeArea: CGFloat
+        hasSelection: Bool
     ) -> CGFloat {
         // 上下 padding：各 spacingM(16)
         let verticalPadding: CGFloat = 16 * 2
@@ -196,7 +200,7 @@ public enum AttachmentPanel {
         
         let contentHeight = verticalPadding + libraryHeight + confirmHeight + actionHeight + interSpacing
         
-        return contentHeight + bottomSafeArea
+        return contentHeight
     }
 
     // MARK: - 定高注释续（D5 修订条）

@@ -81,9 +81,6 @@ struct AttachmentPanelView: View {
     /// D5：用户是否已手动拉到 .large（开局重置、
     /// 手动拉大后置真，用于判断内容变化时是否跟随）
     @State private var userSelectedLarge = false
-    /// D5：底部安全区高度（默认 34、GeometryReader
-    /// 实测后更新）
-    @State private var bottomSafeArea: CGFloat = 34
     
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -103,12 +100,11 @@ struct AttachmentPanelView: View {
         AttachmentPanel.showsLibrary(access: photoAccess)
     }
     
-    /// D5：贴合档位（按当前内容态＋底部安全区算高）
+    /// D5：贴合档位（按当前内容态算高）
     private var fittedDetent: PresentationDetent {
         let height = AttachmentPanel.fittedSheetHeight(
             showsLibrary: showsLibrary,
-            hasSelection: !selectedIDs.isEmpty,
-            bottomSafeArea: bottomSafeArea
+            hasSelection: !selectedIDs.isEmpty
         )
         return .height(height)
     }
@@ -142,18 +138,6 @@ struct AttachmentPanelView: View {
         .frame(
             maxWidth: .infinity, maxHeight: .infinity,
             alignment: .topLeading
-        )
-        .background(
-            // D5：GeometryReader 获取底部安全区实测值
-            GeometryReader { geometry in
-                Color.clear
-                    .onAppear {
-                        bottomSafeArea = geometry.safeAreaInsets.bottom
-                    }
-                    .onChange(of: geometry.safeAreaInsets.bottom) { _, newValue in
-                        bottomSafeArea = newValue
-                    }
-            }
         )
         .presentationDetents(
             detents,

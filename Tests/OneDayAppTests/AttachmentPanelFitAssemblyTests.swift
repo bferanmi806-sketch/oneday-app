@@ -258,13 +258,12 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         @ObservedObject var model: ConfirmRowModel
         @State private var selectedDetent: PresentationDetent = .medium
         @State private var userSelectedLarge = false
-        @State private var bottomSafeArea: CGFloat = 34
         @Environment(\.dynamicTypeSize) private var dynamicTypeSize
         
         private var fittedHeight: CGFloat {
             // 简化高度：有库未选 305、已选 373（＋确认行 68）
             let base: CGFloat = model.hasConfirmRow ? 373 : 305
-            return base + bottomSafeArea
+            return base
         }
         
         private var fittedDetent: PresentationDetent {
@@ -295,17 +294,6 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             .frame(
                 maxWidth: .infinity, maxHeight: .infinity,
                 alignment: .topLeading
-            )
-            .background(
-                GeometryReader { geometry in
-                    Color.clear
-                        .onAppear {
-                            bottomSafeArea = geometry.safeAreaInsets.bottom
-                        }
-                        .onChange(of: geometry.safeAreaInsets.bottom) { _, newValue in
-                            bottomSafeArea = newValue
-                        }
-                }
             )
             .presentationDetents(
                 detents,
