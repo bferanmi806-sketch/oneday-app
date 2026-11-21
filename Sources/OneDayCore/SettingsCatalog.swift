@@ -64,6 +64,11 @@ public enum SettingsDestination: Equatable, Sendable {
     case memory
     case skills
     case cron
+    /// 服务端会话（台账 199，2026-11-21 用户裁）：
+    /// 条目与目的地保留、去向改深链——名单正主是
+    /// 全部对话一级面，App 层 activate 置 allCon-
+    /// versationsRequested 直达，设置内不再有名单
+    /// 页（旧 ServerSessionsView 已删）
     case serverSessions
     case models
     case envVars
@@ -279,10 +284,9 @@ public enum SettingsCatalog {
         SettingsCatalogEntry(
             id: "serverSessions", group: .serverAndWorkspace,
             title: "服务端会话",
-            summary: "在网页端等其他入口产生的会话",
-            keywords: ["会话", "网页端", "session", "sessions"],
-            destination: .serverSessions, segment: .sessions
-        ),
+            summary: "服务端保存的会话，在全部对话中查看管理",
+            keywords: ["会话", "全部对话", "网页端", "session", "sessions"],
+            destination: .serverSessions        ),
         // 状态详情（StatusView）：原「总览」条目已随
         // 枢纽/总览归位摘除（纲要 D5-1 总览撤页、D5-2
         // 入口提浅归正主）；总览的状态下钻页不随页丢

@@ -32,9 +32,15 @@ struct FeedView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var store = FeedStore()
     /// refs 点达与标题解析的数据源（与点子/目标格同
-    /// 一套 Store，本格持有自己的实例、按需加载）
-    @State private var ideasStore = IdeasStore()
-    @State private var goalsStore = GoalsStore()
+    /// 一套 Store）：台账 199 改走 AppState 共享单例
+    /// （§259 先例补齐），与点子格／目标格／目标详
+    /// 情同一份，不再自持实例
+    private var ideasStore: IdeasStore {
+        appState.sharedIdeasStore()
+    }
+    private var goalsStore: GoalsStore {
+        appState.sharedGoalsStore()
+    }
     /// §259 三店合一：任务/监测两店走 AppState 共享
     /// 单例，与枢纽/目标/点子各面同一份，不再私建
     private var kanban: KanbanStore {

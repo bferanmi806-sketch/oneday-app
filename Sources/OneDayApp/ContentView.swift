@@ -162,7 +162,16 @@ struct ContentView: View {
     /// （消费点见 body）。设置行入口与 AfterSettings
     /// 链已于归位合流（2026-11-20）摘除：列表只住一
     /// 级面（纲要终局），设置页不再设第二扇门
+    /// 台账 199（2026-11-21，用户裁）补记：设置
+    /// 「服务端会话」行改深链经本旗直达本页（旧设
+    /// 置内名单页已删、名单实现只剩本页一份，设置
+    /// 行只是深链不是第二扇门）；置位时设置 sheet
+    /// 还在场，AfterSettings 序随之复活——消费点
+    /// 先收设置、下方暂存旗落位，sheet onDismiss
+    /// 后再升全屏页（见 body 的 sheet 装配）
     @State private var showAllConversations = false
+    /// 设置行深链的 AfterSettings 暂存（台账 199）
+    @State private var allConversationsAfterSettings = false
     /// 频道页呈现（0.36.29，频道规格 §4.1；2026-11
     /// -13 频道一期扩为按频道 id 路由）：抽屉频道行
     /// 置位，全屏页承载与管理页同通道（本层
@@ -309,12 +318,19 @@ struct ContentView: View {
         // 结构归位第二批（2026-11-20，纲要 D2-1）：
         // 抽屉名单收尾行「全部对话」置位请求 → 直开
         // 全屏页（抽屉已由行动作先行收回、cover 升起
-        // 时名单不在场）；本旗自此只有这一条置位链
-        // （设置行 AfterSettings 链已于合流摘除）
+        // 时名单不在场）。台账 199（2026-11-21）起
+        // 置位链两条：抽屉行（直开）与设置「服务端
+        // 会话」深链行（设置 sheet 在场时先收设置、
+        // 暂存 AfterSettings 旗，onDismiss 后升页）
         .onChange(of: appState.router.allConversationsRequested) { _, requested in
             if requested {
                 appState.router.allConversationsRequested = false
-                showAllConversations = true
+                if showSettings {
+                    allConversationsAfterSettings = true
+                    showSettings = false
+                } else {
+                    showAllConversations = true
+                }
             }
         }
         // 0.29.0：设置内页面置位的切格请求（连接器目
@@ -332,7 +348,17 @@ struct ContentView: View {
                 appState.router.drawerPresented = false
             }
         }
-        .sheet(isPresented: $showSettings) {
+        .sheet(
+            isPresented: $showSettings,
+            onDismiss: {
+                // 台账 199：设置行深链的 AfterSettings
+                // 落点——设置收尽后才升全部对话全屏页
+                if allConversationsAfterSettings {
+                    allConversationsAfterSettings = false
+                    showAllConversations = true
+                }
+            }
+        ) {
             SettingsView(
                 onClose: { showSettings = false },
                 onRequestChat: {

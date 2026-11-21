@@ -29,7 +29,11 @@ struct GoalDetailView: View {
     /// 任务板各有自己的 Store 真源，详情页只读拼装
     /// （GoalAssociations），不建本地副本账；委派建卡
     /// 走 kanban 这一个实例，与点子采纳同路
-    @State private var ideasStore = IdeasStore()
+    /// 台账 199：点子店改走 AppState 共享单例（§259
+    /// 先例补齐），与点子格／动态格同一份
+    private var ideasStore: IdeasStore {
+        appState.sharedIdeasStore()
+    }
     /// §259 三店合一：监测/任务两店走 AppState 共享
     /// 单例，与枢纽/动态/点子各面同一份，不再随详情
     /// 页私建（委派建卡与点子采纳同路同实例）

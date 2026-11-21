@@ -136,17 +136,24 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// 全部对话在设置内无门（归位合流 2026-11-20，
-    /// 纲要 D2-1／原则 6 列表只住一级面）：目录无此
-    /// 条目、标题直搜不点达——入口只剩抽屉名单收尾
-    /// 行一处，不许在设置里再长第二扇门
+    /// 全部对话在设置内无独立条目（归位合流 2026-
+    /// 11-20，纲要 D2-1／原则 6 列表只住一级面）：
+    /// 目录不许长 allConversations 本体条目。台账
+    /// 199（2026-11-21 用户裁）改判后半：设置「服
+    /// 务端会话」行改深链直达全部对话（旧设置内名
+    /// 单页已删、名单实现只剩正主一份），搜索「全
+    /// 部对话」自此恰命中该深链行一条——是深链、
+    /// 不是第二扇门（无第二份名单实现）
     func testAllConversationsHasNoSettingsEntry() {
         XCTAssertFalse(
             SettingsCatalog.entries.contains {
                 $0.id == "allConversations"
             }
         )
-        XCTAssertTrue(SettingsCatalog.search("全部对话").isEmpty)
+        XCTAssertEqual(
+            SettingsCatalog.search("全部对话").map(\.id),
+            ["serverSessions"]
+        )
     }
 
     /// 侧边栏行已退役（归位合流 2026-11-20）：分区

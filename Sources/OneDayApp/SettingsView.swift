@@ -273,8 +273,6 @@ struct SettingsView: View {
             SkillsView()
         case .cron:
             CronJobsView()
-        case .serverSessions:
-            ServerSessionsView()
         case .serverSessionDetail(let id):
             ServerSessionDetailView(sessionID: id)
         case .mcp:
@@ -647,6 +645,13 @@ struct SettingsView: View {
         case .computer: manageSheet = .computer
         case .serverFiles: manageSheet = .serverFiles
         case .disconnect: showDisconnectConfirm = true
+        case .serverSessions:
+            // 台账 199（2026-11-21 用户裁）：服务端会
+            // 话名单正主＝全部对话（一级面），本行改
+            // 深链——置根级呈现请求，ContentView 先
+            // 收设置 sheet 再升全屏页（AfterSettings
+            // 序）；设置内旧名单页已删
+            appState.router.allConversationsRequested = true
         default:
             if let route = route(for: entry.destination) {
                 path = [route]
@@ -665,7 +670,6 @@ struct SettingsView: View {
         case .memory: return .agent(.memory)
         case .skills: return .agent(.skills)
         case .cron: return .agent(.cron)
-        case .serverSessions: return .agent(.serverSessions)
         case .models: return .models
         case .envVars: return .envVars
         case .usage: return .usage
@@ -681,9 +685,11 @@ struct SettingsView: View {
         case .privacy: return .privacy
         case .terms: return .terms
         case .computer, .serverFiles,
-             .disconnect: return nil
+             .disconnect, .serverSessions: return nil
         // prototype-2 叶子（枢纽页撤销后直达；重启网
-        // 关目的地已随台账 198 收敛 S4 退役）
+        // 关目的地已随台账 198 收敛 S4 退役、服务器会
+        // 话目的地随台账 199 收敛退役——会话管理归
+        // 全部对话）
         case .status: return .status
         case .mainSession: return .mainSession
         case .healthCheck: return .healthCheck
@@ -918,8 +924,9 @@ struct SettingsView: View {
 
     // MARK: - 数据与动作
 
-    /// 深链消费：设置内路由直接落位；智能体详情类路由垫一层
-    /// 列表页，返回键才有落点（沿 0.2.0 智能体格口径）
+    /// 深链消费：设置内路由直接落位（会话详情旧垫层
+    /// ——设置内名单页——已随台账 199 删除，详情路由
+    /// 直达本体）
     private func consumePendingRoutes() {
         if let route = appState.router.pendingSettingsRoute {
             appState.router.pendingSettingsRoute = nil
@@ -928,12 +935,7 @@ struct SettingsView: View {
         }
         guard let route = appState.router.pendingAgentRoute else { return }
         appState.router.pendingAgentRoute = nil
-        switch route {
-        case .serverSessionDetail:
-            path = [.agent(.serverSessions), .agent(route)]
-        default:
-            path = [.agent(route)]
-        }
+        path = [.agent(route)]
     }
 
     /// 0.22.0 瘦身：值位撤除后本页只剩 status 一个数

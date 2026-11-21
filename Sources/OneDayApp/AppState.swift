@@ -444,6 +444,30 @@ final class AppState {
         return store
     }
 
+    /// 全局共享的点子/目标两店（台账 199，随 §259
+    /// 先例补齐合一）：两店此前在点子格／目标格／
+    /// 动态格／目标详情四面各自 @State 私建（普查
+    /// D3：同桥数据源、两份内存缓存），自此由
+    /// AppState 持有单例、懒建（与 §259 三店同形
+    /// 态），各面只消费同一份；两店 load 均有在飞
+    /// 守卫，多面同呼安全
+    private var ideasStoreInstance: IdeasStore?
+    private var goalsStoreInstance: GoalsStore?
+
+    func sharedIdeasStore() -> IdeasStore {
+        if let ideasStoreInstance { return ideasStoreInstance }
+        let store = IdeasStore()
+        ideasStoreInstance = store
+        return store
+    }
+
+    func sharedGoalsStore() -> GoalsStore {
+        if let goalsStoreInstance { return goalsStoreInstance }
+        let store = GoalsStore()
+        goalsStoreInstance = store
+        return store
+    }
+
     /// 记一笔本人裁决（AgentHubStore.decide 成功落
     /// 账后调用；recordGone 等他人先裁的路径不记——
     /// 那类回执是「未读重要事件」、不归本人消账）

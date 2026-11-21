@@ -106,8 +106,16 @@ struct ChannelPairingView: View {
     var body: some View {
         NavigationStack {
             List {
-                headerSection
-                statusSection
+                ChannelPairingHeaderSection(
+                    channel: channel, subtitle: headerSubtitle
+                )
+                ChannelPairingStatusSection(
+                    channel: channel, store: store,
+                    phase: applyPhase,
+                    pendingNote: isFeishu ? feishuPendingNote : nil,
+                    applyingNote: isFeishu ? feishuApplyingNote : nil,
+                    onShowList: onShowList
+                )
                 if showsSteps {
                     if isFeishu {
                         feishuStepOneSection
@@ -123,63 +131,30 @@ struct ChannelPairingView: View {
                 if isFeishu {
                     feishuStepFourSection
                 }
-                footerSection
+                ChannelPairingFooterSection()
             }
-            .listStyle(.insetGrouped)
-            .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
-            .scrollContentBackground(.hidden)
-            .background(Palette.settingsBG)
-            .navigationTitle(channel.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { onClose() }
-                }
-            }
-            .refreshable { await store.load(appState: appState) }
-            .task(id: applyPhase == .applying) {
-                await pollWhileApplying()
+            .channelPairingListChrome(
+                title: channel.name, onClose: onClose
+            ) {
+                await store.load(appState: appState)
             }
         }
     }
 
-    /// 正在生效期间自动刷新状态：每 3 秒回读一次、
-    /// 最多约两分钟；status 翻 connected/error 后
-    /// applyPhase 退场、循环收口，页面消失自动取消
-    private func pollWhileApplying() async {
-        guard applyPhase == .applying else { return }
-        for _ in 0..<40 {
-            try? await Task.sleep(for: .seconds(3))
-            if Task.isCancelled { return }
-            await store.load(appState: appState)
-            if applyPhase != .applying { return }
-        }
+    // MARK: - 页头（骨架走 ChannelPairingScaffold 共用件）
+
+    /// 飞书专属补注（注入共用状态带）：等待生效时
+    /// 提醒第四步要在连上之后做
+    private var feishuPendingNote: String {
+        L10n.string("飞书还差一步：按下面第四步把消息"
+            + "通道打开，机器人才会开始收消息。")
     }
 
-    // MARK: - 页头
-
-    private var headerSection: some View {
-        Section {
-            VStack(spacing: OneDayMetrics.spacingS) {
-                if let asset = channel.iconAssetName {
-                    Image(asset)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .accessibilityHidden(true)
-                }
-                Text(channel.name)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
-                Text(headerSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, OneDayMetrics.spacingSM)
-            .listRowBackground(Palette.surface)
-        }
+    /// 飞书专属补注（注入共用状态带）：正在生效时
+    /// 同样提醒第四步
+    private var feishuApplyingNote: String {
+        L10n.string("生效之后，别忘了按下面第四步把飞书"
+            + "那边的消息通道打开。")
     }
 
     private var headerSubtitle: String {
@@ -195,176 +170,13 @@ struct ChannelPairingView: View {
         }
     }
 
-    // MARK: - 状态带
+    // MARK: - 步骤显隐门（状态带本体走共用件）
 
     private var showsSteps: Bool {
         guard pairingKind == .token else { return false }
         guard let status else { return store.loadError == nil }
         return status.state == "not_configured"
             || status.state == "error"
-    }
-
-    @ViewBuilder
-    private var statusSection: some View {
-        Section {
-            if store.isLoading, status == nil {
-                HStack(spacing: OneDayMetrics.spacingS) {
-                    ProgressView()
-                    Text("正在读取状态…")
-                        .font(.bodyText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                .listRowBackground(Palette.surface)
-            } else if status == nil, let error = store.loadError {
-                VStack(alignment: .leading,
-                       spacing: OneDayMetrics.spacingS) {
-                    Text("暂时读不到状态")
-                        .font(.rowTitle)
-                        .foregroundStyle(Palette.ink)
-                    Text(error)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                    Button("重试") {
-                        Task { await store.load(appState: appState) }
-                    }
-                }
-                .listRowBackground(Palette.surface)
-            } else if let status {
-                statusBand(status)
-                    .listRowBackground(Palette.surface)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func statusBand(
-        _ status: ChannelPlatformStatus
-    ) -> some View {
-        switch applyPhase {
-        case .applying:
-            applyingBand
-        case .applyFailed(let reason):
-            applyFailedBand(reason)
-        case .none, .awaitingRestart:
-            // 未触发即时生效时 status 的等待态就是如
-            // 实口径；无流程态时呈现完全归 status
-            statusStateBand(status)
-        }
-    }
-
-    @ViewBuilder
-    private func statusStateBand(
-        _ status: ChannelPlatformStatus
-    ) -> some View {
-        switch status.state {
-        case "connected":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("已配对")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text("这个频道已经连上了。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-                Button("去频道看看") { onShowList() }
-            }
-        case "pending_restart":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("钥匙已保存，等待生效")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text(L10n.string("服务器下一次重启后就会自动连上，这期间"
-                    + "不用你再做什么。连上之后，抽屉里这一行"
-                    + "会变成已配对的样子。"))
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-                if isFeishu {
-                    Text(L10n.string("飞书还差一步：按下面第四步把消息"
-                        + "通道打开，机器人才会开始收消息。"))
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                Button("刷新状态") {
-                    Task { await store.load(appState: appState) }
-                }
-            }
-        case "error":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("连接失败")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.danger)
-                if let message = status.message {
-                    Text(message)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                Text("检查一下钥匙，按下面三步重新连接。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        default:
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("还没配对")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text("按下面三步连上，几分钟就好。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 正在生效带（回执 applyTriggered=true）：网关
-    /// 重启的空窗里给明确的进行时，不许显成笼统的
-    /// 连接中/等待；status 翻 connected 后由状态带
-    /// 正常收口（ChannelEntryView 会直接进频道页）
-    private var applyingBand: some View {
-        VStack(alignment: .leading,
-               spacing: OneDayMetrics.spacingS) {
-            HStack(spacing: OneDayMetrics.spacingS) {
-                ProgressView()
-                Text("正在生效")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-            }
-            Text(L10n.string("钥匙已保存，服务器正在让它生效，通常"
-                + "几秒钟就好。连上之后这里会自动变成已配对"
-                + "的样子，你不用再做什么。"))
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            if isFeishu {
-                Text(L10n.string("生效之后，别忘了按下面第四步把飞书"
-                    + "那边的消息通道打开。"))
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 即时生效没触发成功的回退带：口径仍是等待生
-    /// 效，原因用桥回的人话原样摆出来——不许包装
-    /// 成已经在生效
-    private func applyFailedBand(_ reason: String) -> some View {
-        VStack(alignment: .leading,
-               spacing: OneDayMetrics.spacingS) {
-            Text("钥匙已保存，等待生效")
-                .font(.rowTitle)
-                .foregroundStyle(Palette.ink)
-            Text(reason)
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            Text(L10n.string("服务器下一次重启后就会自动连上，这期间"
-                + "不用你再做什么。连上之后，抽屉里这一行"
-                + "会变成已配对的样子。"))
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            Button("刷新状态") {
-                Task { await store.load(appState: appState) }
-            }
-        }
     }
 
     // MARK: - 步骤（令牌型，每步至多一个动作）
@@ -539,20 +351,6 @@ struct ChannelPairingView: View {
         }
         return !token.trimmingCharacters(
             in: .whitespacesAndNewlines).isEmpty
-    }
-
-    // MARK: - 页脚
-
-    private var footerSection: some View {
-        Section {
-            Text("钥匙只存在你自己的服务器上，这个 App 不保存。")
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        }
     }
 
     // MARK: - 提交

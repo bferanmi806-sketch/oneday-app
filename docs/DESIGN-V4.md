@@ -14070,3 +14070,27 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **判绿（2026-11-21）**：最终树 b9090cc（落码 254ab7d＋改钉 1 笔）。两轮对账：首轮 run 44854562598 红 12＝基线 11＋1 件本包可归因新红（HapticsMatrixTests.testMatrixCallSiteCounts——S4 删根页重启执行副本带走其 Haptics.error/success 落点各一，计数钉 53/17 与实数 52/16 不符）；按矩阵钉测自家沿革口径改钉（53→52、17→16，注记落测内：触感由网关页正主 perform() 既有落点承接、行为不丢）。确认轮 run 44860126978：**红集 11 与 0.50.77 基线轮（run 44795478758）逐名完全一致、零新增红**；Core 2286/2286 零失败（基线 2291−删 HubActivityTests 8＋新测 3＝2286，逐项对平）；本包新测 testGatewayStateWordForSettings/testServerAndWorkspaceSegments/testChatDiagnosticsEntryIsSearchOnly 全绿；构建（no codesign）＋打包未签名 IPA＋上传三步 success。本地化 validate_i18n 与基线同结果（1 条基线既有豁免失效、与本包无关）。
 
 **未合 main、未打 tag**（冻分支 feat/198-settings-convergence@b9090cc 待 0.50.78 合流后由主线排序合入；合流接手项：①DESIGN 号与 197/引导小包同占 §335、主线顺延裁号；②S3 表单件按引导包合入后 ConnectView 形态复核；③需求账 198 行未验项原样保留）。
+
+## §339 全 App 收敛包（2026-11-21；分支 feat/199-appwide-convergence，基线 rel-05070@1d04add；台账 199；用户 2026-11-21 09:40 拍板「全部按推荐走、大厂做法、不能止血要治本」；§335 已由 197 分支在册、本包顺延 §336）
+
+**定案：全 App 普查（appwide-duplication-audit-20261121.md）的纯收口四条＋用户追加裁决一条，一包收齐——删旧实现、只留单源，不留副本与防回滚定义。**
+
+**条 1 · 频道配对页骨架单源（普查 R2）**：新建 ChannelPairingScaffold.swift——页头（ChannelPairingHeaderSection）、状态带（ChannelPairingStatusSection：加载/错误/四态带＋正在生效轮询一并收内）、页脚（ChannelPairingFooterSection）、列表 chrome 修饰（channelPairingListChrome）各只一份；ChannelPairingView 与 TokenChannelPairingView 只留各自真差异（逐家步骤/字段规格/提交路径），飞书专属补注以入参注入共用状态带。相位判定单源：令牌版文件内本地重写 TokenPairingApplyPhase 整枚举删除，两页统一走 Core ChannelApplyPhase.resolve。状态带文案以打样页口径为单源（令牌版近义文案随之统一）。
+
+**条 2 · 模型行件单源（普查 R3）**：新建 ModelListRow.swift——名＋副行＋当前勾＋当前附加标＋整行点选（onSelect 为 nil 即静态行）只此一套；ChatModelPickerView（本会话作用域）与 GovernedModelRows（服务端默认作用域，治理过滤/折叠政策保留在包装本体）共用。作用域差异保留在宿主/数据层。设置侧当前行自此勾＋「默认」标双出，与 DefaultModelPickerView 文件头既有定版对齐（此前实现只有标无勾）。
+
+**条 3 · 枢纽孤儿形态下线（普查 O1）**：AgentHubView 的 Mode 枚举、mode 属性、availableSegments 形态分支、段内下钻的 mode 分支整段删除，枢纽只剩全量形态一种；ChatView 呈现点去 mode 入参；HubSegmentsConsolidationTests 改钉单形态全段。**与 198 包删除边界**：198 删 AgentHubStore 的 loadInitial 退役拼装流（activityGroups），本包不碰 AgentHubStore.swift；本包只删 AgentHubView 的 Mode 形态本体与 ChatView 入参，两包合流冲突由主线裁。
+
+**条 4 · 点子/目标店合一（普查 D3）**：随 §259 先例——AppState 新增 sharedIdeasStore()/sharedGoalsStore() 懒建单例；IdeasView、GoalsView、FeedView、GoalDetailView 四面 5 处 @State 私建实例全删、改计算属性消费共享单例。两店 load 均有在飞守卫、多面同呼安全；行为不变、只收敛实例来源。
+
+**条 5 · 服务端会话名单收敛（普查 R1/D1/N2，用户追加裁决）**：全部对话为正主（账本 SessionLedger 单源、全量分页、搜索 limit 50、维护子页齐全）——设置侧 ServerSessionsView 整页删除（名单自拉 limit 100、搜索 UI limit 30、多选批量删随页死，截断口径自此以正主为准单源）；文件更名 ServerSessionDetailView.swift 只留详情本体（聊天页次级入口＋Hermes 频道只读变体＋设置深链共用一份）。设置「服务端会话」行保留、改深链：Core 目录目的地保留语义，SettingsView.route(for:) 改 nil 走动作行、activate 置 router.allConversationsRequested；ContentView 消费点补 AfterSettings 序（设置 sheet 在场时先收设置、暂存旗、sheet onDismiss 后升全屏页；抽屉置位链不变）。AgentRoute.serverSessions 枚举与设置深链的垫层特例（consumePendingRoutes）一并删除、详情路由直达本体。设置侧独有的空会话清理（§241）并入全部对话维护子页（ConversationMaintenanceView 新增「空会话清理」段：计数 reload 同拍拉取、EmptyCleanupSheet 原件呈现、审计留痕行随迁、计数 >0 才出现）。附带改判（纲要 D2-1 后半）：设置搜索「全部对话」自此恰命中服务端会话深链行一条（深链非第二扇门——无第二份名单实现）；SettingsCatalogTests.testAllConversationsHasNoSettingsEntry 已按新口径改钉（无 allConversations 本体条目＋搜索恰命中 serverSessions）。
+
+**红线零接触**：§194 键盘链、141/142 选区、贴底判定、§327 遮蔽语义、朗读链、删除协调器（§232 乐观删除）口径均不动；条 5 的删除路径仍走 SessionDeletionCoordinator 与维护子页既有批量路，无新删除实现。
+
+**改动面**：新增 ChannelPairingScaffold.swift、ModelListRow.swift；改 ChannelPairingView/TokenChannelPairingView（各删约 200 行重复骨架）、ChatModelPickerView、ModelSettingsView、AgentHubView、ChatView（枢纽入参＋注释）、AppState（两共享店）、IdeasView/GoalsView/FeedView/GoalDetailView（店消费改口）、ServerSessionsViews.swift→ServerSessionDetailView.swift（删名单页约 470 行）、SettingsView（路由/activate/深链消费）、AppRouter（删枚举 case）、ContentView（AfterSettings 序）、ConversationMaintenanceView（空清理段）、SettingsCatalog（目的地注记＋条目副行）、HubSegmentsConsolidationTests（单形态改钉）、本节登记。净删约 800 行。
+
+**验收门（本包）**：CI 红集与基线（rel-05070@1d04add，run 44795478758 红 11）逐名对账零新增；真机门留用户：①Telegram 与令牌四家任一家配对页全程（状态带四态＋正在生效轮询）②顶栏模型面与设置默认模型面各点选一次③枢纽开合与台账下钻关页④点子/目标/动态三格与目标详情数据一致⑤设置「服务端会话」行点按→设置收起→全部对话升起、维护子页空会话清理入口在位。**未合 main、未打 tag、未组版**（冻分支待主线排序合流，在 198 之后）。
+
+### §339.1 CI 判读（2026-11-21 回填）
+
+两轮 workflow_dispatch（ios-native.yml）：首轮 run 44852781671（fcb6f45）红集＝基线 11＋1 新红——SettingsCatalogTests.testAllConversationsHasNoSettingsEntry，系条 5 改判与旧钉正面冲突（旧钉「搜索不点达」），已按新口径改钉（提交 451c8bd）、非改码迁就。次轮 run 44857400855（451c8bd）：OneDayCoreTests 2291 件全绿（改钉测试与枢纽/账本/目录各测试在内）；全仓红集 11 件与基线轮 run 44795478758（rel-05070 @ 1d04add）逐名一致、零新增（2 Chat 组装＋1 边缘探针＋8 手势/键盘 UI 族，均为基线既有红、与本包改动面无交集）；构建无编译错误。判绿（实验室口径），真机待验五项见交卷报告 pkg-199-appwide-convergence-delivery-20261121.md。

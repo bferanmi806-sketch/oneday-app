@@ -12,7 +12,10 @@ import SwiftUI
 /// 「显示系统运行」筛选开关退役）②批量管理（我
 /// 的对话／已归档两组的多选归档/恢复/删除）③清
 /// 理旧会话（prune 预演＋确认真删）④存量迁移留
-/// 痕与操作结果人话条。数据口径与浏览页同源：
+/// 痕与操作结果人话条。台账 199（2026-11-21）
+/// 补第五件：空会话清理（§241）自设置旧名单页
+/// 随迁入本页（旧页已删），计数显隐与审计留痕
+/// 口径不变。数据口径与浏览页同源：
 /// 账本投影＋Core SessionClassifier 现算，名单
 /// 重拉走同口径 reload（§223）。
 /// 终局归属备忘：纲要原文把系统段指向「会话管
@@ -41,6 +44,11 @@ struct ConversationMaintenanceView: View {
     @State private var showBatchArchiveConfirm = false
     @State private var showPruneConfirm = false
     @State private var pruneDaysText = "90"
+    /// 空会话清理（台账 199 自设置旧名单页随迁）：
+    /// 服务端空会话计数（reload 同拍拉取）与清理面
+    /// 呈现旗
+    @State private var emptyCount = 0
+    @State private var showEmptyCleanup = false
 
     private var mainSessionID: String? {
         appState.sessionLedger.mainServerSessionID
@@ -137,6 +145,7 @@ struct ConversationMaintenanceView: View {
                 )
             }
             cleanupSection
+            emptyCleanupSection
         }
         .listStyle(.plain)
         .environment(\.editMode, $editMode)
@@ -169,6 +178,11 @@ struct ConversationMaintenanceView: View {
         }
         .task { await reload() }
         .refreshable { await reload() }
+        .sheet(isPresented: $showEmptyCleanup) {
+            EmptyCleanupSheet {
+                Task { await reload() }
+            }
+        }
         .alert(
             "删除所选会话？",
             isPresented: $showBatchDeleteConfirm
@@ -370,6 +384,40 @@ struct ConversationMaintenanceView: View {
         }
     }
 
+    /// 空会话清理区（台账 199 自设置旧名单页随迁，
+    /// §241）：计数 >0 才出现（与旧页同显隐）；进
+    /// 面走 EmptyCleanupSheet——dry-run 预览＋围栏
+    /// 单删＋删后核验＋审计留痕，本体与确认口径一
+    /// 字不变；上次清理留痕一行随迁（审计记录在本
+    /// 机，清理面里有完整清单与核验结果）
+    @ViewBuilder
+    private var emptyCleanupSection: some View {
+        if emptyCount > 0 {
+            Section("空会话清理") {
+                Button {
+                    showEmptyCleanup = true
+                } label: {
+                    HStack {
+                        Text("清理空会话")
+                            .font(.bodyText)
+                            .foregroundStyle(Palette.danger)
+                        Spacer()
+                        Text("\(emptyCount) 条")
+                            .font(.system(.footnote, design: .monospaced))
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.odPressable)
+                if let last = EmptyCleanupAuditStore.latestFinished {
+                    Text("上次清理：\(last.plannedAt.prefix(10)) · 删除 \(last.deletedIDs.count) 条 · 核验消失 \(last.verifiedGoneIDs?.count ?? 0) 条")
+                        .font(.captionText)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+        }
+    }
+
     /// 批量操作栏（编辑态且有选中时挂底）：按钮按
     /// 选中归属出——含未归档选中才有「归档」、含
     /// 已归档选中才有「恢复」、「删除」恒有（原分
@@ -407,12 +455,18 @@ struct ConversationMaintenanceView: View {
 
     /// 名单重拉唯一口（§223，与浏览页同口径）：触
     /// 发账本 refresh＋对账，本页所有重拉点统一走
-    /// 此口
+    /// 此口；空会话计数同拍拉取（台账 199 随迁，
+    /// 取不到数保留旧值、不假报）
     private func reload() async {
         await store.load(
             appState: appState, localThreads: threads,
             modelContext: modelContext
         )
+        if let count = try? await appState.performAdmin({ client, config in
+            try await client.emptySessionCount(config: config)
+        }) {
+            emptyCount = count
+        }
     }
 
     private enum BatchKind { case archive, restore, delete }

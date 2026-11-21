@@ -964,7 +964,6 @@ struct ChatView: View {
             // ——模型切换正主＝本页胶囊模型段 Menu 与模
             // 型设置页，枢纽不再读当前会话
             AgentHubView(
-                mode: .sheet,
                 onApprovalChanged: {
                     Task { await overviewStore?.refresh(appState: appState) }
                 }

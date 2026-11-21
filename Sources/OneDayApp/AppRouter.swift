@@ -11,7 +11,10 @@ enum AgentRoute: Hashable {
     case memory
     case skills
     case cron
-    case serverSessions
+    /// （.serverSessions 名单页路由已随台账 199 删
+    /// 除：名单正主归全部对话一级面，设置「服务端
+    /// 会话」行改深链经 allConversationsRequested
+    /// 直达，不再有设置内名单页可垫层）
     case serverSessionDetail(String)
     case mcp
     /// 设备与权限总览（0.34.0，本机连接器批一）：五件

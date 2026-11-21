@@ -247,37 +247,19 @@ struct ChatModelPickerView: View {
     /// 模型行：名（执行值原文——具名服务商的模型名
     /// 就是它在自家目录里的名字）＋副行（来源标注，
     /// 默认行加「默认」），当前行尾系统 checkmark；
-    /// 收纳组内的行副行带原服务商名（origin 非 nil）
+    /// 收纳组内的行副行带原服务商名（origin 非 nil）。
+    /// 行渲染走全 App 共用行件 ModelListRow（台账
+    /// 199，与设置侧治理清单同一套）
     private func row(
         _ choice: ChatModelChoice, origin: String?
     ) -> some View {
-        let isCurrent = choice == current
-        return Button {
-            onSelect(choice)
-        } label: {
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                    Text(choice.model)
-                        .font(.body)
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(2)
-                    if let subline = subline(for: choice, origin: origin) {
-                        Text(subline)
-                            .font(.caption)
-                            .foregroundStyle(Palette.inkSecondary)
-                    }
-                }
-                Spacer()
-                if isCurrent {
-                    Image(systemName: "checkmark")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Palette.primary)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.odPressable)
-        .accessibilityAddTraits(isCurrent ? .isSelected : [])
+        ModelListRow(
+            title: choice.model,
+            subline: subline(for: choice, origin: origin),
+            isCurrent: choice == current,
+            titleLineLimit: 2,
+            onSelect: { onSelect(choice) }
+        )
     }
 
     /// 副行拼装：「经网关」/「直连 · 名」＋默认标记；
