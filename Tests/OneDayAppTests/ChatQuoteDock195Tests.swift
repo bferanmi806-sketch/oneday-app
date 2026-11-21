@@ -328,11 +328,11 @@ final class ChatQuoteDock195Tests: XCTestCase {
             "\(state)：撤引用后槽未离场"
         )
         let back = stableHostFrame()
+        let tableCount = appState.pendingQuotes
+            .feedQuotesByThread.count
         print(
             "QUOTE195 \(state) back host=\(fmt(back))"
-                + " tableCount="
-                + "\(appState.pendingQuotes"
-                + ".feedQuotesByThread.count)"
+                + " tableCount=\(tableCount)"
                 + " slotPresent=\(quoteSlotPresent())"
         )
         guard let back else {
