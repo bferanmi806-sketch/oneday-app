@@ -392,7 +392,16 @@ final class Chat190RemainderTests: XCTestCase {
     func testEntryFacetsSkipScanBranchForAnchoredRows() {
         let ledger = ChatRowStateLedger()
         let hubStore = AppState().sharedHubStore()
-        let content = "处理完成\n/opt/data/files/report.png"
+        let path = "/opt/data/files/report.png"
+        let content = "处理完成\n\(path)"
+        // 对照种子：recordFileState 的记录分两路——
+        // 存在性账未落时不记 fileExistences、元数据
+        // 大小到手即记 fileSizes；以 record 同步种
+        // 大小账，对照断言钉 fileSizes（存在性账无
+        // 同步种子口、不断言其非空）
+        FileMetadataStore.shared.record(
+            path: path, size: 123, modifiedAt: nil
+        )
         let trace = ChatEntry(
             role: "assistant", content: content, thread: nil
         )
@@ -403,7 +412,8 @@ final class Chat190RemainderTests: XCTestCase {
                 hubStore: hubStore
             )
         XCTAssertTrue(
-            traceFacets.fileExistences.isEmpty,
+            traceFacets.fileExistences.isEmpty
+                && traceFacets.fileSizes.isEmpty,
             "锚定行须跳过助手扫描支（文件 facet 恒空）"
         )
         let plain = ChatEntry(
@@ -414,8 +424,8 @@ final class Chat190RemainderTests: XCTestCase {
                 for: plain, ledger: ledger,
                 hubStore: hubStore
             )
-        XCTAssertFalse(
-            plainFacets.fileExistences.isEmpty,
+        XCTAssertEqual(
+            plainFacets.fileSizes[path], 123,
             "普通助手行对照：文件 facet 照旧记录"
         )
     }
