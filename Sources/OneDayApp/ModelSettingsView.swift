@@ -741,27 +741,18 @@ struct GovernedModelRows: View {
         }
     }
 
+    /// 行渲染走全 App 共用行件 ModelListRow（台账
+    /// 199，与顶栏选择面同一套）：当前默认行＝勾＋
+    /// 「默认」标双保险（DefaultModelPickerView 定
+    /// 版口径）且静态不可再点，其余行整行可点
     private func modelRow(_ model: String) -> some View {
         let current = isDefault(model)
-        let content = HStack(spacing: OneDayMetrics.spacingSM) {
-            Text(model)
-                .font(.system(.callout, design: .monospaced))
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-            Spacer(minLength: OneDayMetrics.spacingS)
-            if current {
-                Text("默认")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.successText)
-            }
-        }
-        .contentShape(Rectangle())
-        if current {
-            return AnyView(content)
-        }
-        return AnyView(
-            Button { onSelect(model) } label: { content }
-                .buttonStyle(.odPressable)
+        return ModelListRow(
+            title: model,
+            isCurrent: current,
+            currentTag: current ? L10n.string("默认") : nil,
+            monospaced: true,
+            onSelect: current ? nil : { onSelect(model) }
         )
     }
 }

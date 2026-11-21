@@ -644,7 +644,8 @@ struct AllConversationsView: View {
 
     /// 服务端搜索（与 0.16.0 会话搜索同一端点的管理
     /// 页呈现——搜索面收敛到本页一处）：450ms 防抖、
-    /// 旧任务取消口径同 ServerSessionsViews
+    /// 旧任务取消口径沿旧制（原设置名单页同款，其页
+    /// 已随台账 199 删除、搜索只剩本页一份）
     private func runSearch() async {
         let query = searchText.trimmingCharacters(
             in: .whitespacesAndNewlines

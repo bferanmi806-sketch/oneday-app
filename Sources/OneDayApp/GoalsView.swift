@@ -36,7 +36,11 @@ private enum GoalCreateSheet: Identifiable {
 struct GoalsView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
-    @State private var store = GoalsStore()
+    /// 台账 199：目标店走 AppState 共享单例（§259
+    /// 先例补齐），与动态格同一份，不再私建
+    private var store: GoalsStore {
+        appState.sharedGoalsStore()
+    }
     @State private var createSheet: GoalCreateSheet?
     @State private var expandedActive = false
     @State private var showCompletedGroup = false

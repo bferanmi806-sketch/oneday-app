@@ -18,7 +18,12 @@ import SwiftUI
 /// 为真源。桥未连接/未开通与目标格同口径、零假数据。
 struct IdeasView: View {
     @Environment(AppState.self) private var appState
-    @State private var store = IdeasStore()
+    /// 台账 199：点子店走 AppState 共享单例（§259
+    /// 先例补齐），与动态格／目标详情同一份，不再
+    /// 私建
+    private var store: IdeasStore {
+        appState.sharedIdeasStore()
+    }
     /// §259 三店合一：任务店走 AppState 共享单例，
     /// 与枢纽/目标/动态各面同一份，不再私建
     private var kanban: KanbanStore {

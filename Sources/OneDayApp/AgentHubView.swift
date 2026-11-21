@@ -103,13 +103,12 @@ enum HubSegment: String, CaseIterable, Identifiable {
 /// 区撤除：枢纽回归只读档案面，模型切换正主＝聊天
 /// 页胶囊模型段 Menu 与模型设置页（本行自始即与
 /// 胶囊同面同账的第二入口，撤之不丢功能）。
+/// 台账 199（2026-11-21，全 App 收敛）：§155 留置
+/// 的 Mode.activity 孤儿形态整段下线——Mode 枚举、
+/// mode 属性与段集分支全删，本面只剩全量形态一种；
+/// 上文 0.6.0/0.17.0/§155 各段关于 Mode 的记述自此
+/// 均为历史。
 struct AgentHubView: View {
-    enum Mode {
-        case sheet
-        case activity
-    }
-
-    var mode: Mode = .sheet
     /// 审批终态回调（活动格据此刷新总览桥角标）
     var onApprovalChanged: (() -> Void)? = nil
 
@@ -130,14 +129,12 @@ struct AgentHubView: View {
     /// 落纯文本名片
     @State private var shareItem: AgentShareItem?
 
-    /// 本模式可见段：.sheet＝四段全量（§217 收段后
-    /// 口径）；.activity＝只剩活动段（旧活动格形态，
-    /// §155 起无入口、三段内容已并入活动，留定义防
-    /// 回滚）
+    /// 可见段：四段全量（§217 收段后口径）。旧
+    /// .activity 单段形态（活动格）自 §155 起无入
+    /// 口、「留一版防回滚」的 Mode 定义已随台账
+    /// 199 整段删除——本面自此只有全量一种形态
     var availableSegments: [HubSegment] {
-        mode == .activity
-            ? [.activity]
-            : HubSegment.allCases
+        HubSegment.allCases
     }
 
     /// 通知落点的段位改道（§217）：原指向任务/审核/
@@ -607,17 +604,15 @@ struct AgentHubView: View {
         case .activity:
             // 工作台账（§95）：段自持 LedgerStore，行
             // 下钻打开会话走既有 pendingChatSessionID
-            // 通道，与旧活动行同路（sheet 模式关页、
-            // 活动模式只置位）。§217：三段并入后本段
+            // 通道，与旧活动行同路（下钻即关页）。
+            // §217：三段并入后本段
             // 兼收任务/审批下钻补齐与监测合成条目——
             // 共享 hubStore 一并注入（锚点数据在 store
             // 里，与聊天就地卡同源；审批规则本体已按
             // §244 归设置页权限区，本段只留审批记录）
             HubLedgerSection(hubStore: store, onOpenSession: { sessionID in
                 appState.router.pendingChatSessionID = sessionID
-                if mode == .sheet {
-                    dismiss()
-                }
+                dismiss()
             })
         case .cron:
             HubCronSection(store: store)

@@ -15,9 +15,10 @@ import SwiftUI
 /// 状态带含「正在生效」语义：保存回执带
 /// applyTriggered 时先行显正在生效并自动刷新状态
 /// 直到网关记录翻终态；触发失败如实显原因＋等待
-/// 生效，绝不包装成正在生效（与频道文案包的
-/// ChannelApplyPhase 同语义，本文件内本地实现，
-/// 回执字段同名，装配时两面口径一致）。
+/// 生效，绝不包装成正在生效。台账 199 起骨架与相
+/// 位判定与打样页共用单源：骨架走 ChannelPairing-
+/// Scaffold、判定走 Core ChannelApplyPhase（本页
+/// 旧本地重写 TokenPairingApplyPhase 已删）。
 struct TokenChannelPairingView: View {
     let channel: ChannelDescriptor
     var store: ChannelStatusStore
@@ -39,11 +40,10 @@ struct TokenChannelPairingView: View {
         store.status(for: channel.id)
     }
 
-    private var applyPhase: TokenPairingApplyPhase {
-        guard let lastReceipt else { return .none }
-        return TokenPairingApplyPhase.resolve(
-            applyTriggered: lastReceipt.applyTriggered,
-            applyError: lastReceipt.applyError,
+    private var applyPhase: ChannelApplyPhase {
+        ChannelApplyPhase.resolve(
+            applyTriggered: lastReceipt?.applyTriggered,
+            applyError: lastReceipt?.applyError,
             statusState: status?.state
         )
     }
@@ -51,226 +51,36 @@ struct TokenChannelPairingView: View {
     var body: some View {
         NavigationStack {
             List {
-                headerSection
-                statusSection
+                ChannelPairingHeaderSection(
+                    channel: channel, subtitle: spec.subtitle
+                )
+                ChannelPairingStatusSection(
+                    channel: channel, store: store,
+                    phase: applyPhase,
+                    onShowList: onShowList
+                )
                 if showsSteps {
                     stepOneSection
                     stepTwoSection
                     stepThreeSection
                     connectSection
                 }
-                footerSection
+                ChannelPairingFooterSection()
             }
-            .listStyle(.insetGrouped)
-            .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
-            .scrollContentBackground(.hidden)
-            .background(Palette.settingsBG)
-            .navigationTitle(channel.name)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("完成") { onClose() }
-                }
-            }
-            .refreshable { await store.load(appState: appState) }
-            .task(id: applyPhase == .applying) {
-                await pollWhileApplying()
+            .channelPairingListChrome(
+                title: channel.name, onClose: onClose
+            ) {
+                await store.load(appState: appState)
             }
         }
     }
 
-    // MARK: - 页头
-
-    private var headerSection: some View {
-        Section {
-            VStack(spacing: OneDayMetrics.spacingS) {
-                if let asset = channel.iconAssetName {
-                    Image(asset)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 72, height: 72)
-                        .accessibilityHidden(true)
-                }
-                Text(channel.name)
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.ink)
-                Text(spec.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, OneDayMetrics.spacingSM)
-            .listRowBackground(Palette.surface)
-        }
-    }
-
-    // MARK: - 状态带
+    // MARK: - 步骤显隐门（页头/状态带本体走共用件）
 
     private var showsSteps: Bool {
         guard let status else { return store.loadError == nil }
         return status.state == "not_configured"
             || status.state == "error"
-    }
-
-    @ViewBuilder
-    private var statusSection: some View {
-        Section {
-            if store.isLoading, status == nil {
-                HStack(spacing: OneDayMetrics.spacingS) {
-                    ProgressView()
-                    Text("正在读取状态…")
-                        .font(.bodyText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                .listRowBackground(Palette.surface)
-            } else if status == nil, let error = store.loadError {
-                VStack(alignment: .leading,
-                       spacing: OneDayMetrics.spacingS) {
-                    Text("暂时读不到状态")
-                        .font(.rowTitle)
-                        .foregroundStyle(Palette.ink)
-                    Text(error)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                    Button("重试") {
-                        Task { await store.load(appState: appState) }
-                    }
-                }
-                .listRowBackground(Palette.surface)
-            } else if let status {
-                statusBand(status)
-                    .listRowBackground(Palette.surface)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func statusBand(
-        _ status: ChannelPlatformStatus
-    ) -> some View {
-        switch applyPhase {
-        case .applying:
-            applyingBand
-        case .applyFailed(let reason):
-            applyFailedBand(reason)
-        case .none, .awaitingRestart:
-            statusStateBand(status)
-        }
-    }
-
-    @ViewBuilder
-    private func statusStateBand(
-        _ status: ChannelPlatformStatus
-    ) -> some View {
-        switch status.state {
-        case "connected":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("已配对")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text("这个频道已经连上了。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-                Button("去频道看看") { onShowList() }
-            }
-        case "pending_restart":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("钥匙已保存，等待生效")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text(L10n.string("服务器下一次重启后就会自动连上，这期间"
-                    + "不用你再做什么。连上之后，抽屉里这一行"
-                    + "会变成已配对的样子。"))
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-                Button("刷新状态") {
-                    Task { await store.load(appState: appState) }
-                }
-            }
-        case "error":
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("连接失败")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.danger)
-                if let message = status.message {
-                    Text(message)
-                        .font(.captionText)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                Text("检查一下钥匙，按下面三步重新连接。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        default:
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("还没配对")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text("按下面三步连上，几分钟就好。")
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 正在生效带（回执 applyTriggered=true）：网关
-    /// 正在换上新配置，自动刷新陪跑到状态翻终态
-    private var applyingBand: some View {
-        HStack(alignment: .top,
-               spacing: OneDayMetrics.spacingS) {
-            ProgressView()
-            VStack(alignment: .leading,
-                   spacing: OneDayMetrics.spacingS) {
-                Text("正在生效")
-                    .font(.rowTitle)
-                    .foregroundStyle(Palette.ink)
-                Text(L10n.string("钥匙已保存，服务器正在换上新配置，"
-                    + "几秒钟就好。连上之后这里会自动变成"
-                    + "已配对的样子。"))
-                    .font(.captionText)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-        }
-    }
-
-    /// 生效触发失败带：钥匙已保存是事实、自动生效
-    /// 没成也是事实，原因用桥回的人话原样摆出来
-    private func applyFailedBand(_ reason: String) -> some View {
-        VStack(alignment: .leading,
-               spacing: OneDayMetrics.spacingS) {
-            Text("钥匙已保存，等待生效")
-                .font(.rowTitle)
-                .foregroundStyle(Palette.ink)
-            Text(reason)
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            Text(L10n.string("服务器下一次重启后就会自动连上，这期间"
-                + "不用你再做什么。连上之后，抽屉里这一行"
-                + "会变成已配对的样子。"))
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-            Button("刷新状态") {
-                Task { await store.load(appState: appState) }
-            }
-        }
-    }
-
-    /// 正在生效期间自动刷新状态：每 3 秒读一次、
-    /// 最多约两分钟；状态翻终态后相位退场、循环
-    /// 收口，页面消失自动取消（与文案包同口径）
-    private func pollWhileApplying() async {
-        guard applyPhase == .applying else { return }
-        for _ in 0..<40 {
-            try? await Task.sleep(for: .seconds(3))
-            if Task.isCancelled { return }
-            await store.load(appState: appState)
-            if applyPhase != .applying { return }
-        }
     }
 
     // MARK: - 步骤（令牌型，每步至多一个动作）
@@ -363,20 +173,6 @@ struct TokenChannelPairingView: View {
         }
     }
 
-    // MARK: - 页脚
-
-    private var footerSection: some View {
-        Section {
-            Text("钥匙只存在你自己的服务器上，这个 App 不保存。")
-                .font(.captionText)
-                .foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity)
-                .multilineTextAlignment(.center)
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-        }
-    }
-
     // MARK: - 提交
 
     private func binding(for key: String) -> Binding<String> {
@@ -422,32 +218,6 @@ struct TokenChannelPairingView: View {
             submitError = L10n.string("连接失败，请稍后再试")
         }
         submitting = false
-    }
-}
-
-/// 保存后生效相位（本地实现，语义与频道文案包的
-/// ChannelApplyPhase 逐条一致）：status 已翻终态
-/// （connected/error）时相位退场、呈现完全归
-/// status；回执字段缺失（旧版伴生）回落 .none
-private enum TokenPairingApplyPhase: Equatable {
-    case none
-    case applying
-    case applyFailed(reason: String)
-    case awaitingRestart
-
-    static func resolve(
-        applyTriggered: Bool?,
-        applyError: String?,
-        statusState: String?
-    ) -> TokenPairingApplyPhase {
-        if statusState == "connected" || statusState == "error" {
-            return .none
-        }
-        guard let applyTriggered else { return .none }
-        if let applyError, !applyError.isEmpty {
-            return .applyFailed(reason: applyError)
-        }
-        return applyTriggered ? .applying : .awaitingRestart
     }
 }
 

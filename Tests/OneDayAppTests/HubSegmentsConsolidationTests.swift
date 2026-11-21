@@ -40,14 +40,12 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         )
     }
 
-    func testAvailableSegmentsPerMode() {
+    /// 台账 199：Mode.activity 孤儿形态整段删除后，
+    /// 枢纽只剩全量一种形态——可见段恒为四段全集
+    func testAvailableSegments() {
         XCTAssertEqual(
-            AgentHubView(mode: .sheet).availableSegments,
+            AgentHubView().availableSegments,
             [.activity, .cron, .browser, .identity]
-        )
-        XCTAssertEqual(
-            AgentHubView(mode: .activity).availableSegments,
-            [.activity]
         )
     }
 
@@ -103,7 +101,7 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         var body: some View {
             Color.clear
                 .sheet(isPresented: $box.presented) {
-                    AgentHubView(mode: .sheet)
+                    AgentHubView()
                         .hubSheetPresentation()
                 }
         }
