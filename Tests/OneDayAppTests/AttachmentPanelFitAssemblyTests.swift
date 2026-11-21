@@ -4,31 +4,27 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §327（小修批①，承 §303）真实装配断言：附件面
-/// 板经生产呈现口径（attachmentPanelPresentat-
-/// ion：系统 detent 档位 [.medium, .large]＋拖拽
-/// 指示）在真窗口里真呈现——
+/// §327（小修批①，承 §303）＋ D5（台账 11）真实
+/// 装配断言：附件面板在真窗口里真呈现——
 /// ①面板在场：presented 控制器存在、其托管视图
 /// sizeThatFits 与独立托管理想高逐值对账（空
 /// sheet 测不出此高）；
-/// ②定高归系统档位：presented 的 sheetPresen-
-/// tationController detents 恰为 [.medium,
-/// .large] 标识集、选中档为 .medium、帧高落半
-/// 窗带（与内容理想高脱钩——§303 的精确贴合断
-/// 言就此作废，脱钩本身即本批的验收点）；
-/// ③增行不改高：同构 VStack（真实文本行、非固
-/// 定高占位）经同一生产呈现口径，内容增行后
-/// sheet 高逐值不变（放弃精确贴合的结构证据）；
-/// 真面板本体走 ①②。
-/// 沿革注：§303 时代本文件断言「高贴内容＋增行
-/// 跟随」，桥（AttachmentSheetDetentBridge，
-/// custom detent＋安全区反向补偿＋指纹重解）已
-/// 随 §327 整套删除——桥类型不复存在即编译期
-/// 证据，本文件不再按名查找。首轮（§303 run
-/// 43763594395）实测 App 测试窗口内无障碍标签
-/// 集为空集，在场断言因此不用 AX 标签面、改走
-/// 托管视图 sizeThatFits 对账（标签集只打印留
-/// 档），本批沿用。
+/// ②定高归系统档位（D5 修订）：presented 的
+/// sheetPresentationController detents 包含一
+/// 个 .height 档与 .large、帧高−safeBottom ≈
+/// 内容理想高（容差 4，贴合不再留大片空白）；
+/// ③确认行增减跟随（D5 新增）：模拟确认行出
+/// 现/消失，帧高跟随 ±68pt（52 行高＋16 间
+/// 距）；
+/// §327 沿革：custom detent 桥退役、改系统档位
+/// [.medium, .large]、帧高恒半窗、增行不改高。
+/// D5 修订：改 .height(fitted) 贴合档＋.large、
+/// 帧高贴内容（三态 137/305/373＋safeArea）、
+/// 确认行增减时停在贴合档才跟随。
+/// 首轮（§303 run 43763594395）实测 App 测试
+/// 窗口内无障碍标签集为空集，在场断言因此不用
+/// AX 标签、改走托管视图 sizeThatFits 对账（标
+/// 签集只打印留档），本批沿用。
 @MainActor
 final class AttachmentPanelFitAssemblyTests: XCTestCase {
 
@@ -45,9 +41,11 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
 
     // MARK: - 真壳
 
-    /// 呈现宿主：根层 onAppear 置位呈现，sheet 内
-    /// 容统一经生产呈现口径（与 ChatView 呈现点同
-    /// 一修饰器，不另抄配方）
+    /// 呈现宿主（D5 修订）：根层 onAppear 置位呈
+    /// 现。D5 起 AttachmentPanelView 在自身 body
+    /// 内施加 presentation modifiers（需访问视图
+    /// 状态算 fitted 档），SheetHost 只留 .sheet()
+    /// 本体、不再调呈现口径配方
     private struct SheetHost<Content: View>: View {
         @State private var presented = false
         let content: Content
@@ -56,7 +54,7 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             Color.clear
                 .onAppear { presented = true }
                 .sheet(isPresented: $presented) {
-                    content.attachmentPanelPresentation()
+                    content
                 }
         }
     }
@@ -146,9 +144,9 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ①② 真面板在场＋系统档位定高
+    // MARK: - ①② 真面板在场＋贴合高度（D5 口径）
 
-    func testAttachPanelPresentsAtSystemMediumDetent() throws {
+    func testAttachPanelPresentsAtFittedHeight() throws {
         let root = assemble(content: makePanel())
 
         let sheetHeight = try XCTUnwrap(
@@ -165,17 +163,18 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             )
         ).height
 
-        // 在场：presented 本体即面板的托管控制器
-        // ——其视图 sizeThatFits 须与独立托管理想
-        // 高对账（呈现的若是空 sheet 或错内容，测
-        // 不出此高）。无障碍标签集只留档不作断言
-        // （首轮实测本环境 AX 树不填充、为空集）。
-        // §327 口径差：桥退役后 presented 视图的底
-        // 部安全区不再被反向补偿归零（.66 时代
-        // safeBottom＝0、presentedIdeal＝ideal），
-        // 其 sizeThatFits 含自身底部安全区一层——
-        // 对账式改 ideal＋safeBottom（首轮实测差
-        // 恰 34.0＝安全区全量，结构吻合）
+        // 在场（①，沿用 §327 口径）：presented 本体
+        // 即面板的托管控制器——其视图 sizeThatFits
+        // 须与独立托管理想高对账（呈现的若是空
+        // sheet 或错内容，测不出此高）。无障碍标
+        // 签集只留档不作断言（首轮实测本环境 AX
+        // 树不填充、为空集）。§327 口径差：桥退役
+        // 后 presented 视图的底部安全区不再被反向
+        // 补偿归零（.66 时代 safeBottom＝0、
+        // presentedIdeal＝ideal），其 sizeThatFits
+        // 含自身底部安全区一层——对账式改 ideal＋
+        // safeBottom（首轮实测差恰 34.0＝安全区全
+        // 量，结构吻合）。D5 沿用
         let presentedIdeal = presented.view.sizeThatFits(
             CGSize(
                 width: windowW, height: .greatestFiniteMagnitude
@@ -194,47 +193,51 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             for: .readWrite
         ).rawValue
         print(
-            "ATTACH-FIT sheet=\(sheetHeight) ideal=\(ideal) "
+            "ATTACH-FIT-D5 sheet=\(sheetHeight) ideal=\(ideal) "
                 + "presentedIdeal=\(presentedIdeal) "
                 + "safeBottom="
                 + "\(presented.view.safeAreaInsets.bottom) "
                 + "photoAccess=\(access) labels=\(labels)"
         )
 
-        // 定高归系统档位（§327 本体）：detents 恰
-        // 为 {.medium, .large} 系统标识集、无自造
-        // custom detent 混入。比对口径（两轮实测
-        // 教训）：SwiftUI 施加的 detents 读回序不
-        // 稳定（两轮分别 [.medium, .large] 与
-        // [.large, .medium]）、selectedDetent-
-        // Identifier 恒 nil——序与选档标识均不作
-        // 断言；集合相等＋下文帧高落 .medium 带
-        // （非 .large 带）两面互证开档为 .medium
+        // 定高归贴合档（②，D5 修订）：detents 包含
+        // 一个 .height 档（非 .medium）与 .large。
+        // D5 的 .height(fitted) 档高＝内容理想高＋
+        // safeBottom，故帧高−safeBottom ≈ 内容理
+        // 想高（容差 4，贴合不再留大片空白）——与
+        // §327 的半窗带脱钩断言相反，本批恢复贴合
         let sheetPC = try XCTUnwrap(
             presented.sheetPresentationController,
             "presented 无 sheetPresentationController"
         )
-        XCTAssertEqual(
-            Set(sheetPC.detents.map(\.identifier)),
-            [.medium, .large],
-            "detents 须恰为系统 {.medium, .large} 集合，"
-                + "实得 \(sheetPC.detents.map(\.identifier))"
+        let detentIDs = Set(sheetPC.detents.map(\.identifier))
+        XCTAssertTrue(
+            detentIDs.contains(.large),
+            "detents 须含 .large，实得 \(detentIDs)"
         )
-        XCTAssertEqual(
+        // height 档的 identifier 不是 .medium，检查
+        // 集合里有非 .medium/.large 的 height 档
+        XCTAssertGreaterThanOrEqual(
             sheetPC.detents.count, 2,
-            "detents 须恰两档，实得 \(sheetPC.detents.count)"
+            "detents 须至少两档（fitted＋large），"
+                + "实得 \(sheetPC.detents.count)"
         )
-        // 帧高落 .medium 半窗带：detent 解析值＝帧
-        // 高−底部安全区（帧含安全区一层，§303 时
-        // 代 sheet＝fit＋34 同式；首轮实测解析值
-        // 435.67 对半窗 437）。与内容理想高脱钩是
-        // 本批的既定代价、不是缺陷——§303 的「贴
-        // 内容」断言在此作废
+        let hasHeightDetent = sheetPC.detents.contains {
+            $0.identifier != .medium && $0.identifier != .large
+        }
+        XCTAssertTrue(
+            hasHeightDetent,
+            "detents 须含 .height 贴合档（非 .medium），"
+                + "实得 \(detentIDs)"
+        )
+        // 帧高贴内容理想高（D5 核心断言）：detent
+        // 解析值＝帧高−底部安全区 ≈ 内容理想高（容
+        // 差 4，沿用 sizeThatFits 对账法）
         XCTAssertEqual(
-            sheetHeight - safeBottom, windowH * 0.5,
-            accuracy: 30,
+            sheetHeight - safeBottom, ideal,
+            accuracy: 4,
             "sheet detent 解析值 \(sheetHeight - safeBottom) "
-                + "不在 .medium 半窗带（理想高 \(ideal) 仅留档）"
+                + "≠ 内容理想高 \(ideal)（D5 贴合口径）"
         )
         XCTAssertGreaterThan(
             sheetHeight, 100,
@@ -242,68 +245,129 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ③ 内容增行不改高（系统档位口径）
+    // MARK: - ③ 确认行增减跟随（D5 新增）
 
-    private final class GrowthModel: ObservableObject {
-        @Published var expanded = false
+    /// 确认行模拟探针（D5）：模拟附件面板「有库未
+    /// 选→已选→未选」的确认行增减，验证 D5 的跟
+    /// 随行为（停在贴合档时高度跟随 ±68pt）
+    private final class ConfirmRowModel: ObservableObject {
+        @Published var hasConfirmRow = false
     }
 
-    private struct GrowthProbe: View {
-        @ObservedObject var model: GrowthModel
-
+    private struct ConfirmRowProbe: View {
+        @ObservedObject var model: ConfirmRowModel
+        @State private var selectedDetent: PresentationDetent = .medium
+        @State private var userSelectedLarge = false
+        @State private var bottomSafeArea: CGFloat = 34
+        @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+        
+        private var fittedHeight: CGFloat {
+            // 简化高度：有库未选 305、已选 373（＋确认行 68）
+            let base: CGFloat = model.hasConfirmRow ? 373 : 305
+            return base + bottomSafeArea
+        }
+        
+        private var fittedDetent: PresentationDetent {
+            .height(fittedHeight)
+        }
+        
+        private var detents: Set<PresentationDetent> {
+            if dynamicTypeSize.isAccessibilityCategory {
+                return [.medium, .large]
+            } else {
+                return [fittedDetent, .large]
+            }
+        }
+        
         var body: some View {
             VStack(alignment: .leading, spacing: 16) {
-                Text("第一行").font(.body)
-                if model.expanded {
-                    Text("新增行")
+                Text("库区占位").font(.body)
+                    .frame(minHeight: 152)
+                if model.hasConfirmRow {
+                    Text("确认行")
                         .font(.body)
                         .frame(minHeight: 52)
                 }
-                Text("末行").font(.body)
+                Text("动作行占位").font(.body)
+                    .frame(minHeight: 105)
             }
             .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // §327：无桥——内容本体不挂任何定高装
-            // 置，呈现口径（系统 detent）由 Sheet-
-            // Host 的 attachmentPanelPresentation
-            // 统一施加（与真面板同一修饰器）
+            .frame(
+                maxWidth: .infinity, maxHeight: .infinity,
+                alignment: .topLeading
+            )
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear {
+                            bottomSafeArea = geometry.safeAreaInsets.bottom
+                        }
+                        .onChange(of: geometry.safeAreaInsets.bottom) { _, newValue in
+                            bottomSafeArea = newValue
+                        }
+                }
+            )
+            .presentationDetents(
+                detents,
+                selection: Binding(
+                    get: { selectedDetent },
+                    set: { newValue in
+                        selectedDetent = newValue
+                        userSelectedLarge = (newValue == .large)
+                    }
+                )
+            )
+            .presentationDragIndicator(.visible)
+            .task {
+                userSelectedLarge = false
+                selectedDetent = fittedDetent
+            }
+            .onChange(of: model.hasConfirmRow) { _, _ in
+                // D5 行为：仅当停在贴合档才跟随
+                if !userSelectedLarge && !dynamicTypeSize.isAccessibilityCategory {
+                    selectedDetent = fittedDetent
+                }
+            }
         }
     }
 
-    func testSheetHeightIgnoresContentGrowth() throws {
-        let model = GrowthModel()
-        let root = assemble(content: GrowthProbe(model: model))
+    func testConfirmRowToggleFollowsHeight() throws {
+        let model = ConfirmRowModel()
+        let root = assemble(content: ConfirmRowProbe(model: model))
 
-        let collapsed = try XCTUnwrap(
+        let initial = try XCTUnwrap(
             settledSheetHeight(of: root),
-            "探针 sheet 未在时限内呈现落定"
+            "确认行探针 sheet 未在时限内呈现落定"
         )
-        model.expanded = true
-        // 等内容重排落定（增行本身不再触发任何高
-        // 度变更通路，落定读数应与增行前逐值同）
-        spinRunLoop(seconds: 1.0)
-        let expanded = try XCTUnwrap(
-            settledSheetHeight(of: root),
-            "增行后 sheet 未在时限内落定"
+        
+        // 确认行出现：高度增加约 68pt（52 行高＋16 间距）
+        model.hasConfirmRow = true
+        spinRunLoop(seconds: 0.5)
+        let withConfirm = try XCTUnwrap(
+            settledSheetHeight(of: root, afterChangeFrom: initial),
+            "确认行出现后 sheet 未在时限内落定"
         )
         print(
-            "ATTACH-FIT-GROWTH collapsed=\(collapsed) "
-                + "expanded=\(expanded)"
+            "ATTACH-CONFIRM-ROW initial=\(initial) "
+                + "withConfirm=\(withConfirm) delta=\(withConfirm - initial)"
         )
         XCTAssertEqual(
-            expanded, collapsed, accuracy: 1,
-            "系统 detent 档位下内容增行不得改高："
-                + "\(collapsed)→\(expanded)"
+            withConfirm - initial, 68, accuracy: 4,
+            "确认行出现，sheet 高度应增加 68pt（52＋16），"
+                + "实际 \(withConfirm - initial)"
         )
-        // 半窗带同 ①口径：detent 解析值＝帧高−底
-        // 部安全区（presented 在场取其安全区）
-        let probeSafeBottom = root.presentedViewController?
-            .view.safeAreaInsets.bottom ?? 0
+        
+        // 确认行消失：高度回到初始值
+        model.hasConfirmRow = false
+        spinRunLoop(seconds: 0.5)
+        let backToInitial = try XCTUnwrap(
+            settledSheetHeight(of: root, afterChangeFrom: withConfirm),
+            "确认行消失后 sheet 未在时限内落定"
+        )
         XCTAssertEqual(
-            collapsed - probeSafeBottom, windowH * 0.5,
-            accuracy: 30,
-            "探针 sheet detent 解析值 "
-                + "\(collapsed - probeSafeBottom) 不在 .medium 半窗带"
+            backToInitial, initial, accuracy: 2,
+            "确认行消失，sheet 高度应回到初始值 \(initial)，"
+                + "实际 \(backToInitial)"
         )
     }
 
