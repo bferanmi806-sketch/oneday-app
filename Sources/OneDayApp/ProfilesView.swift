@@ -2,7 +2,9 @@ import OneDayDesign
 import OneDayCore
 import SwiftUI
 
-/// 档案页（设置·服务器）：档案列表＋切换。
+/// 配置档案页（设置·智能体）：档案列表＋切换＋当前
+/// 档案的人设入口（台账 198 收敛 S12）。页题与设置
+/// 目录题对齐「配置档案」（S9，此前页题只写「档案」）。
 /// 切换走 POST /api/profiles/active {name}，切换后新对话
 /// 使用该档案的模型/技能/记忆（已有数据不迁移）。
 /// P10 补齐增删与导入导出：新建（可复制来源）/删除
@@ -28,8 +30,10 @@ struct ProfilesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // 分工小字（§155，规格 §2.7 环 6）：本页管
-                // 档案的份数与选用，人设内容不在这里改
-                Text("这里管有哪些档案、现在用哪一份；每份档案的人设内容，在枢纽的身份段里编辑。")
+                // 档案的份数与选用；人设内容的人口径随台
+                // 账 198 收敛 S12 改实——设置内已有正式入
+                // 口（下方人设组），不再只指枢纽身份段
+                Text("这里管有哪些档案、现在用哪一份；当前档案的人设内容，用下方的人设入口就能改。")
                     .font(.caption)
                     .foregroundStyle(Palette.inkSecondary)
                     .padding(.bottom, OneDayMetrics.spacingM)
@@ -63,6 +67,15 @@ struct ProfilesView: View {
                         }
                     }
                     .odGroup()
+                    // 人设组（台账 198 收敛 S12）：当前档
+                    // 案的人设在设置内的正式入口——行本
+                    // 体是就绪闸门（PersonaEntryRow），
+                    // 点达既有 SoulEditorView、不新建编辑器
+                    SectionLabel("人设")
+                        .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                        .padding(.bottom, OneDayMetrics.spacingS)
+                    PersonaEntryRow()
+                        .odGroup()
                 } else if let errorMessage {
                     InlineError(errorMessage)
                     Button("重试") { Task { await load() } }
@@ -106,7 +119,7 @@ struct ProfilesView: View {
             .padding(.bottom, OneDayMetrics.spacingXL)
         }
         .background(Palette.pageBG)
-        .navigationTitle("档案")
+        .navigationTitle("配置档案")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
@@ -545,5 +558,74 @@ struct ProfileExportSheet: View {
                 }
             }
         }
+    }
+}
+
+/// 人设入口行（台账 198 收敛 S12）：就绪闸门——共
+/// 享枢纽 store 的 soul 已读到才给编辑入口（直达既
+/// 有 SoulEditorView，编辑器本体与枢纽身份段共用一
+/// 份）；未读到先经 store 补拉（loadIdentityIfNeeded
+/// 自带在飞守卫），失败如实显行内错＋重试、不空开
+/// 编辑器（空开会让用户对着空白草稿改、保存必失败）。
+/// 已知边界：枢纽 store 的冻结档案名与本页刚切换的
+/// 档案可能短暂不一致——编辑器保存侧有档案已切换
+/// 的拒存兜底（saveSoul 的 .profileChanged），不会
+/// 写错档案；真机时序列待验清单。
+private struct PersonaEntryRow: View {
+    @Environment(AppState.self) private var appState
+
+    var body: some View {
+        let store = appState.sharedHubStore()
+        Group {
+            if store.soulDocument != nil {
+                NavigationLink {
+                    SoulEditorView(store: store)
+                } label: {
+                    rowLabel
+                }
+                .buttonStyle(.odPressable)
+            } else if store.identityFailed {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    Text("人设没读出来，检查连接后再试。")
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                    Button("重试") {
+                        Task { await store.loadIdentityIfNeeded() }
+                    }
+                    .font(.body)
+                }
+                .padding(.horizontal, OneDayMetrics.spacingM)
+                .frame(minHeight: OneDayMetrics.rowHeight)
+                .contentShape(Rectangle())
+            } else {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    ProgressView()
+                    Text("正在读取人设…")
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+                .padding(.horizontal, OneDayMetrics.spacingM)
+                .frame(minHeight: OneDayMetrics.rowHeight)
+                .task { await store.loadIdentityIfNeeded() }
+            }
+        }
+    }
+
+    private var rowLabel: some View {
+        HStack(spacing: OneDayMetrics.spacingSM) {
+            Text("编辑人设")
+                .font(.body)
+                .foregroundStyle(Palette.ink)
+            Spacer(minLength: OneDayMetrics.spacingS)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .regular))
+                .foregroundStyle(Palette.inkMuted)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .frame(minHeight: OneDayMetrics.rowHeight)
+        .contentShape(Rectangle())
     }
 }

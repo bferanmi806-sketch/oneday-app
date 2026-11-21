@@ -394,6 +394,20 @@ final class AppState {
         return store
     }
 
+    /// 全局共享的定时任务店（台账 198 收敛·普查
+    /// R4/D2）：同一份服务端定时数据此前三路取数
+    /// （枢纽段/管理页/状态页各拉一份），自此由本单
+    /// 例一口出（与 sharedHubStore 同形态），三面只
+    /// 消费、写动作后经店 refresh 同步
+    private var cronStoreInstance: CronStore?
+
+    func sharedCronStore() -> CronStore {
+        if let cronStoreInstance { return cronStoreInstance }
+        let store = CronStore(appState: self)
+        cronStoreInstance = store
+        return store
+    }
+
     /// 全局共享的台账/任务/监测三店（§259 枢纽台账
     /// 三店合一）：三店此前在各面各自 @State 私建——
     /// KanbanStore 全 App 五份、MonitorsStore 三份、

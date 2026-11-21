@@ -58,16 +58,14 @@ struct AppIconView: View {
     }
 }
 
-/// 支持组共用行盒（与设置首页/外观页同口径复刻）
-private var supportRowInsets: EdgeInsets {
-    EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
-}
+// 支持组行盒已于台账 198 收敛 B7 上收设计层
+// OneDayMetrics.settingsRowInsets 单源（口径不变）
 
+/// 支持组组头（台账 198 收敛 B7：走设计层共用件
+/// SettingsSectionHeader，本文件只留转发壳保既有
+/// 调用点不动；题在此处先经 L10n 取词）
 private func supportHeader(_ title: String) -> some View {
-    Text(L10n.string(title))
-        .font(.sectionLabel)
-        .foregroundStyle(Palette.inkSecondary)
-        .textCase(nil)
+    SettingsSectionHeader(L10n.string(title))
 }
 
 // MARK: - 帮助与反馈
@@ -92,7 +90,7 @@ struct HelpView: View {
                 supportHeader("连接帮助")
             }
             .listRowBackground(Palette.surface)
-            .listRowInsets(supportRowInsets)
+            .listRowInsets(OneDayMetrics.settingsRowInsets)
 
             Section {
                 linkRow(
@@ -113,7 +111,7 @@ struct HelpView: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
             .listRowBackground(Palette.surface)
-            .listRowInsets(supportRowInsets)
+            .listRowInsets(OneDayMetrics.settingsRowInsets)
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
@@ -240,7 +238,7 @@ struct AboutView: View {
             .accessibilityElement(children: .combine)
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     private var serviceSection: some View {
@@ -273,7 +271,7 @@ struct AboutView: View {
             }
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     private var legalSection: some View {
@@ -284,7 +282,7 @@ struct AboutView: View {
             supportHeader("法律与隐私")
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     private func legalRow(
@@ -332,7 +330,7 @@ struct AboutView: View {
                 .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 
     private func linkRow(title: String, url: String) -> some View {
@@ -365,13 +363,11 @@ struct AboutView: View {
     @AppStorage(ChatCarrierFeature.defaultsKey)
     private var gen3CarrierEnabled = false
 
-    /// §247（换代包 4）流式呈现开关（Core Chat-
-    /// StreamingFeature，与 ChatView 同键同源）：
-    /// 默认开＝块级增量新路；关＝流式正文回逐词
-    /// 渐显旧路（TokenFlow），只影响新承载下的流
-    /// 式行呈现、不动承载与落定形态。包 6 清理
-    @AppStorage(ChatStreamingFeature.defaultsKey)
-    private var gen4StreamingEnabled = true
+    // §247 流式呈现开关已于台账 198 收敛 S6 迁出
+    // 本节：键 chat.streaming.gen4 不变，唯一写口改
+    // 在外观页「回复呈现」组（与打字动画相邻成组、
+    // 文案互指）——本节不再留第二写口，免两处两名
+    // 两副面孔（审计 B4）
 
     /// §291（原生重建 R1）原生面开关（Core Chat-
     /// NativeListFeature，与 ChatView 同键同源）：
@@ -383,9 +379,12 @@ struct AboutView: View {
     private var nativeListEnabled = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
-    /// D6-2／原则 7）：三面旗是施工期内部机制，不与
-    /// 用户功能同级——沉本页末节并明示内部属性；开
-    /// 关本体、键与文案随迁不改
+    /// D6-2／原则 7）：施工旗是内部机制，不与用户功
+    /// 能同级——沉本页末节并明示内部属性。台账 198
+    /// 收敛后本节＝两面旗（承载/原生面）＋聊天诊断
+    /// 入口：流式呈现旗已按 S6 迁外观页「回复呈现」
+    /// 组（它是用户呈现偏好、不是内部机制，原与本
+    /// 节同置是归组错位）
     private var labSection: some View {
         Section {
             Toggle(isOn: $gen3CarrierEnabled) {
@@ -397,19 +396,6 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("实验开关：开启后消息列表与回到底部按钮换用新承载，出问题关掉即回旧承载。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $gen4StreamingEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("流式增量呈现"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：回复逐块成形、已成形的部分先按正式排版显示；关掉回逐词渐显的旧呈现。仅在会话页新承载开启时生效。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
@@ -427,6 +413,36 @@ struct AboutView: View {
                         .foregroundStyle(Palette.inkSecondary)
                 }
             }
+            // 聊天诊断入口（台账 198 收敛 S13）：内部
+            // 取证与施工旗同族，入口自设置根支持组迁
+            // 入本节（根页目录仅保留搜索可达）；行式
+            // 与本页 legalRow 同式（图标＋题、值路由）
+            NavigationLink(value: SettingsRoute.chatDiagnostics) {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(
+                            size: FrameworkIcon.settingsGlyphSize,
+                            weight: .regular
+                        ))
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: OneDayMetrics.iconSlot, alignment: .center)
+                        .accessibilityHidden(true)
+                    VStack(
+                        alignment: .leading,
+                        spacing: OneDayMetrics.spacingMicro
+                    ) {
+                        Text(L10n.string("聊天诊断"))
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Text(L10n.string("卡顿探针、量测积压与诊断留痕，仅供排障。"))
+                            .font(.rowSubtitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                .contentShape(Rectangle())
+            }
         } header: {
             supportHeader("内部实验")
         } footer: {
@@ -435,7 +451,7 @@ struct AboutView: View {
                 .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 }
 
@@ -556,7 +572,7 @@ struct LegalDocumentView: View {
                     .padding(.vertical, OneDayMetrics.spacingXS)
             }
             .listRowBackground(Palette.surface)
-            .listRowInsets(supportRowInsets)
+            .listRowInsets(OneDayMetrics.settingsRowInsets)
 
             ForEach(
                 Array(kind.sections.enumerated()), id: \.offset
@@ -591,6 +607,6 @@ struct LegalDocumentView: View {
             supportHeader(L10n.string(heading))
         }
         .listRowBackground(Palette.surface)
-        .listRowInsets(supportRowInsets)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
 }

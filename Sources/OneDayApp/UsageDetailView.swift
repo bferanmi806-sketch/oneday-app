@@ -81,20 +81,14 @@ struct UsageDetailView: View {
             .padding(.bottom, OneDayMetrics.spacingS)
             GroupDivider()
             VStack(spacing: 0) {
-                LabeledContent("请求数") {
-                    Text(AdminFormat.count(usage.totals.totalAPICalls ?? 0))
-                        .font(.system(.callout, design: .monospaced))
-                }
+                // 键值行走 KeyValueRow（台账 198 收敛
+                // S5：本页是裸 LabeledContent 入组卡贴
+                // 边溢出的实锤页，自此只许共用件）
+                KeyValueRow("请求数", value: AdminFormat.count(usage.totals.totalAPICalls ?? 0))
                 GroupDivider()
-                LabeledContent("会话数") {
-                    Text(AdminFormat.count(usage.totals.totalSessions ?? 0))
-                        .font(.system(.callout, design: .monospaced))
-                }
+                KeyValueRow("会话数", value: AdminFormat.count(usage.totals.totalSessions ?? 0))
                 GroupDivider()
-                LabeledContent("估算费用") {
-                    Text(AdminFormat.cost(usage.totals.totalEstimatedCost ?? 0))
-                        .font(.system(.callout, design: .monospaced))
-                }
+                KeyValueRow("估算费用", value: AdminFormat.cost(usage.totals.totalEstimatedCost ?? 0))
             }
         }
         .odGroup()

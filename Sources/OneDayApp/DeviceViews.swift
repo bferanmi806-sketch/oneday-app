@@ -1588,8 +1588,13 @@ struct ContactsDetailView: View {
 
 // MARK: - 设备与权限总览（设置页入口，设计档 §6.3）
 
-/// 五件总览：授权状态＋调用开关汇总一张表，被拒在
-/// 这里一眼可见；批二两件只显待权益、不给假入口
+/// 设备与权限页（台账 198 收敛 S1 后）：只管本页的
+/// 授权/数据切面——等你确认的授权卡镜像、通道状态、
+/// 数据同步总览（五件副本状态与删除入口，行点进各
+/// 件详情走共用 DeviceDetailDestination）。「你的设
+/// 备」名单不在本页复刻：名单正主是连接器页（同一
+/// 份 DeviceSourceDirectory 名单数据、详情同源），
+/// 本页旧名单段（第二张列表页）已撤除
 struct DevicePermissionsView: View {
     @Environment(AppState.self) private var appState
     @State private var showDeleteAllConfirm = false
@@ -1630,32 +1635,6 @@ struct DevicePermissionsView: View {
                 .listRowInsets(deviceRowInsets)
             }
             Section {
-                ForEach(DeviceSourceDirectory.roster) { descriptor in
-                    if descriptor.isWired {
-                        NavigationLink {
-                            detailDestination(descriptor.sourceID)
-                        } label: {
-                            overviewRow(descriptor)
-                        }
-                    } else {
-                        overviewRow(descriptor)
-                    }
-                }
-            } header: {
-                headerText("你的设备")
-            } footer: {
-                // §244 P-6：本页只做管理面（状态/开关/
-                // 删副本/日志），不再兼任使用教程——授
-                // 权改在对话里当场完成，这里只留一句定
-                // 位；健康与家庭差系统签名权益（用户
-                // 2026-11-14 拍板留行等上架），开通前
-                // 只列名、不显数据
-                Text("这里只管状态和开关：权限要改在系统设置里，副本和日志在各件详情页里。智能体要用哪件，都是在对话里当场问你。健康与家庭还差系统签名权益，开通前只列名、不显数据。")
-            }
-            .listRowBackground(Palette.surface)
-            .listRowInsets(deviceRowInsets)
-
-            Section {
                 HStack(spacing: OneDayMetrics.spacingSM) {
                     Text("设备会话")
                         .font(.rowTitleL)
@@ -1674,6 +1653,11 @@ struct DevicePermissionsView: View {
                     .foregroundStyle(Palette.inkSecondary)
             } header: {
                 headerText("通道状态")
+            } footer: {
+                // §244 P-6 本页定位句（原在已撤的名单段
+                // 段脚，台账 198 收敛 S1 随段撤除迁此保
+                // 留）：只做管理面、不兼任使用教程
+                Text("这里只管状态和开关：权限要改在系统设置里，副本和日志在各件详情页里。智能体要用哪件，都是在对话里当场问你。")
             }
             .listRowBackground(Palette.surface)
             .listRowInsets(deviceRowInsets)
@@ -1685,7 +1669,7 @@ struct DevicePermissionsView: View {
                     DeviceSyncDataset.allCases, id: \.self
                 ) { dataset in
                     NavigationLink {
-                        detailDestination(dataset.sourceID)
+                        DeviceDetailDestination(source: dataset.sourceID)
                     } label: {
                         HStack(
                             spacing: OneDayMetrics.spacingSM
@@ -1771,76 +1755,6 @@ struct DevicePermissionsView: View {
         )
     }
 
-    private func overviewRow(
-        _ descriptor: DeviceSourceDescriptor
-    ) -> some View {
-        HStack(spacing: OneDayMetrics.spacingSM) {
-            DeviceAppIconView(source: descriptor.sourceID, size: 40)
-            VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                Text(descriptor.name)
-                    .font(.rowTitleL)
-                    .foregroundStyle(Palette.ink)
-                Text(overviewStatus(descriptor))
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: OneDayMetrics.spacingS)
-        }
-        .frame(minHeight: OneDayMetrics.settingsRowHeight)
-        .contentShape(Rectangle())
-    }
-
-    private func overviewStatus(
-        _ descriptor: DeviceSourceDescriptor
-    ) -> String {
-        let permission = controller.permissions[descriptor.sourceID]
-            ?? .notDetermined
-        let dataset = DeviceSyncDataset.fromSource(descriptor.sourceID)
-        return DeviceRowStatus.line(
-            descriptor: descriptor,
-            permission: permission,
-            agentCallEnabled:
-                controller.agentCallEnabled[descriptor.sourceID] ?? false,
-            sessionOnline: controller.sessionOnline,
-            metric: nil,
-            syncSegment: dataset.map { syncSegment($0) },
-            // 照片/步数没有现读现回的通道，不拼调用态
-            showsCallState: dataset == nil
-                || descriptor.sourceID == .calendar
-                || descriptor.sourceID == .reminders
-                || descriptor.sourceID == .contacts
-        )
-    }
-
-    @ViewBuilder
-    private func detailDestination(
-        _ source: DeviceSourceID
-    ) -> some View {
-        switch source {
-        case .calendar: CalendarDetailView()
-        case .reminders: RemindersDetailView()
-        case .contacts: ContactsDetailView()
-        case .photos: PhotosDetailView()
-        case .motion: MotionDetailView()
-        case .clipboard: ClipboardDetailView()
-        case .files: FilesDetailView()
-        case .alarm: AlarmDetailView()
-        case .notifications: NotificationsDetailView()
-        case .opener: OpenTargetDetailView()
-        case .camera: CameraDetailView()
-        case .vision: VisionDetailView()
-        case .translate: TranslateDetailView()
-        case .ondevice: OnDeviceDetailView()
-        case .biometric: BiometricDetailView()
-        case .location: LocationDetailView()
-        case .media: MediaDetailView()
-        case .compose: ComposeDetailView()
-        case .shortcuts: ShortcutsDetailView()
-        case .deviceinfo: DeviceInfoDetailView()
-        case .health, .home: EmptyView()
-        }
-    }
 }
 
 // MARK: - 剪贴板详情（设备扩容批一）

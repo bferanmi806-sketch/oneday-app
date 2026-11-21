@@ -637,6 +637,14 @@ public enum OneDayMetrics {
     /// App 设置型页面的组距随之统一小收 4pt，真机若
     /// 觉挤可单独回 28 并入宪法修订，本批先入梯队）
     public static let settingsSectionSpacing: CGFloat = 24
+    /// 设置页统一行盒（台账 198 收敛 B7）：纵向 0
+    /// （行高只由行内容 minHeight 决定）、横向 20 与
+    /// 页 gutter 对齐线一致。此前设置首页/外观页/支
+    /// 持组三页各复刻一份同值 EdgeInsets（审计 B7），
+    /// 自此单源住令牌层，各页不许再自备
+    public static var settingsRowInsets: EdgeInsets {
+        EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20)
+    }
     /// 分区外距（组节奏定版，DESIGN-V2 §3.2「分区标题
     /// 上 28 下 8」）：手搓页 SectionLabel 之上的留白
     /// 与页末最后一组之下的收尾留白同值同族——下 8

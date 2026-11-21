@@ -828,35 +828,14 @@ struct ConnectorsView: View {
         .presentationDragIndicator(.visible)
     }
 
-    /// 设备详情分发（批一三件；批二两件无详情、不
-    /// 点入）。本面恒以 sheet 呈现：三页带 inSheet
-    /// 标记，下拉手势归 sheet 关闭、不再被下拉刷
-    /// 新截走
+    /// 设备详情分发：走共用件 DeviceDetailDestination
+    /// （台账 198 收敛 S1——与设备与权限页同一份映射，
+    /// 不再各持一份 switch）。本面恒以 sheet 呈现：
+    /// inSheet 标记，下拉手势归 sheet 关闭、不再被下
+    /// 拉刷新截走
     @ViewBuilder
     private func deviceDetail(_ source: DeviceSourceID) -> some View {
-        switch source {
-        case .calendar: CalendarDetailView(inSheet: true)
-        case .reminders: RemindersDetailView(inSheet: true)
-        case .contacts: ContactsDetailView(inSheet: true)
-        case .photos: PhotosDetailView(inSheet: true)
-        case .motion: MotionDetailView(inSheet: true)
-        case .clipboard: ClipboardDetailView()
-        case .files: FilesDetailView()
-        case .alarm: AlarmDetailView()
-        case .notifications: NotificationsDetailView()
-        case .opener: OpenTargetDetailView()
-        case .camera: CameraDetailView()
-        case .vision: VisionDetailView()
-        case .translate: TranslateDetailView()
-        case .ondevice: OnDeviceDetailView()
-        case .biometric: BiometricDetailView()
-        case .location: LocationDetailView()
-        case .media: MediaDetailView()
-        case .compose: ComposeDetailView()
-        case .shortcuts: ShortcutsDetailView()
-        case .deviceinfo: DeviceInfoDetailView()
-        case .health, .home: EmptyView()
-        }
+        DeviceDetailDestination(source: source, inSheet: true)
     }
 
     /// 详情页头（0.36.3，详情页语法重做）：对齐

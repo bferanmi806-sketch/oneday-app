@@ -2,11 +2,17 @@ import OneDayCore
 import OneDayDesign
 import SwiftUI
 
-/// 「状态」屏（0.2.1 新增，仿 Muse 头像/状态屏）：入口在总览
-/// 状态头。顶部智能体身份（名＋当前状态一句话），下分三段：
-/// 活动（最近会话＋近期日志事件流）／定时（接下来运行列表，
-/// 只读，与设置里的管理页同源）／系统（资源与版本，来自
-/// /api/system/stats ＋ /api/status）。
+/// 「状态」屏（0.2.1 新增，仿 Muse 头像/状态屏）：入口在
+/// 设置根「状态」行（服务与工作区组工作区段，根行副题标
+/// 「汇总」；旧总览入口已随总览撤页退役，本文件头原写
+/// 「入口在总览状态头」是陈旧口径，台账 198 收敛 C2 改
+/// 实）。顶部智能体身份（名＋当前状态一句话），下分三段：
+/// 活动（最近会话＋近期日志事件流）／定时（接下来运行摘
+/// 录，只读——数据走共享 CronStore、行走共用
+/// CronOverviewRow，全量管理点「全部定时任务」直达正主
+/// 页，台账 198 收敛 C3）／系统（资源与版本，来自
+/// /api/system/stats ＋ /api/status）。身份头网关状态读
+/// 共享枢纽 store 的同一份快照（C4），本页不自拉。
 /// 浏览器任务与审核记录两格：openapi 335 路径中无浏览器任务
 /// 列表接口，「审核」只有 git 代码审查与安全审计触发端点、
 /// 无记录列表接口——两格不做，不用假数据填充（施工前核查
@@ -19,11 +25,22 @@ struct StatusView: View {
     @State private var segment = 0
     /// 体检留痕（H1-a）：系统段尾次入口读同一份摘要
     @State private var healthSummaryStore = HealthSummaryStore.shared
-    @State private var status: ServerStatus?
     @State private var sessions: [ServerSession] = []
     @State private var logLines: [String] = []
-    @State private var cronJobs: [CronJob] = []
     @State private var stats: SystemStats?
+
+    /// 身份头网关状态（台账 198 收敛 C4）：读共享枢
+    /// 纽 store 的 serverStatus——同一份状态全 App 只
+    /// 此一处取数（枢纽 store 持有），本页 load() 只
+    /// 经店内回读口触发刷新、不自拉一份
+    private var status: ServerStatus? {
+        appState.sharedHubStore().serverStatus
+    }
+
+    /// 定时摘录数据（台账 198 收敛 C3＋普查 R4）：
+    /// 共享 CronStore 的同一份名单，本页不自拉
+    private var cronStore: CronStore { appState.sharedCronStore() }
+    private var cronJobs: [CronJob] { cronStore.jobs }
 
     var body: some View {
         ScrollView {
@@ -188,45 +205,54 @@ struct StatusView: View {
         }
     }
 
-    // MARK: - 定时（只读）
+    // MARK: - 定时（摘要）
 
+    /// 定时段（台账 198 收敛 C3 定案形态）：本页只做
+    /// 摘要——接下来 3 条（行走共用 CronOverviewRow、
+    /// 与枢纽概览同一行件）＋「全部定时任务」直达正
+    /// 主管理页（与本页系统段体检行直达体检面同式）；
+    /// 全量分组概览归枢纽定时段、本页不再整表复刻。
+    /// 数据走共享 CronStore（与枢纽/正主同一份）
     private var cronSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             SectionLabel("接下来运行")
                 .padding(.top, OneDayMetrics.sectionOuterSpacing)
                 .padding(.bottom, OneDayMetrics.spacingS)
             if cronJobs.isEmpty {
-                Text("暂无定时任务")
+                Text(cronStore.hasLoaded ? "暂无定时任务" : "正在读取定时任务…")
                     .font(.callout)
                     .foregroundStyle(Palette.inkSecondary)
             } else {
                 VStack(spacing: 0) {
-                    ForEach(Array(upcomingJobs.enumerated()), id: \.element.id) { index, job in
+                    ForEach(Array(upcomingJobs.prefix(3).enumerated()), id: \.element.id) { index, job in
                         if index > 0 {
                             GroupDivider()
                         }
+                        CronOverviewRow(item: CronHubClassifier.classify(
+                            job, lastRunOverride: cronStore.lastRuns[job.id]
+                        ))
+                        .padding(.horizontal, OneDayMetrics.spacingM)
+                        .padding(.vertical, OneDayMetrics.spacingS)
+                    }
+                    GroupDivider()
+                    NavigationLink {
+                        CronJobsView()
+                    } label: {
                         HStack(spacing: OneDayMetrics.spacingSM) {
-                            VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                                Text(job.title)
-                                    .font(.body)
-                                    .foregroundStyle(Palette.ink)
-                                    .lineLimit(1)
-                                Text(job.scheduleText)
-                                    .font(.footnote)
-                                    .foregroundStyle(Palette.inkSecondary)
-                                    .lineLimit(1)
-                            }
+                            Text("全部定时任务")
+                                .font(.body)
+                                .foregroundStyle(Palette.ink)
                             Spacer(minLength: OneDayMetrics.spacingS)
-                            Text(jobNextText(job))
-                                .font(.system(.callout, design: .monospaced))
-                                // 0.23.0（审计 G1）：停用态的下次
-                                // 时间也是要读的字，inkMuted 退出
-                                // 文字位，两态同归 inkSecondary
-                                .foregroundStyle(Palette.inkSecondary)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(Palette.inkMuted)
+                                .accessibilityHidden(true)
                         }
                         .padding(.horizontal, OneDayMetrics.spacingM)
                         .frame(minHeight: OneDayMetrics.rowHeight)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.odPressable)
                 }
                 .odGroup()
             }
@@ -241,12 +267,6 @@ struct StatusView: View {
             let r = AdminFormat.iso(rhs.nextRunAt) ?? .distantFuture
             return l < r
         }
-    }
-
-    private func jobNextText(_ job: CronJob) -> String {
-        guard job.enabled else { return "已暂停" }
-        guard let next = AdminFormat.iso(job.nextRunAt) else { return "—" }
-        return AdminFormat.short(next)
     }
 
     // MARK: - 系统
@@ -264,48 +284,37 @@ struct StatusView: View {
                     percentRow("磁盘", percent: stats.disk?.percent,
                                detail: diskDetail(stats))
                     GroupDivider()
-                    LabeledContent("CPU", value: stats.cpuPercent.map {
+                    // 键值行走 KeyValueRow（台账 198 收
+                    // 敛 S5 嫌疑页查实：本页系统段九处同
+                    // 构造，一并替换；percentRow 是自绘
+                    // 条行、不在此列）
+                    KeyValueRow("CPU", value: stats.cpuPercent.map {
                         "\(AdminFormat.count($0))% · \(stats.cpuCount ?? 0) 核"
                     } ?? "—")
                     GroupDivider()
-                    LabeledContent("负载", value: stats.loadAvg.map {
+                    KeyValueRow("负载", value: stats.loadAvg.map {
                         $0.map { AdminFormat.count($0) }.joined(separator: " / ")
                     } ?? "—")
                     GroupDivider()
-                    LabeledContent("运行时间", value: stats.uptimeSeconds.map(uptimeText) ?? "—")
+                    KeyValueRow("运行时间", value: stats.uptimeSeconds.map(uptimeText) ?? "—")
                     GroupDivider()
-                    LabeledContent("进程内存", value: stats.process?.rss.map(byteText) ?? "—")
+                    KeyValueRow("进程内存", value: stats.process?.rss.map(byteText) ?? "—")
                 }
                 .odGroup()
                 SectionLabel("版本与运行时")
                     .padding(.top, OneDayMetrics.sectionOuterSpacing)
                     .padding(.bottom, OneDayMetrics.spacingS)
                 VStack(spacing: 0) {
-                    LabeledContent("Hermes") {
-                        Text(stats.hermesVersion.map { "v\($0)" } ?? "—")
-                            .font(.system(.callout, design: .monospaced))
-                    }
+                    KeyValueRow("Hermes", value: stats.hermesVersion.map { "v\($0)" } ?? "—")
                     GroupDivider()
-                    LabeledContent("主机") {
-                        Text(stats.hostname ?? "—")
-                            .font(.system(.callout, design: .monospaced))
-                    }
+                    KeyValueRow("主机", value: stats.hostname ?? "—")
                     GroupDivider()
-                    LabeledContent("系统") {
-                        Text([stats.os, stats.arch]
+                    KeyValueRow("系统", value: [stats.os, stats.arch]
                         .compactMap { $0 }.joined(separator: " · "))
-                            .font(.system(.callout, design: .monospaced))
-                    }
                     GroupDivider()
-                    LabeledContent("Python") {
-                        Text(stats.pythonVersion ?? "—")
-                            .font(.system(.callout, design: .monospaced))
-                    }
+                    KeyValueRow("Python", value: stats.pythonVersion ?? "—")
                     GroupDivider()
-                    LabeledContent("内核") {
-                        Text(stats.osRelease ?? "—")
-                            .font(.system(.callout, design: .monospaced))
-                    }
+                    KeyValueRow("内核", value: stats.osRelease ?? "—")
                 }
                 .odGroup()
             } else {
@@ -390,7 +399,8 @@ struct StatusView: View {
         .padding(.vertical, OneDayMetrics.spacingSM)
     }
 
-    // （infoRow 已于 0.4.0 删除，审计 §3.1：键值行统一 LabeledContent）
+    // （键值行沿革：infoRow（0.4.0 删）→ LabeledContent
+    // → KeyValueRow（台账 198 收敛 S5：组卡内键值行单源件））
 
     private func memoryDetail(_ stats: SystemStats) -> String {
         guard let memory = stats.memory,
@@ -423,11 +433,12 @@ struct StatusView: View {
     // MARK: - 数据
 
     private func load() async {
-        if let loaded = try? await appState.performAdmin({ client, config in
-            try await client.status(config: config)
-        }) {
-            status = loaded
-        }
+        // 身份头状态与定时摘录自台账 198 收敛起归共享
+        // 店：身份头经枢纽 store 回读其快照（取数仍在
+        // 店内一处），定时经 CronStore 按需加载（已加
+        // 载即跳过）；本页不再自拉 status/cronJobs 两份
+        await appState.sharedHubStore().refreshServerStatus()
+        await cronStore.loadIfNeeded()
         if let page = try? await appState.performAdmin({ client, config in
             try await client.serverSessions(config: config, limit: 8)
         }) {
@@ -437,11 +448,6 @@ struct StatusView: View {
             try await client.logs(config: config, level: nil, search: nil, lines: 30)
         }) {
             logLines = Array(logs.lines.suffix(12).reversed())
-        }
-        if let jobs = try? await appState.performAdmin({ client, config in
-            try await client.cronJobs(config: config)
-        }) {
-            cronJobs = jobs
         }
         if let loaded = try? await appState.performAdmin({ client, config in
             try await client.systemStats(config: config)

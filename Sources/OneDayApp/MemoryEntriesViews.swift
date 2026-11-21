@@ -383,9 +383,11 @@ struct MemoryEntryDetailView: View {
     private func metaGroup(_ entry: BridgeMemoryEntry) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: 0) {
-                LabeledContent("来源", value: entry.target.label)
+                // 键值行走 KeyValueRow（台账 198 收敛
+                // S5 嫌疑页查实：来源/更新时间两行同构造）
+                KeyValueRow("来源", value: entry.target.label)
                 GroupDivider()
-                LabeledContent(
+                KeyValueRow(
                     "更新时间",
                     value: AdminFormat.short(
                         Date(timeIntervalSince1970: entry.updatedAt)

@@ -74121,6 +74121,259 @@
           }
         }
       }
+    },
+    "服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器"
+          }
+        }
+      }
+    },
+    "汇总": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇总"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彙總"
+          }
+        }
+      }
+    },
+    "流式增量呈现": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incremental streaming"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流式增量呈现"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "串流增量呈現"
+          }
+        }
+      }
+    },
+    "全部定时任务": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All scheduled jobs"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部定时任务"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部定時任務"
+          }
+        }
+      }
+    },
+    "正在读取定时任务…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading scheduled jobs…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取定时任务…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在讀取定時任務…"
+          }
+        }
+      }
+    },
+    "流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incremental streaming controls how a reply appears: on, it refreshes block by block; off, it returns to word by word. The typing animation only controls whether new text fades in — a separate thing. When Reduce Motion is on, text always appears directly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "串流增量呈現管回覆怎麼長出來：開著按塊增量刷新，關掉回到逐詞出現。打字動畫只管新文字帶不帶漸顯，與增量方式是兩件事。系統開啟減少動態效果時，始終直接顯示。"
+          }
+        }
+      }
+    },
+    "这里管有哪些档案、现在用哪一份；当前档案的人设内容，用下方的人设入口就能改。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This page manages which profiles exist and which one is in use. To edit the current profile's persona, use the Persona entry below."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这里管有哪些档案、现在用哪一份；当前档案的人设内容，用下方的人设入口就能改。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這裡管有哪些檔案、現在用哪一份；目前檔案的人設內容，用下方的人設入口就能改。"
+          }
+        }
+      }
+    },
+    "正在读取人设…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading persona…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在读取人设…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在讀取人設…"
+          }
+        }
+      }
+    },
+    "人设没读出来，检查连接后再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load the persona. Check the connection and try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人设没读出来，检查连接后再试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "人設沒讀出來，檢查連線後再試。"
+          }
+        }
+      }
+    },
+    "卡顿探针、量测积压与诊断留痕，仅供排障。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lag probes, measurement backlog, and diagnostic traces. For troubleshooting only."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡顿探针、量测积压与诊断留痕，仅供排障。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卡頓探針、量測積壓與診斷留痕，僅供排障。"
+          }
+        }
+      }
+    },
+    "这里只管状态和开关：权限要改在系统设置里，副本和日志在各件详情页里。智能体要用哪件，都是在对话里当场问你。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This page only manages status and switches: change permissions in system Settings; copies and logs live on each item's detail page. Whenever the agent wants to use one, it asks you in the conversation."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这里只管状态和开关：权限要改在系统设置里，副本和日志在各件详情页里。智能体要用哪件，都是在对话里当场问你。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這裡只管狀態和開關：權限要改在系統設定裡，副本和日誌在各件詳情頁裡。智慧代理要用哪件，都是在對話裡當場問你。"
+          }
+        }
+      }
     }
   }
 }
