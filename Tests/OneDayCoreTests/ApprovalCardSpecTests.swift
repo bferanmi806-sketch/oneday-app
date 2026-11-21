@@ -10,10 +10,51 @@ import XCTest
 final class ApprovalCardSpecTests: XCTestCase {
 
     /// 几何落值：钮高 48、钮距 10（参照 Muse 审批
-    /// 卡真机量测带内，审计 S2-01 落值）
+    /// 卡真机量测带内，审计 S2-01 落值）；D10 定
+    /// 版④文字级高 36、栈总高按角色合成（全栈
+    /// 48＋48＋36＋距 10×2＝152、防呆单驳回＝
+    /// 36、空栈＝0）
     func testButtonGeometry() {
         XCTAssertEqual(ApprovalCardSpec.buttonHeight, 48)
         XCTAssertEqual(ApprovalCardSpec.buttonSpacing, 10)
+        XCTAssertEqual(ApprovalCardSpec.textButtonHeight, 36)
+        XCTAssertEqual(
+            ApprovalCardSpec.buttonHeight(for: .approve), 48
+        )
+        XCTAssertEqual(
+            ApprovalCardSpec.buttonHeight(for: .alwaysAllow), 48
+        )
+        XCTAssertEqual(
+            ApprovalCardSpec.buttonHeight(for: .reject), 36
+        )
+        XCTAssertEqual(
+            ApprovalCardSpec.actionStackHeight(
+                [.approve, .alwaysAllow, .reject]
+            ),
+            152
+        )
+        XCTAssertEqual(
+            ApprovalCardSpec.actionStackHeight([.reject]), 36
+        )
+        XCTAssertEqual(
+            ApprovalCardSpec.actionStackHeight([]), 0
+        )
+    }
+
+    /// D10 定版④形态角色单源：批准填充主钮／总
+    /// 是允许描边次钮／驳回文字级
+    func testButtonRoles() {
+        XCTAssertEqual(
+            ApprovalCardAction.approve.buttonRole,
+            .filledPrimary
+        )
+        XCTAssertEqual(
+            ApprovalCardAction.alwaysAllow.buttonRole,
+            .outlinedSecondary
+        )
+        XCTAssertEqual(
+            ApprovalCardAction.reject.buttonRole, .text
+        )
     }
 
     /// 栈构成：可裁决恒三档全栈、自上而下批准／总是

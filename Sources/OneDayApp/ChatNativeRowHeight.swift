@@ -1932,8 +1932,10 @@ struct ChatNativeRowHeightComposer {
             items.append(0)
         }
         // 动作区：提交中＝进度行；可裁决＝钮栈
-        // （ApprovalCardSpec 单源）；不可裁决＝说
-        // 明 caption 折行
+        // （ApprovalCardSpec 单源；D10 定版④起
+        // 三档异高——胶囊 48/文字级 36，总高经
+        // actionStackHeight 单读口）；不可裁决
+        // ＝说明 caption 折行
         if facetIsDeciding(record.id) {
             items.append(max(20, spec(.caption1)))
         } else if record.canDecide {
@@ -1941,10 +1943,7 @@ struct ChatNativeRowHeightComposer {
                 canDecide: true, blocked: record.isBlocked
             )
             items.append(
-                CGFloat(actions.count)
-                    * ApprovalCardSpec.buttonHeight
-                    + CGFloat(max(0, actions.count - 1))
-                        * ApprovalCardSpec.buttonSpacing
+                ApprovalCardSpec.actionStackHeight(actions)
             )
         } else {
             items.append(plainHeight(

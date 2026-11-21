@@ -163,33 +163,74 @@ struct ApprovalCardFace<DetailArea: View>: View {
     }
 }
 
-/// 审批卡裁决钮（自绘通栏胶囊）：标签 Text 在背景之
-/// 内层满宽——宽恒等于卡宽、三钮同高同宽，主次只差
-/// 填充与字色（主钮恒主钮配色 primaryPale＋onPrimary
-/// ——2026-11-15 第 85 条 BC-1 收口：旧「primary 实
-/// 心＋白字」暗档仅 2.33:1，改走与发送钮同源的正道
-/// 配对；次钮浅灰填充＋墨字；驳回不预红、确认走宿主既有
-/// confirmationDialog，与参照「拒绝」中性灰同口径）
+/// 审批卡裁决钮（D10 定版④三档形态，角色走
+/// Core ApprovalCardButtonRole 单源）：批准＝
+/// 填充主钮（primaryPale＋onPrimary——2026-
+/// 11-15 第 85 条 BC-1 收口：旧「primary 实心
+/// ＋白字」暗档仅 2.33:1，改走与发送钮同源的
+/// 正道配对）；总是允许＝描边次钮（hairline
+/// 描边、无填充、墨字，与主钮拉开层级）；驳
+/// 回＝文字级（.plain、无背景、次色字，高走
+/// Spec textButtonHeight；不预红、危险语义靠
+/// 宿主既有 confirmationDialog 承接，与参照
+/// 「拒绝」中性同口径）。三钮同宽满卡宽，高
+/// 由 Spec 按角色给值（buttonHeight(for:)）
 private struct ApprovalCardButton: View {
     let action: ApprovalCardAction
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            Text(action.title())
-                .font(.headline)
-                .foregroundStyle(
-                    action.isPrimary ? Palette.onPrimary : Palette.ink
-                )
-                .frame(maxWidth: .infinity)
-                .frame(height: ApprovalCardSpec.buttonHeight)
-                .background(
-                    action.isPrimary
-                        ? Palette.primaryPale : Palette.selectionFill,
-                    in: Capsule()
-                )
-                .contentShape(Capsule())
+        switch action.buttonRole {
+        case .filledPrimary:
+            Button(action: onTap) {
+                Text(action.title())
+                    .font(.headline)
+                    .foregroundStyle(Palette.onPrimary)
+                    .frame(maxWidth: .infinity)
+                    .frame(
+                        height: ApprovalCardSpec.buttonHeight(
+                            for: action
+                        )
+                    )
+                    .background(
+                        Palette.primaryPale, in: Capsule()
+                    )
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.odPressable)
+        case .outlinedSecondary:
+            Button(action: onTap) {
+                Text(action.title())
+                    .font(.headline)
+                    .foregroundStyle(Palette.ink)
+                    .frame(maxWidth: .infinity)
+                    .frame(
+                        height: ApprovalCardSpec.buttonHeight(
+                            for: action
+                        )
+                    )
+                    .background(
+                        Capsule().strokeBorder(
+                            Palette.hairline, lineWidth: 1
+                        )
+                    )
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.odPressable)
+        case .text:
+            Button(action: onTap) {
+                Text(action.title())
+                    .font(.headline)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(
+                        height: ApprovalCardSpec.buttonHeight(
+                            for: action
+                        )
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.odPressable)
     }
 }
