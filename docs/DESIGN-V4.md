@@ -13966,3 +13966,11 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **改动面**：OneDayCore/Onboarding.swift（GuideSegment/OnboardingGuide/NotificationGuideSegment＋GuidePermissionUse）、OneDayApp/ConnectView.swift（Page 加 .notifications、欢迎面分叉、成功面 needed 路由＋状态现读、通知段接线）、OneDayApp/NotificationGuideView.swift（新，纯呈现＋回调注入）、OneDayApp/NotificationPermissionGate.swift（新，引擎侧薄门）、Tests（Core 矩阵＋模板 9 法、App 设备条件帧 4 法）、Localizable.xcstrings、本节登记。
 
 **验收门（本包）**：自动化——Core 新测全绿；App 新帧测（分叉首屏/通知段×深色/最大字号各一帧）全绿；CI 红集与 0.50.77 基线轮（run 44795478758 红 11）逐名对账零新增红。真机门留用户：首连全程——分叉首屏观感、通知段在未决定态弹系统请求且仅一次、拒绝后去设置开启往返翻态、跳过直达主界面、已授权/已拒绝设备重走连接时通知段自动跳过。**未合 main、未打 tag、未组版**（冻分支待后续组版并入）。
+
+### §335.1 CI 判读（回填）
+
+**判绿（2026-11-21）**：最终树 2d95928（落码 68f0b86＋帧测口径修正 2d95928）。两轮：首轮 run 44843526783 红 14＝基线 11＋本包新帧测 3 件——三件均为在场断言误用 AX 标签面（App 测试窗口内 SwiftUI 无障碍标签集恒为空集，§303 首轮实证、§327 已定「在场断言不用 AX 标签面」口径，本包首轮未循）；产品码与 Core 新测首轮即全绿。帧测按 §327 口径改尺寸对账（内容高下限带＋深浅同高＋AX 生长，标签集只留档）后复跑 run 44849002540：红 12＝0.50.77 基线轮（run 44795478758）红 11 **逐名全在**＋1 件手势轮换翻转（ChatGestureNativeSurfaceTests.testLongPressOnTextShowsEditMenuNotRowMenu——与 0.50.77 组版第二轮翻出的正是同一件，签名同为长按竞速时序（本轮 50.2 秒、行菜单抢先系统编辑菜单），0.50.75 基线轮在册、本包 diff 对聊天手势面无可达路径，判轮换非新增）。**零可归因新增红**；本包新测全绿（Core OnboardingTests 新增 10 法全绿、OneDayCoreTests 整靶零 error；App ConnectGuideDeviceConditionTests 4 法全绿）；构建＋打包未签名 IPA＋上传 success（与基线轮同一步骤剖面）。
+
+**深色＋最大字号帧覆盖**：新测 ConnectGuideDeviceConditionTests 4 法覆盖两面两态——分叉首屏（深色帧：内容高落构成下限带且与浅色同高 ±2；AX 帧：内容高实际生长）、通知段（深色帧：拟合高落构成下限带且与浅色同高 ±1；AX 帧：拟合高实际生长），CI 实测全绿。残余明示：无像素级采样帧测，视觉观感与系统弹窗全程留真机（见 §335 验收门）。
+
+**未合 main、未打 tag、未组版**（冻分支 feat/onboarding-guide-pack@2d95928 待后续组版并入）。
