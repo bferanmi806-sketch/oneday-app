@@ -272,7 +272,7 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         }
         
         private var detents: Set<PresentationDetent> {
-            if dynamicTypeSize.isAccessibilityCategory {
+            if dynamicTypeSize.isAccessibilitySize {
                 return [.medium, .large]
             } else {
                 return [fittedDetent, .large]
@@ -324,7 +324,7 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             }
             .onChange(of: model.hasConfirmRow) { _, _ in
                 // D5 行为：仅当停在贴合档才跟随
-                if !userSelectedLarge && !dynamicTypeSize.isAccessibilityCategory {
+                if !userSelectedLarge && !dynamicTypeSize.isAccessibilitySize {
                     selectedDetent = fittedDetent
                 }
             }
