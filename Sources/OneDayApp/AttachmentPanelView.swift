@@ -116,7 +116,7 @@ struct AttachmentPanelView: View {
     /// D5：档位集（AX 大字体回落 [.medium, .large]、
     /// 标准字阶用 [fitted, .large]）
     private var detents: Set<PresentationDetent> {
-        if dynamicTypeSize.isAccessibilityCategory {
+        if dynamicTypeSize.isAccessibilitySize {
             return [.medium, .large]
         } else {
             return [fittedDetent, .large]
@@ -177,7 +177,7 @@ struct AttachmentPanelView: View {
             // D5：确认行增减时，仅当用户停在贴合档才跟随
             // 新高度（±68pt 系统动画过渡）；已拉到 .large
             // 不拽回；AX 档不自动跟随（回落 .medium 固定高）
-            if !userSelectedLarge && !dynamicTypeSize.isAccessibilityCategory {
+            if !userSelectedLarge && !dynamicTypeSize.isAccessibilitySize {
                 selectedDetent = fittedDetent
             }
         }
