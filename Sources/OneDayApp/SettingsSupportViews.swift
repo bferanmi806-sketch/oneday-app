@@ -175,7 +175,7 @@ struct HelpView: View {
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
@@ -346,7 +346,7 @@ struct AboutView: View {
                     .foregroundStyle(Palette.ink)
                 Spacer()
                 Image(systemName: "arrow.up.right")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }

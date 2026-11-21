@@ -201,7 +201,7 @@ struct HubLedgerSection: View {
                 }
             } label: {
                 Image(systemName: "plus.circle")
-                    .font(.system(size: 18, weight: .regular))
+                    .font(.system(size: FrameworkIcon.fileGlyphSize))
                     .foregroundStyle(Palette.primary)
                     .frame(
                         width: OneDayMetrics.minTapTarget,
@@ -401,7 +401,7 @@ struct HubLedgerSection: View {
         // 同形）
         if item.kind == .monitor {
             Image(systemName: "eye")
-                .font(.system(size: 16, weight: .regular))
+                .font(.system(size: FrameworkIcon.fileGlyphSize))
                 .foregroundStyle(Palette.ink)
         } else {
             boxContentByStatus(item)
@@ -416,23 +416,23 @@ struct HubLedgerSection: View {
                 .controlSize(.small)
         case .blockedApproval:
             Image(systemName: "checkmark.shield")
-                .font(.system(size: 16, weight: .regular))
+                .font(.system(size: FrameworkIcon.fileGlyphSize))
                 .foregroundStyle(Palette.ink)
         case .completed:
             Image(systemName: "checkmark")
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.ink)
         case .failed:
             Image(systemName: "exclamationmark")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: FrameworkIcon.fileGlyphSize, weight: .semibold))
                 .foregroundStyle(Palette.danger)
         case .stale:
             Image(systemName: "wifi.slash")
-                .font(.system(size: 15, weight: .regular))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.inkSecondary)
         default:
             Image(systemName: glyph(item.kind))
-                .font(.system(size: 16, weight: .regular))
+                .font(.system(size: FrameworkIcon.fileGlyphSize))
                 .foregroundStyle(Palette.ink)
         }
     }

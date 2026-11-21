@@ -432,7 +432,7 @@ struct ConnectorsView: View {
             } label: {
                 HStack(spacing: OneDayMetrics.spacingSM) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: FrameworkIcon.tabGlyphSize))
                         .foregroundStyle(Palette.primary)
                     Text("添加电脑")
                         .font(.rowTitleL)
@@ -456,7 +456,7 @@ struct ConnectorsView: View {
         let status = ConnectionStatusWording.evaluate(connection)
         return HStack(spacing: OneDayMetrics.spacingSM) {
             Image(systemName: "desktopcomputer")
-                .font(.system(size: 20))
+                .font(.system(size: FrameworkIcon.rowGlyphSize))
                 .foregroundStyle(Palette.primary)
                 .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {

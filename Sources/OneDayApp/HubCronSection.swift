@@ -130,7 +130,7 @@ struct HubCronSection: View {
                 RoundedRectangle(cornerRadius: OneDayMetrics.radiusThumb)
                     .stroke(Palette.hairline, lineWidth: 0.5)
                 Image(systemName: "calendar")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(.system(size: FrameworkIcon.tabGlyphSize))
                     .foregroundStyle(Palette.ink)
             }
             .frame(width: 44, height: 44)
@@ -158,7 +158,7 @@ struct HubCronSection: View {
         ZStack {
             Circle().stroke(Palette.hairline, lineWidth: 1)
             Image(systemName: "clock")
-                .font(.system(size: 20, weight: .regular))
+                .font(.system(size: FrameworkIcon.tabGlyphSize))
                 .foregroundStyle(Palette.ink)
         }
         .frame(width: 44, height: 44)

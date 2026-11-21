@@ -154,7 +154,7 @@ struct CronJobsView: View {
                 Spacer(minLength: OneDayMetrics.spacingS)
                 if job.lastError != nil {
                     Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 15))
+                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.danger)
                         .accessibilityLabel("上次运行有错误")
                 }
@@ -344,7 +344,7 @@ struct CronJobDetailView: View {
                             spacing: OneDayMetrics.spacingS
                         ) {
                             Image(systemName: "exclamationmark.circle")
-                                .font(.system(size: 15))
+                                .font(.system(size: FrameworkIcon.composerGlyphSize))
                                 .foregroundStyle(Palette.danger)
                                 .accessibilityHidden(true)
                             Text(CronPresentation.errorSummary(error))

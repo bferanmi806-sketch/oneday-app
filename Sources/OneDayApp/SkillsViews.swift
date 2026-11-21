@@ -27,7 +27,7 @@ struct SkillsView: View {
                     } label: {
                         HStack(spacing: OneDayMetrics.spacingSM) {
                             Image(systemName: "bag")
-                                .font(.system(size: 16))
+                                .font(.system(size: FrameworkIcon.fileGlyphSize))
                                 .foregroundStyle(Palette.inkSecondary)
                                 .accessibilityHidden(true)
                             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {

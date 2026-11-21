@@ -485,7 +485,7 @@ struct AgentHubView: View {
                 }
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                     .frame(width: 36, height: 36)
                     .background(Palette.surface, in: Circle())

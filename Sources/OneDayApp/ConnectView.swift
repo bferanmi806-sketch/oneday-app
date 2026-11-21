@@ -488,7 +488,7 @@ struct ConnectView: View {
                 revealSecret.toggle()
             } label: {
                 Image(systemName: revealSecret ? "eye.slash" : "eye")
-                    .font(.system(size: 15))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(
                         width: OneDayMetrics.minTapTarget,
@@ -502,7 +502,7 @@ struct ConnectView: View {
     private func noticeRow(_ text: String) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Image(systemName: "info.circle")
-                .font(.system(size: 14))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.primary)
             Text(L10n.string(text))
                 .font(.caption)
@@ -524,7 +524,7 @@ struct ConnectView: View {
         Button(action: action) {
             HStack(spacing: OneDayMetrics.spacingMicro) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize, weight: .semibold))
                 Text(L10n.string(label))
                     .font(.callout)
             }
@@ -608,18 +608,18 @@ struct ConnectView: View {
         switch state {
         case .done:
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 15))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.success)
         case .failed:
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 15))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.danger)
         case .active:
             ProgressView()
                 .frame(width: 18, height: 18)
         case .waiting:
             Image(systemName: "circle")
-                .font(.system(size: 15))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.inkMuted)
         }
     }
@@ -696,7 +696,7 @@ struct ConnectView: View {
                 VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
                     HStack(spacing: OneDayMetrics.spacingS) {
                         Image(systemName: "server.rack")
-                            .font(.system(size: 16))
+                            .font(.system(size: FrameworkIcon.fileGlyphSize))
                             .foregroundStyle(Palette.primary)
                         Text(serviceInfo.host)
                             .font(.callout.weight(.semibold))
@@ -741,7 +741,7 @@ struct ConnectView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Image(systemName: systemImage)
-                .font(.system(size: 17))
+                .font(.system(size: FrameworkIcon.fileGlyphSize))
                 .foregroundStyle(Palette.primary)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                 Text(L10n.string(title))
@@ -816,7 +816,7 @@ struct ConnectView: View {
                 Link(destination: URL(string: "https://github.com/yyyyymmmmm/oneday-app/issues")!) {
                     HStack(spacing: OneDayMetrics.spacingM) {
                         Image(systemName: "text.bubble")
-                            .font(.system(size: 17))
+                            .font(.system(size: FrameworkIcon.fileGlyphSize))
                             .foregroundStyle(Palette.inkSecondary)
                         VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                             Text("在 GitHub 提交问题")
@@ -856,7 +856,7 @@ struct ConnectView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Image(systemName: systemImage)
-                .font(.system(size: 17))
+                .font(.system(size: FrameworkIcon.fileGlyphSize))
                 .foregroundStyle(Palette.inkSecondary)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                 Text(L10n.string(title))

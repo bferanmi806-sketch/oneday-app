@@ -450,7 +450,7 @@ struct NotificationsView: View {
             glyph = item.read ? Palette.warning : Palette.primary
         }
         return Image(systemName: symbol)
-            .font(.system(size: 18, weight: .regular))
+            .font(.system(size: FrameworkIcon.fileGlyphSize))
             .foregroundStyle(glyph)
             .frame(width: 36, height: 36)
             .background(fill, in: RoundedRectangle(
@@ -689,7 +689,7 @@ private struct NotificationDetailView: View {
             glyph = Palette.warning
         }
         return Image(systemName: symbol)
-            .font(.system(size: 22, weight: .regular))
+            .font(.system(size: FrameworkIcon.tabGlyphSize))
             .foregroundStyle(glyph)
             .frame(width: 48, height: 48)
             .background(fill, in: RoundedRectangle(
@@ -753,7 +753,7 @@ private struct NotificationDetailView: View {
                     spacing: OneDayMetrics.spacingSM
                 ) {
                     Image(systemName: "doc.text")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.inkSecondary)
                         .padding(.top, OneDayMetrics.spacingMicro)
                     VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
@@ -788,7 +788,7 @@ private struct NotificationDetailView: View {
     private func approvalNote(_ note: String) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Image(systemName: "info.circle")
-                .font(.system(size: 14, weight: .regular))
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.inkMuted)
                 .padding(.top, 1)
             Text(note)
@@ -812,7 +812,7 @@ private struct NotificationDetailView: View {
         } label: {
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: destinationSymbol)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                 Text(label)
                     .font(.rowSubtitle)

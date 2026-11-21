@@ -73,7 +73,7 @@ struct ServerDetailView: View {
                         } else {
                             HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                                 Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 15))
+                                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                                     .foregroundStyle(Palette.success)
                                     .accessibilityHidden(true)
                                 Text(saveResult)
@@ -122,7 +122,7 @@ struct ServerDetailView: View {
                             } else {
                                 HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                                     Image(systemName: "checkmark.circle")
-                                        .font(.system(size: 15))
+                                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                                         .foregroundStyle(Palette.success)
                                         .accessibilityHidden(true)
                                     Text(retestResult)
