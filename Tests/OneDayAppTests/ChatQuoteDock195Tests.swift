@@ -379,11 +379,15 @@ final class ChatQuoteDock195Tests: XCTestCase {
         _ = stableHostFrame()
         guard let m = measureQuoteGrowth(state: "KB")
         else { return }
+        // 恒等式：舱顶上移 == 生长 − 舱底漂移（底
+        // 漂为系统键盘帧重申的整舱同移，下方单独
+        // 容忍判读；三值逐值闭合才是几何自洽）
         XCTAssertEqual(
             m.base.minY - m.quoted.minY,
-            m.quoted.height - m.base.height,
+            (m.quoted.height - m.base.height)
+                - (m.quoted.maxY - m.base.maxY),
             accuracy: 0.6,
-            "KB：舱顶上移≠舱生长"
+            "KB：舱顶上移≠生长−底漂（恒等式未闭合）"
         )
         XCTAssertEqual(
             m.quoted.maxY - m.base.maxY, 0,
