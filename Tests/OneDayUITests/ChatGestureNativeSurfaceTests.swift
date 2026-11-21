@@ -418,6 +418,51 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
             }
         }
         Thread.sleep(forTimeInterval: 1.5)
+        // 落位搜索（2026-11-22 探针七＋八定案）：开页落点是流末
+        // 待批卡片，末条用户消息在卡片上方；托管文本视图无障碍
+        // 帧开页初读为陈旧值、元素随滚动物化进出树，帧稳定等待
+        // 与单次滑动都落空。唯一可靠法：逐次单滑＋每滑必读，目
+        // 标帧落进可视带（minY≥150、maxY≤740）且连续两读不变
+        // 才算落位。先向下搜（朝更早消息），不中再向上搜。
+        let list = app.collectionViews.firstMatch
+        func targetFrame() -> CGRect? {
+            for element in candidateElements(in: app) {
+                let raw = (element.value as? String)
+                    ?? element.label
+                if raw.contains("按你说的顺序来") {
+                    return element.frame
+                }
+            }
+            return nil
+        }
+        func settledFrame() -> CGRect? {
+            guard let f = targetFrame(),
+                  f.minY >= 150, f.maxY <= 740, !f.isEmpty
+            else { return nil }
+            Thread.sleep(forTimeInterval: 0.35)
+            guard let f2 = targetFrame(), f2 == f
+            else { return nil }
+            return f
+        }
+        var found = settledFrame()
+        var tries = 0
+        while found == nil, tries < 12 {
+            list.swipeDown()
+            Thread.sleep(forTimeInterval: 0.45)
+            found = settledFrame()
+            tries += 1
+        }
+        tries = 0
+        while found == nil, tries < 12 {
+            list.swipeUp()
+            Thread.sleep(forTimeInterval: 0.45)
+            found = settledFrame()
+            tries += 1
+        }
+        XCTAssertNotNil(
+            found,
+            "落位搜索未找到末条用户消息的可视帧"
+        )
     }
 
     private func lastUserTextView(
@@ -469,6 +514,7 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
                                 + " frame=\(element.frame)"
                         )
                         reveal(element, in: app)
+                        awaitStableFrame(element)
                         return element
                     }
                 }
@@ -491,6 +537,26 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     ) -> [XCUIElement] {
         app.textViews.allElementsBoundByIndex
             + app.staticTexts.allElementsBoundByIndex
+    }
+
+    /// 帧稳定等待（2026-11-22 探针定案）：原生面
+    /// 行的无障碍帧在列表落位未稳时是瞬时值——
+    /// 元素 hittable 为真、帧却是落底前的位置，
+    /// 手势按该帧落点点在已移走的行上、恒无菜
+    /// 单（文本三件全灭的真因，产品侧选字/菜单
+    /// 经探针实证全好）。返回元素前等其帧连续
+    /// 两读不变（0.4 秒间隔、最长约 6 秒），把
+    /// 落位竞速关在 finder 里，五个用例同享。
+    private func awaitStableFrame(_ element: XCUIElement) {
+        var previous = element.frame
+        for _ in 0..<15 {
+            Thread.sleep(forTimeInterval: 0.4)
+            let current = element.frame
+            if current == previous, !current.isEmpty {
+                return
+            }
+            previous = current
+        }
     }
 
     private func valueDigest(in app: XCUIApplication) -> String {
