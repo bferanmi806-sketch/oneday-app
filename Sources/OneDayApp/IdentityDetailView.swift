@@ -125,7 +125,7 @@ struct IdentityDetailView: View {
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
@@ -149,7 +149,7 @@ struct IdentityDetailView: View {
                         .foregroundStyle(Palette.ink)
                     Spacer(minLength: OneDayMetrics.spacingS)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.inkMuted)
                         .accessibilityHidden(true)
                 }

@@ -278,7 +278,7 @@ struct MemoryEntriesSection: View {
                 statusChip("待审批")
             }
             Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 .foregroundStyle(Palette.inkMuted)
                 .accessibilityHidden(true)
         }

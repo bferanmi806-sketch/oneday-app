@@ -577,7 +577,7 @@ struct SettingsView: View {
             if hits.isEmpty {
                 VStack(spacing: OneDayMetrics.spacingS) {
                     Image(systemName: "magnifyingglass")
-                        .font(.system(size: 22, weight: .regular))
+                        .font(.system(size: FrameworkIcon.tabGlyphSize))
                         .foregroundStyle(Palette.inkSecondary)
                         .accessibilityHidden(true)
                     Text("没有找到「\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))」")
@@ -623,7 +623,7 @@ struct SettingsView: View {
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
@@ -753,7 +753,7 @@ struct SettingsView: View {
                         .foregroundStyle(Palette.ink)
                     Spacer(minLength: OneDayMetrics.spacingS)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.inkMuted)
                         .accessibilityHidden(true)
                 }

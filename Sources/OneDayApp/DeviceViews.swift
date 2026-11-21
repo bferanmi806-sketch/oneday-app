@@ -1275,7 +1275,7 @@ struct RemindersDetailView: View {
                 Task { await toggle(item) }
             } label: {
                 Image(systemName: "circle")
-                    .font(.system(size: 22))
+                    .font(.system(size: FrameworkIcon.tabGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
             }
             .buttonStyle(.plain)

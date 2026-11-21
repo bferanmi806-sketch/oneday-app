@@ -154,7 +154,7 @@ struct CronJobsView: View {
                 Spacer(minLength: OneDayMetrics.spacingS)
                 if job.lastError != nil {
                     Image(systemName: "exclamationmark.circle")
-                        .font(.system(size: 15))
+                        .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.danger)
                         .accessibilityLabel("上次运行有错误")
                 }
@@ -162,7 +162,7 @@ struct CronJobsView: View {
                     .font(.footnote)
                     .foregroundStyle(job.enabled ? Palette.successText : Palette.inkSecondary)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
@@ -344,7 +344,7 @@ struct CronJobDetailView: View {
                             spacing: OneDayMetrics.spacingS
                         ) {
                             Image(systemName: "exclamationmark.circle")
-                                .font(.system(size: 15))
+                                .font(.system(size: FrameworkIcon.composerGlyphSize))
                                 .foregroundStyle(Palette.danger)
                                 .accessibilityHidden(true)
                             Text(CronPresentation.errorSummary(error))
@@ -364,7 +364,7 @@ struct CronJobDetailView: View {
                                     systemName: showErrorRaw
                                         ? "chevron.up" : "chevron.down"
                                 )
-                                .font(.system(size: 10, weight: .regular))
+                                .font(.system(size: FrameworkIcon.badgeGlyphSize, weight: .regular))
                                 .foregroundStyle(Palette.inkMuted)
                             }
                             .contentShape(Rectangle())
@@ -457,7 +457,7 @@ struct CronJobDetailView: View {
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityHidden(true)
             }
