@@ -119,6 +119,24 @@ final class DrawerRowContextMenuTests: XCTestCase {
             scrollView.swipeUp()
         }
         XCTAssertTrue(element.isHittable, "目标行滚动后仍不可命中：\(element.identifier)")
+        // 台账 194（名单变长后两轮 CI 实证）：首个
+        // 旁聊行在开抽屉首帧即「可命中」，却半压在
+        // 底条注册带下——长按落点（行中心）进底条
+        // 区、菜单不开（同轮未收养行因需滚动反而落
+        // 位干净、长按通过）。reveal 补安全带定位：
+        // 行中心须落在身份浮层之下（>130）、底条带
+        // 之上（名单底缘 −102＝安全区 34＋条高 68）
+        // 才算到位；菜单断言本体一字不动
+        let safeBottom = scrollView.frame.maxY - 102
+        for _ in 0..<8 {
+            let centerY = element.frame.midY
+            if centerY > 130 && centerY < safeBottom { break }
+            if centerY >= safeBottom {
+                scrollView.swipeUp()
+            } else {
+                scrollView.swipeDown()
+            }
+        }
     }
 
     /// 预注册判点：标题区坐标 1.5 秒系统长按后，要求菜单

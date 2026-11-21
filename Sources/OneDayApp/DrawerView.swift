@@ -109,6 +109,12 @@ import SwiftUI
 ///   显隐账消费退役（两区恒在场、折叠保留），跨
 ///   页可见性管理元层级自本面剥离。详见
 ///   drawerNavList 注
+/// - 台账 194（2026-11-21）：用户真机点题后改
+///   判——「选项卡」分区恢复（四行回收＋主线行
+///   归组）、次序回「选项卡→频道→旁聊」、「全
+///   部对话」迁入选项卡组作第六行；显隐账退役
+///   不恢复、192 视觉值不动。详见 drawerNavList
+///   注⑤
 struct DrawerView: View {
     /// 面板宽＝容器量测给（§313：第 78 条 D2 录屏实
     /// 测 0.75×容器宽、无上限，单源 DrawerCard-
@@ -549,27 +555,106 @@ struct DrawerView: View {
     /// 行）无顶线（R8）；「全部对话」收尾行上方挂
     /// 线与分区边界同式；不渲染的区连线退场（R7）
     /// 在本面已无适用对象（两区恒在场）
+    /// ⑤台账 194（2026-11-21 用户 08:15 真机点题
+    /// 「顺序不对、点子/动态/目标/资源库不见了、
+    /// 全部对话/主聊没有归类」＋同日 00:39「抽屉
+    /// 学 Muse 样板全部、含布局」令）：①的整组
+    /// 退役与②的次序对调就此改判——「选项卡」分
+    /// 区恢复（组头＋主线聊天／动态／点子／目标／
+    /// 资源库四行，行本体逐字回收退役前装配），
+    /// 次序回旧序「选项卡→频道→旁聊」（与样板同
+    /// 序）；「全部对话」收尾行迁入选项卡组作第
+    /// 六行归类（D2-1 一级入口语义与路由旗动作不
+    /// 变、只迁装配位置，§198 第六行先例同位）。
+    /// ③显隐账退役不恢复（三区恒在场、折叠账保
+    /// 留）；④分割线口径不变、线随次序改挂频道／
+    /// 旁聊组头上方。192 视觉量测值全保留、本条
+    /// 只动内容装配；装配回归钉见 DrawerIAAssem-
+    /// blyUITests（UI 测试——进程内单测环境 AX 树
+    /// 不填充、本仓已有实证）
     private var drawerNavList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            drawerMainThreadRow
-            drawerSideSection
+            drawerTabSection
             // R2 边界线：恒挂频道组头上方，与频道区
             // 折叠态无关
             drawerDivider
                 .padding(.top, OneDayMetrics.spacingS)
             drawerChannelSection
-            // 收尾行边界线：与分区边界同式
+            // R2 边界线：恒挂旁聊组头上方，与旁聊区
+            // 折叠态无关
             drawerDivider
                 .padding(.top, OneDayMetrics.spacingS)
-            drawerAllConversationsRow
+            drawerSideSection
             Color.clear
                 .frame(height: OneDayMetrics.spacingL)
         }
         .padding(.top, OneDayMetrics.spacingS)
     }
 
-    /// 主线行（旧「选项卡」组首行迁出，动作沿革见
-    /// 旧行注）：本行是显式回主线的唯一入口——经线
+    /// 「选项卡」分区（台账 194 恢复）：组头＋六行
+    /// ——主线聊天／动态／点子／目标／资源库／全部
+    /// 对话。四导航行与主线行本体逐字沿退役前装配
+    /// （fc93ea8^ 回收，动作与选中政策一字未改）；
+    /// 全部对话行即原名单收尾行本体迁入作第六行
+    /// （动作仍经路由旗根级呈现，只迁装配位置）。
+    /// 折叠走既有折叠账 navigation 键、组头走
+    /// drawerCollapsibleHeader 既有口径（192 视觉值
+    /// 随件自带：stateText 尾件＋块高 36＋样板头墨）
+    @ViewBuilder
+    private var drawerTabSection: some View {
+        drawerCollapsibleHeader(
+            "选项卡", key: DrawerSectionKey.navigation
+        )
+        drawerCollapsibleContent(
+            collapsed: drawerSectionCollapsed(
+                DrawerSectionKey.navigation
+            )
+        ) {
+            drawerMainThreadRow
+            // 0.35.0（P3 五格）：动态行与底栏同序进
+            // 「选项卡」组（194 恢复时逐字回收）
+            drawerNavRow(
+                symbol: TabBarSymbols.feed.normal,
+                title: "动态",
+                selected: drawerSelection == .surface(.feed)
+            ) {
+                onClose()
+                onSelectTab(.feed)
+            }
+            drawerNavRow(
+                symbol: TabBarSymbols.ideas.normal,
+                title: "点子",
+                selected: drawerSelection == .surface(.ideas)
+            ) {
+                onClose()
+                onSelectTab(.ideas)
+            }
+            drawerNavRow(
+                symbol: TabBarSymbols.goals.normal,
+                title: "目标",
+                selected: drawerSelection == .surface(.goals)
+            ) {
+                onClose()
+                onSelectTab(.goals)
+            }
+            drawerNavRow(
+                // 0.20.0 第七条：应用格改文件格，导航
+                // 行同步改「资源库」（符号与底栏同源
+                // files 对）
+                symbol: TabBarSymbols.files.normal,
+                title: "资源库",
+                selected: drawerSelection == .surface(.files)
+            ) {
+                onClose()
+                onSelectTab(.files)
+            }
+            drawerAllConversationsRow
+        }
+    }
+
+    /// 主线行（旧「选项卡」组首行；第二批随组退役
+    /// 迁出作独立行、台账 194 随组恢复归组，动作沿
+    /// 革见旧行注）：本行是显式回主线的唯一入口——经线
     /// 程选择通道直切钦定主线（ChatView 消费切换、
     /// 并经落点记忆落盘）；底部页签本身不承担回主
     /// 线语义（点页签回上次对话，见 ChatLanding-
@@ -613,10 +698,11 @@ struct DrawerView: View {
         }
     }
 
-    /// 「全部对话」收尾行（结构归位第二批，纲要
-    /// D2-1）：全量会话列表升一级面，入口住名单自
-    /// 身的收尾行——与底条三件（设置/搜索/新建）同
-    /// 为名单的固定出口，不再埋设置三级路径。点按
+    /// 「全部对话」行（结构归位第二批，纲要 D2-1
+    /// 立项为名单收尾行；台账 194 迁入「选项卡」
+    /// 组作第六行归类，一级入口语义不变）：全量
+    /// 会话列表升一级面，入口住名单自身，不再埋
+    /// 设置三级路径。点按
     /// 先收抽屉、再经路由旗请根级呈现（ContentView
     /// 消费 allConversationsRequested，与设置齿轮
     /// 的 settingsSheetRequested 同式）；行形态随
