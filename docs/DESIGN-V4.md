@@ -13966,3 +13966,11 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **红线零接触**：§194 键盘链、气泡几何（§263 列宽/圆角/内边距逐值）、191 进泡/破泡边界、141/142 选区，均不动；本包只换填充与字色的解析值及回底钮一处材质。
 
 **验收门（本包）**：自动化——闸⑦改判＋字形/填充对闸＋解析钉全绿、CI 红集与基线 1d04add 逐名对账零新增（判读见 §335.1 回填）。真机门留用户：逐款用户泡/发送钮填充采样命中各款 bubbleLight、字色命中 bubbleTextLight；回底钮实填采样（样板两底色合成不自洽、以气泡同值起步、真机再校）；玻璃面压浅泡无紫染；浅/暗各一帧＋最大字号一帧。**未合 main、未打 tag**（冻分支待 0.50.78 之后由主线排合流）。
+
+### §335.1 CI 判读（回填）
+
+**判绿（2026-11-21）**：最终树 6178a64（单提交落码＋本回填另笔）。run 44846732527 全日志核账：OneDayCoreTests **2292/2292 零失败**（套件 passed）；红集 11 件与基线 1d04add 同树轮（0.50.77 首轮 run 44795478758）**逐名完全一致、零新增红**（R2 装配 2＋EdgeEffect 1＋手势仲裁 3＋手势原生面 4＋键盘矩阵 1，皆基线在册族）。本包六件关键测逐名绿：ChatThemeTests.testSingleBubbleResolution（解析钉改钉）、testSingleBubbleContrastGates（闸⑦改判）、testAccentContrastOnBubbleLightGate（闸⑥原样——AI 泡退回 #EEEEF0 的直接受益面）、RenderMeasureTests.testBubbleColorsFollowOpenMuseTokens（浅档钉改从 #C8E7FF）、VisualDirectionGateTests.testAssistantBubbleContrastGate（闸⑧）、testPrimaryPaleGlyphPairingGate（新立字形/填充对闸）。构建（no codesign）＋打包未签名 IPA＋上传三步 success。
+
+**深色＋最大字号帧覆盖口径**：未新增帧测——色值层由闸⑦暗档两口实算（字/泡 4.87–6.72、泡/页 3.12–4.32）＋RenderMeasure 暗档逐值钉（#1473C8）守；回底钮材质换代不涉几何，ChatPageDeviceConditionProbeTests 既有 Dark/BoldAX 帧以生产行装配出面。残余明示：逐款真机采样复核（泡/发送钮逐值命中、回底钮实填定值、玻璃无紫染、深色＋最大字号帧）按 §335 验收门留用户真机。
+
+**未合 main、未打 tag、未组版**（冻分支 feat/197-theme-muse-look@6178a64 待 0.50.78 之后由主线排合流；与在飞热修 193/194/195 的交集文件清单见交卷报告 pkg-197-theme-delivery-20261121.md）。
