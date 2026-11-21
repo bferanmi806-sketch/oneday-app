@@ -601,6 +601,10 @@ struct ChatView: View {
     /// （沿 §123 枢纽聚焦同手法）；消费锚点请求的
     /// Task 持有清零，不叠加多行点亮
     @State private var anchorHighlightEntryID: UUID?
+    /// 台账 161：搜索落点窗口猎取的在飞令牌——新猎
+    /// 取置新令牌、旧猎取据令牌作废（与线程切换守
+    /// 卫叠用，防迟到的窗口落进别的线程）
+    @State private var searchHuntToken: UUID?
     /// 台账 148：NEW 未读分界线的水位店与本次观看
     /// 的定格锚——打开线程时以水位解析一次锚（见
     /// refreshUnreadAnchor）、随即推进水位，锚在
@@ -10422,29 +10426,51 @@ private struct ComposerBarLayout: Layout {
         }
     }
 
-    /// 搜索落点排期（台账 150）：在当前线程里按摘
-    /// 要回找目标条目（Core SearchTargetResolu-
-    /// tion）——找到才排落点：等一拍让条目进行集，
-    /// 点亮目标行（§165 同手法、2.5 秒清）＋经面
-    /// 分发器下达收敛落点；找不到如实落空（会话照
-    /// 常开着、不假装定位）。线程在等待间被切走即
-    /// 作废
+    /// 搜索落点排期（台账 150＋161）：先在已落盘条
+    /// 目里按摘要回找目标（Core SearchTargetResolu-
+    /// tion）——找到即排落点（点亮＋收敛，见 land-
+    /// SearchFocus）；找不到不再直接落空，转台账
+    /// 161 的窗口猎取（timeline＋around 取窗落盘后
+    /// 再解析），猎取也无果才如实落空（会话照常开
+    /// 着、不假装定位）。线程在等待间被切走即作废
     private func scheduleSearchFocus(
         snippet: String, role: String?
     ) {
-        guard let thread = currentThread,
-              let targetID = SearchTargetResolution
-                .targetEntryID(
-                    entries: thread.sortedEntries.map {
-                        SearchTargetResolution.EntryStub(
-                            id: $0.id, role: $0.role,
-                            content: $0.content
-                        )
-                    },
-                    snippet: snippet, role: role
+        guard let thread = currentThread else { return }
+        if let targetID = resolveSearchTarget(
+            in: thread, snippet: snippet, role: role
+        ) {
+            landSearchFocus(on: targetID, threadID: thread.id)
+        } else {
+            // 台账 161：本地未落区（目标还在未回补的
+            // 历史深处）不再直接落空——转窗口猎取：
+            // timeline 寻址＋around 取窗落盘后再解析
+            huntSearchWindow(
+                thread: thread, snippet: snippet, role: role
+            )
+        }
+    }
+
+    /// 搜索落点目标解析（台账 150 口径不变）：在已
+    /// 落盘条目里按摘要回找目标条目 id
+    private func resolveSearchTarget(
+        in thread: ChatThread, snippet: String, role: String?
+    ) -> UUID? {
+        SearchTargetResolution.targetEntryID(
+            entries: thread.sortedEntries.map {
+                SearchTargetResolution.EntryStub(
+                    id: $0.id, role: $0.role,
+                    content: $0.content
                 )
-        else { return }
-        let threadID = thread.id
+            },
+            snippet: snippet, role: role
+        )
+    }
+
+    /// 落点执行（台账 150 原拍不变）：等一拍让条目
+    /// 进行集，点亮目标行＋经面分发器下达收敛落点；
+    /// 线程在等待间被切走即作废
+    private func landSearchFocus(on targetID: UUID, threadID: UUID) {
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(350))
             guard currentThreadID == threadID else { return }
@@ -10455,6 +10481,122 @@ private struct ComposerBarLayout: Layout {
                 anchorHighlightEntryID = nil
             }
         }
+    }
+
+    /// 窗口猎取（台账 161）：本地解析落空时的服务
+    /// 端正解——拉 timeline 拿 prompt 行号列（分页
+    /// 上限 10 页防失控），直达快路（条目文本命中）
+    /// 优先、其余自最近一轮起逐轮 around 探针（预
+    /// 算 AroundWindowHunt.maxProbes）；命中页按回
+    /// 补同款指纹去重落盘，再走本地解析落点。全程
+    /// 任一步失败/线程被切走即静默收官——会话照常
+    /// 开着、回补仍在后台补齐，不假装定位（150 落
+    /// 空口径不变）
+    private func huntSearchWindow(
+        thread: ChatThread, snippet: String, role: String?
+    ) {
+        guard let sessionID = thread.serverSessionID,
+              !sessionID.isEmpty
+        else { return }
+        let threadID = thread.id
+        let token = UUID()
+        searchHuntToken = token
+        Task { @MainActor in
+            var entries: [SessionTimelineEntry] = []
+            var cursor: Int64?
+            for _ in 0..<10 {
+                let afterCursor = cursor
+                guard let page = try? await appState.performAdmin(
+                    { client, config in
+                        try await client.sessionTimeline(
+                            config: config, id: sessionID,
+                            afterRowID: afterCursor,
+                            limit: AroundWindowHunt.timelineLimit
+                        )
+                    }
+                ) else {
+                    // 首面就失败 → 无从寻址、收官；中途
+                    // 失败 → 已拉条目照常进探针（部分时
+                    // 间线也够定最近若干轮的坐标）
+                    if entries.isEmpty { return }
+                    break
+                }
+                entries.append(contentsOf: page.entries)
+                guard currentThreadID == threadID,
+                      searchHuntToken == token,
+                      let next = page.nextCursor, next != cursor
+                else { break }
+                cursor = next
+            }
+            guard currentThreadID == threadID,
+                  searchHuntToken == token
+            else { return }
+            let direct = AroundWindowHunt.directPromptRowID(
+                entries: entries, snippet: snippet, role: role
+            )
+            let order = AroundWindowHunt.probeOrder(
+                promptRowIDs: entries.map(\.rowID),
+                directRowID: direct
+            )
+            for rowID in order {
+                guard currentThreadID == threadID,
+                      searchHuntToken == token
+                else { return }
+                guard let page = try? await appState.performAdmin(
+                    { client, config in
+                        try await client.sessionMessagesAround(
+                            config: config, id: sessionID,
+                            rowID: rowID,
+                            limit: AroundWindowHunt.pageLimit
+                        )
+                    }
+                ) else { continue }
+                let stubs: [AroundWindowHunt.MessageStub] =
+                    page.messages.compactMap { message
+                        -> AroundWindowHunt.MessageStub? in
+                    guard message.id > 0,
+                          let row = Int64(exactly: message.id)
+                    else { return nil }
+                    return AroundWindowHunt.MessageStub(
+                        rowID: row, role: message.role,
+                        content: message.content
+                    )
+                }
+                guard AroundWindowHunt.targetRowID(
+                    in: stubs, snippet: snippet, role: role
+                ) != nil else { continue }
+                insertHuntedWindow(page.messages, into: thread)
+                if let targetID = resolveSearchTarget(
+                    in: thread, snippet: snippet, role: role
+                ) {
+                    landSearchFocus(on: targetID, threadID: threadID)
+                }
+                return
+            }
+        }
+    }
+
+    /// 猎取命中页落盘：与后台回补同一套组装/去重口
+    /// 径（§331 SessionHistoryInserter＋指纹未见过
+    /// 滤），已落条目不重复落、反应先对账
+    private func insertHuntedWindow(
+        _ messages: [SessionMessage], into thread: ChatThread
+    ) {
+        let ordered = SessionHistoryPagePlanner.chronological(messages)
+        let items = SessionHistoryImport.richItems(from: ordered)
+        SessionHistoryInserter.reconcileReactions(
+            items: items, entries: thread.entries
+        )
+        let existing = Set(thread.entries.map {
+            SessionHistoryInserter.fingerprint(of: $0)
+        })
+        let unseen = SessionHistorySync.unseenItems(
+            items, existing: existing
+        )
+        SessionHistoryInserter.insert(
+            items: unseen, into: thread, context: modelContext
+        )
+        try? modelContext.save()
     }
 
     /// 打开服务端会话的结果（0.36.29）：频道消费口

@@ -14120,3 +14120,23 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **判绿（2026-11-21，三轮）**：最终树 957e6d0。首轮 run 44845965037（6m01s）Build 步编译失败——本包 §2.4 首稿按 196 诊断改时刻字阶 .caption，UIFont.TextStyle 无此成员（诊断字阶子项口径有误、SwiftUI .caption 与 UIKit .caption1 同档异名），实证回退（95cba4f，间距对齐保留）。二轮 run 44846802518（排队约 18 分＋job 42m22s）：红 12＝基线 11＋本包新测 testEntryFacetsSkipScanBranchForAnchoredRows 一件——失败在对照断言：recordFileState 的存在性路在账未落时不记录、对照组 fileExistences 同为空，改钉有同步种子口的 fileSizes 路（957e6d0）。**三轮 run 44853000793（job 46m48s）：红集 11 与 0.50.77 基线轮 run 44795478758 逐名完全一致**（R2 装配 2＋EdgeEffect 1＋手势仲裁 3＋手势原生面 4＋键盘矩阵 1）、**零新增红**；本包新测 8 件全绿（Chat190RemainderTests 6＋Chat190RemainderAssemblyTests 2）；构建（no codesign）＋打包未签名 IPA＋上传 success。手势留观项单独注记：ChatGestureArbitrationTests.testLongPressOnBubblePaddingShowsRowMenu 在基线轮与本包三轮都在红集内——用户已真机定案为真故障、归 193 热修包，本包不认领、不以其红绿判本包。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/190-remainder 待组版并入，CI 判读树 957e6d0；组版接手项：与 fix/193-longpress 的 diff 做一次适配核对，见交卷报告 §六）。
+
+## §341 搜索深落点（161）＋记忆可见化（164）（2026-11-21；分支 feat/161-164，基线 rel-05070@1d04add＝0.50.77 组版树；台账 161/164）
+
+**161 定案（落点深水区补洞）**：150 的落点链只在「已落盘条目」里回找摘要——命中在深历史（本机从未导入过的页）时本地无从命中、静默落空。161 补的是这一段：本地解析失败才启动「窗口猎取」——timeline 拉有序 prompt 行号（`GET /api/sessions/{id}/timeline`，limit 500、游标续拉至多 10 页）→ 探针序（直达优先：命中角色=user 且条目文本含针时其 row_id 即命中 prompt；其余 row_id 按新→旧降序去重、上限 30 轮）→ 逐轮 `GET …/messages/around?row_id=&limit=120` 取窗口页 → 页内按 150 同针同角色域口径判定（坐标换行号，`AroundWindowHunt.targetRowID`）→ 命中页按回补同款指纹去重落盘（SessionHistoryInserter 单点）→ 回本地解析落点。全程守卫：会话未切＋猎取令牌未换；任何失败静默收官、不劣化 150 现行行为（本地命中路径一字未动）。
+
+**冲突标注（账面优先）**：台账 161 称 around 是「服务端正解、可简化客户端收敛」——部署版实证：search 命中无任何消息 id（服务端 search 实现只取 session_id/role/snippet）、around 只认 row_id 寻址、row_id 唯一来源是 timeline 条目。故「正解」需 timeline 寻址＋探针组合才到达，不是单端点直达；本包按账面目标（落点到达深历史）用既有端点组合实现，未动服务端、未扩新端点。服务端若日后给 search 命中补行号，客户端猎取可整段退役（探针层即为此隔离）。
+
+**164 定案（记忆可见化）**：记忆页新增「它记住的事」段（LearningMemorySection，紧随 write-gate「记忆条目」段之后；三者同页不同源、标题与说明各自交代、不合并）。数据源＝Hermes 本体学习图谱 `GET /api/learning/graph`（nodes/edges/memory/stats，冻结 OpenAPI 在册）；呈现两组——记忆节点（卡 title/body 预览＋来源人话：profile＝「关于你」、memory＝「它的备忘」）与技能节点（名＋分类＋用过几次＋日期）。节点 id 只作寻址坐标、永不露面；边/统计是系统内部量、不递用户。详情：`GET /api/learning/node` 预填全文（宽容提取，读不到如实露错且不开放编辑——不拿截断卡面冒充全文让人误改）→ `PUT` 改写；删除走 confirmationDialog 按 kind 分文案——记忆＝彻底删除不可恢复（服务端 DELETE 语义）、技能＝归档可恢复。写后回读图谱验生效（真源在服务端、本段只持呈现快照、不落盘、不建第二真源）；刷新失败且已有数据时保持旧数据不翻态（MemoriesStore 同口径）。
+
+**解码宽容口径**：三口响应体服务端未冻结 schema（OpenAPI 记 `{}`），客户端一律宽容解码——timeline 条目列/游标/文本键多候选、learning 节点字段全缺省、node 全文顶层或 node 嵌套双形态；宁可少拿信息、不可因键名漂移整面报废（HermesDeepModels，单测钉守）。profile 参数与本页既有记忆调用同口径不传（服务端默认 serving profile）。
+
+**红线零接触**：§194 键盘链、141/142 选区、贴底判定、§327 遮蔽语义、朗读链、190 行高/排版产物（猎取落盘走既有回补通道、条目形态不变）、188/191 气泡——均零接触。落盘单点纪律不破（猎取与回补共用 SessionHistoryInserter）。
+
+**验收门（本包）**：自动化——HermesDeepModelsTests 新测全绿；CI 红集与 0.50.77 基线轮（run 44795478758 红 11）逐名对账零新增红。真机门留用户：①深历史搜索落点（命中在未导入过的旧页时能落点点亮）；②记忆页「它记住的事」段真机呈现（两组数据与服务端图谱对得上）；③改一条记忆/技能后服务端生效（重进段落回读一致）；④删一条记忆后不再出现、归档一个技能后状态变化可见。**未合 main、未打 tag、未组版**（冻分支待主线组版并入）。
+
+### §341.1 CI 判读（回填）
+
+**判绿（2026-11-21）**：最终树 adbab48（落码 3d9a0f0＋编译修一笔）。首轮 run 44844297201 编译错一件（ChatView 猎取段 compactMap 返回类型推断失败），显式标注后第二轮 run 44845161785 全程跑满：Core **2304/2304 零失败**（基线 0.50.77 树 2291＋本包新测 HermesDeepModelsTests 13 件恰合，套件级 passed）；红集 11 件与 0.50.77 基线轮 run 44795478758 **逐名完全一致**（R2 装配 2＋EdgeEffect 1＋手势仲裁 3＋手势原生面 4＋键盘矩阵 1），零新增红；失败步形态与基线轮一致（Unit tests 步同红）。构建（no codesign）＋打包未签名 IPA＋上传三步 success。
+
+**未合 main、未打 tag、未组版**（冻分支 feat/161-164@adbab48 待主线组版并入；真机门四项见 §341 验收门，留用户）。

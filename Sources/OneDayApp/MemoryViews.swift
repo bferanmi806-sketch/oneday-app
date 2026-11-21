@@ -9,6 +9,10 @@ import SwiftUI
 /// 0.13.0（P7）顶部增「记忆条目」段（MemoryEntriesSection）：
 /// 逐条看全文、新建/修改/遗忘全走 write-gate 待批流，
 /// 与本页状态面分属两个数据源、互不冒充。
+/// 台账 164 续增「它记住的事」段（LearningMemory-
+/// Section）：Hermes 本体学习图谱（技能＋记忆块）
+/// 可见可改可删，与条目段又分属两个数据源——三者
+/// 同页不同源、标题与说明各自交代，不合并。
 struct MemoryView: View {
     @Environment(AppState.self) private var appState
 
@@ -21,11 +25,15 @@ struct MemoryView: View {
     /// 状态面各自独立数据源（条目走 write-gate 桥
     /// 契约面、状态走 Hermes 本体），互不冒充
     @State private var memoriesStore = MemoriesStore()
+    /// 台账 164：学习图谱段的数据中枢（Hermes 本体
+    /// 数据源，与条目段的桥数据各自独立、互不冒充）
+    @State private var learningStore = LearningGraphStore()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 MemoryEntriesSection(store: memoriesStore)
+                LearningMemorySection(store: learningStore)
                 if let status {
                     // 0.3.7 卡 13：摘要卡——当前提供方＋内置文件总数
                     summaryCard(status)
@@ -57,10 +65,12 @@ struct MemoryView: View {
         .refreshable {
             await load()
             await memoriesStore.load(appState: appState)
+            await learningStore.load(appState: appState)
         }
         .task {
             await load()
             await memoriesStore.load(appState: appState)
+            await learningStore.load(appState: appState)
         }
         .confirmationDialog(
             "重置记忆？",

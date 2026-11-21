@@ -291,6 +291,24 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func resetMemory(config: ServerConfig, target: String) async throws { throw HermesError.demoLimitReached }
 
+    // 台账 164：演示态无学习图谱数据源——如实空图谱
+    // （呈现走空态），写口同其他演示写口径抛限
+    func learningGraph(config: ServerConfig) async throws -> LearningGraph { .empty }
+
+    func learningNode(
+        config: ServerConfig, id: String
+    ) async throws -> LearningNodeContent {
+        LearningNodeContent(id: id, content: nil)
+    }
+
+    func updateLearningNode(
+        config: ServerConfig, id: String, content: String
+    ) async throws { throw HermesError.demoLimitReached }
+
+    func deleteLearningNode(
+        config: ServerConfig, id: String
+    ) async throws { throw HermesError.demoLimitReached }
+
     // MARK: - 技能
 
     func skills(config: ServerConfig) async throws -> [SkillItem] { throw HermesError.demoLimitReached }
@@ -545,6 +563,22 @@ struct DemoHermesClient: HermesClientProtocol {
                 || (hit.preview?.contains(needle) ?? false)
                 || (hit.snippet?.contains(needle) ?? false)
         }
+    }
+
+    // 台账 161：演示会话无深历史——时间线/窗口如实
+    // 空（落点猎取在演示态自然收官、不假装定位）
+    func sessionTimeline(
+        config: ServerConfig, id: String,
+        afterRowID: Int64?, limit: Int
+    ) async throws -> SessionTimelinePage {
+        SessionTimelinePage(entries: [], nextCursor: nil)
+    }
+
+    func sessionMessagesAround(
+        config: ServerConfig, id: String,
+        rowID: Int64, limit: Int
+    ) async throws -> SessionAroundPage {
+        SessionAroundPage(sessionID: id, messages: [])
     }
 
     func sessionMutationSnapshot(config: ServerConfig, id: String) async throws -> SessionMutationSnapshot { throw HermesError.demoLimitReached }
