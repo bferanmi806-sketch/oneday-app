@@ -11,31 +11,36 @@ import XCTest
 /// 入口行并非 192 视觉包所丢，而是结构归位第二批
 /// （fc93ea8）在装配层整组退役；当时装配层无任何
 /// 断言钉住入口行集合与分组归属，CI 全绿照样出
-/// 包。本套件以**真 DrawerView**（直挂宿主、与
-/// DrawerSafeAreaRealRootTests 同款环境注入）渲
-/// 染，收无障碍元素标签＋帧顶 y，钉三件事：
+/// 包。本套件以**真 DrawerView**（经容器 drawer-
+/// Builder 注入、与生产桥 apply() 同款环境，与
+/// DrawerSafeAreaRealRootTests 同装配）渲染，收
+/// 无障碍元素标签＋帧顶 y，钉三件事：
 /// - 入口行全集在场：「选项卡」组头＋主线聊天／
 ///   动态／点子／目标／资源库／全部对话六行＋
 ///   「频道」「旁聊」两组头，一个不许缺
 /// - 分组归属与次序：六行全在「选项卡」组头与
 ///   「频道」组头之间（按帧顶 y 全序断言），组序
 ///   为选项卡→频道→旁聊
-/// - 折叠态：「选项卡」组折叠后四导航行与全部对
-///   话行退出无障碍树、组头与另两组仍在场（折叠
-///   两态与 192 口径一致的装配面留证）
-/// 窗高取 1100（非真机口径）：本套件只钉装配、
-/// 不钉几何，名单全行须同帧在场供帧序断言；安
-/// 全区覆写与 SafeArea 套件同值（顶 59／底 34）
+/// - 折叠态：「选项卡」组折叠后组内行退出无障碍
+///   树、组头与另两组仍在场（折叠两态与 192 口径
+///   一致的装配面留证）
+/// 采集口径：SwiftUI 无障碍树为懒生成——挂载后
+/// 足时自旋并重试采集至非空（上限约 6 秒），最
+/// 终断言仍按全集严格判，生成时序不作缺行借口
+/// （首轮 CI 实证 0.6 秒短自旋采到空树、断言全
+/// 红，采集办法已按本注修正）
 @MainActor
 final class DrawerIAAssemblyTests: XCTestCase {
 
-    private final class TallWindow: UIWindow {
+    /// 与 SafeArea 套件同口径的设备窗（402×874、
+    /// 安全区覆写顶 59／底 34）
+    private final class DeviceWindow: UIWindow {
         override var safeAreaInsets: UIEdgeInsets {
             UIEdgeInsets(top: 59, left: 0, bottom: 34, right: 0)
         }
     }
 
-    private var window: TallWindow!
+    private var window: DeviceWindow!
     private var appState: AppState!
     private var container: ModelContainer!
     /// §184：容器租约——见 SwiftDataTestMount
@@ -57,8 +62,8 @@ final class DrawerIAAssemblyTests: XCTestCase {
             )]
         )
         swiftDataMount.retain(container)
-        window = TallWindow(
-            frame: CGRect(x: 0, y: 0, width: 402, height: 1100)
+        window = DeviceWindow(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
         )
     }
 
@@ -83,31 +88,41 @@ final class DrawerIAAssemblyTests: XCTestCase {
         wait(for: [exp], timeout: seconds + 5)
     }
 
-    private func mountDrawer() {
+    /// 与生产桥 apply() 同款装配（逐字沿 Drawer-
+    /// SafeAreaRealRootTests 的 assembleDrawer-
+    /// Controller）：真 DrawerView 经 drawerBuilder
+    /// 注入真容器、开态落位
+    private func assembleDrawerController() -> DrawerContainerController {
+        let controller = DrawerContainerController()
         let appState = appState!
-        let host = UIHostingController(
-            rootView: DrawerView(
-                width: 317,
-                currentTab: .chat,
-                onSelectTab: { _ in },
-                onClose: {},
-                onOpenChannel: { _ in }
+        let modelContext = container.mainContext
+        controller.drawerBuilder = { width in
+            AnyView(
+                DrawerView(
+                    width: width,
+                    currentTab: .chat,
+                    onSelectTab: { _ in },
+                    onClose: {},
+                    onOpenChannel: { _ in }
+                )
+                .environment(appState)
+                .environment(\.modelContext, modelContext)
+                .environment(\.locale, Locale(identifier: "zh-Hans"))
+                .boldTextMapping()
             )
-            .environment(appState)
-            .environment(\.modelContext, container.mainContext)
-            .environment(\.locale, Locale(identifier: "zh-Hans"))
-            .boldTextMapping()
-        )
-        window.rootViewController = host
+        }
+        controller.contentRoot = AnyView(Text("content替身"))
+        window.rootViewController = controller
         window.makeKeyAndVisible()
-        host.view.layoutIfNeeded()
-        spinRunLoop(seconds: 0.6)
-        host.view.layoutIfNeeded()
+        controller.view.layoutIfNeeded()
+        return controller
     }
 
     /// 无障碍元素普查：标签 → 最小帧顶 y（同标签多
     /// 元素取最高一处；帧无效的只记在场、y 记为
-    /// +∞ 不参与序断言）
+    /// +∞ 不参与序断言）。UILabel 文本一并收（与
+    /// ChatReliabilityOfflineTests 的在屏文本口径
+    /// 同源）
     private func collectLabelMinY() -> [String: CGFloat] {
         var result: [String: CGFloat] = [:]
         func record(label: String?, frame: CGRect) {
@@ -128,6 +143,12 @@ final class DrawerIAAssemblyTests: XCTestCase {
                     : view.convert(view.bounds, to: nil)
                 record(label: label, frame: frame)
             }
+            if let label = view as? UILabel, let text = label.text {
+                record(
+                    label: text,
+                    frame: view.convert(view.bounds, to: nil)
+                )
+            }
             if let elements = view.accessibilityElements {
                 for element in elements {
                     if let elementView = element as? UIView {
@@ -141,10 +162,25 @@ final class DrawerIAAssemblyTests: XCTestCase {
                 visit(view: sub)
             }
         }
-        if let root = window.rootViewController?.view {
-            visit(view: root)
-        }
+        visit(view: window)
         return result
+    }
+
+    /// 采集至必备标签齐备：无障碍树懒生成且分批到
+    /// 达，自旋重试（每轮 1 秒、上限 6 轮）；6 轮仍
+    /// 缺则原样返回，由断言按缺行判红并倾卸诊断
+    private func collectLabelMinYSettled(
+        requiring labels: [String]
+    ) -> [String: CGFloat] {
+        var map = collectLabelMinY()
+        var rounds = 0
+        while labels.contains(where: { map[$0] == nil })
+                && rounds < 6 {
+            spinRunLoop(seconds: 1)
+            map = collectLabelMinY()
+            rounds += 1
+        }
+        return map
     }
 
     private func dumpLabels(_ map: [String: CGFloat]) -> String {
@@ -153,12 +189,15 @@ final class DrawerIAAssemblyTests: XCTestCase {
 
     /// 入口行全集＋分组归属＋次序（台账 194 本体）
     func testDrawerAssemblyHasTabGroupWithAllEntryRows() {
-        mountDrawer()
-        let y = collectLabelMinY()
+        let controller = assembleDrawerController()
+        controller.setDrawer(true, animated: false)
+        controller.view.layoutIfNeeded()
+        spinRunLoop(seconds: 0.6)
         let pinned = [
             "选项卡", "主线聊天", "动态", "点子",
             "目标", "资源库", "全部对话", "频道", "旁聊",
         ]
+        let y = collectLabelMinYSettled(requiring: pinned)
         for label in pinned {
             XCTAssertNotNil(
                 y[label],
@@ -195,8 +234,13 @@ final class DrawerIAAssemblyTests: XCTestCase {
             collapsed,
             forKey: SectionCollapseStorageKeys.drawerSections
         )
-        mountDrawer()
-        let y = collectLabelMinY()
+        let controller = assembleDrawerController()
+        controller.setDrawer(true, animated: false)
+        controller.view.layoutIfNeeded()
+        spinRunLoop(seconds: 0.6)
+        let y = collectLabelMinYSettled(
+            requiring: ["选项卡", "频道", "旁聊"]
+        )
         for label in ["主线聊天", "动态", "点子", "目标", "资源库", "全部对话"] {
             XCTAssertNil(
                 y[label],
