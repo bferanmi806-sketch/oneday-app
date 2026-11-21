@@ -330,15 +330,12 @@ struct ChatRowActionItem: Identifiable {
     var id: Kind { kind }
 }
 
-/// 行动作面描述（台账 187 换代 §330/§332 承载）：
-/// 由 ChatView 在呈现时刻以条目现成闭包组装（不
-/// 在行构造时钉死——朗读项的播放态、自己的现反
-/// 应都以呈现时刻为准）。原生面经控制器长按识别
-/// 器回调、gen3 面经 MessageMenuModifier 的长按
-/// 手势，两路都只置 ChatView 的呈现状态、打开同
-/// 一个 ChatActionSheetView；186 的 UIMenu/
-/// delegate 承载与 gen3 的 .contextMenu 承载同
-/// 批退役（项集语义逐项搬家，见 actionItems）
+/// 行菜单数据（台账 187 立制；台账 200 拆换后
+/// 承载改系统上下文菜单）：由 ChatView 在呈现
+/// 时刻以条目现成闭包组装（不在行构造时钉死——
+/// 朗读项的播放态、自己的现反应都以呈现时刻为
+/// 准）。两面同经 MessageMenuModifier 挂系统上
+/// 下文菜单，项集语义见 actionItems
 struct ChatRowActionSheetData {
     let plainText: String
     /// 反应排在否（台账 187 门控谓词 ChatEntry.
@@ -451,22 +448,13 @@ struct ChatNativeRow {
     /// 次以新描述重喂，两路同值）
     let heightIsProvisional: Bool
     let makeView: () -> AnyView
-    /// 台账 187 行动作面在否：条目行由 ChatView 喂
-    /// 入 true（台账 186 起纯图片条目同挂——文本依
-    /// 赖项在动作面组装时按 plainText 有无处理）；
-    /// 其余行恒 false。控制器长按识别器据此决定是
-    /// 否呈面（呈现数据由 ChatView 在呈现时刻按条
-    /// 目组装，行描述不持闭包）
-    let presentsActionSheet: Bool
-
     init(
         key: String, entryID: UUID?,
         revision: ChatNativeRowRevision = ChatNativeRowRevision(),
         height: CGFloat = ChatNativeRowHeightComposer
             .fallbackHeight,
         heightIsProvisional: Bool = false,
-        makeView: @escaping () -> AnyView,
-        presentsActionSheet: Bool = false
+        makeView: @escaping () -> AnyView
     ) {
         self.key = key
         self.entryID = entryID
@@ -474,7 +462,6 @@ struct ChatNativeRow {
         self.height = height
         self.heightIsProvisional = heightIsProvisional
         self.makeView = makeView
-        self.presentsActionSheet = presentsActionSheet
     }
 }
 
@@ -847,13 +834,6 @@ final class ChatNativeListHandle {
     /// 纯引用记账、无观察语义
     var selectionActiveRowKey: String?
 
-    /// 台账 187：原生面动作面呈现请求——控制器长按
-    /// 识别器命中条目行时以条目 id 回调，ChatView 据
-    /// 此置呈现状态开自绘动作面（呈现数据在 Chat-
-    /// View 侧呈现时刻按条目组装，本句柄只传 id、
-    /// 不持行数据）
-    var onPresentActionSheet: ((UUID) -> Void)?
-
     func noteSelectionProtectionEnded() {
         controller?.selectionProtectionEnded()
     }
@@ -1019,22 +999,12 @@ final class ChatRootViewController: UIViewController,
     /// 只旁观不竞争（见其类型注）
     private let touchObserver =
         ChatNativeTouchObserverGestureRecognizer()
-    /// 台账 187：行长按识别器（方案 A 动作面触发）：
-    /// 装配期挂集合视图——命中挂面条目行且该行无选
-    /// 区在场时，经句柄请 ChatView 呈自绘动作面。
-    /// 186 的 delegate 内建上下文菜单通道退役于此
-    /// （系统菜单装不下反应排）；选区在场行不触发
-    /// ——平台文本视图在场时行 machinery 让路
-    /// （141/142 纪律不变）；识别成立即取消触摸。
-    /// 落点口径（台账 193 改判）：186 的「全行同触
-    /// 发、文本长按选字随菜单先行作废」已废——与文
-    /// 本视图自家长按无失败依赖的竞速经真机定案为
-    /// 真故障，改由 shouldReceive 在投递处按 hit-
-    /// Test 分工（文本上不接收、归平台选字；文本外
-    /// 才接收呈面），见 gestureRecognizer(_:shou-
-    /// ldReceive:) 注
-    private let rowLongPress =
-        UILongPressGestureRecognizer()
+    /// 台账 200 拆换（2026-11-21 用户拍板）：行长
+    /// 按识别器＋自绘动作面整套退役——长按菜单回归
+    /// 系统上下文菜单（ChatView 的 MessageMenu-
+    /// Modifier 挂气泡非文本层），本控制器不再持
+    /// 有任何行长按 machinery
+
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
     /// 判达标＋几何跨拍稳定后消（§302.3）、或用
     /// 户拖动接管即消
@@ -1194,18 +1164,6 @@ final class ChatRootViewController: UIViewController,
             self?.touchSequenceTouchCancelled(touch)
         }
         collectionView.addGestureRecognizer(touchObserver)
-        // 台账 187：行长按识别器装配——与触摸观察识
-        // 别器同时识别经本控制器 delegate 放行（序
-        // 列门照常旁观）；滚动 pan 不设失败依赖（静
-        // 止长按 pan 永不启动、滑动时 pan 启动本识别
-        // 器自败，系统仲裁即足）
-        rowLongPress.addTarget(
-            self, action: #selector(rowLongPressFired(_:))
-        )
-        rowLongPress.minimumPressDuration = 0.5
-        rowLongPress.cancelsTouchesInView = true
-        rowLongPress.delegate = self
-        collectionView.addGestureRecognizer(rowLongPress)
         // 自适应行高失效口径（iOS 16+ UICollection-
         // View 属性、非 layout 属性）：托管内容
         // （SwiftUI 拟合）的尺寸变化即自动重测，不
@@ -2483,80 +2441,6 @@ final class ChatRootViewController: UIViewController,
     ) -> Bool {
         gestureRecognizer === touchObserver
             || otherGestureRecognizer === touchObserver
-    }
-
-    /// 落点分工（台账 193，§265 分工在原生面的
-    /// 收口）：行长按识别器不接收落在文本视图上
-    /// 的触摸——文本区长按归 UITextView 原生选
-    /// 字＋编辑菜单（平台辖区、141/142 本体）；
-    /// 识别器只收文本外（气泡边距带/行内铬件）
-    /// 的触摸呈动作面。判据与触摸序列门同源
-    /// （touchRowContext 的 hitTest 命中链，非
-    /// 帧普查——§332 已定案）。此前（台账 186）
-    /// 全行同触发：本识别器与文本视图自家长按
-    /// 识别器无失败依赖、同为 0.5 秒量级，胜负
-    /// 由时序定——0.50.77 同树两轮 CI 一轮编辑
-    /// 菜单一轮动作面（run 44795478758／4480-
-    /// 2336777 按钮树实证）、用户 2026-11-21
-    /// 真机报「长按不行」，竞速定案；本口在触
-    /// 摸投递处分工（UIGestureRecognizerDele-
-    /// gate 的官方仲裁入口），竞速整层消除。
-    /// 本识别器以外的识别器（触摸观察等）恒放
-    /// 行；落点解析不出（不在行上/布局未定）时
-    /// 放行、由 presentActionSheet 既有守卫兜底
-    func gestureRecognizer(
-        _ gestureRecognizer: UIGestureRecognizer,
-        shouldReceive touch: UITouch
-    ) -> Bool {
-        guard gestureRecognizer === rowLongPress
-        else { return true }
-        guard let context = touchRowContext(touch)
-        else { return true }
-        return !context.onTextView
-    }
-
-    // MARK: 行动作面（台账 187，方案 A 自绘面触发）
-
-    /// 行长按落点（台账 186 分工改判沿革）：旧分工
-    /// （§265）按落点分——落文本内直达选区、落文本
-    /// 外出菜单；186 改判为全行先出动作面（落点不
-    /// 分工），当时的承载是 delegate 内建上下文菜
-    /// 单。台账 187 起承载换自绘 sheet（系统菜单装
-    /// 不下反应排）：触发改本控制器长按识别器。台
-    /// 账 193 再改判：全行同触发与文本视图自家长按
-    /// 的竞速经真机定案，分工恢复 §265——分工点不
-    /// 在本呈现判据（本口仍全点位受理、单测钉住），
-    /// 而在识别器投递口（shouldReceive 按 hitTest
-    /// 拦文本落点），呈现判据与投递分工两层各司其
-    /// 职；选区机制本体（141/142）不动——双击选
-    /// 字、选区在场行保护链与触摸序列门照旧，且选
-    /// 区在场的那一行长按不呈面（让路平台文本视图）
-    @objc private func rowLongPressFired(
-        _ recognizer: UILongPressGestureRecognizer
-    ) {
-        guard recognizer.state == .began else { return }
-        _ = presentActionSheet(
-            at: recognizer.location(in: collectionView)
-        )
-    }
-
-    /// 动作面呈现判定（测试缝：与识别器回调同一
-    /// 口）：点位命中行＋行挂动作面＋条目 id 在席＋
-    /// 该行无选区在场——全过才经句柄发呈现请求、
-    /// 回 true；任一不过回 false、不发请求
-    @discardableResult
-    func presentActionSheet(at point: CGPoint) -> Bool {
-        guard let indexPath = collectionView
-                .indexPathForItem(at: point),
-              indexPath.section < rows.count
-        else { return false }
-        let row = rows[indexPath.section]
-        guard row.presentsActionSheet,
-              let entryID = row.entryID,
-              handle?.selectionActiveRowKey != row.key
-        else { return false }
-        handle?.onPresentActionSheet?(entryID)
-        return true
     }
 
     // MARK: 落定拍（§259 合并调度，与 gen3 同式）

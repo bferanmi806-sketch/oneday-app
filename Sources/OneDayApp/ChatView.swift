@@ -695,15 +695,6 @@ struct ChatView: View {
     /// §330：原生面 UIKit 行菜单「分享」的分享单
     /// 状态口（见 MessageSharePayload）
     @State private var messageSharePayload: MessageSharePayload?
-    /// 台账 187：自绘动作面（方案 A）的呈现目标（条
-    /// 目 id）——原生面经句柄回调、gen3 面经长按手
-    /// 势，两路只置本状态；呈现数据在呈现时刻按条
-    /// 目组装（actionSheetData），不预持行闭包
-    @State private var actionSheetTarget: ActionSheetTarget?
-    /// 台账 187：动作面内再呈一层（选择/分享）的延
-    /// 后动作——本面 onDismiss 落定后执行（两 sheet
-    /// 同呈会被系统吞掉，见 deferSheetAction）
-    @State private var pendingSheetAction: (() -> Void)?
     /// §152 的选区在场记账已迁 ChatRowStateLedger
     /// （141/142 根治：选区永不进 @State/行修订，
     /// 见 noteTextSelection 与账本注）
@@ -1040,27 +1031,6 @@ struct ChatView: View {
         // 选型见 DESIGN-V4 §26）
         .sheet(item: $selectionPayload) { payload in
             SelectableTextSheet(text: payload.text)
-        }
-        // 台账 187：自绘动作面（方案 A）——顶部反应
-        // 排＋下方动作列表，两面共用同一 sheet；条目
-        // 已不在当前线程（切换竞态）时呈空面、可滑关
-        .sheet(
-            item: $actionSheetTarget,
-            onDismiss: {
-                let action = pendingSheetAction
-                pendingSheetAction = nil
-                action?()
-            }
-        ) { target in
-            if let entry = currentThread?.entries.first(
-                where: { $0.id == target.id }
-            ) {
-                ChatActionSheetView(
-                    data: actionSheetData(for: entry)
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-            }
         }
         // §330：原生面 UIKit 行菜单「分享」的系统
         // 分享单（与「选择」sheet 同排）
@@ -2598,12 +2568,6 @@ struct ChatView: View {
         // §331：量测台发布代次入 body 依赖——后台
         // 量测回填缓存后 bump、本面以确定高重喂
         _ = rowMeasureDesk.publishedRevision
-        // 台账 187：动作面呈现回调接线——控制器长按
-        // 识别器命中条目行时经句柄回条目 id，本页只
-        // 置呈现状态（数据呈现时刻组装）
-        nativeHandle.onPresentActionSheet = { entryID in
-            actionSheetTarget = ActionSheetTarget(id: entryID)
-        }
         return ChatNativeListView(
             rows: nativeRows(),
             layout: ChatCarrierLayout(
@@ -3338,32 +3302,20 @@ struct ChatView: View {
                             entry, dividerText: dividerText,
                             showsUnreadDivider: showsUnread
                         )
-                        // §330（题 2）／§332 换代／台账
-                        // 187 再换代：本面动作面由控制器
-                        // 长按识别器触发（呈现走本页的
-                        // actionSheetTarget）——内容内的
-                        // SwiftUI 长按在本面关停（见
-                        // ChatRowSwiftUIMenuEnabledKey）
-                        .environment(
-                            \.chatRowSwiftUIMenuEnabled, false
-                        )
                     )
                 },
-                // 台账 187：条目行恒挂动作面（台账 186
-                // 门控沿革——纯图片条目同挂）；呈现数
-                // 据不进行描述、呈现时刻按条目组装
-                presentsActionSheet: true
             )
         }
     }
 
-    /// 条目动作面描述（台账 187，呈现时刻组装）：
-    /// 与旧 nativeRowContextMenu 同门控同动作——动
-    /// 作闭包逐项复用既有入口（beginReply/forkTo-
-    /// SideChat/朗读求值），仅两处改道：选择/分享要
-    /// 再呈一层 sheet、经 deferSheetAction 等本面关
-    /// 净后再呈；反应排数据（canReact/现反应）以呈
-    /// 现时刻的条目状态为准
+    /// 条目菜单数据（台账 187 立制；台账 200 拆
+    /// 换后供系统上下文菜单）：与旧 nativeRow-
+    /// ContextMenu 同门控同动作——动作闭包逐项复
+    /// 用既有入口（beginReply/forkToSideChat/朗
+    /// 读求值）；选择/分享再呈一层 sheet、经一拍
+    /// 主队列延后避开菜单收起竞态；反应排数据
+    /// （canReact/现反应）以呈现时刻的条目状态
+    /// 为准
     private func actionSheetData(
         for entry: ChatEntry
     ) -> ChatRowActionSheetData {
@@ -3384,14 +3336,18 @@ struct ChatView: View {
                 forkToSideChat(from: entry)
             },
             onSelect: {
-                deferSheetAction {
+                // 台账 200 拆换：自绘面退役后无 sheet
+                // 可等——菜单收起与再呈 sheet 的竞态
+                // 以一拍主队列延后避开（原 defer-
+                // SheetAction 的意图保留、承载删除）
+                DispatchQueue.main.async {
                     selectionPayload = SelectionPayload(
                         text: text
                     )
                 }
             },
             onShare: {
-                deferSheetAction {
+                DispatchQueue.main.async {
                     messageSharePayload = MessageSharePayload(
                         text: text
                     )
@@ -3401,16 +3357,6 @@ struct ChatView: View {
                 speakMenuItem(for: entry)
             }
         )
-    }
-
-    /// 动作面内再呈一层的延后口（台账 187）：先记
-    /// 账、关本面，本面 sheet 的 onDismiss 落定后执
-    /// 行记账（见 body 的 actionSheetTarget 挂载）
-    private func deferSheetAction(
-        _ action: @escaping () -> Void
-    ) {
-        pendingSheetAction = action
-        actionSheetTarget = nil
     }
 
     /// 点反应（台账 187，toggle 单点）：点自己已点
@@ -7017,17 +6963,13 @@ struct ChatView: View {
     /// §265（S3）：本修饰符只许挂非文本面（气泡背景
     /// 层与铬件），挂载点清单见 DESIGN §265；长按
     /// 只置呈现状态，动作集在呈现时刻组装（action-
-    /// SheetData），与原生面开同一个自绘动作面
+    /// SheetData），两面同开系统上下文菜单
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
         MessageMenuModifier(
             isEnabled: !entry.content.isEmpty
                 || !entry.allImageDatas.isEmpty
                 || !entry.remoteImagePaths.isEmpty,
-            onPresent: {
-                actionSheetTarget = ActionSheetTarget(
-                    id: entry.id
-                )
-            }
+            makeData: { actionSheetData(for: entry) }
         )
     }
 
@@ -12716,53 +12658,55 @@ private struct ComposerBarLayout: Layout {
 /// 闭——两承载同挂会双出面、且 SwiftUI 承载正
 /// 是 .69 真机长按全灭的当事层。仅原生面行构
 /// 造点置 false；gen3 面无此环境值、默认 true
-private struct ChatRowSwiftUIMenuEnabledKey: EnvironmentKey {
-    static let defaultValue = true
-}
-
-extension EnvironmentValues {
-    var chatRowSwiftUIMenuEnabled: Bool {
-        get { self[ChatRowSwiftUIMenuEnabledKey.self] }
-        set { self[ChatRowSwiftUIMenuEnabledKey.self] = newValue }
-    }
-}
-
-/// 消息长按动作面挂载（0.4.1 立制；台账 187 换
-/// 代）：旧制是系统 contextMenu（回复／复制／选
-/// 择／分享，全系统件）；台账 187 起两面收敛为同
-/// 一个自绘动作面（方案 A：反应排＋动作列表）——
-/// 本修饰符只负责在挂载面长按时置 ChatView 的呈
-/// 现状态，动作集本体在呈现时刻组装（ChatView.
-/// actionSheetData，单源），修饰符不再持动作集
-/// §265（换代包 5·S3）挂载面纪律不变：只许落在
-/// 非文本层——气泡背景层（背景＋内边距带）与行
-/// 内铬件（图片卡/文件牌/交付项/引用块/状态行）；
-/// 不许挂行内容根（压死 UITextView 原生选字＋编
-/// 辑菜单，审计 S3 定性）。文本区长按仍归文本体
-/// 系——gen3 面与原生面（识别器全行覆盖）的这处
-/// 路由差异曾随 §265 双承载冲突留账；台账 193
-/// （2026-11-21）已销账：原生面识别器改在投递口
-/// 按 hitTest 分工（文本上不接收），两面路由自
-/// 此一致（文本→平台选字/编辑菜单、文本外→动
-/// 作面），见 ChatNativeList 的 shouldReceive 注
+/// 消息长按菜单挂载（0.4.1 立制；台账 200 拆
+/// 换，2026-11-21 用户拍板）：回归系统上下文菜
+/// 单——0.4.1 旧制本就是系统 contextMenu，台账
+/// 187 改自绘动作面（自家长按识别器＋hitTest
+/// 分工＋自绘 sheet）后长按在真机与测试环境双
+/// 双失灵，拍板整套退役：本修饰符只挂菜单数
+/// 据，识别/呈面/消失全归系统。
+/// §265 挂载面纪律不变：只许落在非文本层——气
+/// 泡背景层（背景＋内边距带）与行内铬件（图片
+/// 卡/文件牌/交付项/引用块/状态行）；不许挂行
+/// 内容根。文本区长按归 UITextView 原生选字＋
+/// 编辑菜单（141/142 本体不动）。
+/// 动作集单源不变：呈现时刻经 makeData 组装
+/// （ChatView.actionSheetData）——反应排走菜单
+/// 顶部内联组，动作项走 actionItems() 逐项搬家
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
-    /// 长按成立时置呈现状态（ChatView 侧收口）
-    let onPresent: () -> Void
-
-    /// §330／§332／台账 187：原生面关停本承载（动
-    /// 作面已由控制器长按识别器承载，见 ChatRow-
-    /// SwiftUIMenuEnabledKey）；gen3 面恒 true
-    @Environment(\.chatRowSwiftUIMenuEnabled)
-    private var swiftUIMenuEnabled
+    /// 呈现时刻组装菜单数据（动作集单源）
+    let makeData: () -> ChatRowActionSheetData
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if isEnabled && swiftUIMenuEnabled {
-            content.onLongPressGesture(
-                minimumDuration: 0.5
-            ) {
-                onPresent()
+        if isEnabled {
+            content.contextMenu {
+                let data = makeData()
+                if data.canReact {
+                    ControlGroup {
+                        ForEach(
+                            MessageReactions.palette,
+                            id: \.self
+                        ) { emoji in
+                            Button {
+                                data.onPickReaction(emoji)
+                            } label: {
+                                Text(emoji)
+                            }
+                        }
+                    }
+                }
+                ForEach(data.actionItems()) { item in
+                    Button {
+                        item.action()
+                    } label: {
+                        Label(
+                            item.title,
+                            systemImage: item.systemImage
+                        )
+                    }
+                }
             }
         } else {
             content

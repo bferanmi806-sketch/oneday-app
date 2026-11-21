@@ -18,13 +18,6 @@ enum ChatReactionMetrics {
     static let cornerInset: CGFloat = 8
 }
 
-/// 动作面呈现目标（台账 187）：只带条目 id——呈现
-/// 数据在呈现时刻按条目组装（ChatView.actionSheet-
-/// Data），目标本体不持行闭包/快照
-struct ActionSheetTarget: Identifiable {
-    let id: UUID
-}
-
 /// 反应 pill（台账 187，照 OpenBot 气泡底角形态）：
 /// 悬挂于气泡底角·朝中线侧（§334 正名：AI 行右
 /// 下、用户行左下；挂载点在 ChatView 两支的
@@ -91,87 +84,5 @@ struct ReactionPillView: View {
                     L10n.format("助手反应：%@", reaction.emoji)
                 )
         }
-    }
-}
-
-/// 自绘动作面（台账 187，方案 A）：顶部反应排（固
-/// 定 8 个、单排无展开层，自己的现反应高亮）＋下
-/// 方动作列表（项集/序/图符走 ChatRowActionSheet-
-/// Data.actionItems 单源，与 186 菜单逐项同）。原
-/// 生面与 gen3 面同呈本面（两面收敛的落点）；点
-/// 任意一项即关面执行（选择/分享的二层呈现由
-/// ChatView 的 deferSheetAction 在关面后接手）
-struct ChatActionSheetView: View {
-    let data: ChatRowActionSheetData
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 0) {
-            if data.canReact {
-                reactionRow
-                Divider()
-            }
-            ForEach(data.actionItems()) { item in
-                Button {
-                    item.action()
-                    dismiss()
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: item.systemImage)
-                            .font(.system(size: 17))
-                            .frame(width: 26)
-                        Text(item.title)
-                            .font(.body)
-                        Spacer()
-                    }
-                    .foregroundStyle(Palette.bodyInk)
-                    .padding(.horizontal, 20)
-                    .frame(minHeight: 52)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 10)
-    }
-
-    /// 反应排：样板 8 个单排（MessageReactions.
-    /// palette 单源）；自己的现反应以 primaryTint
-    /// 圆底高亮（184 色调同源）；每项带 VoiceOver
-    /// 标签（读屏用户经动作面发现反应，设计报告无
-    /// 障碍行口径）
-    private var reactionRow: some View {
-        HStack(spacing: 2) {
-            ForEach(MessageReactions.palette, id: \.self) { emoji in
-                Button {
-                    data.onPickReaction(emoji)
-                    dismiss()
-                } label: {
-                    Text(emoji)
-                        .font(.system(size: 25))
-                        .frame(width: 42, height: 46)
-                        .background(
-                            data.ownEmoji == emoji
-                                ? Palette.primaryTint
-                                : Color.clear,
-                            in: Circle()
-                        )
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel(
-                    data.ownEmoji == emoji
-                        ? L10n.format("反应：%@，已选中，点按撤回", emoji)
-                        : L10n.format("反应：%@", emoji)
-                )
-                .accessibilityAddTraits(
-                    data.ownEmoji == emoji ? [.isSelected] : []
-                )
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
     }
 }

@@ -399,90 +399,13 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         return nil
     }
 
-    /// 台账 187 动作面触发（生产控制器本体）：长
-    /// 按落点不分工——落文本内与落文本外都发呈现
-    /// 请求（186 的「菜单先行」口径在自绘面承载下
-    /// 沿革：触发点由 delegate 通道换控制器长按识
-    /// 别器、判定口在此以同点位直证）；选区在场行
-    /// 不发（141/142 让路纪律）；未挂面行不发；
-    /// cell 本体不挂 UIContextMenuInteraction
-    /// （§265 禁令不变）；动作项集/序/图符以动作
-    /// 面单源组装（ChatRowActionSheetData.action-
-    /// Items）为准断言——与 186 菜单逐项同
-    func testActionSheetTriggerFiresForWholeRowAndItemsMatch()
-        throws
-    {
-        assemble()
-        let entryID = UUID()
-        var presented: [UUID] = []
-        handle?.onPresentActionSheet = { presented.append($0) }
-        let row = ChatNativeRow(
-            key: "m", entryID: entryID,
-            revision: ChatNativeRowRevision(
-                parts: [.text("m")]
-            ),
-            height: 72,
-            makeView: {
-                AnyView(
-                    MenuProbeTextHost()
-                        .frame(width: 180, height: 56)
-                        .frame(
-                            maxWidth: .infinity,
-                            alignment: .leading
-                        )
-                )
-            },
-            presentsActionSheet: true
-        )
-        apply([row])
-        drain(0.8)
-        let cell = try hostingCell(at: 0)
-        XCTAssertFalse(
-            cell.interactions.contains {
-                $0 is UIContextMenuInteraction
-            },
-            "cell 本体不许挂 UIContextMenuInteraction"
-        )
-        let list = try XCTUnwrap(controller)
-        let collectionView = list.collectionView
-        let textView = try XCTUnwrap(
-            firstTextView(in: cell),
-            "探针行须含 UITextView"
-        )
-        let onTextPoint = textView.convert(
-            CGPoint(
-                x: textView.bounds.midX,
-                y: textView.bounds.midY
-            ),
-            to: collectionView
-        )
-        XCTAssertTrue(
-            list.presentActionSheet(at: onTextPoint),
-            "文本内点位须发动作面呈现请求（台账 186 "
-                + "菜单先行口径，187 换自绘面承载）"
-        )
-        let offTextPoint = cell.convert(
-            CGPoint(
-                x: cell.bounds.maxX - 8,
-                y: cell.bounds.midY
-            ),
-            to: collectionView
-        )
-        XCTAssertTrue(
-            list.presentActionSheet(at: offTextPoint),
-            "文本外点位须发动作面呈现请求"
-        )
-        XCTAssertEqual(
-            presented, [entryID, entryID],
-            "两点位须各发一次呈现请求、条目 id 正确"
-        )
-        // 选区在场行让路：同点位不再发请求
-        handle?.selectionActiveRowKey = "m"
-        XCTAssertFalse(
-            list.presentActionSheet(at: onTextPoint),
-            "选区在场行长按不呈面（141/142 让路纪律）"
-        )
-        handle?.selectionActiveRowKey = nil
+    /// 台账 200 拆换：动作项集/序/图符以菜单数
+    /// 据单源组装（ChatRowActionSheetData.
+    /// actionItems）为准断言——与 186 菜单逐项
+    /// 同。原「动作面触发」用例随控制器长按识别
+    /// 器＋自绘面退役同批删除（呈现改系统上下文
+    /// 菜单、由 UI 套件在真链路上验）
+    func testMenuItemsMatchLegacySetAndOrder() {
         // 动作项集/序/图符：动作面单源组装为准（与
         // 186 的 UIMenu 断言逐项同集同序）
         let data = ChatRowActionSheetData(
