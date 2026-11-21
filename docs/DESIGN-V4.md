@@ -13973,6 +13973,22 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 **验收门（本包）**：自动化——Core 策略矩阵全绿、动作面两态项集全绿、CI 红集与基线轮（run 44795478758 红 11）逐名 diff 零新增。真机门留用户：断网发一条→杀进程→联网回前台，条目自动发出且只发一份；连败条目自动重试止于 3 次后安静躺着、红叹号手点仍可发；长按失败条目出重新发送/编辑/撤回、编辑回收后改字发出、撤回后条目与附件暂存皆净；准备段杀进程（发图途中杀）重启后条目可见且自动补发。
 
-### §336.1 CI 判读（回填）
+### §336.1 CI 判读（2026-11-21 回填）
 
-（待 CI 完成后回填）
+- 分支 feat/154-outbox @a750899（amend 后终版：91b242c 初版＋撤回在飞守卫补丁），
+  run 44851126112 两 attempt（同树同提交）。attempt 1 红 12、attempt 2 红 13，
+  **稳定红集（两轮交集）＝基线 11 逐名一致**（基线轮 run 44795478758 @1d04add）：
+  R2Assembly 两件＋EdgeEffectProbe＋手势仲裁 3＋原生面手势 4＋键盘点按矩阵 1。
+- 轮换成员三件（非稳定新增，均有在案出处）：①ChatGestureNativeSurfaceTests
+  .testLongPressOnTextShowsEditMenuNotRowMenu——未改基线树 run 44802336777
+  （0.50.77 组版轮）即为红 12 的 +1、本包 attempt 1 红 attempt 2 绿；
+  ②ChatNativeRowHeightProductionChainTests.testProductionChainContinuousScrollIsStable
+  ——根治包交付报告（pkg-rootfix-188-189-190-delivery-20261120.md）明列「基线轮换族」，
+  本包 attempt 2 单轮红；③VisualDirectionGateTests.testWCAGFormulaAgainstAuditValues
+  ——同树 attempt 1 passed（0.438s）、attempt 2 failed，同树翻转实证；2026-11-14
+  台账报告另有其结果行被宿主日志交错吞没的在案记录。
+- 本包新测 13 件（OutboxAutoRetryTests 9＋OutboxActionSheetTests 4）两 attempt
+  套件均 passed、零 failed。构建步两轮均过（红全在测试步）。
+- 判读：**判绿**——零稳定新增、本包改动面（发件箱策略/记账/动作面项集/drain）
+  与轮换成员所涉面（手势仲裁/行高滚动链/对比度公式）零交集。合流时若主线要
+  求以合流树复跑，按合流树红集再对一次本节口径即可。
