@@ -13999,4 +13999,6 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 ### §335.1 CI 判读（回填）
 
-（待 CI 轮次完成后回填）
+**判绿（2026-11-21）**：最终树 b9090cc（落码 254ab7d＋改钉 1 笔）。两轮对账：首轮 run 44854562598 红 12＝基线 11＋1 件本包可归因新红（HapticsMatrixTests.testMatrixCallSiteCounts——S4 删根页重启执行副本带走其 Haptics.error/success 落点各一，计数钉 53/17 与实数 52/16 不符）；按矩阵钉测自家沿革口径改钉（53→52、17→16，注记落测内：触感由网关页正主 perform() 既有落点承接、行为不丢）。确认轮 run 44860126978：**红集 11 与 0.50.77 基线轮（run 44795478758）逐名完全一致、零新增红**；Core 2286/2286 零失败（基线 2291−删 HubActivityTests 8＋新测 3＝2286，逐项对平）；本包新测 testGatewayStateWordForSettings/testServerAndWorkspaceSegments/testChatDiagnosticsEntryIsSearchOnly 全绿；构建（no codesign）＋打包未签名 IPA＋上传三步 success。本地化 validate_i18n 与基线同结果（1 条基线既有豁免失效、与本包无关）。
+
+**未合 main、未打 tag**（冻分支 feat/198-settings-convergence@b9090cc 待 0.50.78 合流后由主线排序合入；合流接手项：①DESIGN 号与 197/引导小包同占 §335、主线顺延裁号；②S3 表单件按引导包合入后 ConnectView 形态复核；③需求账 198 行未验项原样保留）。
