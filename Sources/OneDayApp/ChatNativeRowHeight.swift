@@ -59,6 +59,17 @@ struct ChatNativeRowHeightComposer {
     /// facet 快照（核心唯一外部输入；适配器形态
     /// 由各入口在调用核心前按行填入本值的副本）
     var facets = ChatNativeRowFacets()
+    /// 预计算覆盖（台账 190 留账·nanoMuse 列表三
+    /// 件②·§335）：仅预计算路（precomputedEntry-
+    /// Height 组装的核心）非 nil——助手文本段高按
+    /// 段下标取产物段高代全量量测；量测工单/同步
+    /// 确路的核心恒 nil，两路同高对拍与备忘口径
+    /// 不受扰（预计算混合总高禁入文本备忘，见
+    /// markdownHeight）。用户行不走预计算（产物
+    /// 宽与合成器正文宽差 40、段高系统性偏低，
+    /// 见 precomputedEntryHeight 注），故无用户
+    /// 侧覆盖口
+    var productSegmentHeights: [Int: CGFloat]?
 
     init(
         screenWidth: CGFloat,
@@ -219,10 +230,26 @@ struct ChatNativeRowHeightComposer {
         width: CGFloat,
         lineLimit: Int? = nil
     ) -> CGFloat {
-        measurePlain(
-            text, font: plainFont(style), width: width,
-            lineLimit: lineLimit, styleForLimit: style
-        )
+        // 台账 196（§335）：plain 族接内容键文本备
+        // 忘——回响行被副产四闸关在产物门外、无毕
+        // 业路（196 定案），其行高三量（主句/结果
+        // 行）与全体 plain 消费面自此同文同宽同变
+        // 体只量一次，本层即回响行的第二层护盾；
+        // 下游共享量测视图的尺寸备忘以串实例身份
+        // 为键、现拼串结构性恒未命中且死键挤表，
+        // 本层命中即整趟绕开。键变体含字阶/限行
+        // （memoKey 另含文本哈希/量化宽/字号档/
+        // 粗体，纯函数口径与 md/user 备忘同纪律）
+        memoized(
+            "ph|\(style.rawValue)|\(lineLimit ?? -1)",
+            text, width
+        ) {
+            measurePlain(
+                text, font: plainFont(style),
+                width: width, lineLimit: lineLimit,
+                styleForLimit: style
+            )
+        }
     }
 
     private func weightedHeight(
@@ -232,11 +259,34 @@ struct ChatNativeRowHeightComposer {
         width: CGFloat,
         lineLimit: Int? = nil
     ) -> CGFloat {
-        measurePlain(
-            text, font: weightedFont(style, weight),
-            width: width,
-            lineLimit: lineLimit, styleForLimit: style
-        )
+        // §335/台账 196：同 plainHeight 备忘纪律
+        // （变体含字重）
+        memoized(
+            "wh|\(style.rawValue)|\(weight.rawValue)"
+                + "|\(lineLimit ?? -1)",
+            text, width
+        ) {
+            measurePlain(
+                text, font: weightedFont(style, weight),
+                width: width, lineLimit: lineLimit,
+                styleForLimit: style
+            )
+        }
+    }
+
+    /// 等宽 plain 量测（工具详情正文/修订 diff）：
+    /// 同 plain 族内容键备忘纪律（§335/台账 196）
+    private func monospacedHeight(
+        _ text: String,
+        _ style: UIFont.TextStyle,
+        width: CGFloat
+    ) -> CGFloat {
+        memoized("mh|\(style.rawValue)", text, width) {
+            measurePlain(
+                text, font: monospacedFont(style),
+                width: width
+            )
+        }
     }
 
     /// SwiftUI Text 单行实高（§329 续修校准实证）：
@@ -285,6 +335,34 @@ struct ChatNativeRowHeightComposer {
         return ChatNativeTextMeasure.naturalWidth(
             attributed: attributed
         )
+    }
+
+    /// 自然宽备忘（§335/台账 196）：时刻宽（回响/
+    /// 委派回响）与表格标签宽同入内容键备忘——同
+    /// 文同字体变体只量一次（回响时刻串在卡间高
+    /// 度重复、整段回响区共用少数条目）；键以字
+    /// 体变体判别组装、宽位传 0（自然宽无宽入参，
+    /// memoKey 的量化宽位恒 0 不碍判别）
+    private func plainNaturalWidth(
+        _ text: String, _ style: UIFont.TextStyle
+    ) -> CGFloat {
+        memoized("nw|\(style.rawValue)", text, 0) {
+            naturalWidth(text, font: plainFont(style))
+        }
+    }
+
+    private func weightedNaturalWidth(
+        _ text: String, _ style: UIFont.TextStyle,
+        _ weight: UIFont.Weight
+    ) -> CGFloat {
+        memoized(
+            "nw|\(style.rawValue)|\(weight.rawValue)",
+            text, 0
+        ) {
+            naturalWidth(
+                text, font: weightedFont(style, weight)
+            )
+        }
     }
 
     /// 拼装量测（散文/引用/任务项正文）：与产物
@@ -491,7 +569,9 @@ struct ChatNativeRowHeightComposer {
         return makeJob(
             memoKey: memoKey, rowKey: rowKey,
             facets: facets,
-            afterMeasure: makeEntryProductWork(for: entry)
+            afterMeasure: makeEntryProductWork(
+                snapshot: snapshot, facets: facets
+            )
         ) {
             $0.entryHeightCore(
                 snapshot, dividerText: dividerText,
@@ -505,36 +585,52 @@ struct ChatNativeRowHeightComposer {
     /// 高）入 LayoutProductStore 同一本账——门控
     /// 与文本口径与 ChatView 预热（preheatEntries）
     /// 逐字同源（用户直取原文；助手过工具/留痕/
-    /// 回响/审批四闸后取摘记文本），键（条目 id×
+    /// 回响/审批四闸后取呈现文本——§335 起改走
+    /// displayText 单源，与量测/呈现同文，旧摘记
+    /// 文本口径作废），键（条目 id×
     /// 文本哈希×文本宽×样式键）与预热/流式估算
     /// 读口同键。执行线程分工：量测台后台队列走
     /// 同步产物口（拼装＋池同步量测）；主线程就
     /// 地量测路（measureNow）改投产物服务异步补
     /// 产（池同步口主线程禁用）
     private func makeEntryProductWork(
-        for entry: ChatEntry
+        snapshot: ChatEntryHeightSnapshot,
+        facets: ChatNativeRowFacets
     ) -> (() -> Void)? {
         let renderedText: String
         let isUser: Bool
-        if entry.role == "user" {
-            renderedText = entry.content
+        if snapshot.role == "user" {
+            renderedText = snapshot.content
             isUser = true
-        } else if entry.role == "assistant",
-                  entry.toolCard == nil,
-                  entry.traceKey == nil,
-                  entry.echoKey == nil,
-                  entry.approvalKey == nil {
-            renderedText = EntryScanMemo.scans(
-                entryID: entry.id,
-                content: entry.content,
-                remoteImagePaths: entry.remoteImagePaths
-            ).media.text
+        } else if snapshot.role == "assistant",
+                  snapshot.toolCard == nil,
+                  snapshot.traceKey == nil,
+                  snapshot.echoKey == nil,
+                  snapshot.approvalKey == nil {
+            // §335：副产文本改与量测/呈现同文——
+            // displayText 单源助手＋本工单的 facet
+            // 快照存在性（与工单核心量测同一快照、
+            // 按构造同文）；文本在工单组装期先算
+            // 定、副产闭包只携字符串（旧形态在副
+            // 产执行期读活条目派生 media 文本，一
+            // 并收口）
+            var core = self
+            core.facets = facets
+            let scans = EntryScanMemo.scans(
+                entryID: snapshot.id,
+                content: snapshot.content,
+                remoteImagePaths:
+                    snapshot.remoteImagePaths
+            )
+            renderedText = Self.assistantDisplayText(
+                entryID: snapshot.id, scans: scans
+            ) { core.facetFileExistence($0) == .exists }
             isUser = false
         } else {
             return nil
         }
         guard !renderedText.isEmpty else { return nil }
-        let entryID = entry.id
+        let entryID = snapshot.id
         let width = LayoutProductService.textWidth(
             isUser: isUser, screenWidth: screenWidth
         )
@@ -1074,7 +1170,8 @@ struct ChatNativeRowHeightComposer {
                     "rf\(LayoutProductKey.fnv1a(split.path))=\(fileStateDigest(split.path))"
                 )
             }
-        } else {
+        } else if entry.traceKey == nil
+            && entry.echoKey == nil {
             // 助手行：派生扫描与合成同源（EntryScan-
             // Memo 备忘在席、此处只多一趟缓存读）；
             // 存在性/交付态逐路径/逐 id 折入——disp-
@@ -1110,6 +1207,15 @@ struct ChatNativeRowHeightComposer {
                     "fx\(LayoutProductKey.fnv1a(path))=\(fileStateDigest(path))"
                 )
             }
+        } else {
+            // 台账 196（§335）：系统锚定行（留痕回
+            // 响/委派回响）跳过助手扫描支——其行高
+            // 在 entryHeightCore 先行支返回、从不
+            // 读交付/文件 facet，扫描产出恒弃（纯
+            // 浪费摘除、零风险面）；产出恒空时旧形
+            // 态在本支追加零项、摘要逐字不变（键不
+            // 翻转）；偶有路径产出时旧键把无关文件
+            // 态折入锚定行键、本次一并正
         }
         return parts.joined(separator: "|")
     }
@@ -1121,6 +1227,13 @@ struct ChatNativeRowHeightComposer {
     /// 间 spacingSM——公式逐段见各分支注
     func markdownHeight(_ text: String) -> CGFloat {
         guard !text.isEmpty else { return 0 }
+        // §335 预计算路：产物段高代量测的混合总高
+        // 不入文本备忘——备忘只存全量量测确值，防
+        // 预计算值冒充确值回喂后续确路（预计算与
+        // 确路同高是对拍验收项、非备忘共享项）
+        if productSegmentHeights != nil {
+            return markdownHeightUncached(text)
+        }
         return memoized("md", text, assistantTextWidth) {
             markdownHeightUncached(text)
         }
@@ -1133,8 +1246,17 @@ struct ChatNativeRowHeightComposer {
             .segments(for: text)
         guard !segments.isEmpty else { return 0 }
         var total: CGFloat = 0
-        for segment in segments {
-            total += segmentHeight(segment)
+        for (index, segment) in segments.enumerated() {
+            switch segment {
+            case .prose, .quote:
+                // §335 预计算路：文本段高以产物段高
+                // 代量测（段下标与产物同源同位）；结
+                // 构段无产物、恒走公式
+                total += productSegmentHeights?[index]
+                    ?? segmentHeight(segment)
+            default:
+                total += segmentHeight(segment)
+            }
         }
         total += OneDayMetrics.spacingSM
             * CGFloat(segments.count - 1)
@@ -1277,9 +1399,8 @@ struct ChatNativeRowHeightComposer {
             }
             var rowTotal: CGFloat = 0
             for entry in row {
-                let labelWidth = naturalWidth(
-                    entry.label,
-                    font: weightedFont(.footnote, .semibold)
+                let labelWidth = weightedNaturalWidth(
+                    entry.label, .footnote, .semibold
                 )
                 let valueWidth = max(
                     width - labelWidth
@@ -1612,11 +1733,7 @@ struct ChatNativeRowHeightComposer {
         text: String, monospaced: Bool, width: CGFloat
     ) -> CGFloat {
         let measured = monospaced
-            ? measurePlain(
-                text,
-                font: monospacedFont(.caption1),
-                width: width
-            )
+            ? monospacedHeight(text, .caption1, width: width)
             : plainHeight(text, .caption1, width: width)
         let textHeight = swiftTextHeight(
             measured: measured,
@@ -1981,9 +2098,8 @@ struct ChatNativeRowHeightComposer {
                 .footnote, width: width - 20
             ))
         }
-        items.append(measurePlain(
-            detail.review.displayDiff,
-            font: monospacedFont(.footnote),
+        items.append(monospacedHeight(
+            detail.review.displayDiff, .footnote,
             width: width
         ))
         items.append(spec(.footnote))
@@ -2110,13 +2226,25 @@ struct ChatNativeRowHeightComposer {
         let timeText = Self.traceEchoTimeText(
             entry.createdAt
         )
-        let timeWidth = naturalWidth(
-            timeText, font: plainFont(.caption1)
+        // 台账 196 §2.4 核对（代码实证、本包对齐）：
+        // ①时刻字阶——视图用 .caption、旧式以
+        // .caption1 量宽（窄一档、列宽随之虚宽），
+        // 行高下限同随 .caption 对齐（max 項）；
+        // ②文字列宽——视图 HStack（spacingS）三
+        // 个相邻对（图标↔列、列↔Spacer、Spacer
+        // ↔时刻）各吃一份 spacingS、旧式只扣两
+        // 份（列宽多算一份 spacingS）。两处同向：
+        // 临界折行时行数偏少、高低估一行——本次
+        // 按视图本体逐项对齐；时刻宽同走自然宽备
+        // 忘（§335/196 第一层护盾）。真机临界折行
+        // 样本帧验留账（196 §五同项）
+        let timeWidth = plainNaturalWidth(
+            timeText, .caption
         )
         let textWidth = contentWidth
             - OneDayMetrics.spacingM * 2
-            - 13 - OneDayMetrics.spacingS
-            - OneDayMetrics.spacingS - timeWidth
+            - 13 - OneDayMetrics.spacingS * 3
+            - timeWidth
         var column = plainHeight(
             snapshot?.headline ?? entry.content,
             .footnote, width: textWidth
@@ -2136,7 +2264,7 @@ struct ChatNativeRowHeightComposer {
                 )
         }
         return OneDayMetrics.spacingS * 2
-            + max(column, spec(.caption1))
+            + max(column, spec(.caption))
     }
 
     /// 回响时刻文案（ChatView.traceEchoTimeText
@@ -2161,8 +2289,10 @@ struct ChatNativeRowHeightComposer {
         let timeText = entry.createdAt.formatted(
             .dateTime.hour().minute()
         )
-        let timeWidth = naturalWidth(
-            timeText, font: plainFont(.caption2)
+        // §335/台账 196：时刻宽走自然宽备忘（字阶
+        // 与视图 .caption2 本已对位、算术核对无差）
+        let timeWidth = plainNaturalWidth(
+            timeText, .caption2
         )
         let textWidth = contentWidth
             - 11 - OneDayMetrics.spacingXS * 2
@@ -2593,6 +2723,58 @@ struct ChatNativeRowHeightComposer {
         )
     }
 
+    /// 预计算行高（台账 190 留账·nanoMuse 列表三
+    /// 件②·§335）：产物段高＋facet 公式合成的近确
+    /// 值——量测未就绪时由 ChatView 喂入层调用，
+    /// 优先于上次高/120 兜底：与本行当前内容同文
+    /// （产物键＝呈现文本）、文本段高是真量测值、
+    /// 结构段与各槽走与确路同一公式，误差只剩段
+    /// 高量测级。适用面与产物生产门控同界（工具
+    /// 卡/留痕/回响/审批锚行无产物、回 nil）；用
+    /// 户行另有一道宽口径闸——产物宽（屏宽−泡内
+    /// 距−侧距）比合成器正文宽多 40（旧 gen3 几
+    /// 何沿账：产物宽未扣列表左右 inset），段高
+    /// 在更宽的列里量得、系统性偏低，故用户行不
+    /// 走预计算（维持上次高/兜底，见 §335 对位
+    /// 表）；助手产物宽与合成器正文宽逐值相等、
+    /// 无此碍。facet 快照口径与 entryHeightWith-
+    /// Facets 同式
+    @MainActor
+    func precomputedEntryHeight(
+        for entry: ChatEntry, dividerText: String?,
+        showsUnreadDivider: Bool = false,
+        product: LayoutProduct
+    ) -> CGFloat? {
+        guard entry.role == "assistant",
+              entry.toolCard == nil,
+              entry.traceKey == nil,
+              entry.echoKey == nil,
+              entry.approvalKey == nil
+        else { return nil }
+        var segmentHeights: [Int: CGFloat] = [:]
+        for segment in product.segments {
+            segmentHeights[segment.segmentIndex] =
+                CGFloat(segment.height)
+        }
+        guard !segmentHeights.isEmpty else {
+            return nil
+        }
+        var core = self
+        if let ledger, let hubStore {
+            core.facets = ChatNativeRowFacetSnapshotter
+                .entryFacets(
+                    for: entry, ledger: ledger,
+                    hubStore: hubStore
+                )
+        }
+        core.productSegmentHeights = segmentHeights
+        return core.entryHeightCore(
+            ChatEntryHeightSnapshot(entry),
+            dividerText: dividerText,
+            showsUnreadDivider: showsUnreadDivider
+        )
+    }
+
     /// 条目行高总口（核心，线程无关）：时间分隔
     /// 槽（在席时 footnote 一行＋spacingS）＋
     /// bubble 本体——分流序与 ChatView.bubble
@@ -2810,6 +2992,47 @@ struct ChatNativeRowHeightComposer {
         return total
     }
 
+    /// 助手呈现文本派生（台账 190 留账②·DESIGN
+    /// §335）：摘行集与 displayText 的唯一出处——
+    /// 合成器行高（facet 存在性）、产物副产（同
+    /// facet 快照）、ChatView 预热（活读存在性）
+    /// 三方共用本函数，产物键自此与呈现/量测同
+    /// 文。旧形态副产取 EntryScanMemo.media 原文，
+    /// 有确证摘行时产物与呈现/量测分家（键按内容
+    /// 哈希自会分家、不出错产物，但呈现永远查不
+    /// 中）——同源缺口在此收口。存在性以闭包注
+    /// 入：口径只认「独立成行＋确证存在才摘、整
+    /// 条裸路径无条件摘」，三方逐字同式
+    static func assistantDisplayText(
+        entryID: UUID,
+        scans: AssistantTextScans,
+        existence: (String) -> Bool
+    ) -> String {
+        let mediaText = scans.media.text
+        let wholePathRef = FileRefDetector
+            .wholeMessagePath(in: mediaText)
+        let inlineImages = scans.inlineCandidates
+            .filter { $0.path != wholePathRef?.path }
+        let standalonePaths = Set(scans.standalonePaths)
+        let stripPaths = Set(
+            inlineImages.filter {
+                $0.isStandaloneLine && existence($0.path)
+            }.map(\.path)
+        ).union(
+            scans.media.imagePaths.filter {
+                standalonePaths.contains($0)
+                    && existence($0)
+            }
+        ).union(
+            wholePathRef.map { [$0.path] } ?? []
+        )
+        return EntryScanMemo.displayText(
+            entryID: entryID,
+            mediaText: mediaText,
+            stripPaths: stripPaths
+        )
+    }
+
     /// 助手行高：VStack(spacingS, leading) 槽序
     /// 与 bubble 助手支逐字同序：思考块／远端图
     /// ×n／MEDIA 图×n／裸路径图×n／交付项×n／
@@ -2831,28 +3054,11 @@ struct ChatNativeRowHeightComposer {
             .wholeMessagePath(in: mediaSplit.text)
         let inlineImages = scans.inlineCandidates
             .filter { $0.path != wholePathRef?.path }
-        let mediaStandalonePaths = Set(
-            scans.standalonePaths
-        )
-        let displayText = EntryScanMemo.displayText(
-            entryID: entry.id,
-            mediaText: mediaSplit.text,
-            stripPaths: Set(
-                inlineImages.filter {
-                    $0.isStandaloneLine
-                        && facetFileExistence($0.path)
-                            == .exists
-                }.map(\.path)
-            ).union(
-                mediaSplit.imagePaths.filter {
-                    mediaStandalonePaths.contains($0)
-                        && facetFileExistence($0)
-                            == .exists
-                }
-            ).union(
-                wholePathRef.map { [$0.path] } ?? []
-            )
-        )
+        // §335：摘行集与呈现文本改走单源助手（与产
+        // 物副产/预热同函数——产物键自此与量测同文）
+        let displayText = Self.assistantDisplayText(
+            entryID: entry.id, scans: scans
+        ) { facetFileExistence($0) == .exists }
         var slots: [CGFloat] = []
         if let reasoning = entry.reasoning,
            !reasoning.isEmpty {

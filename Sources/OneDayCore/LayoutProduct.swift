@@ -23,11 +23,15 @@ import Foundation
 
 /// 样式键：影响排版的全部样式因子。蓝图 §1.3 口径
 /// ——字号档（Dynamic Type）入键、**深浅色剔除**
-/// （颜色不影响行高；产物里的属性串是量测工件，
-/// 呈现拼装仍走 §168 既有缓存按当前环境解析颜色，
-/// 包 3 消费高度时不直接贴产物串上屏）；字体映射
-/// 与段落映射的口径版本入键——映射代码改版时版本
-/// +1，旧产物按新键自然淘汰，不设显式失效路
+/// （颜色不影响行高）；字体映射与段落映射的口径
+/// 版本入键——映射代码改版时版本 +1，旧产物按新
+/// 键自然淘汰，不设显式失效路。§335（台账 190
+/// 留账②）消费口径更新：产物串入串色改 trait 动
+/// 态色（显示拍按承载 trait 解析、跨明暗恒同串），
+/// 呈现自此直贴产物串（颜色剔除出键的前提正是动
+/// 态色——串内色值随 trait 自适应、无需按环境分
+/// 键）；§168 拼装缓存退为产物未就绪回落与非条
+/// 目面单源
 public struct LayoutStyleKey: Hashable, Sendable {
     /// UIFont.TextStyle.rawValue（App 侧映射传入，
     /// Core 不引 UIKit 枚举）
@@ -190,6 +194,20 @@ public struct LayoutProduct: @unchecked Sendable {
         self.segments = segments
         self.textTotalHeight = segments.reduce(0) { $0 + $1.height }
         self.structuralSegmentCount = structuralSegmentCount
+    }
+
+    /// 呈现段串表（§335）：段下标→属性串——呈现
+    /// 侧（MarkdownText）按呈现段下标直取产物串
+    /// 上屏（段下标与呈现段序列同源同位，见
+    /// LayoutProductPlan 注）；结构段不在产物内、
+    /// 表中恒无其下标，呈现按下标缺失走既有拼装
+    public func presentationSegmentStrings()
+        -> [Int: NSAttributedString] {
+        Dictionary(
+            uniqueKeysWithValues: segments.map {
+                ($0.segmentIndex, $0.attributed)
+            }
+        )
     }
 }
 

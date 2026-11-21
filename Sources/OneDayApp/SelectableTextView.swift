@@ -91,6 +91,14 @@ struct SelectableInlineText: View {
     /// 用）；默认与引用块前景同档
     var dimmedForeground: Color = Palette.inkSecondaryOnFill
     var onSelectionChange: ((Bool) -> Void)?
+    /// 台账 190 留账②（§335）：排版产物段串直贴——
+    /// 非 nil 时呈现直用本串（与量测同一拼装、同一
+    /// 实例，入串色为 trait 动态色随承载 trait 解
+    /// 析）、跳过 §168 拼装缓存；nil 时走既有拼装
+    /// 路（产物未就绪回落＋非条目面）。串内容与
+    /// builtAttributedString 同源同式（同 build、
+    /// 同段落映射），承载/选区口径不因来源而异
+    var prebuiltAttributed: NSAttributedString?
 
     @Environment(\.self) private var environment
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -99,7 +107,8 @@ struct SelectableInlineText: View {
 
     var body: some View {
         SelectableTextRepresentable(
-            attributed: builtAttributedString,
+            attributed: prebuiltAttributed
+                ?? builtAttributedString,
             linkColor: UIColor(
                 cgColor: Palette.primary.resolve(in: environment).cgColor
             ),

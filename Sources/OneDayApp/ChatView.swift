@@ -1355,13 +1355,25 @@ struct ChatView: View {
                   entry.echoKey == nil,
                   entry.approvalKey == nil
             else { return nil }
+            // §335：预热文本改与呈现/量测同文——
+            // displayText 单源助手＋活读存在性（与
+            // 气泡 body 同源同拍）；旧 media 摘记
+            // 文本口径作废（有确证摘行时与呈现分
+            // 家、产物永远查不中）
+            let scans = EntryScanMemo.scans(
+                entryID: entry.id,
+                content: entry.content,
+                remoteImagePaths: entry.remoteImagePaths
+            )
             return LayoutProductService.PreheatEntry(
                 entryID: entry.id,
-                renderedText: EntryScanMemo.scans(
-                    entryID: entry.id,
-                    content: entry.content,
-                    remoteImagePaths: entry.remoteImagePaths
-                ).media.text,
+                renderedText: ChatNativeRowHeightComposer
+                    .assistantDisplayText(
+                        entryID: entry.id, scans: scans
+                    ) {
+                        FileMetadataStore.shared
+                            .existence(for: $0) == .exists
+                    },
                 isUser: false
             )
         }
@@ -1758,15 +1770,15 @@ struct ChatView: View {
             // isStreaming 下降沿注）
             await refreshEchoTraces()
             // §251（换代包 2）：排版产物预热——进/切
-            // 线程时对已载条目在后台预产产物（影子
-            // 层、只算不消费，呈现零作用）。文本宽走
+            // 线程时对已载条目在后台预产产物。文本宽走
             // LayoutProductService.textWidth 单源（§263：
             // 用户泡旧账 W−76、助手正文屏宽×文宽占屏
-            // 比，与气泡几何同账）；助手文本取摘标记
-            // 后文本（EntryScanMemo.media）——与气泡
-            // displayText 在无确证摘行时逐字相等，有
-            // 摘行时键按内容哈希自会分家、不产生错产
-            // 物（包 3 消费时以 displayText 现查现产）
+            // 比，与气泡几何同账）；助手文本§335 起改
+            // 走 displayText 单源（preheatEntries 内以
+            // 活读存在性派生、与呈现/量测同文）——旧
+            // media 摘记文本口径作废：彼时产物与呈现
+            // 在有确证摘行时分家、呈现查不中产物；
+            // §335 起产物是呈现与预计算的共同单源
             if let thread = currentThread {
                 LayoutProductService.shared.preheat(
                     entries: preheatEntries(for: thread),
@@ -3312,12 +3324,33 @@ struct ChatView: View {
             )
         }
         let highlighted = entry.id == anchorHighlightEntryID
+        // 台账 190 留账·nanoMuse 三件②（§335）：量
+        // 测未就绪时先问预计算——产物段高＋合成器
+        // facet 公式合成的近确值（与本行当前内容
+        // 同文、文本段是真量测值），优先于上次高/
+        // 兜底 120；产物缺失/不适用（用户行宽口径
+        // 闸、非条目行无产物）保持旧口径。喂入高
+        // 仍标临界（heightIsProvisional 不变）：确
+        // 值回填后经发布代次以确高重喂、本行终态
+        // 口径零变
+        var feedHeight = resolved.height
+        if !resolved.isExact,
+           let product = entryLayoutProduct(entry),
+           let precomputed = composer
+            .precomputedEntryHeight(
+                for: entry, dividerText: dividerText,
+                showsUnreadDivider: showsUnread,
+                product: product
+            ) {
+            feedHeight = precomputed
+        }
         // 行描述备忘戳：构建输入全量（量测键含修订
         // 基段摘要＋facet 摘要＋环境指纹；落定高；
         // 点亮；样式键）——戳不变整行复用上趟描述，
         // makeView/行菜单（含 plainText 提取）只在
-        // 戳变时重建
-        let stamp = "\(memoKey)|\(resolved.height)"
+        // 戳变时重建。戳内高用最终喂入高（§335：
+        // 预计算值变即戳变、行描述随之重建）
+        let stamp = "\(memoKey)|\(feedHeight)"
             + "|\(highlighted ? "1" : "0")|\(styleKey)"
         return nativeRowMemo.row(key: key, stamp: stamp) {
             var revision = baseRevision
@@ -3327,7 +3360,7 @@ struct ChatView: View {
                 key: key,
                 entryID: entry.id,
                 revision: revision,
-                height: resolved.height,
+                height: feedHeight,
                 // 台账 190②：非确定高（未量测/上次
                 // 高顶替）标临界——布局提供者对将入
                 // 视口的临界行就地量测给确定高
@@ -4209,6 +4242,72 @@ struct ChatView: View {
             style: style.coreKey
         )
         return LayoutProductStore.cache.product(for: key)
+    }
+
+    /// 条目排版产物（台账 190 留账②·§335）：呈现
+    /// 与预计算共用的查口——按键同步直读产物账
+    /// （查键与生产方逐字同构：条目 id×呈现文本×
+    /// LayoutProductService.textWidth 单源宽×当前
+    /// 环境样式快照）；未命中回 nil（呈现走 §168
+    /// 回落、预计算让位旧口径），产物由预热/量测
+    /// 副产随后补齐、下趟重喂自然命中
+    private func entryLayoutProduct(
+        _ entry: ChatEntry
+    ) -> LayoutProduct? {
+        let style = LayoutStyleContext(
+            sizeCategory:
+                dynamicTypeSize.contentSizeCategory,
+            boldText: UIAccessibility.isBoldTextEnabled
+        )
+        let screenWidth = UIScreen.main.bounds.width
+        if entry.role == "user" {
+            return cachedLayoutProduct(
+                entryID: entry.id,
+                renderedText: entry.content,
+                width: LayoutProductService.textWidth(
+                    isUser: true, screenWidth: screenWidth
+                ),
+                style: style
+            )
+        }
+        guard entry.role == "assistant",
+              entry.toolCard == nil,
+              entry.traceKey == nil,
+              entry.echoKey == nil,
+              entry.approvalKey == nil
+        else { return nil }
+        let scans = EntryScanMemo.scans(
+            entryID: entry.id,
+            content: entry.content,
+            remoteImagePaths: entry.remoteImagePaths
+        )
+        return cachedLayoutProduct(
+            entryID: entry.id,
+            renderedText: ChatNativeRowHeightComposer
+                .assistantDisplayText(
+                    entryID: entry.id, scans: scans
+                ) {
+                    FileMetadataStore.shared
+                        .existence(for: $0) == .exists
+                },
+            width: LayoutProductService.textWidth(
+                isUser: false, screenWidth: screenWidth
+            ),
+            style: style
+        )
+    }
+
+    /// 条目产物段串（§335 呈现注入）：命中回段下
+    /// 标→属性串表供 MarkdownText/Selectable-
+    /// InlineText 直贴；未命中回 nil
+    private func entrySegmentProducts(
+        _ entry: ChatEntry
+    ) -> [Int: NSAttributedString]? {
+        guard let product = entryLayoutProduct(entry)
+        else { return nil }
+        let strings = product
+            .presentationSegmentStrings()
+        return strings.isEmpty ? nil : strings
     }
 
     /// 暂定整行高（产物未就绪时）：按文本长度粗估
@@ -6285,7 +6384,14 @@ struct ChatView: View {
                                 noteTextSelection(
                                     entryID: entry.id, active: active
                                 )
-                            }
+                            },
+                            // §335：用户正文产物段串直
+                            // 贴（产物 plain 段与本段同
+                            // 源同式——同整形拼装 §271、
+                            // 同前景令牌）；未命中走
+                            // §168 拼装回落
+                            prebuiltAttributed:
+                                entrySegmentProducts(entry)?[0]
                         )
                             .padding(.horizontal, OneDayMetrics.bubblePaddingH)
                             .padding(.vertical, OneDayMetrics.bubblePaddingV)
@@ -6663,13 +6769,18 @@ struct ChatView: View {
                     assistantBubble(menuEntry: entry) {
                         // §152：选区回报接行级记账（选
                         // 字期间关本行右滑引用）
+                        // §335：产物段串注入——命中段
+                        // 直贴产物串（与量测同源）、未
+                        // 命中段走 §168 拼装回落
                         MarkdownText(
                             displayText,
                             onSelectionChange: { active in
                                 noteTextSelection(
                                     entryID: entry.id, active: active
                                 )
-                            }
+                            },
+                            segmentProducts:
+                                entrySegmentProducts(entry)
                         )
                     }
                 }

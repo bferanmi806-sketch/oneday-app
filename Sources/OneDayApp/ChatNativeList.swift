@@ -546,6 +546,27 @@ private final class ChatNativeLayoutBox {
     /// 给从未接近视口的行）；窗外临界行不付主线
     /// 程量测、等量测台后台回填
     var provisionalFlags: [Bool] = []
+    /// 台账 190 留账·nanoMuse 列表三件①（DESIGN
+    /// §335）：布局层确高备忘——确高一经喂入或就
+    /// 地量得即归本匣所有（行键→（修订，确高））：
+    /// 上游备忘（合成器 NSCache 备忘）被逐出/内存
+    /// 警告清仓后，同修订行再以临界高喂入时，匣
+    /// 以自存确高回填、临界标记同步清（失效永不
+    /// 丢：布局失效/重喂都不许把已确高打回临界）；
+    /// 显式失效只有两路——修订变（内容/facet 变
+    /// 后旧高作废、认新喂入）与行离集（applyNow
+    /// 按新行集剪账）。与量测台 lastKnown 的分工：
+    /// 彼在量测层、跨修订沿用当临界顶替值；本匣
+    /// 在布局层、同修订认确值——两层各管一段
+    var exactHeightByKey: [String: (
+        revision: ChatNativeRowRevision,
+        height: CGFloat
+    )] = [:]
+    /// 与 rowHeights 同序的行键/修订（applyNow 落
+    /// 写）：makeSection 就地量测回写时按序取键与
+    /// 修订入确高备忘
+    var rowKeys: [String] = []
+    var rowRevisions: [ChatNativeRowRevision] = []
     /// 就地量测口（控制器装配：序→行键→量测台
     /// measureNow）；nil＝无量测台在席（探针裸
     /// 装配），提供者不就地量测
@@ -1043,6 +1064,18 @@ final class ChatRootViewController: UIViewController,
     /// 冲刷、迟到回调未现形），意图置真/消解时清零
     private var landingSettleContentSize: CGFloat?
     private var userInteracting = false
+    /// 台账 190 留账·nanoMuse 列表三件③（DESIGN
+    /// §335）：浏览态——delegate 状态机口径（will-
+    /// BeginDragging 置真、停滚清零：不减速的 did-
+    /// EndDragging／didEndDecelerating），覆盖「手
+    /// 指离屏→减速开始」的旗标空窗（该拍 isTrack-
+    /// ing 已落、isDecelerating 未起，只读旗标的闸
+    /// 门会漏进一笔施工）。滚动冻结闸门读本态∪旗
+    /// 标（并集只扩不缩：触碰未拖的 isTracking 拍
+    /// 仍按旧口径冻结）；与 userInteracting 的置/
+    /// 清点位逐点同行、语义各管一段（彼管落点意
+    /// 图、本态管冻结闸门），不许合并复用
+    private var userBrowsing = false
     /// 搜索落点收敛（台账 150）：进行中的收敛机与
     /// 目标条目——落定拍逐拍喂屏上位置评估（判定
     /// 在 Core SearchFocusConvergence）；用户拖动
@@ -1250,6 +1283,20 @@ final class ChatRootViewController: UIViewController,
             box.rowHeights[sectionIndex] = measured
             box.provisionalFlags[sectionIndex] = false
             box.syncMeasureBudget -= 1
+            // §335：就地量得的确高同入布局层备忘
+            // （键/修订按序取匣内平行账）——本行自
+            // 此在布局层有确值，后续重喂不许打回
+            if sectionIndex < box.rowKeys.count,
+               sectionIndex < box.rowRevisions.count {
+                box.exactHeightByKey[box.rowKeys[
+                    sectionIndex
+                ]] = (
+                    revision: box.rowRevisions[
+                        sectionIndex
+                    ],
+                    height: measured
+                )
+            }
         }
         let height = sectionIndex < rowCount
             ? box.rowHeights[sectionIndex]
@@ -2101,7 +2148,12 @@ final class ChatRootViewController: UIViewController,
         // DeferredSettle→落定拍先消费本槽再落写。
         // 削 apply 在滚动中开启布局 pass 的触发面；
         // 非滚动期行为逐字不变（走 applyNow）
-        if collectionView.isTracking
+        // §335：冻结判据扩为浏览态∪旗标——delegate
+        // 状态机覆盖离屏→减速开始的旗标空窗（见
+        // userBrowsing 注），空窗内到达的喂入同走
+        // 只记账不施工
+        if userBrowsing
+            || collectionView.isTracking
             || collectionView.isDecelerating {
             pendingApply = PendingApply(
                 rows: newRows, layout: layout,
@@ -2209,11 +2261,51 @@ final class ChatRootViewController: UIViewController,
         // 而键/修订未变时（如展开态翻转、异步 facet
         // 到达），布局失效走既有记账、落定拍唯一
         // 施工口合并落写（§325.2 条目 1 同路）
-        let newHeights = newRows.map(\.height)
+        // §335：回喂高落写先过布局层确高备忘合并
+        // ——确高喂入即入账；临界喂入若匣内有同键
+        // 同修订确高，以确高回填本趟（值与标记同
+        // 步：标记清零、提供者不再为本行付就地量
+        // 测）；行集变时按新行集剪账（离集即失效）
+        var mergedHeights: [CGFloat] = []
+        var mergedFlags: [Bool] = []
+        mergedHeights.reserveCapacity(newRows.count)
+        mergedFlags.reserveCapacity(newRows.count)
+        for row in newRows {
+            if row.heightIsProvisional,
+               let exact = layoutBox
+                    .exactHeightByKey[row.key],
+               exact.revision == row.revision {
+                mergedHeights.append(exact.height)
+                mergedFlags.append(false)
+            } else {
+                mergedHeights.append(row.height)
+                mergedFlags.append(
+                    row.heightIsProvisional
+                )
+                if !row.heightIsProvisional {
+                    layoutBox.exactHeightByKey[
+                        row.key
+                    ] = (
+                        revision: row.revision,
+                        height: row.height
+                    )
+                }
+            }
+        }
+        if keysChanged {
+            let keep = Set(newKeys)
+            layoutBox.exactHeightByKey = layoutBox
+                .exactHeightByKey.filter {
+                    keep.contains($0.key)
+                }
+        }
+        layoutBox.rowKeys = newKeys
+        layoutBox.rowRevisions =
+            newRows.map(\.revision)
         let heightsChanged =
-            layoutBox.rowHeights != newHeights
+            layoutBox.rowHeights != mergedHeights
         if heightsChanged {
-            layoutBox.rowHeights = newHeights
+            layoutBox.rowHeights = mergedHeights
             pendingLayoutInvalidation = true
         }
         // 台账 190②：临界标记与行集同趟落写（标
@@ -2221,9 +2313,8 @@ final class ChatRootViewController: UIViewController,
         // 值——不单独触发布局失效：匣内标记只供
         // 提供者问高时消费，落定拍布局 pass 自会
         // 读到）
-        let newFlags = newRows.map(\.heightIsProvisional)
-        if layoutBox.provisionalFlags != newFlags {
-            layoutBox.provisionalFlags = newFlags
+        if layoutBox.provisionalFlags != mergedFlags {
+            layoutBox.provisionalFlags = mergedFlags
         }
         if keysChanged {
             var snapshot =
@@ -2535,7 +2626,8 @@ final class ChatRootViewController: UIViewController,
     private func performSettleBeat() {
         guard collectionView.bounds.width > 0
         else { return }
-        if collectionView.isTracking
+        if userBrowsing
+            || collectionView.isTracking
             || collectionView.isDecelerating {
             // §325.2 守卫 2③＋4：滚动期冻结——本拍
             // 只记账（report 轻量读数照常产出）、不
@@ -2893,6 +2985,9 @@ final class ChatRootViewController: UIViewController,
     ) {
         // 用户接管：落点意图即消（H6 的意图边界）
         userInteracting = true
+        // §335：浏览态置真（与 userInteracting 同
+        // 点位；减速开始前的空窗由本态覆盖）
+        userBrowsing = true
         landingIntent = false
         landingSettleContentSize = nil
         // 台账 150：搜索落点同弃——读者的位置优先
@@ -2907,6 +3002,8 @@ final class ChatRootViewController: UIViewController,
     ) {
         if !decelerate {
             userInteracting = false
+            // §335：无减速＝浏览结束、浏览态同清
+            userBrowsing = false
             flushDeferredSettle()
         }
     }
@@ -2915,6 +3012,8 @@ final class ChatRootViewController: UIViewController,
         _ scrollView: UIScrollView
     ) {
         userInteracting = false
+        // §335：减速落定＝浏览结束、浏览态同清
+        userBrowsing = false
         flushDeferredSettle()
     }
 

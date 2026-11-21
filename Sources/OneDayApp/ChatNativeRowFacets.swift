@@ -122,7 +122,8 @@ enum ChatNativeRowFacetSnapshotter {
                 )
                 recordFileState(split.path, into: &facets)
             }
-        } else {
+        } else if entry.traceKey == nil
+            && entry.echoKey == nil {
             let scans = EntryScanMemo.scans(
                 entryID: entry.id,
                 content: entry.content,
@@ -156,6 +157,15 @@ enum ChatNativeRowFacetSnapshotter {
             for path in paths {
                 recordFileState(path, into: &facets)
             }
+        } else {
+            // 台账 196（§335）：系统锚定行（留痕回
+            // 响/委派回响）跳过助手扫描支——其行高
+            // 在 entryHeightCore 先行支返回、文件/
+            // 交付 facet 从不被读；本支原形态另跑
+            // 一趟未备忘的 detectStandaloneAnchored
+            // 全文扫（§333 已注的热路径残余全扫），
+            // 对锚定行纯浪费、本次摘除（展开态记录
+            // 在支外、照旧）
         }
         if entry.approvalKey != nil {
             let recordID = ApprovalAnchor.recordID(

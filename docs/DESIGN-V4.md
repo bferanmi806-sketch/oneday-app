@@ -13950,3 +13950,27 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 **深色＋最大字号帧覆盖口径**：未新增帧测——ChatPageDeviceConditionProbeTests 既有 Dark trait 帧与 BoldAX（AX5）帧以真实 ChatView 宿主窗口呈现生产行装配、本包填充经此两帧出面（该探针断言帧几何/栏位存活、非像素色值）；色值层由 RenderMeasure 逐值钉（暗 #2C2C2E）＋闸⑧暗档两口实算断言守。残余明示：泡面像素采样帧测不存在，采样验收按 §334 验收门留真机。
 
 **未合 main、未打 tag、未组版**（冻分支 feat/191-ai-bubble@984cc81 待 0.50.77 组版并入；组版接手项：187 分支并入时 pill 注释口径按 §334 正名对齐，坐标零改动）。
+
+## §335 190 留账收口＋nanoMuse 列表三件＋台账 196 并入（2026-11-21；分支 feat/190-remainder，基线 rel-05070@1d04add（0.50.77 组版树）；台账 190 留账两小件／nanoMuse 评估推荐落点①／196 分流并入；交卷 pkg-190-remainder-delivery-20261121.md）
+
+**件一（行内容 AnyView 类型层替换）停手裁定**：施工前复核当年两条前提于 0.50.77 树——前提 A「与 187 施工面冲突」：187 已合入 0.50.76、构造面已稳定，原冲突消解；但 193 长按热修（用户真机定案「聊天长按失效」、留观 7 轮手势红测为真故障）已单独派出且先于本包合流，同一行树/手势面重新处于在飞施工状态，等价冲突再成立。前提 B「141/142 选区红线在行树内」：仍然成立——可选文本树（SelectableInlineText/UITextView）即住在 makeView 构建的行内容内，宿主泛型由 AnyView 换具体类型必改该子树的 SwiftUI diffing 行为，与 193 正在追的长按/选区面同域。叠加 193 情报「相邻改动最小面」指令：换层须重写全部行构造点＋宿主泛型，是该面上最大动作。**裁定：本件停手、不落码**，待 193 合流且真机长按/选区验收过后独立成包再做（台账同步此状态）。本包与行树相邻的其余改动（呈现注入、喂入高、冻结门）均不触行构造与手势面。
+
+**件二（呈现与产物同源）**：勘察实证真正的不同源点不在拼装（产物拼装与呈现同走 SelectableInlineText.build＋MarkdownText 单源映射、段下标经 MarkdownMessageAssembler 同序同位），在**文本**：产物副产与预热取 EntryScanMemo.media 原文，呈现与合成器高度路用 displayText（media 再摘已确证独立成行图片行）——有摘行时产物键按另一段文本组装、呈现永远查不中。三点收口：①`ChatNativeRowHeightComposer.assistantDisplayText(entryID:scans:existence:)` 立为摘行集＋呈现文本的唯一出处，合成器行高（facet 存在性）、产物副产（同工单 facet 快照存在性——文本在工单组装期算定、副产闭包只携字符串）、ChatView 预热（活读存在性）三方共用；ChatView 气泡 body 内的同式内联副本按 193 最小面纪律**不动**（与助手函数同表达式＋EntryScanMemo.displayText 备忘同口，产出逐字相等，报告明示此保留重复）。②产物入串色改 **trait 动态色**（LayoutProductService.dynamicColor：UIColor(dynamicProvider:) 按承载 trait 解析同一批 Palette 令牌）——旧静态解析色按构建拍 trait 定格、且 App 有应用内外观覆盖（preferredColorScheme）时产物拍与显示拍可分家，是呈现不敢直贴产物串的根由；动态色后产物串成双档呈现级工件，量测不读色、样式键剔色纪律不变（Core LayoutStyleKey 注同步更新）。③呈现消费接线：LayoutProduct.presentationSegmentStrings() 出段下标→串表；ChatView 条目行按生产同键查产物（entryLayoutProduct 单查口，呈现与预计算共用），助手支经 MarkdownText(segmentProducts:) 按段注入 SelectableInlineText(prebuiltAttributed:)、用户支直贴 plain 段串；未命中（产物未产/段缺/非条目面/流式行）逐段回落 §168 既有拼装——§168 自此定位为回落与非条目面单源，不再是条目正文的主路。
+
+**件三（nanoMuse ①高度缓存归布局层、失效永不丢）**：对位实证——OneDay 的布局失效（invalidateLayout）本不丢高（提供者回读布局匣行高表），nanoMuse 此件的真缺口在**匣无记忆**：行高事实散在合成器 NSCache 备忘（可逐出/内存警告全清）与量测台 lastKnown（量测层所有、跨修订沿用），布局匣只是每趟整表覆写的喂入投影。落法：ChatNativeLayoutBox 立**确高备忘**（行键→（修订，确高））——确高喂入即入账、makeSection 就地量得同入账（匣内平行 rowKeys/rowRevisions 按序取键）；applyNow 落写先过合并：同键同修订的临界喂入以匣内确高回填（值与临界标记同步清、提供者不再为该行付就地量测）；显式失效只有两路——修订变、行离集（按新行集剪账）。与 lastKnown 分工：彼跨修订当临界顶替值（量测层）、此同修订认确值（布局层），两层各管一段。
+
+**件四（nanoMuse ②文本预计算级）**：喂入优先级定为 **确定高 ＞ 预计算 ＞ 上次高 ＞ 兜底 120**（ChatView.nativeEntryRow，量测未就绪时查产物→composer.precomputedEntryHeight 合成：产物段高按段下标代 markdownHeight 的文本段量测、结构段与各槽走与确路同一公式/facet）。纪律三条：①**仅助手条目行**——宽度审计实证：助手产物宽（屏宽×assistantTextWidthFraction）与合成器正文宽逐值相等；用户产物宽（屏宽−泡内距×2−侧距）比合成器正文宽（列表宽−侧距−泡内距×2）**多 40pt**（产物宽未扣列表左右 inset、旧 gen3 几何沿账，textWidth 与 gen3 承载估算共用单源、本包不动），用户段高在更宽列里量得、系统性偏低，故用户行维持旧口径（报告附宽度证据）；工具卡/留痕/回响/审批锚行无产物、不在范围。②预计算混合总高**禁入文本备忘**（markdownHeight 在覆盖在席时绕备忘读与写；备忘只存全量量测确值，毒产物对拍测试钉）。③预计算喂入仍标临界（heightIsProvisional 不变）：确值回填经发布代次重喂、终态口径零变；行描述备忘戳改用最终喂入高（预计算值变即戳变）。
+
+**件五（nanoMuse ③浏览期冻结覆盖减速空窗）**：现行两道滚动闸（apply 的 §329 记账闸、performSettleBeat 的 §325.2 冻结）只读 UIScrollView 原始旗标 isTracking/isDecelerating——「手指离屏（willDecelerate）→减速真正开始」之间可有一拍双旗皆 false，喂入/落定施工漏进，正是 nanoMuse 点名的空窗。落法：控制器立专用浏览态 userBrowsing（delegate 状态机口径：willBeginDragging 置真、不减速的 didEndDragging／didEndDecelerating 清零——置/清点位与 userInteracting 逐点同行、语义各管一段：彼管落点意图**不许合并复用**、贴底判定零波及），两道闸门改判 `userBrowsing || isTracking || isDecelerating`（并集只扩不缩：触碰未拖的 isTracking 拍仍按旧口径冻结）。flushDeferredSettle 既有链与新态清点一致、不另动。
+
+**台账 196 并入（回响行量测层级缺位）**：诊断定案（pkg-196-echo-card-lag-diagnosis-20261121.md）——回响行（traceKey）是落定行里唯一「三无」行型：副产四闸关 traceKey 永无产物、plainHeight 双无备忘（不走内容键 textCache；下游共享量测视图尺寸备忘以串实例身份为键、plain 每调用新建串结构性恒未命中且死键挤表）、整行备忘单护盾。三条修复：①**plain 族接内容键文本备忘**（plainHeight/weightedHeight/monospacedHeight＋自然宽 plainNaturalWidth/weightedNaturalWidth，变体键含字阶/字重/限行，memoKey 另含文本哈希/量化宽/字号档/粗体）——回响行三量（时刻宽＋主句＋结果行）自此同文只量一次，本层即其第二层护盾；产物纳 traceKey 一路不取（产物形态是 markdown 段模型、回响行高是槽位算术，强纳须新造产物 kind，诊断给的二选一取备忘路，报告明示裁量）。②**facet 对系统锚定行跳过助手扫描支**（entryFacetDigest 与快照器 entryFacets 对 traceKey/echoKey 同跳：行高先行支返回、从不读交付/文件 facet；快照器内未备忘的 detectStandaloneAnchored 全文扫对锚定行一并摘除；摘要在产出恒空时逐字不变、键不翻转）。③**§2.4 算术对齐**（代码实证）：traceEchoHeight 时刻宽改 .caption 量（视图本体 .caption、旧式 caption1 窄一档）、文字列宽改扣 3×spacingS（视图 HStack 图标↔列、列↔Spacer、Spacer↔时刻三对相邻间距、旧式只扣两份）、行高下限随 .caption 对齐——两处同向低估（临界折行少算一行）按视图逐项对齐；委派回响 echoHeight 算术核对无差（公式与视图逐项合）。真机冷滚动份额探针（回响密集区 ChatLagProbe 前后对读）与临界折行样本帧验留账（196 §五同项）。
+
+**红线零接触**：§329 facet（摘要跳支只对先行返回的锚定行、产出恒空时键逐字不变）、贴底判定（userInteracting 语义与置/清点位零改、浏览态是独立新旗）、§194、§327、187 反应 pill 几何、191 气泡填充（Palette.bubbleFill 令牌零改、呈现注入只换串来源）、192 抽屉令牌，均未触。行构造/AnyView/手势面零改动（件一停手、193 先行）。
+
+**改动面**：ChatNativeRowHeight.swift（displayText 单源助手＋副产文本切换＋预计算覆盖与适配器＋plain 族备忘＋facet 摘要跳支＋回响算术）、ChatNativeRowFacets.swift（快照器跳支）、LayoutProductService.swift（动态色＋沿革注）、LayoutProduct.swift（presentationSegmentStrings＋样式键口径注）、MarkdownText.swift／SelectableTextView.swift（产物注入参数）、ChatView.swift（预热同源＋entryLayoutProduct 查口＋呈现注入＋喂入预计算优先级）、ChatNativeList.swift（布局匣确高备忘＋浏览态闸门）、Chat190RemainderTests.swift（新测 8 件）、本节登记。
+
+**验收门（本包）**：自动化——新测 8 件绿；CI 红集与 0.50.77 基线轮（run 44795478758 红 11）逐名对账零新增红（手势留观项单独注记、归 193）；既有产物/行高/装配对拍族不许翻红。真机门留用户：长会话冷滚动（回响密集区）卡顿观感、预计算行上屏几何、产物直贴呈现与 §168 回落的视觉一致、深色＋最大字号各一帧。**未合 main、未打 tag、未组版**（冻分支 feat/190-remainder 待组版并入；组版接手项：与 fix/193-longpress 的 diff 做一次适配核对——本包未动行构造/手势面，预期零冲突，仍须实查）。
+
+### §335.1 CI 判读（回填）
+
+（待 CI 轮次完成后回填。）

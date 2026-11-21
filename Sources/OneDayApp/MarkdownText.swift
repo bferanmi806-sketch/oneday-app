@@ -18,16 +18,25 @@ struct MarkdownText: View {
     /// §149：选区活动回报（聊天页据此在选字期间关
     /// 本行右滑引用）；其他消费面不传＝不回报
     let onSelectionChange: ((Bool) -> Void)?
+    /// 台账 190 留账②（§335）：排版产物段串（呈现
+    /// 段下标→属性串）——条目行由 ChatView 按产物
+    /// 键查得后注入：散文/引用段下标命中即直贴产
+    /// 物串（与量测同源同串），未命中段（结构段本
+    /// 不在产物内、产物未就绪）走 §168 既有拼装；
+    /// 其他消费面不传＝全段既有拼装、行为不变
+    let segmentProducts: [Int: NSAttributedString]?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.legibilityWeight) private var legibilityWeight
 
     init(
         _ content: String,
-        onSelectionChange: ((Bool) -> Void)? = nil
+        onSelectionChange: ((Bool) -> Void)? = nil,
+        segmentProducts: [Int: NSAttributedString]? = nil
     ) {
         self.content = content
         self.onSelectionChange = onSelectionChange
+        self.segmentProducts = segmentProducts
     }
 
     private var blocks: [MarkdownBlock] {
@@ -42,12 +51,18 @@ struct MarkdownText: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingSM) {
-            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+            ForEach(Array(segments.enumerated()), id: \.offset) { offset, segment in
                 switch segment {
                 case .prose(let paragraphs):
-                    proseView(paragraphs)
+                    proseView(
+                        paragraphs,
+                        product: segmentProducts?[offset]
+                    )
                 case .quote(let lines):
-                    blockquoteView(lines)
+                    blockquoteView(
+                        lines,
+                        product: segmentProducts?[offset]
+                    )
                 case .code(let code, let language):
                     codeView(code, language: language)
                 case .table(let header, let alignments, let rows):
@@ -76,13 +91,15 @@ struct MarkdownText: View {
     /// 值：块间段后距 spacingSM、列表项间 spacingXS、
     /// 末段归零（段间由外层 VStack 的 spacingSM 接）
     private func proseView(
-        _ paragraphs: [MarkdownProseParagraph]
+        _ paragraphs: [MarkdownProseParagraph],
+        product: NSAttributedString? = nil
     ) -> some View {
         SelectableInlineText(
             paragraphs: Self.proseParagraphs(paragraphs),
             textStyle: .body,
             foreground: Palette.bodyInk,
-            onSelectionChange: onSelectionChange
+            onSelectionChange: onSelectionChange,
+            prebuiltAttributed: product
         )
     }
 
@@ -255,7 +272,8 @@ struct MarkdownText: View {
     /// 装饰弱墨（非文字用途合规），正文用填充面次墨；
     /// depth ≥2 逐级再缩进一档
     private func blockquoteView(
-        _ lines: [MarkdownQuoteLine]
+        _ lines: [MarkdownQuoteLine],
+        product: NSAttributedString? = nil
     ) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             RoundedRectangle(cornerRadius: 1.5)
@@ -269,7 +287,8 @@ struct MarkdownText: View {
                 paragraphs: Self.quoteParagraphs(lines),
                 textStyle: .body,
                 foreground: Palette.inkSecondaryOnFill,
-                onSelectionChange: onSelectionChange
+                onSelectionChange: onSelectionChange,
+                prebuiltAttributed: product
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
