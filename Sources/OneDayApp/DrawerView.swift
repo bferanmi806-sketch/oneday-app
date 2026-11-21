@@ -570,7 +570,8 @@ struct DrawerView: View {
     /// 留）；④分割线口径不变、线随次序改挂频道／
     /// 旁聊组头上方。192 视觉量测值全保留、本条
     /// 只动内容装配；装配回归钉见 DrawerIAAssem-
-    /// blyTests
+    /// blyUITests（UI 测试——进程内单测环境 AX 树
+    /// 不填充、本仓已有实证）
     private var drawerNavList: some View {
         VStack(alignment: .leading, spacing: 0) {
             drawerTabSection
