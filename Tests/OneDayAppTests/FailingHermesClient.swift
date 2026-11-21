@@ -104,6 +104,26 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func learningGraph(config: ServerConfig) async throws -> LearningGraph {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func learningNode(
+        config: ServerConfig, id: String
+    ) async throws -> LearningNodeContent {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func updateLearningNode(
+        config: ServerConfig, id: String, content: String
+    ) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func deleteLearningNode(config: ServerConfig, id: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func skills(config: ServerConfig) async throws -> [SkillItem] {
         throw HermesError.unreachable("离线桩")
     }
@@ -224,6 +244,20 @@ struct FailingHermesClient: HermesClientProtocol {
     func searchSessions(
         config: ServerConfig, query: String, limit: Int
     ) async throws -> [SessionSearchHit] {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func sessionTimeline(
+        config: ServerConfig, id: String,
+        afterRowID: Int64?, limit: Int
+    ) async throws -> SessionTimelinePage {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func sessionMessagesAround(
+        config: ServerConfig, id: String,
+        rowID: Int64, limit: Int
+    ) async throws -> SessionAroundPage {
         throw HermesError.unreachable("离线桩")
     }
 

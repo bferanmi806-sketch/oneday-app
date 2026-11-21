@@ -92,6 +92,26 @@ protocol HermesClientProtocol: Sendable {
     /// POST /api/memory/reset {target}
     func resetMemory(config: ServerConfig, target: String) async throws
 
+    /// GET /api/learning/graph（台账 164）：学到的
+    /// 技能＋记忆块图谱（记忆真源在服务端，本面只
+    /// 读呈现、写走 node 三口，不建本地第二真源）
+    func learningGraph(config: ServerConfig) async throws -> LearningGraph
+    /// GET /api/learning/node?id=（台账 164）：节点
+    /// 全文（编辑预填）；形态未钉死、宽容提取
+    func learningNode(
+        config: ServerConfig, id: String
+    ) async throws -> LearningNodeContent
+    /// PUT /api/learning/node {id, content}（台账
+    /// 164）：改写节点全文（技能＝SKILL.md、记忆＝
+    /// 记忆块）
+    func updateLearningNode(
+        config: ServerConfig, id: String, content: String
+    ) async throws
+    /// DELETE /api/learning/node {id}（台账 164）：
+    /// 技能归档（可恢复）、记忆删除（不可恢复）——
+    /// 服务端语义，呈现层确认文案据 kind 分流
+    func deleteLearningNode(config: ServerConfig, id: String) async throws
+
     /// GET /api/skills（裸数组）
     func skills(config: ServerConfig) async throws -> [SkillItem]
     /// GET /api/skills/content?name=
@@ -198,6 +218,22 @@ protocol HermesClientProtocol: Sendable {
     func searchSessions(
         config: ServerConfig, query: String, limit: Int
     ) async throws -> [SessionSearchHit]
+    /// GET /api/sessions/{id}/timeline?limit=&after_
+    /// row_id=（台账 161）：prompt 元数据时间线，条
+    /// 目 row_id 是 messages/around 的寻址坐标；响
+    /// 应形态未被冻结件钉死，走 JSONValue 宽容提取
+    func sessionTimeline(
+        config: ServerConfig, id: String,
+        afterRowID: Int64?, limit: Int
+    ) async throws -> SessionTimelinePage
+    /// GET /api/sessions/{id}/messages/around?row_
+    /// id=&limit=（台账 161）：自某 prompt 起的有界
+    /// 展示页（与 /messages 同投影）；row_id 不存在
+    /// 时服务端 404（Prompt not found）
+    func sessionMessagesAround(
+        config: ServerConfig, id: String,
+        rowID: Int64, limit: Int
+    ) async throws -> SessionAroundPage
     /// GET /api/sessions/{id}/mutation-snapshot：围栏
     /// 身份的官方指定来源（删除 409 热修，报告 §1.2）
     func sessionMutationSnapshot(
@@ -1103,6 +1139,42 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         )
     }
 
+    func learningGraph(config: ServerConfig) async throws -> LearningGraph {
+        try await getJSON(
+            config: config, path: "/api/learning/graph",
+            endpoint: L10n.string("学习图谱")
+        )
+    }
+
+    func learningNode(
+        config: ServerConfig, id: String
+    ) async throws -> LearningNodeContent {
+        let raw: JSONValue = try await getJSON(
+            config: config, path: "/api/learning/node",
+            endpoint: L10n.string("学习节点"),
+            query: [URLQueryItem(name: "id", value: id)]
+        )
+        return LearningNodeContent.extract(from: raw)
+    }
+
+    func updateLearningNode(
+        config: ServerConfig, id: String, content: String
+    ) async throws {
+        try await sendJSON(
+            config: config, path: "/api/learning/node", method: "PUT",
+            endpoint: L10n.string("学习节点改写"),
+            body: ["id": .string(id), "content": .string(content)]
+        )
+    }
+
+    func deleteLearningNode(config: ServerConfig, id: String) async throws {
+        try await sendJSON(
+            config: config, path: "/api/learning/node", method: "DELETE",
+            endpoint: L10n.string("学习节点删除"),
+            body: ["id": .string(id)]
+        )
+    }
+
     // MARK: - 技能
 
     func skills(config: ServerConfig) async throws -> [SkillItem] {
@@ -1403,6 +1475,42 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
             ]
         )
         return response.results
+    }
+
+    func sessionTimeline(
+        config: ServerConfig, id: String,
+        afterRowID: Int64?, limit: Int
+    ) async throws -> SessionTimelinePage {
+        var query = [
+            URLQueryItem(name: "limit", value: String(limit)),
+        ]
+        if let afterRowID {
+            query.append(
+                URLQueryItem(
+                    name: "after_row_id", value: String(afterRowID)
+                )
+            )
+        }
+        let raw: JSONValue = try await getJSON(
+            config: config, path: "/api/sessions/\(id)/timeline",
+            endpoint: L10n.string("会话时间线"),
+            query: query
+        )
+        return SessionTimelinePage.extract(from: raw)
+    }
+
+    func sessionMessagesAround(
+        config: ServerConfig, id: String,
+        rowID: Int64, limit: Int
+    ) async throws -> SessionAroundPage {
+        try await getJSON(
+            config: config, path: "/api/sessions/\(id)/messages/around",
+            endpoint: L10n.string("消息上下文窗口"),
+            query: [
+                URLQueryItem(name: "row_id", value: String(rowID)),
+                URLQueryItem(name: "limit", value: String(limit)),
+            ]
+        )
     }
 
     func deleteServerSession(config: ServerConfig, id: String) async throws {
