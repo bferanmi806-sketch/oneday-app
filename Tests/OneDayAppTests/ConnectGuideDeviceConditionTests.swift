@@ -8,10 +8,16 @@ import XCTest
 /// 连接页引导小包（2026-11-21，§335）的设备条件帧：
 /// 分叉首屏（ConnectView 欢迎面）与通知权限段
 /// （NotificationGuideView）在深色＋最大字号
-/// （AX5＋粗体）两态下装配取帧。断言口径与既有装
-/// 配探针同族：关键控件经无障碍标签在场；内容高在
-/// AX 态实际生长（动态字号真到达版面、不被钉死字
-/// 号吞掉——本包两面全部走文本样式档、无写死字号）。
+/// （AX5＋粗体）两态下装配取帧。
+///
+/// 断言口径沿 §327 先例（AttachmentPanelFitAssem-
+/// blyTests 沿革注）：App 测试窗口内 SwiftUI 无障碍
+/// 标签集实测为空集（§303 首轮实证），在场断言不
+/// 用 AX 标签面——标签集只采集打印留档；在场与条
+/// 件帧证据走尺寸对账：内容高落内容构成推出的下
+/// 限带、深色帧与浅色帧同高（只换色不改版）、AX
+/// 帧实际生长（动态字号真到达版面、不被钉死字号
+/// 吞掉——本包两面全部走文本样式档、无写死字号）。
 @MainActor
 final class ConnectGuideDeviceConditionTests: XCTestCase {
 
@@ -108,6 +114,8 @@ final class ConnectGuideDeviceConditionTests: XCTestCase {
 
     // MARK: - 取数（与组装探针同口径）
 
+    /// 标签集只作留档倾卸（§327 口径：测试窗口内
+    /// 恒为空集，不作断言依据）
     private func collectAccessibilityLabels(
         in view: UIView
     ) -> [String] {
@@ -135,13 +143,8 @@ final class ConnectGuideDeviceConditionTests: XCTestCase {
         return out
     }
 
-    private func windowLabels() -> [String] {
-        guard let window else { return [] }
-        return collectAccessibilityLabels(in: window)
-    }
-
     /// 连接页滚动内容高（HostingScrollView 的
-    /// contentSize；AX 生长断言的读数点）
+    /// contentSize；版面构成与 AX 生长的读数点）
     private func scrollContentHeight() -> CGFloat? {
         guard let window else { return nil }
         var found: UIScrollView?
@@ -160,24 +163,38 @@ final class ConnectGuideDeviceConditionTests: XCTestCase {
         return found?.contentSize.height
     }
 
+    private func segmentFitHeight(
+        _ host: UIHostingController<AnyView>
+    ) -> CGFloat {
+        host.sizeThatFits(
+            in: CGSize(
+                width: 402, height: CGFloat.greatestFiniteMagnitude
+            )
+        ).height
+    }
+
     // MARK: - 分叉首屏两帧
 
-    /// 深色帧：分叉两路都在场（主按钮＋次按钮标签）
+    /// 深色帧：内容高落构成下限带（页头＋演示卡＋
+    /// 分叉双钮＋细字的构成高，缺任何一块都会掉出
+    /// 带），且与浅色同高——深色只换色不改版
     func testWelcomeForkDarkFrame() {
+        assembleConnectView(dark: false, boldAX: false)
+        let lightHeight = scrollContentHeight() ?? 0
         assembleConnectView(dark: true, boldAX: false)
-        let labels = windowLabels()
-        XCTAssertTrue(
-            labels.contains("连接已有服务器"),
-            "深色帧主路按钮缺席：\(labels)"
+        let darkHeight = scrollContentHeight() ?? 0
+        XCTAssertGreaterThan(
+            lightHeight, 550,
+            "浅色帧内容高 \(lightHeight) 掉出构成下限带"
         )
-        XCTAssertTrue(
-            labels.contains("还没有服务器？了解部署"),
-            "深色帧备路按钮缺席：\(labels)"
+        XCTAssertEqual(
+            darkHeight, lightHeight, accuracy: 2,
+            "深色帧内容高与浅色不对账：\(lightHeight)→\(darkHeight)"
+                + "（深色不许改版）"
         )
-        let height = scrollContentHeight() ?? 0
-        XCTAssertGreaterThan(height, 0, "深色帧滚动内容高缺席")
         add(XCTAttachment(string:
-            "forkDark labels=\(labels.count) contentH=\(height)"))
+            "forkDark lightH=\(lightHeight) darkH=\(darkHeight)"
+            + " labels=\(collectAccessibilityLabels(in: window))"))
     }
 
     /// 最大字号帧：AX5＋粗体下内容高实际生长（分叉
@@ -193,36 +210,36 @@ final class ConnectGuideDeviceConditionTests: XCTestCase {
             "AX 帧内容未生长：\(baseHeight)→\(axHeight)"
                 + "（动态字号未到达分叉版面）"
         )
-        let labels = windowLabels()
-        XCTAssertTrue(
-            labels.contains("连接已有服务器"),
-            "AX 帧主路按钮缺席：\(labels)"
-        )
         add(XCTAttachment(string:
             "forkAX baseH=\(baseHeight) axH=\(axHeight)"))
     }
 
     // MARK: - 通知权限段两帧
 
-    /// 深色帧：未决定态的段面全件在场（主按钮＋跳
-    /// 过＋两条用途标题）
+    /// 深色帧：未决定态段面拟合高落构成下限带（球
+    /// ＋标题＋用途先行＋两用途＋主钮＋跳过＋细字），
+    /// 且与浅色同高
     func testNotificationSegmentDarkFrame() {
-        let host = assembleNotificationSegment(dark: true, boldAX: false)
-        let labels = windowLabels()
-        for expected in ["允许通知", "暂时跳过", "定时任务到点", "长任务完成"] {
-            XCTAssertTrue(
-                labels.contains(expected),
-                "深色帧通知段缺「\(expected)」：\(labels)"
-            )
-        }
-        let fit = host.sizeThatFits(
-            in: CGSize(
-                width: 402, height: CGFloat.greatestFiniteMagnitude
-            )
+        let lightHost = assembleNotificationSegment(
+            dark: false, boldAX: false
         )
-        XCTAssertGreaterThan(fit.height, 0, "深色帧通知段拟合高缺席")
+        let lightFit = segmentFitHeight(lightHost)
+        let darkHost = assembleNotificationSegment(
+            dark: true, boldAX: false
+        )
+        let darkFit = segmentFitHeight(darkHost)
+        XCTAssertGreaterThan(
+            lightFit, 400,
+            "浅色帧通知段拟合高 \(lightFit) 掉出构成下限带"
+        )
+        XCTAssertEqual(
+            darkFit, lightFit, accuracy: 1,
+            "深色帧通知段拟合高与浅色不对账："
+                + "\(lightFit)→\(darkFit)（深色不许改版）"
+        )
         add(XCTAttachment(string:
-            "notifDark labels=\(labels.count) fitH=\(fit.height)"))
+            "notifDark lightH=\(lightFit) darkH=\(darkFit)"
+            + " labels=\(collectAccessibilityLabels(in: window))"))
     }
 
     /// 最大字号帧：段面拟合高实际生长
@@ -230,26 +247,18 @@ final class ConnectGuideDeviceConditionTests: XCTestCase {
         let baseHost = assembleNotificationSegment(
             dark: false, boldAX: false
         )
-        let baseFit = baseHost.sizeThatFits(
-            in: CGSize(
-                width: 402, height: CGFloat.greatestFiniteMagnitude
-            )
-        )
-        XCTAssertGreaterThan(baseFit.height, 0, "基线帧通知段拟合高缺席")
+        let baseFit = segmentFitHeight(baseHost)
+        XCTAssertGreaterThan(baseFit, 0, "基线帧通知段拟合高缺席")
         let axHost = assembleNotificationSegment(
             dark: false, boldAX: true
         )
-        let axFit = axHost.sizeThatFits(
-            in: CGSize(
-                width: 402, height: CGFloat.greatestFiniteMagnitude
-            )
-        )
+        let axFit = segmentFitHeight(axHost)
         XCTAssertGreaterThan(
-            axFit.height, baseFit.height,
-            "AX 帧通知段未生长：\(baseFit.height)→\(axFit.height)"
+            axFit, baseFit,
+            "AX 帧通知段未生长：\(baseFit)→\(axFit)"
                 + "（动态字号未到达权限段版面）"
         )
         add(XCTAttachment(string:
-            "notifAX baseH=\(baseFit.height) axH=\(axFit.height)"))
+            "notifAX baseH=\(baseFit) axH=\(axFit)"))
     }
 }
