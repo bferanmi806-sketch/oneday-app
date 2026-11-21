@@ -10276,7 +10276,9 @@ private struct ComposerBarLayout: Layout {
                         )
                     }
                 ) else { continue }
-                let stubs = page.messages.compactMap { message in
+                let stubs: [AroundWindowHunt.MessageStub] =
+                    page.messages.compactMap { message
+                        -> AroundWindowHunt.MessageStub? in
                     guard message.id > 0,
                           let row = Int64(exactly: message.id)
                     else { return nil }
