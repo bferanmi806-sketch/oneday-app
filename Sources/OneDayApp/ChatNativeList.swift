@@ -1966,6 +1966,16 @@ final class ChatRootViewController: UIViewController,
         else { return }
         let host = UIHostingController(rootView: content)
         host.safeAreaRegions = []
+        // 台账 195：高由固有尺寸——与行托管（190
+        // ④ ensureRowHost）同式补 sizingOptions。
+        // 漏设时键盘稳态下内容生长（加引用/附件）
+        // 无锚重解析事件捎带刷新、宿主帧不跟高、
+        // 卡内容溢出宿主（实测：键盘态加引用卡长
+        // 61 而舱高不变、输入行沉入键盘顶之下；
+        // 静息态因回落重解析节流拍恒有布局活动而
+        // 不显）。位置链（§194/§302）与静息入流
+        // 约束（189）均不动、只补尺寸失效通道
+        host.sizingOptions = .intrinsicContentSize
         host.view.backgroundColor = .clear
         host.view.translatesAutoresizingMaskIntoConstraints =
             false
