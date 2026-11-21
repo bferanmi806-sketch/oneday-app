@@ -166,47 +166,36 @@ final class AttachmentPanelTests: XCTestCase {
     }
 
     func testFittedSheetHeightThreeStates() {
-        let safeArea: CGFloat = 34
-        
         // 无库态：32（padding）＋ 105（动作行）＝ 137
         let noLibrary = AttachmentPanel.fittedSheetHeight(
             showsLibrary: false,
-            hasSelection: false,
-            bottomSafeArea: safeArea
+            hasSelection: false
         )
-        XCTAssertEqual(noLibrary, 137 + safeArea)
-        
+        XCTAssertEqual(noLibrary, 137)
+
         // 有库未选：32 ＋ 152（库区）＋ 16 ＋ 105 ＝ 305
         let libraryNoSelection = AttachmentPanel.fittedSheetHeight(
             showsLibrary: true,
-            hasSelection: false,
-            bottomSafeArea: safeArea
+            hasSelection: false
         )
-        XCTAssertEqual(libraryNoSelection, 305 + safeArea)
-        
+        XCTAssertEqual(libraryNoSelection, 305)
+
         // 有库已选：305 ＋ 16 ＋ 52（确认行）＝ 373
         let libraryWithSelection = AttachmentPanel.fittedSheetHeight(
             showsLibrary: true,
-            hasSelection: true,
-            bottomSafeArea: safeArea
+            hasSelection: true
         )
-        XCTAssertEqual(libraryWithSelection, 373 + safeArea)
+        XCTAssertEqual(libraryWithSelection, 373)
     }
 
-    func testFittedSheetHeightScalesWithSafeArea() {
-        // safeArea 入参完全计入总高
-        let base = AttachmentPanel.fittedSheetHeight(
+    func testFittedSheetHeightExcludesSafeArea() {
+        // D5 根因口径：贴合高只算内容、安全区不入参——系统 sheet 的
+        // detent 解析值已含安全区处理，函数再加一层即多算 34.3pt
+        // （装配测 testAttachPanelPresentsAtFittedHeight 钉死此口径）
+        let height = AttachmentPanel.fittedSheetHeight(
             showsLibrary: false,
-            hasSelection: false,
-            bottomSafeArea: 0
+            hasSelection: false
         )
-        XCTAssertEqual(base, 137)
-        
-        let withSafe = AttachmentPanel.fittedSheetHeight(
-            showsLibrary: false,
-            hasSelection: false,
-            bottomSafeArea: 50
-        )
-        XCTAssertEqual(withSafe, 137 + 50)
+        XCTAssertEqual(height, 137)
     }
 }
