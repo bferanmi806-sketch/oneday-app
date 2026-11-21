@@ -536,14 +536,23 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     }
 
     private func assertRowMenuAbsent(in app: XCUIApplication) {
-        let item = app.buttons.matching(
+        // 双口径同 pollRowMenu（台账 193 判读对
+        // 齐）：自绘动作面项以标题在树——只查 SF
+        // Symbol 标识时，文本长按若误呈动作面、本
+        // 断言看不见（0.50.77 第二轮靠编辑菜单断
+        // 言的标签错位才间接暴露），改两口径皆无
+        // 才算不在场
+        let bySymbol = app.buttons.matching(
             NSPredicate(
                 format: "identifier == %@",
                 rowMenuReplySymbol
             )
         ).firstMatch
+        let byLabel = app.buttons.matching(
+            NSPredicate(format: "label == %@", "回复")
+        ).firstMatch
         XCTAssertFalse(
-            item.exists,
+            bySymbol.exists || byLabel.exists,
             "文本区手势不许出整行菜单（S3 仲裁）"
         )
     }
