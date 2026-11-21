@@ -77,8 +77,10 @@ struct ChatNativeRowFacets {
     var deliveryCoverForms: [String: Bool] = [:]
     /// 本地图解码成败（与条目 imageDatas 同序）
     var localImageDecoded: [Bool] = []
-    /// 审批区：ready 时的未锚定遍历集（记录本体
-    /// ＋锚定集＋已决行 id 集）；nil＝非 ready
+    /// 审批区：ready 时的遍历集（记录本体全量
+    /// ＋锚定集＋已决行 id 集；活卡/余数的队列
+    /// 派生在合成器核心经 ApprovalZoneQueue
+    /// 做）；nil＝非 ready
     var zoneRecords: [WriteGateRecord]?
     var zoneAnchoredIDs: Set<String> = []
     var zoneResolvedLineIDs: [String] = []
@@ -207,7 +209,18 @@ enum ChatNativeRowFacetSnapshotter {
         facets.zoneAnchoredIDs = hubStore.anchoredRecordIDs
         facets.zoneResolvedLineIDs =
             hubStore.resolvedLines.map(\.id)
-        for record in records {
+        // D10 定版②：区高只读活卡一张的详情/备
+        // 注/裁决中（与摘要、合成同口径，§331 快
+        // 照纪律）——其余待批已收纳进计数行、无
+        // 卡面读数，不入快照
+        let queue = ApprovalZoneQueue.derive(
+            recordIDs: records.map(\.id),
+            anchoredIDs: hubStore.anchoredRecordIDs
+        )
+        if let activeID = queue.activeRecordID,
+           let record = records.first(
+               where: { $0.id == activeID }
+           ) {
             facets.approvalDetails[record.id] =
                 ledger.approvalDetail(for: record.id)
             if let note = hubStore.cardNotes[record.id] {

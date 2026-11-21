@@ -29,14 +29,27 @@ struct ChatApprovalZone: View {
 
     var body: some View {
         if case .ready(let records) = store.approvalState {
+            // D10 定版②（一次只活一张）：未锚待批
+            // 只出桥序第一条活卡，其余收成计数行；
+            // 派生走 Core ApprovalZoneQueue 单源，
+            // 与行高合成/facet 摘要同口径。锚定行
+            // 不入此口径（§165 自承载、主线裁定豁免）
+            let queue = ApprovalZoneQueue.derive(
+                recordIDs: records.map(\.id),
+                anchoredIDs: anchoredRecordIDs
+            )
             VStack(spacing: OneDayMetrics.spacingM) {
-                ForEach(records) { record in
-                    if !anchoredRecordIDs.contains(record.id) {
-                        ChatApprovalCard(
-                            store: store, record: record,
-                            ledger: ledger
-                        )
-                    }
+                if let activeID = queue.activeRecordID,
+                   let record = records.first(
+                       where: { $0.id == activeID }
+                   ) {
+                    ChatApprovalCard(
+                        store: store, record: record,
+                        ledger: ledger
+                    )
+                }
+                if queue.queuedCount > 0 {
+                    queuedRow(count: queue.queuedCount)
                 }
                 ForEach(store.resolvedLines) { line in
                     if !anchoredRecordIDs.contains(line.id) {
@@ -45,6 +58,29 @@ struct ChatApprovalZone: View {
                 }
             }
         }
+    }
+
+    /// 待批收纳计数行（D10 定版②）：与回执行同
+    /// 族形态（surface 底＋footnote），只报数、
+    /// 不出钮、不可点——点开若出带钮的卡即破
+    /// 「只活一张」（定版字面口径，不做展开预览）
+    private func queuedRow(count: Int) -> some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            Image(systemName: "tray.full")
+                .font(.footnote)
+                .foregroundStyle(Palette.inkSecondary)
+            Text(L10n.format("还有 %lld 件待批", Int64(count)))
+                .font(.footnote.weight(.medium))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+            Spacer()
+        }
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .padding(.vertical, OneDayMetrics.spacingS)
+        .background(
+            Palette.surface,
+            in: RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
+        )
     }
 
     /// 裁决结果行：卡收起后的原地痕迹——结论图标＋标
