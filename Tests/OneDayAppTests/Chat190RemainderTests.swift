@@ -16,8 +16,9 @@ import XCTest
 /// 对拍；毒产物（伪段高）不入文本备忘（确路后
 /// 读仍为真值）；用户/锚定行不适用回 nil
 /// ④ 台账 196 §2.4：回响行高文字列宽按视图本
-/// 体算术（HStack 三对 spacingS＋时刻 .caption）
-/// ——临界宽下旧式一行、新式两行，以此分界验
+/// 体算术（HStack 三对 spacingS；诊断的时刻字
+/// 阶子项经复核为 SwiftUI/UIKit 同档异名、不成
+/// 立）——临界宽下旧式一行、新式两行，分界验
 /// ⑤ 台账 196 修复方向 2：facet 快照器对锚定行
 /// 跳过助手扫描支（文件 facet 恒空）、普通助手
 /// 行照旧
@@ -313,9 +314,9 @@ final class Chat190RemainderTests: XCTestCase {
         let footnoteFont = UIFont.preferredFont(
             forTextStyle: .footnote, compatibleWith: traits
         )
-        let captionFont = UIFont.preferredFont(
-            forTextStyle: .caption, compatibleWith: traits
-        )
+        // 时刻字阶：视图 SwiftUI .caption 与 UIKit
+        // .caption1 同档异名——公式两侧同用
+        // caption1 计宽（196 §2.4 字阶子项复核结论）
         let caption1Font = UIFont.preferredFont(
             forTextStyle: .caption1, compatibleWith: traits
         )
@@ -339,11 +340,10 @@ final class Chat190RemainderTests: XCTestCase {
             repeating: "测", count: 20
         )
         let headlineWidth = lineWidth(headline, footnoteFont)
-        // 列宽标定：旧式（扣 2×spacingS＋caption1
-        // 时刻宽）下主句恰一行（宽余 2）；新式
-        // （扣 3×spacingS＋caption 时刻宽）随之窄
-        // 约 10pt、主句折两行——以总高是否跨过
-        // 两行门槛分界
+        // 列宽标定：旧式（扣 2×spacingS）下主句
+        // 恰一行（宽余 2）；新式（扣 3×spacingS）
+        // 窄一份 spacingS、主句折两行——以总高
+        // 是否跨过两行门槛分界
         let contentWidth = headlineWidth + 2
             + OneDayMetrics.spacingM * 2 + 13
             + OneDayMetrics.spacingS * 2

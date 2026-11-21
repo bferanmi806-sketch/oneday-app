@@ -2226,20 +2226,23 @@ struct ChatNativeRowHeightComposer {
         let timeText = Self.traceEchoTimeText(
             entry.createdAt
         )
-        // 台账 196 §2.4 核对（代码实证、本包对齐）：
-        // ①时刻字阶——视图用 .caption、旧式以
-        // .caption1 量宽（窄一档、列宽随之虚宽），
-        // 行高下限同随 .caption 对齐（max 項）；
-        // ②文字列宽——视图 HStack（spacingS）三
-        // 个相邻对（图标↔列、列↔Spacer、Spacer
-        // ↔时刻）各吃一份 spacingS、旧式只扣两
-        // 份（列宽多算一份 spacingS）。两处同向：
-        // 临界折行时行数偏少、高低估一行——本次
-        // 按视图本体逐项对齐；时刻宽同走自然宽备
-        // 忘（§335/196 第一层护盾）。真机临界折行
-        // 样本帧验留账（196 §五同项）
+        // 台账 196 §2.4 核对（代码实证）：文字列
+        // 宽——视图 HStack（spacingS）三个相邻对
+        // （图标↔列、列↔Spacer、Spacer↔时刻）各
+        // 吃一份 spacingS、旧式只扣两份（列宽多
+        // 算一份 spacingS、临界折行时行数偏少、
+        // 高低估一行），本次按视图对齐扣 3 份。
+        // 诊断同项的时刻字阶子项经复核不成立：
+        // 视图 .font(.caption) 是 SwiftUI 字阶、
+        // 与 UIKit .caption1 同档异名（12pt 同
+        //  ramp；UIFont.TextStyle 本无 .caption
+        // 成员），旧式以 .caption1 量宽本已对位、
+        // 下限 spec(.caption1) 同理不动——此轴只
+        // 补备忘（时刻宽走自然宽备忘，§335/196
+        // 第一层护盾）。真机临界折行样本帧验留
+        // 账（196 §五同项）
         let timeWidth = plainNaturalWidth(
-            timeText, .caption
+            timeText, .caption1
         )
         let textWidth = contentWidth
             - OneDayMetrics.spacingM * 2
@@ -2264,7 +2267,7 @@ struct ChatNativeRowHeightComposer {
                 )
         }
         return OneDayMetrics.spacingS * 2
-            + max(column, spec(.caption))
+            + max(column, spec(.caption1))
     }
 
     /// 回响时刻文案（ChatView.traceEchoTimeText
