@@ -24,11 +24,11 @@ protocol SpeechAudioEngine: AnyObject {
 /// 切 .playback 并激活、停/完后释放（与听写的录音
 /// 会话共用同一个 AVAudioSession 的分工：听写开始
 /// 前 ChatView 先停朗读，后到者重设类别，互不抢）
-final class AVSpeechAudioEngine: NSObject, SpeechAudioEngine,
+final class AVSpeechAudioEngine: NSObject,
     AVAudioPlayerDelegate, @unchecked Sendable {
     private let player: AVAudioPlayer
-    var onNaturalFinish: (@MainActor () -> Void)?
-    var onPlaybackFailure: (@MainActor (String) -> Void)?
+    @MainActor var onNaturalFinish: (@MainActor () -> Void)?
+    @MainActor var onPlaybackFailure: (@MainActor (String) -> Void)?
 
     init(data: Data) throws {
         player = try AVAudioPlayer(data: data)
@@ -62,13 +62,12 @@ final class AVSpeechAudioEngine: NSObject, SpeechAudioEngine,
         _ player: AVAudioPlayer, successfully flag: Bool
     ) {
         releaseSession()
-        let finish = onNaturalFinish
-        let failure = onPlaybackFailure
-        Task { @MainActor in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             if flag {
-                finish?()
+                onNaturalFinish?()
             } else {
-                failure?("这次朗读没成功。")
+                onPlaybackFailure?("这次朗读没成功。")
             }
         }
     }
@@ -77,12 +76,17 @@ final class AVSpeechAudioEngine: NSObject, SpeechAudioEngine,
         _ player: AVAudioPlayer, error: Error?
     ) {
         releaseSession()
-        let failure = onPlaybackFailure
-        Task { @MainActor in
-            failure?("这次朗读没成功。")
+        Task { @MainActor [weak self] in
+            self?.onPlaybackFailure?("这次朗读没成功。")
         }
     }
 }
+
+/// 协议一致性隔离在主 actor：两个回调闭包只在主隔离
+/// 读写（消费方 SpeechPlayer 全程 @MainActor），系统
+/// delegate 回调留在非隔离上下文、只跳回主隔离执行
+/// （2026-11-10 回调隔离铁律），不把类整体标 @MainActor
+extension AVSpeechAudioEngine: @MainActor SpeechAudioEngine {}
 
 /// 朗读播放器（H2-a，台账 159）：状态机在 Core
 /// （SpeechPlaybackMachine），本层只做效果执行——

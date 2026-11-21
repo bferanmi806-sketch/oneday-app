@@ -11,9 +11,9 @@ import OneDayCore
 @MainActor
 final class SpeechPlayerTests: XCTestCase {
 
-    final class FakeEngine: SpeechAudioEngine {
-        var onNaturalFinish: (@MainActor () -> Void)?
-        var onPlaybackFailure: (@MainActor (String) -> Void)?
+    final class FakeEngine {
+        @MainActor var onNaturalFinish: (@MainActor () -> Void)?
+        @MainActor var onPlaybackFailure: (@MainActor (String) -> Void)?
         private(set) var started = false
         private(set) var stopped = false
         func start() { started = true }
@@ -289,3 +289,6 @@ final class SpeechPlayerTests: XCTestCase {
         XCTAssertTrue(stub.engines[0].stopped)
     }
 }
+
+/// 假引擎的一致性同样隔离在主 actor（与生产引擎同口径）
+extension SpeechPlayerTests.FakeEngine: @MainActor SpeechAudioEngine {}
