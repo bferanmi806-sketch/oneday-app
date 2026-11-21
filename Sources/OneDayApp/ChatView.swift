@@ -588,6 +588,14 @@ struct ChatView: View {
     @State private var streamSettleMap = StreamingSettleMap()
     /// 0.6.0：通知 sheet（顶栏铃铛点开，总览桥驱动）
     @State private var showNotifications = false
+    /// D9：对话内查找状态
+    @State private var showFind = false
+    @State private var findQuery = ""
+    @State private var findMatches: [UUID] = []
+    @State private var findScrollTrigger = UUID()
+    @State private var currentFindIndex = 0
+    /// D9 补全：查找命中高亮的条目 id（1-2 秒后自动淡出）
+    @State private var findHighlightEntryID: UUID?
     /// 锚点点亮的条目 id（§165）：点达锚定行时置位，
     /// 行底色以 Palette.primaryTint 点亮、2.5 秒后清
     /// （沿 §123 枢纽聚焦同手法）；消费锚点请求的
@@ -1800,6 +1808,67 @@ struct ChatView: View {
     /// (edge: .top) 的注册内容，195 起迁 TopBar-
     /// GuideHost 锚定托管、内容一字未动）：顶栏＋
     /// 进展胶囊。顶簇实高由宿主量测回报（见
+    /// D9：对话内查找栏（对标 iOS Messages）
+    private var findBar: some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            TextField("查找", text: $findQuery)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .submitLabel(.search)
+                .onSubmit {
+                    performFind()
+                }
+            
+            if !findQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if findMatches.isEmpty {
+                    Text("无结果")
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondary)
+                } else {
+                    Text("\(currentFindIndex + 1)/\(findMatches.count)")
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondary)
+                        .monospacedDigit()
+                }
+            }
+            
+            Button {
+                navigateToPreviousMatch()
+            } label: {
+                Image(systemName: "chevron.up")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 32, height: 32)
+            }
+            .disabled(findMatches.isEmpty)
+            .buttonStyle(.odPressable)
+            
+            Button {
+                navigateToNextMatch()
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 32, height: 32)
+            }
+            .disabled(findMatches.isEmpty)
+            .buttonStyle(.odPressable)
+            
+            Button("完成") {
+                showFind = false
+                findQuery = ""
+                findMatches = []
+                currentFindIndex = 0
+            }
+            .font(.body)
+            .buttonStyle(.odPressable)
+        }
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.vertical, OneDayMetrics.spacingS)
+        .background(.ultraThinMaterial)
+    }
+
     /// TopBarGuideHost），列表顶留位据此记账
     private var topBarCluster: some View {
         VStack(spacing: OneDayMetrics.rowInnerGap) {
@@ -1810,6 +1879,9 @@ struct ChatView: View {
                     appState.router.pendingChatSessionID = sessionID
                 }
             )
+            if showFind {
+                findBar
+            }
         }
     }
 
@@ -1884,6 +1956,36 @@ struct ChatView: View {
                 // 未读通知＋待审批，总览桥聚合）。原右钮
                 // 「新建会话」退场——新建入口在抽屉底条与
                 // 抽屉空态行各有一处，不占顶栏三件套之位
+                // D9 补全：顶栏菜单（查找功能收入菜单）
+                Menu {
+                    Button {
+                        showFind = true
+                    } label: {
+                        Label("在对话中查找", systemImage: "magnifyingglass")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(
+                            size: HeaderButtonSpec.glyphPointSize,
+                            weight: .regular
+                        ))
+                        .foregroundStyle(Palette.ink)
+                        .frame(
+                            width: HeaderButtonSpec.diameter,
+                            height: HeaderButtonSpec.diameter
+                        )
+                        .glassEffect(.regular, in: Circle())
+                        .frame(
+                            width: OneDayMetrics.minTapTarget,
+                            height: OneDayMetrics.minTapTarget
+                        )
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.odPressable)
+                .accessibilityLabel("菜单")
+
+                Spacer(minLength: OneDayMetrics.spacingXS)
+
                 Button {
                     showNotifications = true
                 } label: {
@@ -3307,7 +3409,7 @@ struct ChatView: View {
                 )
             )
         }
-        let highlighted = entry.id == anchorHighlightEntryID
+        let highlighted = entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID
         // 行描述备忘戳：构建输入全量（量测键含修订
         // 基段摘要＋facet 摘要＋环境指纹；落定高；
         // 点亮；样式键）——戳不变整行复用上趟描述，
@@ -3999,7 +4101,7 @@ struct ChatView: View {
             &+ (entry.toolCardData?.count ?? 0)
         version = version &* 31 &+ entry.remoteImagePaths.count
         version = version &* 31 &+ entry.remoteFilePaths.count
-        if entry.id == anchorHighlightEntryID {
+        if entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID {
             version &+= 0x9e37
         }
         // 台账 148：未读锚翻转同属版本输入（锚行重
@@ -4892,6 +4994,26 @@ struct ChatView: View {
         // 帧落位由下方 .task 定版链单点承担（0.22.0：
         // 无存量滚动锚的线程出现一拍后无动画贴底））
         .scrollDismissesKeyboard(.interactively)
+        // D9：查找功能 onChange 监听器
+        .onChange(of: findScrollTrigger) { _, _ in
+            guard currentFindIndex < findMatches.count else { return }
+            let targetID = findMatches[currentFindIndex]
+            withAnimation {
+                proxy.scrollTo(targetID, anchor: .center)
+            }
+            // D9 补全：命中高亮（1.5秒后淡出）
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(350))
+                findHighlightEntryID = targetID
+                try? await Task.sleep(for: .seconds(1.5))
+                if findHighlightEntryID == targetID {
+                    findHighlightEntryID = nil
+                }
+            }
+        }
+        .onChange(of: findQuery) { _, _ in
+            performFind()
+        }
         // 距底距离回写（0.4.2，§27）：判定改迟滞双阈值
         // （OneDayCore.BottomProximity：进入 <96／退出
         // ≥176、带内保持原态）——0.4.1 前是 <140 单阈
@@ -5595,6 +5717,63 @@ struct ChatView: View {
         }
     }
 
+    // MARK: - D9 对话内查找
+
+    /// D9：执行查找，遍历当前会话消息
+    private func performFind() {
+        guard let thread = currentThread else {
+            findMatches = []
+            currentFindIndex = 0
+            return
+        }
+        
+        let query = findQuery.lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            findMatches = []
+            currentFindIndex = 0
+            return
+        }
+        
+        // 遍历消息，大小写不敏感匹配
+        findMatches = thread.sortedEntries.compactMap { entry in
+            // 只搜索普通消息，跳过工具卡、回响、审批等
+            guard entry.toolCard == nil,
+                  entry.traceKey == nil,
+                  entry.echoKey == nil,
+                  entry.approvalKey == nil else {
+                return nil
+            }
+            
+            if entry.content.lowercased().contains(query) {
+                return entry.id
+            }
+            return nil
+        }
+        
+        // 重置索引到第一个匹配
+        currentFindIndex = 0
+        
+        // 触发滚动到第一个匹配
+        if !findMatches.isEmpty {
+            findScrollTrigger = UUID()
+        }
+    }
+    
+    /// D9：导航到下一个匹配
+    private func navigateToNextMatch() {
+        guard !findMatches.isEmpty else { return }
+        currentFindIndex = (currentFindIndex + 1) % findMatches.count
+        findScrollTrigger = UUID()
+    }
+    
+    /// D9：导航到上一个匹配
+    private func navigateToPreviousMatch() {
+        guard !findMatches.isEmpty else { return }
+        currentFindIndex = (currentFindIndex - 1 + findMatches.count) % findMatches.count
+        findScrollTrigger = UUID()
+    }
+
     /// 落定评估的事件消费口（键盘整包 R4）：几何
     /// 事件（距底读数变化为主、尾锚事实翻转为辅）
     /// 到场即喂状态机一步——状态推进与判定全在
@@ -6088,7 +6267,7 @@ struct ChatView: View {
         // primaryTint 底色点亮（沿 §123 枢纽聚焦同
         // 手法），消费侧 2.5 秒后清
         .background(
-            entry.id == anchorHighlightEntryID
+            entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID
                 ? Palette.primaryTint
                 : Color.clear,
             in: RoundedRectangle(
