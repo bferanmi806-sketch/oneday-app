@@ -5,20 +5,21 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// 台账 195 量测探针（诊断轮，结论落定后由正式断言
-/// 测试取代）：引用条出现前后——输入舱位移量 vs 条
-/// 实高，键盘收起/弹起两态各量一遍。
+/// 台账 195 验收断言：引用条出现前后——输入舱位移
+/// 量 vs 条实高的等式关系，键盘收起/弹起两态各钉
+/// 一遍。诊断轮实测（run 44843567900，探针版）：
+/// 静息态 growth=61.0／topDisp=61.0／bottomDrift
+/// =0.0、文本视图 y 不变——条在卡内生长区落位、
+/// 输入行底锚不动。本测试把该等式钉成可复测断言：
+///   舱生长 == 卡生长 == 舱顶上移 == 条槽实高
+///   舱底漂移 == 0、输入行（文本视图）位移 == 0
+///   撤引用后舱高与舱底回基线、槽离场
 /// 装配＝生产全装配（RootView＋原生面默认开）＋
-/// AppState 待发引用驱动引用槽（feed 变体与消息变
-/// 体同槽同几何：左轨 30＋两行 caption＋spacing-
-/// Micro＋纵 padding 16＋发丝线 1，见 ChatView
-/// quoteBar/feedQuoteBar 本体）。
-/// 量法：舱宿主帧（ChatRootViewController.compo-
-/// serHost）窗口系三读——生长量（高差）／顶位移
-/// （minY 差）／底漂移（maxY 差）；卡玻璃帧与文本
-/// 视图帧同帧旁证；静息态另采胶囊顶对 189 锚口径。
+/// AppState 待发引用表驱动引用槽（feed 变体与消息
+/// 变体同槽同几何，见 ChatView composerCard §332
+/// 槽位：条本体＋1pt 发丝线直挂卡根）。
 @MainActor
-final class ChatQuoteDock195ProbeTests: XCTestCase {
+final class ChatQuoteDock195Tests: XCTestCase {
 
     private var window: UIWindow!
     private var container: ModelContainer!
@@ -176,13 +177,15 @@ final class ChatQuoteDock195ProbeTests: XCTestCase {
             .first.map { $0.convert($0.bounds, to: window) }
     }
 
-    private func capsuleTop() -> CGFloat? {
-        let bars = findViews(window) { $0 is UITabBar }
-        guard let bar = bars.first as? UITabBar,
-              let capsule = ChatRootViewController
-                .findDockCapsule(in: bar)
-        else { return nil }
-        return capsule.convert(capsule.bounds, to: window).minY
+    /// 引用槽在场直查：条标题标签（feedQuoteBar
+    /// 渲染帖题）是否在舱层级内
+    private func quoteSlotPresent() -> Bool {
+        guard let host = findRootVC()?.composerHost
+        else { return false }
+        return findViews(host.view) { view in
+            (view as? UILabel)?.text?.contains("量测帖标题")
+                ?? false
+        }.isEmpty == false
     }
 
     private func postKeyboard(
@@ -240,93 +243,142 @@ final class ChatQuoteDock195ProbeTests: XCTestCase {
         )
     }
 
-    private func num(_ v: CGFloat?) -> String {
-        v.map { String(format: "%.1f", $0) } ?? "nil"
+    /// 等式断言组（两态共用）：基线帧→引用帧→撤回帧
+    /// bottomTolerance：键盘态容忍键盘帧重申的整舱
+    /// 微移（诊断轮见 -2.0 的整舱同移：舱/卡/文本
+    /// 三帧同量，非引用几何）；静息态严判 0.6。
+    private func assertQuoteDockEqualities(
+        state: String, bottomTolerance: CGFloat
+    ) {
+        XCTAssertTrue(
+            spinUntil(timeout: 12) {
+                findRootVC()?.composerHost != nil
+            },
+            "\(state)：原生面舱宿主未装配"
+        )
+        XCTAssertFalse(
+            quoteSlotPresent(),
+            "\(state)：基线不应有引用槽"
+        )
+        let base = stableHostFrame()
+        let baseCard = cardFrame()
+        let baseText = textViewFrame()
+        XCTAssertNotNil(base, "\(state)：基线舱帧未取得")
+
+        setQuote(true)
+        XCTAssertTrue(
+            spinUntil(timeout: 10) { quoteSlotPresent() },
+            "\(state)：引用槽未在场"
+        )
+        let quoted = stableHostFrame()
+        let quotedCard = cardFrame()
+        let quotedText = textViewFrame()
+        print(
+            "QUOTE195 \(state) base host=\(fmt(base))"
+                + " card=\(fmt(baseCard))"
+                + " text=\(fmt(baseText))"
+        )
+        print(
+            "QUOTE195 \(state) quote host=\(fmt(quoted))"
+                + " card=\(fmt(quotedCard))"
+                + " text=\(fmt(quotedText))"
+        )
+        guard let base, let quoted,
+              let baseCard, let quotedCard,
+              let baseText, let quotedText
+        else {
+            XCTFail("\(state)：引用态帧未齐")
+            return
+        }
+        // 条槽实高＝卡生长（卡内唯一可生长子级）
+        let slotHeight = quotedCard.height - baseCard.height
+        XCTAssertGreaterThan(
+            slotHeight, 30,
+            "\(state)：条槽实高异常（应为一条引用条量级）"
+        )
+        // 等式一：舱生长 == 条槽实高
+        XCTAssertEqual(
+            quoted.height - base.height, slotHeight,
+            accuracy: 0.6,
+            "\(state)：舱生长≠条槽实高（多抬/少抬）"
+        )
+        // 等式二：舱顶上移 == 条槽实高
+        XCTAssertEqual(
+            base.minY - quoted.minY, slotHeight,
+            accuracy: 0.6,
+            "\(state)：舱顶上移≠条槽实高"
+        )
+        // 等式三：舱底不漂（底锚钉住）
+        XCTAssertEqual(
+            quoted.maxY - base.maxY, 0,
+            accuracy: bottomTolerance,
+            "\(state)：舱底漂移（底锚未钉住）"
+        )
+        // 等式四：输入行不位移（生长全在输入行之上）
+        XCTAssertEqual(
+            quotedText.minY - baseText.minY,
+            quoted.maxY - base.maxY,
+            accuracy: 0.6,
+            "\(state)：输入行相对舱底发生位移"
+        )
+        // 撤引用：槽离场、舱高与舱底回基线
+        setQuote(false)
+        XCTAssertTrue(
+            spinUntil(timeout: 10) { !quoteSlotPresent() },
+            "\(state)：撤引用后槽未离场"
+        )
+        let back = stableHostFrame()
+        print(
+            "QUOTE195 \(state) back host=\(fmt(back))"
+                + " tableCount="
+                + "\(appState.pendingQuotes"
+                + ".feedQuotesByThread.count)"
+                + " slotPresent=\(quoteSlotPresent())"
+        )
+        guard let back else {
+            XCTFail("\(state)：撤回帧未取得")
+            return
+        }
+        XCTAssertEqual(
+            back.height, base.height, accuracy: 0.6,
+            "\(state)：撤引用后舱高未回基线"
+        )
+        XCTAssertEqual(
+            back.maxY, base.maxY, accuracy: bottomTolerance,
+            "\(state)：撤引用后舱底未回基线"
+        )
     }
 
-    func testProbe195QuoteDockDisplacement() throws {
+    /// 静息态（键盘收起，189 入流锚）：严判
+    func testRestingStateQuoteDisplacementEqualsStripHeight() {
+        mountShell()
+        assertQuoteDockEqualities(
+            state: "REST", bottomTolerance: 0.6
+        )
+    }
+
+    /// 键盘态（合成键盘帧顶 541，§194 单常数链）：
+    /// 底漂容忍键盘重申整舱微移 2.5，其余等式严判
+    func testKeyboardStateQuoteDisplacementEqualsStripHeight() {
         mountShell()
         XCTAssertTrue(
             spinUntil(timeout: 12) {
                 findRootVC()?.composerHost != nil
             },
-            "原生面舱宿主未装配"
+            "KB：原生面舱宿主未装配"
         )
-        var lines: [String] = []
-        // —— 键盘收起态 ——
-        let base = stableHostFrame()
-        lines.append(
-            "REST noquote host=\(fmt(base))"
-                + " card=\(fmt(cardFrame()))"
-                + " text=\(fmt(textViewFrame()))"
-                + " capsuleTop=\(num(capsuleTop()))"
-        )
-        setQuote(true)
-        let quoted = stableHostFrame()
-        lines.append(
-            "REST quote host=\(fmt(quoted))"
-                + " card=\(fmt(cardFrame()))"
-                + " text=\(fmt(textViewFrame()))"
-        )
-        setQuote(false)
-        let back = stableHostFrame()
-        lines.append("REST back host=\(fmt(back))")
-        if let base, let quoted {
-            lines.append(
-                "REST growth="
-                    + "\(quoted.height - base.height)"
-                    + " topDisp=\(base.minY - quoted.minY)"
-                    + " bottomDrift="
-                    + "\(quoted.maxY - base.maxY)"
-            )
-            if let ct = capsuleTop() {
-                lines.append(
-                    "REST anchorGap base="
-                        + "\(base.maxY - ct)"
-                        + " quoted=\(quoted.maxY - ct)"
-                )
-            }
-            if let back {
-                lines.append(
-                    "REST returnDelta h="
-                        + "\(back.height - base.height)"
-                        + " maxY=\(back.maxY - base.maxY)"
-                )
-            }
-        }
-        // —— 键盘弹起态（合成通知帧顶 541） ——
         postKeyboard(
             name: UIResponder.keyboardWillShowNotification,
             top: 541, duration: 0
         )
-        let kbBase = stableHostFrame()
-        lines.append("KB noquote host=\(fmt(kbBase))")
-        setQuote(true)
-        let kbQuoted = stableHostFrame()
-        lines.append(
-            "KB quote host=\(fmt(kbQuoted))"
-                + " card=\(fmt(cardFrame()))"
-                + " text=\(fmt(textViewFrame()))"
+        _ = stableHostFrame()
+        assertQuoteDockEqualities(
+            state: "KB", bottomTolerance: 2.5
         )
-        setQuote(false)
-        let kbBack = stableHostFrame()
-        lines.append("KB back host=\(fmt(kbBack))")
-        if let kbBase, let kbQuoted {
-            lines.append(
-                "KB growth="
-                    + "\(kbQuoted.height - kbBase.height)"
-                    + " topDisp=\(kbBase.minY - kbQuoted.minY)"
-                    + " bottomDrift="
-                    + "\(kbQuoted.maxY - kbBase.maxY)"
-            )
-        }
         postKeyboard(
             name: UIResponder.keyboardWillHideNotification,
             top: 874, duration: 0
         )
         _ = stableHostFrame()
-        let dump = lines.joined(separator: "\n")
-        print("PROBE195-BEGIN\n\(dump)\nPROBE195-END")
-        add(XCTAttachment(string: dump))
     }
 }
