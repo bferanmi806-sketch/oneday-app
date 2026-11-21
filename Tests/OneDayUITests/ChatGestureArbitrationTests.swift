@@ -267,12 +267,31 @@ final class ChatGestureArbitrationTests: XCTestCase {
             XCTFail("抽屉里找不到演示种子会话行")
             return
         }
-        if !target.isHittable {
-            app.scrollViews.firstMatch.swipeUp()
+        // 2026-11-21 深夜定性（导航追踪探针实证）：种子行在未
+        // 滚动的抽屉名单里位于最底部（frame y≈847、中心距屏
+        // 底约 5pt），isHittable 虽判 true，XCUI 在该点的 tap
+        // 落进底边死区、按钮根本不触发，旧版直点＋丢弃等待结
+        // 果一路假绿到找字超时。先把行滚到可视区中部再点，
+        // 点后断言胶囊在位才许往下走。
+        let rowID = target.identifier
+        var row = app.buttons[rowID]
+        var scrolls = 0
+        while row.exists, row.frame.minY > 620, scrolls < 10 {
+            if app.scrollViews.firstMatch.exists {
+                app.scrollViews.firstMatch.swipeUp()
+            } else {
+                app.swipeUp()
+            }
+            scrolls += 1
+            Thread.sleep(forTimeInterval: 0.4)
+            row = app.buttons[rowID]
         }
-        target.tap()
-        _ = app.buttons["topbar.modelCapsule"]
-            .waitForExistence(timeout: 10)
+        row.tap()
+        XCTAssertTrue(
+            app.buttons["topbar.modelCapsule"]
+                .waitForExistence(timeout: 15),
+            "点种子行后顶栏胶囊未出现——抽屉导航没落定"
+        )
         // 跳到底部：列表初始停在顶部、LazyVStack 只
         // 物化首屏行，末尾消息不在树里——走生产「回
         // 到底部」钮（不在底部时才出现），无钮时以
@@ -321,8 +340,11 @@ final class ChatGestureArbitrationTests: XCTestCase {
         // 跑、吃冷启动，未等页面起来时全树无文本视
         // 图、轮询多久都是零（KeyboardDragDismiss-
         // Tests 同口径先等胶囊 30 秒）
-        _ = app.buttons["topbar.modelCapsule"]
-            .waitForExistence(timeout: 30)
+        XCTAssertTrue(
+            app.buttons["topbar.modelCapsule"]
+                .waitForExistence(timeout: 30),
+            "聊天页未组装：顶栏胶囊 30 秒未出现"
+        )
         for round in 0..<2 {
             let deadline = Date().addingTimeInterval(12)
             while Date() < deadline {
