@@ -1025,9 +1025,14 @@ final class ChatRootViewController: UIViewController,
     /// 186 的 delegate 内建上下文菜单通道退役于此
     /// （系统菜单装不下反应排）；选区在场行不触发
     /// ——平台文本视图在场时行 machinery 让路
-    /// （141/142 纪律不变）；识别成立即取消触摸，
-    /// 文本视图侧待定的长按选字随之作废（与旧系统
-    /// 通道「菜单先行」的落点口径一致）
+    /// （141/142 纪律不变）；识别成立即取消触摸。
+    /// 落点口径（台账 193 改判）：186 的「全行同触
+    /// 发、文本长按选字随菜单先行作废」已废——与文
+    /// 本视图自家长按无失败依赖的竞速经真机定案为
+    /// 真故障，改由 shouldReceive 在投递处按 hit-
+    /// Test 分工（文本上不接收、归平台选字；文本外
+    /// 才接收呈面），见 gestureRecognizer(_:shou-
+    /// ldReceive:) 注
     private let rowLongPress =
         UILongPressGestureRecognizer()
     /// 落点意图（H6）：冷开/命令贴底置真；落定拍
@@ -2470,6 +2475,36 @@ final class ChatRootViewController: UIViewController,
             || otherGestureRecognizer === touchObserver
     }
 
+    /// 落点分工（台账 193，§265 分工在原生面的
+    /// 收口）：行长按识别器不接收落在文本视图上
+    /// 的触摸——文本区长按归 UITextView 原生选
+    /// 字＋编辑菜单（平台辖区、141/142 本体）；
+    /// 识别器只收文本外（气泡边距带/行内铬件）
+    /// 的触摸呈动作面。判据与触摸序列门同源
+    /// （touchRowContext 的 hitTest 命中链，非
+    /// 帧普查——§332 已定案）。此前（台账 186）
+    /// 全行同触发：本识别器与文本视图自家长按
+    /// 识别器无失败依赖、同为 0.5 秒量级，胜负
+    /// 由时序定——0.50.77 同树两轮 CI 一轮编辑
+    /// 菜单一轮动作面（run 44795478758／4480-
+    /// 2336777 按钮树实证）、用户 2026-11-21
+    /// 真机报「长按不行」，竞速定案；本口在触
+    /// 摸投递处分工（UIGestureRecognizerDele-
+    /// gate 的官方仲裁入口），竞速整层消除。
+    /// 本识别器以外的识别器（触摸观察等）恒放
+    /// 行；落点解析不出（不在行上/布局未定）时
+    /// 放行、由 presentActionSheet 既有守卫兜底
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        guard gestureRecognizer === rowLongPress
+        else { return true }
+        guard let context = touchRowContext(touch)
+        else { return true }
+        return !context.onTextView
+    }
+
     // MARK: 行动作面（台账 187，方案 A 自绘面触发）
 
     /// 行长按落点（台账 186 分工改判沿革）：旧分工
@@ -2477,11 +2512,15 @@ final class ChatRootViewController: UIViewController,
     /// 外出菜单；186 改判为全行先出动作面（落点不
     /// 分工），当时的承载是 delegate 内建上下文菜
     /// 单。台账 187 起承载换自绘 sheet（系统菜单装
-    /// 不下反应排）：触发改本控制器长按识别器，落
-    /// 点口径不变（全行同触发）；选区机制本体
-    /// （141/142）不动——双击选字、选区在场行保护
-    /// 链与触摸序列门照旧，且选区在场的那一行长按
-    /// 不呈面（让路平台文本视图）
+    /// 不下反应排）：触发改本控制器长按识别器。台
+    /// 账 193 再改判：全行同触发与文本视图自家长按
+    /// 的竞速经真机定案，分工恢复 §265——分工点不
+    /// 在本呈现判据（本口仍全点位受理、单测钉住），
+    /// 而在识别器投递口（shouldReceive 按 hitTest
+    /// 拦文本落点），呈现判据与投递分工两层各司其
+    /// 职；选区机制本体（141/142）不动——双击选
+    /// 字、选区在场行保护链与触摸序列门照旧，且选
+    /// 区在场的那一行长按不呈面（让路平台文本视图）
     @objc private func rowLongPressFired(
         _ recognizer: UILongPressGestureRecognizer
     ) {

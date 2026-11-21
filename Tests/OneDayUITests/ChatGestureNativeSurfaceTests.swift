@@ -74,12 +74,26 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
                     "TEST-PADDING point=\(attempt.name)"
                         + " result=rowMenu"
                 )
-                let item = app.buttons.matching(
+                // hittable 复核与 pollRowMenu 同口径
+                // 双查（台账 193 判读对齐）：台账 187
+                // 起动作面是自绘 sheet、项以标题在树，
+                // SF Symbol 标识只在已退役的系统菜单
+                // 形态在树——旧单查使本断言在面已呈
+                // 现时恒假（0.50.77 两轮：pollRowMenu
+                // 已命中、断言仍红，日志实证）
+                let bySymbol = app.buttons.matching(
                     NSPredicate(
                         format: "identifier == %@",
                         rowMenuReplySymbol
                     )
                 ).firstMatch
+                let byLabel = app.buttons.matching(
+                    NSPredicate(
+                        format: "label == %@", "回复"
+                    )
+                ).firstMatch
+                let item = bySymbol.exists
+                    ? bySymbol : byLabel
                 XCTAssertTrue(item.isHittable)
                 return
             }
@@ -522,14 +536,23 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     }
 
     private func assertRowMenuAbsent(in app: XCUIApplication) {
-        let item = app.buttons.matching(
+        // 双口径同 pollRowMenu（台账 193 判读对
+        // 齐）：自绘动作面项以标题在树——只查 SF
+        // Symbol 标识时，文本长按若误呈动作面、本
+        // 断言看不见（0.50.77 第二轮靠编辑菜单断
+        // 言的标签错位才间接暴露），改两口径皆无
+        // 才算不在场
+        let bySymbol = app.buttons.matching(
             NSPredicate(
                 format: "identifier == %@",
                 rowMenuReplySymbol
             )
         ).firstMatch
+        let byLabel = app.buttons.matching(
+            NSPredicate(format: "label == %@", "回复")
+        ).firstMatch
         XCTAssertFalse(
-            item.exists,
+            bySymbol.exists || byLabel.exists,
             "文本区手势不许出整行菜单（S3 仲裁）"
         )
     }

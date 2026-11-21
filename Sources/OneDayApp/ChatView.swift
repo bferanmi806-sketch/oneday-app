@@ -12740,8 +12740,11 @@ extension EnvironmentValues {
 /// 不许挂行内容根（压死 UITextView 原生选字＋编
 /// 辑菜单，审计 S3 定性）。文本区长按仍归文本体
 /// 系——gen3 面与原生面（识别器全行覆盖）的这处
-/// 路由差异随 §265 双承载冲突留账（本包交卷明
-/// 示），不在未验状态下翻根挂载
+/// 路由差异曾随 §265 双承载冲突留账；台账 193
+/// （2026-11-21）已销账：原生面识别器改在投递口
+/// 按 hitTest 分工（文本上不接收），两面路由自
+/// 此一致（文本→平台选字/编辑菜单、文本外→动
+/// 作面），见 ChatNativeList 的 shouldReceive 注
 private struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
     /// 长按成立时置呈现状态（ChatView 侧收口）
