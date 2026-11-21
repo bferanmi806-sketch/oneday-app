@@ -298,17 +298,20 @@ public enum SpeechProviderDisplay {
 // MARK: - 播放状态机（纯逻辑）
 
 /// 朗读播放状态机（纯值类型，App 层 SpeechPlayer
-/// 只做效果执行）：四态——静默／请求中／播放中／
-/// 失败（带人话原因）。事件→（新态＋效果列），效
-/// 果由执行层落：tearDown＝停播＋取消在飞请求；
-/// startRequest＝发 speak；beginPlayback＝喂播放器。
-/// 迟到回执（请求已切走/已停）按条目 id 对账丢弃，
-/// 不许把上一条的音频播到当前态上
+/// 只做效果执行）：五态——静默／请求中／播放中／
+/// 已暂停／失败（带人话原因）。事件→（新态＋效果
+/// 列），效果由执行层落：tearDown＝停播＋取消在
+/// 飞请求；startRequest＝发 speak；beginPlayback
+/// ＝喂播放器；pausePlayback/resumePlayback＝引
+/// 擎断点暂停/续播（不拆引擎、进度保留）。迟到回
+/// 执（请求已切走/已停）按条目 id 对账丢弃，不许
+/// 把上一条的音频播到当前态上
 public struct SpeechPlaybackMachine: Sendable, Equatable {
     public enum State: Sendable, Equatable {
         case idle
         case requesting(entryID: UUID)
         case playing(entryID: UUID)
+        case paused(entryID: UUID)
         case failed(entryID: UUID, message: String)
     }
 
@@ -316,50 +319,61 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
         case tearDown
         case startRequest(entryID: UUID)
         case beginPlayback(entryID: UUID)
+        case pausePlayback
+        case resumePlayback
     }
 
     public private(set) var state: State = .idle
 
     public init() {}
 
-    /// 当前活动条目（请求中/播放中/失败所在条）
+    /// 当前活动条目（请求中/播放中/已暂停/失败所在条）
     public var activeEntryID: UUID? {
         switch state {
         case .idle: return nil
         case .requesting(let id), .playing(let id),
-             .failed(let id, _): return id
+             .paused(let id), .failed(let id, _): return id
         }
     }
 
-    /// 播放条呈现派生（台账 183）：请求中/播放中
-    /// 为真——出声（含即将出声）必有当场可见、可
-    /// 停的控制面（输入舱上瘦播放条，落点在 App
-    /// 层输入舱装配内）；静默为假；失败为假（失败
-    /// 走既有通知口给人话，不占舱面）。本派生是播
-    /// 放条显隐的单一出处——视图层只读本值，不许
-    /// 各自重判状态机
+    /// 播放条呈现派生（台账 183）：请求中/播放中/
+    /// 已暂停为真——出声（含即将出声）必有当场可
+    /// 见、可停的控制面（输入舱上瘦播放条，落点在
+    /// App 层输入舱装配内）；暂停后条必须常驻，否
+    /// 则没有当场继续的入口；静默为假；失败为假
+    /// （失败走既有通知口给人话，不占舱面）。本派
+    /// 生是播放条显隐的单一出处——视图层只读本
+    /// 值，不许各自重判状态机
     public var showsPlaybackBar: Bool {
         switch state {
-        case .requesting, .playing: return true
+        case .requesting, .playing, .paused: return true
         case .idle, .failed: return false
         }
     }
 
     /// 播放条文案派生（与 showsPlaybackBar 同出
-    /// 处）：请求中＝正在准备、播放中＝正在朗读；
-    /// 不出条的态为 nil
+    /// 处）：请求中＝正在准备、播放中＝正在朗读、
+    /// 已暂停＝已暂停（暂停态须与播放态可区分，
+    /// 否则用户分不清是停了还是卡了）；不出条的
+    /// 态为 nil
     public var playbackBarText: String? {
         switch state {
         case .requesting: return "正在准备朗读"
         case .playing: return "正在朗读"
+        case .paused: return "已暂停"
         case .idle, .failed: return nil
         }
     }
 
-    /// 是否正在出声/取声（菜单标题判读用）
+    /// 是否占用着播放通道（菜单标题判读用）：请
+    /// 求中/播放中/已暂停都算活动——暂停的条目菜
+    /// 单仍显「停止朗读」（菜单 toggle 语义＝朗读/
+    /// 停止二义，暂停/继续只住播放条，见 D1 对位
+    /// 表分工裁定）
     public func isActive(entryID: UUID) -> Bool {
         switch state {
-        case .requesting(let id), .playing(let id):
+        case .requesting(let id), .playing(let id),
+             .paused(let id):
             return id == entryID
         case .idle, .failed: return false
         }
@@ -372,14 +386,17 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
     }
 
     /// 点按某条的朗读项：静默/失败→发起；活动中的
-    /// 同一条→停；活动中的另一条→先拆后发（切换）
+    /// 同一条→停；活动中的另一条→先拆后发（切换）。
+    /// 已暂停与播放中同路（暂停中点同条＝停、点异
+    /// 条＝切换），暂停不改变菜单 toggle 语义
     @discardableResult
     public mutating func tap(entryID: UUID) -> [Effect] {
         // 显式嵌套判定（不用多模式 case＋where 的组合
         // 形态：该形态在请求中切换一条上出过实测与推
         // 演不符的匹配结果，见 H2-a CI 第四轮记录）
         switch state {
-        case .requesting(let id), .playing(let id):
+        case .requesting(let id), .playing(let id),
+             .paused(let id):
             if id == entryID {
                 state = .idle
                 return [.tearDown]
@@ -390,6 +407,25 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
             state = .requesting(entryID: entryID)
             return [.startRequest(entryID: entryID)]
         }
+    }
+
+    /// 播放条「暂停」（D1）：只认播放中的条目——
+    /// 引擎断点暂停、实例与进度保留，不拆不发请求；
+    /// 其余态（含已暂停重复点）空转
+    @discardableResult
+    public mutating func pause() -> [Effect] {
+        guard case .playing(let id) = state else { return [] }
+        state = .paused(entryID: id)
+        return [.pausePlayback]
+    }
+
+    /// 播放条「继续」（D1）：只认已暂停的条目——
+    /// 从断点续播；其余态空转
+    @discardableResult
+    public mutating func resume() -> [Effect] {
+        guard case .paused(let id) = state else { return [] }
+        state = .playing(entryID: id)
+        return [.resumePlayback]
     }
 
     /// speak 成功回执到达：只认仍在请求中的同一条
@@ -415,7 +451,9 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
         return []
     }
 
-    /// 播放自然结束：只认播放中的同一条
+    /// 播放自然结束：只认播放中的同一条（已暂停
+    /// 不认——暂停时引擎不触发自然结束回调，与
+    /// AVAudioPlayer 语义自洽）
     @discardableResult
     public mutating func playbackFinished(
         entryID: UUID
@@ -426,7 +464,8 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
         return []
     }
 
-    /// 播放器自身失败（数据坏/解码失败）
+    /// 播放器自身失败（数据坏/解码失败）：只认播
+    /// 放中（已暂停同 playbackFinished 口径不认）
     @discardableResult
     public mutating func playbackFailed(
         entryID: UUID, message: String
@@ -438,12 +477,14 @@ public struct SpeechPlaybackMachine: Sendable, Equatable {
     }
 
     /// 外部停播（点另一条之外的全部停因：离开页面、
-    /// 发送新消息、开始听写、音频打断）：活动态才
-    /// 需要拆，静默/失败态只清态不发效果
+    /// 发送新消息、开始听写）：活动态才需要拆，
+    /// 静默/失败态只清态不发效果。已暂停同样全拆
+    /// ——暂停只豁免「条上暂停钮/来电打断」两个口，
+    /// 其余停因不许留半截断点在场
     @discardableResult
     public mutating func stop() -> [Effect] {
         switch state {
-        case .requesting, .playing:
+        case .requesting, .playing, .paused:
             state = .idle
             return [.tearDown]
         case .idle, .failed:

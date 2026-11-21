@@ -430,4 +430,76 @@ final class VoiceSpeechTests: XCTestCase {
         XCTAssertTrue(machine.showsPlaybackBar)
         XCTAssertEqual(machine.playbackBarText, "正在准备朗读")
     }
+
+    /// 暂停/继续转换矩阵（D1）：pause 只认播放中、
+    /// resume 只认已暂停；暂停中 finished/failed
+    /// 不认（与引擎语义自洽）；条常驻＋文案「已暂
+    /// 停」；菜单仍显「停止朗读」、isActive 认暂停
+    func testPauseResumeMatrix() {
+        var machine = SpeechPlaybackMachine()
+        // 静默/请求中：pause/resume 都空转
+        XCTAssertEqual(machine.pause(), [])
+        XCTAssertEqual(machine.resume(), [])
+        _ = machine.tap(entryID: entryA)
+        XCTAssertEqual(machine.pause(), [])
+        XCTAssertEqual(machine.resume(), [])
+        XCTAssertEqual(machine.state, .requesting(entryID: entryA))
+
+        _ = machine.requestSucceeded(entryID: entryA)
+        // resume 在播放中空转
+        XCTAssertEqual(machine.resume(), [])
+        let effects = machine.pause()
+        XCTAssertEqual(effects, [.pausePlayback])
+        XCTAssertEqual(machine.state, .paused(entryID: entryA))
+        // 暂停派生：条常驻、文案可区分、仍是活动条
+        XCTAssertTrue(machine.showsPlaybackBar)
+        XCTAssertEqual(machine.playbackBarText, "已暂停")
+        XCTAssertTrue(machine.isActive(entryID: entryA))
+        XCTAssertFalse(machine.isActive(entryID: entryB))
+        XCTAssertEqual(machine.menuTitle(for: entryA), "停止朗读")
+        XCTAssertEqual(machine.activeEntryID, entryA)
+        // 重复 pause 空转
+        XCTAssertEqual(machine.pause(), [])
+        // 暂停中迟到 finished/failed 不许动状态
+        XCTAssertEqual(machine.playbackFinished(entryID: entryA), [])
+        XCTAssertEqual(
+            machine.playbackFailed(entryID: entryA, message: "x"),
+            []
+        )
+        XCTAssertEqual(machine.state, .paused(entryID: entryA))
+
+        let resumeEffects = machine.resume()
+        XCTAssertEqual(resumeEffects, [.resumePlayback])
+        XCTAssertEqual(machine.state, .playing(entryID: entryA))
+        XCTAssertEqual(machine.playbackBarText, "正在朗读")
+    }
+
+    /// 暂停中的 tap/stop（D1）：同条 tap＝停（全
+    /// 拆）、异条 tap＝先拆后发切换、stop＝全拆回
+    /// 静默（断点不豁免其余停因）
+    func testPausedTapAndStop() {
+        var machine = SpeechPlaybackMachine()
+        _ = machine.tap(entryID: entryA)
+        _ = machine.requestSucceeded(entryID: entryA)
+        _ = machine.pause()
+        XCTAssertEqual(machine.tap(entryID: entryA), [.tearDown])
+        XCTAssertEqual(machine.state, .idle)
+
+        _ = machine.tap(entryID: entryA)
+        _ = machine.requestSucceeded(entryID: entryA)
+        _ = machine.pause()
+        let effects = machine.tap(entryID: entryB)
+        XCTAssertEqual(
+            effects, [.tearDown, .startRequest(entryID: entryB)]
+        )
+        XCTAssertEqual(machine.state, .requesting(entryID: entryB))
+
+        var machine2 = SpeechPlaybackMachine()
+        _ = machine2.tap(entryID: entryA)
+        _ = machine2.requestSucceeded(entryID: entryA)
+        _ = machine2.pause()
+        XCTAssertEqual(machine2.stop(), [.tearDown])
+        XCTAssertEqual(machine2.state, .idle)
+        XCTAssertFalse(machine2.showsPlaybackBar)
+    }
 }

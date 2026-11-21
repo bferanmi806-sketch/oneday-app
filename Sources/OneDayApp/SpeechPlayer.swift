@@ -18,6 +18,10 @@ protocol SpeechAudioEngine: AnyObject {
     var onPlaybackFailure: (@MainActor (String) -> Void)? { get set }
     func start()
     func stop()
+    /// 断点暂停（D1）：停声但保留播放实例与进度
+    func pause()
+    /// 从断点续播（D1）
+    func resume()
 }
 
 /// AVAudioPlayer 引擎：音频会话在本层收口——播前
@@ -47,6 +51,24 @@ final class AVSpeechAudioEngine: NSObject,
     func stop() {
         player.stop()
         releaseSession()
+    }
+
+    /// 断点暂停（D1）：只停声——不释放会话、不动
+    /// delegate，player 的 currentTime 原地保留，
+    /// resume 后 play() 即从断点续播（stop() 会连
+    /// prepared 资源一并丢弃，两者不可混用）
+    func pause() {
+        player.pause()
+    }
+
+    /// 断点续播（D1）：暂停期间会话未释放、通常仍
+    /// 激活；仍幂等重设一次类别并激活，防打断等外
+    /// 部因素动过会话后静默无声
+    func resume() {
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .default)
+        try? session.setActive(true)
+        player.play()
     }
 
     private func releaseSession() {
@@ -140,8 +162,11 @@ final class SpeechPlayer {
         self.speakService = speakService
         self.voiceConfigService = voiceConfigService
         self.engineFactory = engineFactory
-        // 音频打断（来电等）：开始即停播——系统回调
-        // 不继承隔离，闭包内只跳回主隔离调 stop
+        // 音频打断（来电等）：开始即暂停（D1 改判：
+        // 通行做法是暂停而非全停——系统已自动哑掉
+        // 输出，此处主职是同步状态机与播放条进暂停
+        // 态；挂断后不自动续播，用户在条上点继续）；
+        // 系统回调不继承隔离，闭包内只跳回主隔离
         interruptionObserver = NotificationCenter.default
             .addObserver(
                 forName: AVAudioSession.interruptionNotification,
@@ -154,7 +179,7 @@ final class SpeechPlayer {
                 guard raw == AVAudioSession.InterruptionType
                     .began.rawValue else { return }
                 Task { @MainActor [weak self] in
-                    self?.stop()
+                    self?.pause()
                 }
             }
     }
@@ -240,8 +265,9 @@ final class SpeechPlayer {
     }
 
     /// 自动朗读新回复（设置开关开时由落定点调用）：
-    /// 只在静默/失败态起播——用户正在听别条时不抢，
-    /// 可用性已证伪（未开通）时不出声、不报错
+    /// 只在静默/失败态起播——用户正在听别条时不抢、
+    /// 主动暂停时更不许抢（D1）；可用性已证伪（未
+    /// 开通）时不出声、不报错
     func autoRead(
         entryID: UUID, content: String, appState: AppState
     ) {
@@ -249,7 +275,7 @@ final class SpeechPlayer {
         switch machine.state {
         case .idle, .failed:
             break
-        case .requesting, .playing:
+        case .requesting, .playing, .paused:
             return
         }
         let effects = machine.tap(entryID: entryID)
@@ -257,12 +283,28 @@ final class SpeechPlayer {
             appState: appState)
     }
 
-    /// 停播（离开页面/发送新消息/开始听写/音频打断
-    /// 共用）：活动态拆请求与引擎，静默态空转
+    /// 停播（离开页面/发送新消息/开始听写共用）：
+    /// 活动态拆请求与引擎，静默态空转。已暂停同拆
+    /// ——断点只在播放条暂停/继续之间活，其余停因
+    /// 一律全停（状态机 stop 口径）
     func stop() {
         for effect in machine.stop() where effect == .tearDown {
             tearDown()
         }
+    }
+
+    /// 断点暂停（播放条主钮/音频打断共用）：只转发
+    /// 当前引擎——不 tearDown、不取消请求（暂停只
+    /// 发生在播放态，此时无请求在飞），引擎实例与
+    /// 进度原地保留
+    func pause() {
+        runEngineEffects(machine.pause())
+    }
+
+    /// 断点续播（播放条主钮）：同 pause 口径，只转
+    /// 发当前引擎从断点续播，不重发 speak 请求
+    func resume() {
+        runEngineEffects(machine.resume())
     }
 
     private func run(
@@ -280,6 +322,28 @@ final class SpeechPlayer {
                 )
             case .beginPlayback:
                 // tap 不产此效果（由请求成功点直产）
+                break
+            case .pausePlayback:
+                engine?.pause()
+            case .resumePlayback:
+                engine?.resume()
+            }
+        }
+    }
+
+    /// 暂停/继续效果执行：这两件效果不需要条目/
+    /// 正文/连接上下文，只转发当前引擎
+    private func runEngineEffects(
+        _ effects: [SpeechPlaybackMachine.Effect]
+    ) {
+        for effect in effects {
+            switch effect {
+            case .pausePlayback:
+                engine?.pause()
+            case .resumePlayback:
+                engine?.resume()
+            case .tearDown, .startRequest, .beginPlayback:
+                // pause()/resume() 只产暂停/继续两件
                 break
             }
         }
