@@ -14559,3 +14559,42 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 ### §356.4 验收与未验项
 - 实验室：Test-OneDayApp-speech-closeout.xcresult——SpeechPlayerTests 12/12＋SpeechEngineCallbackIsolationTests 3/3，全绿。回归：Test-OneDayApp-speech-regression.xcresult——BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9、ChatNativeFollowSourceTests 8/8，全绿。（注：任务简报点名的 ChatScrollFollowTests/NoticePresentationTests 两套在本树与 rel-05086 均无此类——git grep 双基线零命中；滚动跟随的实存覆盖即 BottomFollow 两套＋ChatNativeFollowSourceTests、提示呈现即 ChatNoticeTests，按实存回归并在此留痕。）
 - 未验（如实）：真机朗读全程（点播/暂停续播/打断暂停/播放条观感）仍待用户真机门，与台账 5（D1）真机终验同批；本包实验室绿不替代真机 verdict。
+
+## §363 流畅度 S4：资源库列表懒化＋「滑动不了」根因定案（2026-11-22）
+
+### §363.1 根因定案（用户真机 2×2 矩阵＋四格结构 diff）
+
+用户 2026-11-22 21:47/22:22 亲报：资源库与影音「滑动不了」（不是卡顿、是滑动本身不工作）；22:22 补全矩阵——影音网格可划、影音列表不行、资源库网格与列表都不行。此矩阵为定案级证据，四格逐项 diff（同面同数据、只差形态）：
+
+| 格 | 容器 | 行/卡点按形态 | odPressFeedback | 缩略图 | 真机 |
+|---|---|---|---|---|---|
+| 影音网格 | LazyVGrid | Button＋.odPressable | 无 | 有 | ✅ 活 |
+| 影音列表 | VStack 急切 | onTapGesture | **有** | 有（56） | ❌ 死 |
+| 文件网格 | LazyVGrid | onTapGesture | **有** | 有（440） | ❌ 死 |
+| 文件列表 | VStack 急切 | onTapGesture | **有** | 无 | ❌ 死 |
+
+三死格共有、唯一活格独缺的元件只有一个：`.odPressFeedback()`（PressFeedbackModifier，OneDayDesign/Components.swift）——其实现是 `simultaneousGesture(DragGesture(minimumDistance: 0))`，注释自称「不抢宿主滚动」，但 0 距离阈值的 DragGesture 在落指瞬间即识别，在 SwiftUI ScrollView 的手势仲裁里抢走整条触摸序列：行面任意位置起手，滑动都先被行上的拖拽手势吃掉，ScrollView 的平移永不启动。这与症状形态逐项吻合（任意位置起手都不滚、与数据量无关、与行内容轻重无关）。
+
+排除项（逐项留痕）：①急切构建解释不了矩阵——文件网格是 LazyVGrid 仍死、影音列表行比文件网格卡轻仍死；②缩略图解释不了——文件列表无缩略图仍死；③⋮ Menu 解释不了——其命中域仅行尾 44pt，用户任意处起手都不滚，且活格影音网格同有 contextMenu；④手势拦截的代码负证据——DeliverablesView 内除行点按外无其他手势，ContentView/OneDayApp 根层无手势，宿主是普通 TabView，GroupDivider 是纯 Rectangle，无覆盖层吞滑动。
+
+同仓交叉验证（活/死面对照）：FeedView 的 odPressFeedback 行活在 `List` 里、ChatModelPicker 同理、聊天面活在 UIKit 载体里——该修饰只在 SwiftUI ScrollView 里杀滚动（List 与 UIKit 载体的手势仲裁不走这条路）；反面，GoalsView（ScrollView＋LazyVStack、行＝Button＋.odPressable）与本面影音网格（Button＋.odPressable）都是活的——**ScrollView 里的点按行只有 Button 形态是活的**，此即 §363.2 的修法选型依据。
+
+第二层病（同面加重，骨架量测）：急切全建的主线程饱和。照生产行结构复刻骨架（图标盒＋双行字＋⋮ Menu＋contextMenu＋onTapGesture＋odPressFeedback＋GroupDivider，M4 模拟器、50ms 定时器测 runloop 最大间隙）：急切 500 行首建卡顿 642ms、1500 行 1799ms、LazyVStack 1500 行 51ms（定时器地板）；高亮翻转整趟重演仅 94ms≈噪声——**成本主项在「建行」不在「重排/滚动趟」**（对探活报告把排序列为主因的口径修正留痕：排序/查找是次要项）。打开初瞬的冻窗内滑动同样被系统丢弃，与第一层病叠加成用户感知的「划不动」。
+
+第三层病（成本项，代码实查）：body 每趟多次全量重排（documents/mediaItems 各自 sorted×N 次读点）＋deliverable(for:) 对 deliverables 线性扫描（每行一扫＝O(N²)）＋影音网格每格露面 prefetch 重排一次。量测见 §363.3。
+
+reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸 UIWindow 宿主里做——结论互相矛盾（懒栈/List 的 offset 与 realized 信号打架），指向裸宿主驱动不了 SwiftUI ScrollView 滚动几何，**前四轮 scrollTo 结论全部作废**；第五轮宿主挂 App 真实 UIWindowScene 做 A/B：急切面对照 scrollTo(250) 落点 offsetY=15831；懒栈初始仅实现 13 行、scrollTo(250)（无动画、与生产 reveal 同式）后目标行实现（has250=true）、offsetY=15831 与急切面逐值相同（bundle Test-OneDayApp-s4probe5，2/2）。**定案：生产 reveal 的无动画跳转在懒栈成立，不需加固。**
+
+### §363.2 修法（分支 feat/smooth-s4-library-lazy）
+
+1. **行/卡 Button 化（治第一层病）**：deliverableRow/mediaRow 主区改原生 Button＋.buttonStyle(.odPressable)——⋮ 菜单原就是按钮外兄弟件、原样不动；0.43.0 的合并按钮无障碍语义改由真 Button 承载；标签 frame（maxWidth ∞、minHeight 64、contentShape Rectangle）保命中域与几何逐字不变。fileCard 整卡改 Button：⋮ 在信息栏内、不能嵌进 Button 标签，改同位覆盖层（距顶＝缩略图 112＋栏顶距 spacingS、距尾＝栏边距 spacingSM，与原布局盒逐值同位），信息栏内留 40×40 占位（原菜单净布局盒）保文本列宽；第 83 条命中域外扩链（minTapTarget 帧＋负边距抵消）逐字保留、HitArea44Tests 把守。已知差：文件卡按压缩放只作用卡体、⋮ 不随动（0.97 缩放/0.25s 级）。改后本面 `.odPressFeedback()` 与 `.onTapGesture` 归零，源码钉测把守（§363.3）。PressFeedbackModifier 本体本包不动（其 List/UIKit 宿主不受此病影响），但 hazard 记死：**该修饰不许再进 SwiftUI ScrollView 的全行/全卡面**，组件级治理留主线排期。
+2. **列表懒化（治第二层病）**：文件/影音两列表面内层 VStack(spacing: 0) 改 LazyVStack(spacing: 0)，滚动触发跳转（scrollTo）原样保留（第五轮探活已证成立）。
+3. **一趟一算快照（治第三层病）**：新增 LibraryListSnapshot——body 每趟只算一次（过滤谓词与旧 matchesQuery 逐字同、字典同路径首个优先与旧 first(where:) 同义、**只排当前段**、deliverable(for:) 字典 O(1) 直达、缺失回落 Deliverable(entry:source:"") 与旧兜底逐字同），快照下传两面全部读点；旧计算属性组（documents/mediaItems/ordered/sortedDocuments/sortedMedia/deliverable(for:)/matchesQuery/rotor 名册口径）整组退役；consumeRevealIfReady 改走 filtered()（读点在 query 清零之后、与旧时序同）；prefetchMedia 吃快照数组——影音网格每格露面重排一并治（网格同源受益注记）。**排序口味未动**（汉字整段在前 vs 拼音穿插＝台账 29 用户待裁，本包零 Core 改动）。
+
+### §363.3 量测与验收
+
+- 骨架首建卡顿（修前→修后，同口径复刻骨架、M4 模拟器相对值）：1500 行 1799ms → 51ms；500 行 642ms → （懒栈同地板量级）。
+- 每趟成本（N=2000，S4-COST 同测内对账：旧＝排序×3＋逐行线性查 vs 新＝排序×1＋字典）：111.19ms → 5.09ms（21.9×；断言 new＜old×0.6 通过）。
+- 等价钉测：LibraryListSnapshotTests 等价矩阵（3 排序×5 搜索词×2 置顶×2 打开记录、文件/影音双段与测试内旧口径复刻逐值比对＋非当前段 sorted 为空契约）＋nil 集＋查找首命中/缺失兜底＋结构钉测（LazyVStack 恰 2 处、线性扫描与旧计算属性退役、本面无 .odPressFeedback()/.onTapGesture）——全绿。
+- 测试账：Test-OneDayApp-s4final.xcresult 共 31 项 30 过——LibraryListSnapshotTests、HitArea44Tests、ShellBgStructureProbeTests（宿主 DeliverablesView 冒烟）全绿；唯一红＝OneDayCoreTests/LibraryOrderingTests.testSortByTitleUsesDisplayTitle，属基线老红（台账 29 排序口味待裁案、本包未碰 Core，失败形态即该案的「报告.docx vs alpha.pdf」序位）。补跑 Test-OneDayApp-s4final2.xcresult：OneDayCoreTests 六套（LibraryMenuResolution/FileLibraryModels/DeliverableFileType/DeliverableIconStyle/DeliveryMarker/MediaMarker）53/53 全绿。（留痕：首轮有五套误写 OneDayAppTests 前缀被 -only-testing 静默跳过、靠 bundle 总数对账发现，已按全限定名补跑——0.50.88 假绿教训的同型复发与拦截各记一次。）
+- 未验（如实）：**真机四格滚动 verdict 待用户**——实验室无触摸注入手段，滚动死活的终判在真机（下一版装机后四格逐格划动验收）；文件卡 ⋮ 覆盖层位置与按压观感附带真机目验。
