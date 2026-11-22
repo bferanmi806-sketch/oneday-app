@@ -3566,12 +3566,15 @@ struct ChatView: View {
                 resumeOutboxEntry(entry)
             } : nil,
             onEditUnsent: inOutbox ? {
-                deferSheetAction {
+                // 合流对账（154×200）：deferSheetAction
+                // 已随自绘面退役删除，与上文选择/分享同
+                // 口径改一拍主队列延后（意图保留）
+                DispatchQueue.main.async {
                     editUnsentEntry(entry)
                 }
             } : nil,
             onWithdrawUnsent: inOutbox ? {
-                deferSheetAction {
+                DispatchQueue.main.async {
                     withdrawUnsentEntry(entry)
                 }
             } : nil,
