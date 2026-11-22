@@ -68,6 +68,9 @@ struct DemoHermesClient: HermesClientProtocol {
         ["hermes-agent"]
     }
 
+    func capabilities(config: ServerConfig, apiKey: String) async throws -> CapabilitiesResponse { throw HermesError.demoLimitReached }
+    func healthDetailed(config: ServerConfig, apiKey: String) async throws -> HealthDetailedResponse { throw HermesError.demoLimitReached }
+
     /// 演示上游候选（与网关别名 hermes-agent 分开：选择器里
     /// 只该出现这一组，含一个别名 deepseek-chat 供标注演示）
     func modelOptions(config: ServerConfig) async throws -> [String] {
@@ -704,6 +707,8 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func claimEnrollment(config: ServerConfig, code: String) async throws -> EnrollmentClaim { throw HermesError.demoLimitReached }
     func listGrants(config: ServerConfig, apiKey: String) async throws -> GrantsListResponse { throw HermesError.demoLimitReached }
+    func listApprovals(config: ServerConfig, apiKey: String) async throws -> ApprovalsListResponse { throw HermesError.demoLimitReached }
+    func routeProbe(config: ServerConfig, apiKey: String?, path: String) async -> RouteProbeResult? { nil }
     func revokeGrant(config: ServerConfig, apiKey: String, patternKey: String) async throws -> GrantRevocationReceipt { throw HermesError.demoLimitReached }
     func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }
     func clearReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }

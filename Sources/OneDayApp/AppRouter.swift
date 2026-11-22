@@ -61,6 +61,10 @@ enum SettingsRoute: Hashable {
     /// 体检面（H1-a，台账 158）：原服务器管理「维护」段，
     /// 结构归位后归设置根服务器组维护尾段
     case healthCheck
+    /// 连接自检面（H13，台账 33，DESIGN §357）：客
+    /// 户端只读探活驻留面，落设置根服务器段（Core
+    /// 目录 connectionSelfCheck 条目直达）
+    case connectionSelfCheck
     /// 状态详情页（StatusView）：总览撤页后状态的家
     /// 原在服务器管理页（枢纽/总览归位对接点，合流
     /// 2026-11-20 落位）——服务器管理页已随设置根归

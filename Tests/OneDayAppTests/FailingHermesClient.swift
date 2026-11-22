@@ -38,6 +38,14 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func capabilities(config: ServerConfig, apiKey: String) async throws -> CapabilitiesResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func healthDetailed(config: ServerConfig, apiKey: String) async throws -> HealthDetailedResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func chatStream(
         config: ServerConfig, apiKey: String, model: String, messages: [ChatMessage],
         sessionID: String?
@@ -493,6 +501,14 @@ struct FailingHermesClient: HermesClientProtocol {
 
     func listGrants(config: ServerConfig, apiKey: String) async throws -> GrantsListResponse {
         throw HermesError.unreachable("离线桩")
+    }
+
+    func listApprovals(config: ServerConfig, apiKey: String) async throws -> ApprovalsListResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func routeProbe(config: ServerConfig, apiKey: String?, path: String) async -> RouteProbeResult? {
+        nil
     }
 
     func revokeGrant(config: ServerConfig, apiKey: String, patternKey: String) async throws -> GrantRevocationReceipt {
