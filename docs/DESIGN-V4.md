@@ -14861,3 +14861,56 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 发布验证集（名单自 Test-OneDayApp-hotfix93.xcresult 提取全限定名 70 套 718 项）：Test-OneDayApp-hf94full2.xcresult 实测 **718 过、0 红、0 跳过**（xcresulttool summary 本体对账），对 rel-05093 基线新红为 0；新增 S373 钉测 2 项不在该名单内、已于定向轮单独跑绿。
 - 模拟器冷启冒烟（ProbePhone 50C1A6D5）：Debug 包 simctl install＋launch（site.didichou.oneday，pid 55568），launchctl 在册存活、DiagnosticReports 无新增 OneDayApp 崩溃报告；截图实证首帧完整渲染（Mac /tmp/smoke94b.png）——全新模拟器无服务器配置、落欢迎/连接页，未进 ChatView（如实记边界：ChatView 路径由发布集＋探针构造覆盖）。明示边界同 §371.4：冒烟≠真机。
 - **真机门（用户）**：装 0.50.94 冷启不崩、进任意对话底部栏正常、抽屉开合后聊天落定拍冻结行为如 §366 设计。此门不过不关账。
+
+## §372 流畅度专项 S3：聊天原生列表失效域收窄（触发面＋折算缓存＋单宽降本；草稿，2026-11-23；分支 feat/smooth-s3-invalidation-scope，量测基线树 rel-05093）
+
+### §372.0 状态注记（先读）
+- 本节 §372.1/§372.2 完成于 rel-05093 树（实读＋同口径量测基线＋大厂对位），**落码暂缓**：0.50.93 真机仍打开闪退（新 .ips 与 §371/§354 同族——元数据递归栈溢出、耗尽点深入 composerCard），基线本身带病；结构性减深修复由主线另线推进（将动 ChatView/ChatNativeList 视图结构）。本包待主线给修复分支号后 rebase 到其上，先按新结构复核 §372.1 触发面再落 §372.3；量测基线须在新基线同口径复测后对账，本节在案读数只作 rel-05093 基线账。
+- 范围仍为 S 系列在案三件（§362.3「触发面与失效域不动（S3 范围）」、§366.2「C5……不在本包；C3/S3 失效域收窄不在本包」、§366.4「单宽随行数涨的根归 S3」），不扩大不缩小。
+
+### §372.1 病灶与量测基线（实读定案）
+
+**触发面（件一靶心）**：`nativeListSurface` 是 ChatView 本体上的计算属性（ChatView.swift:2838 起），其头显式读 `rowMeasureDesk.publishedRevision` 入 body 依赖；ChatView 的 `@State input`（:109，输入舱文本）每键击、流式状态、量测回填发布代次任一变化 → ChatView body 整体重求值 → `nativeRows()` 全量趟 → `ChatNativeListView.updateUIViewController` → `apply` → `applyNow` 全量对账。真实影响域逐项定案：
+- input（键击）：行集**零影响**——只 composerView 变；行喂入全趟纯陪跑。
+- 流式状态（streamingText/直播区状态）：只影响直播区行（`liveRenderItems()` 段，ChatView.swift:5227）；落定段（条目＋工具组）内容不变。
+- 量测回填（publishedRevision bump）：只影响已解析出行高（resolve 结果翻转的行）；条目内容与修订不变。
+- 条目变更：只影响变更行——构建层已由 §362 行构建备忘＋行描述备忘增量化（未变行免全文哈希、免 makeView 重建），但**趟本身的逐行走访与 applyNow 的 O(N) 对账仍全额付费**，此即本包收窄面。
+
+**稳态单趟残余构成（件二靶心）**：§362 在案拆账（快照验证 ~3–4ms／revisionDigest 折算＋facet 活状态读＋键串组装 ~4–5ms，合成会话 300 条口径）逐项复核现行代码，可再压点三处：
+- ① `revisionDigest`（ChatNativeRowHeight.swift:774）每趟对每行 ~73 个 parts **全量重折**：parts 本体已是定长摘要（addText/addData 入账时已折），本折算纯属把摘要再折成键——与语义无关的重复劳动，占折算段主体。
+- ② `environmentFingerprint`（同文件 :502）是**计算属性**，每次 `entryMemoKey` 调用重算一遍（含 `agentDisplayName` 的 fnv1a 与六段字符串拼接）——每趟 ×行数 次，而其输入（合成器构造口径）在合成器一生内不变。
+- ③ `entryFacetDigest`（同文件 :1113）每趟重建 [String] 段数组并 join：其中纯函数段（远端文件路径的 `FileLineAnchor.split`＋路径 fnv）只随正文/路径集变、却每趟重付；活状态段（展开覆盖／审批态／文件与解码态）必须逐趟活读、**不在收窄列**。
+
+**单宽（件三靶心）**：两层——
+- applyNow 每拍 O(N) 全量对账（ChatNativeList.swift:2283）：`newByKey` 与 `revisionsByKey` 两次整表字典构建、oldKeys/newKeys 两份键数组、修订失配过滤走全量 Equatable 比对（~73 parts×N）、高度合并整表重建＋exactHeightByKey 逐行写。**无变化重喂也全额付费**（§366.2 在案 C5 即此）。
+- 布局侧：全量失效后 compositional 布局重召全部 N 个 section 提供者（§366.1 已证定向 context 不被按范围消费、判死不再议）；`makeSection`（:1323）每召新建 2 个 NSCollectionLayoutSize＋item＋group＋section＋insets 全套对象，未变行同额重建。
+
+**量测基线（2026-11-23，本机模拟器 ProbePhone 50C1A6D5，rel-05093 树，同 S2 口径 best-of-5；bundle Test-OneDayApp-s3base 14/14 绿、Test-OneDayApp-s3probe 1/1 绿）**：
+- S2 配方复测（合成会话 300 条／正文＋思考 606,375 字节）：全量趟 **33,178µs**；增量稳态趟 **8,458µs**；单行变化趟 **8,821µs**；文本 ×4 对照稳态趟 8,759µs。与 §362.3 在案数（32,702／8,216／8,450µs）同量级、对得上，基线成立。
+- S3 探针（装配口径，探针件 S3BaselineProbeTests 未提交草稿）：300 行全量失效提供者重召 **300 次**（与行数 1:1，§366.1 的 60 档结论在 300 档复证）；全量布局 pass（invalidateLayout＋layoutIfNeeded 一趟）**4,300µs**；无变化重喂 apply 本体 **1,038µs**；单行变化重喂 apply 本体 **6,328µs**（含该行 reconfigure 施工，装配口径）。诚实注记：探针行只带单 part 修订，生产行修订 ~73 parts——生产口径的无变化对账税只会更高，本读数是下限。
+
+### §372.2 大厂做法全件对位表＋外部解法核查（自审自过）
+
+| # | 大厂通行做法 | 出处 | 本仓现状 | S3 对位 |
+|---|---|---|---|---|
+| 1 | 身份驱动增量：快照只载稳定 ID，内容变更走 `reconfigureItems` 原位重配（不换 cell、保手势/选区状态） | WWDC19 Advances in UI Data Sources；WWDC21 10252 后续口径 | **已对位**（§325 修订比对＋reconfigure、§332 触摸分流） | 不动 |
+| 2 | 变更检测的成本与行数弱相关：未变项在数据源层即判等跳过，不为判等重建全量中间结构 | diffable 语义（ID 相等且未列 reconfigure 即零触碰） | **部分对位**：cell 层已零触碰，但判等前的喂入组装（件二）与判等本体（applyNow 对账）仍全量付费 | 件一甲＋件三②收窄判等成本 |
+| 3 | 布局失效范围化：`invalidateLayout(with:)` 带 item 索引路按范围重算 | UIKit 官方 API | **已实证判死**（§366.1：本布局不按范围消费）→ 退路频次合并已落（§366） | 件三①走构造复用降单宽，不再议定向 |
+| 4 | 视图层失效隔离：子视图独立身份＋输入相等跳过 body（EquatableView/子视图抽取）；@Observable 属性级依赖追踪，未读属性不触发 | SwiftUI 官方口径（identity/依赖图；Observation 框架） | **未对位**：nativeListSurface 为 ChatView 计算属性、无独立身份，任一 ChatView 状态变即全趟 | 件一甲（控制器侧签名短路，**不动视图结构**）先行兜住陪跑趟；视图结构抽取归结构修复线领地、本包不抢；件一乙以验证走为前提做段复用 |
+| 5 | 折算/哈希按输入指纹缓存：指纹未变不重折；FNV 类流式哈希可续折（状态即一个字） | 增量哈希/校验缓存的通行实现 | **未对位**：revisionDigest 每趟全量重折、环境指纹每行重算 | 件二全件 |
+| 6 | 量测与呈现分离：行高后台预排版、主线程只查缓存 | §331 在案（微信/Signal 同构） | **已对位**（§331 量测台） | 不动 |
+
+外部核查结论：三路（diffable reconfigure 口径、SwiftUI 失效隔离、compositional 提供者全量重召为框架行为）与拟定修法**一致**，无现成更优解推翻路线；定向失效官方从未承诺 compositional 按范围消费，与 §366.1 本机实证互证，不重试。
+
+### §372.3 修法设计（待落码——rebase 至结构修复分支、按新结构复核触发面后施工）
+
+- **件一甲 · apply 签名短路**（ChatNativeList.swift 控制器内，不动 ChatView 视图结构）：`apply()` 入口先算喂入签名——逐行（行键、修订折算 UInt64、高 bitPattern、临界旗）序列＋布局参数＋顶底 inset，折算口径与件二同源（parts 逐项混入、无字符串化）；与上次已落写签名全等 → 跳过 applyNow 本体，composer/arrow 照常 applyComposer/applyArrow（输入路零影响）。键击陪跑趟自此在控制器口止步（签名比对为 UInt64 序列比对、成本远低于整表字典对账）。
+- **件一乙 · 落定段整段复用**（ChatView.nativeRows 内，条件件）：落定段（条目＋工具组行数组）整段缓存；复用条件＝同 thread＋renderPlan 缓存键命中＋styleKey 同＋量测台 publishedRevision 同＋点亮/未读锚三状态（anchorHighlightEntryID/findHighlightEntryID/unreadAnchorEntryID）同＋**本趟 products 走全命中零 miss**（验证不免付——声音性由 §362 快照全字段等值保证，段复用只省验证之后的组装/解析/戳/数组重建）；直播区/回告/审批/空态段恒每趟现建。落码前置复核：streamSettleMap 换键必伴 renderPlan 键变（settle 即新条目入计划）——若不联动，把 settle 映射代次纳入复用条件。结构修复线若已把 nativeListSurface 抽成独立视图，本件影响域随之重估、或可整件退役（以新结构为准）。
+- **件二 · 折算缓存**（ChatNativeRowHeight.swift＋ChatEntryRowBuildMemo.swift）：①`ChatNativeRowRevision` 立增量折算单点（续折语义与现 revisionDigest 逐值同：混入序、标签常量、fnv 口径原样），合成器 `revisionDigest` 改走本口、全仓不许第二份折算实现；②行构建备忘 Products 重建时同算 `prefixFoldState` 入账，`entryMemoKey` 增 products 入参路：自 prefixFoldState 续折尾段（分隔文案 flag＋摘要、未读旗、中性尾 flag＋空摘要）得摘要——与旧路**逐字同键**，等价钉测把守；不在席路（量测台/旧调用）走旧全量折算、两路同值；③`environmentFingerprint` 改合成器 init 期算一次入存储属性（其全体输入即合成器构造入参）；④facet 纯函数段缓存：路径 split＋fnv 随 Products 的 facetPaths 同账缓存，活状态摘要仍逐趟活读折入（失效语义不变）。
+- **件三 · 单宽降本**（ChatNativeList.swift）：①`makeSection` 构造复用——布局匣内按（高、首/末行位、布局参数代次）缓存 NSCollectionLayoutSection 实例，非临界行命中直回；临界行恒走现构路（就地量测的匣内副作用——回写确高/预算扣减——不许被缓存绕过）。落码以钉测证「同实例跨 pass 复用后帧高/contentSize 与现构逐值同」；证伪则本件退化为只做 ②。②applyNow 增量记账（C5 收口）：`revisionsByKey` 改原地更新（仅变更键写、离集键删），键集未变时不重建整表字典与键数组；高度合并在键集未变且修订失配为空时走快路（仅失配行与高变行落写）。
+
+### §372.4 验收（待落码后回填）
+- 量测同口径复测：S2 配方三数（稳态/单行变化，须对新基线复测基线后对账）＋S3 探针四数（提供者重召数应仍为 N——诚实口径：件三压的是单召成本与 pass 总时、不是召数；全量布局 pass 耗时、无变化重喂 apply、单行变化重喂 apply 须显著低于基线）。
+- 等价钉测：件二新旧键逐字同（富条目矩阵＋随机 parts 折算等价）、件一甲签名等价（同 rows 二喂零施工/异行一喂恰落写）、件三①同实例复用帧等价。
+- 回归：聊天族全套＋发布集相关套对新基线新红 0（基线老红逐条对证）；ChatRootChainStructureS371Tests 绿（根链红线不破）。
+- 真机门留用户：流式手感、键击跟手、滚动 hitch 以真机 verdict 为准，实验室绿不替代。
