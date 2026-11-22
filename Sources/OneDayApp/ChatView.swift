@@ -280,12 +280,14 @@ struct ChatView: View {
     /// 组装（见 ChatEntryRowBuildMemo）
     @State private var rowBuildMemo =
         ChatEntryRowBuildMemo()
-    /// §374（换引擎步骤 1）：增量喂入影子开关
+    /// §374（换引擎步骤 1/2）：增量喂入开关
     /// （Core ChatListIncrementalFeature，缺省关；
     /// 设置页实验区同键同源）与变更集追踪器——开
-    /// 时新路只算不用（逐趟产出变更集＋行值缓存
-    /// ＋与旧路差集对账），关时本视图行为与现行
-    /// 逐字一致（追踪器零调用、零状态）
+    /// 时逐趟产出变更集＋行值缓存并实际交付控制
+    /// 器 applyChanges（步骤 2 转正；影子账对账
+    /// 保留作过渡期交叉核验），关时本视图行为与
+    /// 现行逐字一致（追踪器零调用、零状态、喂入
+    /// 走旧路 apply 全量对账）
     @AppStorage(ChatListIncrementalFeature.defaultsKey)
     private var chatListIncrementalEnabled = false
     @State private var feedChangeTracker =
@@ -2828,8 +2830,16 @@ struct ChatView: View {
         // §331：量测台发布代次入 body 依赖——后台
         // 量测回填缓存后 bump、本面以确定高重喂
         _ = rowMeasureDesk.publishedRevision
+        let fedRows = nativeRows()
         return ChatNativeListView(
-            rows: nativeRows(),
+            rows: fedRows,
+            // §374 步骤 2 转正：开关开时本趟变更集
+            // （nativeRows 内追踪器 ingest 刚产出、
+            // 存 lastChangeSet）一并交付控制器走
+            // applyChanges；关时 nil、旧路 apply
+            changeSet: chatListIncrementalEnabled
+                ? feedChangeTracker.lastChangeSet
+                : nil,
             layout: ChatCarrierLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
