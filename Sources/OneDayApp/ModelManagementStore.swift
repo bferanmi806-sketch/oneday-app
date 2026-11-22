@@ -84,7 +84,7 @@ final class ModelManagementStore {
 
     // MARK: - 加载
 
-    func load(appState: AppState) async {
+    func load(appState: AppState, forceCatalog: Bool = false) async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
@@ -96,7 +96,14 @@ final class ModelManagementStore {
         } catch {
             errorMessage = (error as? HermesError)?.userMessage ?? L10n.string("配置没读出来，可能是网络或服务暂时没响应")
         }
-        await appState.refreshModelCatalog()
+        // §368：目录取数收口 AppState 新鲜度门——冷口
+        // 在 TTL 内 0 请求；下拉刷新经 forceCatalog 走
+        // 强制口必真拉
+        if forceCatalog {
+            await appState.refreshModelCatalogForced()
+        } else {
+            await appState.refreshModelCatalog()
+        }
         if appState.config != nil {
             let names = providers.map(\.name)
             let fetched = try? await appState.performAdmin {
@@ -387,6 +394,9 @@ final class ModelManagementStore {
             try await client.updateConfig(config: config, newConfig: updated)
         }
         rawConfig = updated
+        // §368：config 写成功即失效目录（服务商增删/
+        // 辅助分配都经此底座，目录分组随注册表变）
+        appState.invalidateModelCatalog()
     }
 }
 
@@ -499,7 +509,9 @@ extension ModelManagementStore {
     func testMainEndpoint(
         appState: AppState
     ) async -> ProviderConnectionOutcome {
-        await appState.refreshModelCatalog()
+        // §368：测连通以目录刷新结果为准，走强制口——
+        // 被 TTL 吞了就是拿旧清单冒充连通
+        await appState.refreshModelCatalogForced()
         return appState.availableModels.isEmpty
             ? .failed(message: L10n.string("没能读到网关的模型清单，检查网络与登录状态后再试。"))
             : .connected(modelCount: appState.availableModels.count)
