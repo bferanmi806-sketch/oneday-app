@@ -40,25 +40,30 @@ public enum ReactionBarRouting {
 
 // MARK: - 浮排呈现状态机
 
-/// 浮排阶段：idle（无呈现）／bar（药丸排在场）／
-/// actionSheet（已转交动作面、浮排已关）
+/// 浮排阶段：idle（无呈现）／bar（三层同呈在场：
+/// 药丸排＋快照＋动作卡，DESIGN §346）
 public enum ReactionBarPhase: Equatable, Sendable {
-    case idle, bar, actionSheet
+    case idle, bar
 }
 
 /// 状态机迁移产出：视图/会话层据此执行呈现与投
 /// 递——机内不碰数据与回调，反应投递由会话层在
-/// 收到 deliverReaction 后调 data.onPickReaction
+/// 收到 deliverReaction 后调 data.onPickReaction、
+/// 动作执行由会话层在收到 deliverAction 后调条目
+/// 自带 action（与系统菜单同一闭包路由）
 public enum ReactionBarEffect: Equatable, Sendable {
-    case presentBar, presentActionSheet, deliverReaction
+    case presentBar, deliverReaction, deliverAction
 }
 
 /// 反应浮排呈现状态机（纯值、无副作用）：长按进
-/// bar（可反应）或直达 actionSheet（不可反应——
-/// 路由层已先拦，本机保留完备迁移防误用）；bar
-/// 内点药丸＝投递反应并回 idle；点快照/空白＝转
-/// 交动作面；动作面关净回 idle。阶段不合的事件
-/// 一律忽略（返回 nil），不许错序投递（防双投）
+/// bar（三层同呈）；bar 内点药丸＝投递反应并回
+/// idle、点动作卡条目＝执行动作并回 idle；呈现被
+/// 外部关闭回 idle。阶段不合的事件一律忽略（返回
+/// nil），不许错序投递（防双投）。§343 的转交迁
+/// 移（requestActions/actionSheet）随 §346 动作卡
+/// 同呈退役：动作已在同一呈现内、无处可转交；不
+/// 可反应长按在本机不直达任何面（路由层恒先拦、
+/// 会话只在可反应时创建）
 public struct ReactionBarStateMachine: Equatable, Sendable {
     public private(set) var phase: ReactionBarPhase = .idle
 
@@ -68,13 +73,9 @@ public struct ReactionBarStateMachine: Equatable, Sendable {
     public mutating func longPress(
         canReact: Bool
     ) -> ReactionBarEffect? {
-        guard phase == .idle else { return nil }
-        if canReact {
-            phase = .bar
-            return .presentBar
-        }
-        phase = .actionSheet
-        return .presentActionSheet
+        guard phase == .idle, canReact else { return nil }
+        phase = .bar
+        return .presentBar
     }
 
     @discardableResult
@@ -85,14 +86,14 @@ public struct ReactionBarStateMachine: Equatable, Sendable {
     }
 
     @discardableResult
-    public mutating func requestActions() -> ReactionBarEffect? {
+    public mutating func pickAction() -> ReactionBarEffect? {
         guard phase == .bar else { return nil }
-        phase = .actionSheet
-        return .presentActionSheet
+        phase = .idle
+        return .deliverAction
     }
 
-    /// 呈现被外部关闭（动作面关净/浮排被系统收
-    /// 起）：任意非 idle 阶段回 idle；已 idle 返回
+    /// 呈现被外部关闭（点空白/快照收起/浮排被系统
+    /// 收起）：任意非 idle 阶段回 idle；已 idle 返回
     /// false
     @discardableResult
     public mutating func dismiss() -> Bool {
@@ -100,4 +101,39 @@ public struct ReactionBarStateMachine: Equatable, Sendable {
         phase = .idle
         return true
     }
+}
+
+// MARK: - 反应全集目录（DESIGN §346）
+
+/// 药丸排「＋」展开目录：完整常用集（表情/手势/
+/// 爱心/庆典/日常符号）。与 MessageReactions.
+/// palette（用户拍板样板 8 个、药丸排本体）不重
+/// 复、不替换——palette 仍是单排唯一集，本目录只
+/// 供半页网格展开层消费。写入路径核查（§346 施
+/// 工图）：反应以 String 存储、toggle/乐观组装/
+/// 端点参数均无 palette 限定，集外 emoji 与集内
+/// 同路落锤
+public enum ReactionEmojiCatalog {
+    public static let morePalette: [String] = [
+        // 表情
+        "😀", "😄", "😁", "🤣", "😊", "😍", "😘", "😎",
+        "🤔", "🤨", "😐", "😑", "😶", "😴", "😪", "🤤",
+        "😷", "🤒", "🤕", "🤢", "🤮", "🥵", "🥶", "🥴",
+        "😵", "🤯", "🥳", "🥺", "😳", "🤗", "🤫", "🤭",
+        "🫡", "🙄", "😬", "🤐", "😈", "💀", "👻", "👽",
+        "🤖", "🎃", "😺", "😸", "😹",
+        // 手势与身体
+        "👎", "👏", "🙌", "🤝", "💪", "🦾", "🖖", "✌️",
+        "🤞", "🫰", "🤟", "🤙", "👌", "🤌", "👈", "👉",
+        "👆", "👇", "☝️", "✋", "👋", "🫶", "🧠", "👀",
+        // 爱心、庆典与日常符号
+        "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎",
+        "💔", "💖", "💗", "💯", "💢", "💥", "💫", "⭐",
+        "🌟", "✨", "⚡", "🌈", "☀️", "🌙", "☔", "❄️",
+        "🎊", "🎁", "🏆", "🥇", "🍻", "🥂", "☕", "🍺",
+        "🎂", "🍕", "🍔", "🌹", "🌸", "💡", "💰", "💎",
+        "🔑", "📌", "✂️", "✅", "❌", "❓", "❗", "⚠️",
+        "🚀", "🎵", "🎧", "⚽", "🏀", "🐶", "🐱", "🦄",
+        "🍀",
+    ]
 }

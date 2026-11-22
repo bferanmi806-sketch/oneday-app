@@ -598,11 +598,6 @@ struct ChatView: View {
     private var floatingBarEnabled = true
     /// 反应浮排会话（一次长按一份；nil＝无浮排）
     @State private var reactionBarSession: ReactionBarSession?
-    /// 浮排转交的动作面数据（浮排关净后呈动作面；
-    /// 动作集仍走 actionItems 单源）
-    @State private var pendingReactionActionData:
-        ChatRowActionSheetData?
-    @State private var showReactionActions = false
     @State private var streamSettleMap = StreamingSettleMap()
     /// 0.6.0：通知 sheet（顶栏铃铛点开，总览桥驱动）
     @State private var showNotifications = false
@@ -1094,40 +1089,14 @@ struct ChatView: View {
                 )
             }
         }
-        // 反应浮排（DESIGN §343）：长按先浮药丸排；
-        // 点快照/空白关浮排后转交动作面（数据暂存、
-        // cover 关净经 onDismiss 呈，动作集仍走
-        // actionItems 单源、项/序/危险色逐项同系统
-        // 菜单；系统 contextMenu 无程序化呈面 API、
-        // 转交面以系统动作表承接，见 §343 缝注记）
-        .fullScreenCover(
-            item: $reactionBarSession,
-            onDismiss: reactionBarCoverDismissed
-        ) { session in
+        // 反应浮排（DESIGN §343／§346）：长按一次
+        // 呈现三层——药丸排＋快照＋动作卡同呈（动作
+        // 集走 actionItems 单源、项/序/图标/危险色
+        // 逐项同系统菜单）；点药丸/卡条目即执行并
+        // 收起、点快照/空白收起。§343 的转交动作表
+        // （confirmationDialog）随 §346 同呈退役
+        .fullScreenCover(item: $reactionBarSession) { session in
             reactionBarOverlay(session)
-        }
-        .confirmationDialog(
-            "",
-            isPresented: $showReactionActions,
-            titleVisibility: .hidden
-        ) {
-            if let data = pendingReactionActionData {
-                ForEach(data.actionItems()) { item in
-                    Button(
-                        item.title,
-                        role: item.isDestructive
-                            ? .destructive : nil
-                    ) {
-                        item.action()
-                    }
-                }
-            }
-            Button(L10n.string("取消"), role: .cancel) {}
-        }
-        .onChange(of: showReactionActions) { _, shown in
-            if !shown {
-                pendingReactionActionData = nil
-            }
         }
         // §125：文件打开页（中间页）——聊天侧点牌的
         // 唯一落点（图片仍走上方全屏查看器、不经此页）
@@ -7405,76 +7374,68 @@ struct ChatView: View {
         )
     }
 
-    /// 浮排 cover 关净回调：转交数据在席才呈动作面
-    /// （点药丸关浮排不走本路——投递时未暂存数据）
-    private func reactionBarCoverDismissed() {
-        if pendingReactionActionData != nil {
-            showReactionActions = true
-        }
-    }
-
-    /// 点快照/空白：关浮排转交动作面（数据先暂存、
-    /// cover 关净后由 onDismiss 呈——两面同拍呈会
-    /// 打架，与 §200 选择/分享一拍延后同因）
-    private func handoffReactionBarToActions(
-        _ session: ReactionBarSession
-    ) {
-        guard session.requestActions() else {
-            reactionBarSession = nil
-            return
-        }
-        pendingReactionActionData = session.data
-        reactionBarSession = nil
-    }
-
-    /// 浮排 overlay（DESIGN §343）：压暗＋原消息快
-    /// 照原位抬升＋上方药丸排。快照＝bubble 本体静
-    /// 态复刻（allowsHitTesting 关、渲染走原单源不
-    /// 另抄样式）；点快照与点空白同路转交动作面
+    /// 浮排 overlay（DESIGN §343／§346）：一次呈
+    /// 现三层——压暗＋原消息快照＋药丸排在上＋动作
+    /// 卡在下，定位全走 ReactionBarPlacement.
+    /// layout 的视口钳制（三层互不重叠、完整落在
+    /// 安全区内）。快照＝bubble 本体活复刻（allows-
+    /// HitTesting 关、渲染走原单源不另抄样式），按
+    /// 可见带钳高、裁切边渐隐；点快照与点空白同
+    /// 路收起（动作已同呈、无需转交）
     @ViewBuilder
     private func reactionBarOverlay(
         _ session: ReactionBarSession
     ) -> some View {
         GeometryReader { screen in
             let frame = session.sourceFrame
+            let insets = screen.safeAreaInsets
+            let viewport = CGRect(
+                x: insets.leading,
+                y: insets.top,
+                width: screen.size.width
+                    - insets.leading - insets.trailing,
+                height: screen.size.height
+                    - insets.top - insets.bottom
+            )
+            let items = session.data.actionItems()
+            let layout = ReactionBarPlacement.layout(
+                sourceFrame: frame,
+                alignsTrailing: session.alignsTrailing,
+                viewport: viewport,
+                itemCount: items.count
+            )
             ZStack(alignment: .topLeading) {
                 Color.black.opacity(0.32)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        handoffReactionBarToActions(session)
+                        reactionBarSession = nil
                     }
                     .accessibilityAddTraits(.isButton)
                     .accessibilityLabel(
-                        L10n.string("消息动作")
+                        L10n.string("关闭")
                     )
                     .accessibilityAction {
-                        handoffReactionBarToActions(session)
+                        reactionBarSession = nil
                     }
                 if let entry = currentThread?.sortedEntries
                     .first(where: { $0.id == session.entryID }) {
-                    bubble(entry)
-                        .frame(
-                            width: frame.width,
-                            alignment: .topLeading
-                        )
-                        .allowsHitTesting(false)
-                        .shadow(
-                            color: .black.opacity(0.22),
-                            radius: 16, y: 6
-                        )
-                        .scaleEffect(1.02)
-                        .offset(x: frame.minX, y: frame.minY)
+                    reactionSnapshot(
+                        entry, frame: frame, layout: layout
+                    )
                     Color.clear
                         .frame(
-                            width: frame.width,
-                            height: frame.height
+                            width: layout.snapshotVisibleRect.width,
+                            height: layout.snapshotVisibleRect.height
                         )
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            handoffReactionBarToActions(session)
+                            reactionBarSession = nil
                         }
-                        .offset(x: frame.minX, y: frame.minY)
+                        .offset(
+                            x: layout.snapshotVisibleRect.minX,
+                            y: layout.snapshotVisibleRect.minY
+                        )
                 }
                 ReactionFloatingBarView(
                     ownEmoji: session.data.ownEmoji
@@ -7483,7 +7444,23 @@ struct ChatView: View {
                         reactionBarSession = nil
                     }
                 }
-                .offset(reactionBarOrigin(session, screen: screen.size))
+                .offset(
+                    x: layout.barOrigin.x,
+                    y: layout.barOrigin.y
+                )
+                ReactionActionCardView(items: items) { item in
+                    if session.pickAction(item) {
+                        reactionBarSession = nil
+                    }
+                }
+                .frame(
+                    width: layout.cardSize.width,
+                    height: layout.cardSize.height
+                )
+                .offset(
+                    x: layout.cardOrigin.x,
+                    y: layout.cardOrigin.y
+                )
             }
             .frame(
                 width: screen.size.width,
@@ -7493,15 +7470,91 @@ struct ChatView: View {
         .ignoresSafeArea()
     }
 
-    private func reactionBarOrigin(
-        _ session: ReactionBarSession, screen: CGSize
-    ) -> CGSize {
-        let origin = ReactionBarPlacement.barOrigin(
-            sourceFrame: session.sourceFrame,
-            alignsTrailing: session.alignsTrailing,
-            screenSize: screen
+    /// 浮排快照（DESIGN §346）：无裁切＝原位全帧
+    /// 复刻（与第一步同路）；有裁切＝可见带容器内
+    /// 按原帧偏移、clipped＋裁切边渐隐 mask。可见
+    /// 带高 0（极端贴边行）整快照不出
+    @ViewBuilder
+    private func reactionSnapshot(
+        _ entry: ChatEntry,
+        frame: CGRect,
+        layout: ReactionBarLayout
+    ) -> some View {
+        let visible = layout.snapshotVisibleRect
+        if visible.height > 0 {
+            if layout.clipsTop || layout.clipsBottom {
+                bubble(entry)
+                    .frame(
+                        width: frame.width,
+                        alignment: .topLeading
+                    )
+                    .allowsHitTesting(false)
+                    .shadow(
+                        color: .black.opacity(0.22),
+                        radius: 16, y: 6
+                    )
+                    .scaleEffect(1.02)
+                    .offset(y: frame.minY - visible.minY)
+                    .frame(
+                        width: visible.width,
+                        height: visible.height,
+                        alignment: .topLeading
+                    )
+                    .clipped()
+                    .mask(snapshotFadeMask(layout))
+                    .offset(x: visible.minX, y: visible.minY)
+            } else {
+                bubble(entry)
+                    .frame(
+                        width: frame.width,
+                        alignment: .topLeading
+                    )
+                    .allowsHitTesting(false)
+                    .shadow(
+                        color: .black.opacity(0.22),
+                        radius: 16, y: 6
+                    )
+                    .scaleEffect(1.02)
+                    .offset(x: frame.minX, y: frame.minY)
+            }
+        }
+    }
+
+    /// 快照裁切边渐隐 mask（DESIGN §346）：仅裁切
+    /// 边生效——28pt 线性淡出（带高不足时按比收
+    /// 窄），未裁切边实色直通
+    private func snapshotFadeMask(
+        _ layout: ReactionBarLayout
+    ) -> LinearGradient {
+        let height = layout.snapshotVisibleRect.height
+        let fade = height > 56 ? 28 / height : 0.25
+        var stops: [Gradient.Stop] = [
+            .init(
+                color: layout.clipsTop ? .clear : .black,
+                location: 0
+            ),
+        ]
+        if layout.clipsTop {
+            stops.append(
+                .init(color: .black, location: fade)
+            )
+        }
+        if layout.clipsBottom {
+            stops.append(
+                .init(color: .black, location: 1 - fade)
+            )
+        }
+        stops.append(
+            .init(
+                color: layout.clipsBottom ? .clear : .black,
+                location: 1
+            )
         )
-        return CGSize(width: origin.x, height: origin.y)
+        return LinearGradient(
+            stops: stops,
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 
     /// 气泡长按动作面挂载（0.4.1 立制；台账 187 换
