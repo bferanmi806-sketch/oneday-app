@@ -8,8 +8,8 @@ let project = Project(
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",
         "TARGETED_DEVICE_FAMILY": "1",
-        "MARKETING_VERSION": "0.50.94",
-        "CURRENT_PROJECT_VERSION": "222",
+        "MARKETING_VERSION": "0.50.95",
+        "CURRENT_PROJECT_VERSION": "223",
     ]),
     targets: [
         .target(
@@ -43,8 +43,8 @@ let project = Project(
                 // 版本号直写 Info.plist（沿礼记 v4.4 实证口径）：Tuist 默认
                 // 模板不把工程设置的 MARKETING_VERSION 展开进 plist，
                 // 只写字面量才进包。
-                "CFBundleShortVersionString": "0.50.94",
-                "CFBundleVersion": "222",                "ITSAppUsesNonExemptEncryption": false,
+                "CFBundleShortVersionString": "0.50.95",
+                "CFBundleVersion": "223",                "ITSAppUsesNonExemptEncryption": false,
                 "UILaunchScreen": ["UIColorName": "LaunchBackground"],
                 // 自托管场景：允许连接局域网内的自建服务器（http）。
                 // 公网服务器仍走 https；上架前如需收紧在此复核
