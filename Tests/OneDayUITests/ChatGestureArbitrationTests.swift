@@ -22,6 +22,22 @@ import XCTest
 ///    行为）；证明改两阶段：长按出 Call 项链接
 ///    菜单（探针 §5.2 形态）或点按出系统链接动
 ///    作，任一达即算主动作已证。
+/// 【整册退役 · §353（2026-11-22）】本册使命结束、
+/// 默认 skip：其启动参数钉 `-chat.list.native NO`
+/// 非默认回退面——生产默认原生面自 §297 起、本册
+/// 量的签名已无被测对象，「浸泡期保签名」使命随旧
+/// 面退出默认面终结；且本册 finder/settle 机器在
+/// 旧面 AX 树上结构性超时（2026-11-22 收口调查实
+/// 跑 5 件全红、4 件约 222 秒死于 UI 查询求值超
+/// 时、手势根本没投递；2026-11-15 同型案底两轮修
+/// 法未达绿）。同题同判据已由原生面册
+/// ChatGestureNativeSurfaceTests 在出货面覆盖
+/// （双击选字/边距带长按/右滑引用 UI 实证绿），
+/// 覆盖不丢。定性与收口路径见 oneday-design-
+/// review/gesture-suite-rootcause-20261122.md。
+/// 退役方式＝setUpWithError 无条件 XCTSkip（仓
+/// 内 PresentationLayerScenarios 占位 skip 惯
+/// 例）；文件保留备查、不删。
 final class ChatGestureArbitrationTests: XCTestCase {
 
     /// 整行菜单首项（回复）的 SF Symbol 标识
@@ -30,6 +46,13 @@ final class ChatGestureArbitrationTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
+        // §353 整册退役（见文件头）：默认 skip、
+        // 不投递任何手势
+        throw XCTSkip(
+            "§353 退役：本册钉非默认回退面、签名已无被测对象；"
+                + "同题覆盖在原生面册"
+                + "（ChatGestureNativeSurfaceTests）"
+        )
     }
 
     // MARK: - 用例
