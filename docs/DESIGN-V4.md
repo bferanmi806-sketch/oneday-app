@@ -14475,3 +14475,20 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 探针改后复跑（同基线口径）：6/6 轮显示链最大间隔 16.7ms、>25ms 间隔 0、内容布局计数 0；基线两次跑均出现的首次关闭约 60–65ms 单次间隔改后未复现（单跑样本、不作根除结论）。
 - 模拟器录屏逐帧差分（真 App 生产装配、开/合各 3 次）：
 - 真机手感门留用户（开合跟手/落定无尾巴、深色接缝三段并排 Muse）。
+
+## §354 0.50.87 真机启动闪退热修（2026-11-22；0.50.88/216）
+
+### §354.1 证据（用户真机 .ips：OneDayApp-2026-11-22-155236.ips）
+- EXC_BAD_ACCESS / KERN_PROTECTION_FAILURE「Could not determine thread index for stack guard region」＝栈溢出签名；faulting 线程 186 帧：UIApplicationMain → 首帧布局 → ChatView.body → chatScaffold → chatSurface → nativeListSurface → `ChatView.bottomBar + 244` → `__swift_instantiateConcreteTypeFromMangledNameV2` → libswiftCore 内 decodeMangledType/decodeGenericArgs/SubstGenericParametersFromMetadata 循环约 90 帧。
+- 定性：Swift 运行时解析 ChatView 底部栏组合视图类型元数据时深度失控、主线程栈被打穿。触发增量只可能来自 0.50.87 相对 0.50.86 的 ChatView 增量（§352）：①body 根链新增 `.confirmationDialog`＋`.onChange` 两层 ModifiedContent 包裹整棵 body 类型；②composerCard 新增一层条件分支（编辑横幅槽）；③新 @State 值类型（EditSentTarget/EditSendDraft，经核为平坦值结构、无递归，排除）。
+- 实验室复现失败（如实记）：同代码 Debug 与 Release 在模拟器（全新状态）均正常启动、ChatView 正常渲染（Release 另机实跑至照片授权弹窗）；真机差异＝真实数据＋设备主线程栈深。按本仓纪律：崩溃关账只认真机 verdict，本节修法为结构性收敛、非实验室定案。
+
+### §354.2 修法（行为零变、只迁结构）
+1. `.confirmationDialog`（D3 破坏性确认）自 body 根链迁至 bottomBar 子树末端——包裹面自整棵 body 缩为底部栏子树；呈现状态与按钮行为一字不变。
+2. D3 的 `.onChange(of: currentThreadID)` 删除，三行作废赋值并入既有同键处理器（oldID/newID 那处）首段——根链少一层包裹、线程纪律不变。
+3. composerCard 的编辑横幅条件块抽为独立 `EditSentBannerSlot` View 结构（武装条件在槽内求值、横幅本体随迁），宿主卡组合类型不再随编辑态多一层条件包装；形态（铅笔＋说明＋✕＋发丝线、.opacity 过渡）逐值不变。
+- 红线自检：未碰手势数值、未碰流式组装、未碰抽屉域；D3/D2 功能面（入口谓词/契约/回滚）零改动。
+
+### §354.3 验收
+- 实验室：发布验证集 53 套须全绿（与 0.50.87 同集）。
+- 真机门（用户）：装 0.50.88 冷启不崩、进任意对话底部栏正常、编辑重发全程（武装横幅/非末轮确认框/发送/失败回滚）与 0.50.87 设计一致。此门不过不关账。

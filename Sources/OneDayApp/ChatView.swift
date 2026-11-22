@@ -1078,39 +1078,11 @@ struct ChatView: View {
         .sheet(item: $messageSharePayload) { payload in
             MessageShareSheet(text: payload.text)
         }
-        // D3（DESIGN §352）：编辑非末轮的破坏性确认
-        // ——N 轮实算（RewindTurnSlicing.roundsAfter
-        // 呈现时刻现算）、文案明示不可恢复；取消回
-        // 编辑态、发送舱一字不动
-        .confirmationDialog(
-            "编辑这条消息？",
-            isPresented: Binding(
-                get: { pendingEditSend != nil },
-                set: { if !$0 { pendingEditSend = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("发送并删除之后内容", role: .destructive) {
-                if let draft = pendingEditSend,
-                   let target = editSentTarget {
-                    performEditSend(draft: draft, target: target)
-                }
-                pendingEditSend = nil
-            }
-            Button("取消", role: .cancel) {
-                pendingEditSend = nil
-            }
-        } message: {
-            Text(editSendConfirmMessage)
-        }
-        // D3/D2 的线程纪律：编辑武装与乐观隐藏都是
-        // 当前线程的临时态，切线程即作废（与引用同
-        // 律，不许跨线程带过去）
-        .onChange(of: currentThreadID) { _, _ in
-            editSentTarget = nil
-            pendingEditSend = nil
-            rewindHiddenEntryIDs = []
-        }
+        // D3 破坏性确认与线程作废纪律（DESIGN §352）
+        // 0.50.88 迁位：确认框改挂 bottomBar 子树、作废
+        // 三行并入下方既有 currentThreadID 处理器——本
+        // 根链不再为 D3 多裹两层类型（真机启动崩溃热修，
+        // 见 DESIGN §354）
         // 选择面使用唯一、稳定的宿主；胶囊全量/紧凑档
         // 与 safeAreaBar 的布局切换不再重建呈现锚点。
         .sheet(isPresented: $showModelPicker) {
@@ -1178,6 +1150,11 @@ struct ChatView: View {
         // 不许跨线程带过去；0.7.0 两处增补——草稿轻保活
         // （M1）与分流种子转入（M4），见下
         .onChange(of: currentThreadID) { oldID, newID in
+            // D3/D2（DESIGN §352；0.50.88 自根链迁入本处）：
+            // 编辑武装与乐观隐藏是当前线程临时态，切线程即作废
+            editSentTarget = nil
+            pendingEditSend = nil
+            rewindHiddenEntryIDs = []
             // 0.30.0（落点记忆）：当前线程恒落盘——冷启/
             // 视图重建时由 ChatLandingResolution 恢复上
             // 次对话（页签不与主线绑定）；这是全仓唯一
@@ -2389,6 +2366,32 @@ struct ChatView: View {
             ),
             value: SpeechPlayer.shared.machine.showsPlaybackBar
         )
+        // D3（DESIGN §352；0.50.88 自 body 根链迁来本
+        // 子树）：编辑非末轮的破坏性确认——N 轮实算
+        // （RewindTurnSlicing.roundsAfter 呈现时刻现
+        // 算）、文案明示不可恢复；取消回编辑态、发送
+        // 舱一字不动
+        .confirmationDialog(
+            "编辑这条消息？",
+            isPresented: Binding(
+                get: { pendingEditSend != nil },
+                set: { if !$0 { pendingEditSend = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("发送并删除之后内容", role: .destructive) {
+                if let draft = pendingEditSend,
+                   let target = editSentTarget {
+                    performEditSend(draft: draft, target: target)
+                }
+                pendingEditSend = nil
+            }
+            Button("取消", role: .cancel) {
+                pendingEditSend = nil
+            }
+        } message: {
+            Text(editSendConfirmMessage)
+        }
     }
 
     /// body 的 onAppear 闭包体（整段抽出为方法：
@@ -9146,39 +9149,6 @@ struct ChatView: View {
     /// 垫撤销（卡面即玻璃，不卡上叠卡），✕ 自右中改
     /// 右上贴首行。发送后由 send() 清除、点 ✕ 即时清
     /// 除、切换线程经 onChange 清除（见 body）
-    /// D3 编辑横幅（DESIGN §352）：与 quoteBar 同
-    /// 位形态——铅笔＋一行说明＋尾 ✕ 取消（解武装
-    /// 清舱，原条目无损）
-    private var editSentBanner: some View {
-        HStack(spacing: OneDayMetrics.spacingS) {
-            Image(systemName: "pencil")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(Palette.inkSecondary)
-            Text("正在编辑较早的一条消息")
-                .font(.footnote)
-                .foregroundStyle(Palette.inkSecondary)
-                .lineLimit(1)
-            Spacer()
-            Button {
-                cancelEditSent()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .frame(width: 28, height: 28)
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.odPressable)
-            .accessibilityLabel("取消编辑")
-        }
-        .padding(.horizontal, OneDayMetrics.spacingSM)
-        .padding(.vertical, OneDayMetrics.spacingS)
-    }
-
     private func quoteBar(_ quote: MessageQuote) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Rectangle()
@@ -9462,19 +9432,10 @@ struct ChatView: View {
             // D3（DESIGN §352）：编辑横幅与引用块同
             // 位同式（卡根直接子级＋分隔线同进同
             // 出）——在场即编辑态在武装
-            if editSentTarget != nil {
-                VStack(spacing: 0) {
-                    editSentBanner
-                    Rectangle()
-                        .fill(Palette.hairline)
-                        .frame(height: 1)
-                        .padding(
-                            .horizontal, OneDayMetrics.spacingSM
-                        )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
-            }
+            EditSentBannerSlot(
+                isArmed: editSentTarget != nil,
+                onCancel: cancelEditSent
+            )
             // §332（二次修复题 3）：引用块移出
             // SmoothExpand——与附件条同构造（卡
             // VStack 直接子级＋条件包含，引用块＋
@@ -14668,6 +14629,57 @@ private struct EditSendDraft {
     let quote: MessageQuote?
     let feedQuote: FeedPostQuote?
     let sourceQuote: SourceQuote?
+}
+
+/// D3 编辑横幅槽（DESIGN §352；0.50.88 自 composerCard
+/// 抽出独立成型）：武装条件在本槽内求值，宿主卡的组
+/// 合类型不随编辑态多一层条件包装（真机启动崩溃热修，
+/// 见 DESIGN §354）。形态与引用块同位同式：横幅本体
+/// （铅笔＋一行说明＋尾 ✕ 取消——解武装清舱、原条目
+/// 无损）＋发丝分隔线同进同出
+private struct EditSentBannerSlot: View {
+    let isArmed: Bool
+    let onCancel: () -> Void
+
+    var body: some View {
+        if isArmed {
+            VStack(spacing: 0) {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Palette.inkSecondary)
+                    Text("正在编辑较早的一条消息")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                    Button {
+                        onCancel()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Palette.inkSecondary)
+                            .frame(width: 28, height: 28)
+                            .frame(
+                                width: OneDayMetrics.minTapTarget,
+                                height: OneDayMetrics.minTapTarget
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.odPressable)
+                    .accessibilityLabel("取消编辑")
+                }
+                .padding(.horizontal, OneDayMetrics.spacingSM)
+                .padding(.vertical, OneDayMetrics.spacingS)
+                Rectangle()
+                    .fill(Palette.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, OneDayMetrics.spacingSM)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .transition(.opacity)
+        }
+    }
 }
 
 /// 「选择」sheet 载荷（0.4.1）
