@@ -15151,6 +15151,30 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - **验收记账（2026-11-23，实验室口径；聚焦轮 17/17 全绿；回归轮 247 项：244 过、3 红、0 跳过、新红零）**：新套 ChatSwapStep4dProbeTests 1/1＋ChatSwapStep4dStructureTests 2/2（开关口径／穿线／闸本体保留把守）；ChatSettleScopeS5Tests 8/8——停滚结清两测（拆拍/单拍）经覆盖口钉回现行闸模式（闸在开关包裹下保留、其武装消费语义仍由两测把守，测内注记＋文件头 §374.7 注），新增记账测在缺省模式同场景断言回调点当场应用，余测同断言全绿；ChatSwapStep4bProbeTests 经覆盖口钉回现行闸模式后续测结清阶段两态（文件头 §374.7 注）；§329 压测组（ChatSwapStep3PressureTests 1/1）与「布局失效不在 apply 同步链内执行」结构钉测（ChatSwapStep3StructureTests 3/3）全绿；Chat190RemainderTests 6/6（§335 空窗冻结/停滚落写、缺省记账模式同断言）；ChatSearchFocusAssemblyTests 3/3；BottomFollowTests 41/41＋BottomFollowTriggerTests 1/1；Core 流式三套（StreamPublishGateTests／StreamingBlockProductTests／StreamingIncrementalEquivalenceTests）在回归名单内全过；S371 1/1、S373 2/2 全绿；步骤 1–4③ 各套与 R3/R4 装配、行高拟合、量测台、Hotfix330、落定结转、重入、跟随源、未读分界、右滑桥、抽屉全家同轮全过。3 红恰在案基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays；三测断言失败合计 7 条、与基线签名同），非本包引入。
 - **步骤 4 收官汇总（四件全关账）**：①150ms 时间窗合并已删（§374.4，开关 chat.list.dropCoalesceWindow）；②settleClearingStage 拆拍收敛为单拍结清（§374.5，开关 chat.list.settleSingleBeat）；③抽屉动画期冻结已删（§374.6，开关 chat.list.dropDrawerFreeze）；④滚动闸降级为过渡记账规则（本节，开关 chat.list.scrollLedger）。四件本体均在各自开关包裹下保留一个版本周期，物理删除随后续版本周期另行成包；四旗全置假＝§366＋§329 调度复合体原形态全量复活（回退基线完整）。调度复合体自此只剩喂入单点记账＋落定拍单点施工＋发布闸节拍三件平台对齐形态，复合状态机（窗钟/阶段机/冻结窗/武装消费）全部退居回退层。
 - **真机门（留组版）**：停滚后内容落定跟手度（数据落写时点提前一拍的体感）、流式中滑动停滚结清帧率、长会话滚动停滚结清帧率——实验室 EmptyView 口径不外推真实内容，归组版后真机 verdict。
+
+
+### §374.8 换引擎步骤 5：选区保护简化——触摸序列门整件退役、收敛选区单键暂缓（2026-11-23，分支 feat/swap-step5-selectionkey，基线步骤 4 收官 @b9dd7c5）
+
+施工图 §一对位表 #9 与 §三步骤 5：触摸序列门（清点 #8）整件退役，收敛为选区单键暂缓规则。此行为（选区在场行在选区清账前暂缓 reconfigure）无照抄对象，用户批图时已单独批准「行为保留、机制从简」处置；141/142 是纯真机故障模式（流式中选字被行更新打断），实验室无触摸注入、证不了——本节实验室证据只证机制形态与回归，真机选区用例是关账门（清单在节末），留组版后用户 verdict。
+
+**处置口径：物理删除（非开关包裹）＋两层回退。** 理由：①施工图要求 3 的形态判据是「全仓不存在序列门形态」，开关包裹保留代码即不达标；②序列门本身无保留价值——它护的从来不是触摸序列、而是选区行，单键规则直接按保护对象建模；③删除是机械操作，回退路径明确（见回退法）。步骤 6 的退役对象是旧承载（gen3/legacy），与本件无关，不等步骤 6。
+
+**退役清单（ChatNativeList.swift，净 −391/+94 行）：** ChatNativeTouchSequenceGate 结构体（§332 触摸序列状态机：按下/抬起/双击间隔 0.3s/跨行判定）；ChatNativeTouchObserverGestureRecognizer 类与控制器 touchObserver 属性、setUpCollectionView 挂载；触摸处理整节（touchRowContext、touchSequenceTouchBegan/Ended/Cancelled、gestureRecognizer 同时识别 delegate 法）与类声明的 UIGestureRecognizerDelegate 一致性；cell 的 hitTestLandsOnTextView 助手；0.3s 续排三处（applyNow/applyChangesNow/applyChangesFullRebuild 喂入分流的 scheduleSettle(delay: 0.3) 块）与 flush 尾部续排；暂存旧名三件（touchStagedReconfigureKeys→改名、partitionTouchStaged→改写、flushTouchStagedReconfigures→改名）。右滑手势链（SwipeReplyPanBridge）与序列门无涉、零触碰（被删的 delegate 法只对 touchObserver 返回 true）；chatScaffold 根链零触碰。
+
+**新形态（选区单键暂缓）：** ①待补账 selectionStagedReconfigureKeys: Set<String> 只存键——补发时按 rowsByKey 现行行值经快照构造器重算该行，不存第二份变更集（与变更集槽内合成纪律同）；②分流 partitionSelectionStaged 在三处喂入路（applyNow/applyChangesNow/整表重建）统一生效：开关在场时仅句柄选区在场行键（handle.selectionActiveRowKey，单键）命中的候选暂存，余行全数直达；开关停用时全员直达；③唤醒＝选区清账回调（ChatView 清账先置行键 nil、再经 noteSelectionProtectionEnded 转达 selectionProtectionEnded——协议本体不动）经结清拍的 flushSelectionStagedReconfigures 落写，finishFeed 结清拍的既有 flush 调用点同覆盖；④选区记账本体（ChatRowStateLedger、ChatView noteTextSelection、行键写口）零改动。
+
+**回退法（两层，写明边界）：** ①运行时应急档＝Core 开关 ChatListSelectionKeyGuardFeature（键 chat.list.selectionKeyGuard，缺省＝单键暂缓在场；设置页「聊天列表选区单键暂缓」Toggle 同键）：显式置假＝暂缓停用、全部变更直达——它只停用新规则、不复活序列门，停用期间 141/142 风险回归，仅作「暂缓本身出问题」时的应急档，存续一个版本周期后评估去留；②整体回退＝若真机选区门判定单键规则护不住选区，自 git 历史取回序列门全套代码（基线提交 b9dd7c5 的 ChatNativeList.swift 中 ChatNativeTouchSequenceGate／ChatNativeTouchObserverGestureRecognizer／触摸处理整节／0.3s 续排）随下一版出包——这是源码操作、不是运行时能力，如实标注。
+
+**钉测：** ChatSwapStep5StructureTests（开关口径三态；禁词普查——枚举 Sources/OneDayApp＋Sources/OneDayCore 全部 Swift 文件，TouchSequenceGate/touchSequence/TouchObserver/touchObserver/touchStaged/TouchStaged/doubleTapInterval/hitTestLandsOnTextView/scheduleSettle(delay: 0.3) 零命中，文件数下限防空过；单键规则穿线在场断言）；ChatSwapStep5SelectionKeyTests（双控制器增量路对拍：选区行连发两拍零重配、异键直达、清账后补发恰一次、终态四账——快照序/修订账/高度账按键/采用高谱——与无保护路逐值同；覆盖口置假时选区行也直达、无幽灵补发）；ChatNativeHotfix330Tests 题 1 三件迁移（纯门序列测随门本体删除；两装配测改选区形态：行键置位暂存、清账补发恰一次、流式连发三拍选区行零重配）。回归记账（2026-11-23，实验室口径）：聚焦轮 32/32 全绿（本步两新套 5 件＋Hotfix330 迁移后 9 件＋选区装配 ChatSelectionProtectionAssemblyTests＋ChatSettleScopeS5Tests 8/8＋§329 压测组＋「布局失效不在 apply 同步链内执行」结构钉测——其中步骤 3 结构测一处切片地标随本步改名同步更新（partitionTouchStaged→partitionSelectionStaged）、断言本体不变＋S371/S373）；全量回归轮 49 套 246 件：243 过、3 红、新红零——3 红与在案基线逐名全合（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays）；BottomFollowTests 41/41；流式相关套全绿（StreamingBlockProductTests 13/13 在回归轮内；StreamingSettleMapCoreTests／StreamingDriverCoreTests 在补轮内同绿，补轮 5 套 8/8）。
+
+**顺带修缮：** 步骤 2 插入 MARK 时把 partition 函数的 doc 注释劈成两半（前半孤悬、尾两行留在函数前），本步改写该函数时已整并重写（纯注释、无行为变化）。
+
+**真机选区关账门清单（实验室证不了，组版后用户逐项 verdict；任一项不过＝单键规则不成立、走整体回退评估）：**
+
+1. **长按选字**：流式输出进行中，长按某条 AI 回复正文选字并拖动选区手柄——预期：选区不消失、不跳变，他行照常推进；松手清账后该行内容一次性追平最新。
+2. **双击选词**：流式中双击某行单词——预期：选词高亮稳定存活至主动取消，期间该行不重配、无闪烁；取消后该行补发到当前最新文本。
+3. **选区在场时流式推进**：保持选区不动，看后续 token 推进——预期：他行逐拍刷新，选区行冻结在选区建立时的内容，滚动位置不被该行更新顶动。
+4. **选区在场时落定**：保持选区直到本轮回复落定（done）——预期：落定不冲选区；点空白处清账后，该行立刻补发到落定终稿（含尾随状态行变化不误伤选区行）。
 ## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
 
 ### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）

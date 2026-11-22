@@ -77,7 +77,7 @@ final class ChatSwapStep3StructureTests: XCTestCase {
             ("private func applyChangesNow(",
              "private func applyChangesFullRebuild("),
             ("private func applyChangesFullRebuild(",
-             "private func partitionTouchStaged"),
+             "private func partitionSelectionStaged"),
             ("private static func makeRowSection(",
              "private static func makeSingleSection("),
             ("private static func makeSingleSection(",
