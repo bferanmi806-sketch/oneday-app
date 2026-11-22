@@ -34,6 +34,14 @@ import XCTest
 /// 行为（动画期喂入直达应用）由 ChatSwapStep4c-
 /// ProbeTests 量测对账把守；其余各测与抽屉模式
 /// 无关、两模式同断言。
+/// §374.7 注：滚动闸缺省降级为过渡记账规则后，
+/// ③之停滚结清两测（拆拍/单拍）经覆盖口（test-
+/// ScrollLedgerOverride＝false）钉回现行闸模式
+/// ——闸代码在开关包裹下保留一个版本周期、其
+/// 武装结清阶段消费记账槽的语义仍由两测把守；
+/// 降级新行为（停滚回调点当场应用）由新增记账
+/// 测（缺省模式）在同场景下断言；其余各测与滚
+/// 动闸模式无关、两模式同断言。
 /// 装配与 ChatNativeHotfix330Tests 同式（窗口＋根 VC＋handle＋
 /// carrier 回调）。基线对账（未改生产行为、仅加计数读口时）：
 /// ①②绿、③之合并/拆拍/抽屉三测按设计红、参数直通绿（修前
@@ -405,6 +413,10 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         // §374.5：本测钉拆拍模式（拆拍语义把守）——
         // 缺省已改单拍结清，拆拍在开关包裹下保留一
         // 个版本周期、经覆盖口置假在本测复活
+        // §374.7：滚动闸缺省已降级（停滚回调点当场
+        // 应用记账槽），本测的武装阶段消费路径须同
+        // 钉回现行闸模式（下行覆盖口）
+        vc.testScrollLedgerOverride = false
         vc.testSettleSingleBeatOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
@@ -466,7 +478,12 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         assemble()
         let vc = try XCTUnwrap(controller)
         let cv = vc.collectionView
-        // 缺省模式（不设覆盖口）：单拍结清为现行口径
+        // §374.5 缺省口径（单拍结清）的把守测；
+        // §374.7：滚动闸缺省已降级（停滚回调点当
+        // 场应用记账槽），本测断言的「武装阶段 2 落
+        // 定拍同拍结清」路径须钉回现行闸模式（结
+        // 清模式覆盖口仍不设、认缺省单拍）
+        vc.testScrollLedgerOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
         let f0 = vc.testSettleLayoutFlushCount
@@ -502,6 +519,72 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         XCTAssertEqual(
             vc.testSettleLayoutFlushCount, f0 + 1,
             "单拍结清：匣落写同拍布局失效须已施工（不许顺延下一拍）"
+        )
+        XCTAssertEqual(
+            frameHeight(vc, section: 3), 140, accuracy: 0.6
+        )
+        XCTAssertEqual(cv.numberOfSections, 42)
+        drain(0.3)
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0 + 1,
+            "结清后不许再有第二拍补施工"
+        )
+    }
+
+    // MARK: - ③ 新行为（§374.7）：滚动闸记账降级
+
+    /// 缺省记账降级（与单拍测同场景）：滚动期整笔
+    /// 喂入只记账；停滚回调返回时记账喂入必须已经
+    /// 落写（回调点当场应用——武装落定拍消费形态
+    /// 下回调返回时匣不可能已落写，本测的判别
+    /// 点）；其后落定拍恰一次施工布局失效、帧采
+    /// 纳新高与新行、再无第二拍补施工。回调点只
+    /// 应用数据——布局失效施工仍归落定拍唯一施
+    /// 工口（§325.2 不变量不因降级而动）
+    func testScrollLedgerFlushAppliesAtScrollEndCallback() throws {
+        assemble()
+        let vc = try XCTUnwrap(controller)
+        let cv = vc.collectionView
+        // 缺省模式（不设覆盖口）：记账降级为现行口径
+        apply(makeRows(count: 40))
+        XCTAssertTrue(quiesce(), "装配后须收敛")
+        let f0 = vc.testSettleLayoutFlushCount
+
+        vc.scrollViewWillBeginDragging(cv)
+        var rows = makeRows(count: 40)
+        rows[3] = textRow("k3", text: "row 3", height: 140)
+        rows.append(textRow("k40", text: "row 40"))
+        rows.append(textRow("k41", text: "row 41"))
+        apply(rows)
+        drain(0.15)
+        XCTAssertEqual(
+            vc.testAdoptedRowHeights.count, 40,
+            "滚动记账期整笔喂入只记账、匣不落写"
+        )
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0,
+            "滚动记账期不许施工布局失效"
+        )
+
+        vc.scrollViewDidEndDragging(
+            cv, willDecelerate: false
+        )
+        // 回调点判别点：回调返回的此刻记账喂入须已
+        // 落写（不许等落定拍消费）
+        XCTAssertEqual(
+            vc.testAdoptedRowHeights.count, 42,
+            "停滚回调返回时记账喂入须已当场应用"
+        )
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0,
+            "回调点只应用数据、布局失效施工仍归落定拍"
+        )
+        // 落定拍：恰一次施工、帧采纳新高与新行
+        XCTAssertTrue(
+            spinUntil(timeout: 3) {
+                vc.testSettleLayoutFlushCount == f0 + 1
+            },
+            "落定拍须随后施工恰一次"
         )
         XCTAssertEqual(
             frameHeight(vc, section: 3), 140, accuracy: 0.6

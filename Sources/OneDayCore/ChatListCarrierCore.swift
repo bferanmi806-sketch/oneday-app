@@ -172,6 +172,36 @@ public enum ChatListDrawerFreezeDropFeature {
     }
 }
 
+// MARK: - 滚动闸记账降级开关（换引擎步骤 4④）
+
+/// §325.2 滚动闸降级为过渡记账规则的开关
+/// （DESIGN §374.7，施工图步骤 4④／对位表
+/// #8）：缺省（键不存在）＝已降级——滚动期
+/// 非紧急变更只在喂入单点入账（变更集照常
+/// 产出与合并），停滚在滚动结束回调点当场
+/// flush 应用一次、不再武装 §366 结清阶段
+/// 机、不把应用托付给自排的落定拍；显式置
+/// false＝恢复现行滚动闸（flush 武装结清阶
+/// 段、自排落定拍消费记账槽，闸本体以本旗
+/// 包裹保留一个版本周期、回退口）。过渡
+/// 件：终局删/留由后续帧量测按 §374.7 判
+/// 据裁决。与删窗旗／单拍旗／删冻旗／增量
+/// 旗／单 section 旗独立、互不牵连；控制
+/// 器在停滚落写口同步本旗（翻转即时生效）
+public enum ChatListScrollLedgerFeature {
+    public static let defaultsKey =
+        "chat.list.scrollLedger"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard let stored = defaults.object(
+            forKey: defaultsKey
+        ) as? Bool else { return true }
+        return stored
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸

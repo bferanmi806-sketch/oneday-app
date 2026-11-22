@@ -1093,6 +1093,10 @@ final class ChatRootViewController: UIViewController,
     /// 时喂入冻结判据与落定拍冻结判定认本口不认全
     /// 局开关——冻结语义钉测/量测探针用；生产恒 nil）
     var testDrawerFreezeDropOverride: Bool?
+    /// §374.7 测试口：滚动闸记账降级覆盖（非 nil
+    /// 时停滚落写口降级判定认本口不认全局开关——
+    /// 现行闸语义钉测/量测探针用；生产恒 nil）
+    var testScrollLedgerOverride: Bool?
     /// §325.2：布局参数变更的失效记账（apply 只记
     /// 账、落定拍 pass 外合并施工，见 apply 注）
     private var pendingLayoutInvalidation = false
@@ -2647,6 +2651,15 @@ final class ChatRootViewController: UIViewController,
                 .isEnabled()
     }
 
+    /// §374.7：滚动闸是否已降级为过渡记账规则
+    /// （测试覆盖口优先、生产认 Core 开关；开关
+    /// 缺省＝已降级，置假恢复现行滚动闸）
+    private func scrollLedgerDowngraded() -> Bool {
+        testScrollLedgerOverride
+            ?? ChatListScrollLedgerFeature
+                .isEnabled()
+    }
+
     /// §374.3：单 section 模式同步（applyNow／
     /// applyChangesNow 入口）：期望模式与匣内构
     /// 造旗不符即翻转——快照结构随构造同变，本
@@ -2765,6 +2778,12 @@ final class ChatRootViewController: UIViewController,
         // 与 §325.2 落定拍冻结共用同一记账（settle-
         // DeferredDuringScroll），停滚后由 flush-
         // DeferredSettle→落定拍先消费本槽再落写。
+        // §374.7（步骤 4④）：滚动闸缺省已降级为
+        // 过渡记账规则——本记账纪律不变（喂入单
+        // 点入账、变更集在槽内合成），变的是
+        // flush 点：停滚回调点当场应用、不再经
+        // 结清阶段武装托付落定拍（见 flushDefe-
+        // rredSettle）；回退形态下本注原路成立
         // 削 apply 在滚动中开启布局 pass 的触发面；
         // 非滚动期行为逐字不变（走 applyNow）
         // §335：冻结判据扩为浏览态∪旗标——delegate
@@ -4181,9 +4200,27 @@ final class ChatRootViewController: UIViewController,
 
     /// §325.2：滚动期冻结的施工在滚动结束一次性
     /// 合并落写（守卫 2③ 的落写口）
+    /// §374.7（步骤 4④）：本口缺省走降级后的过
+    /// 渡记账规则——flush 就在本回调点执行：记
+    /// 账槽整笔喂入当场应用一次（不武装结清阶
+    /// 段、不把应用托付给自排的落定拍）；应用
+    /// 后的余链（布局失效施工／量测／inset／落
+    /// 位）仍归落定拍（喂入收尾已排拍、无喂入
+    /// 时本口补排一拍消费余账）。回退开关置假
+    /// 才恢复下行现行闸原路（武装结清阶段＋自
+    /// 排落定拍消费记账槽，闸本体以开关包裹保
+    /// 留一个版本周期）
     private func flushDeferredSettle() {
         guard settleDeferredDuringScroll else { return }
         settleDeferredDuringScroll = false
+        if scrollLedgerDowngraded() {
+            if let pending = pendingApply {
+                pendingApply = nil
+                applyPendingFeed(pending)
+            }
+            scheduleSettle()
+            return
+        }
         // §366：停滚结清拆两拍——本回调武装阶段 1，
         // 落定拍先落数据、布局账顺延紧接的布局拍。
         // §374.5（步骤 4②）：单拍结清缺省成立——

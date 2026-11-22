@@ -21,6 +21,11 @@ import OneDayDesign
 /// 间态、拆拍态必须出现（探针判别力自证）；单
 /// 拍结清墙钟不劣于拆拍（拆拍含 30ms 顺延常
 /// 量）。实测数入 §374.5
+/// §374.7 注：滚动闸降级后本探针经覆盖口
+/// （testScrollLedgerOverride＝false）钉回现
+/// 行闸模式——本探针的被测对象是结清阶段机
+/// 两态、不是 flush 点形态；降级形态的量测
+/// 归 ChatSwapStep4dProbeTests
 @MainActor
 final class ChatSwapStep4bProbeTests: XCTestCase {
 
@@ -66,6 +71,11 @@ final class ChatSwapStep4bProbeTests: XCTestCase {
         // 结清模式经覆盖口按本配置（拆拍态＝回退
         // 开关置假的形态）
         list.testSingleSectionOverride = true
+        // §374.7：本探针量的是结清阶段两态（武装
+        // 消费路径），滚动闸缺省降级后 flush 改在
+        // 回调点当场应用——钉回现行闸模式保住被
+        // 测对象
+        list.testScrollLedgerOverride = false
         list.testSettleSingleBeatOverride = singleBeat
         root.addChild(list)
         list.view.frame = root.view.bounds
