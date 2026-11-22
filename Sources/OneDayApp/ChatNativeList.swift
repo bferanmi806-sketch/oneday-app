@@ -1089,6 +1089,10 @@ final class ChatRootViewController: UIViewController,
     /// 时停滚落写口单拍判定认本口不认全局开关——
     /// 拆拍语义钉测/量测探针用；生产恒 nil）
     var testSettleSingleBeatOverride: Bool?
+    /// §374.6 测试口：抽屉动画期冻结删除覆盖（非 nil
+    /// 时喂入冻结判据与落定拍冻结判定认本口不认全
+    /// 局开关——冻结语义钉测/量测探针用；生产恒 nil）
+    var testDrawerFreezeDropOverride: Bool?
     /// §325.2：布局参数变更的失效记账（apply 只记
     /// 账、落定拍 pass 外合并施工，见 apply 注）
     private var pendingLayoutInvalidation = false
@@ -2493,7 +2497,14 @@ final class ChatRootViewController: UIViewController,
     }
 
     private func currentFeedFreeze() -> FeedFreeze? {
-        let drawerFrozen = drawerMotionInFlight
+        // §374.6：抽屉冻结缺省已删——删后抽屉运
+        // 动窗不再入冻结判据（动画期喂入直落）；
+        // 回退开关置假才恢复 §366 抽屉冻结（冻结
+        // 本体以开关包裹保留）。滚动判据逐字不动
+        // （步骤 4④ 领地）
+        let drawerFrozen = drawerFreezeDropped()
+            ? false
+            : drawerMotionInFlight
         let scrollFrozen = userBrowsing
             || collectionView.isTracking
             || collectionView.isDecelerating
@@ -2625,6 +2636,14 @@ final class ChatRootViewController: UIViewController,
     private func settleSingleBeat() -> Bool {
         testSettleSingleBeatOverride
             ?? ChatListSettleSingleBeatFeature
+                .isEnabled()
+    }
+
+    /// §374.6：抽屉动画期冻结是否已删（测试覆盖口优
+    /// 先、生产认 Core 开关；开关缺省＝已删）
+    private func drawerFreezeDropped() -> Bool {
+        testDrawerFreezeDropOverride
+            ?? ChatListDrawerFreezeDropFeature
                 .isEnabled()
     }
 
@@ -3689,12 +3708,16 @@ final class ChatRootViewController: UIViewController,
             report()
             return
         }
-        if drawerMotionInFlight {
+        if !drawerFreezeDropped()
+            && drawerMotionInFlight {
             // §366：抽屉动画期冻结（§325.2 条目 2③
             // 的同族扩展）——本拍只记账＋report、不
             // 施工，窗末自排唤醒拍合并落写：动画窗
             // 内不付布局／量测／落位账（调研问题一
             // 拟修法 3 的聊天侧落点）
+            // §374.6：本冻结缺省已删（判定在条件首
+            // 位）——删后本分支不达、落定拍照常走
+            // 全链；回退开关置假才恢复本冻结
             settleDeferredDuringDrawer = true
             scheduleSettle(
                 delay: drawerMotionRemaining + 0.02

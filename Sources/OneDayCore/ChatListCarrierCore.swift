@@ -154,6 +154,32 @@ public enum ChatListSettleSingleBeatFeature {
     }
 }
 
+// MARK: - 抽屉动画期冻结删除开关（换引擎步骤 4③）
+
+/// §366 抽屉动画期冻结的删除开关（DESIGN
+/// §374.6，施工图步骤 4③）：缺省（键不存在）
+/// ＝已删——抽屉开合动画期内到达的喂入直达
+/// applyChanges、落定拍照常施工，不再冻结记
+/// 账等窗末唤醒拍合并落写；显式置 false＝恢
+/// 复 §366 抽屉冻结原逻辑（冻结代码本体以本
+/// 旗包裹保留一个版本周期、回退口）。与删窗
+/// 旗／单拍旗／增量旗／单 section 旗独立、互
+/// 不牵连；控制器在喂入冻结判据与落定拍冻结
+/// 判定处同步本旗（翻转即时生效）
+public enum ChatListDrawerFreezeDropFeature {
+    public static let defaultsKey =
+        "chat.list.dropDrawerFreeze"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard let stored = defaults.object(
+            forKey: defaultsKey
+        ) as? Bool else { return true }
+        return stored
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸
