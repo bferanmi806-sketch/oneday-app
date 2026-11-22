@@ -27,6 +27,13 @@ import XCTest
 /// 期、其语义仍由本测把守；单拍结清的新行为由新增
 /// 单拍测（缺省模式）在同场景下断言同拍结清；其余
 /// 各测与结清模式无关、两模式同断言。
+/// §374.6 注：抽屉动画期冻结缺省已删后，③之抽屉冻
+/// 结测经覆盖口（testDrawerFreezeDropOverride
+/// ＝false）钉回冻结模式——冻结代码在开关包裹下
+/// 保留一个版本周期、其语义仍由本测把守；删冻新
+/// 行为（动画期喂入直达应用）由 ChatSwapStep4c-
+/// ProbeTests 量测对账把守；其余各测与抽屉模式
+/// 无关、两模式同断言。
 /// 装配与 ChatNativeHotfix330Tests 同式（窗口＋根 VC＋handle＋
 /// carrier 回调）。基线对账（未改生产行为、仅加计数读口时）：
 /// ①②绿、③之合并/拆拍/抽屉三测按设计红、参数直通绿（修前
@@ -516,6 +523,8 @@ final class ChatSettleScopeS5Tests: XCTestCase {
     func testDrawerMotionFreezesSettleConstruction() throws {
         assemble()
         let vc = try XCTUnwrap(controller)
+        // §374.6：本测钉回退模式（冻结语义把守）
+        vc.testDrawerFreezeDropOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
         let f0 = vc.testSettleLayoutFlushCount

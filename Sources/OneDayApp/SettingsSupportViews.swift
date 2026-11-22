@@ -403,6 +403,14 @@ struct AboutView: View {
         ChatListSettleSingleBeatFeature.defaultsKey
     )
     private var chatListSettleSingleBeat = true
+    /// §374.6（换引擎步骤 4③）抽屉动画期冻结删
+    /// 除开关（与控制器同键同源，缺省开＝冻结已
+    /// 删；关掉即恢复 §366 抽屉动画期冻结，一个
+    /// 版本周期的回退口）
+    @AppStorage(
+        ChatListDrawerFreezeDropFeature.defaultsKey
+    )
+    private var chatListDropDrawerFreeze = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -487,6 +495,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：停滚后落定拍一拍内结清全部待结账目（数据、布局、量测与落位），不再拆数据拍/布局拍两拍；关掉即恢复拆拍结清（回退口）。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListDropDrawerFreeze) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表抽屉动画期直达应用"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：抽屉开合动画期内到达的消息变更直接应用、不再冻结记账等动画结束；关掉即恢复动画期冻结（回退口）。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
