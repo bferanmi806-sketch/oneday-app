@@ -15015,6 +15015,30 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 回归账：Test-OneDayApp-cache4.xcresult 共 99 项 98 过——LibraryListStoreC4Tests 12/12、S4 的 LibraryListSnapshotTests 5/5（等价矩阵＋结构钉测含本面 LazyVStack/无 .odPressFeedback()/.onTapGesture 全过）、ShellBgStructureProbeTests 3/3、HitArea44Tests 10/10、Core 文件库六套 53/53（LibraryMenuResolution/FileLibraryModels/DeliverableFileType/DeliverableIconStyle/DeliveryMarker/MediaMarker，另 BridgeDeliveryDecodeTests 3/3）；唯一红＝OneDayCoreTests/LibraryOrderingTests.testSortByTitleUsesDisplayTitle（「报告.docx vs alpha.pdf」），与 S4 基线老红逐字同签名（台账 29 排序口味待裁案、本包未碰），无新红、无静默跳过（12 套全在册、逐套计数对账）。
 - 未验（如实）：真机冷启首帧快照上屏与删除手感待装机 verdict（实验室口径已证：播种在 .task 首跳同步完成、网络返回前名单已置位；删除摘行即时、失败回滚带人话）。本包未组版，待主线随后续版本并入。
 
+## §374 聊天列表换引擎 program 总纲（2026-11-23；用户批准在案）
+
+### §374.0 批准与总纲
+
+- 依据：用户 2026-11-23 01:59 真机 verdict（0.50.94 不闪退但四面手感卡）→02:03 定方向（自研装配层整层换平台增量机制）→02:06 亲令（清点表与施工图务必与成熟项目/大厂标准对齐）→02:08 定版规矩（能原生就原生、要手搓就抄现成实现、自创无出处不许留）→**02:20 批准施工图、按图开工**。配套文档：`~/workspace/oneday-design-review/self-built-inventory-20261123.md`（清点 31 件：换 13／留（a）原生 8／留（b）照抄 10）与 `chat-list-engine-swap-plan-20261123.md`（施工图，本节为其入仓总纲）。
+- 换的对象（防跑偏，先说死）：载体本体不换——UICollectionView＋DiffableDataSource＋CompositionalLayout＋UIHostingConfiguration 早已是平台件（清点 #1）。换的是包在外面的三层自研装配：①喂入对账层（清点 #2 整表对账＋#3 修订摘要体系）②高度消费构造（#4 section-per-row＋平行数组）③调度复合体（#7 落定拍五件＋#8 触摸序列门），外加喂入侧源头 nativeRows 每趟全量重建行数组。
+- 七步结构（每步独立分支、独立验收、可单独组版，不过不进下一步）：步骤 0 双探针（真实托管视图量测探针判清点 #5 去留＋单 section 布局 spike 复刻 §329 成环条件）→步骤 1 变更集产出（ChatView 侧行值缓存＋EntryChangeSet＋影子比对）→步骤 2 控制器去对账（新 applyChanges 入口、旧 applyNow 留作回退）→步骤 3 布局单 section 化＋高度按键存取→步骤 4 调度复合体逐件收敛（一件一包一回退）→步骤 5 选区保护简化（单键暂缓、真机门）→步骤 6 旧承载退役（gen3/legacy/ComposerGuideHost 删除、三套跟随链收口）。
+- 验收四门（缺一不算交卷，沿施工图 §五）：①发布集全绿——以当版发布验证集名单（自上一版 xcresult 提取全限定名）逐项对账、总数为放行门，基线老红按在案名单对证不许新增；②帧量测同口径对账——修后须实证「单行变更趟成本与会话行数脱钩」与「稳态趟列表侧工作量趋近于零」两条性质（修前基线＝手感审计 feel-audit-20261123 四面量测＋S3 基线参照）；③防回归门——§329 组（拟合一致性＋生产链连续小步滚动压测）、S371/S373 深度结构钉测全绿、模拟器冷启冒烟过；④真机手感关（用户 verdict）——实验室绿不替代。
+- 回退与基线：开关两枚（`chat.list.incremental` 步骤 1–2／`chatListSingleSectionEnabled` 步骤 3）＋步骤 4 每件删除各留临时开关一个版本周期；代码回滚基线 rel-05094 @c723c9a，版本回滚＝0.50.94 IPA（最后已知真机可用版）；服务端零改动。
+- 红线（全程）：ChatView 根链 chatScaffold 不许新增任何视图修饰层（§373 红线，S371/S373 结构钉测把守）；同仓单写手；kick 走双读判闲单一脚本。
+
+### §374.1 步骤 1：变更集产出（行值缓存＋影子比对，分支 feat/swap-step1-changeset，基线 rel-05094 @c723c9a）
+
+- 落码面（ChatView 喂入侧，控制器与布局一行不动）：
+  1. **EntryChangeSet**（新文件 ChatFeedChangeTracker.swift）：insert／delete／updated 三类行键集，形态照 Stream Chat iOS 的 `[ListChange]`（施工图对位表 #1）——变更在喂入侧产生、成本只随变更量。
+  2. **ChatNativeRowValueCache 行值缓存**：以条目身份为键缓存上一趟 ChatNativeRow 值对象与验证基（ChatFeedEntryBasis）。判定两级：修订级＝§362 快照精确相等（ChatEntryRevisionSnapshot 全字段原值比对、无哈希碰撞面）＋环境尾段全等（分隔文案／未读分界／来源集／点亮／样式键）——等即行值沿用、不入 updated；高-only 变不入 updated（与旧路「高变不重配、只走布局失效」同口径），但 Record 原地刷新行值与高账备步骤 2 喂入取用。Record 为 class：命中沿用同一对象（=== 可断言），修订级变才换账。与既有两备忘分工：§362 行构建备忘缓存构建产物、行描述备忘缓存成品戳判定，本盒是新路行值真源（步骤 2 起喂入直接取本盒行值，届时行描述备忘的戳判定退役）。
+  3. **ChatFeedChangeTracker 追踪器**：nativeRows 每趟消费——条目行经行值缓存判定，非条目行（直播／工具组／回告／审批区／空状态）走修订比较（其修订即旧路判据本体）；同趟产出变更集。穿线：nativeEntryRow 构建时登记验证基（快照取本趟已验证的 Products，本行只验证一次的 §362 纪律不变），nativeRows 收尾 ingest。
+  4. **开关** `chat.list.incremental`（Core ChatListIncrementalFeature，缺省关；ChatView 与设置页实验区同键同源）：关时追踪器零调用、ChatView 行为与现行逐字一致；开时影子模式——新路只算不用，喂入仍走旧路行数组。
+- 影子比对口径（本步出口判据）：旧路差集按 applyNow 现行定义复刻——键集差（inserted／deleted）＋同键修订全量比较（updated＝revisionMismatchKeys 本体）。触摸暂存（§332）不入差集：其候选集本体即修订差集，分流只是时序件（暂存者后续趟由 flush 落写），非喂入差——若把时序差记成喂入差，影子账会永远非零且无从修。比对入 ChatFeedShadowLedger 诊断账：逐趟三类对称差累计键次＋首个差异键与类别，测试可读。
+- 钉测（ChatFeedChangeSetStep1Tests 5 法）：①等价矩阵——合成富会话 300 条十趟，覆盖六类变更（纯流式尾行／落定／编辑／删除／插行／facet 翻转）＋冷开／稳态／高度-only，变更集与旧路差集逐趟逐集相等、影子账全程清零、稳态趟行值沿用计数 300；②Record 身份生命周期（=== 沿用／换账／高-only 原地刷新）；③影子账非空转（故意喂陈旧验证基，差异 1 键被抓、首键与类别正确）；④来源集折入两路同值；⑤开关缺省关与键名。
+- 出口条件：钉测语料上影子差异清零才算本步交卷（本节验收记账见落码提交）；真实会话的影子长跑（开旗实跑日常会话、读影子账）留下一步组版时挂，不在本步冒充。帧量测两性质（§374.0 门②）属步骤 2 转正后的对账，本步不预填。
+
+- **验收记账（2026-11-23，实验室口径）**：新钉测 ChatFeedChangeSetStep1Tests **5/5**（bundle Test-OneDayApp-swap1step1）——等价矩阵十趟六类变更影子差异**清零**（本步出口条件在钉测语料达成）；同轮回归 13 套共 73 项：71 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，与 §362.3/§373 在案基线老红逐名同（同套同名、非本步引入）；S371/S373 结构钉测全绿（根链零触碰实证）；补跑轮（bundle Test-OneDayCore-swap1step1b）BottomFollowTests 41/41＋BottomFollowTriggerTests 1/1 全过（首轮 -only-testing 误用 OneDayAppTests 前缀被静默跳过、靠总数对账发现后以 OneDayCoreTests 全限定名补跑——0.50.88 假绿陷阱同型，留痕）。两轮合计 115 项、113 过、2 基线老红、新红零。过程留痕：kick 判闲口径首版误用 RUN/EXIT 计数相等（实查 332≠226、两标记本非 1:1），白等约 25 分钟后改「末位 EXIT 行号在末位 RUN 之后＋ps 无 xcodebuild」双读口径才 kick 成功——判闲脚本口径以此为准。
+
 ## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
 
 ### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）

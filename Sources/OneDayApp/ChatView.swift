@@ -280,6 +280,16 @@ struct ChatView: View {
     /// 组装（见 ChatEntryRowBuildMemo）
     @State private var rowBuildMemo =
         ChatEntryRowBuildMemo()
+    /// §374（换引擎步骤 1）：增量喂入影子开关
+    /// （Core ChatListIncrementalFeature，缺省关；
+    /// 设置页实验区同键同源）与变更集追踪器——开
+    /// 时新路只算不用（逐趟产出变更集＋行值缓存
+    /// ＋与旧路差集对账），关时本视图行为与现行
+    /// 逐字一致（追踪器零调用、零状态）
+    @AppStorage(ChatListIncrementalFeature.defaultsKey)
+    private var chatListIncrementalEnabled = false
+    @State private var feedChangeTracker =
+        ChatFeedChangeTracker()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
     /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
@@ -3483,6 +3493,12 @@ struct ChatView: View {
         )
         // §362：行构建备忘同趟清账（只留在席条目）
         rowBuildMemo.prune(keeping: seenEntryIDs)
+        // §374 影子比对（开关开时）：新路变更集与
+        // 旧路修订差集逐趟对账入影子账；喂入仍走
+        // 本行数组旧路、控制器一行不动
+        if chatListIncrementalEnabled {
+            feedChangeTracker.ingest(rows: rows)
+        }
         return rows
     }
 
@@ -3582,6 +3598,25 @@ struct ChatView: View {
         // 预计算值变即戳变、行描述随之重建）
         let stamp = "\(memoKey)|\(feedHeight)"
             + "|\(highlighted ? "1" : "0")|\(styleKey)"
+        // §374 影子记账（开关开时）：本行验证基入
+        // 追踪器账——快照取本趟已验证的 Products
+        // （本行只验证一次的穿线纪律不变）、环境
+        // 尾段与喂入高取本行现值；关时零记账
+        if chatListIncrementalEnabled {
+            feedChangeTracker.noteEntryBasis(
+                ChatFeedEntryBasis(
+                    entryID: entry.id,
+                    snapshot: buildProducts.snapshot,
+                    dividerText: dividerText,
+                    showsUnreadDivider: showsUnread,
+                    sources: sources,
+                    highlighted: highlighted,
+                    styleKey: styleKey,
+                    feedHeight: feedHeight,
+                    heightIsProvisional: !resolved.isExact
+                )
+            )
+        }
         return nativeRowMemo.row(key: key, stamp: stamp) {
             var revision = baseRevision
             revision.addFlag(highlighted)

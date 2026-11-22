@@ -52,6 +52,25 @@ public enum ChatNativeListFeature {
     }
 }
 
+// MARK: - 增量喂入特性开关（换引擎步骤 1）
+
+/// 增量喂入特性开关（DESIGN §374，施工图 chat-
+/// list-engine-swap-plan §四）：变更集喂入新路的
+/// 影子旗——缺省 false（键不存在与显式 false 同
+/// 义）。开启时新路只算不用：喂入侧逐趟产出变更
+/// 集＋行值缓存，并与旧路修订差集逐趟对账入影子
+/// 账，喂入本体仍走旧路；步骤 2 转正后本旗改主
+/// 路选择，旧路删除时随之退役
+public enum ChatListIncrementalFeature {
+    public static let defaultsKey = "chat.list.incremental"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        defaults.bool(forKey: defaultsKey)
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸
