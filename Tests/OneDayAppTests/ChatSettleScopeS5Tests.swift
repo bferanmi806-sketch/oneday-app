@@ -16,6 +16,11 @@ import XCTest
 /// 参数类失效紧急直通（窗口合并的守卫回归）。
 /// 拍级断言仪器＝落定拍布局失效施工计数（testSettleLayout-
 /// FlushCount）＋布局匣采用高（testAdoptedRowHeights）＋帧读数。
+/// §374.4 注：时间窗合并缺省已删后，③之窗合并测与参数
+/// 直通测经控制器覆盖口（testCoalesceWindowDropOver-
+/// ride＝false）钉回旧窗模式——窗代码在开关包裹下保
+/// 留一个版本周期、其语义仍由本套把守；其余各测与窗
+/// 模式无关、两模式同断言。
 /// 装配与 ChatNativeHotfix330Tests 同式（窗口＋根 VC＋handle＋
 /// carrier 回调）。基线对账（未改生产行为、仅加计数读口时）：
 /// ①②绿、③之合并/拆拍/抽屉三测按设计红、参数直通绿（修前
@@ -329,6 +334,8 @@ final class ChatSettleScopeS5Tests: XCTestCase {
     {
         assemble()
         let vc = try XCTUnwrap(controller)
+        // §374.4：本测钉旧窗模式（窗语义把守）
+        vc.testCoalesceWindowDropOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
         let f0 = vc.testSettleLayoutFlushCount
@@ -488,6 +495,8 @@ final class ChatSettleScopeS5Tests: XCTestCase {
     func testParamsChangeInvalidationBypassesWindow() throws {
         assemble()
         let vc = try XCTUnwrap(controller)
+        // §374.4：本测钉旧窗模式（绕窗语义把守）
+        vc.testCoalesceWindowDropOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
         let f0 = vc.testSettleLayoutFlushCount

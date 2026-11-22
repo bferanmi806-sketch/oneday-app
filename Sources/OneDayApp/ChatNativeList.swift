@@ -1081,6 +1081,10 @@ final class ChatRootViewController: UIViewController,
     /// 时模式同步认本口不认全局开关——双控制器同
     /// 进程对账/探针用；生产恒 nil）
     var testSingleSectionOverride: Bool?
+    /// §374.4 测试口：时间窗合并删除覆盖（非 nil
+    /// 时落定拍删窗判定认本口不认全局开关——窗语
+    /// 义钉测/量测探针用；生产恒 nil）
+    var testCoalesceWindowDropOverride: Bool?
     /// §325.2：布局参数变更的失效记账（apply 只记
     /// 账、落定拍 pass 外合并施工，见 apply 注）
     private var pendingLayoutInvalidation = false
@@ -1113,7 +1117,9 @@ final class ChatRootViewController: UIViewController,
     private var settleDeferredDuringDrawer = false
     /// §366：时间窗合并窗长（调研退路口径 100–
     /// 200ms 取中值；流式发布闸约 80ms 一拍下每
-    /// 窗约攒 2 拍失效）
+    /// 窗约攒 2 拍失效）。§374.4：本窗缺省已删
+    /// （删窗开关包裹保留为回退口，消费口见落定
+    /// 拍布局失效施工处）
     private static let layoutCoalesceWindow:
         CFTimeInterval = 0.15
     /// §366：结清拆拍的布局拍顺延（数据拍与布局
@@ -2598,6 +2604,14 @@ final class ChatRootViewController: UIViewController,
             ?? ChatListSingleSectionFeature.isEnabled()
     }
 
+    /// §374.4：时间窗合并是否已删（测试覆盖口优
+    /// 先、生产认 Core 开关；开关缺省＝已删）
+    private func coalesceWindowDropped() -> Bool {
+        testCoalesceWindowDropOverride
+            ?? ChatListCoalesceWindowDropFeature
+                .isEnabled()
+    }
+
     /// §374.3：单 section 模式同步（applyNow／
     /// applyChangesNow 入口）：期望模式与匣内构
     /// 造旗不符即翻转——快照结构随构造同变，本
@@ -3725,12 +3739,18 @@ final class ChatRootViewController: UIViewController,
             // 并：行高类失效在同窗内只记账、攒到窗末
             // 一拍施工（定向失效实证不成立的退路，
             // §366.1）；紧急账（参数变）／结清布局拍
-            // ／抽屉唤醒拍绕窗立即施工
+            // ／抽屉唤醒拍绕窗立即施工。§374.4（步
+            // 骤 4①）：时间窗合并缺省已删——删窗判
+            // 定为真时下行窗闸条件恒真、见账即施工、
+            // 攒拍分支不达，行高采纳归发布闸节拍；
+            // 回退开关置假才恢复本窗闸（窗代码以开
+            // 关包裹保留一个版本周期）
             let now = CACurrentMediaTime()
             let bypassWindow =
                 pendingLayoutInvalidationUrgent
                 || clearingLayoutBeat || drawerWakeBeat
-            if bypassWindow
+            if coalesceWindowDropped()
+                || bypassWindow
                 || now - lastLayoutFlushAt
                     >= Self.layoutCoalesceWindow {
                 pendingLayoutInvalidation = false
