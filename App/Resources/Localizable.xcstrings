@@ -5745,6 +5745,17 @@
         }
       }
     },
+    "来源 · %lld": {
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来源 · %lld"
+          }
+        }
+      }
+    },
     "服务器上还没有开通监测。开通后，你盯着的页面和对象有变化就会出现在这里。": {
       "extractionState": "manual",
       "localizations": {

@@ -553,6 +553,7 @@ struct ChatNativeRowHeightComposer {
     func makeEntryMeasureJob(
         for entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = [],
         memoKey: String, rowKey: String
     ) -> ChatNativeRowMeasureJob {
         let facets: ChatNativeRowFacets
@@ -565,7 +566,9 @@ struct ChatNativeRowHeightComposer {
         } else {
             facets = ChatNativeRowFacets()
         }
-        let snapshot = ChatEntryHeightSnapshot(entry)
+        let snapshot = ChatEntryHeightSnapshot(
+            entry, sources: sources
+        )
         return makeJob(
             memoKey: memoKey, rowKey: rowKey,
             facets: facets,
@@ -1116,6 +1119,9 @@ struct ChatNativeRowHeightComposer {
         )
         parts.append(
             "tx\(Self.boolDigest(facetExpansionOverride(for: ChatRowStateKeys.toolEntry(entry.id))))"
+        )
+        parts.append(
+            "sx\(Self.boolDigest(facetExpansionOverride(for: ChatRowStateKeys.sourcesEntry(entry.id))))"
         )
         if entry.traceKey != nil {
             // 回响时刻文案随日界变宽（今天只时刻、
@@ -2672,17 +2678,20 @@ struct ChatNativeRowHeightComposer {
     @MainActor
     func entryHeight(
         _ entry: ChatEntry, dividerText: String?,
-        showsUnreadDivider: Bool = false
+        showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = []
     ) -> CGFloat {
         rowMemo(
             entryMemoKey(
                 for: entry, dividerText: dividerText,
-                showsUnreadDivider: showsUnreadDivider
+                showsUnreadDivider: showsUnreadDivider,
+                sources: sources
             )
         ) {
             entryHeightWithFacets(
                 entry, dividerText: dividerText,
-                showsUnreadDivider: showsUnreadDivider
+                showsUnreadDivider: showsUnreadDivider,
+                sources: sources
             )
         }
     }
@@ -2693,9 +2702,10 @@ struct ChatNativeRowHeightComposer {
     @MainActor
     func entryMemoKey(
         for entry: ChatEntry, dividerText: String?,
-        showsUnreadDivider: Bool = false
+        showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = []
     ) -> String {
-        entryMemoKey(
+        var key = entryMemoKey(
             baseRevision: ChatNativeRowRevision.entryBase(
                 entry,
                 dividerText: dividerText,
@@ -2703,6 +2713,15 @@ struct ChatNativeRowHeightComposer {
             ),
             entry: entry
         )
+        // D4 (§349): source set joins the memo key --
+        // when the set changes (tool rows complete
+        // after finalize) the key must change too
+        if !sources.isEmpty {
+            key += "|sx" + sources
+                .map { "\($0.url)\u{1}\($0.title)" }
+                .joined(separator: "\u{2}")
+        }
+        return key
     }
 
     /// 基段入参版（2026-11-20 卡顿修复包）：行构
@@ -2731,7 +2750,8 @@ struct ChatNativeRowHeightComposer {
     @MainActor
     func entryHeightWithFacets(
         _ entry: ChatEntry, dividerText: String?,
-        showsUnreadDivider: Bool = false
+        showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = []
     ) -> CGFloat {
         var core = self
         if let ledger, let hubStore {
@@ -2742,7 +2762,7 @@ struct ChatNativeRowHeightComposer {
                 )
         }
         return core.entryHeightCore(
-            ChatEntryHeightSnapshot(entry),
+            ChatEntryHeightSnapshot(entry, sources: sources),
             dividerText: dividerText,
             showsUnreadDivider: showsUnreadDivider
         )
@@ -2768,6 +2788,7 @@ struct ChatNativeRowHeightComposer {
     func precomputedEntryHeight(
         for entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = [],
         product: LayoutProduct
     ) -> CGFloat? {
         guard entry.role == "assistant",
@@ -2794,7 +2815,7 @@ struct ChatNativeRowHeightComposer {
         }
         core.productSegmentHeights = segmentHeights
         return core.entryHeightCore(
-            ChatEntryHeightSnapshot(entry),
+            ChatEntryHeightSnapshot(entry, sources: sources),
             dividerText: dividerText,
             showsUnreadDivider: showsUnreadDivider
         )
@@ -2853,6 +2874,7 @@ struct ChatNativeRowHeightComposer {
         }
         return total + assistantEntryHeight(entry)
             + reactionReserve(entry)
+            + sourceStripSlot(entry)
     }
 
     /// 反应 pill 悬出预留（台账 187）：pill 压气泡底
@@ -2867,6 +2889,48 @@ struct ChatNativeRowHeightComposer {
         entry.reactions.isEmpty
             ? 0
             : ChatReactionMetrics.rowReserve
+    }
+
+    /// 来源条槽（D4，§349）：定稿气泡下方的轮级来
+    /// 源清单——本槽价＝条本体高（sourceStrip-
+    /// Height）＋一段 spacingS（entryRowContent 的
+    /// VStack 槽距，与其余槽同口径）；无来源恒 0
+    /// （两态差由拟合测试钉住，含「无来源零增量」）
+    private func sourceStripSlot(
+        _ entry: ChatEntryHeightSnapshot
+    ) -> CGFloat {
+        guard !entry.sources.isEmpty else { return 0 }
+        return OneDayMetrics.spacingS
+            + sourceStripHeight(entry)
+    }
+
+    /// 来源条本体高（D4，§349）：头行恒 minTap-
+    /// Target（与视图 frame(minHeight:) 逐值）；展
+    /// 开加列表段——段首 spacingXS＋逐行 footnote
+    /// 一行价（视图行 lineLimit(1) 恒一行、本处以
+    /// 限行量测价）＋行间 spacingXS
+    func sourceStripHeight(
+        _ entry: ChatEntryHeightSnapshot
+    ) -> CGFloat {
+        var total = OneDayMetrics.minTapTarget
+        let expanded = facetExpansionOverride(
+            for: ChatRowStateKeys.sourcesEntry(entry.id)
+        ) ?? false
+        if expanded, !entry.sources.isEmpty {
+            // 行是 SwiftUI Text 单行（lineLimit(1)）
+            // ——走 swiftLineHeight 实高口（§329 校准：
+            // .footnote 实高 15.67 vs spec 步长 18，
+            // 直用 plainHeight 的限行价会虚高 7pt，
+            // 拟合测试实证）
+            let rowLine = swiftLineHeight(
+                plainFont(.footnote)
+            )
+            total += OneDayMetrics.spacingXS
+                + rowLine * CGFloat(entry.sources.count)
+                + OneDayMetrics.spacingXS
+                    * CGFloat(entry.sources.count - 1)
+        }
+        return total
     }
 
     /// 用户行高：HStack{Spacer(min 44)＋[失败钮

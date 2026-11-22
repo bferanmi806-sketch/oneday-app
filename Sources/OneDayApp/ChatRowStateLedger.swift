@@ -128,6 +128,13 @@ enum ChatRowStateKeys {
         "tool-entry-\(entryID.uuidString)"
     }
 
+    /// 来源条（D4，§349）：定稿条目下方来源清单的
+    /// 展开态键——与思考/工具卡同账本纪律（行高合
+    /// 成器经 facet 快照看得见、展开即重测高）
+    static func sourcesEntry(_ entryID: UUID) -> String {
+        "sources-entry-\(entryID.uuidString)"
+    }
+
     static func toolLive(_ cardID: String) -> String {
         "tool-live-\(cardID)"
     }

@@ -14348,3 +14348,34 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 ### §350.4 本包动点与域协调
 
 - 零代码改动：未动 ChatView 顶栏/气泡装配、未动任何呈现层，与在飞 `feat/stream-incremental` 零交集、无合并仲裁项。HapticsMatrixTests 随本包复跑全绿（零新触感自证）。
+
+## §349 D4 联网引用来源呈现：轮级来源清单（2026-11-22；分支 feat/d4-citations，基线 rel-05084；调查 oneday-design-review/d4-citation-probe-20261122.md）
+
+### §349.1 断链定位（调查定案）
+
+来源数据从未断：web_search 工具行 content 里 `data.web[]`（{url,title,description,position}）与 web_extract 的 `results[]`（{url,title,content,error}）经历史面原样下发、实时面终态靠 transcript 落定后工具行全文可达。断点在客户端：①`ToolResultUnwrap.unwrap`（ToolCards.swift）不认这两种形态、落 prettyJSON 压成文本；②全 App 无来源呈现（模型正文定稿统计：markdown 链接 1/裸 URL 17/`[n]` 脚注 0）。服务端从无结构化 citations 通道、Hermes 上游 v0.23.0 官方亦无引用呈现——非对齐欠账、属增量自建。行内锚点依赖供应商 span 数据、Hermes 没有，形态定案＝Perplexity/ChatGPT 式**回答级来源清单**（非句级锚点）。
+
+### §349.2 构造（纯客户端、服务端零改）
+
+- **Core 提取器**（新文件 OneDayCore/WebSources.swift）：`MessageSource`（title/url/host 剥 www.）；`WebSourceExtractor` 恰认 web_search/web_extract 两原生名——web_search 读 `data.web[]`（success==false→空、按 position 定序、标题缺失回落 host）、web_extract 读 `results[]`（error 非空行剔除）；消费面是 ToolCard.result 文本（含 `{"result": "<json>"}` 防御递归）；去重键＝去空白＋剥单个尾斜杠，单卡与聚合均封顶 10。
+- **按轮聚合**（`TurnSourceAggregation.sourcesByAssistantIndex`）：呈现层派生、**不落盘新字段**（保单一数据源：来源的真源恒是工具行原文）。轮边界＝user 条目；轮内工具卡聚合挂**最后一个**定稿助手条目；无定稿或无来源不产出。ChatView.renderPlan 与分隔/成组同趟派生、同缓存同失效（键含工具卡数据有无，卡落定即换键）。
+- **来源条**（新文件 MessageSourceStripView）：定稿气泡**同级槽**（entryRowContent 的 VStack 内、bubble 之后）——不进 bubble() 本体（浮排快照以 bubble 为几何源，条不入快照几何）。形态学活动线同族：头行一线（globe＋「来源 · N」＋首个域名＋箭头、命中 44、左界 bubblePaddingH 与气泡正文对齐），点开成列（标题一行截断＋域名小字），点行经系统 openURL 开链接。展开态走行状态账本新键 `sourcesEntry`（与思考/工具卡同纪律：合成器看得见、展开即重测高）。条不挂 messageMenu（展开/外链控件与菜单手势分工，菜单面留在气泡铬件 §265）。
+- **与工具卡分工**：工具卡＝单次调用的排障原始面（参数/结果全文）；来源条＝整轮聚合清单（标题/域名/链接）。数据同源（工具行原文）、面向不同，不重复呈现全文。
+
+### §349.3 行高对账（合成器同口径）
+
+- 快照 `ChatEntryHeightSnapshot` 加 sources 注入字段（拼装时由 renderPlan 派生结果注入，非条目本体字段）；合成器四口（makeEntryMeasureJob/entryHeight/entryHeightWithFacets/precomputedEntryHeight）同穿 sources 参数。
+- 条目高新增 sourceStripSlot（仅助手支尾）：spacingS（行内 VStack 槽距）＋条本体高；条本体高＝头行 minTapTarget 恒值，展开加列表段（段首 spacingXS＋逐行 footnote 一行价＋行间 spacingXS，视图行 lineLimit(1) 恒一行同口径）。
+- 备忘与修订：来源集折入行修订基段（nativeEntryRow 与量测键共用基段）＋entryMemoKey 尾段摘要＋facet 摘要加 sx 段（展开态）——来源集变或展开翻转即换键重算，不许命中旧高。
+- gen3 承载面只传呈现（估算不动、托管量实自适应）；旧承载 messageList 同传。
+
+### §349.4 纪律（不变量）
+
+- 只动 ToolCards 邻域/提取器/来源条新件与上述合成接点；**不碰流式喂入路径**（与流式增量包同域、合流主线仲裁）；直播落定走既有 transcript 重建同路（落定条目带工具行→派生天然出条，流式中途不另呈现）。
+- 旧会话回放天然补条：历史工具行同样可提取，派生构造性覆盖，无迁移、无回填。
+- 触感零新增（无 Haptics 调用点）；新文案键「来源 · %lld」仅 zh-Hans（en/繁体按既有待补口径登记）；favicon 不取远程图（域名文字＋globe 字形，与活动线字形族同口径）。
+
+### §349.5 验收
+
+- 实验室：两轮实测——Core 先行轮 d4-citations-1（xcresult Test-OneDayApp-2026.11.22_12-59-43）34 passed / 0 failed（WebSourceExtractorTests 11 新测＋RichContentTests 23 回归）；App 合成轮 d4-citations-4（xcresult ~/build/dd-d4/Logs/Test/Test-OneDayApp-2026.11.22_13-36-46-+0800.xcresult）**77 passed / 0 failed**（WebSourceExtractorTests＋RichContentTests＋RenderMeasureTests＋MessageSourceStripFittingTests 3 新测＋ChatNativeRowHeightFittingTests＋ChatNativeHotfix330Tests＋ChatNativeMeasureDeskTests＋HapticsMatrixTests）。过程两坑实录：首轮 App 构建因新文件未入工程失败（tuist generate 补入后复跑）；拟合首跑展开态差 7pt——行价误用 plainHeight 限行价（spec 步长 18），按 §329 既有校准口改 swiftLineHeight 实高口（.footnote 15.67）后逐值合拢。拟合五钉：条收/展两态拟合＝合成价、条目级增量两态＝spacingS＋条高、无来源零增量（差分构造）、用户行不承接来源槽。
+- 真机门（留用户）：①真实联网搜索一轮落定后定稿气泡下出条、计数与域名正确 ②展开/收起手感与行高跟随无跳版 ③点行开链接（浏览器/通用链接路由正确） ④长清单（近封顶 10 条）展开滚动不卡 ⑤深色＋最大字号各一帧（标题截断、行高仍对账） ⑥流式落定瞬间条出现不闪烁/不顶行 ⑦旧会话（历史搜索轮）回放自动有条。

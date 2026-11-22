@@ -3035,7 +3035,8 @@ struct ChatView: View {
                     rows.append(
                         carrierEntryRow(
                             entry,
-                            dividerText: plan.dividers[entry.id]
+                            dividerText: plan.dividers[entry.id],
+                            sources: plan.sources[entry.id] ?? []
                         )
                     )
                 case .toolGroup(let groupEntries):
@@ -3202,6 +3203,7 @@ struct ChatView: View {
                         nativeEntryRow(
                             entry,
                             dividerText: plan.dividers[entry.id],
+                            sources: plan.sources[entry.id] ?? [],
                             composer: composer,
                             styleKey: styleKey
                         )
@@ -3434,6 +3436,7 @@ struct ChatView: View {
     /// 希与产物层行高估算
     private func nativeEntryRow(
         _ entry: ChatEntry, dividerText: String?,
+        sources: [MessageSource],
         composer: ChatNativeRowHeightComposer,
         styleKey: String
     ) -> ChatNativeRow {
@@ -3446,11 +3449,20 @@ struct ChatView: View {
         // 一遍——量测键与行修订共用同一基段（旧形
         // 态两路各建一份全量快照、是每遍双构建的
         // 一半）；行修订＝基段＋点亮/样式键尾段
-        let baseRevision = ChatNativeRowRevision.entryBase(
+        var baseRevision = ChatNativeRowRevision.entryBase(
             entry,
             dividerText: dividerText,
             showsUnreadDivider: showsUnread
         )
+        // D4 (§349): the source set folds into the
+        // shared base revision -- the measure key and
+        // the row revision share this base, so a
+        // changed source set re-keys both the measure
+        // job and the row description in the same pass
+        for source in sources {
+            baseRevision.addText(source.url)
+            baseRevision.addText(source.title)
+        }
         // §331：行高先查整行备忘（命中＝确定高）；
         // 未命中投量测台后台预排版、当趟用上次高/
         // 兜底高，回填后经发布代次以确定高重喂
@@ -3468,6 +3480,7 @@ struct ChatView: View {
                     for: entry,
                     dividerText: dividerText,
                     showsUnreadDivider: showsUnread,
+                    sources: sources,
                     memoKey: memoKey, rowKey: key
                 )
             )
@@ -3489,6 +3502,7 @@ struct ChatView: View {
             .precomputedEntryHeight(
                 for: entry, dividerText: dividerText,
                 showsUnreadDivider: showsUnread,
+                sources: sources,
                 product: product
             ) {
             feedHeight = precomputed
@@ -3518,7 +3532,8 @@ struct ChatView: View {
                     AnyView(
                         entryRowContent(
                             entry, dividerText: dividerText,
-                            showsUnreadDivider: showsUnread
+                            showsUnreadDivider: showsUnread,
+                            sources: sources
                         )
                     )
                 },
@@ -4144,7 +4159,8 @@ struct ChatView: View {
     }
 
     private func carrierEntryRow(
-        _ entry: ChatEntry, dividerText: String?
+        _ entry: ChatEntry, dividerText: String?,
+        sources: [MessageSource] = []
     ) -> ChatCarrierRow {
         // §247（包 4）：落定映射命中时条目行沿用
         // 流式行键＋带留高旗——与流式行同键换代、
@@ -4180,7 +4196,8 @@ struct ChatView: View {
                 AnyView(
                     entryRowContent(
                         entry, dividerText: dividerText,
-                        showsUnreadDivider: showsUnread
+                        showsUnreadDivider: showsUnread,
+                        sources: sources
                     )
                 )
             }
@@ -4619,6 +4636,7 @@ struct ChatView: View {
         var key: ChatRenderPlanKey?
         var dividers: [UUID: String] = [:]
         var items: [EntryRenderItem] = []
+        var sources: [UUID: [MessageSource]] = [:]
     }
 
     /// 本帧渲染计划：先按键查缓存，未命中才走全量
@@ -4629,7 +4647,10 @@ struct ChatView: View {
     /// 键内自带定序（见 Core make）
     private func renderPlan(
         for thread: ChatThread
-    ) -> (dividers: [UUID: String], items: [EntryRenderItem]) {
+    ) -> (
+        dividers: [UUID: String], items: [EntryRenderItem],
+        sources: [UUID: [MessageSource]]
+    ) {
         let key = ChatRenderPlanKey.make(
             threadID: thread.id,
             entries: thread.entries.map {
@@ -4642,15 +4663,52 @@ struct ChatView: View {
             dayStamp: Calendar.current.startOfDay(for: Date())
         )
         if renderPlanCache.key == key {
-            return (renderPlanCache.dividers, renderPlanCache.items)
+            return (
+                renderPlanCache.dividers, renderPlanCache.items,
+                renderPlanCache.sources
+            )
         }
         let sorted = thread.sortedEntries
         let dividers = timelineDividers(for: sorted)
         let items = entryRenderItems(for: sorted)
+        // D4 (§349): turn-level source aggregation,
+        // derived in the same pass as dividers/items
+        // -- entries map to segments (user = turn
+        // boundary, tool entries carry their card,
+        // finalized assistant entries receive), the
+        // result is keyed back by entry id. Derived
+        // only, never persisted: the tool rows' raw
+        // payloads stay the single source of truth,
+        // so history replay gains strips for free
+        let segments = sorted.map {
+            entry -> TurnSourceAggregation.SegmentItem in
+            if entry.role == "user" {
+                return .init(kind: .userMessage)
+            }
+            if let card = entry.toolCard {
+                return .init(kind: .toolCard, card: card)
+            }
+            if entry.role == "assistant",
+               entry.echoKey == nil,
+               entry.approvalKey == nil,
+               entry.traceKey == nil,
+               !entry.content.trimmingCharacters(
+                   in: .whitespacesAndNewlines
+               ).isEmpty {
+                return .init(kind: .assistantMessage)
+            }
+            return .init(kind: .other)
+        }
+        var sources: [UUID: [MessageSource]] = [:]
+        for (index, list) in TurnSourceAggregation
+            .sourcesByAssistantIndex(items: segments) {
+            sources[sorted[index].id] = list
+        }
         renderPlanCache.key = key
         renderPlanCache.dividers = dividers
         renderPlanCache.items = items
-        return (dividers, items)
+        renderPlanCache.sources = sources
+        return (dividers, items, sources)
     }
 
     /// 直播区渲染计划：按 liveOrder 标记交错思考/工
@@ -4807,7 +4865,9 @@ struct ChatView: View {
                                 entryRowContent(
                                     entry,
                                     dividerText:
-                                        plan.dividers[entry.id]
+                                        plan.dividers[entry.id],
+                                    sources: plan.sources[entry.id]
+                                        ?? []
                                 )
                                 .id(entry.id)
                             case .toolGroup(let groupEntries):
@@ -6423,7 +6483,8 @@ struct ChatView: View {
     @ViewBuilder
     private func entryRowContent(
         _ entry: ChatEntry, dividerText: String?,
-        showsUnreadDivider: Bool = false
+        showsUnreadDivider: Bool = false,
+        sources: [MessageSource] = []
     ) -> some View {
         VStack(
             alignment: .leading,
@@ -6436,6 +6497,24 @@ struct ChatView: View {
                 unreadDivider(for: entry)
             }
             bubble(entry)
+            if !sources.isEmpty {
+                // D4 (§349): the source strip is a
+                // sibling slot of the bubble, not part
+                // of bubble() itself (the floating-bar
+                // snapshot replays bubble geometry; the
+                // strip must not enter it). The slot gap
+                // is this VStack's spacingS, matching
+                // the composer's sourceStripSlot. No
+                // messageMenu here: the strip is a
+                // disclosure/link control; the menu
+                // surface stays on the bubble chrome
+                MessageSourceStripView(
+                    sources: sources,
+                    expansionKey: ChatRowStateKeys
+                        .sourcesEntry(entry.id),
+                    ledger: rowStateLedger
+                )
+            }
         }
         // §165：锚点点亮——点达请求命中的锚定行以
         // primaryTint 底色点亮（沿 §123 枢纽聚焦同
