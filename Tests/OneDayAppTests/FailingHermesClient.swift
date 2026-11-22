@@ -30,6 +30,14 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func updateCheck(config: ServerConfig) async throws -> UpdateCheckResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func updateReceipt(config: ServerConfig) async throws -> UpdateReceiptResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary {
         throw HermesError.unreachable("离线桩")
     }

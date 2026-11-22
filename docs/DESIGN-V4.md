@@ -14586,6 +14586,33 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 随带：Derived/InfoPlists 版本戳经 tuist generate 刷回与基线 Project.swift 一致的 0.50.90/218（仓库内提交戳为陈旧 0.50.84/212），原样随本包提交、组版 generate 时再刷。
 - 未验（如实）：真机对真服务端全链未跑——无消息平台时空态已由实验室形态把守，真造待批→批准→回读在列→撤销→回读消失的联调门随台账 48（频道接入）或测试平台接入时一并走；9119 三个会话面 GET 的生产回文形状以源码形状构造样本钉测，联调时以受控实测替换 fixture。
 
+## §360 服务器只读感知面（台账 36，H12 自更新感知；2026-11-22；基线 rel-05090，分支 feat/h12-server-info）
+
+### §360.1 裁定与落点
+- 案 A 定版（用户 2026-11-22 裁）：只做只读感知面，「执行更新」腿正式废止。依据（探活 blueprint-phase1-recon-20261122 §4 源码闭环＋生产实测）：本部署为容器＋/opt/data 数据卷，服务端明文 can_update_hermes=false、update/check 恒走 managed-runtime 分支、POST update 恒拒 dashboard_update_managed_externally、receipt 恒 404——执行钮做出来即僵尸功能，且与部署完整性纪律（服务端改动一律走部署包）正面冲突。感知与执行分离：感知在内、执行在外（运维侧换镜像）。
+- 落点：设置·连接「当前服务器」详情页（ServerDetailView）尾加一段「版本与更新」（ServerVersionSection.swift：段本体＋ServerVersionStore 薄封装），不新开一级页。与连接自检（§357）分工：自检管「通不通、能力在不在」（独立页、探针聚合），本段管「版本是什么、怎么升级」（详情页内一段）；版本数据源同为 /api/status＋update/check，两面各读各的呈现、不共建共享页，自检面亦未陈列版本对照（实查 §357 落点后定收口）。
+- 设置根服务器行副行带版本一词（探活 §4.4 的「可」项）不在本包：根级无现成 status 拉取，为副题新增根级请求超出 §4.7 施工图；如需另立小包（§357 留痕副题已有先例）。
+
+### §360.2 契约映射（9119 Dashboard 面）
+- GET /api/status（免登录）→ ServerStatus：本包扩两键 latest_config_version／can_update_hermes（与 §357 扩键同名同型——§357 在其分支另扩 overall／components／disk／memory，组版合并时以并集为准、勿互相覆盖）；生产实测 config_version 52／latest 52、can_update_hermes=false。
+- GET /api/hermes/update/check（需会话）→ UpdateCheckResponse（ServerVersionModels.swift）：全字段可空宽容解码（install_method／current_version／behind／update_available／can_apply／update_command／message）；本部署恒 managed 分支（install_method＝"managed-runtime"、behind＝null、can_apply＝false）。
+- GET /api/hermes/update/receipt（需会话）→ UpdateReceiptResponse：只建模 summary＋receipt.outcome 两键（steps/skips 等余键解码忽略，键对不上落 nil、界面回落「有更新记录」，不编造）；**404 映射专属空态错误型 UpdateReceiptError.absent**，不走 unexpectedStatus 通用失败面——本部署恒 404，空态即常态。
+- GET /api/hermes/update/check 与 receipt 的回执在位形态 displayText 三级回落：summary → receipt.outcome → 「有更新记录」。
+- 客户端形态：HermesClientProtocol 新增 updateCheck／updateReceipt 两方法（9119 会话管线：check 走 getJSON、receipt 自行判 404）；会话两路在 Store 侧走 AppState.performAdmin（401 用已存密码静默重登一次、再 401 落 sessionExpired）。Demo 侧按 C-13 只加一行 demoLimitReached 桩、不写种子；测试双替身（FailingHermesClient／ScriptedSessionsClient）只同步签名、桩体恒抛 unreachable。
+
+### §360.3 呈现口径（ServerVersionBuilder 纯函数单点合成，Core）
+- 当前版本：status.version，状态面缺席时回落 check.current_version（同为服务端原话）；两路皆无显「未记录」，状态面失败且无回落显「拉取失败」。
+- 发布日期：status.release_date 服务端原样字符串（如 2026.9.24），缺席显「未记录」。
+- 配置版本：config_version 与 latest_config_version 两数齐备才成对照「52 / 52」，缺任一显「未记录」——不拿单边冒充对照；落后时对照原样呈现两数、不加工结论。
+- 托管说明：can_update_hermes＝false（主证）或 install_method＝managed-runtime（旁证）任一坐实 → 定版说明「此服务器为容器部署，Hermes 的升级由运维侧更换镜像完成，应用内不执行更新。」，脚注样式呈现（部署形态非异常，不做警告卡）；非托管（can_update＝true）时只转述 check.message 服务端原话，无原话则不出说明。
+- 回执行：absent → 「暂无更新记录」；在位 → displayText；普通失败 → 「拉取失败」；会话过期 → 「未读取」＋段内脚注「面板会话已过期，重新登录后可读更新检查与回执。」（状态面免登录、过期不拖累版本三行）。
+- 取数纪律：三路逐项隔离（顺序取数、失败互不拖累；§357 失败隔离口径），一路失败只落该路形态；未连接（无 config）整段如实不可用、不冒充空数据。本段不落盘缓存、每次进页现拉，服务器配置变更经 .task(id: baseString) 重拉——无旧缓存冒充新鲜之面（与 §357 的「缓存必带时间留痕」是同一纪律的两种合规形态，本段选不缓存）。
+- 红线钉测：段源码（去注释）不许出现 Button／「检查更新」／「立即更新」／「执行更新」——托管态下任何可点执行形态皆违案 A，源码钉测把守（ServerVersionStoreTests.testSectionHasNoActionAffordance）；段挂载在位同测钉死。
+
+### §360.4 验收与未验项
+- 实验室：bundle Test-OneDayApp-h12r4.xcresult（run h12-server-info-r4，2026-11-22 19:20 kick、19:21 完赛，Mac 失联前最后一轮；恢复后读回 summary 关账）**63/63 全绿、0 失败**。逐套对账：ServerVersionModelsTests 13、ServerVersionStoreTests 8、SettingsCatalogTests 19、SessionCatalogGuardTests 9、ModelsDecodeTests 6、HermesErrorTests 6、DemoFreezeGuardTests 2。
+- 未验（如实）：①真机门——真机打开「当前服务器」页与 /api/status 实测逐值对账（版本 0.23.0、发布日期、配置 52/52、托管说明在位、回执空态如实），实验室绿不替代真机 verdict。②9119 两端点（update/check、receipt）的生产回文形状未以登录会话实测（探活未证清单①：源码形状已闭环、本次按纪律未做登录类 POST 取会话），联调时以会话实测替换 fixture。③演示模式下两新方法走 demoLimitReached 桩的段呈现未专项验（与其它会话面同口径）。
+
 ## §361 流畅度专项 S1：图片行解码缓存一致性（探活 H1，2026-11-22；基线 rel-05090，分支 feat/smooth-s1-image-cache）
 
 ### §361.1 病灶（探活实证，smoothness-recon-20261122 主因 1／H1）
