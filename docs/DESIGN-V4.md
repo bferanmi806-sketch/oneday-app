@@ -14255,3 +14255,33 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 - 单元整树（OneDayCoreTests＋OneDayAppTests，xcresult hubdebts-unit）：**2814 passed / 5 failed / 2824 total**。5 红对账：ChatNativeListR2AssemblyTests 两件、EdgeEffectProbeTests、LibraryOrderingTests 共 4 件在基线 rel-05082 原树同测同红（base5.xcresult，4 failed/1 passed）＝既有红、非本包回归；TraceEchoMaterializationAppTests 一件在整树高负载下宿主崩溃，本包树单跑 6/6 绿（trace1.xcresult）、基线单跑亦过，判负载 flake。本包零新增红。
 - 真机门（留用户）：①页头横排 AX 最大字号档一帧 ②页头深色一帧 ③台账行右段秒级跳动观感 ④定时行右列两行时刻对齐 ⑤失败人话在真实断网/盒子离线时各露一帧。
 - 已知遗留（不扩围）：身份段 HubIdentitySection.headerRow 仍有大名（.title bold）＋45 头像，与收紧后页头同页异位重复（既存形态）；BoxFilesClient/BoxShellClient 有同类英文错误映射（非中枢面，另行收口）；SkillHubViews 行无图标属能力商店独立面（合并树定版为独立面，非本包范围）。
+## §346 浮排第二步：长文视口钳制＋动作卡同呈＋「＋」全集（2026-11-22；分支 feat/floating-bar-tall，基线 rel-05082@e612aa6＝0.50.82/210；施工图 oneday-design-review/floating-bar-tall-design-20261122.md）
+
+### §346.1 病根（真机报＋代码实证）
+
+- 超长消息长按只剩压暗＋巨型气泡、药丸排不见：§343 定位纯函数 `barOrigin` 只拿消息框算纵向（minY−8 放不下就 maxY+8），**无视口入参、无钳制**——消息比屏高时两个锚点都在屏外，药丸必丢。结构性缺口，非参数问题。
+- 第二缝即 §343.4 登记的转交面缝：点快照/空白关 cover 后转交 confirmationDialog（底部表、项无图符），与 Muse「一次呈现、三层分离」（用户 2026-11-22 第 6 点亲述：表情在上、选项在下、隔离分开）形态不一致。本节一并缝掉。
+
+### §346.2 构造（三层同呈）
+
+- **呈现链不变**：仍走 §343 的 simultaneous 长按挂钩＋`fullScreenCover` 自绘 overlay＋`menuSuppressed` 竞速护栏；overlay 内一次呈三层：压暗＋原消息快照＋药丸排（上）＋自绘动作卡（下），定位全走新纯函数 `ReactionBarPlacement.layout(sourceFrame:alignsTrailing:viewport:itemCount:)`（viewport＝GeometryReader safeAreaInsets 组装的安全区矩形，全局坐标）。
+- **药丸排钳制**：候选序 A 上方（现口径，yAbove ≥ 安全顶）→ B 下方成摞（药丸置消息下、卡顺次其下）→ C 钉安全区顶部（安全顶＋8）；逐候选以不变量校验（药丸/卡完整入视口、卡恒在药丸下方留 8）取首个成立者，兜底硬钳。横向维持气泡对齐＋夹视口左右 8。§343 旧 `barOrigin` 逐值保留作回归锚：短消息纵向与新布局全等；横向因「＋」排宽 332→372 按同一夹屏规则重算（规则不变、宽变所致，既有断言随之更新并注明）。
+- **动作卡** `ReactionActionCardView`：条目/顺序/图标/危险色逐项走 `actionItems()` 单源（item 自带 systemImage——底部表丢失的图标恢复；危险项走 Palette.danger）；卡面与药丸同族（Palette.surface＋pageBG 描边 1.5＋同款影、圆角 24）；行高 44、纵向内边距 6×2（高＝12＋44×项数，4 项 188 ≈ Muse 量测 187）；宽＝视口宽 ×0.625（量测 ≈62.7%）；左对齐消息左缘后夹进视口；纵向序：贴消息下方→（药丸在下方时）顺次其下→让位消息上方→钉安全区底部上方（安全底−8−卡高）。点条目即执行 item 自带 action（同一闭包路由）并收起整个呈现；点快照/空白收起。
+- **快照带钳高**：可见带＝帧∩视口纵向去掉药丸/卡占位段（各扩 8）后的最长段；快照在带内按原帧偏移渲染、clipped，裁切边（clipsTop/clipsBottom）挂 28pt alpha 渐隐 mask（与抽屉顶部渐隐同口径）；无裁切时走第一步原位全帧同路；带高 0（极端贴边行）整快照不出、药丸与卡功能不受影响。Muse 实测为毛玻璃卡叠压气泡下段，本包按用户「隔离分开」口径落真隔离（不重叠＋钳高渐隐）——差异已在施工图注明。
+- **状态机**：Core `ReactionBarStateMachine` 更新为同呈语义——新增 `pickAction()`（bar→deliverAction→idle）；`requestActions/actionSheet` 转交迁移退役，`longPress(canReact: false)` 不再直达任何面（路由层恒先拦、会话只在可反应时创建）。会话 `ReactionBarSession.pickAction(_:)` 状态机放行才执行 item.action()，与 pick 同为单次投递、互斥防双投。
+- **退役清单**（ChatView，均经 grep 核实仅服务转交一链）：`handoffReactionBarToActions`、`reactionBarCoverDismissed`、`pendingReactionActionData`、`showReactionActions` 及其 confirmationDialog 与 onChange 清理；fullScreenCover 去 onDismiss。压暗层 VoiceOver 标签「消息动作」→「关闭」（语义已变）。
+
+### §346.3 「＋」全集入口
+
+- 写入路径核查（先核后落）：`MessageReaction.emoji` 自由 String、乐观组装 `MessageReactions.applying` 无校验、toggle 单点无 palette 限定、端点 `setReaction(emoji: String)` 无集内校验——**客户端路径接受任意 emoji**，落。服务端是否拒集外未验（客户端仓不可见）：若拒，现行写口自带失败回滚＋人话提醒，降级为「点了没落上＋提示」、不脏数据；真机门验集外落锤为准。
+- Core 新增 `ReactionEmojiCatalog.morePalette`（126 枚常用集：表情/手势/爱心庆典/日常符号，与 palette 无重复）；`MessageReactions.palette` 样板 8 个不动（§187 注释「单排、无展开层」旧拍板由本条按 2026-11-22 用户新图对位覆盖，仅展开层新增、本体不变）。
+- 药丸排尾「＋」钮（40 格内 34 圆、pageBG 底＋plus 图符，VoiceOver「更多反应」；排宽 372 与 Muse 量测同宽）；点开系统半页 sheet（.medium＋拖柄）网格（格 44、own 以 primaryTint 标出），选中先暂存、sheet 关净经 onDismiss 才投递（防与 cover 收起同拍打架），取消不投递、浮排仍在场。
+
+### §346.4 纪律（不变量）
+
+- 开关 `chat.reactions.floatingBar` 语义不变（关＝回 0.50.80 子菜单形态，修饰符不挂钩路未动）；行级仲裁零碰（右滑 pan/滚动/选字让行未动一字）；压暗 32%、快照抬升（阴影＋1.02）参数原样，不新增动画参数；触感零直调（无新增 Haptics 调用点）；文案新键只 zh-Hans（「更多反应」「全部反应」「关闭」，en/繁体欠账同既登记口径）。
+
+### §346.5 验收
+
+- 实验室：`ReactionFloatingBarTests` 扩至 15 件——既有开关/路由/修饰符/会话 pick 原样回归；状态机与会话按同呈语义改写 3 件（pickAction 迁移/单次执行/互斥禁投）；旧定位函数断言 2 处随排宽更新（注明规则不变）；新增钳制五格（正常逐值/顶出屏钉顶钉底/底出屏/贴顶下方/贴底让位/整框出屏）＋不变量帧矩阵（10 帧×2 对齐×3 项数：两层完整入视口、卡恒居药丸下、可见带与两层留 gap 隔离）＋目录形状＋卡量测对位。与 §343 回归集同轮（ReactionFloatingBarTests＋HapticsMatrixTests＋MessageActionsTests＋SwipeReplyPanBridgeTests）合计 **41 passed / 0 failed**（xcresult ~/build/fbt.xcresult，Test-OneDayApp 2026-11-22 12:08 轮；首轮 40/1 系测试期望手算误 436→444、代码无误，修正后复跑全绿）。
+- 真机门（留用户）：①超长文长按药丸钉顶可见可点、一步落反应 ②长按当场三层全见、无第二步点按 ③长文三层不重叠、裁切边渐隐自然 ④短消息药丸定位无变化、卡贴消息下方 ⑤「＋」半页选中集外 emoji 落锤（兼验服务端拒否） ⑥流式行长按三层可用 ⑦右滑/竖滑不回退、深色＋最大字号各一帧。
