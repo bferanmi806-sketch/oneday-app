@@ -469,6 +469,27 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, code: String
     ) async throws -> EnrollmentClaim
 
+    // MARK: 命令授权（批 5，DESIGN §355；网关 Bearer 面）
+
+    /// GET /v1/grants（Bearer）：统一授权清单——exec
+    /// 命令授权＋写闸规则只读投影两源拼合（部署包
+    /// 1.3.0）；双源皆败服务端回 503（不回假空清单），
+    /// 单源败回 partial＋失败半边计数 null，模型如实
+    /// 承接（GrantsListResponse）
+    func listGrants(
+        config: ServerConfig, apiKey: String
+    ) async throws -> GrantsListResponse
+    /// POST /v1/grants/revoke（Bearer）{source:"exec",
+    /// pattern_key}：撤销一条 exec 命令授权（服务端
+    /// 连别名一并删、端点内双自检）；写闸条目不走本
+    /// 端点（服务端 400 wrong_channel，客户端结构上
+    /// 不发）。非 2xx 以 serverError 连码上行供
+    /// GrantRevokeDirective 分型；成败终局以事后清
+    /// 单回读为准、不认回执自报
+    func revokeGrant(
+        config: ServerConfig, apiKey: String, patternKey: String
+    ) async throws -> GrantRevocationReceipt
+
     // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
 
     /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
@@ -2404,6 +2425,89 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(
                 endpoint: L10n.string("认领")
+            )
+        }
+    }
+
+    // MARK: - 命令授权（批 5，DESIGN §355）
+
+    func listGrants(
+        config: ServerConfig, apiKey: String
+    ) async throws -> GrantsListResponse {
+        var request = URLRequest(url: config.endpoint("/v1/grants"))
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        let (data, http) = try await dataRequest(request)
+        guard http.statusCode == 200 else {
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            // 503 grant_projection_unavailable 连码上行：
+            // 呈现层据码给「投影不可用」专属人话，不与
+            // 一般失败混同
+            if let code = Self.gatewayErrorCode(from: data) {
+                throw HermesError.serverError(
+                    endpoint: L10n.string("授权清单"),
+                    status: http.statusCode, code: code
+                )
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("授权清单"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                GrantsListResponse.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("授权清单")
+            )
+        }
+    }
+
+    func revokeGrant(
+        config: ServerConfig, apiKey: String, patternKey: String
+    ) async throws -> GrantRevocationReceipt {
+        var request = URLRequest(
+            url: config.endpoint("/v1/grants/revoke")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        // 请求体组装走 Core 纯函数（单测把守形态）
+        request.httpBody = try encoder.encode(
+            GrantRevokeRequest.exec(patternKey: patternKey)
+        )
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            if let code = Self.gatewayErrorCode(from: data) {
+                throw HermesError.serverError(
+                    endpoint: L10n.string("撤销授权"),
+                    status: http.statusCode, code: code
+                )
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("撤销授权"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                GrantRevocationReceipt.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("撤销授权")
             )
         }
     }

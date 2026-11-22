@@ -956,6 +956,14 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func listGrants(config: ServerConfig, apiKey: String) async throws -> GrantsListResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func revokeGrant(config: ServerConfig, apiKey: String, patternKey: String) async throws -> GrantRevocationReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate {
         throw HermesError.unreachable("离线桩")
     }

@@ -98,6 +98,9 @@ struct ApprovalRulesView: View {
 struct ApprovalRulesSettingsView: View {
     @Environment(AppState.self) private var appState
     @State private var revokeTarget: WriteGateRule?
+    /// 命令授权区数据（§355）：与桥规则面分工——真源
+    /// 在网关 grants 面，随本页同 task/同下拉刷新拉取
+    @State private var grantsStore = GrantsLedgerStore()
 
     private var store: AgentHubStore { appState.sharedHubStore() }
 
@@ -112,14 +115,19 @@ struct ApprovalRulesSettingsView: View {
             ApprovalRulesView(store: store) { rule in
                 revokeTarget = rule
             }
+            CommandGrantsSection(
+                store: grantsStore, appState: appState
+            )
         }
         .navigationTitle("审批规则")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await store.loadApproval()
+            await grantsStore.load(appState: appState)
         }
         .refreshable {
             await store.loadApproval(force: true)
+            await grantsStore.load(appState: appState)
         }
         .confirmationDialog(
             "撤销这条规则？",

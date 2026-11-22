@@ -14492,3 +14492,22 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 ### §354.3 验收
 - 实验室：发布验证集 53 套须全绿（与 0.50.87 同集）。
 - 真机门（用户）：装 0.50.88 冷启不崩、进任意对话底部栏正常、编辑重发全程（武装横幅/非末轮确认框/发送/失败回滚）与 0.50.87 设计一致。此门不过不关账。
+
+## §355 命令授权区（2026-11-22；Hermes 批 5 客户端面，基线 rel-05088）
+
+### §355.1 落点与分工
+- 落点：设置页「偏好与权限 → 审批规则」（ApprovalRulesSettingsView）内新增第二个区「命令授权」（CommandGrantsSection，GrantsSettingsSection.swift）——一个功能一个家，不新建页面；随承载页同一 .task／同一下拉刷新拉取。
+- 分工（两面两真源，不许混）：上方「审批规则」＝写闸规则（桥 8643、rules.json、桥为单一写者，立/撤都走桥）；本区＝网关统一授权清单（8642，GET /v1/grants）的镜像——exec 命令授权（config command_allowlist）在此可撤，写闸条目在此只读投影、撤销归上方区。
+
+### §355.2 契约映射（部署包 1.3.0，批 5 执行报告 B1–B7 实测字面）
+- GET /v1/grants（Bearer＝既有连接配置的 API_SERVER_KEY，Keychain 真源、零硬编码）→ GrantsListResponse：grants[]（grant_key／source／pattern_key|rule_id／scope_label／granted_at epoch／source_decision／status／expires_at 恒 null／revoke_via）＋exec_count／writegate_count／partial／source_errors／projection_degraded。
+- 解码口径（GrantsModels.swift）：granted_at／source_decision 查不到留 nil——界面显「来源未记录／建立时间未记录」，不编造；rule_id 宽容解码（字符串原样、数字转字符串）；partial 时失败半边计数为 null（非 0），界面明示「没读全」不冒充空清单；双源皆败服务端回 503 grant_projection_unavailable（客户端连码上行、呈现专属人话）。
+- POST /v1/grants/revoke {source:"exec", pattern_key}（GrantRevokeRequest 组装走 Core 纯函数）→ 200 回执 GrantRevocationReceipt（removed＝连别名删除全集、verified_absent＝端点双自检）；错误按 GrantRevokeDirective 分型：404 grant_not_found＝已不在（良性、刷新对齐）／400 grant_revoke_wrong_channel（写闸误发，客户端结构上不发）／409 grant_revoke_unverified＝自检未过、不许报成功／503 等其余如实失败。
+- 客户端形态：HermesClientProtocol 新增 listGrants／revokeGrant 两方法（网关 Bearer 面，与认领/反应同族写法）；Demo 侧按 C-13 只加一行 demoLimitReached 桩；测试双替身（FailingHermesClient／ScriptedSessionsClient）只同步签名、桩体恒抛 unreachable。
+
+### §355.3 撤销纪律（回读为准）
+- 点撤销先确认框（与审批规则区同一文案口径）；POST 成功只算受理——随即重拉清单，GrantReadback 判被撤 grant_key 不在列才算撤掉；在列则保留服务端清单原样＋人话说明，不本地假删行。失败（含 409 未核实）留人话在区首、清单不假变。写闸行无撤销钮，副行注明「在上方『审批规则』里管理」。
+
+### §355.4 验收与未验项
+- 实验室：GrantsContractTests（清单双源解码/partial/rule_id 宽容/请求组装/回执别名集/分类矩阵/回读判定，对 B1–B7 字面）＋审批相邻回归套件。
+- 未验（如实）：真机对真服务端全链未跑——进页真拉清单、exec 真撤销后回读消失、撤后同命令重新撞批（服务端 B7 已验、App 侧未复跑）；演示模式下本区走 demoLimitReached 的呈现未专项验（与其它网关面同口径）。
