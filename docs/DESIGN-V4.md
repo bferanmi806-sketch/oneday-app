@@ -14861,3 +14861,36 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 发布验证集（名单自 Test-OneDayApp-hotfix93.xcresult 提取全限定名 70 套 718 项）：Test-OneDayApp-hf94full2.xcresult 实测 **718 过、0 红、0 跳过**（xcresulttool summary 本体对账），对 rel-05093 基线新红为 0；新增 S373 钉测 2 项不在该名单内、已于定向轮单独跑绿。
 - 模拟器冷启冒烟（ProbePhone 50C1A6D5）：Debug 包 simctl install＋launch（site.didichou.oneday，pid 55568），launchctl 在册存活、DiagnosticReports 无新增 OneDayApp 崩溃报告；截图实证首帧完整渲染（Mac /tmp/smoke94b.png）——全新模拟器无服务器配置、落欢迎/连接页，未进 ChatView（如实记边界：ChatView 路径由发布集＋探针构造覆盖）。明示边界同 §371.4：冒烟≠真机。
 - **真机门（用户）**：装 0.50.94 冷启不崩、进任意对话底部栏正常、抽屉开合后聊天落定拍冻结行为如 §366 设计。此门不过不关账。
+
+
+## §374 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）
+
+### §374.1 病灶（审计实测，ProbePhone 同口径 best-of-5）
+
+- F1：LibraryListSnapshot.make 挂 DeliverablesView body 首行、每趟现算——标题序一趟 39,281µs（纯排序 36,964µs：比较器每次比较现算 2× displayTitle＋ICU collation）；默认序地板 3,736µs，输入未变照付。
+- F2：DrawerView 旁聊行标题逐行 first(where:) 线性扫描、且行集与逐行标题各自重跑 SessionLedger 合并——名单派生 O(N²)，500 条一趟 9,874µs（其中标题扫描约 8.9ms）。
+
+### §374.2 落法
+
+- F1-a 排序键预计算（LibraryOrdering.sorted 两路）：标题序 upfront 全算 displayTitle 入账、比较器只读预计算键；时间序下标题仅平局兜底、走 TitleKeyMemo 懒备忘（同条目一次排序内只算一次、无平局零计算，不为 upfront 全算白付约 1.4ms）。比较语义逐字不变——标题较仍由 localizedStandardCompare 唯一裁决；等价钉测以旧比较器原文为参照逐位对账（语料含数字后缀／大小写／同名不同路径／无扩展名／点文件／拉丁中文混排）。
+- F1-b 派生快照指纹缓存（新增 LibrarySnapshotCache，置 LibraryListSnapshot.swift）：六入参逐值比对（名单逐项 entry＋source、搜索词、排序、openedAt 表、pinned 集、分段），任一变即整趟重算、未变回存量快照；DeliverablesView body 入口改走缓存，Deliverable 补 Equatable。缓存单元自含、无外部状态——C4 §369 LibraryListStore 落地后可整体搬入店内（合并点见 §374.4）。
+- F2-a Core 新增 LedgerProjection.titleByLocalThreadID：本地线程 id→记录标题一趟建成、同 id 取首个（与 first(where:) 逐字同义）、无本地线程不入字典。
+- F2-b DrawerView body 一趟派生（records＋titles＋rows）同源下传 drawerNavList／drawerSearchList／drawerSideSection／drawerSideRowView／drawerSideThreadRow；呈现版 drawerDisplayTitle(for:titles:) 只查字典，动作版（改名预填／删除执行）现建一趟查字典。字典不跨趟存活、账本一变本趟必重建，不许显旧；不改任何刷新触发时机（与 C3 §370 新鲜度门正交）。
+
+### §374.3 量测对账（修前→修后，M4 模拟器 ProbePhone、best-of-5、审计同口径；探针 FeelQuickProbeTests 14 项全过）
+
+| 项 | 修前 | 修后 |
+|---|---|---|
+| snapshot.make 标题序 N=2000 | 39,312µs | 15,327µs |
+| LibraryOrdering 标题序全序 N=2000 | 36,186µs | 12,561µs |
+| snapshot.make 默认序（openedAt 全异）N=2000 | 3,929µs | 3,890µs |
+| 快照缓存命中（同数组／等值新数组） | 每趟全付 | <1µs／393µs |
+| 抽屉一趟（投影＋标题解析）N=500 | 10,280µs | 1,262µs |
+
+- 分解备查：displayTitle 2000 条各算一次 1,369µs、纯 collation 全序 8,554µs——标题序残余约 12.5ms 主要是 ICU collation 本体（Foundation 无 collation 排序键导出 API；以预计算标题喂平台比较器是「语义不变」前提下的下限，排序口味待裁项不借本包改判）。缓存未命中趟 15,566µs ≈ make 直算，缓存层开销可忽略。
+- 回归：定向集（Core 账本/排序 4 套＋App 快照/抽屉/账本 8 套＋新钉测）123 项 122 过；唯一红 LibraryOrderingTests.testSortByTitleUsesDisplayTitle 与基线失败签名逐字同（台账 29 排序口味老红、非本包引入）；新增 FeelQuickCachePinTests 6 项全绿（排序等价×2、缓存同入参/失效矩阵、字典等价/变更）。
+
+### §374.4 与在飞包的合并点（主线组版对账用）
+
+- C4（§369，0.50.95 线）：同改 DeliverablesView.swift——C4 换 deliverables 来源（视图 @State→LibraryListStore）与 collect/删除路径；本包改 body 快照入口一行、@State 区加 snapshotCache 一行、Deliverable 声明补 Equatable 一词。LibraryListSnapshot.swift 本包尾部新增 LibrarySnapshotCache 类（C4 不碰此文件）；搬家点＝组版时可把 snapshotCache 的持有者从视图 @State 换成 LibraryListStore，类本体不改。
+- C3（§370，0.50.95 线）：同改 DrawerView.swift——C3 改 loadDrawerData 等刷新触发点；本包改 body 头派生、drawerDisplayTitle 两式、sideRows→makeSideRows、drawerNavList/drawerSearchList/drawerSideSection/drawerSideRowView/drawerSideThreadRow 签名与接线，函数面不重叠。SessionLedger.swift 本包零触碰（C3 的 FreshnessGate/epoch 不受影响）；Core 侧本包只在 SessionRecord.swift 的 LedgerProjection 内新增一函数、LibraryOrdering.swift 改 sorted 内部（C3/C4 均不碰）。

@@ -545,6 +545,29 @@ public enum LedgerProjection {
             .map(\.record)
     }
 
+    /// 抽屉标题索引（F2，手感快速项 2026-11-23）：
+    /// 本地线程 id→记录标题，一趟建成——取代消费
+    /// 方逐行 first(where:) 线性扫描（名单派生
+    /// O(N²) 本体，审计实测 500 条一趟约 9.9ms、
+    /// 扫描占约 8.9ms）。同 id 多条取首个（与
+    /// first(where:) 逐字同义）；无本地线程的记
+    /// 录不入字典，消费方查无回落本地标题（旧口
+    /// 径不变）
+    public static func titleByLocalThreadID(
+        _ records: [SessionRecord]
+    ) -> [UUID: String] {
+        var titles: [UUID: String] = [:]
+        titles.reserveCapacity(records.count)
+        for record in records {
+            guard let threadID = record.localThreadID
+            else { continue }
+            if titles[threadID] == nil {
+                titles[threadID] = record.title
+            }
+        }
+        return titles
+    }
+
     /// 管理页可见段：可见段记录的服务端行本体（剔
     /// 待删，保段内原序）——现行 AllConversations-
     /// Store.sessions 的投影形
