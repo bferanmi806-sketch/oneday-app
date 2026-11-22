@@ -455,15 +455,23 @@ final class ChatFeedChangeSetStep1Tests: XCTestCase {
         XCTAssertEqual(tracker.shadowLedger.diffCount, 0)
     }
 
-    // MARK: - ④ 开关缺省关
+    // MARK: - ④ 开关缺省开（0.50.96 组版转正）
 
-    func testIncrementalFeatureDefaultsOff() {
+    func testIncrementalFeatureDefaultsOn() {
         let suite = UserDefaults(
             suiteName: "swap-step1-\(UUID().uuidString)"
         )!
         XCTAssertEqual(
             ChatListIncrementalFeature.defaultsKey,
             "chat.list.incremental"
+        )
+        XCTAssertTrue(
+            ChatListIncrementalFeature.isEnabled(
+                defaults: suite
+            )
+        )
+        suite.set(
+            false, forKey: ChatListIncrementalFeature.defaultsKey
         )
         XCTAssertFalse(
             ChatListIncrementalFeature.isEnabled(

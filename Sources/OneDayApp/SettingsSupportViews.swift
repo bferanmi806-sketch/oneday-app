@@ -378,10 +378,10 @@ struct AboutView: View {
     @AppStorage(ChatNativeListFeature.defaultsKey)
     private var nativeListEnabled = true
     /// §374（换引擎步骤 1/2）增量喂入开关（与
-    /// ChatView 同键同源，缺省关；步骤 2 起为新
+    /// ChatView 同键同源，缺省开（0.50.96 转正）；步骤 2 起为新
     /// 路主路选择、关即回旧路全量对账）
     @AppStorage(ChatListIncrementalFeature.defaultsKey)
-    private var chatListIncrementalEnabled = false
+    private var chatListIncrementalEnabled = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功

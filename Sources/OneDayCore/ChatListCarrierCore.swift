@@ -56,8 +56,9 @@ public enum ChatNativeListFeature {
 
 /// 增量喂入特性开关（DESIGN §374，施工图 chat-
 /// list-engine-swap-plan §四）：变更集喂入新路的
-/// 主路选择旗——缺省 false（键不存在与显式
-/// false 同义）。步骤 1 为影子期（只算不用、与
+/// 主路选择旗——缺省 true（0.50.96 组版转正
+/// 为默认开；键不存在＝开、显式 false 即关旗
+/// 回旧路）。步骤 1 为影子期（只算不用、与
 /// 旧路差集逐趟对账）；步骤 2 已转正：开启时变
 /// 更集实际交付控制器 applyChanges 增量落写
 /// （影子账保留作过渡期交叉核验），关闭即整路
@@ -69,7 +70,10 @@ public enum ChatListIncrementalFeature {
     public static func isEnabled(
         defaults: UserDefaults = .standard
     ) -> Bool {
-        defaults.bool(forKey: defaultsKey)
+        if defaults.object(forKey: defaultsKey) == nil {
+            return true
+        }
+        return defaults.bool(forKey: defaultsKey)
     }
 }
 

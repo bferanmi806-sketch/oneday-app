@@ -281,7 +281,7 @@ struct ChatView: View {
     @State private var rowBuildMemo =
         ChatEntryRowBuildMemo()
     /// §374（换引擎步骤 1/2）：增量喂入开关
-    /// （Core ChatListIncrementalFeature，缺省关；
+    /// （Core ChatListIncrementalFeature，缺省开；
     /// 设置页实验区同键同源）与变更集追踪器——开
     /// 时逐趟产出变更集＋行值缓存并实际交付控制
     /// 器 applyChanges（步骤 2 转正；影子账对账
@@ -289,7 +289,7 @@ struct ChatView: View {
     /// 现行逐字一致（追踪器零调用、零状态、喂入
     /// 走旧路 apply 全量对账）
     @AppStorage(ChatListIncrementalFeature.defaultsKey)
-    private var chatListIncrementalEnabled = false
+    private var chatListIncrementalEnabled = true
     @State private var feedChangeTracker =
         ChatFeedChangeTracker()
     @State private var settleGeneration: Int?
