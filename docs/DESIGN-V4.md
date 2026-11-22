@@ -15021,3 +15021,74 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 2. **双击选词**：流式中双击某行单词——预期：选词高亮稳定存活至主动取消，期间该行不重配、无闪烁；取消后该行补发到当前最新文本。
 3. **选区在场时流式推进**：保持选区不动，看后续 token 推进——预期：他行逐拍刷新，选区行冻结在选区建立时的内容，滚动位置不被该行更新顶动。
 4. **选区在场时落定**：保持选区直到本轮回复落定（done）——预期：落定不冲选区；点空白处清账后，该行立刻补发到落定终稿（含尾随状态行变化不误伤选区行）。
+
+### §374.9 换引擎步骤 6：旧承载退役——gen3＋legacy＋ComposerGuideHost 整套删除、三链收口为一（2026-11-23，分支 feat/swap-step6-retirecarriers，基线步骤 5 @8395c8f）
+
+施工图 §三步骤 6 与清点 #27/#28：三套承载（gen3 ChatListCarrier、legacy SwiftUI 列表面、ComposerGuideHost 引导线宿主）整套退役；三套跟随链收口为 native 一条；kbSnapshot 供数全量归 native 解析点。本步是纯删除/收口步，不许顺手改任何行为——删后行为面与删前逐值同，由回归与等价套件把守。**本节先落删前点名核对表（草案段），核对表无悬空项才许动刀；删除记账与 program 收官汇总在动刀后回填。**
+
+**删前点名核对表（普查时点行号，删除以符号为准）：**
+
+甲、gen3 承载文件 ChatListCarrier.swift（1,206 行，整文件删）——声明逐件判：
+- ChatCarrierRow（行模型）→ 随删。消费者只有 ChatView 的 gen3 行构建簇与 gen3 专属测试。
+- ChatCarrierLayout（行几何值）→ **共用件迁移**：ChatNativeList.swift（控制器 layoutParams、Representable layout 字段）与 ChatView native 面在用，测试面引用广——迁入 ChatNativeList.swift 并改名 ChatNativeLayout（过禁词普查；「Layout」本体是几何值、与 ChatNativeLayoutBox 引用匣不相干）。
+- ChatListCarrierCallbacks（回调协议值）→ **共用件迁移＋改名** ChatNativeListCallbacks：ChatNativeList 控制器与 Representable、ChatView nativeCallbacks 在用。
+- ChatListCarrierHandle → 随删（消费者只有 ChatView carrierHandle）。
+- ChatListAnchorStore（锚存取）→ **迁移保留原名**（名无禁词）：消费者是共享链（切线程存锚/恢复/首帧落定）与 native 面 .task——迁入 ChatNativeList.swift，ChatView 引用点不动。
+- ChatListCarrierViewController（1,000 行级控制器本体）→ 随删。
+- ChatCarrierBlankTapDelegate（点空白收键盘 delegate）→ **共用件迁移＋改名** ChatNativeBlankTapDelegate：ChatNativeList installBlankTapDismiss 在用。
+- ChatListCarrierView（Representable）→ 随删。
+
+乙、ChatView 内 gen3 面与专属件：
+- gen3CarrierEnabled（@AppStorage，键由 Core ChatCarrierFeature 供）＋carrierHandle @State → 随删。
+- carrierListSurface（面本体）→ 随删；composerHostOverlayCarrier（gen3 专属舱宿主覆盖层）→ 随删；topBarHostOverlay 是三面共用件 → 留。
+- carrierCallbacks（gen3 回调实例）→ 随删（nativeCallbacks 是另一实例、留）。
+- 行构建簇 carrierRows／carrierEntryRow／carrierEntryVersion／carrierRowEstimate → 随删（源码自注「只余 gen3 面消费」）。
+- carrierStreamRow／carrierStreamRowEstimate／streamRowVersion → 随删。**carrierLiveRow 是共用件须拆**：nativeLiveRow 对 .reasoning/.tool/.toolGroup 三类调它、只消费 key＋entryID＋makeView 三元（闭包逐字＝liveReasoningBlock／ToolCardView＋ChatRowStateKeys.toolLive／ToolCardGroupView＋liveToolGroup）；.text/.sealedText 两类与 version/estimatedHeight 包装仅 gen3 消费。处置＝抽共用辅助（入参 entry＋liveState、出 (key, makeView) 三类逐字承接），nativeLiveRow 改调它，随后 carrierLiveRow 整件随删；liveToolCardVersion 只喂 version 字段 → 随删。streamingBubbleIncremental 调用点仅 gen3 → 随删（streamingBubble 本体被 native 用、留）。
+- gen3 专属跟随件 anchorToBottomAfterKeyboardCarrier／settleKeyboardAnchorCarrier → 随删（调用点仅 gen3 面处理器；其触碰的 keyboardAnchorPending/keyboardFrameSettled 状态在删后只余「只复位从不置位/读」形态 → 状态本体一并随删，编译与普查落定）。
+- **共享跟随链（名带 Carrier、实为 native 与全页共用）→ 留、改名收口**：scrollToBottomCarrier→scrollToBottom、performScrollToBottomCarrier→performScrollToBottom、evaluateSettleOnEventCarrier→evaluateSettleOnEvent、evaluateSettleFallbackCarrier→evaluateSettleFallback、handleSettleStepCarrier→handleSettleStep、settleStreamFollowCarrier→settleStreamFollow、handleCarrierThreadSwitch→handleThreadSwitch、restoreCarrierPosition→restoreThreadPosition、carrierFirstFrameSettle→firstFrameSettle、carrierArrowView→surfaceArrowView。改名后与随删的 legacy 同名件（带 proxy 形参）不并存——字面即「三链收口为一」。closeSettleWatch 为两链共用 → 留（原名无禁词）。
+
+丙、legacy 面（ChatView 内）：
+- legacyListSurface（面本体）→ 随删；composerHostOverlay（legacy 舱宿主覆盖层）→ 随删。
+- messageList（SwiftUI 列表本体＋其尾随手势/几何/落定修饰链整段）→ 随删；liveZone（流式区，仅 messageList 调用）→ 随删。
+- legacy 跟随链 scrollToBottom(_:proxy:)、performScrollToBottom、evaluateSettleOnEvent(_:proxy:)、evaluateSettleFallback、handleSettleStep、settleStreamFollow、anchorToBottomAfterKeyboard、settleKeyboardAnchor → 随删。
+- listViewportHeight @State → 随删（读点全在 messageList 内）。
+
+丁、ComposerGuideHost.swift（1,211 行，整文件删）：
+- ComposerGuideHost（Representable）→ 随删（消费者只有 legacy/gen3 两个覆盖层）。
+- ComposerGuideHostController（旧面键盘解析点＋底距汇报）→ 随删。键盘解析的在场解析点＝native 的 ChatRootViewController（§302，ChatNativeList.swift 内 reportKeyboardFrame→onKeyboardFrameChange→kbFrameUpdate 绑定），删后唯一。
+- ComposerPassthroughView → 随删（他处仅 TopBarGuideHost 注释提及）。
+- ComposerBarFrameKey／ComposerCardFrameKey（PreferenceKey）→ **共用件迁移**：写入方是共用 bottomBar（ChatBottomBarViews.swift 的 preference 写入）——两键结构逐字迁入 ChatBottomBarViews.swift（写入行为逐字保留、零变更）；读取方只有已删的控制器，迁移后 preference 发布无消费者、惰性无副作用。
+- composerBottomSpace @State（ChatView）→ 随删：写入方只有 ComposerGuideHost 的 bottomSpace 绑定，读点全在 legacy/gen3 面与 messageList 内（A3 结算拍触发点在 gen3 面 onChange、随面删）；删后无写无读。
+
+戊、kbSnapshot 供数读点逐点核对（@State kbSnapshot，ChatView）：
+- 写点 onChange(kbFrameUpdate)（body 根共享）→ 留。喂入链：kbFrameUpdate 的写者删后只剩 ChatRootViewController 一家（native 面 keyboardFrame: $kbFrameUpdate 绑定）——§302 收口点承接 ✓。
+- 读点 isKeyboardUp（chatSurface 共享 .toolbar）→ 留，由 native 解析点供数 ✓。
+- 读点 legacy 覆盖层内联（composerHostOverlay 的 topSafe/bottomSpace 派生）→ 随 legacy 删。
+- 读点 gen3 面 layout 入参（carrierGuideTop/carrierBottomSpace）→ 随 gen3 删。
+- 读点 gen3 覆盖层内联 → 随 gen3 删。
+- 读点 messageList 内 bottomSpace 计算 → 随 legacy 删。
+- 结论：存活读点全部由 native 解析点供数、无一悬空 ✓。windowTopSafeInset @State 留（nativeFedTopInset 的回退读点在用；其写入方原为引导线宿主绑定、删后恒种子值——与 §321 在案口径「原生面顶安全区种子无回写者、优先 cluster 底」逐字同，非本步引入）。
+
+己、edgeScrollHandle 与滚动边缘句柄：
+- 共用类型 ChatListScrollViewHandle 定义在 ScrollEdgeRegistration.swift（不在删除集）→ 不动。
+- 每控制器一份的 edgeScrollHandle 属性：ComposerGuideHostController 与 ChatListCarrierViewController 的份随文件删；ChatRootViewController（ChatNativeList.swift）与 TopBarGuideHostController 的份留——**无需迁移**：句柄是「每宿主自持、经 ChatView 同一份 listScrollHandle 注入」的模式，删宿主即删其份，在场宿主的注册链（S371/S373 把守）不受影响 ✓。
+
+庚、开关与分发收口：
+- nativeListEnabled（@AppStorage，键由 Core ChatNativeListFeature 供）→ 随删（含 .task(id: nativeListEnabled) 的翻旗恢复钩——旗退役后无意义）。
+- chatSurface 三路分发 → 收口 nativeListSurface 单路。
+- 分发器五件（surfaceScrollToBottom/surfaceCaptureAnchor/surfaceRestore/surfaceScrollToEntry/surfaceFocusEntry）→ 壳保留、体收口为 nativeHandle 直调（调用点零改动）。
+- kickStreamingBlockProducts 的承载 guard（(gen3&&gen4)||native）→ 整删 guard：收口后 native 恒在场、guard 在出厂缺省下恒真，整删与保留 gen4 子句等价性——保留 gen4 子句会改变行为（gen4 关时踢块停摆），故整删、函数本体与调用点（gen3 面一处随删、native 面与他处留）不动。gen4StreamingEnabled（ChatStreamingFeature）非承载开关 → 留。
+
+辛、Core 与设置页：
+- ChatListCarrierCore.swift：ChatCarrierFeature、ChatNativeListFeature 两枚举随删；ChatListAnchor／ChatScrollSupply／ChatRowHeightModel 与步骤 1–5 的 Core 开关枚举留。文件名本身是承载符号 → 改名 ChatListCore.swift（Tuist 按 glob 收源、改名免改工程文件）。
+- SettingsSupportViews：labSection 内「会话页新承载」「聊天列表原生重建」两 Toggle 与两 @AppStorage 属性随删（§374 各步开关不在此列、不动）。
+
+壬、测试侧处置：
+- 整文件随删（被测对象退役）：ChatListCarrierBottomGapTests、ChatListCarrierReentrancyTests、ChatCarrierSettleCarryTests（3 件全是 carrier 面 proxy 链）、ChatCarrierEdgeEffectTests（3 件全是 carrier 面边缘注册；顶栏/原生面注册由 EdgeEffectRegistrationTests 与 S371/S373 把守）、ComposerGuideHostTests（10 件全是引导线宿主几何）、ComposerAssemblyContractTests（装配对象即引导线宿主）、KeyboardFlowAcceptanceTests（刻意置 native 旗为假、装配 legacy 面验键盘流——被测面退役）、ChatPageDeviceConditionProbeTests（同上，legacy 面锚定栏探针）。
+- 改名连带更新（共用件改名，断言本体不变）：全部引用 ChatCarrierLayout／ChatListCarrierCallbacks 的测试文件随改名同步（约 25 个文件，机械替换）。
+- ChatListCarrierCoreTests → 改名 ChatListCoreTests（文件＋类名），删 ChatCarrierFeature／ChatNativeListFeature 用例，锚/供数/行高/步骤开关用例留。
+- DiscussQuoteAttachReproTests → 留：在场判据 findComposerVC 本已双面（引导线宿主或原生容器），收口为只认 ChatRootViewController，断言本体不变。
+- TopBarHitIntermittentTests → 留：对引导线宿主仅注释提及；其源码地标断言若指 messageList 存在性，随 legacy 删除同步处置该断言点。
+- 新增 ChatSwapStep6StructureTests：禁词普查（删除符号清单在 Sources 全域零命中，含文件名级断言三文件不存在/已改名）＋跟随链单源断言（贴底跟随链函数单定义、chatSurface 单路）。
+
+**核对结论：无悬空项。** 每个共用件都有点名迁移去处（ChatCarrierLayout／ChatListCarrierCallbacks／ChatCarrierBlankTapDelegate／ChatListAnchorStore／Composer 两 PreferenceKey），kbSnapshot 存活读点全部由 native 解析点（§302）供数，edgeScrollHandle 无迁移需求（每宿主自持模式）。准予按表动刀。
