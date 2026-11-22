@@ -15124,3 +15124,14 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 验证集（发布门）：80 套 771/771 全绿、0 跳过（名单＝Test-OneDayApp-rel05095 bundle 75 套 753 项＋新套 5 个：ChatFeedChangeSetStep1Tests 5、ChatSwapStep2EquivalenceTests 3、ChatSwapStep2ProbeTests 1、ChatSwapStep2StructureTests 3、FeelQuickCachePinTests 6；run Test-OneDayApp-rel05096，xcresulttool summary 本体对账 771 过/0 红，新套逐套在册全过、新红零）。
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.96/224/site.didichou.oneday、15,115,412 字节、md5 6265a7ab3207f582626a6e208ad778fb（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05096 已推 GitHub。
 - 真机门（用户）：增量新路实走——流式续写/落定/编辑/删除/插行与滑动手感同旧版对比；F1/F2 体感——资源库标题序切换与重复进面、抽屉名单打开与搜索（用户 verdict，未过不关账）。
+
+## §377 0.50.97 组版：换引擎步骤 3 合入、单 section 开关缺省转正（2026-11-23；分支 rel-05097，基线 rel-05096 @db49924）
+
+- 合入链：db49924（0.50.96/224）→ e4c2539（换引擎步骤 3，源 feat/swap-step3-singlesection @14f9177）→ 8728ef7（单 section 开关缺省转正）→ 021a012（构造专属旧套件钉位配套）→ 本提交（版本戳 0.50.97/225＋本节）。
+- 接管缘起：本版组版首任分身在 cherry-pick 步骤 3 中途无交卷结束；主线亲查现场后派接管分身续做（未重头来）——现场实况：两冲突文件内容已解但未 add、Core 与结构钉测的翻真改动已在工作区、设置页翻真混在解冲突稿内。接管处置：暂存内容与源分支逐文件对账（blob 全同、ChatListCarrierCore 唯一差异＝0.50.96 incremental 转正笔）、§374.3 正文逐字验同后才续行。
+- 冲突处置（亲解、自查 cherry-pick 总 diff 与源分支逐值同：10 文件 +1980/−171）：SettingsSupportViews——rel-05096 侧 incremental 缺省开文案与步骤 3 新增单 section 开关两边全留；cherry-pick 暂存版经 plumbing 还原为纯解版（单 section 仍缺省关、incremental 保 0.50.96 转正值），缺省翻真独立成笔（见下）；DESIGN-V4——§374.3 归位 §374.2 之后、§375 之前，§373–§376 全序保留、§374.3 正文与源分支逐字同；余皆自动合入。
+- 开关转正（本版核心）：chatListSingleSectionEnabled 缺省 false→true——Core ChatListSingleSectionFeature.isEnabled 改为键不存在＝开（显式 false 仍关），设置页 @AppStorage 缺省同步 true 并改说明文案为默认开启；控制器读口本就走 Core 同键（ChatView 无独立 AppStorage，与 incremental 先例的差异在此）；设置页实验区开关保留，关即回 §329 逐行 section 构造（回退口完好）。结构钉测缺省断言随版翻开并扩为三态（缺省开/显式 false 关/显式 true 开）。自本版起单 section 构造为实走构造。
+- 首轮 8 红定因与钉位配套（021a012）：发布集首轮 771 过/8 红——ChatNativeHotfix330Tests 3 项＋ChatSettleScopeS5Tests 5 项，皆因两套断言以 §329 逐行 section 构造寻址（IndexPath section＝行、托管 cell 按 section 取、60 个 section 提供者计数），缺省翻真后对位单 section 构造必然落空（cell 寻不到/帧高 −1/计数 1≠60）；同轮其余 771 项全过、步骤 3 五套全绿，定因为断言寻址口径而非新构造行为回归。处置：两套装配口经 testSingleSectionOverride=false 钉其断言所据的旧构造（各 +5 行注记），语义与覆盖不变、仍在发布集内；新构造下同类行为由步骤 3 五套（等价矩阵双控制器逐值同＋§329 压测双形态）把守。钉位在此明示，非静默改判。
+- 验证集（发布门）：85 套 779/779 全绿、0 跳过（名单＝Test-OneDayApp-rel05096 bundle 提取 80 套 771 项＋步骤 3 新套 5 个：ChatSwapStep3EquivalenceTests 2、ChatSwapStep3PressureTests 1、ChatSwapStep3ProbeTests 1、ChatSwapStep3SpikeTests 1、ChatSwapStep3StructureTests 3；run Test-OneDayApp-rel05097 二轮，xcresulttool summary 本体对账 779 过/0 红；§329 压测组与「布局失效不在 apply 同步链内执行」结构钉测在发布集内实跑全绿，新红零）。
+- IPA：本地 Mac 出包、IPA 本体亲验 0.50.97/225/site.didichou.oneday、15,121,456 字节、md5 f09c852656a03f78c50976047ee8ae7a（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05097 已推 GitHub。
+- 真机门（用户，步骤 3 观察期八项）：①冷启不崩＋首屏落底；②真实长会话上翻到顶×3 往返不崩、无可见高度跳变；③流式中滑动；④长按选字/双击选词期间行高回填；⑤键盘起落跟随逐帧；⑥右滑回复命中；⑦搜索落点/锚恢复；⑧就地量测在真机滚动中的帧干扰（用户 verdict，未过不关账）。
