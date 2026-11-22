@@ -14783,3 +14783,27 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 基线对账（同套件、生产仅加计数读口＋句柄记账属性时，run smooth-s5-base2）：①⑥绿；③④⑤恰红在各自判别断言（窗内施工 3≠2／结清同拍施工 2≠1／抽屉窗内落写 130≠60）——判别成立、非假绿。等价测②的跟随距离断言经基线实测证伪（裸装配无 ChatView 跟随链、距离随生长累积 372），已删并在测内登记，跟随归 BottomFollow 套件。
 - 量测（相对值）：失效施工频次——流式 12.5 拍/s 行高记账下修前每拍一施工（≈12.5 次/s），修后窗闸上限 ≈6.7 次/s；**单拍全量重召宽度不变**（60 行装配实测 60 提供者调用/次）——本包压频次与结清拍构成，不压单宽；单宽随行数涨的根归 S3。停滚结清：修前停指第一拍＝数据＋全量失效＋同步冲刷＋量测同拍串行，修后分列数据拍/布局拍两拍（钉测时序断言为据）。绝对 hitch 率归真机 Instruments（调研报告问题二 ⑤ 清单），实验室绿不替代真机 verdict。
 - 回归：回归 26 套 134 项（run smooth-s5-reg1，bundle Test-OneDayApp-s5reg）：132 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，与 §362.3 在案基线老红逐字同（同套同名、断言族同，已在未改动基线树对证、非本包引入）；新红零。抽屉侧 7 套（BridgeHarness／ContainerController／DeferredNavigationAssembly／MotionProbe／MuseMetrics／RigidBody／SafeAreaRealRoot）全过——ChatView 的 onChange 记账加行无回归。R3 ⑮′ 提供者计数断言全过（拆拍／窗合并未扰滚动冻结期计数口径）。
+
+## §371 0.50.92 真机启动闪退热修（2026-11-22；分支 feat/hotfix-launch-crash-05093，基线 rel-05092＝0.50.92/220）
+
+### §371.1 证据（用户真机 .ips：OneDayApp-2026-11-22-231144.ips）
+- 0.50.92/220，iPhone OS 27.2.1（24B156），用户装机打开即崩：procLaunch 23:11:43.18 → 崩溃 23:11:43.53，死于首帧布局。
+- EXC_BAD_ACCESS / KERN_PROTECTION_FAILURE「Could not determine thread index for stack guard region」＝栈溢出签名；faulting 线程 173 帧：App.main → _UIHostingView.layoutSubviews（首帧）→ ChatView.body → chatScaffold → chatSurface → nativeListSurface → `closure #1 in ChatView.bottomBar(showsArrowRow:onScrollToBottom:)` → `__swift_instantiateConcreteTypeFromMangledNameV2` → libswiftCore 内 decodeMangledType/decodeGenericArgs/createBoundGenericType/checkInvertibleRequirements/SubstGenericParametersFromMetadata::buildDescriptorPath 循环约 78 帧爆栈。
+- 与 0.50.87 闪退（§354.1）逐项同签名：同异常、同落点（bottomBar 闭包内的具体类型实例化）、同递归循环族。0.50.91 真机当晚正常使用（用户以其报卡顿三题），回归窗口＝0.50.92 合入四包（§363/§364/§365/§366）。
+
+### §371.2 定罪（diff 证据：git diff 02fe922..rel-05092）
+- ChatView.swift 在回归窗口内**只有一个 hunk**：§366 于 chatScaffold 根链新增 `.onChange(of: appState.router.drawerPresented)`（diff @@ -1267,6 +1267,18 @@；新文件 1270–1282 行，写入句柄 drawerMotionDeadline）——一层 ModifiedContent 包裹整棵 scaffold 类型，与 §354.1 对 0.50.87 的定性①逐项同构（彼时根链新增 .confirmationDialog＋.onChange 两层、落点同为 bottomBar）。
+- bottomBar 本体及其组合类型与 0.50.91 逐字相同（ChatView.swift 除该 hunk 外零变更）——崩溃落点是元数据解析深度耗尽点、非病灶本体，与 §354 同读法。
+- 排除项：①§366 的 ChatNativeList.swift 变更全在非泛型 UIKit 类（ChatRootViewController／ChatNativeListHandle）内，不入 SwiftUI 视图类型元数据；句柄新增 drawerMotionDeadline 为非泛型 final class 上的平坦 CFTimeInterval 存储属性——照 §354 对新 @State 值类型的排除逻辑（平坦、无递归）。②§365 的视图修饰增量只有 DrawerView 链上一层 `.onChange(of: drawerOpenSettledCount)`，在抽屉子树、不在崩溃求值路径上；DrawerContainerView 无新增视图修饰；AppRouter 只加计数记账。③§363/§364 不碰 ChatView.swift（diff stat 证明）。
+
+### §371.3 修法（§354.2 #1 同构：行为零变、只迁结构）
+- `.onChange(of: appState.router.drawerPresented)` 自 chatScaffold 根链迁至 **chatSurface 子树链尾**（.task(id: currentThreadID) 之后）——包裹面自整棵 scaffold 缩为 chatSurface 子树，chatScaffold 根链类型恢复 0.50.91 形态。
+- 行为等价：观察值（appState.router.drawerPresented）、写入式（CACurrentMediaTime()＋DrawerSpringTiming.response＋0.08 → nativeHandle.drawerMotionDeadline）、触发时机（值翻转时）一字不变；chatSurface 是 chatScaffold 的唯一内容、与页面同生命周期，三承载（native/gen3/legacy）同在 chatSurface 的 Group 内，覆盖面与根链放置等价。
+- §366 三件行为（150ms 时间窗合并／停滚结清拆拍／抽屉动画期冻结）语义零改动：冻结信号源、窗终点算法、控制器侧消费（drawerMotionInFlight／drawerMotionRemaining）全不动；ChatNativeList.swift 零触碰；其余三包（§363/§364/§365）零触碰。本包 diff 仅 ChatView.swift 一处迁位＋本节＋结构钉测。
+- 结构钉测：新增 ChatRootChainStructureS371Tests——源码级把守「drawerPresented 处理器不在 chatScaffold 链内、在 chatSurface 链内且全文件恰一处」，防根链再增包裹层时无声复发（元数据递归崩无法在实验室以运行复现，钉测只能钉结构、终判归真机，见 §371.4）。
+
+### §371.4 验收（实验室）
+- 发布验证集：名单自 Test-OneDayApp-rel05092.xcresult 本体用 xcresulttool 提取全限定名（69 套 717 项，与组版 test-cmd 名单逐套对账零差）＋新钉测 1 套 1 项 → Test-OneDayApp-hotfix93.xcresult 实测 **70 套 718 项、718 过、0 红、0 跳过**（TEST SUCCEEDED）。新钉测 ChatRootChainStructureS371Tests 在 bundle 内 Passed 实查。
+- 模拟器冷启冒烟（ProbePhone 50C1A6D5）：Debug 包 simctl install＋launch，进程 10 秒后存活（pid 31737）、DiagnosticReports 无新增 OneDayApp 崩溃报告；截图实证首帧已进 ChatView——会话消息列与 bottomBar（回底钮／未读角标／输入舱）完整渲染（截图 Mac /tmp/smoke93.png）。明说边界：模拟器栈深与真机不同、0.50.87 前科即实验室全绿真机崩（§354.1），且 0.50.92 本体在模拟器上同样能过全部 717 项——冒烟过≠真机过，本冒烟只证「修后构建在实验室口径下行为无回归」，不作真机定案。
+- 针对性元数据钉测：构造不能（如实记）——本崩溃须真机栈深＋真实数据下 AttributeGraph 全图求值才触发，实验室 Debug/Release 模拟器对 0.50.87 同代码均复现失败（§354.1 在案）；裸引用类型元数据不复现 descriptor path 深度。实验室侧把守改走源码结构钉测（上方新套件），终判归真机门。
+- 真机门（用户）：装热修版（0.50.93）冷启不崩、进任意对话底部栏正常、抽屉开合后聊天落定拍冻结行为如 §366 设计。此门不过不关账——§354 同口径：实验室全绿不替代真机 verdict（0.50.87 前科即实验室全绿、真机崩；模拟器栈深与真机不同，冒烟过≠真机过）。

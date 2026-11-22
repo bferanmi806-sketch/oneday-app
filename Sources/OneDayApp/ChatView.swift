@@ -1267,18 +1267,6 @@ struct ChatView: View {
         .onChange(of: appState.pendingQuotes.sourceQuotesByThread) { _, _ in
             applyPendingSourceQuoteIfNeeded()
         }
-        // §366：抽屉开合翻转→运动窗终点记入原生面
-        // 句柄（弹簧 response＋落定余量 0.08）：落定
-        // 拍在窗内冻结施工、窗末合并一拍。信号只写
-        // 记账——抽屉执行本体在壳层容器、本页不参
-        // 与；跟手拖拽期不翻转本值、不在本窗覆盖内
-        // （进度事实只在容器桥，§366.4 登记）
-        .onChange(of: appState.router.drawerPresented) { _, _ in
-            nativeHandle.drawerMotionDeadline =
-                CACurrentMediaTime()
-                + CFTimeInterval(DrawerSpringTiming.response)
-                + 0.08
-        }
         // 0.4.5：抽屉删掉的正是当前线程时置空（计算属
         // 性随之落到最近线程，与旧版 deleteThread 内
         // 直改 currentThreadID 的语义一致）
@@ -1856,6 +1844,25 @@ struct ChatView: View {
                     )
                 )
             }
+        }
+        // §366：抽屉开合翻转→运动窗终点记入原生面
+        // 句柄（弹簧 response＋落定余量 0.08）：落定
+        // 拍在窗内冻结施工、窗末合并一拍。信号只写
+        // 记账——抽屉执行本体在壳层容器、本页不参
+        // 与；跟手拖拽期不翻转本值、不在本窗覆盖内
+        // （进度事实只在容器桥，§366.4 登记）
+        // §371：本处理器原挂 chatScaffold 根链——
+        // 0.50.92 真机启动闪退定罪即此层根链包裹
+        // （§354 同病），迁至 chatSurface 子树链
+        // 尾：包裹面自整棵 scaffold 缩为本子树，
+        // 观察值／写入式／触发时机一字不变
+        // （chatSurface 是 scaffold 唯一内容、三
+        // 承载同在本面 Group 内，覆盖面等价）
+        .onChange(of: appState.router.drawerPresented) { _, _ in
+            nativeHandle.drawerMotionDeadline =
+                CACurrentMediaTime()
+                + CFTimeInterval(DrawerSpringTiming.response)
+                + 0.08
         }
     }
 
