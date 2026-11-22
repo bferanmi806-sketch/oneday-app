@@ -14669,3 +14669,31 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 钉测 RowIncrementalEquivalenceS2Tests 8/8：①等价矩阵（富条目基段／全修订逐值同＋六类行备忘键穿线与旧现算逐字同＋facet 派生直取与 EntryScanMemo 现算同值）；②逐字段敏感性 32 项突变逐项验「快照变＋备忘失效＋修订变＋与全量路同值」；③环境尾段不触发重建；④流式逐拍生长等价（每拍恰一次重建）；⑤编辑重发同 id 换对象重建不吃旧账；⑥回填稳态全命中零重建＋prune 后重建仍等价；⑦计数对账（稳态趟 300 命中 0 重建）；⑧成本量测（下条）。
 - 成本量测（同机自校准、模拟器相对值；合成会话 300 条／606,375 字节，best-of-5）：全量趟（修前口径 entryBase＋entryMemoKey 旧现算）32,702µs；增量稳态趟 8,216µs（约 4.0×）；单行变化趟 8,450µs（≈稳态＋一行全量）。文本量对照（同行数、文本 ×4／约 2.4MB）：全量趟 84,372µs（随文本量涨 2.6×），增量稳态趟 8,063µs（与基线持平、实证与文本量脱钩）。绝对值只作相对对账，真机 hitch 率以探活报告第四节补测＋真机 verdict 为准，实验室绿不替代。
 - 回归共 140 项：新套件 8/8（Test-OneDayApp-s2suite1）＋回归 132 项（Test-OneDayApp-s2regB）130 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，已在未改动的 rel-05090 基线树单套复跑对证（同套 5 项同 2 红、失败断言逐字同），系基线老红、非本包引入（与在案 CI 基线红集 R2Assembly 2 件吻合）。逐套：ImageDecodeCacheS1Tests 5/5、ChatLagFeedLayerTests 7/7、ChatNativeListAssemblyTests 7/7、ChatNativeListR2AssemblyTests 3/5（基线 2 红）、ChatNativeListR3AssemblyTests 5/5、ChatNativeListR4AssemblyTests 3/3、ChatNativeMeasureDeskTests 9/9、ChatNativeRowHeightFittingTests 10/10、ChatNativeRowHeightProductionChainTests 1/1、ChatNativeFollowSourceTests 8/8、ChatNativeHotfix330Tests 10/10、ChatUnreadDividerAssemblyTests 4/4、MessageReactions187Tests 7/7、BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9。测试通道与在飞配对包共用、两轮被对方 kickstart 抢道杀跑后于空窗完成，run 名：smooth-s2-suite1／smooth-s2-regB／baseline-r2-check。
+
+## §366 流畅度专项 S5：落定拍失效改判时间窗合并＋停滚结清拆拍＋抽屉动画期冻结（调研 C1/C2＋问题一拟修法 3，2026-11-22；基线 rel-05091@02fe922，分支 feat/smooth-s5-settle-scope）
+
+### §366.1 API 面验证（施工第一步）：定向失效判死、走退路
+
+- 布局类实查：`UICollectionViewCompositionalLayout`（ChatRootViewController 两 init 同式装配），§329 一行一 section、item/group 高＝`.absolute(回喂高)`；定向候选 API＝`UICollectionViewLayoutInvalidationContext.invalidateItems(at:)`——本机 iPhoneOS SDK 头文件 `UICollectionViewLayout.h` 实查存在（:71，iOS 8+），`invalidateEverything` 为只读（:68，reloadData 时置位）。API 面存在，但 compositional 布局是否按 context 范围消费官方未承诺，须代码实证。
+- 代码实证（探针＝常驻钉测 testTargetedInvalidationIsNotScopedOnThisLayout，60 行装配、仪器＝布局匣 `sectionProviderCallCount`）：全量 `invalidateLayout()` 提供者重召 **60**；context 只带 section 30 单 item 路的 `invalidateLayout(with:)` 重召 **仍 60**；经生产 apply 改第 30 行高（匣已同步落写）后同法定向，重召 **仍 60**，而帧高 150、contentSize +90 均即刻正确——**机制正确、范围不成立：compositional 布局不按 item 索引路 context 收窄重算，定向失效在本布局判死**。
+- 判读：按施工图二选一走退路——**落定拍时间窗合并**（§366.2 ①）。证据钉测常驻：若未来系统版本行为变化该测先红，届时重议定向。
+
+### §366.2 修法（三件，全部只动落定拍一口及其直接上游）
+
+- **① 时间窗合并（C1）**：落定拍消费布局失效记账处加窗闸——距上次施工 <150ms（调研退路口径 100–200ms 取中值）只记账、自排窗末一拍合并施工；`layoutIfNeeded` 本身不闸（快照落写等其他布局需求照常冲刷）。绕窗三路：参数类失效（applyNow 参数对账处同置紧急记账）、停滚结清布局拍、抽屉唤醒拍。C4 的行高变化路径（applyNow heightsChanged 记账，旧 :2339）与流式行高同口入窗，**不另开口**。
+- **② 停滚结清拆拍（C2）**：`flushDeferredSettle` 武装阶段机（settleClearingStage 0/1/2）——结清第一拍（数据拍）**先武装布局拍（+0.03s）再落数据**（整笔喂入消费＋暂存重配 flush；先武装是防 applyNow 内的 scheduleSettle 抢先成拍），布局冲刷/量测/inset/落位顺延布局拍认领执行。只动施工时机：失效仍只在落定拍、布局 pass 外施工（§325.2 条目 1 不动）；滚动冻结（条目 2③）与 selfSizingInvalidation=.enabled（条目 3③）不动；滚动重入由下次 flush 重新武装阶段 1。
+- **③ 抽屉动画期冻结（问题一拟修法 3 的聊天侧落点）**：信号＝ChatView 在 `router.drawerPresented` 翻转时把运动窗终点（now＋`DrawerSpringTiming.response` 0.27＋落定余量 0.08）记入 `ChatNativeListHandle.drawerMotionDeadline`（纯引用记账、与选区记账同式，抽屉侧状态、聊天侧只读）；控制器：窗内 apply 喂入进 pendingApply 只记账（抽屉单独成因时自排唤醒拍、不置滚动旗）、落定拍只记账＋report 并自排窗末拍；唤醒拍认领旗标、绕窗立即施工。**不碰 DrawerContainerView/DrawerView**（§365 线领地），无反向耦合（抽屉侧不知道聊天在读）。
+- C5（applyNow 每拍 O(N) 字典/键数组重建）不在本包，未动；C3/S3 失效域收窄不在本包。
+
+### §366.3 覆盖边界（诚实登记）
+
+- **跟手拖拽期不在窗覆盖内**：`drawerPresented` 只在 setDrawer（点按/程序开合、手势松手吸附）时翻转（DrawerContainerView :680 实查，`onPresentedChange` 唯一调用点），跟手 scrub 段不翻转——该段进度事实只在容器桥内（Router 的 lastDrawerProgress 为私有账），公开读口若需补归 §365 线后续。本包覆盖开合弹簧段，即 D3 定性中与键盘/底距机器同窗的那段。
+- **时间窗合并的代价**：流式期行高采纳最迟滞后 150ms（尾行帧高分步跟上；内容重配/文本更新不受影响）——与 C1 收益一并归真机流式手感 verdict 判读。
+- gen3 面（ChatListCarrier）不在本包：原生面为现行面、gen3 已随 B 档退役（§325）。
+
+### §366.4 验收量测（实验室口径）
+
+- 新套件 ChatSettleScopeS5Tests **6/6**（bundle Test-OneDayApp-s5fix1，run smooth-s5-fix1）：①定向不成立证据 ②流式生长终态等价（采用高谱/内容总高/末行帧逐值同）③窗合并（窗内两改零施工、帧采纳滞后、窗末恰一次合并）④拆拍（数据拍落匣时施工计数未动、布局拍恰一次、帧采纳）⑤抽屉冻结（窗内匣不落写＋零施工、窗末唤醒恰一次）⑥参数直通守卫。
+- 基线对账（同套件、生产仅加计数读口＋句柄记账属性时，run smooth-s5-base2）：①⑥绿；③④⑤恰红在各自判别断言（窗内施工 3≠2／结清同拍施工 2≠1／抽屉窗内落写 130≠60）——判别成立、非假绿。等价测②的跟随距离断言经基线实测证伪（裸装配无 ChatView 跟随链、距离随生长累积 372），已删并在测内登记，跟随归 BottomFollow 套件。
+- 量测（相对值）：失效施工频次——流式 12.5 拍/s 行高记账下修前每拍一施工（≈12.5 次/s），修后窗闸上限 ≈6.7 次/s；**单拍全量重召宽度不变**（60 行装配实测 60 提供者调用/次）——本包压频次与结清拍构成，不压单宽；单宽随行数涨的根归 S3。停滚结清：修前停指第一拍＝数据＋全量失效＋同步冲刷＋量测同拍串行，修后分列数据拍/布局拍两拍（钉测时序断言为据）。绝对 hitch 率归真机 Instruments（调研报告问题二 ⑤ 清单），实验室绿不替代真机 verdict。
+- 回归：回归 26 套 134 项（run smooth-s5-reg1，bundle Test-OneDayApp-s5reg）：132 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，与 §362.3 在案基线老红逐字同（同套同名、断言族同，已在未改动基线树对证、非本包引入）；新红零。抽屉侧 7 套（BridgeHarness／ContainerController／DeferredNavigationAssembly／MotionProbe／MuseMetrics／RigidBody／SafeAreaRealRoot）全过——ChatView 的 onChange 记账加行无回归。R3 ⑮′ 提供者计数断言全过（拆拍／窗合并未扰滚动冻结期计数口径）。

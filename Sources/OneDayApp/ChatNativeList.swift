@@ -912,6 +912,14 @@ final class ChatNativeListHandle {
     /// 纯引用记账、无观察语义
     var selectionActiveRowKey: String?
 
+    /// §366：抽屉运动窗终点（CACurrentMediaTime
+    /// 系）：ChatView 在 router.drawerPresented 翻
+    /// 转时按 DrawerSpringTiming.response＋落定余
+    /// 量写入——落定拍在此窗内冻结施工、窗末合并
+    /// 一拍（与选区记账同式：纯引用记账、无观察
+    /// 语义）；0＝无窗在途
+    var drawerMotionDeadline: CFTimeInterval = 0
+
     func noteSelectionProtectionEnded() {
         controller?.selectionProtectionEnded()
     }
@@ -1046,6 +1054,34 @@ final class ChatRootViewController: UIViewController,
     /// §325.2：滚动期被冻结的落定拍记账（滚动结束
     /// 回调合并落写时消费）
     private var settleDeferredDuringScroll = false
+    /// §366：落定拍布局失效施工计数（测试读口，与
+    /// 布局匣 sectionProviderCallCount 同式：生产只
+    /// 多一次计数、无行为影响）
+    private(set) var settleLayoutFlushCount = 0
+    /// §366：时间窗合并——上次布局失效施工时刻；
+    /// 同窗内的行高类失效记账攒到窗末一拍合并施
+    /// 工（定向失效实证不成立后的退路，§366.1）
+    private var lastLayoutFlushAt: CFTimeInterval = 0
+    /// §366：参数类失效的紧急记账（布局参数变＝
+    /// 全几何变、不许等窗，落定拍见此账立即施工）
+    private var pendingLayoutInvalidationUrgent = false
+    /// §366：停滚结清拆拍阶段（0＝常态；1＝下一拍
+    /// 只落数据；2＝紧接一拍落布局／量测／落位）
+    private var settleClearingStage = 0
+    /// §366：抽屉运动窗冻结记账（窗内落定拍只记
+    /// 账、窗末唤醒拍合并施工；唤醒拍以本旗标认
+    /// 领、绕时间窗合并立即施工）
+    private var settleDeferredDuringDrawer = false
+    /// §366：时间窗合并窗长（调研退路口径 100–
+    /// 200ms 取中值；流式发布闸约 80ms 一拍下每
+    /// 窗约攒 2 拍失效）
+    private static let layoutCoalesceWindow:
+        CFTimeInterval = 0.15
+    /// §366：结清拆拍的布局拍顺延（数据拍与布局
+    /// 拍错开一小拍：停指单拍不再叠满全账、时序
+    /// 在钉测里可判读）
+    private static let settleSplitBeatDelay:
+        CFTimeInterval = 0.03
     /// §329：滚动期到达的整笔 apply 喂入（滚动闸
     /// 记账槽，与 §325.2 冻结同族——停滚后由落定
     /// 拍先行消费、再走原有落写链；后到覆盖先到，
@@ -1940,6 +1976,13 @@ final class ChatRootViewController: UIViewController,
         layoutBox.sectionProviderCallCount
     }
 
+    /// §366 测试读口：落定拍布局失效施工次数（时
+    /// 间窗合并／拆拍／抽屉冻结的拍级断言用，生产
+    /// 无消费）
+    var testSettleLayoutFlushCount: Int {
+        settleLayoutFlushCount
+    }
+
     /// §329 测试读口：当前行集的回喂高（布局匣
     /// rowHeights 的只读镜像）——生产链压测对账
     /// 「采用高 vs 帧高」用，生产无消费
@@ -2161,6 +2204,24 @@ final class ChatRootViewController: UIViewController,
         layoutArrow()
     }
 
+    /// §366：抽屉运动窗在途（句柄记账的窗终点未
+    /// 到）。信号源＝抽屉侧状态（ChatView 在
+    /// router.drawerPresented 翻转时按弹簧
+    /// response 写句柄），本面只读、不碰抽屉实现
+    private var drawerMotionInFlight: Bool {
+        guard let deadline = handle?.drawerMotionDeadline
+        else { return false }
+        return CACurrentMediaTime() < deadline
+    }
+
+    /// §366：抽屉运动窗剩余时长（唤醒拍自排用）
+    private var drawerMotionRemaining: CFTimeInterval {
+        max(
+            0, (handle?.drawerMotionDeadline ?? 0)
+                - CACurrentMediaTime()
+        )
+    }
+
     // MARK: 参数应用（representable update 入口）
 
     func apply(
@@ -2182,9 +2243,16 @@ final class ChatRootViewController: UIViewController,
         // 状态机覆盖离屏→减速开始的旗标空窗（见
         // userBrowsing 注），空窗内到达的喂入同走
         // 只记账不施工
+        // §366：冻结判据再扩抽屉运动窗——动画在途
+        // 时喂入同走只记账（落定拍在窗内亦冻结、窗
+        // 末唤醒拍合并消费）；抽屉单独成因时滚动旗
+        // 不置（那是滚动结束回调的账），改记抽屉旗
+        // 并自排唤醒拍（本路无回调可等）
+        let drawerFrozen = drawerMotionInFlight
         if userBrowsing
             || collectionView.isTracking
-            || collectionView.isDecelerating {
+            || collectionView.isDecelerating
+            || drawerFrozen {
             pendingApply = PendingApply(
                 rows: newRows, layout: layout,
                 topInset: topInset,
@@ -2192,7 +2260,16 @@ final class ChatRootViewController: UIViewController,
                 composerView: composerView,
                 arrowView: arrowView
             )
-            settleDeferredDuringScroll = true
+            if drawerFrozen && !userBrowsing
+                && !collectionView.isTracking
+                && !collectionView.isDecelerating {
+                settleDeferredDuringDrawer = true
+                scheduleSettle(
+                    delay: drawerMotionRemaining + 0.02
+                )
+            } else {
+                settleDeferredDuringScroll = true
+            }
             return
         }
         applyNow(
@@ -2241,6 +2318,9 @@ final class ChatRootViewController: UIViewController,
             // 防线之一：任何喂入路径都不许在布局 pass
             // 可达的同步链里碰布局失效
             pendingLayoutInvalidation = true
+            // §366：参数变＝全几何变，紧急记账同置
+            // ——落定拍见此账绕时间窗立即施工
+            pendingLayoutInvalidationUrgent = true
         }
 
         let newByKey = Dictionary(
@@ -2629,6 +2709,56 @@ final class ChatRootViewController: UIViewController,
             report()
             return
         }
+        if drawerMotionInFlight {
+            // §366：抽屉动画期冻结（§325.2 条目 2③
+            // 的同族扩展）——本拍只记账＋report、不
+            // 施工，窗末自排唤醒拍合并落写：动画窗
+            // 内不付布局／量测／落位账（调研问题一
+            // 拟修法 3 的聊天侧落点）
+            settleDeferredDuringDrawer = true
+            scheduleSettle(
+                delay: drawerMotionRemaining + 0.02
+            )
+            report()
+            return
+        }
+        // §366：抽屉窗末唤醒拍认领（本拍绕时间窗合
+        // 并立即施工——冻结账已等满一窗、不许再攒）
+        let drawerWakeBeat = settleDeferredDuringDrawer
+        settleDeferredDuringDrawer = false
+        if settleClearingStage == 1 {
+            // §366 拆拍·数据拍：先武装布局拍再落数
+            // 据——applyNow 内的 scheduleSettle 被已
+            // 武装的调度旗守住、不会抢先成拍；本拍
+            // 只落数据（整笔喂入＋暂存重配），布局
+            // 冲刷／量测／落位全顺延布局拍，停指第
+            // 一拍不再叠满全账（调研 C2）
+            settleClearingStage = 2
+            scheduleSettle(
+                delay: Self.settleSplitBeatDelay
+            )
+            if let pending = pendingApply {
+                pendingApply = nil
+                applyNow(
+                    rows: pending.rows,
+                    layout: pending.layout,
+                    topInset: pending.topInset,
+                    bottomMargin: pending.bottomMargin,
+                    composerView: pending.composerView,
+                    arrowView: pending.arrowView
+                )
+            }
+            flushTouchStagedReconfigures()
+            report()
+            return
+        }
+        // §366 拆拍·布局拍（阶段 2）认领：本拍走余
+        // 下全链且绕时间窗（结清账不许再攒窗）
+        let clearingLayoutBeat =
+            settleClearingStage == 2
+        if clearingLayoutBeat {
+            settleClearingStage = 0
+        }
         if let pending = pendingApply {
             // §329：滚动闸记账的消费口——停滚后第
             // 一拍先落写整笔喂入（其引发的布局失效
@@ -2651,11 +2781,33 @@ final class ChatRootViewController: UIViewController,
         flushTouchStagedReconfigures()
         if pendingLayoutInvalidation {
             // §325.2：布局失效的唯一施工口——落定拍
-            // 在布局 pass 外、同拍合并执行一次，随后
-            // layoutIfNeeded 冲刷收敛
-            pendingLayoutInvalidation = false
-            collectionView.collectionViewLayout
-                .invalidateLayout()
+            // 在布局 pass 外合并执行一次，随后
+            // layoutIfNeeded 冲刷收敛。§366 时间窗合
+            // 并：行高类失效在同窗内只记账、攒到窗末
+            // 一拍施工（定向失效实证不成立的退路，
+            // §366.1）；紧急账（参数变）／结清布局拍
+            // ／抽屉唤醒拍绕窗立即施工
+            let now = CACurrentMediaTime()
+            let bypassWindow =
+                pendingLayoutInvalidationUrgent
+                || clearingLayoutBeat || drawerWakeBeat
+            if bypassWindow
+                || now - lastLayoutFlushAt
+                    >= Self.layoutCoalesceWindow {
+                pendingLayoutInvalidation = false
+                pendingLayoutInvalidationUrgent = false
+                lastLayoutFlushAt = now
+                settleLayoutFlushCount += 1
+                collectionView.collectionViewLayout
+                    .invalidateLayout()
+            } else {
+                // 攒拍：记账保留、自排窗末一拍合并
+                // 施工（其间再有记账同归本账）
+                scheduleSettle(
+                    delay: Self.layoutCoalesceWindow
+                        - (now - lastLayoutFlushAt)
+                )
+            }
         }
         collectionView.layoutIfNeeded()
         measureBottomSpace()
@@ -3012,6 +3164,9 @@ final class ChatRootViewController: UIViewController,
     private func flushDeferredSettle() {
         guard settleDeferredDuringScroll else { return }
         settleDeferredDuringScroll = false
+        // §366：停滚结清拆两拍——本回调武装阶段 1，
+        // 落定拍先落数据、布局账顺延紧接的布局拍
+        settleClearingStage = 1
         scheduleSettle()
     }
 
