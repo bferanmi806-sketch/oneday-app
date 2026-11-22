@@ -98,3 +98,79 @@ struct LibraryListSnapshot {
         )
     }
 }
+
+
+/// 资源库派生快照缓存（F1，手感快速项 2026-11-23）：
+/// 快照按全输入指纹缓存——输入未变直接复用上一份，
+/// body 因无关状态（sheet 呈现／选中态／搜索框显隐
+/// 等）重跑时不再整趟重付过滤＋排序（审计实测：标
+/// 题序一趟 39.3ms、默认序地板 3.7ms，输入没变照
+/// 付）。指纹＝六入参逐值比对（名单逐项 entry＋
+/// source、搜索词、排序、openedAt 表、pinned 集、
+/// 分段），任一变即整趟重算——不许显旧（钉测把
+/// 守变更矩阵）。本类自含、无外部状态，宿主只持
+/// 有实例（现行视图 @State；C4 名单店 §369 落地
+/// 后可整体搬入店内、内部不改）。只许主线程触碰
+/// （宿主皆为主 actor 上下文），不做跨线程同步。
+final class LibrarySnapshotCache {
+    private var lastDeliverables: [Deliverable]?
+    private var lastQuery: String?
+    private var lastSort: LibrarySort?
+    private var lastOpenedAt: [String: TimeInterval] = [:]
+    private var lastPinned: Set<String> = []
+    private var lastSegment: Int?
+    private var lastSnapshot: LibraryListSnapshot?
+
+    /// 与 LibraryListSnapshot.make 同参同果：首调
+    /// 与输入变更时走 make 整趟，命中时回存量快照
+    func snapshot(
+        deliverables: [Deliverable]?,
+        query: String,
+        sort: LibrarySort,
+        openedAt: [String: TimeInterval],
+        pinned: Set<String>,
+        segment: Int
+    ) -> LibraryListSnapshot {
+        if let lastSnapshot,
+           lastQuery == query,
+           lastSort == sort,
+           lastSegment == segment,
+           lastOpenedAt == openedAt,
+           lastPinned == pinned,
+           Self.deliverablesEqual(lastDeliverables, deliverables) {
+            return lastSnapshot
+        }
+        let made = LibraryListSnapshot.make(
+            deliverables: deliverables,
+            query: query,
+            sort: sort,
+            openedAt: openedAt,
+            pinned: pinned,
+            segment: segment
+        )
+        lastDeliverables = deliverables
+        lastQuery = query
+        lastSort = sort
+        lastOpenedAt = openedAt
+        lastPinned = pinned
+        lastSegment = segment
+        lastSnapshot = made
+        return made
+    }
+
+    /// 名单逐值比对：nil 与空数组分开记（与 make
+    /// 的 nil→空表回落同果，但指纹口径不混——载
+    /// 荷从无到有不许被误判未变）
+    private static func deliverablesEqual(
+        _ a: [Deliverable]?, _ b: [Deliverable]?
+    ) -> Bool {
+        switch (a, b) {
+        case (nil, nil):
+            return true
+        case let (a?, b?):
+            return a == b
+        default:
+            return false
+        }
+    }
+}

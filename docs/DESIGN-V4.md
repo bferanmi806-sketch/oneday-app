@@ -15014,3 +15014,35 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 钉测（Tests/OneDayAppTests/LibraryListStoreC4Tests.swift，12 项全绿）：假服务端请求计数（fetch 计名单请求、perform 计删除请求，与生产接线同形）——有快照冷启＝fetch 发起瞬间屏上已是快照名单＋全程恰 1 次对账、对账后与服务端逐项同序一致；无快照冷启＝拉取前为 nil、恰 1 次；单删/批量删＝名单请求 0 次（计数不动）、删除请求逐个计数、摘行后新店只播种即见删除后名单（快照同步）；删除失败＝整表原位回滚＋快照同步恢复；换配置键＝内存外来名单与 A 键快照在拉取前均已弃用、从 nil 全量拉、B 键覆写后 A 键播种落空；reconciled 与 fresh 逐项等价（增/删/改/重排矩阵＋nil 旧集）；对账失败保快照名单（keptAfterFailure）、无数据失败 failedNoData、无配置 noConfig 且 fetch 零调用、损坏快照按无快照处理；结构钉测＝视图名单 @State 退役＋走 sharedLibraryListStore()＋collect() 触发点恰 3 处（.task/上传完成/失败重试，基线 5 处含两条删除路径）。
 - 回归账：Test-OneDayApp-cache4.xcresult 共 99 项 98 过——LibraryListStoreC4Tests 12/12、S4 的 LibraryListSnapshotTests 5/5（等价矩阵＋结构钉测含本面 LazyVStack/无 .odPressFeedback()/.onTapGesture 全过）、ShellBgStructureProbeTests 3/3、HitArea44Tests 10/10、Core 文件库六套 53/53（LibraryMenuResolution/FileLibraryModels/DeliverableFileType/DeliverableIconStyle/DeliveryMarker/MediaMarker，另 BridgeDeliveryDecodeTests 3/3）；唯一红＝OneDayCoreTests/LibraryOrderingTests.testSortByTitleUsesDisplayTitle（「报告.docx vs alpha.pdf」），与 S4 基线老红逐字同签名（台账 29 排序口味待裁案、本包未碰），无新红、无静默跳过（12 套全在册、逐套计数对账）。
 - 未验（如实）：真机冷启首帧快照上屏与删除手感待装机 verdict（实验室口径已证：播种在 .task 首跳同步完成、网络返回前名单已置位；删除摘行即时、失败回滚带人话）。本包未组版，待主线随后续版本并入。
+
+## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
+
+### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）
+
+- F1：LibraryListSnapshot.make 挂 DeliverablesView body 首行、每趟现算——标题序一趟 39,281µs（纯排序 36,964µs：比较器每次比较现算 2× displayTitle＋ICU collation）；默认序地板 3,736µs，输入未变照付。
+- F2：DrawerView 旁聊行标题逐行 first(where:) 线性扫描、且行集与逐行标题各自重跑 SessionLedger 合并——名单派生 O(N²)，500 条一趟 9,874µs（其中标题扫描约 8.9ms）。
+
+### §375.2 落法
+
+- F1-a 排序键预计算（LibraryOrdering.sorted 两路）：标题序 upfront 全算 displayTitle 入账、比较器只读预计算键；时间序下标题仅平局兜底、走 TitleKeyMemo 懒备忘（同条目一次排序内只算一次、无平局零计算，不为 upfront 全算白付约 1.4ms）。比较语义逐字不变——标题较仍由 localizedStandardCompare 唯一裁决；等价钉测以旧比较器原文为参照逐位对账（语料含数字后缀／大小写／同名不同路径／无扩展名／点文件／拉丁中文混排）。
+- F1-b 派生快照指纹缓存（新增 LibrarySnapshotCache，置 LibraryListSnapshot.swift）：六入参逐值比对（名单逐项 entry＋source、搜索词、排序、openedAt 表、pinned 集、分段），任一变即整趟重算、未变回存量快照；DeliverablesView body 入口改走缓存，Deliverable 补 Equatable。缓存单元自含、无外部状态——C4 §369 LibraryListStore 落地后可整体搬入店内（合并点见 §375.4）。
+- F2-a Core 新增 LedgerProjection.titleByLocalThreadID：本地线程 id→记录标题一趟建成、同 id 取首个（与 first(where:) 逐字同义）、无本地线程不入字典。
+- F2-b DrawerView body 一趟派生（records＋titles＋rows）同源下传 drawerNavList／drawerSearchList／drawerSideSection／drawerSideRowView／drawerSideThreadRow；呈现版 drawerDisplayTitle(for:titles:) 只查字典，动作版（改名预填／删除执行）现建一趟查字典。字典不跨趟存活、账本一变本趟必重建，不许显旧；不改任何刷新触发时机（与 C3 §370 新鲜度门正交）。
+
+### §375.3 量测对账（修前→修后，M4 模拟器 ProbePhone、best-of-5、审计同口径；探针 FeelQuickProbeTests 14 项全过）
+
+| 项 | 修前 | 修后 |
+|---|---|---|
+| snapshot.make 标题序 N=2000 | 39,312µs | 15,327µs |
+| LibraryOrdering 标题序全序 N=2000 | 36,186µs | 12,561µs |
+| snapshot.make 默认序（openedAt 全异）N=2000 | 3,929µs | 3,890µs |
+| 快照缓存命中（同数组／等值新数组） | 每趟全付 | <1µs／393µs |
+| 抽屉一趟（投影＋标题解析）N=500 | 10,280µs | 1,262µs |
+
+- 分解备查：displayTitle 2000 条各算一次 1,369µs、纯 collation 全序 8,554µs——标题序残余约 12.5ms 主要是 ICU collation 本体（Foundation 无 collation 排序键导出 API；以预计算标题喂平台比较器是「语义不变」前提下的下限，排序口味待裁项不借本包改判）。缓存未命中趟 15,566µs ≈ make 直算，缓存层开销可忽略。
+- 回归：定向集（Core 账本/排序 4 套＋App 快照/抽屉/账本 8 套＋新钉测）123 项 122 过；唯一红 LibraryOrderingTests.testSortByTitleUsesDisplayTitle 与基线失败签名逐字同（台账 29 排序口味老红、非本包引入）；新增 FeelQuickCachePinTests 6 项全绿（排序等价×2、缓存同入参/失效矩阵、字典等价/变更）。
+
+### §375.4 与在飞包的合并点（主线组版对账用）
+
+- C4（§369，0.50.95 线）：同改 DeliverablesView.swift——C4 换 deliverables 来源（视图 @State→LibraryListStore）与 collect/删除路径；本包改 body 快照入口一行、@State 区加 snapshotCache 一行、Deliverable 声明补 Equatable 一词。LibraryListSnapshot.swift 本包尾部新增 LibrarySnapshotCache 类（C4 不碰此文件）；搬家点＝组版时可把 snapshotCache 的持有者从视图 @State 换成 LibraryListStore，类本体不改。
+- C3（§370，0.50.95 线）：同改 DrawerView.swift——C3 改 loadDrawerData 等刷新触发点；本包改 body 头派生、drawerDisplayTitle 两式、sideRows→makeSideRows、drawerNavList/drawerSearchList/drawerSideSection/drawerSideRowView/drawerSideThreadRow 签名与接线，函数面不重叠。SessionLedger.swift 本包零触碰（C3 的 FreshnessGate/epoch 不受影响）；Core 侧本包只在 SessionRecord.swift 的 LedgerProjection 内新增一函数、LibraryOrdering.swift 改 sorted 内部（C3/C4 均不碰）。

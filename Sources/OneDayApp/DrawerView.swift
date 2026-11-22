@@ -201,6 +201,17 @@ struct DrawerView: View {
     /// 栏管理面的退役归第一批对接（见本包交卷）
 
     var body: some View {
+        // F2（手感快速项，2026-11-23）：账本派生一趟
+        // 算清、同源下传——记录合并、标题字典、合并
+        // 行集在本趟各算一次（旧形态：行集与逐行标
+        // 题解析各自重跑合并、标题逐行线性扫描，整
+        // 趟 O(N²)，审计实测 500 条约 9.9ms）；账本
+        // 一变本趟必重算——字典不跨趟存活、不显旧名
+        let records = ledgerRecords
+        let titles = LedgerProjection.titleByLocalThreadID(
+            records
+        )
+        let rows = makeSideRows(records: records)
         // 0.36.27（§97 件三，用户 03:54 拍板「抽屉朦
         // 胧与聊天页一样走纯系统路线比较好点」）：底
         // 条改注册为名单 ScrollView 的 .safeAreaBar
@@ -221,7 +232,7 @@ struct DrawerView: View {
         // 边缘效果由系统自理（系统自动增不透明），
         // 霜层时代的手排实色回退随霜层一并删除（理
         // 由见 DESIGN §97.3）
-        ZStack(alignment: .bottom) {
+        return ZStack(alignment: .bottom) {
             // 0.36.5（D2，用户实拍右缘贯穿长线）：长线
             // 即名单 ScrollView 的默认滚动指示器——关
             // 掉。壳层与本面已查：右缘只有壳层柔影、
@@ -231,9 +242,9 @@ struct DrawerView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 Group {
                     if isSearching {
-                        drawerSearchList
+                        drawerSearchList(rows: rows, titles: titles)
                     } else {
-                        drawerNavList
+                        drawerNavList(rows: rows, titles: titles)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -370,7 +381,7 @@ struct DrawerView: View {
             Button("取消", role: .cancel) { pendingDeleteThread = nil }
         } message: {
             if let thread = pendingDeleteThread {
-                Text("「\(drawerDisplayTitle(for: thread))」删除后不可恢复。")
+                Text("「\(drawerDisplayTitle(for: thread, titles: titles))」删除后不可恢复。")
             }
         }
         .alert(
@@ -498,9 +509,26 @@ struct DrawerView: View {
     /// 照，合并时以全量名单算）；记录缺失（线程未
     /// 注入本轮合并）回落本地标题
     private func drawerDisplayTitle(for thread: ChatThread) -> String {
-        ledgerRecords
-            .first { $0.localThreadID == thread.id }?
-            .title ?? thread.title
+        // F2（手感快速项，2026-11-23）：标题解析改字
+        // 典直达——旧形态逐行 first(where:) 线性扫
+        // 描记录表（名单派生 O(N²) 本体）；现一趟建
+        // 字典（LedgerProjection.titleByLocal-
+        // ThreadID、首个命中优先）＋O(1) 查，语义逐
+        // 字不变（记录缺失回落本地标题）。本式只剩
+        // 动作路径（改名预填／删除执行）调用，手势
+        // 频次、现建一趟与旧单次调用同级
+        LedgerProjection.titleByLocalThreadID(ledgerRecords)[
+            thread.id
+        ] ?? thread.title
+    }
+
+    /// 呈现路径版（F2）：字典由 body 一趟建成下传
+    /// （见 body 头注），行渲染只查不建
+    private func drawerDisplayTitle(
+        for thread: ChatThread,
+        titles: [UUID: String]
+    ) -> String {
+        titles[thread.id] ?? thread.title
     }
 
     /// 页头（§157 第一批①立、2026-11-22 抽屉量测
@@ -587,7 +615,9 @@ struct DrawerView: View {
     /// 只动内容装配；装配回归钉见 DrawerIAAssem-
     /// blyUITests（UI 测试——进程内单测环境 AX 树
     /// 不填充、本仓已有实证）
-    private var drawerNavList: some View {
+    private func drawerNavList(
+        rows: [DrawerSideRow], titles: [UUID: String]
+    ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             drawerTabSection
             // R2 边界线：恒挂频道组头上方，与频道区
@@ -599,7 +629,7 @@ struct DrawerView: View {
             // 折叠态无关
             drawerDivider
                 .padding(.top, OneDayMetrics.spacingS)
-            drawerSideSection
+            drawerSideSection(rows: rows, titles: titles)
             Color.clear
                 .frame(height: OneDayMetrics.spacingL)
         }
@@ -961,12 +991,14 @@ struct DrawerView: View {
     /// 空时只留一行弱字提示（不整区消失——让用户知
     /// 道新建入口在哪）
     @ViewBuilder
-    private var drawerSideSection: some View {
+    private func drawerSideSection(
+        rows: [DrawerSideRow], titles: [UUID: String]
+    ) -> some View {
         drawerCollapsibleHeader("旁聊", key: DrawerSectionKey.sideChats)
         drawerCollapsibleContent(
             collapsed: drawerSectionCollapsed(DrawerSectionKey.sideChats)
         ) {
-        if sideRows.isEmpty {
+        if rows.isEmpty {
             Text("还没有旁聊")
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
@@ -974,8 +1006,8 @@ struct DrawerView: View {
                 .padding(.horizontal, OneDayMetrics.drawerInset)
                 .padding(.bottom, OneDayMetrics.spacingS)
         } else {
-            ForEach(sideRows) { row in
-                drawerSideRowView(row)
+            ForEach(rows) { row in
+                drawerSideRowView(row, titles: titles)
             }
         }
         }
@@ -985,7 +1017,9 @@ struct DrawerView: View {
     /// 隐藏，与 0.18.0 抽屉搜索同行为）；无命中给弱
     /// 字一行，不留空白屏
     @ViewBuilder
-    private var drawerSearchList: some View {
+    private func drawerSearchList(
+        rows: [DrawerSideRow], titles: [UUID: String]
+    ) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             // §158：搜索态头走同一折叠件但状态被呈现
             // 层强制为展开（搜到一半不许被折叠挡住）；
@@ -1006,7 +1040,7 @@ struct DrawerView: View {
             )
             .foregroundStyle(Palette.drawerSectionInk)
             .padding(.horizontal, OneDayMetrics.drawerInset)
-            if sideRows.isEmpty {
+            if rows.isEmpty {
                 Text("没有匹配的旁聊")
                     .font(.footnote)
                     .foregroundStyle(Palette.inkSecondary)
@@ -1014,8 +1048,8 @@ struct DrawerView: View {
                     .padding(.horizontal, OneDayMetrics.drawerInset)
                     .padding(.bottom, OneDayMetrics.spacingS)
             } else {
-                ForEach(sideRows) { row in
-                    drawerSideRowView(row)
+                ForEach(rows) { row in
+                    drawerSideRowView(row, titles: titles)
                 }
             }
             Color.clear
@@ -1071,13 +1105,15 @@ struct DrawerView: View {
     /// 标题（＝显示名）或任一条目内容、未收养行按
     /// 服务端标题管线（resolvedTitle、素材传 nil
     /// 与旧行同式），不区分大小写
-    private var sideRows: [DrawerSideRow] {
+    private func makeSideRows(
+        records: [SessionRecord]
+    ) -> [DrawerSideRow] {
         let query = DrawerSearchPolicy.normalizedQuery(
             drawerQuery
         )
         var rows: [DrawerSideRow] = []
         for record in LedgerProjection.drawerSideRows(
-            ledgerRecords
+            records
         ) {
             if let threadID = record.localThreadID,
                let thread = threadsByID[threadID] {
@@ -1128,10 +1164,12 @@ struct DrawerView: View {
     /// 合并行分发：本地行走既有整行（含长按四件），
     /// 未收养行走服务端行（点达收养）
     @ViewBuilder
-    private func drawerSideRowView(_ row: DrawerSideRow) -> some View {
+    private func drawerSideRowView(
+        _ row: DrawerSideRow, titles: [UUID: String]
+    ) -> some View {
         switch row {
         case .thread(let thread):
-            drawerSideThreadRow(thread)
+            drawerSideThreadRow(thread, titles: titles)
         case .unadopted(let session):
             drawerUnadoptedSideRow(session)
         }
@@ -1213,7 +1251,9 @@ struct DrawerView: View {
     /// AX 档标题/时间上下排列，逐项见 label 内注
     /// （时间呈现已于 2026-11-22 整段退役、AX 排
     /// 列随之只剩标题与置顶钉两件，见 label 内注）
-    private func drawerSideThreadRow(_ thread: ChatThread) -> some View {
+    private func drawerSideThreadRow(
+        _ thread: ChatThread, titles: [UUID: String]
+    ) -> some View {
         // 0.36.7：当前位只认单一政策（§10.2）——正在
         // 看这条旁聊时胶囊只归本行、主线聊天行无胶囊
         let isCurrent = drawerSelection == .side(thread.id)
@@ -1240,7 +1280,9 @@ struct DrawerView: View {
             // 档排向——常态横排（标题抢宽、行尾靠右）；
             // AX 大字体档上下排列（标题在上、行尾在其
             // 下左对齐），不再横向互挤
-            let title = Text(drawerDisplayTitle(for: thread))
+            let title = Text(
+                drawerDisplayTitle(for: thread, titles: titles)
+            )
                 // 0.20.0 字阶：旁聊行题 20 常规（图
                 // 中同为 20pt 级、重于导航行半粗一
                 // 档之差）；标题走 drawerDisplayTitle

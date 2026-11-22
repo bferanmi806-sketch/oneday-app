@@ -56,6 +56,9 @@ struct DeliverablesView: View {
     private var deliverables: [Deliverable]? {
         listStore.deliverables
     }
+    /// F1：派生快照指纹缓存（LibrarySnapshotCache，
+    /// 输入未变回存量快照、不整趟重算）
+    @State private var snapshotCache = LibrarySnapshotCache()
     @State private var loadError: String?
     @State private var pendingDelete: Deliverable?
     @State private var shareItem: FileShareItem?
@@ -132,8 +135,11 @@ struct DeliverablesView: View {
     var body: some View {
         // §363（S4）：派生快照一趟只算一次、下传内容面
         // 共用（旧计算属性每访问整表重排，见
-        // LibraryListSnapshot 头注）
-        let snapshot = LibraryListSnapshot.make(
+        // LibraryListSnapshot 头注）；F1（2026-11-23）：
+        // 入口改走指纹缓存——输入未变回存量快照，整
+        // 趟重算只在名单／搜索／排序／打开史／置顶／
+        // 分段真变时发生
+        let snapshot = snapshotCache.snapshot(
             deliverables: deliverables,
             query: query,
             sort: sort,
@@ -1493,7 +1499,7 @@ struct DeliverablesView: View {
 /// 交付物：工作区文件条目＋来源（产出目录语义名；
 /// 来源只作数据层记录与排查，本页行副题按图只给类
 /// 型词、不上屏来源）
-struct Deliverable: Identifiable {
+struct Deliverable: Identifiable, Equatable {
     let entry: WorkspaceFileEntry
     let source: String
 
