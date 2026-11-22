@@ -13,7 +13,9 @@ import XCTest
 /// finder 沿基线的值匹配＋reveal 路（第 95 条
 /// 的帧落定机器按收口口径不迁移、不重建）。
 /// 五件：
-/// 1. 长按正文→系统编辑菜单、整行菜单不出现；
+/// 1. 长按正文→浮排三层同呈（§343/§346 定版）、
+///    点卡内「选择」项→选字＋编辑菜单（§353 改口
+///    径，原 §265「长按直出编辑菜单」契约作废）；
 /// 2. 长按气泡边距带→整行菜单（§332：集合视图
 ///    delegate 内建通道＋hitTest 点位分工）；
 /// 3. 双击正文→选词＋编辑菜单；
@@ -33,15 +35,52 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
 
     // MARK: - 用例
 
-    func testLongPressOnTextShowsEditMenuNotRowMenu() throws {
+    /// §353 改口径（原名 testLongPressOnTextShows-
+    /// EditMenuNotRowMenu）：§265「长按正文直出系统
+    /// 编辑菜单、整行菜单不出现」契约随 0.50.82–
+    /// 0.50.84 浮排定版作废——收口调查失败时按钮树
+    /// 实证：长按后在场的是浮排动作卡、非编辑菜单。
+    /// 现行判据两段：①长按正文出浮排动作卡（§343/
+    /// §346 三层同呈的卡层四项齐在）；②点卡内「选
+    /// 择」项后进入选字、系统编辑菜单出现。
+    func testLongPressOnTextShowsFloatingBarThenSelectEntersSelection() throws {
         let app = launchDemoApp()
         openSeededThread(in: app)
         let text = try lastUserTextView(in: app)
         text.coordinate(
             withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
         ).press(forDuration: 1.2)
+        assertFloatingActionCardShown(in: app)
+        let selectItem = app.buttons.matching(
+            NSPredicate(format: "label == %@", "选择")
+        ).firstMatch
+        XCTAssertTrue(
+            selectItem.isHittable,
+            "浮排动作卡「选择」项不可点；当时按钮树："
+                + treeSnapshot(in: app)
+        )
+        selectItem.tap()
+        // 二段（§353 亲读产品码对位）：「选择」的落
+        // 点是「选择文本」sheet（SelectableText-
+        // Sheet：整条消息纯文本置于 UITextView 真
+        // 选段页、ChatView onSelect 设 selection-
+        // Payload），不是气泡内原地选字——判据改
+        // sheet 在场→页内双击选词→系统编辑菜单出
+        // 现（assertEditMenuShown 与气泡内同口径）
+        let sheetBar = app.navigationBars["选择文本"]
+        XCTAssertTrue(
+            sheetBar.waitForExistence(timeout: 10),
+            "点「选择」后「选择文本」页未出现；"
+                + "当时全元素摘要："
+                + allElementsDigest(in: app)
+        )
+        let sheetText = try widestTextView(
+            matching: "按你说的顺序来", in: app
+        )
+        sheetText.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+        ).doubleTap()
         assertEditMenuShown(in: app)
-        assertRowMenuAbsent(in: app)
     }
 
     func testLongPressOnBubblePaddingShowsRowMenu() throws {
@@ -161,6 +200,18 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     }
 
     func testLongPressOnPhoneShowsLinkMenuNotRowMenu() throws {
+        // §353.3 降级登记：reveal 确定性化（定距拖
+        // 动＋落定帧判）已按收口路径试跑一轮、未达
+        // 绿——按路径停手、本件默认 skip，电话主
+        // 动作证明归真机清单（与探针 §6-2b 既有挂
+        // 账合并：UI 自动化内长期未达成）。真机备
+        // 查时删本 skip 即跑（下方本体与确定性
+        // reveal 均保留）。
+        throw XCTSkip(
+            "§353.3 降级：电话主动作证明归真机清单"
+                + "（确定性 reveal 一轮未达绿、按收口"
+                + "路径停手）"
+        )
         let app = launchDemoApp()
         openSeededThread(in: app)
         // 阶段一：长按号码正中（点位由实帧＋字宽
@@ -217,6 +268,17 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     func testStreamingDoubleTapSelectsAndLongPressShowsMenu()
         throws
     {
+        // §353 摘常规集（套件自注定性兑现）：流式
+        // 变更树上 AX 快照按索引取元素结构性失效
+        // （:290 index 56 无匹配、2026-11-22 收口
+        // 调查同签名复现），本件定位真机/本地备查
+        // ——默认 skip、不进常规红集口径；流式工况
+        // 手势终判归真机清单（与电话主动作挂账同
+        // 册）。备查时删本 skip 即跑。
+        throw XCTSkip(
+            "§353 摘常规集：流式 AX 快照索引失效属"
+                + "环境形态、本件归真机/本地备查"
+        )
         let app = launchDemoApp()
         openSeededThread(in: app)
         // 发送前基线：种子会话内同文回复的既有数
@@ -570,22 +632,53 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         }.joined(separator: " | ")
     }
 
-    /// 双向 reveal（基线同法：帧退化/在上方下滑
-    /// 找、在下方上滑找；列表口径换集合视图）
+    /// 确定性 reveal（§353 改版）：按元素实帧与
+    /// 可视带（minY 150、maxY 740——openSeeded-
+    /// Thread 落位搜索同带）的偏差定距拖动集合视
+    /// 图、每步落定后重读帧判定。旧版盲滑（只按
+    /// minY 二分方向整幅 swipe、不验落点）为收口
+    /// 调查电话件失败形态：14 次滚动后元素仍不可
+    /// 命中、未走到号码证明。帧退化时固定步长朝
+    /// 列表下方探一步；单步限幅 600pt 防过冲、余
+    /// 量下一步收；步数上限 14 沿旧值。
     private func reveal(
         _ element: XCUIElement, in app: XCUIApplication
     ) {
         let list = app.collectionViews.firstMatch
+        let bandMinY: CGFloat = 150
+        let bandMaxY: CGFloat = 740
         var attempts = 0
         while !element.isHittable, attempts < 14 {
             let frame = element.frame
-            if frame.isEmpty || !frame.minY.isFinite
-                || frame.minY < 130 {
-                list.swipeDown()
+            let anchor = list.coordinate(
+                withNormalizedOffset:
+                    CGVector(dx: 0.5, dy: 0.5)
+            )
+            if frame.isEmpty || !frame.minY.isFinite {
+                anchor.press(
+                    forDuration: 0.05,
+                    thenDragTo: anchor.withOffset(
+                        CGVector(dx: 0, dy: -300)
+                    ),
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.2
+                )
             } else {
-                list.swipeUp()
+                let targetCenterY =
+                    (bandMinY + bandMaxY) / 2
+                let rawDelta = frame.midY - targetCenterY
+                let delta = max(-600, min(600, rawDelta))
+                anchor.press(
+                    forDuration: 0.05,
+                    thenDragTo: anchor.withOffset(
+                        CGVector(dx: 0, dy: -delta)
+                    ),
+                    withVelocity: .slow,
+                    thenHoldForDuration: 0.2
+                )
             }
             attempts += 1
+            awaitStableFrame(element)
         }
         XCTAssertTrue(
             element.isHittable,
@@ -594,6 +687,93 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
     }
 
     // MARK: - 断言助手（与基线同判据）
+
+    /// §353 浮排动作卡判据（§343/§346 三层同呈的
+    /// 卡层）：卡内四项（回复/复制/选择/分享）以标
+    /// 题在树——轮询至四项齐在或超时失败、失败倾
+    /// 印按钮树。反应条（顶层药丸排）的 AX 形态不
+    /// 稳、本判据以卡层为长按呈现的落点证据。
+    private func assertFloatingActionCardShown(
+        in app: XCUIApplication
+    ) {
+        let labels = ["回复", "复制", "选择", "分享"]
+        func allPresent() -> Bool {
+            labels.allSatisfy { label in
+                app.buttons.matching(
+                    NSPredicate(
+                        format: "label == %@", label
+                    )
+                ).firstMatch.exists
+            }
+        }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, !allPresent() {
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        if !allPresent() {
+            XCTFail(
+                "长按正文后浮排动作卡未齐在场"
+                    + "（回复/复制/选择/分享）；当时按钮树："
+                    + treeSnapshot(in: app)
+            )
+        }
+    }
+
+    /// 「选择文本」页内的承载文本视图：与气泡内
+    /// 同文元素并存于树（sheet 覆盖在上），以帧宽
+    /// 最大者认页内件（页内正文整宽、气泡为消息
+    /// 宽）。值匹配整形口径与 textView(matching:)
+    /// 同源。
+    private func widestTextView(
+        matching needle: String, in app: XCUIApplication
+    ) throws -> XCUIElement {
+        var best: XCUIElement?
+        var bestWidth: CGFloat = -1
+        for element in candidateElements(in: app) {
+            let raw = (element.value as? String)
+                ?? element.label
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            if stripped.contains(needle),
+               element.frame.width > bestWidth {
+                best = element
+                bestWidth = element.frame.width
+            }
+        }
+        guard let best else {
+            XCTFail(
+                "「选择文本」页内找不到正文「\(needle)」"
+            )
+            throw NSError(
+                domain: "ChatGestureNativeSurface",
+                code: 2
+            )
+        }
+        return best
+    }
+
+    /// 全类型元素摘要（诊断用）：按钮/菜单项/其
+    /// 他元素的标识与标签倾印
+    private func allElementsDigest(
+        in app: XCUIApplication
+    ) -> String {
+        let buttons = app.buttons.allElementsBoundByIndex
+            .map { "B:\($0.identifier)|\($0.label)" }
+        let items = app.menuItems.allElementsBoundByIndex
+            .map { "M:\($0.identifier)|\($0.label)" }
+        let others = app.otherElements.allElementsBoundByIndex
+            .map { "O:\($0.identifier)|\($0.label)" }
+        return (buttons + items + others)
+            .joined(separator: ", ")
+    }
 
     private func assertEditMenuShown(in app: XCUIApplication) {
         let copyItem = app.menuItems.matching(

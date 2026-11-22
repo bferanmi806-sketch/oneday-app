@@ -14475,3 +14475,33 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 探针改后复跑（同基线口径）：6/6 轮显示链最大间隔 16.7ms、>25ms 间隔 0、内容布局计数 0；基线两次跑均出现的首次关闭约 60–65ms 单次间隔改后未复现（单跑样本、不作根除结论）。
 - 模拟器录屏逐帧差分（真 App 生产装配、开/合各 3 次）：
 - 真机手感门留用户（开合跟手/落定无尾巴、深色接缝三段并排 Muse）。
+
+## §353 手势套件测试侧收口（2026-11-22；分支 feat/gesture-suite-cleanup，基线 rel-05087@ef7120f＝0.50.87/215；台账 4）
+
+定性出处：oneday-design-review/gesture-suite-rootcause-20261122.md——rel-05086 树实跑 14 件 9 红、产品真问题 0（套件装配 5／判读口径 2／装配·环境 1／rig flake 1）。本包全测试侧：diff 只含 Tests/ 与本节，产品码（Sources/）零改。
+
+### §353.1 仲裁册整册退役
+
+- ChatGestureArbitrationTests：setUpWithError 无条件 XCTSkip（仓内 PresentationLayerScenarios 占位 skip 惯例）＋文件头退役注。理由三条：①启动参数钉 `-chat.list.native NO` 非默认回退面——生产默认原生面自 §297 起、本册量的签名已无被测对象，「浸泡期保签名」使命随旧面退出默认面终结（§297 登记的钉面定位随本节改版：本册自浸泡期回归面除名）；②本册 finder/settle 机器在旧面 AX 树结构性超时（收口调查 5 件全红、4 件约 222 秒死于 UI 查询求值超时、手势根本没投递；2026-11-15 同型案底两轮修法未达绿后按硬边界停手）；③同题同判据已由原生面册在出货面覆盖（双击选字／边距带长按／右滑引用 UI 实证绿），覆盖不丢。文件保留备查、不删（历史取证梯与 finder 机器对原生面册仍有参照价值）。
+
+### §353.2 原生面长按正文改浮排口径
+
+- ChatGestureNativeSurfaceTests 原 testLongPressOnTextShowsEditMenuNotRowMenu 改判并更名 testLongPressOnTextShowsFloatingBarThenSelectEntersSelection：删 §265 旧契约断言（长按直出系统编辑菜单＋整行菜单不出现——与 0.50.82–0.50.84 浮排定版冲突；收口调查失败时按钮树实证在场的是浮排动作卡、非编辑菜单）。新判据两段：①长按正文出浮排动作卡（§343/§346 三层同呈的卡层——回复/复制/选择/分享四项以标题在树，新增 assertFloatingActionCardShown 轮询判齐；反应条顶层药丸排 AX 形态不稳、不作判据）；②点卡内「选择」项→「选择文本」sheet 在场→页内双击选词→系统编辑菜单出现（assertEditMenuShown 沿用）——落点形态经亲读产品码对位：ChatView onSelect 设 selectionPayload、SelectableTextSheet 承载整条消息纯文本于 UITextView 真选段页，非气泡内原地选字（初版判读按原地选字连红两轮、对位后改判即绿，详 §353.6）。册头五件清单第 1 条同步改口径。
+
+### §353.3 电话件 reveal 确定性化
+
+- reveal 助手改版：按元素实帧与可视带（minY 150／maxY 740——openSeededThread 落位搜索同带）的偏差定距拖动集合视图（press-thenDrag、单步限幅 600pt 防过冲、余量下一步收），每步 awaitStableFrame 落定后重读判定；帧退化固定步长 300pt 朝列表下方探步；步数上限 14 沿旧值。旧版盲滑（只按 minY 二分方向整幅 swipe、不验落点）即收口调查 :590 失败形态（14 次滚动后仍不可命中、未走到号码点位证明）。
+- 验收结果：一轮未达绿——新树首轮（gesturecleanup-run1.xcresult）电话件仍红，按收口路径停手降级：默认 XCTSkip＋电话主动作证明归真机清单（与探针 §6-2b 既有挂账合并，不新增产品待办）；降级后复跑确认 skip 状态明确（gc-run3 日志 Test skipped - §353.3 降级）。确定性 reveal 本体保留在册，真机备查时删 skip 即用。
+
+### §353.4 流式件摘常规集
+
+- testStreamingDoubleTapSelectsAndLongPressShowsMenu 默认 XCTSkip：流式变更树上 AX 快照按索引取元素结构性失效（:290 index 56 无匹配、收口调查同签名复现）；套件自注早已登记「CI 基线红族（AX 环境无有效信号）、真机/本地备查」定位，本节兑现——不进常规红集口径，流式工况手势终判归真机清单（与电话主动作挂账同册）。用例本体保留，备查时删 skip 即跑。
+
+### §353.5 键盘矩阵维持 quarantine
+
+- KeyboardTapDismissMatrixTests 本包不动：rig flake 定性（失败在聚焦前置、矩阵本体未成格；2026-11-15 未改一字两轮转绿案底）在位，观察登记在位（§326 基线族名单＋收口调查 §二 #9），只确认、不改码、不摘不堵。
+
+### §353.6 验收
+
+- 新树定向跑（dd-gesturecleanup、ProbePhone、scheme OneDayApp＋workspace）：首轮两册 11 件＝Passed 3（原生面双击选字／边距带长按／右滑引用）／Failed 2（电话件降级前、长按正文二段改判前）／Skipped 6（仲裁册 5＋流式件 1），bundle gesturecleanup-run1.xcresult。收口后逐件终态：仲裁册 5/5 Skipped；原生面册 4 Passed（双击／边距带／右滑＋长按正文新口径——gesturecleanup-run4.xcresult 单件复跑 Passed、30.3s）＋2 Skipped（流式摘集、电话降级），两册 0 红。
+- 红线自检：git diff --stat 只含 Tests/ 与 docs/DESIGN-V4.md、Sources/ 零行。
