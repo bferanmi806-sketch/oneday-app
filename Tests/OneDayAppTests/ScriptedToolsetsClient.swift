@@ -125,11 +125,27 @@ struct ScriptedToolsetsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func updateCheck(config: ServerConfig) async throws -> UpdateCheckResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func updateReceipt(config: ServerConfig) async throws -> UpdateReceiptResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary {
         throw HermesError.unreachable("离线桩")
     }
 
     func models(config: ServerConfig, apiKey: String) async throws -> [String] {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func capabilities(config: ServerConfig, apiKey: String) async throws -> CapabilitiesResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func healthDetailed(config: ServerConfig, apiKey: String) async throws -> HealthDetailedResponse {
         throw HermesError.unreachable("离线桩")
     }
 
@@ -593,7 +609,31 @@ struct ScriptedToolsetsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func listApprovals(config: ServerConfig, apiKey: String) async throws -> ApprovalsListResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func routeProbe(config: ServerConfig, apiKey: String?, path: String) async -> RouteProbeResult? {
+        nil
+    }
+
     func revokeGrant(config: ServerConfig, apiKey: String, patternKey: String) async throws -> GrantRevocationReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func pairingList(config: ServerConfig) async throws -> PairingListResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func pairingApprove(config: ServerConfig, platform: String, requestID: String) async throws -> PairingApproveReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func pairingRevoke(config: ServerConfig, platform: String, userID: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func pairingClearPending(config: ServerConfig) async throws -> PairingClearPendingReceipt {
         throw HermesError.unreachable("离线桩")
     }
 
