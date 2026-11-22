@@ -363,11 +363,12 @@ struct FeedView: View {
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
                 HStack(alignment: .top, spacing: OneDayMetrics.rowInnerGap) {
                     Text(post.title)
-                        // 0.47.0（§117.5 记账）：行题经
-                        // 用户对标指令改回 semibold——
-                        // C14 的 .rowTitle 归轨只限本页
-                        // 与点子页，其余页面角色表不动
-                        .font(.headline)
+                        // §364（台账 23）：行题升内容行题
+                        // 例外角色 contentListTitle
+                        // （Title3 semibold）——§117.5 例
+                        // 外经用户 2026-11-22 裁定扩展至
+                        // 目标面，三面同例
+                        .font(.contentListTitle)
                         .foregroundStyle(Palette.ink)
                         // 0.43.0（A11Y-D3）：AX 档放宽
                         .a11yLineLimit(2, ax: 4)

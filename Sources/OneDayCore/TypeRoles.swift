@@ -44,6 +44,13 @@ import Foundation
 /// 由 DrawerMuseMetricsTests 的消费形态渲染测
 /// 把守（与闸门渲染测同口径：AX3 对 .large 须
 /// 长大 1.2 倍以上）
+/// §364（台账 23，用户 2026-11-22 裁定）：增
+/// contentListTitle（Title3 20 semibold）为内
+/// 容行题例外角色——§117.5 点子/动态行题例外
+/// 经裁定同例扩展，三面（点子/动态/目标）行题
+/// 统一升本角色（对位 Muse 实测约 20–21pt
+/// semibold）；C14 单轨对三面让位、其余页面
+/// 一字不变，本例外不许再外溢
 public enum TypeRole: String, CaseIterable {
     case screenName
     case rowTitleL
@@ -58,12 +65,14 @@ public enum TypeRole: String, CaseIterable {
     case drawerRowTitle
     case drawerRowTitleCurrent
     case drawerTitle
+    case contentListTitle
 
     /// SwiftUI 文本样式名（与 FontRoles 落法同名对账）
     public var textStyleName: String {
         switch self {
         case .screenName: return "title"
         case .drawerTitle: return "title2"
+        case .contentListTitle: return "title3"
         case .rowTitleL, .rowTitle, .bodyText,
              .drawerNavTitle, .drawerRowTitle,
              .drawerRowTitleCurrent: return "body"
@@ -78,6 +87,7 @@ public enum TypeRole: String, CaseIterable {
         switch self {
         case .screenName: return 28
         case .drawerTitle: return 24
+        case .contentListTitle: return 20
         case .rowTitleL, .rowTitle, .bodyText,
              .drawerNavTitle, .drawerRowTitle,
              .drawerRowTitleCurrent: return 17
@@ -99,6 +109,7 @@ public enum TypeRole: String, CaseIterable {
         switch self {
         case .screenName: return "bold"
         case .drawerTitle: return "bold"
+        case .contentListTitle: return "semibold"
         case .drawerNavTitle: return "medium"
         case .drawerRowTitleCurrent: return "semibold"
         default: return "regular"

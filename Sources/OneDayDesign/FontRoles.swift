@@ -37,6 +37,13 @@ public extension Font {
     /// regular（旧 .headline 让位——列表行题一律
     /// regular，0.24.0 字重清仓）
     static let rowTitle: Font = .body
+    /// 内容行题（§364 局部角色，台账 23）：Title3
+    /// 20 semibold——点子/动态/目标三面行题专用
+    /// （§117.5 例外升档＋用户 2026-11-22 同例扩
+    /// 展裁定，对位 Muse 实测约 20–21 semibold）；
+    /// 只许三面行题消费、不许外溢（Core TypeRole
+    /// .contentListTitle 对账）
+    static let contentListTitle: Font = .title3.weight(.semibold)
     /// 正文：17 regular
     static let bodyText: Font = .body
     /// 行副题（设置状态副行/交付物类型小字）：15 regular

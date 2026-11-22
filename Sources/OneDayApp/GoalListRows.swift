@@ -229,9 +229,10 @@ struct GoalGroupHeader: View {
                     .frame(width: 6.5, height: 6.5)
             }
             Text(title)
-                // 0.41.0（C14 同账）：组头回收 regular，
-                // 分段靠状态色与位置、不靠字重
-                .font(.body)
+                // §364（台账 23）：组头改 semibold
+                // （对位 Muse 实测半粗）——组头非
+                // 行题、不撞 C14 行题单轨
+                .font(.body.weight(.semibold))
                 .foregroundStyle(
                     completed ? Palette.inkSecondary : Palette.successText
                 )
@@ -320,10 +321,12 @@ struct GoalRowView: View {
             } label: {
                 VStack(alignment: .leading, spacing: OneDayMetrics.stackGap) {
                     Text(goal.title)
-                        // 0.41.0（C14）：列表行题归角色表
-                        // .rowTitle（Body regular），全 App
-                        // 行题单轨
-                        .font(.rowTitle)
+                        // §364（台账 23，用户 2026-11-22
+                        // 裁定）：行题同点子/动态例，改用
+                        // contentListTitle（Title3 档
+                        // semibold），破 C14 单轨——对位
+                        // Muse 实测约 21pt semibold
+                        .font(.contentListTitle)
                         .foregroundStyle(Palette.bodyInk)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -331,7 +334,8 @@ struct GoalRowView: View {
                         Text(summary)
                             .font(.body)
                             .foregroundStyle(Palette.inkSecondary)
-                            .lineLimit(2)
+                            // §364：截断 2→3 行（对位 Muse 2–3 行）
+                            .lineLimit(3)
                             .multilineTextAlignment(.leading)
                     }
                     // 活动行（GD-1 呈现，§238）：桥派生

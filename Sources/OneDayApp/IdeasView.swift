@@ -373,10 +373,12 @@ struct IdeaRowView: View {
                 alignment: .leading, spacing: OneDayMetrics.spacingXS
             ) {
                 Text(idea.title)
-                    // 0.47.0（§117.5 记账）：两页行题经
-                    // 用户对标指令改回 semibold（系统
-                    // Headline 17），其余页面角色表不动
-                    .font(.headline)
+                    // §364（台账 23）：行题升内容行题
+                    // 例外角色 contentListTitle
+                    // （Title3 semibold）——§117.5 例
+                    // 外升档，用户 2026-11-22 裁定三
+                    // 面同例
+                    .font(.contentListTitle)
                     .foregroundStyle(Palette.bodyInk)
                     .lineLimit(2)
                 if !idea.detail.isEmpty {
