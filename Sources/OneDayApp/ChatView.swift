@@ -1478,42 +1478,57 @@ struct ChatView: View {
     /// 载的页面行为差只许出在列表与回底钮两处承载
     /// 本身
     private var chatSurface: some View {
-        Group {
-            if nativeListEnabled {
-                nativeListSurface
-            } else if gen3CarrierEnabled {
-                carrierListSurface
-            } else {
-                legacyListSurface
-            }
-        }
-        // §185：背景层穿到屏幕四边——上下栏纯色块修
-        // 复，页面背景单独忽略安全区铺满整屏，栏下内
-        // 容能流到位时边缘即由滚动效果化开
-        .background {
-            Palette.chatSurface
-                .ignoresSafeArea()
-        }
-        // §186 配套（诊断 K1）：聚焦打字时隐藏导航坞——
-        // TabView 的安全区预留不因输入舱退出安全区栈而
-        // 消失，键盘升起时坞仍会骑到键盘顶、与舱的下段
-        // 带重叠（「坞被键盘窗自然覆盖」在 SwiftUI Tab-
-        // View 下不成立，机制见诊断 3.1 与 Composer-
-        // GuideHost 文件头）；键盘态藏坞、落下恢复，坞
-        // 在键盘态彻底退出画面，舱直接坐在键盘上。
-        // 键盘整包 R5（2026-11-13）：显隐输入由聚焦
-        // 状态改键盘几何快照的在场位——快照在 Will-
-        // ChangeFrame 事件拍翻转（与 §194 舱常量同
-        // 源同拍），旧路 composerFocused 是 delegate
-        // 回调的观察回写、与键盘事件不同拍，坞的退
-        // 场/归位因此总慢键盘半拍（症⑤坞鬼影的时序
-        // 分量）；聚焦态自此退出坞显隐派生。本修饰
-        // 只挂聊天格内容根、逐格生效，切到其他格时
-        // 由该格自身口径接管（恒可见）
-        .toolbar(
-            kbSnapshot.isKeyboardUp ? .hidden : .visible,
-            for: .tabBar
+        chatSurfaceLifecycle(
+            chatSurfacePresentation(
+                Group {
+                    if nativeListEnabled {
+                        nativeListSurface
+                    } else if gen3CarrierEnabled {
+                        carrierListSurface
+                    } else {
+                        legacyListSurface
+                    }
+                }
+                // §185：背景层穿到屏幕四边——上下栏纯色块修
+                // 复，页面背景单独忽略安全区铺满整屏，栏下内
+                // 容能流到位时边缘即由滚动效果化开
+                .background {
+                    Palette.chatSurface
+                        .ignoresSafeArea()
+                }
+                // §186 配套（诊断 K1）：聚焦打字时隐藏导航坞——
+                // TabView 的安全区预留不因输入舱退出安全区栈而
+                // 消失，键盘升起时坞仍会骑到键盘顶、与舱的下段
+                // 带重叠（「坞被键盘窗自然覆盖」在 SwiftUI Tab-
+                // View 下不成立，机制见诊断 3.1 与 Composer-
+                // GuideHost 文件头）；键盘态藏坞、落下恢复，坞
+                // 在键盘态彻底退出画面，舱直接坐在键盘上。
+                // 键盘整包 R5（2026-11-13）：显隐输入由聚焦
+                // 状态改键盘几何快照的在场位——快照在 Will-
+                // ChangeFrame 事件拍翻转（与 §194 舱常量同
+                // 源同拍），旧路 composerFocused 是 delegate
+                // 回调的观察回写、与键盘事件不同拍，坞的退
+                // 场/归位因此总慢键盘半拍（症⑤坞鬼影的时序
+                // 分量）；聚焦态自此退出坞显隐派生。本修饰
+                // 只挂聊天格内容根、逐格生效，切到其他格时
+                // 由该格自身口径接管（恒可见）
+                .toolbar(
+                    kbSnapshot.isKeyboardUp ? .hidden : .visible,
+                    for: .tabBar
+                )
+            )
         )
+    }
+
+    /// §373 结构性减深：chatSurface 修饰链中段
+    /// （选择器/呈现/锚点组）——自原单表达式链拆
+    /// 出的泛型辅助段：自成不透明返回类型、链深与
+    /// chatSurface 本体分开求值（§373.3）；修饰顺
+    /// 序、值与闭包逐字沿原链，本段只搬不改
+    private func chatSurfacePresentation<Content: View>(
+        _ content: Content
+    ) -> some View {
+        content
         // 0.4.3（§28）：顶栏 headerBar 已收编——不再走
         // 本容器的 .overlay 悬浮（未注册的覆盖层不在系
         // 统边缘效果体系内，WWDC25-323／Adopting
@@ -1703,6 +1718,16 @@ struct ChatView: View {
                 }
             }
         }
+    }
+
+    /// §373 结构性减深：chatSurface 修饰链尾段
+    /// （生命周期/落定组）——同上拆分；§371 的
+    /// drawerPresented 处理器仍在本段链尾（.task
+    /// 之后），落点口径与 §371 钉测不变
+    private func chatSurfaceLifecycle<Content: View>(
+        _ content: Content
+    ) -> some View {
+        content
         // 0.31.0 恢复链（取代 0.20.0）：生成与连接分
         // 家后切后台什么都不用记——events 流断了就是
         // 结果未知，run 在服务端照常跑完；要做的只有
@@ -2269,153 +2294,104 @@ struct ChatView: View {
     /// 行在栈内＋proxy 贴底（§124 定版）；新承载＝
     /// 栈内无钮行，钮归容器 overlay 浮层（见
     /// ChatListCarrier.swift），动作走句柄贴底
+    /// §373 结构性减深：整栈本体已提取为独立结构体
+    /// ChatBottomBarView（ChatBottomBarViews.swift，
+    /// 连同 ChatInputBarView/ChatComposerCardView）；
+    /// 本函数只做依赖组装——ChatView 构建的子条经
+    /// AnyView 擦除边界交付、状态以值/绑定/闭包注
+    /// 入，返回类型即该结构体一个具名叶子，不再把
+    /// 整栈组合类型内联进 ChatView（0.50.92/93 真机
+    /// 启动闪退 §371/§373：单类型内泛型嵌套贴悬崖、
+    /// 单点迁层只挪耗尽点）。组装求值点与原内联版
+    /// 相同（同在三处调用点求值本函数），子条构建
+    /// 时机/条件逐字对应原 body 内条件。
     private func bottomBar(
         showsArrowRow: Bool,
         onScrollToBottom: @escaping () -> Void
     ) -> some View {
-        // 0.36.5（审计 bug 2 短修）：钮显隐走 Core 政
-        // 策——当时是几何判定离底之外并入事实信号；
-        // §135 改判几何单源（事实信号链退役，见
-        // BottomFollowPolicy §135 注，迟滞带晚消失列
-        // 真机待验）；显隐派生已提为全页单一出处
-        // showsBackToBottomButton（本函数不再自算）；
-        // 未读计数于 0.41.0 落地（AwayUnreadCounter），
-        // 钮的宿主与落位于 §124 改归本区布局流（输
-        // 入舱上方一行，见栈内钮行注）
-        return VStack(spacing: OneDayMetrics.spacingS) {
-            if let importRetryContext {
-                importRetryBar(importRetryContext)
-                    .transition(.opacity)
-            }
-            historySyncBar
-            if let errorMessage {
-                errorBanner(
-                    errorMessage,
-                    onResend: failedResendTarget.map { target in
-                        { resendFailedEntry(target) }
-                    }
+        ChatBottomBarView(
+            showsArrowRow: showsArrowRow,
+            onScrollToBottom: onScrollToBottom,
+            importRetryBarView: importRetryContext.map {
+                AnyView(importRetryBar($0))
+            },
+            importRetrySessionID: importRetryContext?.sessionID,
+            historySyncBarView: AnyView(historySyncBar),
+            errorBannerView: errorMessage.map { message in
+                AnyView(
+                    errorBanner(
+                        message,
+                        onResend: failedResendTarget.map { target in
+                            { resendFailedEntry(target) }
+                        }
+                    )
                 )
-                    // 0.25.0（动效专包）：错误/提示条进出
-                    // 原为无过渡硬入硬出（高度跳变）——补
-                    // opacity 过渡，高度与淡入同走下方
-                    // swap 容器动画（单调无过冲，与回到底
-                    // 部钮同口径）
-                    .transition(.opacity)
-            }
-            if let notice = noticePresentation.current {
-                noticeBar(notice.text)
-                    .transition(.opacity)
-            }
-            // 回底钮行（§124 三代落位）：输入舱正上方
-            // 一行、右对齐承载——钮底缘与输入舱顶缘之
-            // 间只隔本栈 spacingS（既有 gap 口径），整
-            // 段随发送区被系统安全区顶起，键盘升/降两
-            // 态落位由构造恒成立、零几何推算；命中域
-            // 是布局流内的真实帧，恒在宿主 bounds 内
-            // （P-20 正案）。显隐由本行的存在承载：行
-            // 高（44 命中域）＋间距的变化随下方容器
-            // swap 动画与错误/提示条同口径滑动；显隐
-            // 抖动的护栏在判定层（迟滞双阈值，0.36.5
-            // 钉死；末条事实信号已于 §135 退役、显隐
-            // 改几何单源），不靠把钮逐出布局流——三
-            // 轮浮层落位病史见 DESIGN §124
-            if showsArrowRow && showsBackToBottomButton {
-                HStack {
-                    Spacer(minLength: 0)
+            },
+            errorMessageValue: errorMessage,
+            noticeBarView: noticePresentation.current.map {
+                AnyView(noticeBar($0.text))
+            },
+            noticeID: noticePresentation.current?.id,
+            showsBackToBottomButton: showsBackToBottomButton,
+            scrollToBottomButtonView:
+                showsArrowRow && showsBackToBottomButton
+                ? AnyView(
                     scrollToBottomButton(action: onScrollToBottom)
-                        .transition(
-                            .opacity.combined(
-                                with: .scale(scale: 0.9)
-                            )
-                        )
-                }
-                .padding(.trailing, OneDayMetrics.spacingM)
-            }
-            // 朗读播放条（台账 183）：输入舱装配的
-            // 一员（本栈内、舱正上方一行），非 overlay
-            // 野挂——舱高账与落位随栈自洽。显隐/文案
-            // 只读 SpeechPlayer 既有可观察面（Core 状
-            // 态机派生 showsPlaybackBar/playbackBar-
-            // Text），不新开状态通道；手动朗读与自动
-            // 朗读同走状态机、同一条出口
-            if SpeechPlayer.shared.machine.showsPlaybackBar {
-                speechPlaybackBar
-                    .transition(.opacity)
-            }
-            inputBar
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        // 条 9（§14）动画口径沿革：本容器高度动画服
-        // 务错误/提示条——0.4.2 起两键（errorMessage／
-        // notice；§140 起提示条键改当前条代号 id，自清
-        // 消失同走本动画）。回底钮的高度动画键两度退
-        // 役又回归，
-        // 如实记：0.41.0 钮浮层化时退役（当时的防摆
-        // 手段是把钮逐出布局流）；§124 钮回到布局流，
-        // 显隐键（showsBackToBottomButton）作第三键
-        // 以同口径回归——防摆护栏改由判定层迟滞双阈
-        // 值承担（0.36.5 钉死；末条事实信号已于 §135
-        // 随信号链退役），三轮浮层落位的病史与取舍
-        // 见 §124
-        // 0.25.0（动效专包）：条本体淡入淡出、容器
-        // 高度同步单调滑动，不再硬跳
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: importRetryContext?.sessionID
-        )
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: errorMessage
-        )
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: noticePresentation.current?.id
-        )
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: showsBackToBottomButton
-        )
-        // 台账 183：播放条显隐作第四键、同口径滑动
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: SpeechPlayer.shared.machine.showsPlaybackBar
-        )
-        // D3（DESIGN §352；0.50.88 自 body 根链迁来本
-        // 子树）：编辑非末轮的破坏性确认——N 轮实算
-        // （RewindTurnSlicing.roundsAfter 呈现时刻现
-        // 算）、文案明示不可恢复；取消回编辑态、发送
-        // 舱一字不动
-        .confirmationDialog(
-            "编辑这条消息？",
-            isPresented: Binding(
+                ) : nil,
+            speechBarVisible: SpeechPlayer.shared.machine
+                .showsPlaybackBar,
+            speechPlaybackBarView: SpeechPlayer.shared.machine
+                .showsPlaybackBar
+                ? AnyView(speechPlaybackBar) : nil,
+            dictation: dictation,
+            dictationFailureBarView: dictation.failure.map {
+                AnyView(
+                    dictationFailureBar($0)
+                        .padding(.bottom, OneDayMetrics.spacingS)
+                )
+            },
+            dictationNoticeBarView: dictation.notice.map {
+                AnyView(
+                    dictationNoticeBar($0)
+                        .padding(.bottom, OneDayMetrics.spacingS)
+                )
+            },
+            editBannerArmed: editSentTarget != nil,
+            onCancelEditSent: cancelEditSent,
+            quoteBarView: pendingQuote.map {
+                AnyView(quoteBar($0))
+            },
+            feedQuoteBarView: pendingFeedQuote.map {
+                AnyView(feedQuoteBar($0))
+            },
+            sourceQuoteBarView: pendingSourceQuote.map {
+                AnyView(sourceQuoteBar($0))
+            },
+            attachmentsCount: attachments.count,
+            attachmentsStripView: attachments.isEmpty
+                ? nil : AnyView(attachmentsStrip),
+            quoteSlotOccupied: pendingQuote != nil
+                || pendingFeedQuote != nil
+                || pendingSourceQuote != nil
+                || editSentTarget != nil,
+            composerRowView: AnyView(composerRow),
+            composerShape: composerShape,
+            onComposerTap: { composerFocusHandle.focus() },
+            composerCapsuleHeight: $composerCapsuleHeight,
+            editConfirmPresented: Binding(
                 get: { pendingEditSend != nil },
                 set: { if !$0 { pendingEditSend = nil } }
             ),
-            titleVisibility: .visible
-        ) {
-            Button("发送并删除之后内容", role: .destructive) {
+            editConfirmMessage: editSendConfirmMessage,
+            onConfirmEditSend: {
                 if let draft = pendingEditSend,
                    let target = editSentTarget {
                     performEditSend(draft: draft, target: target)
                 }
                 pendingEditSend = nil
-            }
-            Button("取消", role: .cancel) {
-                pendingEditSend = nil
-            }
-        } message: {
-            Text(editSendConfirmMessage)
-        }
+            },
+            onCancelEditSend: { pendingEditSend = nil }
+        )
     }
 
     /// body 的 onAppear 闭包体（整段抽出为方法：
@@ -9029,79 +9005,6 @@ struct ChatView: View {
         ))
     }
 
-    private var inputBar: some View {
-        // §176（2026-11-12，气泡间距收口）：栈间距归
-        // 零——旧 spacingS 下两层 SmoothExpand 折叠高
-        // 为 0 也照收两份间距（16pt，诊断九环第 8
-        // 环），且任一条展开时，隐藏的另一层仍在替它
-        // 收费（单条展开时条→卡实距 16）。改法：间距
-        // 改由展开条自带底边距承载（见两处条注），收
-        // 起时随帧高 0 被裁剪、不计费；展开时恒隔
-        // spacingS，与旧口径同值
-        VStack(spacing: 0) {
-            // 0.36.6（§71）：语音失败行与到限提示行——
-            // 三段式文案（发生了什么＋影响＋怎么办），
-            // 权限被拒在此给「去设置」降级路（续编 S4）
-            // §176：底边距长在条本体上——SmoothExpand
-            // 的实测高含它、展开帧高含它；收起帧高 0
-            // 时一并裁掉（见栈头注）
-            SmoothExpand(isExpanded: dictation.failure != nil) {
-                if let failure = dictation.failure {
-                    dictationFailureBar(failure)
-                        .padding(.bottom, OneDayMetrics.spacingS)
-                }
-            }
-            SmoothExpand(isExpanded: dictation.notice != nil) {
-                if let notice = dictation.notice {
-                    dictationNoticeBar(notice)
-                        .padding(.bottom, OneDayMetrics.spacingS)
-                }
-            }
-            // 输入舱卡（0.36.19 起引用块并入同卡，见
-            // composerCard）：表面沿革——0.2.7 裸玻璃 →
-            // 0.3.7 卡 19 撤玻璃改灰填充 → 0.3.8 第 28 条
-            // 白浮纸（floatFill＋发丝边＋双环影）→ **0.4.1
-            // 回系统玻璃**（用户 10:06/10:07 两点名：第 3
-            // 修「输入栏与底部导航栏颜色不一致」＋第 7 修
-            // 「改 Muse 本体形态：白色大圆角卡片」）：
-            // .glassEffect(.regular) 与原生底栏同为 iOS 26
-            // Liquid Glass 家族——同材质即同观感，不再自
-            // 调灰阶对色。形态要素沿既有结构：圆角连续函
-            // 数封顶 24（大圆角量级）、＋在卡内左下、发送
-            // 圆形键在卡内右下、多行上文下钮（Composer-
-            // BarLayout，0.3.4 定版）；自量高＋硬封顶（例
-            // 外 E1）结构不动。白浮纸的发丝边与双环手搓
-            // 影一并撤销（玻璃自带边缘折光与层级，§14 条
-            // 2 的影口径随材质换代退役）
-            composerCard
-                // A2（割裂感止血档）：卡本体帧回报——与
-                // 整栈帧（桥侧 ComposerBarFrameKey）同
-                // 法同系，经托管树 Preference 上行喂
-                // ComposerGuideHost 定底衬高：衬顶随卡
-                // 顶、整栈其余段（回底钮行/条带）不再
-                // 进衬。量点只读帧、不接命中、不改布局
-                .background {
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: ComposerCardFrameKey.self,
-                            value: proxy.frame(in: .global)
-                        )
-                    }
-                }
-        }
-        .padding(.horizontal, OneDayMetrics.spacingSM)
-        // 0.36.27（§97 件二）：顶 padding 收一档
-        // spacingS 8 → spacingXS 4（卡上外距，与列表
-        // 底 contentMargins 同步，链总量 32 → 24）
-        // §176：顶 padding 归零（本行删除）——气泡→
-        // 输入舱卡顶的边距单点归列表底 contentMar-
-        // gins 一处（见列表侧 §176 注），本处不再计量
-        .padding(.bottom, OneDayMetrics.spacingS)
-        // 提议链断环（0.2.5 根因注，§9）：本 VStack 的高度
-        // 只认内容，不许把外层提议透传给胶囊
-        .fixedSize(horizontal: false, vertical: true)
-    }
-
     /// 语音失败行（0.36.6）：左警示图标＋三段式文案
     /// ＋右端 ✕；权限类多一个「去设置」文字动作
     private func dictationFailureBar(
@@ -9450,202 +9353,6 @@ struct ChatView: View {
         }
         .padding(.horizontal, OneDayMetrics.spacingSM)
         .padding(.vertical, OneDayMetrics.spacingS)
-    }
-
-    /// 输入舱卡（0.36.19 入舱，§84）：玻璃卡的承载层——
-    /// 待发送引用块（有则显）、待发附件条（有则显）自
-    /// 上而下各带一条发丝分隔线、输入行（composerRow，
-    /// 标准行/录音条两态）在下，一张卡。
-    /// 0.4.1–0.36.18 引用条是输入舱外的一张独立浮卡，
-    /// 用户 2026-11-11 00:24 点题「一个在输入框里面，
-    /// 一个在外面」不对——对照 Muse 本体：引用嵌在输
-    /// 入舱内（引用块在上、分隔线、打字行在下）。
-    /// 高度核算：舱高＝引用块＋分隔线＋输入行整卡实测
-    /// （本层的 onGeometryChange 回写喂玻璃圆角连续半
-    /// 径）；输入行内部的文本量测与 6 行封顶只管文本
-    /// 域本身（ComposerLayout/ComposerBarLayout 口径
-    /// 不变），引用块高计入舱高、不挤占打字行数
-    private var composerCard: some View {
-        VStack(spacing: 0) {
-            // D3（DESIGN §352）：编辑横幅与引用块同
-            // 位同式（卡根直接子级＋分隔线同进同
-            // 出）——在场即编辑态在武装
-            EditSentBannerSlot(
-                isArmed: editSentTarget != nil,
-                onCancel: cancelEditSent
-            )
-            // §332（二次修复题 3）：引用块移出
-            // SmoothExpand——与附件条同构造（卡
-            // VStack 直接子级＋条件包含，引用块＋
-            // 分隔线同进同出）。定因：引用块在
-            // SmoothExpand 的 @State 高度量测反馈环
-            // 内时，舱体落位读到滞后卡高、引用浮卡
-            // 压输入框（附件条当年移出该环后同病消
-            // 失）；高度变化改由卡根事务插值承接
-            // （见下方 attachments.count 动画注，键
-            // 扩至引用在场态）。quote/feed/source
-            // 三变体共用本槽位（至多一个在场）
-            if let pendingQuote {
-                VStack(spacing: 0) {
-                    quoteBar(pendingQuote)
-                    Rectangle()
-                        .fill(Palette.hairline)
-                        .frame(height: 1)
-                        .padding(
-                            .horizontal, OneDayMetrics.spacingSM
-                        )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
-            } else if let pendingFeedQuote {
-                // §208：动态引用与消息引用共用本槽
-                // 位（至多一个在场），feed 变体渲染
-                VStack(spacing: 0) {
-                    feedQuoteBar(pendingFeedQuote)
-                    Rectangle()
-                        .fill(Palette.hairline)
-                        .frame(height: 1)
-                        .padding(
-                            .horizontal, OneDayMetrics.spacingSM
-                        )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
-            } else if let pendingSourceQuote {
-                // §219：点子／文件引用同槽（至多一
-                // 个在场），按族分发条形态
-                VStack(spacing: 0) {
-                    sourceQuoteBar(pendingSourceQuote)
-                    Rectangle()
-                        .fill(Palette.hairline)
-                        .frame(height: 1)
-                        .padding(
-                            .horizontal, OneDayMetrics.spacingSM
-                        )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .transition(.opacity)
-            }
-            // 待发附件条（0.36.19 入舱 §84.4；0.36.26
-            // §95 移出量测层）：0.36.19 把满宽锚加在条
-            // 内部两层、0.36.23 上移到卡直接子层，两
-            // 轮真机居中分毫未动。调研裁决（produc-
-            // tion-patterns-research-20261111 §2.3）：
-            // 元凶是包着条的 SmoothExpand 量测层——
-            // 它以实测内容理想尺寸为准定尺寸，条收到
-            // 的宽度提议在到达条之前已被换成内容宽，
-            // .frame(maxWidth:) 只能花提议到的宽
-            // 度，两轮挪落点自然全数落空（同在该层下
-            // 的引用块因自身近满宽把缺陷掩盖至今）。
-            // 本轮按两家生产构造同构改（Stream
-            // attachmentsTray／Exyte viewOnTop 同
-            // 位）：条作卡根 VStack 的直接子级、条件
-            // 包含显隐、链上三处 frame 补丁删尽；满
-            // 宽由 ScrollView 对根栈提议的默认贪婪获
-            // 得，左起由滚动内容自带横向 padding 获
-            // 得。分隔线随条同进同出（挂同一直接子
-            // 级的小 VStack 内）。引用块本轮不动
-            // （仍在 SmoothExpand，最小范围）
-            // 0.36.27 订正：上段「元凶是量测层」的单
-            // 一归因已被 0.36.26 真机证伪（移出后仍居
-            // 中）；0.36.27 续记的「包装层缺满宽 claim」
-            // 说亦已被 0.36.28 真机证伪——第五轮定案
-            // （0.36.29）：四轮共同死因是范畴错误，决
-            // 定层是包装栈自身的 alignment 参数，修
-            // 法见下方包装栈注与错题本 P-13；移出量测
-            // 层本身保留（与生产构造同构、无回退理由）
-            // 0.36.31 续记：第五轮修法真机再证伪，第
-            // 六轮按呈报口径结构换代——条本体 Scroll-
-            // View＋HStack 整类退役、改 Attachment-
-            // FlowLayout 流式行（见 attachmentsStrip
-            // 注与错题本 P-13 续案六）；包装栈与分隔
-            // 线形态不动
-            if !attachments.isEmpty {
-                // 0.36.29（P-13 第五轮定案）：条的横向位
-                // 置由本包装栈自身的 alignment 参数决
-                // 定——四轮全灭皆因改的是 .frame 的
-                // alignment（只管「栈整体在他处怎么
-                // 放」、管不到栈内子视图），栈自身
-                // alignment 四轮一直默认 .center 从未
-                // 被改。此处改 .leading 一词落到决定
-                // 层；第 4 轮挂的 frame claim 经定案属
-                // 无效修饰、一并删除（详见错题本 P-13）
-                VStack(alignment: .leading, spacing: 0) {
-                    attachmentsStrip
-                    Rectangle()
-                        .fill(Palette.hairline)
-                        .frame(height: 1)
-                        .padding(
-                            .horizontal, OneDayMetrics.spacingSM
-                        )
-                }
-                // 条内容只淡入淡出防闪现；高度变化由
-                // 卡根 .animation(attachments.count)
-                // 的事务插值承接（见 composerCard 尾注）
-                .transition(.opacity)
-            }
-            composerRow
-        }
-        // 条显隐的高度动画（0.36.26 §95）：键原为
-        // attachments.isEmpty（条高只在空↔非空之间
-        // 变）；0.36.31 条改流式行多行化后，加/删筹
-        // 码改行数同样改变条高，键扩为 attachments.
-        // count——变化进动画事务后卡高（及安全区留白）
-        // 同帧插值，不再靠 SmoothExpand 的实测回
-        // 写；玻璃半径由卡层 onGeometryChange 的实
-        // 测高连续函数逐帧跟随，无跳变源。动画令牌
-        // 与 SmoothExpand 同源（MotionTokens.
-        // swap、Reduce Motion 经 resolved 收口）
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: attachments.count
-        )
-        // §332（题 3）：引用块移出 SmoothExpand 后
-        // 其显隐高变同理由卡根事务插值承接——键＝
-        // 三变体在场态（至多一个在场，布尔即全量）
-        .animation(
-            MotionTokens.resolved(
-                MotionTokens.swap, reduceMotion: reduceMotion
-            ),
-            value: pendingQuote != nil
-                || pendingFeedQuote != nil
-                || pendingSourceQuote != nil
-                || editSentTarget != nil
-        )
-        // 第 1 修（P0 键盘不弹）的聚焦保底层：整卡背景
-        // 命中域内点按（文本区外的卡面空隙，含引用块
-        // 段的空隙）经焦点句柄聚焦文本视图。根因与定
-        // 位见 DESIGN-V4 §26.7：焦点机器代码 0.3.8→
-        // 0.4.0 逐字未动（diff 实证），回归随底栏可见化
-        // 同批出现——文本视图自身触摸成为单点故障，本
-        // 层把「点输入栏必弹键盘」改成双通道构造（文本
-        // 视图直触＋卡面点按），不再依赖单一路径的环境
-        // 状态。0.4.1 起本层挂在 composerRow 上，0.36.19
-        // 随玻璃施加点上移到卡层、命中域扩到整卡
-        .background {
-            Color.clear
-                .contentShape(composerShape)
-                .onTapGesture {
-                    composerFocusHandle.focus()
-                }
-        }
-        .glassEffect(.regular, in: composerShape)
-        // 实测高在布局周期内回写（0.3.5，§20）：只喂玻
-        // 璃圆角的连续半径（见 composerShape），高度本
-        // 身不经任何动画——形态切换一帧落定。回写点
-        // 0.4.1–0.36.18 在 composerRow 上（只量输入行），
-        // 0.36.19 起上移卡层量整卡（引用块计入舱高）；
-        // 0.2.6–0.3.4 的离散形状动画已整条撤销（理由见
-        // standardComposerRow 沿革注）
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.size.height
-        } action: { _, newHeight in
-            if abs(newHeight - composerCapsuleHeight) > 0.5 {
-                composerCapsuleHeight = newHeight
-            }
-        }
     }
 
     /// 发送舱内容（0.3.3 上文下钮，DESIGN-V4 §18）：自研
@@ -14675,7 +14382,7 @@ private struct EditSendDraft {
 /// 见 DESIGN §354）。形态与引用块同位同式：横幅本体
 /// （铅笔＋一行说明＋尾 ✕ 取消——解武装清舱、原条目
 /// 无损）＋发丝分隔线同进同出
-private struct EditSentBannerSlot: View {
+struct EditSentBannerSlot: View {
     let isArmed: Bool
     let onCancel: () -> Void
 
@@ -14905,3 +14612,4 @@ private struct TypingDots: View {
 
 /// 流式光标已移至 StreamingText.swift（与流式渐显组件
 /// 同文件，文末词元同流排布）。
+

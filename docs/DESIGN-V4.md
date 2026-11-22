@@ -14807,3 +14807,57 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 模拟器冷启冒烟（ProbePhone 50C1A6D5）：Debug 包 simctl install＋launch，进程 10 秒后存活（pid 31737）、DiagnosticReports 无新增 OneDayApp 崩溃报告；截图实证首帧已进 ChatView——会话消息列与 bottomBar（回底钮／未读角标／输入舱）完整渲染（截图 Mac /tmp/smoke93.png）。明说边界：模拟器栈深与真机不同、0.50.87 前科即实验室全绿真机崩（§354.1），且 0.50.92 本体在模拟器上同样能过全部 717 项——冒烟过≠真机过，本冒烟只证「修后构建在实验室口径下行为无回归」，不作真机定案。
 - 针对性元数据钉测：构造不能（如实记）——本崩溃须真机栈深＋真实数据下 AttributeGraph 全图求值才触发，实验室 Debug/Release 模拟器对 0.50.87 同代码均复现失败（§354.1 在案）；裸引用类型元数据不复现 descriptor path 深度。实验室侧把守改走源码结构钉测（上方新套件），终判归真机门。
 - 真机门（用户）：装热修版（0.50.93）冷启不崩、进任意对话底部栏正常、抽屉开合后聊天落定拍冻结行为如 §366 设计。此门不过不关账——§354 同口径：实验室全绿不替代真机 verdict（0.50.87 前科即实验室全绿、真机崩；模拟器栈深与真机不同，冒烟过≠真机过）。
+
+## §373 0.50.93 真机启动闪退二轮修复：结构性减深（2026-11-23；分支 feat/hotfix2-launch-crash-05094，基线 rel-05093＝0.50.93/221）
+
+### §373.1 证据与全账审计（两份真机 .ips＋git diff rel-05091..rel-05093 逐文件）
+
+- 0.50.93/221（OneDayApp-2026-11-23-001745.ips，用户 00:18 回「还是闪退」）：同 §371 签名——EXC_BAD_ACCESS／Thread stack size exceeded、主线程栈 1008K、死于首帧 layout；栈底路径 body→chatScaffold→chatSurface→nativeListSurface→bottomBar→inputBar 的 closure #1→**composerCard.getter**→__swift_instantiateConcreteTypeFromMangledNameV2→decodeGenericArgs 自递归约 60 帧。即 §371 把根链 .onChange 迁走后，元数据递归耗尽点只往深挪了一格（bottomBar→composerCard）。定性升级：**ChatView 视图类型嵌套总深度已贴悬崖，任一单点增减只挪耗尽点**——本轮不许再逐层挪，改结构性减深。最后已知真机可用版＝0.50.91（rel-05091）。
+- 崩溃路径（body→chatScaffold→chatSurface→nativeListSurface→bottomBar→inputBar→composerCard）上、rel-05091..rel-05093 的全部新增泛型包裹层审计：
+
+| 文件 | 增量 | 崩溃路径上的新增泛型层 | 来源 |
+|---|---|---|---|
+| ChatView.swift | +19 | `.onChange(of: appState.router.drawerPresented)` 一层 ModifiedContent——05092 挂 chatScaffold 根链、§371 迁至 chatSurface 链尾，仍在树内 | §366（挂载）／§371（迁位） |
+| ChatNativeList.swift | +169 | **零**：全部变更在 UIKit final class（ChatRootViewController／ChatNativeListHandle）内——drawerMotionDeadline 平坦 CFTimeInterval、150ms 窗合并、settleClearingStage 拆拍、flush 计数，不入 SwiftUI 类型嵌套 | §366 |
+| DrawerContainerView.swift | +64 | **零**：DrawerBridgeFingerprint 为非泛型 Equatable、指纹守卫、onDrawerSettled 闭包、计数器；内容本就经 AnyView 擦除进 UIHostingController<AnyView>，不加深度 | §365 |
+| DrawerView.swift | +30 | **零净增**：一层 .onChange 换一层（触发点迁至落定计数），且位于 AnyView 边界之后 | §365 |
+| AppRouter.swift | +16 | **零**：纯状态（drawerOpenSettledCount＋noteDrawerSettled），非视图层 | §365 |
+
+- 审计结论：路径上唯一新增的 SwiftUI 泛型包裹层只有 §366/§371 的那一层 .onChange；但 0.50.91 本体（无此层）真机可用、加一层即崩、迁一层仍崩——**存量深度本身已贴悬崖**，修法必须削存量而非再挪增量。
+
+### §373.2 外部核查（改前先搜，2026-11-23）
+
+- GitHub RayMol PR #328：同签名实证——EXC_BAD_ACCESS「Thread stack size exceeded due to excessive recursion」死在 SwiftUI 视图 getter、首帧 layout 期；iOS 主线程栈 1MB、macOS 8MB（该例为 Debug-only；本案 Release 亦崩，量级更深）。
+- Threads @2victor（2026-11-21）：单屏嵌套层数过多只在真机崩、模拟器大栈掩盖——与本案「实验室全绿、真机崩」同型。
+- Swift Forums「Measuring, avoiding, and diagnosing a stack memory overflow crash」：demangler 居顶的崩溃栈是栈溢出的伪装面；通行解法含降低嵌套深度、struct 改 class 等。
+- Swift Forums 编译器崩溃帖的通行变通：引入中间具名 View 结构体切断递归类型——与本案「提取独立结构体」修法同构。
+- swift-demangling 库文档：类型解码器递归深度上限按 8MB 栈／Release 帧校准（真机主线程仅 1008K，故同深度在真机先爆）。
+- 未找到苹果官方给出的嵌套深度数值上限文档，如实记：**无官方数值口径**，放行只能靠同口径相对量测（§373.4）＋真机门。
+
+### §373.3 修法（行为零改动：视图构成、修饰顺序、动画键、时序逐字对应）
+
+- **发送区三件套提取**（新文件 Sources/OneDayApp/ChatBottomBarViews.swift）：ChatView 内联成员 bottomBar／inputBar／composerCard 提取为自有 body 的独立 View 结构体 ChatBottomBarView／ChatInputBarView／ChatComposerCardView。依赖显式注入（值／Binding／闭包）；ChatView 构建的子条（importRetryBar、historySyncBar、errorBanner、noticeBar、回底钮、朗读条、语音失败/提示条、引用三变体、附件条、composerRow）经 **AnyView 擦除边界**交付——先例：nativeListSurface 早已把 bottomBar 作 AnyView composerView 传入，EditSentBannerSlot／DictationBar 均显式依赖式。ChatView 侧只余薄组装函数 bottomBar(showsArrowRow:onScrollToBottom:)（签名与三处调用点不变），组装求值点、子条构建时机与条件逐字对应原 body 内条件（errorBanner 的 onResend、回底钮仅 showsArrowRow&&showsBackToBottomButton 时构建、朗读条仅可见时构建等）；动画键改读注入值（importRetrySessionID／errorMessageValue／noticeID／speechBarVisible／attachmentsCount／quoteSlotOccupied），值与原键逐一同源；D3 确认框改注入 editConfirmPresented／editConfirmMessage／onConfirmEditSend／onCancelEditSend，原 Binding 逻辑搬进组装函数闭包、语义逐字；composerCapsuleHeight 以 @Binding 同名注入，卡内代码不动；composerShape 为 AnyShape 直接传值；dictation 为 final class 传引用。EditSentBannerSlot 由 file-private 放宽为 internal（一词，卡提取所需）。
+- **chatSurface 链拆分**：约 25 个修饰的单表达式链拆为基座（Group＋background＋toolbar）＋两个泛型段函数 chatSurfacePresentation（选择器/呈现/锚点组）／chatSurfaceLifecycle（生命周期/落定组），各段自成不透明返回类型、链深分开求值；修饰顺序、值、闭包逐字搬移。§371 处理器保持 lifecycle 段链尾（.task(id: currentThreadID) 之后）、写入式一字不动，两段函数文本位于 chatSurface 与 overviewStatusWord 之间，S371 源码钉测的段界口径不变。
+- **红线守恒**：chatScaffold 不新增任何包裹层；§365/§366 行为语义逐件保留（落定计数、150ms 窗闸、停滚结清拆拍、抽屉动画期冻结），ChatNativeList.swift／Drawer*／AppRouter 零触碰；版本五处不动。
+- **结构钉测扩展**：新增 ChatDepthStructureS373Tests（源码级把守三结构体在 ChatBottomBarViews.swift 内自有 body、ChatView.swift 不再含 inputBar／composerCard 内联成员、组装函数与两段链函数在位），与 ChatRootChainStructureS371Tests 并行把守，防后人再内联回去。
+
+### §373.4 深度量化（修前/修后同口径实测）
+
+- 口径：裸构造求值后 String(reflecting: type(of:)) 打印类型名，深度＝展开串中括号嵌套最大值（<、(、[ 计深）。注记：反射展开深度是元数据树深度的代理量、非单个 mangled 串的解码深度；同法修后对账才有意义。修前 ChatView 侧四单元裸求值实测（DEBUG 探针，run hf94-probe，2026-11-23 00:36）；chatSurface／chatScaffold／body／nativeListSurface 裸求值不可行（读 @Environment(AppState.self) 直接 Fatal error），修前以源码静态计数约 28 层修饰包裹估算。
+
+| 单元 | 修前深度 | 修前类型名长 | 修后 body 深度 | 修后 body 类型名长 |
+|---|---|---|---|---|
+| bottomBar → ChatBottomBarView | 52 | 37,379 | 17 | 1,465 |
+| inputBar → ChatInputBarView | 42 | 28,357 | 11 | 522 |
+| composerCard → ChatComposerCardView | 35 | 25,874 | 20 | 3,886 |
+| composerRow（对照，未动） | 23 | 2,523 | — | — |
+
+- 修后三结构体类型本身深度 **0**（类型名 OneDayApp.ChatBottomBarView 等、27–30 字符）——ChatView 的类型表达式中三段各收为一个具名叶子，元数据实例化按结构体逐个分开求值。降幅：深度 −67%／−74%／−43%，类型名长 −96%／−98%／−85%。
+
+### §373.5 实验室门（如实记边界，真机门留用户）
+
+- **受限栈代理门：按设计构造不能**（两轮实测，run hf94-pre2／pre3）。硬阻断二：①在 stackSize＝1MB 的 Thread 上求值发送舱链，先撞的是目标默认 MainActor 隔离断言 EXC_BREAKPOINT（_swift_task_checkIsolatedSwift，Mac 崩溃报告 OneDayApp-2026-11-23-004812.ips，帧含 ChatView.bottomBar closure #1←s373ProbeTypeNames），元数据递归根本没机会发生；②真页面宿主必须在主线程、主线程栈不可缩。与 §371.4「针对性元数据钉测构造不能」在案结论一致。替代证据链＝反射深度同口径对账（§373.4）＋结构钉测（S371＋S373）＋发布集全绿＋模拟器冷启冒烟。
+- 定向套件：ChatRootChainStructureS371Tests＋ChatDepthStructureS373Tests＋DrawerOpenJankS365Tests＋DrawerSettleSignalS365Tests＋ChatSettleScopeS5Tests 全绿（TEST SUCCEEDED）——§365 落定信号、§366 停滚结清行为钉测原样通过。
+- 发布验证集（名单自 Test-OneDayApp-hotfix93.xcresult 提取全限定名 70 套 718 项）：Test-OneDayApp-hf94full2.xcresult 实测 **718 过、0 红、0 跳过**（xcresulttool summary 本体对账），对 rel-05093 基线新红为 0；新增 S373 钉测 2 项不在该名单内、已于定向轮单独跑绿。
+- 模拟器冷启冒烟（ProbePhone 50C1A6D5）：Debug 包 simctl install＋launch（site.didichou.oneday，pid 55568），launchctl 在册存活、DiagnosticReports 无新增 OneDayApp 崩溃报告；截图实证首帧完整渲染（Mac /tmp/smoke94b.png）——全新模拟器无服务器配置、落欢迎/连接页，未进 ChatView（如实记边界：ChatView 路径由发布集＋探针构造覆盖）。明示边界同 §371.4：冒烟≠真机。
+- **真机门（用户）**：装 0.50.94 冷启不崩、进任意对话底部栏正常、抽屉开合后聊天落定拍冻结行为如 §366 设计。此门不过不关账。
