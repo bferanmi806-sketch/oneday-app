@@ -65,7 +65,7 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
         handle = ChatNativeListHandle()
         controller = ChatRootViewController()
         controller.handle = handle
-        controller.callbacks = ChatListCarrierCallbacks(
+        controller.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -81,7 +81,7 @@ final class ChatNativeListR3AssemblyTests: XCTestCase {
     private func apply(rows: [ChatNativeRow]) {
         controller.apply(
             rows: rows,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: bottomPadding,

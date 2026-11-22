@@ -105,20 +105,6 @@ final class EdgeEffectRegistrationTests: XCTestCase {
         return (window, host)
     }
 
-    private func mountComposerInTabShell()
-        -> (EdgeDeviceWindow, ComposerGuideHostController,
-            UITabBarController) {
-        let window = makeWindow()
-        let host = ComposerGuideHostController()
-        let tabs = UITabBarController()
-        tabs.viewControllers = [host]
-        window.rootViewController = tabs
-        window.makeKeyAndVisible()
-        window.layoutIfNeeded()
-        spinRunLoop(seconds: 1.2)
-        window.layoutIfNeeded()
-        return (window, host, tabs)
-    }
 
     // MARK: - 顶缘注册
 
@@ -205,120 +191,10 @@ final class EdgeEffectRegistrationTests: XCTestCase {
 
     // MARK: - 舱带容器（A2 几何不变、载体换注册）
 
-    func testComposerBandContainerInTabShell() {
-        let (_, host, _) = mountComposerInTabShell()
-        // 舱带：宿主视图内最底层、透明注册容器（非材
-        // 质视图）、不接命中、自带底缘 interaction
-        let band = host.traceBandView
-        XCTAssertTrue(band.superview === host.view)
-        XCTAssertTrue(host.view.subviews.first === band)
-        XCTAssertFalse(band is UIVisualEffectView)
-        XCTAssertFalse(band.isUserInteractionEnabled)
-        guard let bandContainer =
-                band as? EdgeBandContainerView else {
-            return XCTFail("舱带不是 EdgeBandContainerView")
-        }
-        XCTAssertEqual(bandContainer.traceInteraction.edge, .bottom)
-        XCTAssertTrue(
-            band.interactions.contains(
-                where: { $0 === bandContainer.traceInteraction }
-            )
-        )
-        // 带高随舱帧实测：喂 128 高舱帧后同高、底边
-        // 与舱宿主底同位（静息态舱底＝坞顶 791）
-        host.updateBarFrame(
-            CGRect(x: 0, y: 600, width: 402, height: 128)
-        )
-        host.view.layoutIfNeeded()
-        XCTAssertEqual(band.frame.height, 128, accuracy: 0.6)
-        XCTAssertEqual(
-            band.frame.maxY,
-            host.traceComposerHostView.frame.maxY,
-            accuracy: 0.6
-        )
-        XCTAssertEqual(
-            host.traceComposerHostView.frame.maxY, 791,
-            accuracy: 0.6
-        )
-    }
 
-    func testComposerBandShrinksToCardSegment() {
-        let (_, host, _) = mountComposerInTabShell()
-        let band = host.traceBandView
-        // 卡帧未到：回落整栈口径——喂整栈帧（顶 560、
-        // 高 240），带同高
-        host.updateBarFrame(
-            CGRect(x: 0, y: 560, width: 402, height: 240)
-        )
-        host.view.layoutIfNeeded()
-        XCTAssertEqual(band.frame.height, 240, accuracy: 0.6)
-        // 卡帧到（卡顶 672＝整栈底 800−卡高 128）：带
-        // 高收为卡段 128，带底仍贴宿主底
-        host.updateCardFrame(
-            CGRect(x: 14, y: 672, width: 374, height: 128)
-        )
-        host.view.layoutIfNeeded()
-        XCTAssertEqual(band.frame.height, 128, accuracy: 0.6)
-        XCTAssertEqual(
-            band.frame.maxY,
-            host.traceComposerHostView.frame.maxY,
-            accuracy: 0.6
-        )
-        // 整栈再长高（回底钮行出现：栈顶上移 52、卡
-        // 顶不动）：带高不变
-        host.updateBarFrame(
-            CGRect(x: 0, y: 508, width: 402, height: 292)
-        )
-        host.view.layoutIfNeeded()
-        XCTAssertEqual(band.frame.height, 128, accuracy: 0.6)
-        // 卡生长（多行输入：卡顶上移 30）：带随卡长高
-        host.updateCardFrame(
-            CGRect(x: 14, y: 642, width: 374, height: 158)
-        )
-        host.view.layoutIfNeeded()
-        XCTAssertEqual(band.frame.height, 158, accuracy: 0.6)
-    }
 
     // MARK: - 舱带绑定＋坞零侵入
 
-    func testComposerEdgeBindingAndDockUntouchedInTabShell() {
-        let (_, host, tabs) = mountComposerInTabShell()
-        let tabBar = tabs.tabBar
-        let subviewCountBefore = tabBar.subviews.count
-        print("EDGE-REG dock subviews: "
-            + tabBar.subviews.map {
-                String(describing: type(of: $0))
-            }.joined(separator: ","))
-        // 坞内无自家注册容器、无全幅材质片
-        XCTAssertTrue(
-            tabBar.subviews.allSatisfy {
-                !($0 is EdgeBandContainerView)
-            }
-        )
-        XCTAssertFalse(
-            tabBar.subviews.contains {
-                $0 is UIVisualEffectView
-                    && $0.frame == tabBar.bounds
-            },
-            "坞内不应有 §200 式全幅材质片"
-        )
-        // 舱带绑定：喂句柄（赋值即绑）
-        let handle = ChatListScrollViewHandle()
-        let scroll = UIScrollView()
-        handle.register(scroll)
-        host.edgeScrollHandle = handle
-        guard let bandContainer =
-                host.traceBandView as? EdgeBandContainerView
-        else { return XCTFail("舱带不是注册容器") }
-        XCTAssertTrue(
-            bandContainer.traceInteraction.scrollView === scroll
-        )
-        // 锚解析重跑（显形）不往坞里加任何东西
-        host.viewDidAppear(false)
-        XCTAssertEqual(
-            tabBar.subviews.count, subviewCountBefore
-        )
-    }
 
     // MARK: - 登记锚（祖先链定位本体）
 

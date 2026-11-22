@@ -716,29 +716,8 @@ final class ChatNativeRowHeightProductionChainTests: XCTestCase {
     private var window: DeviceWindow!
     private var swiftDataMount = SwiftDataTestMount()
     private var container: ModelContainer!
-    private var nativeListFlagPrior: Any?
-
-    override func setUp() async throws {
-        nativeListFlagPrior = UserDefaults.standard.object(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        UserDefaults.standard.removeObject(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        try await super.setUp()
-    }
 
     override func tearDown() async throws {
-        if let prior = nativeListFlagPrior {
-            UserDefaults.standard.set(
-                prior, forKey: ChatNativeListFeature.defaultsKey
-            )
-        } else {
-            UserDefaults.standard.removeObject(
-                forKey: ChatNativeListFeature.defaultsKey
-            )
-        }
-        nativeListFlagPrior = nil
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil

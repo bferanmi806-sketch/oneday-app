@@ -70,7 +70,7 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         let listHandle = ChatNativeListHandle()
         let list = ChatRootViewController()
         list.handle = listHandle
-        list.callbacks = ChatListCarrierCallbacks(
+        list.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -93,7 +93,7 @@ final class ChatSettleScopeS5Tests: XCTestCase {
     ) {
         controller?.apply(
             rows: rows,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: 8,

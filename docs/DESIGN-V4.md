@@ -15092,3 +15092,40 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 新增 ChatSwapStep6StructureTests：禁词普查（删除符号清单在 Sources 全域零命中，含文件名级断言三文件不存在/已改名）＋跟随链单源断言（贴底跟随链函数单定义、chatSurface 单路）。
 
 **核对结论：无悬空项。** 每个共用件都有点名迁移去处（ChatCarrierLayout／ChatListCarrierCallbacks／ChatCarrierBlankTapDelegate／ChatListAnchorStore／Composer 两 PreferenceKey），kbSnapshot 存活读点全部由 native 解析点（§302）供数，edgeScrollHandle 无迁移需求（每宿主自持模式）。准予按表动刀。
+
+**动刀记账（§374.9 定稿，2026-11-23）：**
+
+**核对表执行结论：无悬空项、按表执行。** 与草案的两处偏差如实记：①ComposerBarFrameKey 实查为宿主文件 private 件（写入/读取都在 ComposerGuideHost.swift 内）→ 随文件删，只有 ComposerCardFrameKey 迁入 ChatBottomBarViews.swift（草案「两键同迁」按实查修正）；②carrierLiveRow 实形为 LiveRenderItem 键入、nativeLiveRow 只消费 key＋makeView（草案写的 entry/block/liveState 形参有误）→ 抽取按实形做：新辅助 liveSharedRowParts 返回 (key, makeView)，.text/.sealedText 两类随承载删（原生面有自家分支）。
+
+**删除规模：** ChatListCarrier.swift（1,206 行）与 ComposerGuideHost.swift（1,211 行）整文件删除；ChatView.swift 14,660→12,830 行（净 −1,830：gen3 面、legacy 面、messageList 本体 708 行、legacy 跟随链、gen3 行构建簇、两旧面键盘锚链整段删除，分发器/改名/收口增行对冲后净值）；Core ChatListCarrierCore.swift 改名 ChatListCore.swift 并删 ChatCarrierFeature/ChatNativeListFeature 两枚举；设置页删两 @AppStorage 属性＋两 Toggle；ChatNativeList.swift 净 +125 行（共用件迁入＋改名）。全步 45 文件、+498/−9,793（不含本节文档行）。
+
+**收口形态：** 分发器五件（surfaceScrollToBottom/surfaceCaptureAnchor/surfaceRestore/surfaceScrollToEntry/surfaceFocusEntry）壳保留、体收口 nativeHandle 直调，调用点零改动；chatSurface 的 Group 内分支收口 nativeListSurface 单路，chatSurfacePresentation/chatSurfaceLifecycle 与 chatScaffold 根链零触碰（S371/S373 全绿为据）；共享跟随链改名去 Carrier 后缀（scrollToBottom/performScrollToBottom/evaluateSettleOnEvent/evaluateSettleFallback/handleSettleStep/settleStreamFollow/handleThreadSwitch/restoreThreadPosition/firstFrameSettle/surfaceArrowView），与随删的 legacy 同名件字面合一；kbSnapshot 存活读点（body 根 onChange 写快照、isKeyboardUp）全由 ChatRootViewController 的 §302 解析点供数；keyboardAnchorPending/keyboardFrameSettled/composerBottomSpace/listViewportHeight 四状态随旧链删除（删后只余复位或无读点、编译与普查双证）；kickStreamingBlockProducts 承载 guard 整删（收口后恒真、保留 gen4 子句会改变行为）。
+
+**共用件迁移落点：** ChatNativeLayout（原 ChatCarrierLayout）、ChatNativeListCallbacks、ChatNativeBlankTapDelegate、ChatListAnchorStore（原名）→ ChatNativeList.swift；ComposerCardFrameKey → ChatBottomBarViews.swift（写入保留、读取方随宿主退役，preference 发布惰性无副作用）；ChatListAnchorStore 的 UserDefaults 键 chat.carrier.anchors.v1 是落盘兼容键、逐字未动。edgeScrollHandle 按核对表结论无迁移（每宿主自持模式，删宿主即删其份）。
+
+**测试侧处置：** 整文件随删 11 套（ChatListCarrierBottomGapTests、ChatListCarrierReentrancyTests、ChatCarrierSettleCarryTests、ChatCarrierEdgeEffectTests、ComposerGuideHostTests、ComposerAssemblyContractTests、KeyboardFlowAcceptanceTests、KeyboardFlowDiagnosticTests、ChatPageDeviceConditionProbeTests、EdgeEffectProbeTests、ChatPageAssemblyRegressionTests——其中 KeyboardFlowDiagnostic 与 ChatPageAssemblyRegression 两套件头注本就写明「R5 旧面退役时随本套件一并处置」、本步即其 R5）；ChatListCarrierCoreTests 改名 ChatListCoreTests 并删两旗测试；ChatNativeListR4AssemblyTests 删回退面测试 ⑮、⑭ 与落底冒烟摘旗改恒原生面口径；EdgeEffectRegistrationTests 删引导线宿主 rig 三测（顶栏 rig 五测留）；FileChipVersionFixAssemblyTests、ChatNativeRowHeightFittingTests 摘置旗脚手架；DiscussQuoteAttachReproTests 在场判据收口 ChatRootViewController；约 21 个测试文件随共用件改名机械同步；新增 ChatSwapStep6StructureTests（禁词普查＋跟随链单源＋迁移在场，3 件）。
+
+**基线变化（如实记账）：** 基线老红「三件」自此为两件——ChatPageAssemblyRegressionTests 的键盘件（testKeyboardUpMovesComposerOnlyDockStays）随其套件按预定处置退役（该套量测对象就是旧面整页组装、钉旗 false 运行）；EdgeEffectProbeTests（整树老红在案）同随旧面退役。此后发布线对账基线＝R2 两项。
+
+**过程事故一件（如实记账）：** ChatView 手术第一轮，删段助手的 doc 回溯把以 @ 开头的声明行（@State）误作属性行吞入，gen3 旗删除时连带删掉 composerFocused/composerFocusHandle/listScrollHandle 三个在场声明——App 构建当场拦截（cannot find in scope），以备份 diff 做声明级审计定位、三件原样恢复，复审全部被删声明与预期清单逐件对账（func/var/@State 三类）确认无其他误伤后才继续。此后删段回溯只认 /// 行、不认 @ 行。
+
+**回归记账（实验室口径）：**
+
+### §374.10 换引擎 program 收官汇总（步骤 0–6，2026-11-23）
+
+**起点：** 0.50.94 真机手感关未过（「整体交互还是不流畅」）→ 立项换引擎：聊天列表自研装配层整层换平台增量机制，清点 31 件（换 13／留（a）平台原生 8／留（b）照抄现成 10），施工图对位 9 件经用户签字为验收单。
+
+**每步去了什么：**
+- 步骤 0（探针）：托管 sizeThatFits 量测成本 1.86–3.06 倍＋非主线程构造 UIKit 断言 → 清点 #5 影子合成器留（b）定案；单 section 两变体在 §329 成环条件下收敛、contentSize 逐值等价 → 步骤 3 开工门开。
+- 步骤 1（变更集追踪器）：喂入对账立影子账，合成富会话 300 条十趟影子差异清零——增量化的账本先行。
+- 步骤 2（applyChanges 增量入口）：全量对账退役；实查修掉「落定同键换代漏 update」真缺口（落定行会永停直播内容）。
+- 步骤 3（高度账按键化＋单 section）：平行高度四表退役、逐行 section 退役；「布局失效不在 apply 同步链内执行」立结构钉测永久把守。
+- 步骤 4（四件逐件删繁，开关包裹一版期）：150ms 合并窗删（采纳频次回发布闸节拍 1:1）、settleClearingStage 拆拍改单拍结清、抽屉动画期冻结删、滚动闸降级为过渡记账规则。
+- 步骤 5（选区保护简化）：触摸序列门物理删除，收敛选区单键暂缓（行为保留、机制从简，用户批图单独批准）。
+- 步骤 6（旧承载退役）：gen3＋legacy＋ComposerGuideHost 整套删除、三链收口为一（本节 §374.9）。
+
+**量测总账（同口径修前/修后）：** 稳态无变更重喂 8.4ms→~2µs（对账片脱钩、恒定不随行数涨；旧路 324→1,340µs 随行数线性涨）；单行更新 @1200 行 14.7→5.5ms（÷2.7，布局 pass 10,836→4,451µs）；落定结清 34.0→11.4ms（步骤 4②）；抽屉投影＋标题 10.28→1.26ms、资源库标题序 39.3→15.3ms（F1/F2 先行包）。**未达项如实记**：「单行趟全形态脱钩」三路对照证不可达——残差是 UIKit 布局 pass 逐 item 帧求解本体，与 section 结构/窗口/我方代码无关；再进只剩自研布局引擎，撞三类判定制（无原生、无现成可抄、自创不许做）——主线已裁不立项。
+
+**留档项：** ①#5 影子合成器留（b）（探针定案：成本与线程决定性双不过、平台无替代路）；②滚动记账过渡规则定版保留（整删判据已立据 §374.7：单笔占帧预算约八成、施工 6 次 vs 1 次，未达整删线）；③prefetch 迁移未落（提供者内量测是 §329 构造保证、换保证须单独成包，§374.3 在册）；④回退口在册：步骤 4 四开关＋步骤 5 选区单键暂缓开关（均一个版本周期）、序列门整体回退＝自 git 历史 b9dd7c5 源码取回（非运行时能力）；⑤F1 残余 ~12.5ms 是 ICU collation 本体，再降须换排序语义＝台账 29 排序口味案待用户裁，不在本 program 范围。
+
+**program 关账门：** 实验室侧步骤 0–6 全关账；总关账＝0.50.98 组版（步骤 4＋5＋6 合入）后用户真机手感 verdict（增量新路流式/落定/编辑/删除/滑动、选区四项、抽屉零闪动、资源库先快照后刷新等清单在 0.50.96/0.50.97 交付消息内）。

@@ -4,7 +4,7 @@ import XCTest
 /// 换代包 3·承载层 Core 钉测（DESIGN §257）：锚点
 /// 捕获/恢复、供数新旧对拍（蓝图 B7 门）、行高组
 /// 合模型、承载开关缺省。全部纯函数、无 UIKit。
-final class ChatListCarrierCoreTests: XCTestCase {
+final class ChatListCoreTests: XCTestCase {
 
     private let idA = UUID()
     private let idB = UUID()
@@ -348,41 +348,5 @@ final class ChatListCarrierCoreTests: XCTestCase {
 
     // MARK: - 承载开关
 
-    func testCarrierFeatureDefaultsOff() {
-        let suite = UserDefaults(
-            suiteName: "test.carrier.\(UUID().uuidString)"
-        )!
-        XCTAssertFalse(ChatCarrierFeature.isEnabled(defaults: suite))
-        suite.set(true, forKey: ChatCarrierFeature.defaultsKey)
-        XCTAssertTrue(ChatCarrierFeature.isEnabled(defaults: suite))
-    }
 
-    /// §297（原生重建 R4 转默认）：原生面旗缺省口径
-    /// 翻转——键不存在＝开（新缺省）；显式存值优先
-    /// （false＝浸泡期回退现行面、true＝开），与
-    /// ChatView/SettingsView 两处 @AppStorage 缺省
-    /// true 同口径
-    func testNativeListFeatureDefaultsOnSinceR4() {
-        let suite = UserDefaults(
-            suiteName: "test.native.\(UUID().uuidString)"
-        )!
-        XCTAssertTrue(
-            ChatNativeListFeature.isEnabled(defaults: suite),
-            "键缺省须为开（R4 转默认）"
-        )
-        suite.set(false, forKey: ChatNativeListFeature.defaultsKey)
-        XCTAssertFalse(
-            ChatNativeListFeature.isEnabled(defaults: suite),
-            "显式 false 须被尊重（浸泡期回退口）"
-        )
-        suite.set(true, forKey: ChatNativeListFeature.defaultsKey)
-        XCTAssertTrue(
-            ChatNativeListFeature.isEnabled(defaults: suite)
-        )
-        suite.removeObject(forKey: ChatNativeListFeature.defaultsKey)
-        XCTAssertTrue(
-            ChatNativeListFeature.isEnabled(defaults: suite),
-            "删键后回到新缺省＝开"
-        )
-    }
 }

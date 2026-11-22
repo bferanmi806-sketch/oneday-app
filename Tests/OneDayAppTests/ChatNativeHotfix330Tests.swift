@@ -45,7 +45,7 @@ final class ChatNativeHotfix330Tests: XCTestCase {
     /// 装配与 ChatNativeListR3AssemblyTests 同式
     /// （窗口＋根 VC＋handle＋carrier 回调＋
     /// addChild 挂载）——控制器回调口只有
-    /// ChatListCarrierCallbacks 一处，不另设
+    /// ChatNativeListCallbacks 一处，不另设
     private func assemble() {
         let win = UIWindow(
             frame: CGRect(x: 0, y: 0, width: 402, height: 874)
@@ -56,7 +56,7 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         let listHandle = ChatNativeListHandle()
         let list = ChatRootViewController()
         list.handle = listHandle
-        list.callbacks = ChatListCarrierCallbacks(
+        list.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -75,7 +75,7 @@ final class ChatNativeHotfix330Tests: XCTestCase {
     private func apply(_ rows: [ChatNativeRow]) {
         controller?.apply(
             rows: rows,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: 8,

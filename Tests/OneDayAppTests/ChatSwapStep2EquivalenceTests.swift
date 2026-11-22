@@ -21,7 +21,7 @@ import OneDayDesign
 final class ChatSwapStep2EquivalenceTests: XCTestCase {
 
     private let styleKey = "style-a"
-    private let layout = ChatCarrierLayout(
+    private let layout = ChatNativeLayout(
         horizontalPadding: OneDayMetrics.pageGutter,
         topPadding: OneDayMetrics.spacingM,
         bottomPadding: 8,
@@ -60,7 +60,7 @@ final class ChatSwapStep2EquivalenceTests: XCTestCase {
         let handle = ChatNativeListHandle()
         let controller = ChatRootViewController()
         controller.handle = handle
-        controller.callbacks = ChatListCarrierCallbacks(
+        controller.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}

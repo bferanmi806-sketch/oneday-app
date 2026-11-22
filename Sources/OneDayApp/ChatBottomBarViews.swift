@@ -534,3 +534,24 @@ struct ChatComposerCardView: View {
         }
     }
 }
+
+/// §374.9（步骤 6）自 ComposerGuideHost.swift 迁
+/// 入：写入方（本文件 bottomBar 与 ChatView 的
+/// inputBar）均为共用件、随迁保留；原读取方（引
+/// 导线宿主控制器）已退役，preference 发布暂无
+/// 消费者、惰性无副作用
+/// 输入舱卡本体帧的 PreferenceKey（A2 舱带收边）：
+/// 写入点在 ChatView 的 inputBar（composerCard 外
+/// 挂背景 GeometryReader），与整栈帧同一窗口系、同
+/// 一棵托管树上行；口径与 ComposerBarFrameKey 同
+/// 式（单值、取后到非零帧）。internal 而非 private
+/// ——写入点跨文件在 ChatView
+struct ComposerCardFrameKey: PreferenceKey {
+    static var defaultValue: CGRect { .zero }
+    static func reduce(
+        value: inout CGRect, nextValue: () -> CGRect
+    ) {
+        let next = nextValue()
+        if next.height > 0 { value = next }
+    }
+}

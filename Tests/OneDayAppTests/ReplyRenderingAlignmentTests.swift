@@ -49,7 +49,7 @@ final class ReplyRenderingAlignmentTests: XCTestCase {
         let handle = ChatNativeListHandle()
         let controller = ChatRootViewController()
         controller.handle = handle
-        controller.callbacks = ChatListCarrierCallbacks(
+        controller.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -84,7 +84,7 @@ final class ReplyRenderingAlignmentTests: XCTestCase {
                     }
                 ),
             ],
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: OneDayMetrics.spacingS,

@@ -39,35 +39,7 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
     private var window: DeviceWindow!
     /// §184：容器租约——见 SwiftDataTestMount
     private var swiftDataMount = SwiftDataTestMount()
-    /// 标准 defaults 中原生面旗的进入前状态（缺省
-    /// 时为 nil），tearDown 原样还原，不污染同宿主
-    /// 其他套件
-    private var flagPrior: Any?
-    private var flagPriorKnown = false
-
-    override func setUp() async throws {
-        flagPrior = UserDefaults.standard.object(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        flagPriorKnown = true
-        try await super.setUp()
-    }
-
     override func tearDown() async throws {
-        if flagPriorKnown {
-            if let prior = flagPrior {
-                UserDefaults.standard.set(
-                    prior,
-                    forKey: ChatNativeListFeature.defaultsKey
-                )
-            } else {
-                UserDefaults.standard.removeObject(
-                    forKey: ChatNativeListFeature.defaultsKey
-                )
-            }
-        }
-        flagPrior = nil
-        flagPriorKnown = false
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil
@@ -130,14 +102,8 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
     // MARK: - ⑭ 缺省整页出原生面
 
     func testProductionPageDefaultsToNativeSurface() throws {
-        // 前置：旗键缺省（新装/未触碰开关的真实状态）
-        UserDefaults.standard.removeObject(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        XCTAssertTrue(
-            ChatNativeListFeature.isEnabled(),
-            "Core 缺省解析须为开（R4 转默认）"
-        )
+        // §374.9（步骤 6）：两面旗退役后整页恒出原
+        // 生面——本例验生产装配缺省即原生面在场
         try assembleProductionPage()
         XCTAssertNotNil(
             findNativeRootController(),
@@ -147,17 +113,6 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
 
     // MARK: - ⑮ 显式关＝回退在位
 
-    func testProductionPageFallsBackWhenFlagExplicitlyOff() throws {
-        UserDefaults.standard.set(
-            false, forKey: ChatNativeListFeature.defaultsKey
-        )
-        XCTAssertFalse(ChatNativeListFeature.isEnabled())
-        try assembleProductionPage()
-        XCTAssertNil(
-            findNativeRootController(),
-            "显式关时整页不得出原生面（浸泡期回退口须真实在位）"
-        )
-    }
 
     // MARK: - ⑯ 开线程落底·新面帧口径（冒烟箭头例改指）
 
@@ -187,7 +142,7 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
         handle = ChatNativeListHandle()
         controller = ChatRootViewController()
         controller.handle = handle
-        controller.callbacks = ChatListCarrierCallbacks(
+        controller.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -292,18 +247,9 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
     }
 
     func testDefaultResolvedSurfaceLandsAtRealBottom() throws {
-        // 选面按生产口径解析：独立 suite 键缺省 →
-        // Core 解析为原生面（R4 缺省），本例即在该
-        // 解析结果面上验落底——冒烟门「开线程落底」
-        // 自此以本帧口径为准（R1 报告 §五改指落地）
-        let suite = UserDefaults(
-            suiteName: "test.r4.\(UUID().uuidString)"
-        )!
-        XCTAssertTrue(
-            ChatNativeListFeature.isEnabled(defaults: suite),
-            "缺省解析须选原生面"
-        )
-
+        // §374.9（步骤 6）：选面旗退役、原生面恒在
+        // 场——本例在原生面验落底（冒烟门「开线程落
+        // 底」以本帧口径为准，R1 报告 §五改指落地）
         assembleNativeShell()
         var rows: [ChatNativeRow] = []
         for index in 0..<40 {
@@ -319,7 +265,7 @@ final class ChatNativeListR4AssemblyTests: XCTestCase {
         }
         controller.apply(
             rows: rows,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: bottomPadding,
