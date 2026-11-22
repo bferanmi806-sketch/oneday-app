@@ -96,6 +96,30 @@ public enum ChatListSingleSectionFeature {
     }
 }
 
+// MARK: - 时间窗合并删除开关（换引擎步骤 4①）
+
+/// §366 落定拍时间窗合并的删除开关（DESIGN
+/// §374.4，施工图步骤 4①）：缺省（键不存在）
+/// ＝已删——落定拍见布局失效记账即施工、不再
+/// 攒窗自排，流式行高采纳归发布闸节拍单点管；
+/// 显式置 false＝恢复 §366 窗闸原逻辑（窗代码
+/// 本体以本旗包裹保留一个版本周期、回退口）。
+/// 与增量喂入旗／单 section 旗独立、互不牵连；
+/// 控制器每次落定拍同步本旗（翻转即时生效）
+public enum ChatListCoalesceWindowDropFeature {
+    public static let defaultsKey =
+        "chat.list.dropCoalesceWindow"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard let stored = defaults.object(
+            forKey: defaultsKey
+        ) as? Bool else { return true }
+        return stored
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸

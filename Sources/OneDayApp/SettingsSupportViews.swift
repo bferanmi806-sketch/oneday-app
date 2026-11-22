@@ -387,6 +387,14 @@ struct AboutView: View {
     /// tion 构造、关即回 §329 逐行 section 构造）
     @AppStorage(ChatListSingleSectionFeature.defaultsKey)
     private var chatListSingleSectionEnabled = false
+    /// §374.4（换引擎步骤 4①）时间窗合并删除开
+    /// 关（与控制器同键同源，缺省开＝窗已删；关
+    /// 掉即恢复 §366 落定拍 150ms 时间窗合并，
+    /// 一个版本周期的回退口）
+    @AppStorage(
+        ChatListCoalesceWindowDropFeature.defaultsKey
+    )
+    private var chatListDropCoalesceWindow = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -445,6 +453,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认关闭：开启后消息列表改走单 section 布局构造（全体行同属一节、逐行确定高）；关掉即回现行逐行 section 构造，出问题随时回退。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListDropCoalesceWindow) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表落定拍直达施工"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：落定拍布局失效不再攒 150ms 时间窗、见账即施工，流式行高采纳跟发布节拍；关掉即恢复时间窗合并（回退口）。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
