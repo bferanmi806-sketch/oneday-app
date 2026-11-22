@@ -24,6 +24,15 @@ protocol HermesClientProtocol: Sendable {
     func login(config: ServerConfig, password: String) async throws
     /// GET /api/status（免登录）
     func status(config: ServerConfig) async throws -> ServerStatus
+    /// GET /api/hermes/update/check（需会话）：自更新
+    /// 感知只读切片（DESIGN §360，台账 36 案 A）；本
+    /// 部署恒走 managed-runtime 分支，执行腿不做
+    func updateCheck(config: ServerConfig) async throws -> UpdateCheckResponse
+    /// GET /api/hermes/update/receipt（需会话）：无更
+    /// 新运行记录时服务端回 404 → 抛
+    /// UpdateReceiptError.absent（专属空态，不走通用
+    /// 失败面，DESIGN §360）
+    func updateReceipt(config: ServerConfig) async throws -> UpdateReceiptResponse
     /// GET /api/config（需会话；401 由调用方走重登重试）
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary
     /// 探活三：GET /v1/models（Bearer API 密钥），返回模型 id 列表
@@ -804,6 +813,33 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
 
     func status(config: ServerConfig) async throws -> ServerStatus {
         try await getJSON(config: config, path: "/api/status", endpoint: L10n.string("状态接口"))
+    }
+
+    func updateCheck(config: ServerConfig) async throws -> UpdateCheckResponse {
+        try await getJSON(
+            config: config, path: "/api/hermes/update/check",
+            endpoint: L10n.string("更新检查")
+        )
+    }
+
+    func updateReceipt(config: ServerConfig) async throws -> UpdateReceiptResponse {
+        // 404 是本部署常态（从不在容器内跑 update）：
+        // 映射专属空态，不走 unexpectedStatus 通用失败面
+        var request = URLRequest(url: config.endpoint("/api/hermes/update/receipt"))
+        let (data, http) = try await dataRequest(request)
+        if http.statusCode == 404 {
+            throw UpdateReceiptError.absent
+        }
+        guard http.statusCode == 200 else {
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("更新回执"), status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(UpdateReceiptResponse.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(endpoint: L10n.string("更新回执"))
+        }
     }
 
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary {

@@ -54,6 +54,14 @@ struct DemoHermesClient: HermesClientProtocol {
         """)
     }
 
+    func updateCheck(config: ServerConfig) async throws -> UpdateCheckResponse {
+        throw HermesError.demoLimitReached
+    }
+
+    func updateReceipt(config: ServerConfig) async throws -> UpdateReceiptResponse {
+        throw HermesError.demoLimitReached
+    }
+
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary {
         decode(ServerConfigSummary.self, """
         {

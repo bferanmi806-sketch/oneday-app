@@ -24,6 +24,11 @@ public struct ServerStatus: Decodable, Sendable {
     public let gatewayRunning: Bool?
     public let gatewayState: String?
     public let platforms: [String: PlatformState]
+    // 版本与更新扩键（DESIGN §360；与连接自检 §357
+    // 共用同名字段）：配置最新版号／可自更新旗——
+    // 配置版本对照与托管判定各读一键
+    public let latestConfigVersion: Int?
+    public let canUpdateHermes: Bool?
 
     public struct PlatformState: Decodable, Sendable {
         public let state: String?
@@ -42,6 +47,8 @@ public struct ServerStatus: Decodable, Sendable {
         case gatewayRunning = "gateway_running"
         case gatewayState = "gateway_state"
         case platforms = "gateway_platforms"
+        case latestConfigVersion = "latest_config_version"
+        case canUpdateHermes = "can_update_hermes"
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,6 +61,12 @@ public struct ServerStatus: Decodable, Sendable {
         platforms = try container.decodeIfPresent(
             [String: PlatformState].self, forKey: .platforms
         ) ?? [:]
+        latestConfigVersion = try container.decodeIfPresent(
+            Int.self, forKey: .latestConfigVersion
+        )
+        canUpdateHermes = try container.decodeIfPresent(
+            Bool.self, forKey: .canUpdateHermes
+        )
     }
 }
 

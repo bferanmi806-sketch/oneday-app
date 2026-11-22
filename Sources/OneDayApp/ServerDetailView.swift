@@ -123,6 +123,10 @@ struct ServerDetailView: View {
                 }
                 .odGroup()
 
+                // 版本与更新段（DESIGN §360；台账 36
+                // 案 A 只读感知面，段本体自带取数）
+                ServerVersionSection()
+
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingM)
