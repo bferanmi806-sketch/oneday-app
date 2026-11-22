@@ -98,7 +98,15 @@ import SwiftUI
 ///   层、只有文字本体，见 body 内 D3 注；本段与
 ///   下文 0.20.0 注中「顶条维持实色注册」只存沿革。
 ///   0.36.27 再订正：底条浮置＋霜层退役、改注册名
-///   单 safeAreaBar 走纯系统朦胧，见 body 内注。）
+///   单 safeAreaBar 走纯系统朦胧，见 body 内注。
+///   2026-11-22 抽屉量测对齐包三订正：顶注册恢复
+///   ——身份行改挂 safeAreaBar(edge: .top)＋名单
+///   顶缘 .soft 渐隐（Muse 钉顶＋渐隐带机制，主
+///   线量测定案，见 body 内 D3 订正注）；「头尾固
+///   定实色条」旧定式中顶条一侧自此为注册栏＋系
+///   统渐隐，仍不许自绘渐变带/模糊层（E11 纪律不
+///   变，渐隐走系统边缘效果非自绘）。同包：旁聊
+///   行（本地＋未收养）行尾时间整段删除。）
 /// - 结构归位第二批（2026-11-20，用户亲批结构纲
 ///   要 D0-1/D1-1/D2-1）：名单结构改定为——主线
 ///   行（独立行、动作沿旧）→「旁聊」分区（升 L1
@@ -131,18 +139,20 @@ struct DrawerView: View {
     /// 现；入参为频道 id（一期只有 Hermes）
     var onOpenChannel: (String) -> Void
 
-    /// 顶部标题带高（0.36.5）：名单顶部空程
-    /// （contentMargins）与标题浮层共用一数。
-    /// 沿革：§157 口径 72（顶距 24＋行 44＋底距
-    /// 12−名单顶距 8，首行与身份行底缘齐平）；
-    /// 2026-11-21 样板对齐包改 56——身份行顶距
-    /// 24→8（样板标题墨顶距安全区顶实测 13.7pt、
-    /// 本面名字墨顶 20.1，Δ6.4 是头像 44 同行居中
-    /// 的固有量，见交卷对位表），算式同构：8＋44
-    /// ＋12−8＝56，齐平关系不变。Dynamic Type 极
-    /// 端档下名字行高变大、静止时首行可能被身份
-    /// 行略压（已知边界，待真机，与旧口径同界）
-    private static let titleStripHeight: CGFloat = 56
+    /// 顶部标题带高（0.36.5 立、2026-11-22 抽屉
+    /// 量测对齐包退役）：旧制名单顶部空程（con-
+    /// tentMargins）与标题浮层共用一数 56。本包
+    /// 身份行改挂名单 .safeAreaBar(edge: .top)
+    /// 注册（见 body 注），带高改由身份行本体构
+    /// 成（顶距 8＋头像 44＋底距 4＝56，与旧空程
+    /// 逐点恒等、静止布局不变），本令牌随手排空
+    /// 程退役、不再有第二写点（同日 B 项追加后
+    /// 页头只留名字大标题、带高改 49，见身份行
+    /// 注）。沿革：§157 口径
+    /// 72→2026-11-21 样板对齐包改 56（身份行顶
+    /// 距 24→8；样板标题墨顶距安全区顶实测
+    /// 13.7pt、本面名字墨顶 20.1，Δ6.4 是头像
+    /// 44 同行居中的固有量，见交卷对位表）
 
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
@@ -172,10 +182,13 @@ struct DrawerView: View {
     /// 败走恢复＋提醒，不再有本位）
     @State private var archiveFailureReason: String?
     @State private var pinFailureReason: String?
-    /// 身份行编辑入口（§157）：与枢纽头像菜单同两张
-    /// 编辑页的呈现开关，本面只置位、不复制编辑逻辑
-    @State private var showAvatarEditor = false
-    @State private var showNameEditor = false
+    /// 页头名字字号（2026-11-22 抽屉量测对齐包 C
+    /// 项）：基准 24pt bold 对齐 Muse 量测，经
+    /// ScaledMetric 相对 title2 样式缩放——Dynamic
+    /// Type 缩放保住、不钉死字号（规格与沿革见
+    /// TypeRole.drawerTitle 头注）；本面唯一消费点
+    @ScaledMetric(relativeTo: .title2)
+    private var drawerNamePointSize: CGFloat = 24
     /// 分区折叠账（§158）：按区持久化（Core
     /// SectionCollapseState 唯一口径，键见
     /// DrawerSectionKey），杀 App 重进保持
@@ -201,8 +214,10 @@ struct DrawerView: View {
         // 退役，末行避让改由注册留位＋contentMargins
         // 底 8 承接。底条三件本体与落点（indicator
         // 线上方 4pt）不变、不给注册 bar 自加 back-
-        // ground（WWDC25-323 口径）；顶部标题浮层不
-        // 动（0.36.5 定版）。Reduce Transparency 下
+        // ground（WWDC25-323 口径）；顶部标题浮层当
+        // 时不动（0.36.5 定版——已于 2026-11-22 抽
+        // 屉量测对齐包改顶注册，见 D3 订正注）。
+        // Reduce Transparency 下
         // 边缘效果由系统自理（系统自动增不透明），
         // 霜层时代的手排实色回退随霜层一并删除（理
         // 由见 DESIGN §97.3）
@@ -240,9 +255,36 @@ struct DrawerView: View {
             // 程（contentMargins）——静止时首行不被
             // 标题压住，滚动时行从标题后方穿过、隐
             // 约透出（Muse 本体同形态）
-            .contentMargins(
-                .top, Self.titleStripHeight, for: .scrollContent
-            )
+            // 2026-11-22 抽屉量测对齐包订正（覆盖上
+            // 段 D3 落法）：主线对 Muse 现行版两图
+            // 定位量测证伪「隐约透出同形态」——Muse
+            // 机制是钉顶固定＋**列表顶部渐隐带**：
+            // 滚动图标题与未滚动图同位（y≈92→94/
+            // 1000），列表自标题下方穿过、最上方一
+            // 行在标题带内呈半透明渐隐，行文字到达
+            // 标题前先溶、永不与字形相撞；本面浮层
+            // 无渐隐，行字形直撞标题带（用户当日图
+            // 4 实证：「三狗」压「服务器会话」行）。
+            // 新落法：身份行改挂名单 .safeAreaBar
+            // (edge: .top) 注册（与底条同挂法、全
+            // App 顶簇注册口径 §213 同路）＋名单
+            // .scrollEdgeEffectStyle(.soft, for:
+            // .top)，渐隐由系统在注册栏高内发放。
+            // D3 当年撤注册的两病因在本落法下不成立：
+            // ①注册不自加 background（WWDC25-323
+            // 口径、底条先例）——静止态无独立色带、
+            // 带与主体无界；②§318 后根背景是实色单
+            // 层、bar 内不再叠 drawerBackdrop——无
+            // 双层断层。不做整块不透明色块（Muse
+            // 不是色块、§318 面板实色亦不变，渐隐
+            // 是内容侧溶解）。带高＝身份行本体高：
+            // 立项时 56（顶 8＋头像 44＋底 4）与旧手
+            // 排空程逐点恒等、静止布局不变；同日 B
+            // 项追加后页头只留名字大标题、带高改 49
+            // （顶 12＋题行高 29＋底 8，见身份行注）
+            // ——机制（顶注册＋顶缘渐隐）不变、变的
+            // 只是栏内构成；名单顶 contentMargins
+            // 随注册留位退役
             // 0.36.27：末行与注册底条之间留一档小间隙
             // （与聊天页列表底口径同式）；注册留位之外
             // 本面唯一的底部手排数
@@ -251,6 +293,11 @@ struct DrawerView: View {
             )
             .scrollDismissesKeyboard(.interactively)
             .scrollEdgeEffectStyle(.soft, for: .bottom)
+            // 2026-11-22 抽屉量测对齐包：顶缘同挂
+            // .soft——身份行顶注册后，行滚入标题带
+            // 前先溶（Muse 钉顶＋渐隐机制，见上方
+            // D3 订正注）；与设置页顶缘同式
+            .scrollEdgeEffectStyle(.soft, for: .top)
             // 0.36.27（§97 件三）：底条注册（与聊天页
             // bottomBar 同挂法）——搜索态与普通态两套
             // 名单共用本 ScrollView，注册只此一处、两
@@ -258,15 +305,16 @@ struct DrawerView: View {
             .safeAreaBar(edge: .bottom) {
                 drawerBottomBar
             }
-            // 标题浮层：ZStack 顶＝安全区顶（状态栏
-            // 之下），无底块无色带。§157 起浮层首行是
-            // 身份行（drawerIdentityRow）且承命中（整
-            // 行可点开编辑菜单）；浮层其余部分（Spacer）
-            // 仍不承命中——行外拖动归名单/壳层手势
-            VStack {
+            // 2026-11-22 抽屉量测对齐包：身份行改顶
+            // 注册（与底条同挂法）——标题钉顶固定由
+            // 注册承接、顶部渐隐由名单 .scrollEdge-
+            // EffectStyle(.soft, for: .top) 在本栏
+            // 高内发放（机制注见 D3 订正）；0.36.5
+            // 的 ZStack 标题浮层（VStack＋Spacer 不
+            // 承命中）随之退役，身份行本体与承命中
+            // 口径（整行可点开编辑菜单）一字不变
+            .safeAreaBar(edge: .top) {
                 drawerIdentityRow
-                Spacer()
-                    .allowsHitTesting(false)
             }
         }
         .frame(width: width)
@@ -347,17 +395,10 @@ struct DrawerView: View {
         } message: {
             Text(pinFailureReason ?? "")
         }
-        // 身份行编辑页（§157）：复用枢纽同两张编辑页
-        // 本体（改的都是本机档案），呈现口径与枢纽一
-        // 致（sheet），不另做一套编辑面
-        .sheet(isPresented: $showAvatarEditor) {
-            AgentAvatarEditorView()
-        }
-        .sheet(isPresented: $showNameEditor) {
-            AgentNameEditorView(
-                initialName: appState.identityName ?? ""
-            )
-        }
+        // 身份编辑页呈现已随页头改版撤出本面（2026-
+        // 11-22 抽屉量测对齐包 B 项）：编辑入口归中
+        // 枢身份行档案菜单与设置·身份详情两处既有家
+        // （编辑页本体 AgentAvatarEditors 不动）
         // 开抽屉时触发账本可见段刷新（第 67 条包一：
         // source/标题改读账本记录列；信号源＝壳层维
         // 护的语义开合状态）。
@@ -440,82 +481,34 @@ struct DrawerView: View {
             .title ?? thread.title
     }
 
-    /// 身份行（§157 第一批①，用户 2026-11-11 21:01
-    /// 补充方案）：小头像＋名字＋轻量编辑入口，整行
-    /// 可点。旧形态只有名字文本（0.3.6 立宪 §21.3：
-    /// 状态点/状态词/模型小字全撤——那是管理面信
-    /// 息，不占导航壳第一眼；本行同样不带服务器/模
-    /// 型信息、不做账号卡），且标题浮层整体关命中，
-    /// 用户无从知道去哪里改名换头像。本行落法：整
-    /// 行是一个 Menu（与枢纽头像角标菜单同两项：更
-    /// 换虚拟形象/编辑名称），点开后呈现的编辑页复
-    /// 用枢纽同两张本体（AgentAvatarEditorView/
-    /// AgentNameEditorView，改的都是本机档案 Agent-
-    /// ProfileStore），不另做一套；头像与名字都读
-    /// AppState 单一出口（档案覆盖→soul 名），与全
-    /// App 露脸面同源。编辑提示只给一支铅笔字形
-    /// （inkSecondary 弱档），不加第二层按钮底
+    /// 页头（§157 第一批①立、2026-11-22 抽屉量测
+    /// 对齐包 B/C 项改版）：只留名字大标题——去头
+    /// 像 44 与铅笔钮，与 Muse 抽屉图 1/2 同形态
+    /// （用户 2026-11-21 亲定的抽屉三差①在本包落
+    /// 地）；名字字号按 C 项落 24 基准可缩放（见
+    /// drawerNamePointSize 注）。身份编辑入口不丢
+    /// 失：中枢身份行档案菜单（AgentHubView，同两
+    /// 项：更换虚拟形象/编辑名称）与设置·身份详情
+    /// （IdentityDetailView）两处既有家都在，编辑
+    /// 页本体（AgentAvatarEditors）三处共用、本包
+    /// 不动；本面旧 Menu＋两张 sheet 呈现随改版退
+    /// 役。名字读 AppState 单一出口（档案覆盖→
+    /// soul 名），与全 App 露脸面同源。
+    /// 栏高算式：顶 spacingSM 12＋题行高（24 bold
+    /// 行高 29）＋底 spacingS 8＝49——顶注册栏高自
+    /// 此 49（旧身份行形态 56 的恒等沿革见 body
+    /// D3 订正注）；名字墨顶距安全区顶实算 ≈15.4
+    /// （12＋(29−22)/2），对 Muse 量测 13.7 差
+    /// +1.7、在 ±2 归一线内
     private var drawerIdentityRow: some View {
-        Menu {
-            Button {
-                showAvatarEditor = true
-            } label: {
-                Label("更换虚拟形象", systemImage: "person.crop.circle")
-            }
-            Button {
-                showNameEditor = true
-            } label: {
-                Label("编辑名称", systemImage: "pencil")
-            }
-        } label: {
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                // 头像走列表行档（§224：与设置身份卡/
-                // 编辑器行同为 44；旧 36 小档让抽屉与
-                // 其他列表面头像大小不一，收敛退役）；
-                // 呈现三件与枢纽同式：scaledToFill＋圆
-                // 裁＋发丝环
-                appState.agentAvatarImage
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: OneDayMetrics.avatarListRow,
-                        height: OneDayMetrics.avatarListRow
-                    )
-                    .clipShape(Circle())
-                    .overlay {
-                        Circle().stroke(
-                            Palette.hairline, lineWidth: 0.5
-                        )
-                    }
-                    .accessibilityHidden(true)
-                // 名字沿革：0.20.0 升 34pt（Muse 图推
-                // 算）→0.22.0 字重降 semibold→0.23.0 落
-                // 角色→0.24.0 改 Title1 28 bold（HIG 大
-                // 标题档，用户当日指令、§51）→2026-11-
-                // 21 样板对齐包改抽屉局部角色 drawer-
-                // Title（Title2 22 bold）：样板实测
-                // 24 bold、取最近文本样式档保缩放闸
-                // （Δ2 理由见 TypeRole 头注）；screen-
-                // Name 本体不动、其余露脸面照旧
-                Text(appState.agentDisplayName)
-                    .font(.drawerTitle)
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "pencil")
-                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
-            }
+        Text(appState.agentDisplayName)
+            .font(.system(size: drawerNamePointSize, weight: .bold))
+            .foregroundStyle(Palette.ink)
+            .lineLimit(1)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
-        }
-        .padding(.horizontal, OneDayMetrics.drawerInset)
-        // 2026-11-21 样板对齐包：顶距 spacingL 24→
-        // spacingS 8（样板标题区收紧、见 titleStrip-
-        // Height 注）；底距 12 不变
-        .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingSM)
+            .padding(.horizontal, OneDayMetrics.drawerInset)
+            .padding(.top, OneDayMetrics.spacingSM)
+            .padding(.bottom, OneDayMetrics.spacingS)
     }
 
     // MARK: - 导航主体（0.19.0）
@@ -1123,10 +1116,10 @@ struct DrawerView: View {
     }
 
     /// 未收养旁聊行（2026-11-13 P2 修复）：与本地行
-    /// 同式（标题＋行尾紧凑时间、行高与内距同档）；
-    /// 标题走服务端标题管线（resolvedTitle——AI 给
-    /// 的名字如「爱的定义」直达），时间走服务端活
-    /// 动时间（无日期不编造、行尾留空）。无当前位胶
+    /// 同式（标题单件、行高与内距同档；行尾紧凑时
+    /// 间已于 2026-11-22 抽屉量测对齐包随本地行同
+    /// 批删除）；标题走服务端标题管线（resolved-
+    /// Title——AI 给的名字如「爱的定义」直达）。无当前位胶
     /// 囊（当前线程恒为本地线程）；点行＝走既有续聊通道点
     /// 达（pendingChatSessionID 置位，与回响卡/管
     /// 理页/频道页同一路）：ContentView 切聊天格、
@@ -1160,41 +1153,17 @@ struct DrawerView: View {
             },
             deleteMenuTitle: "删除会话"
         ) {
-            let title = Text(
+            // 2026-11-22 抽屉量测对齐包：行尾时间删
+            // ——与本地行同口径只留标题（用户亲令、
+            // 对 Muse 旁聊行只有标题的形态）；旧
+            // trailing 时间组与 AX 档上下排列分支随
+            // 之退役（标题单件无需分档排向）
+            Text(
                 session.resolvedTitle(firstUserMessage: nil)
             )
             .font(.drawerRowTitle)
             .foregroundStyle(Palette.ink)
             .a11yLineLimit(1, ax: 2)
-            let trailing = Group {
-                if let date = DrawerUnadoptedSideChats
-                    .activityDate(of: session) {
-                    Text(LocalThreadSubtitle.compactTimeText(
-                        updatedAt: date, now: Date()
-                    ))
-                    .font(.meta)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-                }
-            }
-            Group {
-                if dynamicTypeSize.isAccessibilitySize {
-                    VStack(
-                        alignment: .leading,
-                        spacing: OneDayMetrics.spacingMicro
-                    ) {
-                        title
-                        trailing
-                    }
-                } else {
-                    HStack(spacing: OneDayMetrics.rowInnerGap) {
-                        title
-                        Spacer(minLength: OneDayMetrics.spacingS)
-                        trailing
-                    }
-                }
-            }
             .padding(.horizontal, OneDayMetrics.spacingSM)
             .frame(
                 maxWidth: .infinity,
@@ -1208,7 +1177,9 @@ struct DrawerView: View {
     }
 
     /// 旁聊行（0.17.0 单行形态沿用、0.19.0 返工去角
-    /// 标）：标题＋行尾小字时间、当前位浅灰垫；点按
+    /// 标）：标题＋当前位浅灰垫（行尾小字时间已于
+    /// 2026-11-22 抽屉量测对齐包整段删除、只剩置
+    /// 顶钉，见 label 内注）；点按
     /// 经 drawerThreadSelection 请 ChatView 切换并关
     /// 抽屉（0.4.5 通道化沿革）；长按四件与 0.18.0
     /// 本地行同序（重命名/置顶/归档/删除）——置顶只
@@ -1218,6 +1189,8 @@ struct DrawerView: View {
     /// 记（排序仍恒时间序、不学管理页的置顶分段）；
     /// 时间改紧凑口径、选中改字重＋浅灰底统一规则、
     /// AX 档标题/时间上下排列，逐项见 label 内注
+    /// （时间呈现已于 2026-11-22 整段退役、AX 排
+    /// 列随之只剩标题与置顶钉两件，见 label 内注）
     private func drawerSideThreadRow(_ thread: ChatThread) -> some View {
         // 0.36.7：当前位只认单一政策（§10.2）——正在
         // 看这条旁聊时胶囊只归本行、主线聊天行无胶囊
@@ -1282,25 +1255,15 @@ struct DrawerView: View {
                         .foregroundStyle(Palette.inkSecondary)
                         .accessibilityHidden(true)
                 }
-                Text(LocalThreadSubtitle.compactTimeText(
-                    updatedAt: thread.updatedAt,
-                    now: Date()
-                ))
-                // 0.23.0：落字阶角色 meta（subheadline，
-                // 默认 15 等值，审计 G2/D1）
-                // 0.24.0：角色改 Footnote 13（HIG 时间
-                // 戳档）——本行随角色变
-                // §157④：时间源改紧凑口径——今天只给
-                // HH:mm（Core compactTimeText），跨日
-                // 仍带日标
-                .font(.meta)
-                // 0.22.0（审计 G1/D2）：时间戳是「要读的
-                // 字」，inkMuted 实算 2.75:1 不达标——换
-                // inkSecondary（4.84:1）；inkMuted 就此只
-                // 留非文字用途，本屏其余面归 0.23.0
-                .foregroundStyle(Palette.inkSecondary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
+                // 2026-11-22 抽屉量测对齐包：行尾时间
+                // 整段删除（用户亲令「对话边没有时
+                // 间」、对 Muse 旁聊行只有标题的形
+                // 态）——trailing 自此只剩置顶钉一件；
+                // compactTimeText 本体不动（服务端副
+                // 题等他面同源消费）、排序恒时间序不
+                // 变。旧时间呈现沿革（§157④紧凑口径/
+                // meta 角色/inkSecondary 对比改档）随
+                // 本段退役
             }
             Group {
                 if dynamicTypeSize.isAccessibilitySize {
@@ -1343,8 +1306,8 @@ struct DrawerView: View {
         .buttonStyle(.odPressable)
         .padding(.horizontal, OneDayMetrics.spacingS)
         // §157④：图钉是纯视觉标记——置顶状态经 acces-
-        // sibilityValue 补播报（标题/时间的内容自读不
-        // 受影响）；未置顶行值为空、不出声
+        // sibilityValue 补播报（标题的内容自读不受
+        // 影响）；未置顶行值为空、不出声
         .accessibilityValue(
             thread.isPinned ? L10n.string("已置顶") : ""
         )

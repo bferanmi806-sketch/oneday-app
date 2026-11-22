@@ -27,9 +27,13 @@ final class VisualDirectionGateTests: XCTestCase {
         // 2026-11-21 样板对齐包增 drawerTitle（抽屉身
         // 份名 Title2 22 bold，见 TypeRole 头注）——
         // 十三角色
+        // 2026-11-22 抽屉量测对齐包 C 项：drawerTitle
+        // 基准按用户亲令对齐样板实测改 24（title2 自
+        // 此为相对缩放锚、weight 不变，见 TypeRole
+        // 头注订正）——断言随规格改值、非删测
         let expected: [TypeRole: (style: String, pt: CGFloat, weight: String)] = [
             .screenName: ("title", 28, "bold"),
-            .drawerTitle: ("title2", 22, "bold"),
+            .drawerTitle: ("title2", 24, "bold"),
             .rowTitleL: ("body", 17, "regular"),
             .rowTitle: ("body", 17, "regular"),
             .bodyText: ("body", 17, "regular"),
@@ -66,7 +70,14 @@ final class VisualDirectionGateTests: XCTestCase {
             // 文本样式字体也必须真随 Dynamic Type 缩放）
             // 2026-11-21：drawerTitle 同入闸——取文本
             // 样式档而非钉死 24 的理由正在于此
-            ("drawerTitle", .drawerTitle),
+            // 2026-11-22 C 项：drawerTitle 的 Font 静
+            // 态值已退役（基准 24 改 @ScaledMetric 相
+            // 对缩放承载、Font 静态值表达不了），本列
+            // 随之撤下；其缩放把守移交 DrawerMuse-
+            // MetricsTests 的消费形态渲染测（同口径
+            // 1.2 倍判据、测的是 DrawerView 实际消费
+            // 形态），规格对账仍在本测 testTypeRole-
+            // Table（24/title2/bold）
             ("drawerNavTitle", .drawerNavTitle),
             ("drawerRowTitle", .drawerRowTitle),
             ("drawerRowTitleCurrent", .drawerRowTitleCurrent),

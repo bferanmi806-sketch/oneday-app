@@ -8138,8 +8138,13 @@ struct ChatView: View {
     /// 试由后台调度自理，用户无事可做就不许给动
     /// 作）。文案口径：未同步完带进度（已载入 N/
     /// 共 M 条，M 未知时只报 N）；种子仅文本落定
-    /// 与仅本地保留都是这条线程的长久事实、常驻呈
-    /// 现，不许把「仅文本」冒充全量同步
+    /// 是这条线程的长久事实、常驻呈现，不许把「仅
+    /// 文本」冒充全量同步。2026-11-22 抽屉量测对
+    /// 齐包订正：仅本地保留（.localOnly）的常驻文
+    /// 案「部分早期历史仅保存在本机」按用户亲令整
+    /// 句删除——该状态用户同样无事可做、常驻一行
+    /// 只是长期占位（状态与同步逻辑本体不动，落
+    /// 定时的一次性通知保留）
     @ViewBuilder
     private var historySyncBar: some View {
         if let thread = currentThread,
@@ -8173,7 +8178,10 @@ struct ChatView: View {
         case .failed:
             return "本地历史同步失败，稍后自动重试"
         case .localOnly:
-            return "部分早期历史仅保存在本机"
+            // 2026-11-22：常驻文案按用户亲令删除
+            // （见 historySyncBar 注）——状态本体与
+            // 同步逻辑不动，本行只是不再呈现
+            return nil
         case .syncedTextOnly:
             return "本地历史已同步（仅文本）"
         case .notOwed, .serverHeld:

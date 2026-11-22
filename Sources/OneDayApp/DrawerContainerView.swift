@@ -68,8 +68,9 @@ import UIKit
 /// - 宿主安全区（§318 分界口径，订正 §313 的
 ///   A-21 一刀切）：drawerHost/contentHost 两宿主
 ///   走默认 regions 派生、**不清零**——两宿主承载
-///   的是常规安全区消费方（DrawerView 标题浮层与
-///   .safeAreaBar 底条、其余四 Tab 页面），其安全
+///   的是常规安全区消费方（DrawerView 身份行顶
+///   栏注册与 .safeAreaBar 底条、其余四 Tab 页
+///   面），其安全
 ///   区只能由本层派生、没有下层真宿主自理；清零
 ///   纪律只适用于内容自管几何的宿主（聊天页内
 ///   ComposerGuideHost/TopBarGuideHost/列表行宿
@@ -258,11 +259,16 @@ final class DrawerContainerController: UIViewController,
     private let contentHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
     )
-    /// 前景变换层（只承 transform 与窄条手势；§313
-    /// 起不再挂阴影——阴影已随裁切层同层收敛）
+    /// 前景变换层（只承 transform 与窄条手势）
     private let foreground = UIView()
-    /// 前景裁切层（圆角裁切＋柔影同层：阴影按本层
-    /// alpha 形状自动投射、不被自裁，§313 A-01）
+    /// 前景投影层（台账 201 双层结构）：不裁切、只
+    /// 投影——与裁切层同帧同半径、垫在其下，柔影
+    /// 自本层 alpha 形状（圆角矩形填充）向外投射；
+    /// 纯视觉、永不承命中
+    private let shadowView = UIView()
+    /// 前景裁切层（只承圆角裁切、装内容）：台账
+    /// 201 前柔影曾与裁切同层（§313 A-01），像素
+    /// 实测证伪后投影迁出至 shadowView（见装配注）
     private let clipView = UIView()
     /// 关闭态左缘热区（24pt；开态隐藏不挡抽屉）
     private let edgeView = UIView()
@@ -321,8 +327,8 @@ final class DrawerContainerController: UIViewController,
         // 清零**、走默认 regions——.64 曾按 A-21 一刀
         // 切清零（原注称「内容安全区归 TabView 内真
         // 宿主自理」），但该立论只对聊天页成立：Drawer-
-        // View 与其余四 Tab 都是常规安全区消费方（标
-        // 题浮层靠安全区顶定位、底条是 .safeAreaBar），
+        // View 与其余四 Tab 都是常规安全区消费方（身
+        // 份行顶栏注册靠安全区顶定位、底条是 .safeAreaBar），
         // 清零后身份行上移 59pt 撞状态栏、底条下沉
         // 34pt 进 Home 区（2026-11-17 真机定因，诊断
         // drawer-broken-diagnosis-20261117.md）。清零
@@ -339,20 +345,33 @@ final class DrawerContainerController: UIViewController,
         drawerHost.view.isHidden = true
 
         view.addSubview(foreground)
-        clipView.clipsToBounds = true
-        clipView.layer.cornerCurve = .continuous
-        // §313 A-01：柔影与裁切同层——阴影挂 clip 本
-        // 人、按其 alpha 形状（圆角＋内嵌帧）自动投
-        // 射，shadowPath 不设（手写路径双写点退役）；
-        // radius/offset 定值出 DrawerCardGeometry 单
-        // 源（经 DrawerMotion 转发），opacity 只在
-        // applyOffset 随 progress 与外观派生
-        clipView.layer.shadowColor = UIColor(Palette.shadowBase).cgColor
-        clipView.layer.shadowRadius = DrawerMotion.shadowRadius
-        clipView.layer.shadowOffset = CGSize(
+        // 台账 201 双层结构（订正 §313 A-01）：§313
+        // 自述「clipsToBounds 只裁子层、阴影不被自
+        // 裁」——2026-11-22 像素剖面实测证伪：同层
+        // masksToBounds 把自家阴影一并裁掉，真机图
+        // 与模拟器剖面接缝全程 252、无任何暗带（数
+        // 值断言却全绿，规格 drawer-card-edge-
+        // shadow-20261122.md §1/§3）。改业界通行双
+        // 层：投影层垫底（不裁切、同帧同半径、填充
+        // 取卡面色只供轮廓成影、本体被裁切层同帧
+        // 盖住）＋裁切层在上装内容；shadowPath 仍
+        // 不设（形状自填充轮廓成影、手写路径双写
+        // 点退役纪律不变）；radius/offset 定值出
+        // DrawerCardGeometry 单源（经 DrawerMotion
+        // 转发），opacity 只在 applyOffset 随
+        // progress 与外观派生
+        shadowView.backgroundColor = UIColor(Palette.chatSurface)
+        shadowView.layer.cornerCurve = .continuous
+        shadowView.layer.shadowColor = UIColor(Palette.shadowBase).cgColor
+        shadowView.layer.shadowRadius = DrawerMotion.shadowRadius
+        shadowView.layer.shadowOffset = CGSize(
             width: DrawerMotion.shadowX, height: 0
         )
-        clipView.layer.shadowOpacity = 0
+        shadowView.layer.shadowOpacity = 0
+        shadowView.isUserInteractionEnabled = false
+        foreground.addSubview(shadowView)
+        clipView.clipsToBounds = true
+        clipView.layer.cornerCurve = .continuous
         foreground.addSubview(clipView)
         addChild(contentHost)
         contentHost.view.backgroundColor = .clear
@@ -490,12 +509,17 @@ final class DrawerContainerController: UIViewController,
         clipView.layer.cornerRadius = geometry.radius
         clipView.frame = geometry.clipFrame
         contentHost.view.frame = geometry.contentFrame
-        // §313：阴影只在此写 opacity 一项——形状由
-        // clip 本人的帧与半径自动成影（无手写路径）；
-        // 外观口径第 78 条 D4：浅色走 §202 定值、深
-        // 色归零，读容器当前 trait（随 trait 变化由
+        // 台账 201：投影层与裁切层锁步（同帧同半
+        // 径；§323 单写点纪律不变、本处仍是唯一写
+        // 点）
+        shadowView.frame = geometry.clipFrame
+        shadowView.layer.cornerRadius = geometry.radius
+        // 阴影只在此写 opacity 一项——形状由投影层
+        // 本人的帧与半径自动成影（无手写路径）；
+        // 外观口径第 78 条 D4：浅色走定值、深色归
+        // 零，读容器当前 trait（随 trait 变化由
         // traitCollectionDidChange 以当前 offset 重派生）
-        clipView.layer.shadowOpacity = Float(
+        shadowView.layer.shadowOpacity = Float(
             DrawerMotion.shadowOpacity(
                 progress: progress,
                 appearance: traitCollection.userInterfaceStyle == .dark

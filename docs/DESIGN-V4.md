@@ -14213,3 +14213,38 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 - 实验室：新套件 `ReactionFloatingBarTests` 8 件（开关口径/路由四格/修饰符装配形态/状态机全迁移＋错序/会话投递单点＋转交后禁投/定位四格）全过；回归集 SwipeReplyPanBridgeTests＋MessageActionsTests＋ChatNativeHotfix330Tests＋HapticsMatrixTests＋VisualDirectionGateTests 同轮合计 **49 passed / 0 failed**（xcresult Test-OneDayApp-2026.11.22_09-09-37）。
 - 真机门（留用户，施工图 §四）：①药丸位置与 Muse 对照 ②点反应一步落锤 ③转交动作面无闪跳（§343.4 缝）④右滑/竖滑不回退 ⑤深色＋最大字号各一帧 ⑥流式行长按可用。任一不过：关开关回子菜单形态，本包不阻塞组版。
 - 文案新键（「反应浮排」「反应：%@」「消息动作」等）走 L10n 源串键，en/繁体待补（与 D10 既登记口径同）。
+
+## §345 抽屉对 Muse 量测对齐＋两件删除＋主面卡柔影双层修复（2026-11-22；分支 feat/drawer-muse-metrics，基线 rel-05082＝0.50.82/210；量测全表 oneday-design-review/drawer-muse-metrics-20261122.md；柔影规格 oneday-design-review/drawer-card-edge-shadow-20261122.md）
+
+### §345.1 量测对位结论
+
+- 24 项对位：面板宽/底色/行高 44/行题 17/字形 24/槽 30/墨左 63/左边距 20/选中药丸/发丝线/分区头 13＋灰/底条几何等——2026-11-21 样板对齐包已落、本包逐项复核一致，不动。占位色差（低置信）与名字墨色 #0C0C0E vs Palette.ink（全 App 单源）列观察项。
+- 名字字号（C 项）：按用户亲令对齐 24——TypeRole.drawerTitle 规格改 24（textStyleName "title2" 转 @ScaledMetric 相对缩放锚、bold 不变），消费形态＝DrawerView 页头 @ScaledMetric(relativeTo: .title2) 基准 24；Font.drawerTitle 静态值退役（承载不了相对缩放），缩放把守移交 DrawerMuseMetricsTests 的消费形态渲染测（与闸门同口径 1.2 倍判据），VisualDirectionGateTests 规格表同步改值（断言随规格改值、非删测）。
+- 标题结构（B 项，三差①本包吸收）：页头去头像 44 与铅笔钮、只留名字大标题。身份编辑入口去向：中枢身份行档案菜单（AgentHubView 同两项）＋设置·身份详情（IdentityDetailView），编辑页本体 AgentAvatarEditors 三处共用不动；抽屉内旧 Menu＋两张 sheet 呈现退役。名字墨顶距差随之消解（新实算 ≈15.4 对 Muse 13.7、Δ+1.7 归一线内），顶注册栏高 56→49。
+
+### §345.2 标题机制换代（钉顶＋顶部渐隐）
+
+- Muse 机制（主线归一化量测）：标题钉顶同位（未滚动 y≈92/滚动 y≈94）、列表顶部渐隐带——行在到达标题前先溶、永不相撞。OneDay 旧形态：ZStack 标题浮层＋手排顶空程（contentMargins 56），钉了但无渐隐 → 真机图「三狗」压住「服务器会话」行字形相撞。
+- 落法（与全 App 顶栏 §213/设置页同路）：页头改挂名单 .safeAreaBar(edge: .top) 顶注册＋名单 .scrollEdgeEffectStyle(.soft, for: .top)；注册栏不自加 background（WWDC25-323＋底条先例）。0.36.5 撤注册两病因（独立色带、双层 drawerBackdrop）随浮层退役消解；§318 实色面板不变。titleStripHeight 令牌退役。
+- 证伪留痕：0.36.5 D3 注「名单滚入时从身份行下方隐约透出、同形态」经滚动图证伪（是相撞非透出），原注已就地订正。
+
+### §345.3 两件删除
+
+- 旁聊行去时间：drawerSideThreadRow trailing 删 compactTimeText（trailing 只剩置顶钉）；drawerUnadoptedSideRow 删整组 trailing（行收为仅标题、AX 上下排列分支退役）。compactTimeText 本体不动（服务端副题等他面同源），排序恒时间序不变。全部对话页行本是「标题＋人话副题」两行式、无右侧时间戳，不在删除范围（量测表已定性）。
+- 删「部分早期历史仅保存在本机」常驻提示：ChatView historySyncText 的 .localOnly 分支改回 nil；seedSyncState 与同步逻辑不动、bar 其余状态文案（未同步完/同步中/失败/仅文本）保留。落定时一次性 showNotice 同句保留（不在「输入框上方提示条」定义内、主线另行问用户）。
+
+### §345.4 主面卡柔影（台账 201）：同层自裁证伪＋双层修复
+
+- 先证：定值（圆角 54.5/inset 2/radius 18/x −4/峰值 0.22/shadowBase #132631）全在且数值断言全绿，但真机图与模拟器剖面接缝全程 252、无暗带（改前剖面：−60…−5 全 252、接缝 0 点 245 仅边缘抗锯齿、＋5 起 252）。
+- 定性：§313 A-01 把柔影挂 clipView 本层、其 clipsToBounds（masksToBounds）把自家阴影一并裁掉；§313 注释自述「阴影不被自裁」证伪。
+- 改法：双层结构——投影层 shadowView（不裁切、与裁切层同帧同半径锁步、填充 chatSurface 只供轮廓成影、isUserInteractionEnabled=false）垫底＋裁切层在上装内容；shadowPath 仍不设；opacity 仍只在 applyOffset 单点写（§323 单写点纪律不变）、深色归零（D4）不变。定值经像素拟合确认沿用（规格曾预期 radius 放大，实测旧值渲染后即落带内）。
+- 像素验收（DrawerSafeAreaRealRootTests.testOpenDrawerSeamShadowProfile）：改后剖面——带外 −50 ≥250、−50→−2 单调渐暗、贴边 −2 落 223–235（−4 实测 227）、内容侧 ＋5 ≥250、角区暗带跟随弧线（y＝26 卡边右移 ＋9.2、＋14 处内容面）。装配口径：真容器＋同色替身（容器装配下真 DrawerView 宿主层不进进程内光栅、三轮实测后定；面板实色由 §318 像素测单独证明）。
+
+### §345.5 未读蓝点
+
+- Muse 旁聊行有未读蓝点（Ø8、右 inset ≈26、行内居中）；OneDay 数据层无未读态（grep 零命中）——本包不新增、不编假数据，待数据源单独立项。
+
+### §345.6 验收
+
+- 实验室：新套件 DrawerMuseMetricsTests（令牌/浅档色值/卡几何/名字 24 缩放消费形态渲染测）；DrawerSafeAreaRealRootTests 新增接缝剖面像素测＋顶注册机制钉（contentInset.top＝0、adjusted＝108）；VisualDirectionGateTests 规格表 drawerTitle 改 24；DrawerContainerControllerTests 阴影断言迁投影层＋锁步断言。相关 17 套合计 **142 passed / 0 failed**（xcresult ~/build/drawer-full.xcresult，result Passed）；整树本地跑（Core+App 两 target）失败 4 项（ChatNativeListR2AssemblyTests 2 项/EdgeEffectProbeTests 1 项/LibraryOrderingTests 1 项），逐名在 rel-05082 基线树复跑同名同数复现——基线既有、本包零新增红；OneDayUITests 不在本地验收口径（整树跑中为超时型失败、未做基线归因，交卷明示）。
+- 真机门：①抽屉滚到底/回弹标题带无字形相撞、无闪烁 ②主面卡接缝暗带与 Muse 并排对位（带宽/贴边深度/圆角咬合）＋深色无影一帧 ③AX 最大档页头与旁聊行各一帧 ④深色顶渐隐一帧。
