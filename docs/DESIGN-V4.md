@@ -15094,3 +15094,12 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 - C4（§369，0.50.95 线）：同改 DeliverablesView.swift——C4 换 deliverables 来源（视图 @State→LibraryListStore）与 collect/删除路径；本包改 body 快照入口一行、@State 区加 snapshotCache 一行、Deliverable 声明补 Equatable 一词。LibraryListSnapshot.swift 本包尾部新增 LibrarySnapshotCache 类（C4 不碰此文件）；搬家点＝组版时可把 snapshotCache 的持有者从视图 @State 换成 LibraryListStore，类本体不改。
 - C3（§370，0.50.95 线）：同改 DrawerView.swift——C3 改 loadDrawerData 等刷新触发点；本包改 body 头派生、drawerDisplayTitle 两式、sideRows→makeSideRows、drawerNavList/drawerSearchList/drawerSideSection/drawerSideRowView/drawerSideThreadRow 签名与接线，函数面不重叠。SessionLedger.swift 本包零触碰（C3 的 FreshnessGate/epoch 不受影响）；Core 侧本包只在 SessionRecord.swift 的 LedgerProjection 内新增一函数、LibraryOrdering.swift 改 sorted 内部（C3/C4 均不碰）。
+
+## §376 0.50.96 组版：手感快速项 F1/F2＋换引擎步骤 1/2 合入、增量开关缺省转正（2026-11-23；分支 rel-05096，基线 rel-05095 @5e7c782）
+
+- 合入链：5e7c782（0.50.95/223）→ 11ad885（F1/F2，源 feat/feel-f1f2-quick @53b4dab）→ 53b618b（换引擎步骤 1，源 feat/swap-step1-changeset @03c1884）→ 6f92b16（换引擎步骤 2，源 feat/swap-step2-applychanges @5f37d3b）→ 921b3c4（开关缺省转正）→ 本提交（版本戳 0.50.96/224＋本节）。
+- 冲突处置（亲解、自查总 diff 只含预期增量：三包对 rel-05095 共 17 文件 +3755/−189，开关转正笔另 4 文件）：DeliverablesView 一处——C4 §369 的 LibraryListStore 名单源与 F1 的 snapshotCache 并存（保留 C4 计算属性、加 F1 缓存 @State，body 快照入口走缓存，即 §375.4 预告的合并点）；DESIGN 节号——F1/F2 节顺延 §375 并注明原拟号 §374，步骤 1/2 的 §374/§374.1/§374.2 为正统序置于 §375 之前，§367–§370 原位不动；DrawerView/ChatView/SettingsSupportViews 等源码余皆自动合入。
+- 开关转正（本版核心）：chat.list.incremental 缺省 false→true——Core ChatListIncrementalFeature.isEnabled 改为键不存在＝开（显式 false 仍关），ChatView 与设置页 @AppStorage 缺省同步 true；设置页实验区开关保留，用户可关回旧路 applyNow（回退口完好）。步骤 1 钉测 testIncrementalFeatureDefaultsOff 随版改名 DefaultsOn 并扩为三态断言（缺省开/显式 false 关/显式 true 开）。自本版起增量新路为实走路、影子账同趟交叉核验保留——§374.1 出口注记的「开旗真实会话影子长跑」随真机使用进行，差异由影子账记录。
+- 验证集（发布门）：80 套 771/771 全绿、0 跳过（名单＝Test-OneDayApp-rel05095 bundle 75 套 753 项＋新套 5 个：ChatFeedChangeSetStep1Tests 5、ChatSwapStep2EquivalenceTests 3、ChatSwapStep2ProbeTests 1、ChatSwapStep2StructureTests 3、FeelQuickCachePinTests 6；run Test-OneDayApp-rel05096，xcresulttool summary 本体对账 771 过/0 红，新套逐套在册全过、新红零）。
+- IPA：本地 Mac 出包、IPA 本体亲验 0.50.96/224/site.didichou.oneday、15,115,412 字节、md5 6265a7ab3207f582626a6e208ad778fb（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05096 已推 GitHub。
+- 真机门（用户）：增量新路实走——流式续写/落定/编辑/删除/插行与滑动手感同旧版对比；F1/F2 体感——资源库标题序切换与重复进面、抽屉名单打开与搜索（用户 verdict，未过不关账）。
