@@ -377,6 +377,10 @@ struct AboutView: View {
     /// 体一并退役）
     @AppStorage(ChatNativeListFeature.defaultsKey)
     private var nativeListEnabled = true
+    /// §374（换引擎步骤 1）增量喂入影子开关（与
+    /// ChatView 同键同源，缺省关）
+    @AppStorage(ChatListIncrementalFeature.defaultsKey)
+    private var chatListIncrementalEnabled = false
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -409,6 +413,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：消息列表用系统集合视图承载（原生重建）；浸泡期回退口——关掉即回现行承载。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListIncrementalEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表增量喂入（影子）"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认关闭：开启后增量喂入新路只计算变更集并与现行路逐趟对账、不实际生效（换引擎施工影子期）；对账无差异后才转正。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
