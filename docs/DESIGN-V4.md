@@ -14320,3 +14320,31 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 - 实验室：新套件 DrawerMuseMetricsTests（令牌/浅档色值/卡几何/名字 24 缩放消费形态渲染测）；DrawerSafeAreaRealRootTests 新增接缝剖面像素测＋顶注册机制钉（contentInset.top＝0、adjusted＝108）；VisualDirectionGateTests 规格表 drawerTitle 改 24；DrawerContainerControllerTests 阴影断言迁投影层＋锁步断言。相关 17 套合计 **142 passed / 0 failed**（xcresult ~/build/drawer-full.xcresult，result Passed）；整树本地跑（Core+App 两 target）失败 4 项（ChatNativeListR2AssemblyTests 2 项/EdgeEffectProbeTests 1 项/LibraryOrderingTests 1 项），逐名在 rel-05082 基线树复跑同名同数复现——基线既有、本包零新增红；OneDayUITests 不在本地验收口径（整树跑中为超时型失败、未做基线归因，交卷明示）。
 - 真机门：①抽屉滚到底/回弹标题带无字形相撞、无闪烁 ②主面卡接缝暗带与 Muse 并排对位（带宽/贴边深度/圆角咬合）＋深色无影一帧 ③AX 最大档页头与旁聊行各一帧 ④深色顶渐隐一帧。
+
+## §350 0.50.74 冻结三件解冻复核（2026-11-22；分支 feat/frozen-three，基线 rel-05084@85a1f96＝0.50.84/212；台账 21）
+
+总判定：三件全部关账、**零落码**——①顶栏白块护栏＝形态已变（护栏对象退役、结构等价达成）②AI 消息底部轻卡＝形态已变（被 §334 终版覆盖落地）③体检切片修复＝已修在树（冻结分支已合入、与现树零差异）。本包唯一提交＝本节记账；复核证据＝祖先实证＋现树代码在位＋定向复跑五套 **39 passed / 0 failed**（xcresult Test-OneDayApp-2026.11.22_12-54-30，dd-05084：TopBarBandFaceTests／EdgeEffectRegistrationTests／OpsHealthTests／ReplyRenderingAlignmentTests／HapticsMatrixTests）。
+
+### §350.1 顶栏白块护栏（形态已变）
+
+- 原定案（2026-11-20 诊断 pkg-topbar-white-diagnosis-20261120 §四.2 结构兜底）：§327 背板可见性与顶簇首个实测高挂钩（入席闸门）——内容链缺席时背板不裸呈成实心白块。
+- 沿革实证：闸门实现 `fix/topbar-backing-gate@126bf59` 为本树祖先（曾合入）；其后 0.50.78 真机反馈③（顶栏又有实色块、朦胧感没了，需求总表第 107 条）促成修复 C（`feat/topbar-translucent@5bb26e4`、同为本树祖先、随 0.50.79 出包）：§327 背板整件退役、带面回 §213 系统滚动边缘效果单机制，闸门改**结构等价**——带内无板即无裸板，树内契约收为带内单层＋safeAreaRegions 恒空、首测闩降为纯取证。
+- 现树证据：TopBarGuideHost.swift 全文 grep `backingView`/`backing` 零命中；背板测试组已改版为 TopBarBandFaceTests（新构造断言）；本包复跑该套＋EdgeEffectRegistrationTests 全绿。
+- 判定：护栏目标已由「无板」结构恒等达成、比原闸门更彻底，关账。控件缺席的精确断点当年未定案，其可见危害（实心白块）已随背板退役消除；若真机再现「控件缺席」属新题另立、不属本件。真机门沿第 107 条既有登记（静止/滚动×浅/深四态＋冷启动首帧无裸块），本包不新增。
+
+### §350.2 AI 消息底部轻卡（原名「AI 消息极浅卡片底」，形态已变）
+
+- 原定案（2026-11-20 09:17 用户亲点「加极浅卡片底」）：只给助手消息正文垫极浅冷中性卡片底＋圆角、走现有令牌；用户气泡/思考块/工具卡不动、行为层不碰。实现冻在 `feat/pkg-ai-message-card@67cc81d`（自编 §334 初版：assistantBubble 填充 Color.clear→Palette.bubbleFill 一行），2026-11-20 09:34 被用户以「未过结构关不许先动样式」叫停、**未合入**（merge-base 实证非本树祖先）。
+- 后续覆盖：2026-11-21 用户纠正＋拍板「AI 气泡也上底色、双边都有泡」（台账 191），§334 终版经 `feat/191-ai-bubble` 随 0.50.77 落地——同一填充口恢复 `Palette.bubbleFill`（浅 #EEEEF0／暗 #2C2C2E），且形态升级：进泡范围由仅散文正文段扩为正文/引用/代码块/表格，新立对比闸⑧（字/泡 ≥4.5、泡/页 ∈[1.10,1.60]），§263/§321 无泡口径作废。
+- 现树证据：ChatView.assistantBubble 背景层 `.fill(Palette.bubbleFill)` 在位（助手正文唯一填充口、落定/流式/等待点四态同宿主，函数注 §334 沿革齐全）；本包复跑 ReplyRenderingAlignmentTests 全绿。
+- 判定：冻案的填充本体已被终版同口落地且范围/闸门更全，按冻案旧形态回落反而是倒退，关账、不落码。台账 21 名称「底部轻卡」与原始定案名「极浅卡片底」为同一件，本节以原名存档对齐。
+
+### §350.3 体检切片修复（已修在树）
+
+- 原定案（台账 158 真机定因，诊断 pkg-h1-device-diagnosis-20261120 A 节）：体检自检组窗口按绝对序号切片、日志推过窗口线即误报超时；改按 marker 行身份认轮（基线＝触发前最后一个标记整行文本）、状态窗口 500→2000 纵深防御、doctor 轮询预算单独放宽 120 秒（security-audit/backup 不变）。冻结分支 `fix/h1-opsrun-slicing@99c18e0`（2026-11-20 09:47 交卷冻结）。
+- 现树证据：99c18e0 为 rel-05084 祖先（merge-base 实证）；其三文件（Sources/OneDayCore/OpsHealth.swift／Sources/OneDayApp/HealthCheckStore.swift／Tests/OneDayCoreTests/OpsHealthTests.swift）与现树 `git diff` 零差异；现码 `markerIndices` 切片原语在位、HealthCheckStore `timeout: action == .doctor ? 120 : 60` 在位；本包复跑 OpsHealthTests 全绿。合入时点在 0.50.74 组版链内（需求总表第 91 条出包注记有载「体检自检切片修复」）。
+- 判定：已修关账。当年「真机复验留下版」属真机门：体检面真机跑一轮自检、doctor 不再误报超时——保留登记、随下版真机清单带验，不阻塞本件关账。
+
+### §350.4 本包动点与域协调
+
+- 零代码改动：未动 ChatView 顶栏/气泡装配、未动任何呈现层，与在飞 `feat/stream-incremental` 零交集、无合并仲裁项。HapticsMatrixTests 随本包复跑全绿（零新触感自证）。
