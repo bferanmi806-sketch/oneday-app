@@ -343,6 +343,84 @@ final class DrawerSafeAreaRealRootTests: XCTestCase {
         )
     }
 
+    /// §351 深色接缝三段台阶（像素验收）：深色开
+    /// 态接缝应呈 Muse 量测的三段——抽屉面
+    /// #000000 → 中间带 #191919（卡面横向内缩
+    /// 16pt 露出前景底色、带全高恒定）→ 卡面
+    /// #2C2C2E。装配同剖面替身口径（两侧不透明
+    /// 色面：抽屉侧 chatSurface 深档 #000、内容
+    /// 侧 bubbleFill 深档 #2C2C2E＝用户截图卡面
+    /// 采样值）；外观走父级 setOverrideTrait-
+    /// Collection（裸窗 overrideUserInterface-
+    /// Style 不达根 trait，见 DrawerContainer-
+    /// ControllerTests 同注）
+    func testOpenDrawerDarkSeamThreeBands() throws {
+        let controller = DrawerContainerController()
+        controller.drawerBuilder = { _ in
+            AnyView(Palette.chatSurface.ignoresSafeArea())
+        }
+        controller.contentRoot = AnyView(
+            Palette.bubbleFill.ignoresSafeArea()
+        )
+        let parent = UIViewController()
+        parent.view.frame = window.bounds
+        window.rootViewController = parent
+        window.makeKeyAndVisible()
+        parent.addChild(controller)
+        parent.view.addSubview(controller.view)
+        controller.view.frame = parent.view.bounds
+        controller.didMove(toParent: parent)
+        parent.setOverrideTraitCollection(
+            UITraitCollection(userInterfaceStyle: .dark),
+            forChild: controller)
+        controller.setDrawer(true, animated: false)
+        controller.view.layoutIfNeeded()
+        spinRunLoop(seconds: 0.6)
+
+        let buffer = try XCTUnwrap(
+            renderWindowBuffer(), "窗口渲染采样失败"
+        )
+        func r(at point: CGPoint) -> Int {
+            let rows = [-6, 0, 6].map {
+                sampleRed(
+                    buffer,
+                    at: CGPoint(x: point.x, y: point.y + CGFloat($0)))
+            }.sorted()
+            return rows[1]
+        }
+        let seam = controller.travel
+        let midY: CGFloat = 437
+        // 渲染自检：抽屉远区应 ≈0（出图链断裂时
+        // 数字不作数）
+        XCTAssertLessThanOrEqual(
+            r(at: CGPoint(x: 100, y: midY)), 6,
+            "渲染自检失败：深色抽屉远区应 ≈0，实测 "
+                + "\(r(at: CGPoint(x: 100, y: midY)))")
+        // 第一段：抽屉面（接缝 −40）≈#000000
+        XCTAssertLessThanOrEqual(
+            r(at: CGPoint(x: seam - 40, y: midY)), 6,
+            "抽屉面应 ≈#000000，实测 "
+                + "\(r(at: CGPoint(x: seam - 40, y: midY)))")
+        // 第二段：中间带（接缝 +8、带心）落 25±6
+        let band = r(at: CGPoint(x: seam + 8, y: midY))
+        XCTAssertTrue(
+            (19...31).contains(band),
+            "中间带应落 #191919 带（19–31）；实测 \(band)")
+        // 中间带全高：上/下两处同带
+        for y: CGFloat in [200, 700] {
+            let v = r(at: CGPoint(x: seam + 8, y: y))
+            XCTAssertTrue(
+                (19...31).contains(v),
+                "中间带 y=\(Int(y)) 应同落 #191919 带；实测 \(v)")
+        }
+        // 第三段：卡面（接缝 +24、已过 16pt 带）
+        // ≈#2C2C2E（44±6）
+        let card = r(at: CGPoint(x: seam + 24, y: midY))
+        XCTAssertTrue(
+            (38...50).contains(card),
+            "卡面应落 #2C2C2E 带（38–50）；实测 \(card)")
+    }
+
     /// §318 材质定案量测：面板实色零透出（背后纯红
     /// 不得混入面板空区采样）
     func testDrawerPanelIsOpaqueSolidOverSaturatedBackdrop() throws {

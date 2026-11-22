@@ -117,17 +117,18 @@ public enum MotionTokens {
         stiffness: 1200, damping: 80
     )
     /// drawerSpring：抽屉归位弹簧的 SwiftUI 镜像
-    /// （§313 换代立镜像；§322 随单源重定版）：定版
-    /// 单源在 OneDayCore.DrawerSpringTiming
-    /// （response 0.35/ζ 0.85——2026-11-17 Muse
-    /// 录屏纯弹簧关段实测拟合，欠阻尼微过冲；旧值
-    /// 1.4/ζ 1.2「点按开实测」口径经同录屏对照证伪
-    /// 作废），本令牌只以同字面值镜像供令牌册完整
-    /// 性（新壳层归位走 UIKit 容器、无 SwiftUI 消费
-    /// 方），两处由单测逐项对钉。再旧值 response
-    /// 0.34/ζ 0.86（0.7.1 S7）早已作废
+    /// （§313 换代立镜像；§322 随单源重定版；§351
+    /// 再换代）：定版单源在 OneDayCore.Drawer-
+    /// SpringTiming（response 0.27/ζ 0.90——
+    /// 2026-11-22 Muse 真机视频轨迹拟合，见单源
+    /// 注；§322 档 0.35/ζ 0.85 随之作废、其
+    /// 2026-11-17 录屏拟合出处转沿革），本令牌只
+    /// 以同字面值镜像供令牌册完整性（新壳层归位
+    /// 走 UIKit 容器、无 SwiftUI 消费方），两处由
+    /// 单测逐项对钉。再旧值 response 0.34/ζ 0.86
+    /// （0.7.1 S7）早已作废
     public static let drawerSpring = Animation.interactiveSpring(
-        response: 0.35, dampingFraction: 0.85
+        response: 0.27, dampingFraction: 0.90
     )
     /// 条 9 定版弹簧·小动作（0.3.0，§14）：stiffness
     /// 380 / damping 18——换算阻尼比 ζ≈0.46（欠阻尼、

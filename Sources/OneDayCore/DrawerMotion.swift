@@ -273,6 +273,12 @@ public enum DrawerMotion {
     /// 通道，容器侧只许 applyOffset 一处按本派生
     /// 写帧（单写点，学 Simplenote 单 animator 单
     /// 写点——同报告 §2.1）
+    /// §351 起容器不再按本派生逐帧写帧（刚体化：
+    /// 三层帧钉全幅、内嵌改整卡 transform 等效，
+    /// 见 cardScaleY/cardLeadingShift 与 DESIGN
+    /// §351）；本派生退为几何口径档案——值不变、
+    /// 单测保留（新旧等价关系由 cardScaleY 的派
+    /// 生式保证）
     public static func clipGeometry(
         progress: CGFloat, foregroundSize: CGSize
     ) -> (clipFrame: CGRect, contentFrame: CGRect, radius: CGFloat) {
@@ -296,8 +302,49 @@ public enum DrawerMotion {
     /// 态满值。帧写与 transform 同拍；与 K4「半径不逐
     /// 帧插值」不冲突——防卡顿定案管的是裁切路径重建，
     /// 内嵌只是帧位移、无路径重算
+    /// §351 注：该「无路径重算」的定案被真机录屏证
+    /// 伪一半——帧位移本身虽不重建路径，但 clip 层
+    /// bounds 逐帧变使裁切子树逐帧重合成、宿主帧逐
+    /// 帧写亦是呈现侧成本（DESIGN §351 定因）；呈现
+    /// 已改整卡 transform 等效（cardScaleY），本派生
+    /// 只余换算与档案职责
     public static func verticalInset(progress: CGFloat) -> CGFloat {
         cardVerticalInset * min(max(progress, 0), 1)
+    }
+
+    /// 卡面横向内缩（§351，深色接缝中间层）：深色
+    /// 随 progress 线性行进至 DrawerCardGeometry.
+    /// darkCardLeadingInset、浅色恒 0。卡面（裁切
+    /// 层＋投影层）以 transform 右移此值、内容宿主
+    /// 反向平移抵消（窗口位移对内容透明、与 §202
+    /// 反向补偿同构）；露出带读前景底色 Palette.
+    /// drawerBackdrop（深 #191919）
+    public static func cardLeadingShift(
+        progress: CGFloat, appearance: ShadowAppearance
+    ) -> CGFloat {
+        switch appearance {
+        case .dark:
+            return DrawerCardGeometry.darkCardLeadingInset
+                * min(max(progress, 0), 1)
+        case .light:
+            return 0
+        }
+    }
+
+    /// 卡面纵向刚体缩放（§351）：K1 纵向内嵌改整
+    /// 卡 scaleY 等效——(H − 2·inset) / H，与旧帧
+    /// 几何（clip 帧 insetBy(dy:)）逐值等价：卡面
+    /// 上下沿位置与旧口径一致、帧本身钉死不写。
+    /// 2026-11-22 Muse 视频量测其开合为纯平移、
+    /// 无纵向缩放——本 App 的 2pt 内嵌本就近乎不
+    /// 可见（H=852 时 scaleY≈0.9953），等效换算只
+    /// 为保住 §202 既定浮置几何、不引入新视觉量
+    public static func cardScaleY(
+        progress: CGFloat, foregroundHeight: CGFloat
+    ) -> CGFloat {
+        guard foregroundHeight > 0 else { return 1 }
+        let inset = verticalInset(progress: progress)
+        return (foregroundHeight - 2 * inset) / foregroundHeight
     }
 
     /// S3/§3.4 阴影不透明度：白名单内唯一随 progress

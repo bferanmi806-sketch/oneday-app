@@ -3,9 +3,10 @@ import OneDayDesign
 import XCTest
 
 /// 抽屉弹簧定版单源（§313 立单源；§322 速度重定
-/// 版）：DrawerSpringTiming 是唯一事实源——定版值
-/// （response 0.35、ζ 0.85；2026-11-17 Muse 录屏
-/// 纯弹簧关段实测拟合）逐项钉死、刚度/阻尼回算恒
+/// 版；§351 再换代）：DrawerSpringTiming 是唯一
+/// 事实源——定版值（response 0.27、ζ 0.90；
+/// 2026-11-22 Muse 真机视频轨迹拟合；§322 档
+/// 0.35/0.85 转沿革）逐项钉死、刚度/阻尼回算恒
 /// 等；MotionTokens.drawerSpring 只以同字面值镜
 /// 像、两处对钉（§313 前的双口径换算层已退役）。
 /// 旧值 1.4/ζ 1.2（第 78 条 D3 慢阻尼档）经同录屏
@@ -14,12 +15,13 @@ import XCTest
 final class DrawerSpringTimingTests: XCTestCase {
 
     func testTimingConstantsAreFastSpec() {
-        XCTAssertEqual(DrawerSpringTiming.response, 0.35, accuracy: 0.0001)
-        XCTAssertEqual(DrawerSpringTiming.dampingFraction, 0.85, accuracy: 0.0001)
-        // §322：动量投影随弹簧动量吸收率 ζω 反比
-        // 重算 0.22 → 0.08（推导见单源头注）
+        XCTAssertEqual(DrawerSpringTiming.response, 0.27, accuracy: 0.0001)
+        XCTAssertEqual(DrawerSpringTiming.dampingFraction, 0.90, accuracy: 0.0001)
+        // 动量投影随弹簧动量吸收率 ζω 反比缩放：
+        // §322 重算 0.22 → 0.08、§351 再缩放 → 0.06
+        // （推导见单源头注）
         XCTAssertEqual(
-            DrawerSpringTiming.settleProjectionInterval, 0.08, accuracy: 0.0001
+            DrawerSpringTiming.settleProjectionInterval, 0.06, accuracy: 0.0001
         )
     }
 
@@ -36,15 +38,15 @@ final class DrawerSpringTimingTests: XCTestCase {
     }
 
     func testStiffnessBackComputesToResponse() {
-        // k＝(2π/0.35)²≈322.3；由 k 回算 response 恒等
-        XCTAssertEqual(DrawerSpringTiming.stiffness, 322.3, accuracy: 0.5)
+        // k＝(2π/0.27)²≈541.5；由 k 回算 response 恒等
+        XCTAssertEqual(DrawerSpringTiming.stiffness, 541.5, accuracy: 0.5)
         let response = 2 * CGFloat.pi / sqrt(DrawerSpringTiming.stiffness)
         XCTAssertEqual(response, DrawerSpringTiming.response, accuracy: 0.0001)
     }
 
     func testDampingBackComputesToDampingFraction() {
-        // c＝2×0.85×(2π/0.35)≈30.5；由 c、k 回算 ζ 恒等
-        XCTAssertEqual(DrawerSpringTiming.damping, 30.5, accuracy: 0.2)
+        // c＝2×0.90×(2π/0.27)≈41.9；由 c、k 回算 ζ 恒等
+        XCTAssertEqual(DrawerSpringTiming.damping, 41.9, accuracy: 0.2)
         let zeta = DrawerSpringTiming.damping
             / (2 * sqrt(DrawerSpringTiming.stiffness))
         XCTAssertEqual(zeta, DrawerSpringTiming.dampingFraction, accuracy: 0.0001)
@@ -60,22 +62,24 @@ final class DrawerSpringTimingTests: XCTestCase {
     /// 过冲 ≤1.5% 行程——见 §322 真机清单）：全程
     /// v0＝0 释放的过冲占比与永久落定（|x|≤2px 后
     /// 不再越界）时长、余量 200px 释放的落定时长，
-    /// 须落在 Muse 实测带内（过冲 0.70–0.87%、
-    /// 打开全程 0.43–0.47s、落定尾 0.20–0.27s）
+    /// 须与 2026-11-22 视频量测同带（过冲 ≈0.15%
+    /// 近无回摆、开合总时长约 0.27–0.3s）；§322 带
+    /// （过冲 0.70–0.87%、全程 0.43–0.47s）是旧视
+    /// 频旧档口径、随 §351 换代
     func testModelPredictionsMatchClaudeMeasurements() {
         // 过冲占比只由 ζ 定：exp(−πζ/√(1−ζ²))
         let zeta = Double(DrawerSpringTiming.dampingFraction)
         let overshootFraction = exp(
             -Double.pi * zeta / (1 - zeta * zeta).squareRoot()
         )
-        XCTAssertEqual(overshootFraction, 0.0063, accuracy: 0.001)
+        XCTAssertEqual(overshootFraction, 0.0015, accuracy: 0.0005)
         XCTAssertLessThanOrEqual(overshootFraction, 0.015)
 
         let fullTravelSettle = permanentSettleTime(x0: 540)
-        XCTAssertGreaterThan(fullTravelSettle, 0.30)
-        XCTAssertLessThanOrEqual(fullTravelSettle, 0.45)
+        XCTAssertGreaterThan(fullTravelSettle, 0.20)
+        XCTAssertLessThanOrEqual(fullTravelSettle, 0.30)
         let remainderSettle = permanentSettleTime(x0: 200)
-        XCTAssertLessThanOrEqual(remainderSettle, 0.35)
+        XCTAssertLessThanOrEqual(remainderSettle, 0.28)
     }
 
     /// 闭式解（v0＝0）数值扫描：返回 |x| 最后一次

@@ -278,6 +278,11 @@ final class DrawerContainerController: UIViewController,
     /// 前景/抽屉双层 transform 与圆角/阴影/命中/a11y
     /// 派生只许经 applyOffset 由本值写出（§313 A-01）
     private var offset: CGFloat = 0
+    /// §351 显式阴影路径的当前键（帧＋半径）：与实
+    /// 际路径不一致时才在 applyOffset 重设——飞行
+    /// 途中帧/半径恒定、路径零重设（零重栅格钉点）
+    private var shadowPathBounds: CGRect = .null
+    private var shadowPathRadius: CGFloat = -1
     private var animator: UIViewPropertyAnimator?
     /// 在途 animator 的目标方向（true＝开）：停
     /// animator 时据此分「关被打断」（147 待办即刻
@@ -322,6 +327,14 @@ final class DrawerContainerController: UIViewController,
         // 向下采样到的就是它，取 Palette.pageBG 与旧
         // 覆盖形态下抽屉糊到的内容底色同族
         view.backgroundColor = UIColor(Palette.pageBG)
+        // §351 深色接缝中间层底：前景底色＝Palette.
+        // drawerBackdrop（深 #191919、浅与 pageBG 同
+        // 值）——深色开态卡面横向内缩露出的带与纵向
+        // scale 露出的上下细带都读它；卡面本体被投
+        // 影层不透明填充全幅盖住、本底色只在露出带
+        // 可见（浅色露出带与 pageBG 同值、视觉零变
+        // 化）
+        foreground.backgroundColor = UIColor(Palette.drawerBackdrop)
 
         // §318（A-21 分界订正）：两宿主安全区派生**不
         // 清零**、走默认 regions——.64 曾按 A-21 一刀
@@ -354,9 +367,11 @@ final class DrawerContainerController: UIViewController,
         // shadow-20261122.md §1/§3）。改业界通行双
         // 层：投影层垫底（不裁切、同帧同半径、填充
         // 取卡面色只供轮廓成影、本体被裁切层同帧
-        // 盖住）＋裁切层在上装内容；shadowPath 仍
-        // 不设（形状自填充轮廓成影、手写路径双写
-        // 点退役纪律不变）；radius/offset 定值出
+        // 盖住）＋裁切层在上装内容；shadowPath §351
+        // 起改显式（自动成影随帧 bounds 逐帧重栅格
+        // ＝卡顿定因之一；路径只在帧/半径变化时于
+        // applyOffset 一处重设、单写点纪律不变）；
+        // radius/offset 定值出
         // DrawerCardGeometry 单源（经 DrawerMotion
         // 转发），opacity 只在 applyOffset 随
         // progress 与外观派生
@@ -484,6 +499,10 @@ final class DrawerContainerController: UIViewController,
     /// A-01 单源收敛）。§323 起 clip/内容宿主两帧
     /// 同归本口唯一写点（layout 只写未变换几何事实
     /// 后经本口重派生，学 Simplenote 单写点）
+    /// §351 起三层帧在本口钉前景全幅（开合全程恒
+    /// 定、只随布局尺寸变），呈现全走 transform——
+    /// 逐帧零帧写、零 bounds 变化（刚体口径，定
+    /// 因与对位见 DESIGN §351）
     private func applyOffset(_ newOffset: CGFloat) {
         offset = newOffset
         foreground.transform = CGAffineTransform(
@@ -503,27 +522,91 @@ final class DrawerContainerController: UIViewController,
         let progress = DrawerMotion.progress(
             offset: newOffset, travel: travel
         )
-        let geometry = DrawerMotion.clipGeometry(
-            progress: progress, foregroundSize: foreground.bounds.size
+        let appearance: DrawerMotion.ShadowAppearance =
+            traitCollection.userInterfaceStyle == .dark
+                ? .dark : .light
+        // §351 刚体化（定因见 DESIGN §351）：此前本
+        // 口按 clipGeometry 逐帧写三层 frame——clip
+        // 层 bounds 逐帧变＝裁切子树逐帧重合成、无
+        // shadowPath 的自动阴影随 bounds 逐帧重栅
+        // 格（真机录屏开场死帧/中段冻结的呈现侧成
+        // 本）。改整卡刚体：三层未变换几何钉前景全
+        // 幅（bounds＋center 写、与前景同纪律——卡
+        // 层带 transform 后 frame 未定义），开合视
+        // 觉全由 transform 承担：横移在前景层；纵
+        // 向内嵌（K1）改整卡 scaleY 等效（Drawer-
+        // Motion.cardScaleY、与旧帧几何逐值等价）
+        let fullBounds = CGRect(
+            origin: .zero, size: foreground.bounds.size
         )
-        clipView.layer.cornerRadius = geometry.radius
-        clipView.frame = geometry.clipFrame
-        contentHost.view.frame = geometry.contentFrame
-        // 台账 201：投影层与裁切层锁步（同帧同半
-        // 径；§323 单写点纪律不变、本处仍是唯一写
-        // 点）
-        shadowView.frame = geometry.clipFrame
-        shadowView.layer.cornerRadius = geometry.radius
-        // 阴影只在此写 opacity 一项——形状由投影层
-        // 本人的帧与半径自动成影（无手写路径）；
-        // 外观口径第 78 条 D4：浅色走定值、深色归
-        // 零，读容器当前 trait（随 trait 变化由
-        // traitCollectionDidChange 以当前 offset 重派生）
+        let fullCenter = CGPoint(
+            x: fullBounds.midX, y: fullBounds.midY
+        )
+        shadowView.bounds = fullBounds
+        shadowView.center = fullCenter
+        clipView.bounds = fullBounds
+        clipView.center = fullCenter
+        contentHost.view.bounds = fullBounds
+        contentHost.view.center = fullCenter
+        let radius = DrawerMotion.cornerRadius(
+            progress: progress
+        )
+        clipView.layer.cornerRadius = radius
+        shadowView.layer.cornerRadius = radius
+        // 深色横向内缩（§351）：卡面（投影层＋裁切
+        // 层）随 progress 右移 cardLeadingShift、露
+        // 出前景底色作接缝中间层（Palette.drawer-
+        // Backdrop、深 #191919——Muse 深色接缝三
+        // 段台阶量测，见令牌注）；内容宿主反向平移
+        // 抵消——内容只随前景横移、窗口位移对内容
+        // 透明（与 §202 反向补偿同构）。浅色恒 0、
+        // 无此层（浅色接缝＝§345 柔影、已关账）
+        let shift = DrawerMotion.cardLeadingShift(
+            progress: progress, appearance: appearance
+        )
+        let cardTransform = CGAffineTransform(
+            a: 1, b: 0, c: 0,
+            d: DrawerMotion.cardScaleY(
+                progress: progress,
+                foregroundHeight: foreground.bounds.height
+            ),
+            tx: shift, ty: 0
+        )
+        clipView.transform = cardTransform
+        shadowView.transform = cardTransform
+        contentHost.view.transform = CGAffineTransform(
+            translationX: -shift, y: 0
+        )
+        // 阴影路径显式化（§351）：按当前 bounds 与
+        // 半径生成、只在帧/半径变化时重设——飞行途
+        // 中 bounds 与半径（阶跃定值）恒定，路径零
+        // 重设、渲染端零重栅格；关态（progress 0
+        // 且无动画在途）清掉防陈旧路径残留（关飞行
+        // 途中 animator 在途、路径保留到落定）
+        if progress > 0 {
+            if shadowPathBounds != shadowView.bounds
+                || shadowPathRadius != radius {
+                shadowView.layer.shadowPath = UIBezierPath(
+                    roundedRect: shadowView.bounds,
+                    cornerRadius: radius
+                ).cgPath
+                shadowPathBounds = shadowView.bounds
+                shadowPathRadius = radius
+            }
+        } else if animator == nil,
+                  shadowView.layer.shadowPath != nil {
+            shadowView.layer.shadowPath = nil
+            shadowPathBounds = .null
+            shadowPathRadius = -1
+        }
+        // 阴影只在此写 opacity 一项；外观口径第 78
+        // 条 D4：浅色走定值、深色归零，读容器当前
+        // trait（随 trait 变化由 traitCollectionDid-
+        // Change 以当前 offset 重派生）
         shadowView.layer.shadowOpacity = Float(
             DrawerMotion.shadowOpacity(
                 progress: progress,
-                appearance: traitCollection.userInterfaceStyle == .dark
-                    ? .dark : .light
+                appearance: appearance
             )
         )
         // 穿透防护：只要离开合位，内容本体不接触摸

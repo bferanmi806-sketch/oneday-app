@@ -124,6 +124,18 @@ public enum Palette {
     public static let chatSurface = appleColor(
         light: 0xFCFCFC, dark: .systemBackground
     )
+    /// 抽屉接缝中间层底（§351）：深色开态卡面横向
+    /// 内缩露出的中间带读本色——深 #191919 出处＝
+    /// 2026-11-22 用户 Muse 真机视频定格量测
+    /// （接缝三段台阶：抽屉面 #000000 → 中间带
+    /// lum≈24 ≈ #191919、宽约 14–16pt → 卡面
+    /// #2C2C2E，见 DrawerCardGeometry.darkCard-
+    /// LeadingInset）；浅档与 pageBG 同值 #FCFCFC
+    /// ——浅色该带即旧容器底色、视觉零变化（浅色
+    /// 接缝层次走 §345 柔影、不走本层）
+    public static let drawerBackdrop = appleColor(
+        light: 0xFCFCFC, dark: UIColor(white: 25.0 / 255.0, alpha: 1)
+    )
     /// 选中填充（OpenMuse 底栏激活项 #F0F1F2，App.tsx:
     /// 464；暗档 0.36.1 改挂 systemFill (120,120,128，
     /// α 为系统常量、暗档实测 0.36)——压卡面合成实算

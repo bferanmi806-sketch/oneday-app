@@ -299,6 +299,51 @@ final class DrawerMotionTests: XCTestCase {
         XCTAssertEqual(DrawerMotion.verticalInset(progress: -1), 0)
     }
 
+    // MARK: - §351 刚体派生（横向内缩＋纵向 scale 等效）
+
+    func testCardLeadingShiftDarkOnlyLinearClamped() {
+        XCTAssertEqual(DrawerCardGeometry.darkCardLeadingInset, 16)
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 0, appearance: .dark), 0)
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 0.5, appearance: .dark), 8)
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 1, appearance: .dark), 16)
+        // 越界钳制（橡皮筋段不放大内缩）
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 2, appearance: .dark), 16)
+        // 浅色恒 0（无中间层、接缝走 §345 柔影）
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 0.5, appearance: .light), 0)
+        XCTAssertEqual(
+            DrawerMotion.cardLeadingShift(progress: 1, appearance: .light), 0)
+    }
+
+    /// scaleY 等效与旧帧几何逐值一致：卡面纵向跨
+    /// 度（H×scaleY）＝旧 clip 帧高、上下沿留白
+    /// （(H−H×scaleY)/2）＝旧 clip 帧原点 y
+    func testCardScaleYMatchesClipGeometryEquivalence() {
+        for height: CGFloat in [852, 393, 874] {
+            for p: CGFloat in [0, 0.5, 1, 2] {
+                let scale = DrawerMotion.cardScaleY(
+                    progress: p, foregroundHeight: height)
+                let geometry = DrawerMotion.clipGeometry(
+                    progress: p,
+                    foregroundSize: CGSize(width: 393, height: height))
+                XCTAssertEqual(
+                    height * scale, geometry.clipFrame.height,
+                    accuracy: 0.001)
+                XCTAssertEqual(
+                    (height - height * scale) / 2,
+                    geometry.clipFrame.origin.y,
+                    accuracy: 0.001)
+            }
+        }
+        // 高度未量得时恒 1（不缩放）
+        XCTAssertEqual(
+            DrawerMotion.cardScaleY(progress: 1, foregroundHeight: 0), 1)
+    }
+
     // MARK: - 0.17.0 覆盖形态蒙层
 
     func testScrimOpacityIsLinearClampedAndMonotonic() {
