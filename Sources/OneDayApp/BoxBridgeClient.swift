@@ -31,9 +31,10 @@ final class BoxBridgeClient: @unchecked Sendable {
         let client = try await getClient()
         let result = try await client.callTool(name: "box_status", arguments: [:], timeout: 30)
 
-        // 检查工具错误
+        // 检查工具错误（§344：走 humanToolErrorText 人
+        // 话门，不许厂商原文直达 .failed）
         if result.isError == true {
-            throw BoxBridgeError.failed(mcpErrorText(result))
+            throw BoxBridgeError.failed(Self.humanToolErrorText(result))
         }
 
         // 解析结构化数据
@@ -151,7 +152,7 @@ final class BoxBridgeClient: @unchecked Sendable {
         )
 
         if result.isError == true {
-            throw BoxBridgeError.failed(mcpErrorText(result))
+            throw BoxBridgeError.failed(Self.humanToolErrorText(result))
         }
 
         // 提取截图（对齐 box_bridge.py:215-238 extract_screenshot）
@@ -198,7 +199,7 @@ final class BoxBridgeClient: @unchecked Sendable {
         }
 
         if result.isError == true {
-            throw BoxBridgeError.failed(mcpErrorText(result))
+            throw BoxBridgeError.failed(Self.humanToolErrorText(result))
         }
 
         // F8：act 保真
@@ -237,6 +238,23 @@ final class BoxBridgeClient: @unchecked Sendable {
 
     // MARK: - 辅助方法
 
+    /// 工具错误的人话出口（§344，中枢四欠账·失败给
+    /// 人话）：MCP 工具错误原文（厂商任意文本、上限
+    /// 400 字，多为英文技术串）先过 §233 用户安全门
+    /// （ServerErrorText）——过门原样，不过门落通用
+    /// 句、原文进诊断痕（与 §233 同款处置）。status/
+    /// screenshot/act 三路的 .failed 一律经此出口；
+    /// fetchCredits 的 credits_note 不在此列（厂商
+    /// 原文呈现是既定案，见 BoxBridgeModels.creditsLine）
+    static func humanToolErrorText(_ result: MCPResult) -> String {
+        let raw = mcpErrorText(result)
+        if let safe = ServerErrorText.userSafe(raw) {
+            return safe
+        }
+        ChatDiagTrace.record("box-tool-error-blocked: \(raw)")
+        return L10n.string("云电脑那边出了点问题，请稍后再试。")
+    }
+
     private func getClient() async throws -> BoxMCPClient {
         do {
             return try await BoxMCPClientFactory.getClient()
@@ -245,9 +263,17 @@ final class BoxBridgeClient: @unchecked Sendable {
             case .noKey:
                 throw BoxBridgeError.noKey
             case .sessionFailed(let msg):
-                throw BoxBridgeError.failed(msg)
+                // §344：MCP 客户端英文技术串不直达用户
+                // 面——落固定人话句，原文进诊断痕
+                ChatDiagTrace.record("box-session-failed: \(msg)")
+                throw BoxBridgeError.failed(
+                    L10n.string("云电脑连接没建立起来，请稍后再试。")
+                )
             case .toolCallFailed(let msg):
-                throw BoxBridgeError.failed(msg)
+                ChatDiagTrace.record("box-tool-call-failed: \(msg)")
+                throw BoxBridgeError.failed(
+                    L10n.string("云电脑没能完成这次操作，请稍后再试。")
+                )
             case .networkError:
                 throw BoxBridgeError.failed(L10n.string("网络不可达"))
             }

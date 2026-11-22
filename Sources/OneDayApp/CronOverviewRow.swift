@@ -10,6 +10,12 @@ import SwiftUI
 /// 用时钟圆盘；文案口径（数据设计 §3.4）：时间一
 /// 律走 nextRunAt 绝对时刻，取不到回落 scheduleText，
 /// 不编造。本体自 HubCronSection 原行抽出、逐值不变。
+/// §344（中枢四欠账·记录行三段式）：行改三段——左
+/// 方片/圆盘／中题＋计划说明／右段时间列；时间文
+/// 本自中列移入右列（.metaMonospaced 等宽次色，与
+/// 公用行件 ContentRow 右段同角色），中列只留计
+/// 划说明、无下次时刻时回落 scheduleText 的旧兜
+/// 底不变。本行件两面共用、同步同改（行件合一）
 struct CronOverviewRow: View {
     let item: HubCronItem
 
@@ -35,49 +41,71 @@ struct CronOverviewRow: View {
                             .foregroundStyle(Palette.inkSecondary)
                     }
                 }
-                ForEach(textLines, id: \.self) { line in
+                ForEach(planLines, id: \.self) { line in
                     Text(line)
                         .font(.subheadline)
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(1)
                 }
             }
+            Spacer(minLength: OneDayMetrics.spacingS)
+            if !timeLines.isEmpty {
+                VStack(
+                    alignment: .trailing,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    ForEach(timeLines, id: \.self) { line in
+                        Text(line)
+                            .font(.metaMonospaced)
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.inkSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
         }
     }
 
-    /// 行文案（数据设计 §3.4）
-    private var textLines: [String] {
+    /// 中列计划说明（数据设计 §3.4；§344 起时间不
+    /// 进中列）：提醒/每日有下次时刻时中列不出文
+    /// 本（时刻在右列），取不到回落 scheduleText；
+    /// 间隔行给间隔说明；其他周期给计划说明
+    private var planLines: [String] {
+        switch item.kind {
+        case .reminder, .daily:
+            return item.nextRunAt == nil
+                ? [item.job.scheduleText] : []
+        case .interval:
+            if let intervalText = item.intervalText {
+                return [intervalText]
+            }
+            return [item.job.scheduleText]
+        case .otherRecurring:
+            return [item.job.scheduleText]
+        }
+    }
+
+    /// 右段时间列（§344）：提醒＝下次「M月d日」＋
+    /// 「HH:mm」两行；每日＝下次「HH:mm」；间隔＝
+    /// 上次运行相对时刻；其他周期＝下次 short 时刻。
+    /// 取不到时刻返回空列（不编造，与 §3.4 同口径）
+    private var timeLines: [String] {
         switch item.kind {
         case .reminder:
-            guard let next = item.nextRunAt else {
-                return [item.job.scheduleText]
-            }
+            guard let next = item.nextRunAt else { return [] }
             return [
                 AdminFormat.day(next),
                 AdminFormat.timeOnly(next),
             ]
         case .daily:
-            guard let next = item.nextRunAt else {
-                return [item.job.scheduleText]
-            }
+            guard let next = item.nextRunAt else { return [] }
             return [AdminFormat.timeOnly(next)]
         case .interval:
-            var lines: [String] = []
-            if let intervalText = item.intervalText {
-                lines.append(intervalText)
-            } else {
-                lines.append(item.job.scheduleText)
-            }
-            if let last = item.lastRunAt {
-                lines.append("上次运行 \(last.formatted(.relative(presentation: .named)))")
-            }
-            return lines
+            guard let last = item.lastRunAt else { return [] }
+            return ["上次运行 \(last.formatted(.relative(presentation: .named)))"]
         case .otherRecurring:
-            var lines = [item.job.scheduleText]
-            if let next = item.nextRunAt {
-                lines.append(AdminFormat.short(next))
-            }
-            return lines
+            guard let next = item.nextRunAt else { return [] }
+            return [AdminFormat.short(next)]
         }
     }
 

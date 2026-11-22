@@ -243,6 +243,25 @@ public struct LedgerDayGroup: Equatable, Identifiable {
     }
 }
 
+/// 台账行三段派生（§344）：中段副题（状态词＋非时
+/// 间信息）、右段 trailing（时刻/已耗时）、右段注
+/// （仅进行中证据迟滞时的「最后确认 HH:mm:ss」标
+/// 龄，视图在右段第二行呈现）
+public struct LedgerRowParts: Equatable, Sendable {
+    public let subtitle: String
+    public let trailing: String?
+    public let trailingNote: String?
+
+    public init(
+        subtitle: String, trailing: String?,
+        trailingNote: String? = nil
+    ) {
+        self.subtitle = subtitle
+        self.trailing = trailing
+        self.trailingNote = trailingNote
+    }
+}
+
 public enum LedgerBoard {
     /// 按天分组（入参须已定序）：组头口径与动态页同
     /// 源（FeedBoard.groupTitle：今天/昨天/星期X/M月
@@ -312,69 +331,141 @@ public enum LedgerBoard {
         return text
     }
 
-    /// 行副题（状态词＋真信息，规格 §3/§4）：进行中
-    /// 带已耗时秒级值（由视图每秒重算喂 serverNow）；
-    /// 证据迟滞加「最后确认 HH:mm:ss」标龄；失败／
-    /// 取消带原因分类；失联带最后确认时刻。状态词只
-    /// 走 LedgerText 人话，原始枚举不进副题
+    /// 行三段派生（§344，中枢四欠账·记录行三段式）：
+    /// 列表行中段副题与右段 trailing 的单源——副题只
+    /// 留状态词与非时间信息（失败分类），时间与已耗
+    /// 时归右段；证据迟滞的「最后确认 HH:mm:ss」标龄
+    /// 归右段注（trailingNote，仅进行中迟滞时有值，
+    /// 视图在右段第二行呈现）。subtitle(for:) 由本
+    /// 派生重组、整句口径逐字不变（见其实现注）
+    public static func rowParts(
+        for item: LedgerItem, serverNow: Double,
+        calendar: Calendar = .current,
+        locale: Locale = AppLocale.uiLocale
+    ) -> LedgerRowParts {
+        // §217：监测变化是「检出事件」不是一项工作，
+        // 状态词（已完成）会把语义说歪——中段直给事
+        // 件词、检出时刻归右段，与旧监测段的变化行
+        // 同口径
+        if item.kind == .monitor {
+            return LedgerRowParts(
+                subtitle: L10n.string("监测变化", locale: locale),
+                trailing: LedgerClock.time(
+                    item.startedAt, calendar: calendar
+                )
+            )
+        }
+        let word = LedgerText.statusWord(item.status, locale: locale)
+        let elapsed = LedgerElapsed.format(
+            seconds: LedgerElapsed.elapsed(
+                startedAt: item.startedAt, serverNow: serverNow
+            )
+        )
+        switch item.status {
+        case .running:
+            var note: String?
+            if item.evidenceLagging, let at = item.lastEvidenceAt {
+                note = L10n.format(
+                    "最后确认 %@", locale: locale,
+                    LedgerClock.timeWithSeconds(at, calendar: calendar)
+                )
+            }
+            return LedgerRowParts(
+                subtitle: word, trailing: elapsed, trailingNote: note
+            )
+        case .queued, .blockedApproval:
+            return LedgerRowParts(subtitle: word, trailing: elapsed)
+        case .completed:
+            guard let ended = item.endedAt else {
+                return LedgerRowParts(subtitle: word, trailing: nil)
+            }
+            return LedgerRowParts(
+                subtitle: word,
+                trailing: LedgerClock.time(ended, calendar: calendar)
+            )
+        case .failed, .cancelled:
+            var subtitle = word
+            if let category = item.failReason?.category,
+               !category.isEmpty {
+                subtitle = L10n.format(
+                    "%@ · %@", locale: locale, word, category
+                )
+            }
+            return LedgerRowParts(
+                subtitle: subtitle,
+                trailing: item.endedAt.map {
+                    LedgerClock.time($0, calendar: calendar)
+                }
+            )
+        case .stale:
+            return LedgerRowParts(
+                subtitle: L10n.string("已失去联系", locale: locale),
+                trailing: item.lastEvidenceAt.map {
+                    LedgerClock.time($0, calendar: calendar)
+                }
+            )
+        case .other:
+            return LedgerRowParts(subtitle: word, trailing: nil)
+        }
+    }
+
+    /// 行副题整句（状态词＋真信息，规格 §3/§4）：
+    /// §344 起由 rowParts 重组——进行中带已耗时秒级
+    /// 值（由视图每秒重算喂 serverNow）；证据迟滞加
+    /// 「最后确认 HH:mm:ss」标龄；失败／取消带原因
+    /// 分类；失联带最后确认时刻。状态词只走
+    /// LedgerText 人话，原始枚举不进副题。重组与旧
+    /// 逐字输出等值，由 LedgerModelsTests 旧钉死值
+    /// 全绿把守（不许改期待值）
     public static func subtitle(
         for item: LedgerItem, serverNow: Double,
         calendar: Calendar = .current,
         locale: Locale = AppLocale.uiLocale
     ) -> String {
-        // §217：监测变化是「检出事件」不是一项工作，
-        // 状态词（已完成）会把语义说歪——副题直给事
-        // 件词＋检出时刻，与旧监测段的变化行同口径
+        let parts = rowParts(
+            for: item, serverNow: serverNow,
+            calendar: calendar, locale: locale
+        )
         if item.kind == .monitor {
+            guard let trailing = parts.trailing else {
+                return parts.subtitle
+            }
             return L10n.format(
-                "监测变化 · %@", locale: locale,
-                LedgerClock.time(item.startedAt, calendar: calendar)
+                "%@ · %@", locale: locale, parts.subtitle, trailing
             )
         }
-        let word = LedgerText.statusWord(item.status, locale: locale)
         switch item.status {
         case .running:
             var text = L10n.format(
-                "%@ · 已运行 %@", locale: locale, word,
-                LedgerElapsed.format(seconds: LedgerElapsed.elapsed(startedAt: item.startedAt, serverNow: serverNow))
+                "%@ · 已运行 %@", locale: locale,
+                parts.subtitle, parts.trailing ?? ""
             )
-            if item.evidenceLagging, let at = item.lastEvidenceAt {
-                text += L10n.format(
-                    " · 最后确认 %@", locale: locale,
-                    LedgerClock.timeWithSeconds(at, calendar: calendar)
-                )
+            if let note = parts.trailingNote {
+                text += L10n.format(" · %@", locale: locale, note)
             }
             return text
-        case .queued:
+        case .queued, .blockedApproval:
             return L10n.format(
-                "%@ · 已等 %@", locale: locale, word,
-                LedgerElapsed.format(seconds: LedgerElapsed.elapsed(startedAt: item.startedAt, serverNow: serverNow))
-            )
-        case .blockedApproval:
-            return L10n.format(
-                "%@ · 已等 %@", locale: locale, word,
-                LedgerElapsed.format(seconds: LedgerElapsed.elapsed(startedAt: item.startedAt, serverNow: serverNow))
+                "%@ · 已等 %@", locale: locale,
+                parts.subtitle, parts.trailing ?? ""
             )
         case .completed:
-            guard let ended = item.endedAt else { return word }
-            return L10n.format(
-                "%@ · %@", locale: locale, word,
-                LedgerClock.time(ended, calendar: calendar)
-            )
-        case .failed, .cancelled:
-            guard let category = item.failReason?.category,
-                  !category.isEmpty else { return word }
-            return L10n.format("%@ · %@", locale: locale, word, category)
-        case .stale:
-            guard let at = item.lastEvidenceAt else {
-                return L10n.string("已失去联系", locale: locale)
+            guard let trailing = parts.trailing else {
+                return parts.subtitle
             }
             return L10n.format(
-                "已失去联系 · 最后确认 %@", locale: locale,
-                LedgerClock.time(at, calendar: calendar)
+                "%@ · %@", locale: locale, parts.subtitle, trailing
             )
-        case .other:
-            return word
+        case .failed, .cancelled, .other:
+            return parts.subtitle
+        case .stale:
+            guard let trailing = parts.trailing else {
+                return parts.subtitle
+            }
+            return L10n.format(
+                "%@ · 最后确认 %@", locale: locale,
+                parts.subtitle, trailing
+            )
         }
     }
 

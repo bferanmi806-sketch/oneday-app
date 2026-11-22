@@ -279,6 +279,23 @@ public enum MonitorPresentation {
     public static func totalUnread(_ monitors: [BridgeMonitor]) -> Int {
         monitors.reduce(0) { $0 + max($1.unreadChanges, 0) }
     }
+
+    /// 失败原因呈现文案（§344，中枢四欠账·失败给人
+    /// 话）：只在检查失败态给行——服务端 lastError
+    /// 原文先过 §233 用户安全门（ServerErrorText），
+    /// 过门原样、不过门/为空落通用句，不许英文技术
+    /// 串与堆栈直达用户面；非失败态恒 nil（视图不
+    /// 出原因行）
+    public static func failureReasonText(
+        of monitor: BridgeMonitor
+    ) -> String? {
+        guard status(of: monitor) == .failed else { return nil }
+        if let raw = monitor.lastError,
+           let safe = ServerErrorText.userSafe(raw) {
+            return safe
+        }
+        return "检查失败，服务端没给出能显示的原因。"
+    }
 }
 
 // MARK: - 排序（呈现层纯函数）

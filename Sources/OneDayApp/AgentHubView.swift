@@ -365,84 +365,111 @@ struct AgentHubView: View {
     }
 
     private func header(_ store: AgentHubStore) -> some View {
-        // §222（枢纽页对 Muse 重建）：纵向节奏对齐基准
-        // 量测——头像→名字 ≈16、名字→状态 ≈8（旧版统一
-        // spacingS 8 全程紧排，页头显挤）；名字字阶不动
-        // （.title 28 bold 是 HIG Title1 用户定版口径，
-        // 与基准量测同档，见 parity 报告 §1）
+        // §344（中枢四欠账·身份区收紧）：页头由 §222 的
+        // 居中大头像 hero 改横排紧凑式——§222 纵向预算
+        // ≈190pt（头像 avatarPageHead 90＋名上距 16＋名
+        // 行 34＋状态上距 8＋状态行 22＋上下距 20），承
+        // 载信息只有头像/名/一行状态，占高过大；收后
+        // ≈118pt（圆钮行＋身份行横排，收约 72pt）。对
+        // 位设置页身份卡（§164 的横排单源形态：头像
+        // avatarListRow 44＋名/状态纵叠，行高
+        // settingsRowHeight 60）。名字字阶不动（.title
+        // 28 bold 是 HIG Title1 用户定版口径）；avatar
+        // PageHead 令牌本身不动——身份详情页 hero 继续
+        // 用，本面起与详情 hero 分档；§222 的「头像→名
+        // ≈16、名→状态 ≈8」纵向节奏口径由本节横排口
+        // 径覆盖（字阶与状态语义不在覆盖内）
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
+            // 圆钮行（✕ 关闭＋分享名片）：0.36.22 起
+            // 两模式统一常驻——整页呈现下活动模式同
+            // 样需要显式关闭与分享落点（学 Muse 智
+            // 能体页）；0.6.0 的「活动模式撤圆钮行」
+            // 口径由整页化覆盖。§344 起独立成行（旧版
+            // 与头像 ZStack 叠放、靠头像高撑行高）
+            HStack {
+                // 页头圆钮（L1，用户定案③：照样板形态、
+                // 用系统玻璃原生件拼装）
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.circle)
+                // 第 83 条（命中域收口）：玻璃盘 36 不
+                // 变（样式按标签帧成盘）、命中域在钮外
+                // 层外扩 44；负内边距抵消外扩、页头行
+                // 布局不动
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
+                .accessibilityLabel("关闭")
+
+                Spacer()
+
+                shareButton(store)
+            }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+
+            // 身份行（§344）：头像菜单＋名/状态纵叠，
+            // 与设置页身份卡同几何（spacingSM 横距、
+            // spacingMicro 题副紧排）
+            HStack(spacing: OneDayMetrics.spacingSM) {
                 avatarBlock
-                // 圆钮行（✕ 关闭＋分享名片）：0.36.22 起
-                // 两模式统一常驻——整页呈现下活动模式同
-                // 样需要显式关闭与分享落点（学 Muse 智
-                // 能体页）；0.6.0 的「活动模式撤圆钮行」
-                // 口径由整页化覆盖
-                HStack {
-                    // 页头圆钮（L1，用户定案③：照样板形态、
-                    // 用系统玻璃原生件拼装）
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .frame(width: 36, height: 36)
-                    }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.circle)
-                    // 第 83 条（命中域收口）：玻璃盘 36 不
-                    // 变（样式按标签帧成盘）、命中域在钮外
-                    // 层外扩 44；负内边距抵消外扩、页头行
-                    // 布局不动
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
-                    .padding(-(OneDayMetrics.minTapTarget - 36) / 2)
-                    .accessibilityLabel("关闭")
 
-                    Spacer()
-
-                    shareButton(store)
-                }
-                .padding(.horizontal, OneDayMetrics.pageGutter)
-            }
-
-            Text(store.displayName)
-                .font(.title)
-                .fontWeight(.bold)
-                .lineLimit(1)
-                .padding(.top, OneDayMetrics.spacingM)
-
-            // 状态行（结构归位包，D4-1）：第一语义＝
-            // 当前活动——台账有进行中条目时显活动行
-            // （转圈＋人话标题），连接状态降为兜底
-            // （无进行中时回落圆点＋现行状态词）
-            HStack(spacing: OneDayMetrics.rowInnerGap) {
-                if let activityLine = hubActivityLine {
-                    ProgressView()
-                        .controlSize(.mini)
-                    Text(activityLine)
-                        .font(.body)
-                        .foregroundStyle(Palette.inkSecondary)
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(store.displayName)
+                        .font(.title)
+                        .fontWeight(.bold)
                         .lineLimit(1)
-                } else {
-                    Circle()
-                        .fill(store.isOnline ? Palette.success : Palette.inkMuted)
-                        .frame(width: 8, height: 8)
-                    Text(store.statusText)
-                        .font(.body)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(1)
+
+                    statusLine(store)
                 }
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingS)
         }
         .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingSM)
+        .padding(.bottom, OneDayMetrics.spacingS)
     }
 
-    /// 大头像＋编辑徽章（L2，用户定案④打包）：头像
+    /// 状态行（结构归位包，D4-1）：第一语义＝
+    /// 当前活动——台账有进行中条目时显活动行
+    /// （转圈＋人话标题），连接状态降为兜底
+    /// （无进行中时回落圆点＋现行状态词）。§344
+    /// 起自页头抽出独立件、搬入身份行名下，语义
+    /// 与派生不动
+    private func statusLine(_ store: AgentHubStore) -> some View {
+        HStack(spacing: OneDayMetrics.rowInnerGap) {
+            if let activityLine = hubActivityLine {
+                ProgressView()
+                    .controlSize(.mini)
+                Text(activityLine)
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            } else {
+                Circle()
+                    .fill(store.isOnline ? Palette.success : Palette.inkMuted)
+                    .frame(width: 8, height: 8)
+                Text(store.statusText)
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    /// 头像＋编辑角标（L2，用户定案④打包）：头像
     /// 0.6.0 换三狗搭档款定版图（蓝图 §3.10：吉祥物用
     /// 自有 IP，不借 OpenMuse 水豚；素材源
     /// ~/workspace/ip-design/STYLE-partner.webp 裁头入
@@ -455,58 +482,61 @@ struct AgentHubView: View {
     /// 档案菜单——「更换虚拟形象」「编辑名称」改的是
     /// 本机档案（AgentProfileStore），不是服务器身份；
     /// 身份段仍在段列里、服务端身份编辑口径不变。
+    /// §344（身份区收紧）：头像降 avatarListRow 44 档
+    /// （与设置页身份卡同档）；菜单改整头像承载——
+    /// 点头像任意处出菜单（旧版仅角标 44 命中域），
+    /// 铅笔角标降为纯提示件：18pt 圆＋badgeGlyphSize
+    /// 字形（借定时行 L5 角标先例：CronOverviewRow），
+    /// Palette.surface 底＋hairline 描边＋浮件档阴影
     private var avatarBlock: some View {
-        ZStack(alignment: .bottomTrailing) {
-            appState.agentAvatarImage
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: OneDayMetrics.avatarPageHead,
-                    height: OneDayMetrics.avatarPageHead
-                )
-                .clipShape(Circle())
-                .overlay {
-                    Circle().stroke(Palette.hairline, lineWidth: 0.5)
-                }
-
-            Menu {
-                Button {
-                    showAvatarEditor = true
-                } label: {
-                    Label("更换虚拟形象", systemImage: "person.crop.circle")
-                }
-                Button {
-                    showNameEditor = true
-                } label: {
-                    Label("编辑名称", systemImage: "pencil")
-                }
+        Menu {
+            Button {
+                showAvatarEditor = true
             } label: {
-                Image(systemName: "pencil")
-                    .font(.system(size: FrameworkIcon.composerGlyphSize, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Palette.surface, in: Circle())
+                Label("更换虚拟形象", systemImage: "person.crop.circle")
+            }
+            Button {
+                showNameEditor = true
+            } label: {
+                Label("编辑名称", systemImage: "pencil")
+            }
+        } label: {
+            ZStack(alignment: .bottomTrailing) {
+                appState.agentAvatarImage
+                    .resizable()
+                    .scaledToFill()
+                    .frame(
+                        width: OneDayMetrics.avatarListRow,
+                        height: OneDayMetrics.avatarListRow
+                    )
+                    .clipShape(Circle())
                     .overlay {
                         Circle().stroke(Palette.hairline, lineWidth: 0.5)
                     }
-                    // §247.3 档 F 浮件档（阴影两档之一）
-                    .shadow(
-                        color: Palette.shadowBase.opacity(
-                            ElevationTokens.floatingOpacity
-                        ),
-                        radius: ElevationTokens.floatingRadius,
-                        y: ElevationTokens.floatingY
-                    )
-                    // 0.23.0（命中域审计）：视觉盘 36 不变、
-                    // 命中域外扩 44（盘居中）
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
+
+                ZStack {
+                    Circle().fill(Palette.surface)
+                    Circle().stroke(Palette.hairline, lineWidth: 0.5)
+                    Image(systemName: "pencil")
+                        .font(.system(
+                            size: FrameworkIcon.badgeGlyphSize,
+                            weight: .bold
+                        ))
+                        .foregroundStyle(Palette.ink)
+                }
+                .frame(width: 18, height: 18)
+                // §247.3 档 F 浮件档（阴影两档之一）
+                .shadow(
+                    color: Palette.shadowBase.opacity(
+                        ElevationTokens.floatingOpacity
+                    ),
+                    radius: ElevationTokens.floatingRadius,
+                    y: ElevationTokens.floatingY
+                )
             }
-            .accessibilityLabel("编辑头像与名称")
+            .contentShape(Circle())
         }
+        .accessibilityLabel("编辑头像与名称")
     }
 
     /// 页头状态行第一语义＝当前活动（结构归位包，
