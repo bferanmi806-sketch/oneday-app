@@ -68,6 +68,8 @@ final class SettingsCatalogTests: XCTestCase {
             .mainSession,
             // H1-a 新增（台账 158）
             .healthCheck,
+            // H13 新增（台账 33，DESIGN §357）
+            .connectionSelfCheck,
             // 结构归位新增（断开连接动作）
             .disconnect,
             // H2-a 新增（台账 159）
@@ -89,15 +91,17 @@ final class SettingsCatalogTests: XCTestCase {
         )
     }
 
-    /// 台账 198 收敛后：serverAndWorkspace 组十二行
+    /// 台账 198 收敛后：serverAndWorkspace 组十三行
     /// ——四段序（服务器→会话→工作区→维护）；重启网
     /// 关行退役（S4）、语音行迁偏好组（S13）、添加
-    /// 设备入服务器段（S13）
+    /// 设备入服务器段（S13）；连接自检入服务器段末
+    /// （H13，台账 33，DESIGN §357）
     func testServerAndWorkspaceGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
             [
                 "server", "addDevice", "gateway", "logs", "usage",
+                "connectionSelfCheck",
                 "mainSession", "serverSessions",
                 "status", "computer", "serverFiles",
                 "envVars", "healthCheck",
@@ -117,7 +121,7 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(
             segments.map { $0.entries.map(\.id) },
             [
-                ["server", "addDevice", "gateway", "logs", "usage"],
+                ["server", "addDevice", "gateway", "logs", "usage", "connectionSelfCheck"],
                 ["mainSession"],
                 ["status", "computer", "serverFiles"],
                 ["envVars", "healthCheck"],

@@ -234,6 +234,8 @@ struct SettingsView: View {
                     )
                 case .healthCheck:
                     HealthCheckView()
+                case .connectionSelfCheck:
+                    ConnectionSelfCheckView()
                 case .status:
                     // 状态详情页落位（合流对接点 2026-11-20）：
                     // 会话点按走全 App 同一路由通道（与枢纽
@@ -450,6 +452,17 @@ struct SettingsView: View {
             } else {
                 catalogNavRow(entry)
             }
+        case .connectionSelfCheck:
+            if let lastSelfCheckWord {
+                statusNavRow(
+                    icon: iconName(for: entry),
+                    title: L10n.string(entry.title),
+                    status: lastSelfCheckWord,
+                    route: .connectionSelfCheck
+                )
+            } else {
+                catalogNavRow(entry)
+            }
         case .status:
             statusNavRow(
                 icon: iconName(for: entry),
@@ -492,6 +505,16 @@ struct SettingsView: View {
         healthSummaryStore
             .summary(for: appState.config?.baseString)?
             .overall.word
+    }
+
+    /// 自检留痕（DESIGN §357，与体检同式共读）：
+    /// 「连接自检」行副题的上次一词结论
+    @State private var selfCheckSummaryStore = SelfCheckSummaryStore.shared
+
+    private var lastSelfCheckWord: String? {
+        selfCheckSummaryStore
+            .summary(for: appState.config?.baseString)?
+            .word
     }
 
     /// 朗读可用性一词（原服务器管理页同源同读法）：
@@ -693,6 +716,7 @@ struct SettingsView: View {
         case .status: return .status
         case .mainSession: return .mainSession
         case .healthCheck: return .healthCheck
+        case .connectionSelfCheck: return .connectionSelfCheck
         case .voice: return .voice
         case .addDevice: return .addDevice
         case .chatDiagnostics: return .chatDiagnostics
@@ -732,6 +756,7 @@ struct SettingsView: View {
         // prototype-2 叶子（枢纽页四行图标随页退役）
         case "mainSession": return "link"
         case "healthCheck": return "stethoscope"
+        case "connectionSelfCheck": return "antenna.radiowaves.left.and.right"
         case "status": return "waveform.path.ecg"
         case "voice": return "speaker.wave.2"
         case "addDevice": return "qrcode"

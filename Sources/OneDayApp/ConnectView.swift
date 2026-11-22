@@ -66,6 +66,10 @@ struct ConnectView: View {
     /// needed() 判定走 Core OnboardingGuide 单源）
     @State private var notificationState: DevicePermissionState?
     @State private var showScanner = false
+    /// 连接自检深链（H13，DESIGN §357）：失败面出口
+    /// ——对着刚填的候选地址（＋密钥模式下已填的密钥）
+    /// 跑一轮只读自检，逐项看卡在哪一层
+    @State private var showSelfCheck = false
     @State private var isConnecting = false
     @State private var appeared = false
 
@@ -133,6 +137,16 @@ struct ConnectView: View {
                         Button("取消") { showScanner = false }
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showSelfCheck) {
+            NavigationStack {
+                ConnectionSelfCheckView(target: selfCheckTarget)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("完成") { showSelfCheck = false }
+                        }
+                    }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
@@ -595,8 +609,9 @@ struct ConnectView: View {
         }
     }
 
-    /// 失败面（按型分面）：三出口恒在——重新连接／修改
-    /// 连接信息／查看连接帮助
+    /// 失败面（按型分面）：四出口恒在——重新连接／修改
+    /// 连接信息／查看连接帮助／查看连接自检（H13 深链，
+    /// DESIGN §357：对候选地址跑一轮只读探活逐项定位）
     private func failureFace(_ failure: OnboardingFailure) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             orb(systemImage: "exclamationmark.triangle", isDanger: true)
@@ -624,8 +639,27 @@ struct ConnectView: View {
                 .foregroundStyle(Palette.primary)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: OneDayMetrics.minTapTarget)
+            Button("查看连接自检") { showSelfCheck = true }
+                .font(.callout)
+                .foregroundStyle(Palette.primary)
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: OneDayMetrics.minTapTarget)
         }
         .padding(.top, OneDayMetrics.spacingXXL)
+    }
+
+    /// 自检深链的探针目标：候选地址按表单原文归一化
+    /// （与提交时同式）；密钥只在密钥模式且已填时带
+    /// 上——密码模式此阶段还没有 API 密钥，带鉴权面
+    /// 在自检里如实显未探
+    private var selfCheckTarget: ConnectionSelfCheckView.Target? {
+        guard let config = ServerConfig(rawInput: serverText) else {
+            return nil
+        }
+        let key = mode == .key && !apiKey.isEmpty ? apiKey : nil
+        return ConnectionSelfCheckView.Target(
+            config: config, apiKey: key
+        )
     }
 
     private func orb(systemImage: String, isDanger: Bool = false) -> some View {

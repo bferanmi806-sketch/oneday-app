@@ -110,6 +110,12 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 「维护」段子项，结构归位后提回根页服务器组——
     /// 自检＋安全审计＋结论留痕
     case healthCheck
+    /// 连接自检面（H13，台账 33，DESIGN §357）：客
+    /// 户端只读探活的驻留面——连接/服务状态/服务器
+    /// 能力/扩展能力逐项实测结论＋留痕。与体检分工
+    /// 写死：体检＝服务端深检（跑 action、分钟级），
+    /// 自检＝客户端探活（全只读 GET、秒级）
+    case connectionSelfCheck
     /// 断开连接（动作目的地）：原服务器管理页页底动
     /// 作，归位后落根页服务器组末行＋搜索点达，两路
     /// 都经 SettingsView 的确认框执行（口径不变）
@@ -273,6 +279,16 @@ public enum SettingsCatalog {
             summary: "模型用量统计",
             keywords: ["统计", "消耗", "token", "usage"],
             destination: .usage, segment: .server
+        ),
+        // 连接自检（H13，台账 33，DESIGN §357）：服
+        // 务器段末行——连接语义归服务器段，与维护段
+        // 的体检（服务端深检）同组分工、页内互链
+        SettingsCatalogEntry(
+            id: "connectionSelfCheck", group: .serverAndWorkspace,
+            title: "连接自检",
+            summary: "逐项检查连接、服务状态与服务器能力",
+            keywords: ["连接", "自检", "能力", "诊断", "探活", "capabilities", "self check", "health"],
+            destination: .connectionSelfCheck, segment: .server
         ),
         SettingsCatalogEntry(
             id: "mainSession", group: .serverAndWorkspace,

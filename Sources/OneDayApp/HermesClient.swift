@@ -28,6 +28,17 @@ protocol HermesClientProtocol: Sendable {
     func configSummary(config: ServerConfig) async throws -> ServerConfigSummary
     /// 探活三：GET /v1/models（Bearer API 密钥），返回模型 id 列表
     func models(config: ServerConfig, apiKey: String) async throws -> [String]
+    /// GET /v1/capabilities（Bearer）：能力发现正源
+    /// ——静态旗标＋端点表（部署包补丁能力不在广告
+    /// 内，靠下方探针补齐；DESIGN §357 连接自检）
+    func capabilities(
+        config: ServerConfig, apiKey: String
+    ) async throws -> CapabilitiesResponse
+    /// GET /health/detailed（Bearer）：深度健康——
+    /// readiness 逐项检查＋网关/平台/今日指标
+    func healthDetailed(
+        config: ServerConfig, apiKey: String
+    ) async throws -> HealthDetailedResponse
     /// POST /v1/chat/completions 流式：逐段产出通道事件
     /// （正文增量／思考增量分开，0.5.1 §32）
     /// sessionID（0.21.0）：非 nil 时带 X-Hermes-Session-Id
@@ -490,6 +501,25 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, apiKey: String, patternKey: String
     ) async throws -> GrantRevocationReceipt
 
+    // MARK: 待批聚合与只读探针（部署包批 2；DESIGN §357 连接自检）
+
+    /// GET /v1/approvals（Bearer）：跨会话待批聚合
+    /// ——待批计数＋账本降级旗（部署包 1.2.0）；投
+    /// 影模块不可用回 503 approval_projection_
+    /// unavailable，连码上行供呈现层分型
+    func listApprovals(
+        config: ServerConfig, apiKey: String
+    ) async throws -> ApprovalsListResponse
+    /// 只读路由探针（连接自检专用）：GET 指定路径，
+    /// 只回状态码＋服务端错误码、永不抛错——传输失
+    /// 败回 nil（呈现层据此显「未探」，不下结论）。
+    /// 判据按部署包 CAPABILITIES 探针法（405＝POST
+    /// 路由在位；404 结合错误码分流）。apiKey 为 nil
+    /// 时不带 Bearer（免鉴权路由照探）
+    func routeProbe(
+        config: ServerConfig, apiKey: String?, path: String
+    ) async -> RouteProbeResult?
+
     // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
 
     /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
@@ -704,6 +734,41 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         }
     }
 
+    /// Bearer GET＋解码（网关面只读三式：能力发现/深
+    /// 度健康/待批聚合）：401/403 → apiKeyRejected；
+    /// 带错误码的非 200 → serverError 连码上行供呈
+    /// 现层分型；其余非 200 → unexpectedStatus（与
+    /// listGrants 同口径，DESIGN §357）
+    private func bearerGetJSON<T: Decodable>(
+        config: ServerConfig, apiKey: String, path: String,
+        endpoint: String
+    ) async throws -> T {
+        var request = URLRequest(url: config.endpoint(path))
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        let (data, http) = try await dataRequest(request)
+        guard http.statusCode == 200 else {
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            if let code = Self.gatewayErrorCode(from: data) {
+                throw HermesError.serverError(
+                    endpoint: endpoint, status: http.statusCode,
+                    code: code
+                )
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: endpoint, status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(endpoint: endpoint)
+        }
+    }
+
     /// 带 JSON body 的写请求：2xx 即成功，不解码响应体
     /// （各写接口的回执形态不一，调用方需要新状态时自行重拉）。
     private func sendJSON(
@@ -827,6 +892,24 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(endpoint: L10n.string("模型接口"))
         }
+    }
+
+    func capabilities(
+        config: ServerConfig, apiKey: String
+    ) async throws -> CapabilitiesResponse {
+        try await bearerGetJSON(
+            config: config, apiKey: apiKey, path: "/v1/capabilities",
+            endpoint: L10n.string("能力接口")
+        )
+    }
+
+    func healthDetailed(
+        config: ServerConfig, apiKey: String
+    ) async throws -> HealthDetailedResponse {
+        try await bearerGetJSON(
+            config: config, apiKey: apiKey, path: "/health/detailed",
+            endpoint: L10n.string("深度健康接口")
+        )
     }
 
     // MARK: - 流式聊天
@@ -2513,6 +2596,35 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
     }
 
     // MARK: - 消息反应（台账 187）
+
+    func listApprovals(
+        config: ServerConfig, apiKey: String
+    ) async throws -> ApprovalsListResponse {
+        try await bearerGetJSON(
+            config: config, apiKey: apiKey, path: "/v1/approvals",
+            endpoint: L10n.string("待批接口")
+        )
+    }
+
+    func routeProbe(
+        config: ServerConfig, apiKey: String?, path: String
+    ) async -> RouteProbeResult? {
+        var request = URLRequest(url: config.endpoint(path))
+        request.timeoutInterval = 15
+        if let apiKey {
+            request.setValue(
+                "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+            )
+        }
+        // 探针永不抛错：传输失败回 nil（未探），HTTP
+        // 状态与错误码原样带回供 Core 判据分流
+        guard let (data, http) = try? await dataRequest(request)
+        else { return nil }
+        return RouteProbeResult(
+            status: http.statusCode,
+            errorCode: Self.gatewayErrorCode(from: data)
+        )
+    }
 
     func setReaction(
         config: ServerConfig, apiKey: String,
