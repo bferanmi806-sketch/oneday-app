@@ -503,6 +503,142 @@ public enum SessionDeleteDirective: Sendable, Equatable {
     }
 }
 
+/// D3/D2 rewind 请求体（DESIGN §352，批 0 实测契约）：
+/// `POST /api/sessions/{id}/rewind`——四字段缺一不可：
+/// target 必须 Int 直发（服务端 validate_action 要求
+/// `type is int and >0`，按 string 发必吃 400 invalid_
+/// params）；expected_generation 在围栏集内、缺失必被
+/// 端点层以「Invalid rewind payload」拒。专用 Encodable
+/// 结构体直编——不走 JSONValue.number(Double)，避免整
+/// 数被编成浮点字面量（契约测试以编码串钉死）
+public struct RewindRequest: Encodable, Sendable, Equatable {
+    public let requestID: String
+    public let expectedRevision: Int
+    public let expectedGeneration: Int
+    public let targetMessageID: Int
+
+    public init(
+        requestID: String, expectedRevision: Int,
+        expectedGeneration: Int, targetMessageID: Int
+    ) {
+        self.requestID = requestID
+        self.expectedRevision = expectedRevision
+        self.expectedGeneration = expectedGeneration
+        self.targetMessageID = targetMessageID
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case requestID = "request_id"
+        case expectedRevision = "expected_revision"
+        case expectedGeneration = "expected_generation"
+        case targetMessageID = "target_message_id"
+    }
+}
+
+/// rewind 200 回执（批 0 真调用实测形态，2026-11-22）：
+/// {ok, session_id, revision（新）, execution_generation
+/// （新）, operation: "rewind", rewound_count, target_
+/// message{…行全字段}, new_head_id, replacement_message
+/// _id}。客户端不定状态于回执——成败以事后 transcript
+/// 对账为真源（施工图 §一），本模型只作留痕/测试钉；
+/// 行 id 在 JSON 里是整数，但解码口径与 SessionMessage
+/// .id 同律走 Double 再 Int(exactly:) 收口，防服务端
+/// 序列化形态漂移把整包打死
+public struct RewindReceipt: Decodable, Sendable {
+    public let ok: Bool?
+    public let sessionID: String?
+    public let revision: Int?
+    public let executionGeneration: Int?
+    public let operation: String?
+    public let rewoundCount: Int?
+    private let newHeadIDValue: Double?
+    private let replacementMessageIDValue: Double?
+
+    public var newHeadRowID: Int? {
+        newHeadIDValue.flatMap { Int(exactly: $0) }
+    }
+
+    public var replacementMessageRowID: Int? {
+        replacementMessageIDValue.flatMap { Int(exactly: $0) }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case ok
+        case sessionID = "session_id"
+        case revision
+        case executionGeneration = "execution_generation"
+        case operation
+        case rewoundCount = "rewound_count"
+        case newHeadIDValue = "new_head_id"
+        case replacementMessageIDValue = "replacement_message_id"
+    }
+
+    public init(
+        ok: Bool? = nil, sessionID: String? = nil,
+        revision: Int? = nil, executionGeneration: Int? = nil,
+        operation: String? = nil, rewoundCount: Int? = nil,
+        newHeadRowID: Int? = nil, replacementMessageRowID: Int? = nil
+    ) {
+        self.ok = ok
+        self.sessionID = sessionID
+        self.revision = revision
+        self.executionGeneration = executionGeneration
+        self.operation = operation
+        self.rewoundCount = rewoundCount
+        self.newHeadIDValue = newHeadRowID.map(Double.init)
+        self.replacementMessageIDValue = replacementMessageRowID
+            .map(Double.init)
+    }
+}
+
+/// rewind 失败分类器（DESIGN §352，照 SessionDelete-
+/// Directive 同构）：输入 (HTTP 状态, detail 码本体)，
+/// 码字面以批 0 实测为准——target 指 assistant 行 →
+/// 400 invalid_params；过期 generation → 409 stale_
+/// generation；缺 generation 是端点层 400（客户端恒
+/// 带、归 fail 不重试）
+public enum RewindDirective: Sendable, Equatable {
+    /// 2xx：截断已落，进提交步
+    case done
+    /// 409 围栏冲突（stale_generation/revision_
+    /// conflict）：先对账（尾行已截断＝回执丢失的假
+    /// 冲突、直接 done），未截断才以新围栏重试
+    case reconcileConflict
+    /// session_busy：短等（1.5s/3s，DELETE 先例档
+    /// 位）后重读再试
+    case retryAfterBusy
+    /// 400 invalid_params：目标不合法（assistant 行/
+    /// 未知 id/已回收行），不重试
+    case failInvalidTarget
+    /// 其余（鉴权/服务器错/未知码/端点层拒）：如实
+    /// 上抛，不盲重试
+    case fail
+
+    public static func directive(
+        status: Int, serverCode: String?
+    ) -> RewindDirective {
+        if (200...299).contains(status) {
+            return .done
+        }
+        switch status {
+        case 409:
+            switch serverCode {
+            case "stale_generation", "revision_conflict":
+                return .reconcileConflict
+            case "session_busy":
+                return .retryAfterBusy
+            default:
+                return .fail
+            }
+        case 400:
+            return serverCode == "invalid_params"
+                ? .failInvalidTarget : .fail
+        default:
+            return .fail
+        }
+    }
+}
+
 public struct SessionsPage: Decodable, Sendable {
     public let sessions: [ServerSession]
     public let total: Int?

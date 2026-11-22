@@ -14348,3 +14348,41 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 ### §350.4 本包动点与域协调
 
 - 零代码改动：未动 ChatView 顶栏/气泡装配、未动任何呈现层，与在飞 `feat/stream-incremental` 零交集、无合并仲裁项。HapticsMatrixTests 随本包复跑全绿（零新触感自证）。
+
+## §352 D3 编辑已发消息重发＋D2 重新生成（2026-11-22；分支 feat/d3-d2-client，基线 rel-05085@a744ae9＝0.50.85/213；施工图 oneday-design-review/d3-d2-client-design-20261122.md，服务端契约＝部署包 1.1.0 批 0 真调用实测）
+
+台账 D3/D2 落码。契约前提已全部坐实（批 0 回填施工图 §十一 1–3）：rewind 后 target 行**移除**、尾停前一行；200 回执含新 revision/generation 与 rewound_count；负例字面＝400 `invalid_params`（target 非 user 行）／409 `stale_generation`（围栏过期）。
+
+### §352.1 契约层（Core，HermesAdminModels）
+
+- `RewindRequest`：专用 Encodable 直编四字段（request_id 每试新铸／expected_revision／expected_generation／target_message_id **Int 直发**），不走 JSONValue.number(Double)；编码串由 RewindContractTests 钉死 `"target_message_id":123` 整数字面。
+- `RewindDirective`：照 SessionDeleteDirective 同构——200→done；409＋stale_generation/revision_conflict→reconcileConflict；409＋session_busy→retryAfterBusy；400＋invalid_params→failInvalidTarget；其余 fail。
+- `RewindReceipt`：宽容解码（行 id 走 Double→Int(exactly:) 同 SessionMessage 口径）；客户端不定状态于回执，成败以事后 transcript 对账为真源。
+
+### §352.2 客户端编排（HermesClient.rewindSession）
+
+快照现读（mutation-snapshot，身份唯一源）→组请求→POST→分类器分流：冲突/网络未知一律**先对账**（GET messages 最大行 id＝＝predecessorRowID 即已截断→done，防回执丢失二次截断）；未截断且围栏未变才重发（冲突 ≤2、busy 1.5s/3s ≤3、瞬断重发 ≤1）。身份读不到 fail-closed（exists=false/404→invalidTarget、revision/generation 缺失→decodingFailed、什么都不发）。定性失败抛 `RewindError`（invalidTarget/conflictExhausted），busy 耗尽抛 HermesError.sessionBusy。Demo 侧按 C-13 只加一行 demoLimitReached 桩。
+
+### §352.3 动作面与门控
+
+- Kind 加 `.editSent`／`.regenerate`，组装在回复/旁聊之后、复制之前同位成组；朗读恒末尾不破；发件箱项集恒不组装（注入侧门控＋组装侧 isOutbox 再守一道）。符号：编辑＝pencil（与未发编辑同名同图符、互斥在席），重新生成＝arrow.counterclockwise，均入 MessageActionSymbols.all。
+- 门控单点谓词（ChatEntry）：`canEditSent`（user＋已钉桩＋已落定）／`canRegenerateCandidate`（assistant＋已落定）；线程级条件（当前线程、已绑 serverSessionID、无在飞 run/流式）在 ChatView 呈现时刻求值（editSentAvailable/regenerateAvailable），D2 另加「最后一条已落定助手条目＋regenerationTurn 可切分」。
+- 轮次切分纯函数 `RewindTurnSlicing`（App）：tail/predecessorRowID/roundsAfter/lastSettledAssistant/regenerationTurn 单点裁决，两流共用；regenerationTurn 的 target 恒为 user 行 id，user 未钉桩整流不出。
+
+### §352.4 D3 流（ChatView）
+
+点「编辑」→守卫（舱占用/run 在飞先拦，同未发编辑文案）→正文/图片/引用回收进舱＋武装（editSentTarget），原条目一字不动；输入舱顶出编辑横幅（与引用块同位同式，✕ 解武装清舱）。点发送→非末轮（roundsAfter>0）先弹破坏性确认（N 轮实算、明示不可恢复，取消回编辑态舱不动）；末轮直走。发送段：待发条目落盘（.queued＋文件暂存）→乐观隐藏 target 起条目（rewindHiddenEntryIDs 仅 renderPlan 显示层过滤、入缓存戳）→rewind→成功真删旧段→launchTurn 汇入既有管线（幂等键 driveRun 现铸）；失败全回滚（删待发条目、解隐藏、稿回填舱、§五专属句）。target 本轮文件凭 remoteFilePaths 预置路径随行（resendFailedEntry 同路），新加文件走上传。
+
+### §352.5 D2 流（ChatView）
+
+末条助手条目点「重新生成」：一键、不确认、不进舱。乐观隐藏助手段→rewind（target＝本轮 user 行）→成功真删助手段、user 条目原位保留；崩溃守卫＝rewind 成功瞬间给 user 条目预置 .failed 落盘（被杀→手点重发链补提），随即按 resendFailedEntry 同式清 sendFailed 进 .queued（被杀→发件箱自动接管），两路都不重复 rewind。重提走 resendFilePayloads＋remoteFilePaths 预置＋seedEntries dropLast＋outgoingContext，与失败重发同链同形；新幂等键由 driveRun 现铸。
+
+### §352.6 与施工图的偏差（两处，均有据）
+
+1. **D2 文件随行**：施工图 §八·5 假设落定后文件载荷已清、重提只能带正文＋图片，按 (a) 案「照常重提＋notice 告知未随行」。落码实查推翻前提：落定条目的文件回执路径恒写回 `entry.remoteFilePaths`（§121 发送回填），且失败重发链（resendFailedEntry）正是凭预置路径让文件随行——本包同路接线后文件**随行**、无未随行面，(a) 的 notice 无触发条件、不落死代码。残余：导入存量中无 remoteFilePaths 的老轮次，其文件牌本就不呈现（文件牌唯一数据源即 remoteFilePaths），无可见损失。
+2. **流程钉测落点**：施工图 §九流程钉测设想以假客户端驱动 ChatView 全流；本仓测试基建的假客户端（FailingHermesClient）只支持离线装配、无脚本化回放，ChatView 私有流不可直驱。本包以可测层全覆盖替代：契约钉测（Core 全矩阵）＋组装钉测＋门控真值表＋切分纯函数钉测（target 恒 user 行/段切分/N 数/前行 id）；网络编排照 DELETE 生产先例同构、由分类器钉测把守分支。真机门按施工图 §十留用户。
+3. **触感矩阵台账更新**：D3 编辑重发的发送路径是「发送」事件的第二落点，`Haptics.impact(.light)` 在 ChatView 内 2→3、全仓 5→6；D3 失败回滚与 D2 失败各加一 `Haptics.error()` 落点（与失败 notice 同点），全仓 52→54。HapticsMatrixTests 期望值已按既有台账惯例同步更新并注明出处。
+
+### §352.7 不做版本切换器（定案重申）
+
+Hermes 只有一条 active transcript、无分支存储，rewind 即截断——造 ‹n/n› 切换器即僵尸功能，禁。代偿＝D3 非末轮破坏性确认＋明示不可恢复（§352.4）。

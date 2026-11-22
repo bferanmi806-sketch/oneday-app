@@ -141,6 +141,11 @@ public enum MessageActionSymbols {
     public static let resend = "arrow.clockwise"
     public static let editUnsent = "pencil"
     public static let withdrawUnsent = "trash"
+    /// D3（DESIGN §352）：已发消息「编辑」——与未发
+    /// 编辑同名同图符（两项互斥在席、永不并存）
+    public static let editSent = "pencil"
+    /// D2（DESIGN §352）：末轮回答「重新生成」
+    public static let regenerate = "arrow.counterclockwise"
     /// 0.50.80 热修：长按菜单「添加反应」子菜单图符
     public static let react = "face.smiling"
     /// D1（台账 5）：播放条主钮——暂停/继续
@@ -151,5 +156,6 @@ public enum MessageActionSymbols {
         reply, copy, select, share, fork, speak, speakStop,
         speakPause, speakResume, react,
         resend, editUnsent, withdrawUnsent,
+        editSent, regenerate,
     ]
 }

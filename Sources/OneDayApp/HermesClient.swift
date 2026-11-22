@@ -243,6 +243,19 @@ protocol HermesClientProtocol: Sendable {
     /// （官方契约，身份读 mutation-snapshot）；收口按
     /// 错误码分流，身份读不到不许裸发（报告 §1.4）
     func deleteServerSession(config: ServerConfig, id: String) async throws
+    /// POST /api/sessions/{id}/rewind（D3/D2，DESIGN
+    /// §352；部署包 1.1.0 批 0 实测契约）：把服务端
+    /// transcript 截断到 target 行之前（target 及其后
+    /// 全部移除）。身份走 mutation-snapshot 现读、
+    /// request_id 每试新铸；409 先对账防回执丢失的二
+    /// 次截断。predecessorRowID＝target 的前一行服务
+    /// 端行 id（无前行传 nil＝截断后尾应为空），只供
+    /// 对账比对。定性失败抛 RewindError，其余抛
+    /// HermesError
+    func rewindSession(
+        config: ServerConfig, id: String,
+        targetMessageID: Int, predecessorRowID: Int?
+    ) async throws -> RewindReceipt
     /// GET /api/sessions/empty/count
     func emptySessionCount(config: ServerConfig) async throws -> Int
     // §241：DELETE /api/sessions/empty（无围栏裸删）与
@@ -1386,6 +1399,24 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         return (http.statusCode, data)
     }
 
+    /// sendRaw 的带体形（D3/D2 rewind 用）：围栏写口
+    /// 的拒因同样在 body detail 码里，状态与响应体都
+    /// 要带回分流；请求体走专用 Encodable 直编（整数
+    /// 字段不许经 JSONValue.number(Double) 转手）
+    private func sendRawJSON<Body: Encodable>(
+        config: ServerConfig, path: String, method: String,
+        body: Body
+    ) async throws -> (status: Int, body: Data) {
+        var request = URLRequest(url: url(config: config, path: path))
+        request.httpMethod = method
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try JSONEncoder().encode(body)
+        let (data, http) = try await dataRequest(request)
+        return (http.statusCode, data)
+    }
+
     func createServerSession(config: ServerConfig, apiKey: String, id: String?, title: String?) async throws -> ServerSession {
         // 0.27.0：网关面 Bearer 送达（见协议注）；请求
         // 体组装走 Core 纯函数（单测把守形态）
@@ -1576,6 +1607,130 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
                 break
             }
             throw HermesError.unexpectedStatus(endpoint: endpoint, status: status)
+        }
+    }
+
+    /// rewind 落地（DESIGN §352）：与 deleteServer-
+    /// Session 同构的围栏写口——快照现读→组 Rewind-
+    /// Request（request_id 每试新铸）→POST→Core 的
+    /// RewindDirective 分流。冲突先对账：回执可能已
+    /// 在服务端落了截断却丢在路上，先比尾行（GET
+    /// messages 最大行 id＝＝predecessorRowID，或无
+    /// 前行且列表为空）——已截断直接 done，不许对同
+    /// 一 target 二次 POST（第二次的 target 已不在，
+    /// 只会吃 invalid_params 假失败）。网络瞬断（结
+    /// 果未知）同律：先对账，未截断且围栏未变才许
+    /// 重发一次。身份读不到 fail-closed（同 DELETE
+    /// 口径：什么都不发）
+    func rewindSession(
+        config: ServerConfig, id: String,
+        targetMessageID: Int, predecessorRowID: Int?
+    ) async throws -> RewindReceipt {
+        let endpoint = L10n.string("服务端消息回退")
+        // 对账：服务端尾行是否已停在 target 前一行
+        func alreadyRewound() async -> Bool {
+            guard let messages = try? await sessionMessages(
+                config: config, id: id
+            ) else { return false }
+            let tail = messages.compactMap {
+                Int(exactly: $0.id)
+            }.max()
+            return tail == predecessorRowID
+        }
+        var conflictRetries = 0
+        var busyRetries = 0
+        var transportReposts = 0
+        while true {
+            let snapshot: SessionMutationSnapshot
+            do {
+                snapshot = try await sessionMutationSnapshot(
+                    config: config, id: id
+                )
+            } catch let error as HermesError {
+                if case .unexpectedStatus(_, let status) = error,
+                   status == 404 {
+                    throw RewindError.invalidTarget
+                }
+                throw error
+            }
+            if snapshot.exists == false {
+                throw RewindError.invalidTarget
+            }
+            guard let revision = snapshot.runtimeRevision,
+                  let generation = snapshot.runtimeGeneration else {
+                throw HermesError.decodingFailed(endpoint: endpoint)
+            }
+            let request = RewindRequest(
+                requestID: UUID().uuidString,
+                expectedRevision: revision,
+                expectedGeneration: generation,
+                targetMessageID: targetMessageID
+            )
+            let status: Int
+            let body: Data
+            do {
+                (status, body) = try await sendRawJSON(
+                    config: config,
+                    path: "/api/sessions/\(id)/rewind",
+                    method: "POST", body: request
+                )
+            } catch let error as HermesError {
+                // 结果未知：不盲重 POST——先对账，已截
+                // 断即 done；未截断且围栏未变（重读快照
+                // 与本次同值）才重发一次；仍未知如实
+                // 上抛（调用方走回滚，服务端未变由对
+                // 账保证）
+                if await alreadyRewound() {
+                    return RewindReceipt(ok: true)
+                }
+                if transportReposts == 0,
+                   let fresh = try? await sessionMutationSnapshot(
+                       config: config, id: id
+                   ),
+                   fresh.runtimeRevision == revision,
+                   fresh.runtimeGeneration == generation {
+                    transportReposts += 1
+                    continue
+                }
+                throw error
+            }
+            switch RewindDirective.directive(
+                status: status,
+                serverCode: HermesServerErrorCode.parse(body)
+            ) {
+            case .done:
+                if let receipt = try? JSONDecoder().decode(
+                    RewindReceipt.self, from: body
+                ) {
+                    return receipt
+                }
+                return RewindReceipt(ok: true)
+            case .reconcileConflict:
+                if await alreadyRewound() {
+                    return RewindReceipt(ok: true)
+                }
+                conflictRetries += 1
+                if conflictRetries > 2 {
+                    throw RewindError.conflictExhausted
+                }
+                continue
+            case .retryAfterBusy:
+                busyRetries += 1
+                if busyRetries > 3 {
+                    throw HermesError.sessionBusy
+                }
+                try await Task.sleep(
+                    for: busyRetries == 1
+                        ? .milliseconds(1500) : .seconds(3)
+                )
+                continue
+            case .failInvalidTarget:
+                throw RewindError.invalidTarget
+            case .fail:
+                throw HermesError.unexpectedStatus(
+                    endpoint: endpoint, status: status
+                )
+            }
         }
     }
 
@@ -2720,4 +2875,19 @@ extension HermesClient {
             body: ["reason": .string("App 停止")]
         )
     }
+}
+
+/// rewind 的定性失败（DESIGN §352）：分类器耗尽/目标
+/// 不合法的用户可达结局——与 HermesError 分开，是因
+/// 为调用方的回滚文案按此三类分流（太早了/对话有新
+/// 变化/busy 已由 HermesError.sessionBusy 承接，不
+/// 在此列）。busy 耗尽抛 HermesError.sessionBusy、
+/// 其余未定性失败抛 HermesError.unexpectedStatus，
+/// 均不在本枚举
+enum RewindError: Error {
+    /// 400 invalid_params：target 非本会话 active 的
+    /// user 行（assistant 行/未知 id/已回收/归档行）
+    case invalidTarget
+    /// 409 冲突对账后仍未截断、新围栏重试耗尽
+    case conflictExhausted
 }

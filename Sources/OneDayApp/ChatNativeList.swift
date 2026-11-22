@@ -322,6 +322,10 @@ struct ChatRowActionItem: Identifiable {
         case reply, fork, copy, select, share, speak
         /// 台账 154（DESIGN §336）：发件箱条目三项
         case resend, editUnsent, withdrawUnsent
+        /// D3/D2（DESIGN §352）：已发消息编辑重发／
+        /// 末轮重新生成——只对已落定条目由 ChatView
+        /// 注入，发件箱项集恒不组装（互斥在席）
+        case editSent, regenerate
     }
 
     let kind: Kind
@@ -364,6 +368,13 @@ struct ChatRowActionSheetData {
     var onResend: (() -> Void)? = nil
     var onEditUnsent: (() -> Void)? = nil
     var onWithdrawUnsent: (() -> Void)? = nil
+    /// D3/D2（DESIGN §352）：已落定条目的编辑重发／
+    /// 重新生成——门控谓词（ChatEntry.canEditSent/
+    /// canRegenerateCandidate＋线程级条件）在
+    /// ChatView 呈现时刻求值后注入，非 nil 才组装；
+    /// 与发件箱三项互斥（条目非此即彼）
+    var onEditSent: (() -> Void)? = nil
+    var onRegenerate: (() -> Void)? = nil
     /// 朗读项（H2-a）：呈现时刻求值——播放态随时
     /// 变，标题/在否不许在行构造时钉死；门控（只
     /// 给助手落定回复、未开通不出项）在 ChatView
@@ -418,6 +429,30 @@ struct ChatRowActionSheetData {
                     action: onFork
                 ),
             ]
+        }
+        // D3/D2（DESIGN §352）：编辑/重新生成同位组——
+        // 紧随回复/旁聊、复制之前（编辑是本条的主动
+        // 作、重新生成是本轮的主动作）；发件箱条目恒
+        // 不组装（isOutbox 已在上方分流、此处再守一
+        // 道，防注入侧误配时两套项集同席）
+        if !isOutbox, let onEditSent {
+            items.append(
+                ChatRowActionItem(
+                    kind: .editSent, title: "编辑",
+                    systemImage: MessageActionSymbols.editSent,
+                    action: onEditSent
+                )
+            )
+        }
+        if !isOutbox, let onRegenerate {
+            items.append(
+                ChatRowActionItem(
+                    kind: .regenerate, title: "重新生成",
+                    systemImage: MessageActionSymbols
+                        .regenerate,
+                    action: onRegenerate
+                )
+            )
         }
         if !plainText.isEmpty {
             let text = plainText
