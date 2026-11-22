@@ -377,8 +377,9 @@ struct AboutView: View {
     /// 体一并退役）
     @AppStorage(ChatNativeListFeature.defaultsKey)
     private var nativeListEnabled = true
-    /// §374（换引擎步骤 1）增量喂入影子开关（与
-    /// ChatView 同键同源，缺省关）
+    /// §374（换引擎步骤 1/2）增量喂入开关（与
+    /// ChatView 同键同源，缺省关；步骤 2 起为新
+    /// 路主路选择、关即回旧路全量对账）
     @AppStorage(ChatListIncrementalFeature.defaultsKey)
     private var chatListIncrementalEnabled = false
 
@@ -422,10 +423,10 @@ struct AboutView: View {
                     alignment: .leading,
                     spacing: OneDayMetrics.spacingMicro
                 ) {
-                    Text(L10n.string("聊天列表增量喂入（影子）"))
+                    Text(L10n.string("聊天列表增量喂入"))
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认关闭：开启后增量喂入新路只计算变更集并与现行路逐趟对账、不实际生效（换引擎施工影子期）；对账无差异后才转正。"))
+                    Text(L10n.string("默认关闭：开启后消息列表改走变更集增量喂入（只落写变化行）；关掉即回现行全量喂入，出问题随时回退。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }

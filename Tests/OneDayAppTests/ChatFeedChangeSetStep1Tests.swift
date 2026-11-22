@@ -130,6 +130,32 @@ final class ChatFeedChangeSetStep1Tests: XCTestCase {
                 set.updated.insert(row.key)
             }
         }
+        // §374.2 追加两字段（喂入级事实、与生产追
+        // 踪器同定义）：高-only＝续行键（高，临界
+        // 旗）变且未入 updated；序变＝续行键在两
+        // 趟序中的相对序变
+        let prevHeights = Dictionary(
+            uniqueKeysWithValues: previous.map {
+                ($0.key, (height: $0.height,
+                          provisional:
+                            $0.heightIsProvisional))
+            }
+        )
+        for row in current
+        where prevKeys.contains(row.key)
+            && !set.updated.contains(row.key) {
+            if let prev = prevHeights[row.key],
+               (prev.height != row.height
+                || prev.provisional
+                    != row.heightIsProvisional) {
+                set.heightChanged.insert(row.key)
+            }
+        }
+        set.orderChanged = previous.filter {
+            newKeys.contains($0.key)
+        }.map(\.key) != current.filter {
+            prevKeys.contains($0.key)
+        }.map(\.key)
         return set
     }
 

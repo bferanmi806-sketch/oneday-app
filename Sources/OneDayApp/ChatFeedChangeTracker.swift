@@ -16,10 +16,71 @@ struct EntryChangeSet: Equatable {
     var inserted: Set<String> = []
     var deleted: Set<String> = []
     var updated: Set<String> = []
+    /// §374.2：高-only 变更键（修订未变、高或临
+    /// 界旗变）——旧路不构成重配、只走高度账落
+    /// 写＋布局失效记账；新路 applyChanges 据此
+    /// 局部落写高度账。与 updated 互斥（修订变
+    /// 的行高由其落写承接）
+    var heightChanged: Set<String> = []
+    /// §374.2：续行相对序变（同键集重排）——增
+    /// 量编辑无移动语义，控制器见此旗整笔走重
+    /// 建路。喂入级事实（非路差）：两路同值
+    var orderChanged: Bool = false
 
+    /// 编辑集口径的空判（高-only 不入本判：其落
+    /// 写走高度账、不经快照编辑）
     var isEmpty: Bool {
         inserted.isEmpty && deleted.isEmpty
             && updated.isEmpty
+    }
+
+    /// 变更集合成（§374.2）：本集相对基态 S、
+    /// next 相对 S＋本集，合成相对 S 的等价变更
+    /// 集——控制器冻结槽内两笔新路喂入在途合并
+    /// 用（后到整笔覆盖会丢前笔的键级事实，合成
+    /// 保全之）。规则：插后删＝相消；删后重插＝
+    /// 更新＋序变旗（位置可能已移、控制器见旗
+    /// 走重建路）；更新归并；高-only 取并集减去
+    /// 已归插/删者；序变取或
+    func composing(_ next: EntryChangeSet) -> EntryChangeSet {
+        var result = EntryChangeSet()
+        var newInserted = inserted
+        var newDeleted = deleted
+        var newUpdated = updated
+        result.orderChanged = orderChanged
+            || next.orderChanged
+        for key in next.deleted {
+            if newInserted.contains(key) {
+                newInserted.remove(key)
+            } else {
+                newUpdated.remove(key)
+                newDeleted.insert(key)
+            }
+        }
+        for key in next.inserted {
+            if newDeleted.contains(key) {
+                newDeleted.remove(key)
+                newUpdated.insert(key)
+                result.orderChanged = true
+            } else if !newInserted.contains(key)
+                && !newUpdated.contains(key) {
+                newInserted.insert(key)
+            }
+        }
+        for key in next.updated {
+            if !newInserted.contains(key)
+                && !newDeleted.contains(key) {
+                newUpdated.insert(key)
+            }
+        }
+        result.inserted = newInserted
+        result.deleted = newDeleted
+        result.updated = newUpdated
+        result.heightChanged = heightChanged
+            .union(next.heightChanged)
+            .subtracting(newInserted)
+            .subtracting(newDeleted)
+        return result
     }
 }
 
@@ -246,6 +307,12 @@ final class ChatFeedChangeTracker {
     private var previousRevisions:
         [String: ChatNativeRowRevision] = [:]
     private var previousKeys: Set<String> = []
+    /// §374.2：上趟喂入序与高账——序变与高-only
+    /// 的比对基（高账以行键存（高，临界旗））
+    private var previousKeyOrder: [String] = []
+    private var previousHeights:
+        [String: (height: CGFloat, provisional: Bool)] =
+        [:]
 
     func noteEntryBasis(_ basis: ChatFeedEntryBasis) {
         pendingBases[basis.entryID] = basis
@@ -266,6 +333,25 @@ final class ChatFeedChangeTracker {
             previousKeys.subtracting(newKeySet)
         let continuing =
             newKeySet.intersection(previousKeys)
+        // §374.2：高-only 与序变（喂入级事实）——
+        // 高变以（高，临界旗）逐键与上趟喂入值比
+        // 对（条目行 basis 喂入高与行高同值、非条
+        // 目行同理，认行值本体）；序变以续行键在
+        // 两趟序中的相对序比对（增删不构成序变）
+        var heightDiffs: Set<String> = []
+        for row in rows where continuing.contains(row.key) {
+            if let previous = previousHeights[row.key],
+               (previous.height != row.height
+                || previous.provisional
+                    != row.heightIsProvisional) {
+                heightDiffs.insert(row.key)
+            }
+        }
+        let orderChanged = previousKeyOrder.filter {
+            newKeySet.contains($0)
+        } != rows.map(\.key).filter {
+            previousKeys.contains($0)
+        }
         var seenEntryIDs: Set<UUID> = []
         for row in rows {
             if let entryID = row.entryID,
@@ -300,6 +386,21 @@ final class ChatFeedChangeTracker {
                         )
                     }
                 } else {
+                    // 首见条目：键新入列者插入集已承
+                    // 接；键续行而条目首见者＝落定同
+                    // 键换代（§247：直播行键被落定条
+                    // 目沿用、条目身份本趟初现）——旧
+                    // 路以同键修订差判重构，本路同口
+                    // 径补入更新集（§374.2 步骤 2 实
+                    // 查缺口：不补则落定行永不重构、
+                    // 停在直播内容）
+                    if continuing.contains(row.key),
+                       let previous =
+                        previousRevisions[row.key],
+                       previous != row.revision {
+                        changeSet.updated
+                            .insert(row.key)
+                    }
                     rowValueCache.store(
                         row: row, basis: basis
                     )
@@ -311,11 +412,18 @@ final class ChatFeedChangeTracker {
                 changeSet.updated.insert(row.key)
             }
         }
-        let oldRoad = oldRoadChangeSet(
+        changeSet.heightChanged = heightDiffs
+            .subtracting(changeSet.updated)
+        changeSet.orderChanged = orderChanged
+        var oldRoad = oldRoadChangeSet(
             rows: rows, continuing: continuing,
             inserted: changeSet.inserted,
             deleted: changeSet.deleted
         )
+        // 高-only 与序变是喂入级事实、非路差：两
+        // 集同值（影子账只比对插/删/更三集）
+        oldRoad.heightChanged = changeSet.heightChanged
+        oldRoad.orderChanged = orderChanged
         shadowLedger.record(
             changeSet: changeSet, oldRoad: oldRoad
         )
@@ -327,6 +435,14 @@ final class ChatFeedChangeTracker {
             }
         )
         previousKeys = newKeySet
+        previousHeights = Dictionary(
+            uniqueKeysWithValues: rows.map {
+                ($0.key, (height: $0.height,
+                          provisional:
+                            $0.heightIsProvisional))
+            }
+        )
+        previousKeyOrder = rows.map(\.key)
         rowValueCache.prune(keeping: seenEntryIDs)
         return changeSet
     }
@@ -358,6 +474,8 @@ final class ChatFeedChangeTracker {
         pendingBases.removeAll()
         previousRevisions.removeAll()
         previousKeys.removeAll()
+        previousKeyOrder.removeAll()
+        previousHeights.removeAll()
         lastChangeSet = EntryChangeSet()
         lastOldRoadChangeSet = EntryChangeSet()
         rowValueCache.removeAll()

@@ -15039,6 +15039,30 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 - **验收记账（2026-11-23，实验室口径）**：新钉测 ChatFeedChangeSetStep1Tests **5/5**（bundle Test-OneDayApp-swap1step1）——等价矩阵十趟六类变更影子差异**清零**（本步出口条件在钉测语料达成）；同轮回归 13 套共 73 项：71 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，与 §362.3/§373 在案基线老红逐名同（同套同名、非本步引入）；S371/S373 结构钉测全绿（根链零触碰实证）；补跑轮（bundle Test-OneDayCore-swap1step1b）BottomFollowTests 41/41＋BottomFollowTriggerTests 1/1 全过（首轮 -only-testing 误用 OneDayAppTests 前缀被静默跳过、靠总数对账发现后以 OneDayCoreTests 全限定名补跑——0.50.88 假绿陷阱同型，留痕）。两轮合计 115 项、113 过、2 基线老红、新红零。过程留痕：kick 判闲口径首版误用 RUN/EXIT 计数相等（实查 332≠226、两标记本非 1:1），白等约 25 分钟后改「末位 EXIT 行号在末位 RUN 之后＋ps 无 xcodebuild」双读口径才 kick 成功——判闲脚本口径以此为准。
 
+
+### §374.2 步骤 2：控制器去对账（新 applyChanges 入口＋开关转正，分支 feat/swap-step2-applychanges，基线 feat/swap-step1-changeset @03c1884）
+
+- 落码面（控制器 ChatNativeList＋追踪器扩字段，布局与 ChatView 根链不动）：
+  1. **EntryChangeSet 扩两字段**：`heightChanged`（高-only 键集——喂入高变而修订未变，与 updated 互斥、高变判定按（高值,临界旗）二元组）与 `orderChanged`（续行相对序变旗）；新增 `composing(_:)` 合成函数（落定拍冻结入槽合并两笔喂入：插后删相消、删后重插记更新＋序变旗、高集并集减插/删、序变取或）。追踪器同趟计算两字段并同值赋旧路影子集（影子账只比对插/删/更三集、新字段不入比对）。
+  2. **新入口 applyChanges/applyChangesNow**：消费变更集增量编辑当前快照（deleteSections→锚定 insertSections＋appendItems→reconfigureItems），高度账按变更键局部落写（rowHeights/provisionalFlags/rowKeys/rowRevisions 平行四表先删（旧序索引）后插（新序索引＝终位）原位写、exactHeightByKey 随删出账），修订/行值三账只动变更键；**新入口内整段不存在全量对账形态**（结构钉测把守：禁词 newByKey／revisionMismatchKeys／uniqueKeysWithValues: newRows／revisionsByKey = Dictionary）。三类情形走具名重建路 applyChangesFullRebuild（序变／空态冷开／插+删≥现行行数——整表构建在此为正解、非对账回潮）。在场校正防变更集与快照漂移（插已在场改重构、删不在场忽略、更不在场补插）；落写后条目数与新行数对账、不合即整表重建兜底。§332 触摸分流同旧路（候选＝更新在场键∪暂存留账）。
+  3. **稳态快路**：变更集全空→只同步布局参数＋收尾，快照/高度/修订账一律不碰（量测 2µs，见下）。
+  4. **高-only 路同旧语义**：不发快照、只落高度账（§329/§335 确高回填经共用 mergedHeight）＋布局失效记账（计数钉测把守：快照施工与 cell 重配计数纹丝不动）。
+  5. **共用口收口（行为逐字不变）**：applySnapshot（全仓 dataSource.apply 单点＋测试计数）、rebuiltSnapshot、currentFeedFreeze/storePendingFeed（冻结入槽：两笔皆新路才 composing 合成、任一旧路整槽回旧路；抽屉唤醒拍/滚动记账纪律同旧）、applyPendingFeed（落定拍按槽派发）、syncLayoutParams、mergedHeight、finishFeed——apply/applyNow 改走共用口。
+  6. **开关转正分流**：`chat.list.incremental` 开→Representable 交付 `feedChangeTracker.lastChangeSet` 走 applyChanges；关→旧 applyNow 保留作回退（本步不删）。影子账保留作过渡期交叉核验（开旗实跑时新路落写、影子账同趟比对旧路差集，差异仍可读）。
+- 实查缺口与修法（步骤 1 遗留、本步钉出并已修）：**落定同键换代漏 update**——生产证据：nativeLiveRow 正文行 key＝currentStreamRowKey()、entryID＝nil；落定时 streamSettleMap 登记使落定条目行沿用流式行键（§247 同键不换装），该行 entryID＋验证基首现。原追踪器首见条目分支只 store 不入 updated，旧路靠同键修订差判重构——影子账差 1、步骤 2 新路会让落定行永不重构、停在直播内容。修法：首见分支在「键续行＋上趟同键修订不同」时补入 updated（同键落定单测＋等价矩阵趟 4 双钉）。步骤 1 测试 oracle 同步扩 heightChanged/orderChanged 同定义计算（其全等断言须覆盖新字段，趟 9 高度-only 不扩必红——扩后覆盖加强）。
+- 量测对账（§374.0 门②；控制器单段口径、best-of-5 min、ProbePhone、合成纯行；行构建与变更集产出在计时区外，与 S3「apply 下限」同义）：
+  | 趟 | 旧路 applyNow | 新路 applyChanges |
+  |---|---|---|
+  | 稳态 300 行 | 324µs | **2µs** |
+  | 稳态 1200 行 | 1,340µs | **2µs** |
+  | 单行变更 300 行 | 3,939µs | 3,598µs |
+  | 单行变更 1200 行 | 15,685µs | 14,629µs |
+  - **性质②（无变更重喂趋近于零）全量成立**：新路 2µs 两档同值；旧路对账成本随行数 324→1,340µs（约 4 倍）。
+  - **性质①（单行变更与行数脱钩）对账片成立、总成本残差归步骤 3**：单行趟被快照 apply 本体主导——分解实测 @1200：零快照施工的缺席键更新趟（新路管线全价）577µs、单插/单删 16,317µs、单重构 14,973µs；规模曲线 300/600/1200/2400＝4,125/7,521/15,233/30,478µs 严格线性（~12.7µs/行）、隐藏窗口同值（非布局成本）——现行「每行一 section」的 diffable apply 成本、两路同价，正是步骤 3（单 section 收敛）的靶子；步骤 3 落地后探针改钉全形态脱钩。探针断言按本步所辖口径钉（对账片脱钩＋单行新路不劣于旧路），不冒充全形态。
+  - 与 S3 整趟基线（稳态 8,458µs／单行 8,821µs／全量 33,178µs，rel-05093 树）参照：本表为控制器单段口径、绝对值小于整趟（整趟含 nativeRows 行构建等喂入侧成本，归步骤 1 已落的行值缓存与后续步地界）。
+- 钉测（新增 7 法）：ChatSwapStep2EquivalenceTests 3 法——①16 趟等价矩阵（冷开/稳态/流式尾行/落定同键换代/落定后稳态/编辑/删除/插行/facet 翻转/高度-only/高回填三拍/序变/整批替换/收尾稳态）：新旧两路逐趟终态（快照条目序＋修订账＋高度账按键/按序）逐值同、影子账全程清零、关键趟变更集逐集断言（同键落定 updated＝{直播键}、高度-only 编辑集空而高集独载、序变旗立）；②同键落定追踪器口径；③高-only 回填计数钉测（快照施工/重配计数不动＋真编辑对照计数必动、防假绿）。ChatSwapStep2StructureTests 3 法（增量本体禁词四枚＋增量原语在场＋穿线三件＋变更集两字段与合成函数）。ChatSwapStep2ProbeTests 1 法（量测两性质、本步口径）。
+- **验收记账（2026-11-23，实验室口径）**：本步新钉测 **7/7**＋步骤 1 回归 **5/5**；同轮回归共 **16 套 103 项**（bundle swap2-full，xcresulttool 总数对账：100 过、3 红）——3 红恰在案基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays 键盘件），**新红零**；S371/S373 结构钉测全绿（chatScaffold 根链零触碰实证）；App 构建一次通过。未做：真实会话开旗长跑（组版时挂）、真机手感关（门④、归组版后用户 verdict）。本步不组版不打包。
+
 ## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
 
 ### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）
