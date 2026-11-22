@@ -95,6 +95,18 @@ struct ChatNativeRowHeightComposer {
         self.emptyStateAvatarSize = emptyStateAvatarSize
         self.screenWidth = screenWidth
         self.horizontalPadding = horizontalPadding
+        self.environmentFingerprint =
+            Self.makeEnvironmentFingerprint(
+                contentWidth: screenWidth
+                    - horizontalPadding * 2,
+                assistantTextWidth: screenWidth
+                    * OneDayMetrics
+                    .assistantTextWidthFraction,
+                sizeCategory: sizeCategory,
+                boldText: boldText,
+                displayScale: displayScale,
+                agentDisplayName: agentDisplayName
+            )
     }
 
     /// 量测台形态（§331）：无活读源、facets 为唯
@@ -123,6 +135,18 @@ struct ChatNativeRowHeightComposer {
         self.screenWidth = screenWidth
         self.horizontalPadding = horizontalPadding
         self.facets = facets
+        self.environmentFingerprint =
+            Self.makeEnvironmentFingerprint(
+                contentWidth: screenWidth
+                    - horizontalPadding * 2,
+                assistantTextWidth: screenWidth
+                    * OneDayMetrics
+                    .assistantTextWidthFraction,
+                sizeCategory: sizeCategory,
+                boldText: boldText,
+                displayScale: displayScale,
+                agentDisplayName: agentDisplayName
+            )
     }
 
     // MARK: - 量测基元（与呈现同台）
@@ -496,10 +520,23 @@ struct ChatNativeRowHeightComposer {
         rowComputationBox.reset()
     }
 
-    /// 环境指纹：合成器构造口径中影响高的全体
-    /// （宽经 LayoutProductKey 量化、与文本备忘
-    /// 同口径）
-    private var environmentFingerprint: String {
+    /// 环境指纹（§372 件二③改存储）：合成器构造
+    /// 口径中影响高的全体（宽经 LayoutProductKey
+    /// 量化、与文本备忘同口径）——全体输入即构造
+    /// 入参、合成器一生内不变，init 期算一次入存
+    /// 储属性（旧形态为计算属性、每次 entryMemoKey
+    /// 调用重算含 fnv 与六段拼接；合成器每趟现建，
+    /// 存储口径＝每趟一次，语义同值）
+    private let environmentFingerprint: String
+
+    private static func makeEnvironmentFingerprint(
+        contentWidth: CGFloat,
+        assistantTextWidth: CGFloat,
+        sizeCategory: UIContentSizeCategory,
+        boldText: Bool,
+        displayScale: CGFloat,
+        agentDisplayName: String
+    ) -> String {
         "w\(LayoutProductKey.quantizedWidth(Double(contentWidth)))"
             + "|aw\(LayoutProductKey.quantizedWidth(Double(assistantTextWidth)))"
             + "|\(sizeCategory.rawValue)"
@@ -771,40 +808,13 @@ struct ChatNativeRowHeightComposer {
     /// 径与修订的 Equatable 逐值比较等价——摘要
     /// 只作备忘键、碰撞概率可忽略且碰撞后果仅是
     /// 一行高取错值，与文本备忘的 fnv 键同险同级）
+    /// 【§372 件二收敛】折算本体已收敛至 ChatNat-
+    /// iveRowRevision 的增量折算单点（混入序/标签
+    /// 常量逐值同旧实现），本口只作字符串化转接
     private static func revisionDigest(
         _ revision: ChatNativeRowRevision
     ) -> String {
-        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
-        func mix(_ value: UInt64) {
-            hash ^= value
-            hash &*= 0x0000_0100_0000_01b3
-        }
-        for part in revision.parts {
-            switch part {
-            case .text(let string):
-                mix(0x1)
-                mix(LayoutProductKey.fnv1a(string))
-            case .data(let data):
-                mix(0x2)
-                mix(fnv1a(data))
-            case .flag(let flag):
-                mix(flag ? 0x31 : 0x30)
-            case .count(let count):
-                mix(UInt64(bitPattern: Int64(count)))
-            case .real(let real):
-                mix(real.bitPattern)
-            }
-        }
-        return "\(hash)"
-    }
-
-    private static func fnv1a(_ data: Data) -> UInt64 {
-        var hash: UInt64 = 0xcbf2_9ce4_8422_2325
-        for byte in data {
-            hash ^= UInt64(byte)
-            hash &*= 0x0000_0100_0000_01b3
-        }
-        return hash
+        "\(revision.foldValue)"
     }
 
     /// 工具卡结构化摘要（§331 R10 修）：逐字
@@ -1169,12 +1179,36 @@ struct ChatNativeRowHeightComposer {
                     }
                 parts.append("li\(decoded ? "1" : "0")")
             }
-            for rawPath in entry.remoteFilePaths {
-                let split = FileLineAnchor.split(
-                    pathWithAnchor: rawPath
-                )
+            // §372 件二④：split＋fnv 为纯函数段——
+            // Products 在席时取同账缓存片段，文件状
+            // 态本体（fileStateDigest）仍逐趟活读、
+            // 失效语义不变；不在席走旧现算，两路逐
+            // 字同串
+            let remoteFiles: [(
+                path: String, fragment: String
+            )]
+            if let buildProducts {
+                remoteFiles = ChatEntryRowBuildMemo
+                    .facetRemoteFileFragments(
+                        products: buildProducts, entry: entry
+                    )
+            } else {
+                remoteFiles = entry.remoteFilePaths.map {
+                    rawPath -> (
+                        path: String, fragment: String
+                    ) in
+                    let split = FileLineAnchor.split(
+                        pathWithAnchor: rawPath
+                    )
+                    return (
+                        split.path,
+                        "rf\(LayoutProductKey.fnv1a(split.path))"
+                    )
+                }
+            }
+            for remoteFile in remoteFiles {
                 parts.append(
-                    "rf\(LayoutProductKey.fnv1a(split.path))=\(fileStateDigest(split.path))"
+                    "\(remoteFile.fragment)=\(fileStateDigest(remoteFile.path))"
                 )
             }
         } else if entry.traceKey == nil
@@ -1227,9 +1261,25 @@ struct ChatNativeRowHeightComposer {
             // 趟起只剩备忘读＋逐路径状态摘要（状
             // 态本身仍逐趟活读、翻转即键变，失效
             // 语义不变）
-            for path in scanLists.paths {
+            // §372 件二④：路径 fnv 为纯函数段——
+            // Products 在席时取与路径集同账的缓存片
+            // 段（facetScanLists 同点回填），文件状态
+            // 本体仍逐趟活读；不在席走旧现算，两路
+            // 逐字同串
+            let pathFragments: [String]
+            if let buildProducts,
+               let cached = buildProducts.facetPathFragments,
+               cached.count == scanLists.paths.count {
+                pathFragments = cached
+            } else {
+                pathFragments = scanLists.paths.map {
+                    "fx\(LayoutProductKey.fnv1a($0))"
+                }
+            }
+            for (index, path) in scanLists.paths
+                .enumerated() {
                 parts.append(
-                    "fx\(LayoutProductKey.fnv1a(path))=\(fileStateDigest(path))"
+                    "\(pathFragments[index])=\(fileStateDigest(path))"
                 )
             }
         } else {
@@ -2754,11 +2804,34 @@ struct ChatNativeRowHeightComposer {
         entry: ChatEntry,
         buildProducts: ChatEntryRowBuildMemo.Products? = nil
     ) -> String {
-        var revision = baseRevision
-        revision.addFlag(false)
-        revision.addText("")
+        let digest: String
+        if let buildProducts,
+           baseRevision.parts.count
+            >= buildProducts.prefixRevision.parts.count {
+            // §372 件二②：在席路——基段由同趟 Prod-
+            // ucts 构建（契约：buildProducts 须为
+            // baseRevision 的构建来源，nativeEntry-
+            // Row 单点穿线），摘要自账面前缀折算状
+            // 态续折尾段（基段尾＋中性尾），与旧全量
+            // 折算逐字同键（等价钉测把守）；前缀段
+            // 免重折
+            var tail = ChatNativeRowRevision()
+            tail.parts = Array(
+                baseRevision.parts.dropFirst(
+                    buildProducts.prefixRevision.parts.count
+                )
+            )
+            tail.addFlag(false)
+            tail.addText("")
+            digest = "\(tail.foldValue(continuingFrom: buildProducts.prefixFoldState))"
+        } else {
+            var revision = baseRevision
+            revision.addFlag(false)
+            revision.addText("")
+            digest = Self.revisionDigest(revision)
+        }
         return "e|\(entry.id.uuidString)"
-            + "|\(Self.revisionDigest(revision))"
+            + "|\(digest)"
             + "|\(entryFacetDigest(entry, buildProducts: buildProducts))"
             + "|\(environmentFingerprint)"
     }

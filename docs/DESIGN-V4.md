@@ -14867,6 +14867,8 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 ### §372.0 状态注记（先读）
 - 本节 §372.1/§372.2 完成于 rel-05093 树（实读＋同口径量测基线＋大厂对位），**落码暂缓**：0.50.93 真机仍打开闪退（新 .ips 与 §371/§354 同族——元数据递归栈溢出、耗尽点深入 composerCard），基线本身带病；结构性减深修复由主线另线推进（将动 ChatView/ChatNativeList 视图结构）。本包待主线给修复分支号后 rebase 到其上，先按新结构复核 §372.1 触发面再落 §372.3；量测基线须在新基线同口径复测后对账，本节在案读数只作 rel-05093 基线账。
 - 范围仍为 S 系列在案三件（§362.3「触发面与失效域不动（S3 范围）」、§366.2「C5……不在本包；C3/S3 失效域收窄不在本包」、§366.4「单宽随行数涨的根归 S3」），不扩大不缩小。
+- **后半程状态（2026-11-23）**：结构修复线已交卷（feat/hotfix2-launch-crash-05094 @eca9862，§373），本包 WIP 提交后已 rebase 至其上；§372.1 已按新结构复核（结论见 §372.1 末「复核结论」五条），量测基线在新基线同口径复测对账后按 §372.3 落码。§372.3 件一乙的复用条件经复核收紧（逐行戳复验，见 §372.1 复核第 4 条与 §372.3 乙条修订注）。
+- **停点记录（2026-11-23 02:03，用户亲令方向变更）**：用户重申「能原生就原生、能用成熟的就用成熟的、不要自己搓」，聊天列表自研装配层列入**换引擎评估**（平台增量引擎方向）；本包**停在当前检查点**，等主线新施工图出来后再定并入还是退役，本节量测与设计结论完整保留作评估输入。停点实况：件二全件（折算单点 foldValue/续折、合成器 revisionDigest 转接、environmentFingerprint 改 init 期存储、entryMemoKey 在席续折路、facet 纯函数段缓存）＋件一甲（控制器 FeedSignature 签名短路）＋件三②（applyNow 增量记账：zip 键比对/修订账原地更新/行字典与高度平行账快路）＋件三①（makeSection 构造复用：匣内几何键缓存、临界行恒现构、testSectionCacheEnabled 对照口）已落码并**编译通过**（xcodebuild build exit 0，2026-11-23 02:07 轮）；件一乙（落定段复用）**未开工**（停在 nativeRows 实读阶段）；S3 等价钉测**未写**、回归**未跑**、修后量测**未测**——§372.4 全部验收项未执行，本停点提交仅为 WIP 存档，不构成验收结论。
 
 ### §372.1 病灶与量测基线（实读定案）
 
@@ -14888,6 +14890,15 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 **量测基线（2026-11-23，本机模拟器 ProbePhone 50C1A6D5，rel-05093 树，同 S2 口径 best-of-5；bundle Test-OneDayApp-s3base 14/14 绿、Test-OneDayApp-s3probe 1/1 绿）**：
 - S2 配方复测（合成会话 300 条／正文＋思考 606,375 字节）：全量趟 **33,178µs**；增量稳态趟 **8,458µs**；单行变化趟 **8,821µs**；文本 ×4 对照稳态趟 8,759µs。与 §362.3 在案数（32,702／8,216／8,450µs）同量级、对得上，基线成立。
 - S3 探针（装配口径，探针件 S3BaselineProbeTests 未提交草稿）：300 行全量失效提供者重召 **300 次**（与行数 1:1，§366.1 的 60 档结论在 300 档复证）；全量布局 pass（invalidateLayout＋layoutIfNeeded 一趟）**4,300µs**；无变化重喂 apply 本体 **1,038µs**；单行变化重喂 apply 本体 **6,328µs**（含该行 reconfigure 施工，装配口径）。诚实注记：探针行只带单 part 修订，生产行修订 ~73 parts——生产口径的无变化对账税只会更高，本读数是下限。
+- **新基线复测（2026-11-23，eca9862 树，同口径 best-of-5；bundle Test-OneDayApp-s3base2，S2 配方 1 项＋S3 探针 1 项全绿）**：S2 配方——全量趟 **33,354µs**；增量稳态趟 **8,642µs**；单行变化趟 **8,802µs**；文本 ×4 对照全量 94,148µs／稳态 8,910µs。S3 探针——300 行全量失效提供者重召 **300 次**；全量布局 pass **5,130µs**；无变化重喂 apply **1,010µs**；单行变化重喂 apply **5,621µs**。与 rel-05093 基线逐项同量级（布局 pass 一项 +19% 在模拟器噪声带内、如实记），新基线成立，§372.4 修后对账以本组数为修前口径。
+
+**复核结论（2026-11-23，rebase 至 §373 修复线 eca9862 后实读新树）**：
+
+1. **触发面本体不变**：nativeListSurface 仍为 ChatView 计算属性（新树 ChatView.swift:2817），头行仍显式读 `rowMeasureDesk.publishedRevision` 入 body 依赖、rows 仍内联 `nativeRows()` 全量趟；`@State input` 仍在 ChatView（:109）。§373 的 chatSurface 拆段是同体泛型辅助函数（chatSurfacePresentation/chatSurfaceLifecycle，非独立 View），不构成失效隔离——依赖仍记 ChatView body 名下，与 §372.2 第 4 行「未对位」判定一致，三件修法落点全部不变。nativeListSurface 未被提取（§373.3 明示），乙不退役。
+2. **件一甲落点不变**：ChatNativeList.swift 被 §373 零触碰（apply :2227／applyNow :2283 与本节草稿引用行号逐字吻合）；updateUIViewController 每拍直调 apply 的路径不变。§373 发送区提取只改 composerView 的构建侧、AnyView 交付形态不变，短路时 applyComposer/applyArrow 照常调用的义务不变。
+3. **件一乙前置复核（streamSettleMap↔renderPlan 键联动）：联动成立，settle 代次不纳入复用条件**。实读：streamSettleMap 全仓唯一写点＝applySettledTurn 落定口（ChatView.swift:13625），与新助手条目（及工具卡条目）的 modelContext.insert 同点发生——映射新增必伴条目集新增，ChatRenderPlanKey 的 EntryStub 投影（id/hasToolCardData/createdAt）随之变、计划键必变；record 返回 false（重发次轮不抢键）时映射根本不变；条目被整段替换删除时条目集同样变。映射的消费（rowKey(for:)）只决定已在列条目的行键、不新增行。故「settle 换键 ⇒ 计划键变」恒立。
+4. **件一乙条件集完备性复核（收紧）**：草稿条件集（thread/计划键/styleKey/publishedRevision/锚三状态/products 全命中）对 **facet 活状态不完备**——entryFacetDigest 的活读来源有五处外部源（账本展开覆盖与审批详情、hub 锚态与备注、FileMetadataStore 存在性/大小、DeliveryStore meta 与封面缓存、本地图解码缓存），任一可独立于上述条件翻转，并经 memoKey→量测台 resolve→行高与工单收集传导；只凭条件集复用会吞掉 facet 翻转趟的工单收集、行高永久残旧。处置（条件收紧、非范围变更）：乙的复用校验加**逐行戳复验**——落定段每行以本趟重算的 memoKey＋resolve 结果（高＋isExact）与建段存账逐行比对，**全行戳同且全行 exact 才复用整段**；任一行非 exact（临界行的预计算喂入高可独立于 facet 经产物到达而变，不入戳复验的确定性覆盖）或戳异，整段回落现行构建（含工单收集，行为逐字旧样）。声音性由此与行描述备忘的戳判定同基：戳含修订基段摘要＋facet 摘要＋环境指纹，facet 活状态全量入戳、翻转必戳异。§372.3 乙条已同步修订。
+5. **件二/件三落点复核**：ChatNativeRowHeight.swift、ChatEntryRowBuildMemo.swift 均未被 §373 触碰（revisionDigest :774、environmentFingerprint :502、entryFacetDigest :1113 与草稿引用逐字吻合）；合成器 ChatNativeRowHeightComposer 为 struct 且每趟现建（nativeRows :3236 构造）——件二③「init 期算一次」的实际口径＝每趟一次（原口径每行每趟，行数倍差），构造入参即指纹全体输入、两 init 形态同覆盖，语义同值。makeSection 在 ChatNativeList.swift:1323、未被触碰。
 
 ### §372.2 大厂做法全件对位表＋外部解法核查（自审自过）
 
@@ -14905,7 +14916,7 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 ### §372.3 修法设计（待落码——rebase 至结构修复分支、按新结构复核触发面后施工）
 
 - **件一甲 · apply 签名短路**（ChatNativeList.swift 控制器内，不动 ChatView 视图结构）：`apply()` 入口先算喂入签名——逐行（行键、修订折算 UInt64、高 bitPattern、临界旗）序列＋布局参数＋顶底 inset，折算口径与件二同源（parts 逐项混入、无字符串化）；与上次已落写签名全等 → 跳过 applyNow 本体，composer/arrow 照常 applyComposer/applyArrow（输入路零影响）。键击陪跑趟自此在控制器口止步（签名比对为 UInt64 序列比对、成本远低于整表字典对账）。
-- **件一乙 · 落定段整段复用**（ChatView.nativeRows 内，条件件）：落定段（条目＋工具组行数组）整段缓存；复用条件＝同 thread＋renderPlan 缓存键命中＋styleKey 同＋量测台 publishedRevision 同＋点亮/未读锚三状态（anchorHighlightEntryID/findHighlightEntryID/unreadAnchorEntryID）同＋**本趟 products 走全命中零 miss**（验证不免付——声音性由 §362 快照全字段等值保证，段复用只省验证之后的组装/解析/戳/数组重建）；直播区/回告/审批/空态段恒每趟现建。落码前置复核：streamSettleMap 换键必伴 renderPlan 键变（settle 即新条目入计划）——若不联动，把 settle 映射代次纳入复用条件。结构修复线若已把 nativeListSurface 抽成独立视图，本件影响域随之重估、或可整件退役（以新结构为准）。
+- **件一乙 · 落定段整段复用**（ChatView.nativeRows 内，条件件）：落定段（条目＋工具组行数组）整段缓存；复用条件＝同 thread＋renderPlan 缓存键命中＋styleKey 同＋量测台 publishedRevision 同＋点亮/未读锚三状态（anchorHighlightEntryID/findHighlightEntryID/unreadAnchorEntryID）同＋**本趟 products 走全命中零 miss**（验证不免付——声音性由 §362 快照全字段等值保证，段复用只省验证之后的组装/解析/戳/数组重建）；直播区/回告/审批/空态段恒每趟现建。落码前置复核：streamSettleMap 换键必伴 renderPlan 键变（settle 即新条目入计划）——若不联动，把 settle 映射代次纳入复用条件。结构修复线若已把 nativeListSurface 抽成独立视图，本件影响域随之重估、或可整件退役（以新结构为准）。**复核修订（2026-11-23，§372.1 复核第 3/4 条）**：前置复核结论＝联动成立（settle 换键必伴计划键变），settle 代次不纳入条件；nativeListSurface 未被 §373 提取、本件不退役。条件集按复核第 4 条收紧：复用校验加逐行戳复验（本趟 memoKey＋resolve 高/isExact 与建段存账逐行比对、全行同且全行 exact 才复用；非 exact 行或戳异整段回落现行构建）——段缓存存账＝行数组＋逐行（行键／memoKey／确高）＋建段条件快照（thread/计划键/hiddenStamp/styleKey/publishedRevision/锚三状态）。
 - **件二 · 折算缓存**（ChatNativeRowHeight.swift＋ChatEntryRowBuildMemo.swift）：①`ChatNativeRowRevision` 立增量折算单点（续折语义与现 revisionDigest 逐值同：混入序、标签常量、fnv 口径原样），合成器 `revisionDigest` 改走本口、全仓不许第二份折算实现；②行构建备忘 Products 重建时同算 `prefixFoldState` 入账，`entryMemoKey` 增 products 入参路：自 prefixFoldState 续折尾段（分隔文案 flag＋摘要、未读旗、中性尾 flag＋空摘要）得摘要——与旧路**逐字同键**，等价钉测把守；不在席路（量测台/旧调用）走旧全量折算、两路同值；③`environmentFingerprint` 改合成器 init 期算一次入存储属性（其全体输入即合成器构造入参）；④facet 纯函数段缓存：路径 split＋fnv 随 Products 的 facetPaths 同账缓存，活状态摘要仍逐趟活读折入（失效语义不变）。
 - **件三 · 单宽降本**（ChatNativeList.swift）：①`makeSection` 构造复用——布局匣内按（高、首/末行位、布局参数代次）缓存 NSCollectionLayoutSection 实例，非临界行命中直回；临界行恒走现构路（就地量测的匣内副作用——回写确高/预算扣减——不许被缓存绕过）。落码以钉测证「同实例跨 pass 复用后帧高/contentSize 与现构逐值同」；证伪则本件退化为只做 ②。②applyNow 增量记账（C5 收口）：`revisionsByKey` 改原地更新（仅变更键写、离集键删），键集未变时不重建整表字典与键数组；高度合并在键集未变且修订失配为空时走快路（仅失配行与高变行落写）。
 

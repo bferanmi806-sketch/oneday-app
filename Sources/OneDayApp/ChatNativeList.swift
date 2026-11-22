@@ -275,6 +275,72 @@ struct ChatNativeRowRevision: Equatable, Hashable {
         revision.addFlag(showsUnreadDivider)
         return revision
     }
+
+    // MARK: 修订折算（§372 件二：增量折算单点）
+
+    /// FNV-1a 续折种子：与高度合成器旧 revisionDigest
+    /// 的初值逐值同——折算口径全仓只此一份（合成器
+    /// 备忘键摘要与控制器喂入签名共用本口），不许第
+    /// 二份折算实现
+    static let foldSeed: UInt64 = 0xcbf2_9ce4_8422_2325
+
+    /// 续折一字：状态即一字（异或后乘 FNV 素数）
+    static func foldMix(_ hash: inout UInt64, _ value: UInt64) {
+        hash ^= value
+        hash &*= 0x0000_0100_0000_01b3
+    }
+
+    /// 数据字节 FNV-1a（自种子全量折，与旧合成器私
+    /// 有 fnv1a(Data) 逐值同）
+    static func foldDataValue(_ data: Data) -> UInt64 {
+        var hash = foldSeed
+        for byte in data {
+            foldMix(&hash, UInt64(byte))
+        }
+        return hash
+    }
+
+    /// parts 逐项续折入状态：混入序与标签常量与旧
+    /// revisionDigest 逐值同（text＝0x1＋文本 fnv、
+    /// data＝0x2＋数据 fnv、flag＝0x31/0x30、count
+    /// ＝位型、real＝位型）
+    static func fold(
+        _ parts: [Part], into hash: inout UInt64
+    ) {
+        for part in parts {
+            switch part {
+            case .text(let string):
+                foldMix(&hash, 0x1)
+                foldMix(&hash, LayoutProductKey.fnv1a(string))
+            case .data(let data):
+                foldMix(&hash, 0x2)
+                foldMix(&hash, foldDataValue(data))
+            case .flag(let flag):
+                foldMix(&hash, flag ? 0x31 : 0x30)
+            case .count(let count):
+                foldMix(
+                    &hash, UInt64(bitPattern: Int64(count))
+                )
+            case .real(let real):
+                foldMix(&hash, real.bitPattern)
+            }
+        }
+    }
+
+    /// 全量折算值（自种子起折本修订全部 parts）
+    var foldValue: UInt64 {
+        var hash = Self.foldSeed
+        Self.fold(parts, into: &hash)
+        return hash
+    }
+
+    /// 续折值（自给定状态续折本修订全部 parts——
+    /// 前缀已折时只付尾段，与全量折算逐值同）
+    func foldValue(continuingFrom state: UInt64) -> UInt64 {
+        var hash = state
+        Self.fold(parts, into: &hash)
+        return hash
+    }
 }
 
 // MARK: - 行描述（ChatView 喂入）
@@ -630,6 +696,29 @@ private final class ChatNativeLayoutBox {
     func noteSectionProviderCall() {
         sectionProviderCallCount += 1
     }
+    /// §372 件三①：section 构造复用缓存——非临界
+    /// 行的 section 按几何键（高/首末位/布局四参
+    /// 数）直回同实例（compositional section 是不
+    /// 可变描述对象、跨 pass 与跨 section 复用同实
+    /// 例与现构等价，帧等价钉测把守、证伪即退役本
+    /// 件）；临界行恒现构（就地量测副作用在
+    /// makeSection 头段、不许绕）。上限 256 条、
+    /// 溢出整表清（不做淘汰策略）；开关供钉测关
+    /// 开对照，生产恒开
+    struct SectionCacheKey: Hashable {
+        var heightBits: UInt64
+        var isFirst: Bool
+        var isLast: Bool
+        var topPaddingBits: UInt64
+        var bottomPaddingBits: UInt64
+        var rowSpacingBits: UInt64
+        var horizontalPaddingBits: UInt64
+    }
+
+    var sectionCache:
+        [SectionCacheKey: NSCollectionLayoutSection] = [:]
+    var sectionCacheEnabled = true
+    static let sectionCacheLimit = 256
 }
 
 // MARK: - 托管 cell
@@ -940,6 +1029,55 @@ final class ChatNativeListHandle {
     }
 }
 
+/// 喂入签名（§372 件一甲）：applyNow 的全部行侧
+/// 输入折成可比序列——逐行（行键、修订折算
+/// UInt64（§372 折算单点）、高 bitPattern、临界
+/// 旗）＋布局参数七值＋顶底 inset。签名全等 ⇔
+/// 本趟行侧落写与上趟逐项同（修订折算的碰撞口
+/// 径与备忘键同险同级：碰撞后果仅一趟漏落写、
+/// 下趟签名再异即补）。composer/arrow 不入签名
+/// ——短路时仍照常落写（舱内容随输入变、不属行
+/// 侧输入）
+private struct ChatFeedSignature: Equatable {
+    struct RowMark: Equatable {
+        var key: String
+        var revisionFold: UInt64
+        var heightBits: UInt64
+        var provisional: Bool
+    }
+
+    var rows: [RowMark]
+    var layoutBits: [UInt64]
+    var topInsetBits: UInt64
+    var bottomMarginBits: UInt64
+
+    init(
+        rows: [ChatNativeRow],
+        layout: ChatCarrierLayout,
+        topInset: CGFloat, bottomMargin: CGFloat
+    ) {
+        self.rows = rows.map {
+            RowMark(
+                key: $0.key,
+                revisionFold: $0.revision.foldValue,
+                heightBits: UInt64($0.height.bitPattern),
+                provisional: $0.heightIsProvisional
+            )
+        }
+        self.layoutBits = [
+            UInt64(layout.horizontalPadding.bitPattern),
+            UInt64(layout.topPadding.bitPattern),
+            UInt64(layout.bottomPadding.bitPattern),
+            UInt64(layout.rowSpacing.bitPattern),
+            UInt64(layout.arrowTrailing.bitPattern),
+            UInt64(layout.arrowGapAboveComposer.bitPattern),
+            UInt64(layout.arrowSize.bitPattern),
+        ]
+        self.topInsetBits = UInt64(topInset.bitPattern)
+        self.bottomMarginBits = UInt64(bottomMargin.bitPattern)
+    }
+}
+
 final class ChatRootViewController: UIViewController,
     UICollectionViewDelegate, UIGestureRecognizerDelegate
 {
@@ -969,6 +1107,10 @@ final class ChatRootViewController: UIViewController,
     private var rowsByKey: [String: ChatNativeRow] = [:]
     private var revisionsByKey:
         [String: ChatNativeRowRevision] = [:]
+    /// §372 件一甲：上次已落写喂入的签名——
+    /// applyNow 入口与本趟签名全等即短路（触摸暂
+    /// 存留账在场时不短路，见 applyNow 头注）
+    private var lastAppliedSignature: ChatFeedSignature?
     /// 非条目行的锚占位 id（与 gen3 同式：捕获命中
     /// 时顺延到下一条目行）
     private var frameIDByKey: [String: UUID] = [:]
@@ -1324,6 +1466,14 @@ final class ChatRootViewController: UIViewController,
         box: ChatNativeLayoutBox, sectionIndex: Int
     ) -> NSCollectionLayoutSection {
         let rowCount = box.rowHeights.count
+        // §372 件三①：入场临界判定（量测前快照）——
+        // 临界行本召恒现构：就地量测的回写/入账/预
+        // 算副作用在下方头段，缓存直回不许绕过它；
+        // 本召刚量测坐实的行同理现构（下一召起标
+        // 记已清、可入缓存路）
+        let enteredProvisional = sectionIndex < rowCount
+            && sectionIndex < box.provisionalFlags.count
+            && box.provisionalFlags[sectionIndex]
         // 台账 190②：将入视口的临界行在提供者问
         // 高时就地量测——单行毫秒级、入屏前付清，
         // 确定高直接回写匣内本序（本 section 与后
@@ -1357,6 +1507,53 @@ final class ChatRootViewController: UIViewController,
         let height = sectionIndex < rowCount
             ? box.rowHeights[sectionIndex]
             : ChatNativeLayoutBox.estimatedPlaceholder
+        // §372 件三①：非临界行按几何键查缓存直回
+        // （键＝高＋首/末位＋布局四参数——现构的全部
+        // 输入）；越界防御行（占位高）不入缓存
+        if box.sectionCacheEnabled, !enteredProvisional,
+           sectionIndex < rowCount {
+            let cacheKey = ChatNativeLayoutBox
+                .SectionCacheKey(
+                    heightBits: UInt64(height.bitPattern),
+                    isFirst: sectionIndex == 0,
+                    isLast: sectionIndex >= rowCount - 1,
+                    topPaddingBits: UInt64(box.topPadding
+                        .bitPattern),
+                    bottomPaddingBits: UInt64(box.bottomPadding
+                        .bitPattern),
+                    rowSpacingBits: UInt64(box.rowSpacing
+                        .bitPattern),
+                    horizontalPaddingBits:
+                        UInt64(box.horizontalPadding
+                            .bitPattern)
+                )
+            if let cached = box.sectionCache[cacheKey] {
+                return cached
+            }
+            let section = buildSection(
+                box: box, sectionIndex: sectionIndex,
+                rowCount: rowCount, height: height
+            )
+            if box.sectionCache.count
+                >= ChatNativeLayoutBox.sectionCacheLimit {
+                box.sectionCache.removeAll()
+            }
+            box.sectionCache[cacheKey] = section
+            return section
+        }
+        return buildSection(
+            box: box, sectionIndex: sectionIndex,
+            rowCount: rowCount, height: height
+        )
+    }
+
+    /// section 现构本体（§372 件三① 自 makeSection
+    /// 拆出——构造逻辑逐字不变，缓存层只决定回缓存
+    /// 实例还是新实例）
+    private static func buildSection(
+        box: ChatNativeLayoutBox, sectionIndex: Int,
+        rowCount: Int, height: CGFloat
+    ) -> NSCollectionLayoutSection {
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
             heightDimension: .absolute(max(0, height))
@@ -1990,6 +2187,13 @@ final class ChatRootViewController: UIViewController,
         layoutBox.rowHeights
     }
 
+    /// §372 测试口：section 构造复用开关——帧等
+    /// 价钉测关/开对照用，生产恒开（默认 true）
+    var testSectionCacheEnabled: Bool {
+        get { layoutBox.sectionCacheEnabled }
+        set { layoutBox.sectionCacheEnabled = newValue }
+    }
+
     /// §325.2 测试口：selfSizingInvalidation 档位
     /// 对照压测用（生产默认 .enabled，见装配处注）
     var testSelfSizingInvalidation:
@@ -2288,6 +2492,24 @@ final class ChatRootViewController: UIViewController,
         composerView: AnyView?,
         arrowView: AnyView?
     ) {
+        // §372 件一甲：签名短路——喂入与上次已落写
+        // 全等（行集/修订/高/临界旗/布局参数/inset
+        // 逐项同）时本体零施工：键击陪跑趟（input
+        // 变、行侧不变）在控制器口止步。composer/
+        // arrow 不入签名、照常落写（舱内容随输入
+        // 变、回底钮随滚动态变）。触摸暂存留账在场
+        // 时不短路——留账重试搭 applyNow 便车（候
+        // 选集含留账键），旧口径不变
+        let signature = ChatFeedSignature(
+            rows: newRows, layout: layout,
+            topInset: topInset, bottomMargin: newMargin
+        )
+        if signature == lastAppliedSignature,
+           touchStagedReconfigureKeys.isEmpty {
+            applyComposer(view: composerView)
+            applyArrow(view: arrowView)
+            return
+        }
         // 布局参数同步进匣：间距/内边距任一变即失
         // 效布局（compositional 声明式重算，不手
         // 算帧——H10）。§325 起 .estimated 占位是
@@ -2323,23 +2545,28 @@ final class ChatRootViewController: UIViewController,
             pendingLayoutInvalidationUrgent = true
         }
 
-        let newByKey = Dictionary(
-            uniqueKeysWithValues: newRows.map {
-                ($0.key, $0)
+        // §372 件三②（C5 收口）：键集比对与修订失
+        // 配改逐行 zip 走访——不建整表字典与键数
+        // 组；失配口径与旧式逐项同（只认已在账键、
+        // 按新行序）
+        let keysChanged = rows.count != newRows.count
+            || zip(rows, newRows).contains {
+                $0.key != $1.key
             }
-        )
-        let oldKeys = rows.map(\.key)
-        let newKeys = newRows.map(\.key)
+        var revisionMismatchKeys: [String] = []
+        var revisionMismatchIndices: [Int] = []
+        for (index, newRow) in newRows.enumerated() {
+            guard let recorded =
+                    revisionsByKey[newRow.key],
+                  recorded != newRow.revision
+            else { continue }
+            revisionMismatchKeys.append(newRow.key)
+            revisionMismatchIndices.append(index)
+        }
         // §325：重配对账只认修订值全量比较——同键
         // 行的渲染输入任一值变即 reconfigure 原位
         // 更新；单形态下 reconfigure 恒同注册、不
         // 再有跨形态翻转分流（§320.1 退役）
-        let keysChanged = oldKeys != newKeys
-        let revisionMismatchKeys = newKeys.filter {
-            revisionsByKey[$0] != nil
-                && revisionsByKey[$0]
-                    != newByKey[$0]?.revision
-        }
         // §332（题 1）触摸序列分流：候选＝修订差
         // ∪ 暂存留账（留账键的修订差已被上趟记账
         // 吃掉、只认本集重试）；逐键读触摸序列门
@@ -2348,10 +2575,13 @@ final class ChatRootViewController: UIViewController,
         // 候选（候选只由修订差与留账构成）、本就
         // 不触发重配——回归断言在装配测试钉住
         var candidateKeys = revisionMismatchKeys
-        for key in touchStagedReconfigureKeys
-        where newByKey[key] != nil
-            && !candidateKeys.contains(key) {
-            candidateKeys.append(key)
+        if !touchStagedReconfigureKeys.isEmpty {
+            let newKeySet = Set(newRows.map(\.key))
+            for key in touchStagedReconfigureKeys
+            where newKeySet.contains(key)
+                && !candidateKeys.contains(key) {
+                candidateKeys.append(key)
+            }
         }
         let (reconfigureKeys, touchStaged) =
             partitionTouchStaged(candidateKeys)
@@ -2364,8 +2594,27 @@ final class ChatRootViewController: UIViewController,
             scheduleSettle(delay: 0.3)
         }
         let wasEmpty = rows.isEmpty
+        // §372 件三②：行字典增量记账——键集变才整
+        // 表重建；键集未变时只落写修订/高/临界旗/
+        // 条目 id 真变的行（字典终值与整表重建逐项
+        // 同，消费方读口不变）
+        if keysChanged {
+            rowsByKey = Dictionary(
+                uniqueKeysWithValues: newRows.map {
+                    ($0.key, $0)
+                }
+            )
+        } else {
+            for (oldRow, newRow) in zip(rows, newRows)
+            where oldRow.revision != newRow.revision
+                || oldRow.height != newRow.height
+                || oldRow.heightIsProvisional
+                    != newRow.heightIsProvisional
+                || oldRow.entryID != newRow.entryID {
+                rowsByKey[newRow.key] = newRow
+            }
+        }
         rows = newRows
-        rowsByKey = newByKey
         // §329：回喂高落写布局匣——须先于快照 apply
         // （apply 触发的布局 pass 即读新高）；高变
         // 而键/修订未变时（如展开态翻转、异步 facet
@@ -2376,65 +2625,120 @@ final class ChatRootViewController: UIViewController,
         // 同修订确高，以确高回填本趟（值与标记同
         // 步：标记清零、提供者不再为本行付就地量
         // 测）；行集变时按新行集剪账（离集即失效）
-        var mergedHeights: [CGFloat] = []
-        var mergedFlags: [Bool] = []
-        mergedHeights.reserveCapacity(newRows.count)
-        mergedFlags.reserveCapacity(newRows.count)
-        for row in newRows {
-            if row.heightIsProvisional,
-               let exact = layoutBox
-                    .exactHeightByKey[row.key],
-               exact.revision == row.revision {
-                mergedHeights.append(exact.height)
-                mergedFlags.append(false)
-            } else {
-                mergedHeights.append(row.height)
-                mergedFlags.append(
-                    row.heightIsProvisional
-                )
-                if !row.heightIsProvisional {
-                    layoutBox.exactHeightByKey[
-                        row.key
-                    ] = (
-                        revision: row.revision,
-                        height: row.height
-                    )
+        // §372 件三②：键集未变且匣内平行账同长时走
+        // 快路——逐行算有效高/旗、只落写真变槽（确
+        // 高回填与写通语义逐项旧样）；否则走旧整表
+        // 合并路（下方）
+        let fastHeights = !keysChanged
+            && layoutBox.rowHeights.count == newRows.count
+            && layoutBox.provisionalFlags.count
+                == newRows.count
+        if fastHeights {
+            var heightsChanged = false
+            for (index, row) in newRows.enumerated() {
+                let effectiveHeight: CGFloat
+                let effectiveProvisional: Bool
+                if row.heightIsProvisional,
+                   let exact = layoutBox
+                        .exactHeightByKey[row.key],
+                   exact.revision == row.revision {
+                    effectiveHeight = exact.height
+                    effectiveProvisional = false
+                } else {
+                    effectiveHeight = row.height
+                    effectiveProvisional =
+                        row.heightIsProvisional
+                    if !row.heightIsProvisional {
+                        layoutBox.exactHeightByKey[
+                            row.key
+                        ] = (
+                            revision: row.revision,
+                            height: row.height
+                        )
+                    }
+                }
+                if layoutBox.rowHeights[index]
+                    != effectiveHeight {
+                    layoutBox.rowHeights[index] =
+                        effectiveHeight
+                    heightsChanged = true
+                }
+                if layoutBox.provisionalFlags[index]
+                    != effectiveProvisional {
+                    layoutBox.provisionalFlags[index] =
+                        effectiveProvisional
                 }
             }
-        }
-        if keysChanged {
-            let keep = Set(newKeys)
-            layoutBox.exactHeightByKey = layoutBox
-                .exactHeightByKey.filter {
-                    keep.contains($0.key)
+            if heightsChanged {
+                pendingLayoutInvalidation = true
+            }
+            // 平行账：行键未变不动；修订账只落写失
+            // 配槽
+            for index in revisionMismatchIndices {
+                layoutBox.rowRevisions[index] =
+                    newRows[index].revision
+            }
+        } else {
+            var mergedHeights: [CGFloat] = []
+            var mergedFlags: [Bool] = []
+            mergedHeights.reserveCapacity(newRows.count)
+            mergedFlags.reserveCapacity(newRows.count)
+            for row in newRows {
+                if row.heightIsProvisional,
+                   let exact = layoutBox
+                        .exactHeightByKey[row.key],
+                   exact.revision == row.revision {
+                    mergedHeights.append(exact.height)
+                    mergedFlags.append(false)
+                } else {
+                    mergedHeights.append(row.height)
+                    mergedFlags.append(
+                        row.heightIsProvisional
+                    )
+                    if !row.heightIsProvisional {
+                        layoutBox.exactHeightByKey[
+                            row.key
+                        ] = (
+                            revision: row.revision,
+                            height: row.height
+                        )
+                    }
                 }
-        }
-        layoutBox.rowKeys = newKeys
-        layoutBox.rowRevisions =
-            newRows.map(\.revision)
-        let heightsChanged =
-            layoutBox.rowHeights != mergedHeights
-        if heightsChanged {
-            layoutBox.rowHeights = mergedHeights
-            pendingLayoutInvalidation = true
-        }
-        // 台账 190②：临界标记与行集同趟落写（标
-        // 记变而高未变时——如上次高被量测坐实同
-        // 值——不单独触发布局失效：匣内标记只供
-        // 提供者问高时消费，落定拍布局 pass 自会
-        // 读到）
-        if layoutBox.provisionalFlags != mergedFlags {
-            layoutBox.provisionalFlags = mergedFlags
+            }
+            if keysChanged {
+                let keep = Set(newRows.map(\.key))
+                layoutBox.exactHeightByKey = layoutBox
+                    .exactHeightByKey.filter {
+                        keep.contains($0.key)
+                    }
+            }
+            layoutBox.rowKeys = newRows.map(\.key)
+            layoutBox.rowRevisions =
+                newRows.map(\.revision)
+            let heightsChanged =
+                layoutBox.rowHeights != mergedHeights
+            if heightsChanged {
+                layoutBox.rowHeights = mergedHeights
+                pendingLayoutInvalidation = true
+            }
+            // 台账 190②：临界标记与行集同趟落写（标
+            // 记变而高未变时——如上次高被量测坐实同
+            // 值——不单独触发布局失效：匣内标记只供
+            // 提供者问高时消费，落定拍布局 pass 自会
+            // 读到）
+            if layoutBox.provisionalFlags != mergedFlags {
+                layoutBox.provisionalFlags = mergedFlags
+            }
         }
         if keysChanged {
             var snapshot =
                 NSDiffableDataSourceSnapshot<Int, String>()
             snapshot.appendSections(
-                Array(newKeys.indices)
+                Array(newRows.indices)
             )
-            for (index, key) in newKeys.enumerated() {
+            for (index, row) in newRows.enumerated() {
                 snapshot.appendItems(
-                    [key], toSection: index
+                    [row.key], toSection: index
                 )
             }
             if !reconfigureKeys.isEmpty {
@@ -2458,11 +2762,24 @@ final class ChatRootViewController: UIViewController,
                 snapshot, animatingDifferences: false
             )
         }
-        revisionsByKey = Dictionary(
-            uniqueKeysWithValues: newRows.map {
-                ($0.key, $0.revision)
+        // §372 件三②：修订账原地更新——离集键删、
+        // 失配与新入账键写，其余不动（终值与整表重
+        // 建逐项同）
+        if keysChanged {
+            let keep = Set(newRows.map(\.key))
+            revisionsByKey = revisionsByKey.filter {
+                keep.contains($0.key)
             }
-        )
+            for row in newRows
+            where revisionsByKey[row.key] != row.revision {
+                revisionsByKey[row.key] = row.revision
+            }
+        } else {
+            for index in revisionMismatchIndices {
+                revisionsByKey[newRows[index].key] =
+                    newRows[index].revision
+            }
+        }
 
         let insetChanged = fedTopInset != topInset
             || bottomMargin != newMargin
@@ -2481,10 +2798,11 @@ final class ChatRootViewController: UIViewController,
         applyComposer(view: composerView)
         if keysChanged || !reconfigureKeys.isEmpty
             || insetChanged || paramsChanged
-            || heightsChanged {
+            || pendingLayoutInvalidation {
             scheduleSettle()
         }
         applyArrow(view: arrowView)
+        lastAppliedSignature = signature
     }
 
     /// §332（题 1）触摸序列分流：候选键逐个读触

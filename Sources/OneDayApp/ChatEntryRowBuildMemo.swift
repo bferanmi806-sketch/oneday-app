@@ -157,8 +157,24 @@ final class ChatEntryRowBuildMemo {
     final class Products {
         let snapshot: ChatEntryRevisionSnapshot
         let prefixRevision: ChatNativeRowRevision
+        /// §372 件二②：基段前缀的折算状态（重建时
+        /// 同算入账）——entryMemoKey 在席路自此前缀
+        /// 状态续折尾段，免每趟整段重折；与全量折
+        /// 算逐值同（续折语义见 ChatNativeRowRevis-
+        /// ion 折算单点）
+        let prefixFoldState: UInt64
         var facetDeliveryIDs: [String]?
         var facetPaths: [String]?
+        /// §372 件二④：facet 纯函数段缓存——助手行
+        /// 路径集的 fnv 片段、与 facetPaths 同账同
+        /// 失效（fileStateDigest 本体仍逐趟活读）
+        var facetPathFragments: [String]?
+        /// §372 件二④：用户行远端文件路径的 split
+        /// 结果＋fnv 片段（纯函数于 remoteFilePaths、
+        /// 随快照同失效；存在性/大小仍逐趟活读）
+        var facetRemoteFileFragments: [(
+            path: String, fragment: String
+        )]?
 
         init(
             snapshot: ChatEntryRevisionSnapshot,
@@ -166,6 +182,7 @@ final class ChatEntryRowBuildMemo {
         ) {
             self.snapshot = snapshot
             self.prefixRevision = prefixRevision
+            self.prefixFoldState = prefixRevision.foldValue
         }
     }
 
@@ -277,7 +294,39 @@ final class ChatEntryRowBuildMemo {
         )
         products.facetDeliveryIDs = scans.delivery.deliveryIDs
         products.facetPaths = paths
+        // §372 件二④：路径 fnv 片段同账缓存（纯函
+        // 数段、与路径集同失效）
+        products.facetPathFragments = paths.map {
+            "fx\(LayoutProductKey.fnv1a($0))"
+        }
         return (scans.delivery.deliveryIDs, paths)
+    }
+
+    /// 用户行远端文件路径的 split＋fnv 片段（§372
+    /// 件二④）：纯函数于 entry.remoteFilePaths（其
+    /// 真源 remoteFilePathsData 在快照内、随 Prod-
+    /// ucts 同失效）；文件状态本体不入缓存、由合
+    /// 成器逐趟活读。nonisolated 口径同 facetScan-
+    /// Lists（同值幂等写）
+    nonisolated static func facetRemoteFileFragments(
+        products: Products,
+        entry: ChatEntry
+    ) -> [(path: String, fragment: String)] {
+        if let cached = products.facetRemoteFileFragments {
+            return cached
+        }
+        let fragments = entry.remoteFilePaths.map {
+            rawPath -> (path: String, fragment: String) in
+            let split = FileLineAnchor.split(
+                pathWithAnchor: rawPath
+            )
+            return (
+                split.path,
+                "rf\(LayoutProductKey.fnv1a(split.path))"
+            )
+        }
+        products.facetRemoteFileFragments = fragments
+        return fragments
     }
 
     func facetScanLists(
