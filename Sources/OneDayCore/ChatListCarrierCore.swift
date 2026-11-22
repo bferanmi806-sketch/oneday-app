@@ -81,8 +81,9 @@ public enum ChatListIncrementalFeature {
 
 /// 单 section 布局特性开关（DESIGN §374.3，施工
 /// 图 chat-list-engine-swap-plan §四）：聊天列表
-/// 布局构造的选择旗——缺省 false（§329 逐行
-/// section 构造）；开启＝单 section 逐 item 组
+/// 布局构造的选择旗——缺省 true（0.50.97 组版
+/// 转正；键不存在＝开、显式 false 即关旗回
+/// §329 逐行 section 构造）；开启＝单 section 逐 item 组
 /// 高构造（高度账按键存取为两构造共用、本旗只
 /// 管构造与快照结构）。控制器在每次喂入入口同
 /// 步本旗：翻转即整笔重建快照＋布局失效记账
@@ -96,7 +97,10 @@ public enum ChatListSingleSectionFeature {
     public static func isEnabled(
         defaults: UserDefaults = .standard
     ) -> Bool {
-        defaults.bool(forKey: defaultsKey)
+        if defaults.object(forKey: defaultsKey) == nil {
+            return true
+        }
+        return defaults.bool(forKey: defaultsKey)
     }
 }
 

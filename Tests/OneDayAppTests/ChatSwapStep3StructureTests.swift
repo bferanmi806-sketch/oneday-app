@@ -137,7 +137,7 @@ final class ChatSwapStep3StructureTests: XCTestCase {
                 "§374.3：单 section 穿线应含 \(token)"
             )
         }
-        // 开关本体口径（Core）：键名与缺省关
+        // 开关本体口径（Core）：键名与缺省开（0.50.97 组版转正）
         XCTAssertEqual(
             ChatListSingleSectionFeature.defaultsKey,
             "chatListSingleSectionEnabled"
@@ -145,11 +145,21 @@ final class ChatSwapStep3StructureTests: XCTestCase {
         let defaults = UserDefaults(
             suiteName: "swap3-structure-\(UUID().uuidString)"
         )!
+        XCTAssertTrue(
+            ChatListSingleSectionFeature.isEnabled(
+                defaults: defaults
+            ),
+            "§374.3/§377：单 section 开关缺省须开（0.50.97 组版转正、键不存在＝开）"
+        )
+        defaults.set(
+            false,
+            forKey: ChatListSingleSectionFeature.defaultsKey
+        )
         XCTAssertFalse(
             ChatListSingleSectionFeature.isEnabled(
                 defaults: defaults
             ),
-            "§374.3：单 section 开关缺省须关（回退构造为默认）"
+            "§377：显式 false 须关（回退口完好）"
         )
         defaults.set(
             true,
