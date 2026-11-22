@@ -251,54 +251,24 @@ struct ChatNativeRowRevision: Equatable, Hashable {
         return revision
     }
 
-    /// 条目字段基段（§325 字段枚举的唯一落点）：
-    /// 条目本体字段＋分隔文案＋未读分界旗——entry
-    /// （行修订）与 entryMemoKey（高度备忘键的中性
-    /// 派生）共用本段，两路只在其后接各自的环境尾
-    /// 段（点亮/样式键 vs 中性占位），字段枚举不许
-    /// 在第二处重列（漏折防线）
+    /// 条目字段基段（§325 立制、§362 迁址）：条目
+    /// 本体字段的枚举实体已迁至 ChatEntryRevision-
+    /// Snapshot（capture 字段读取单点＋basePrefix-
+    /// Revision 摘要枚举单点，与行构建增量备忘共用
+    /// 同一枚举——字段不许在第二处重列的漏折防线不
+    /// 变）；本函数＝快照前缀段＋环境尾段（分隔文案
+    /// ＋未读分界旗），输出与旧全量枚举逐值同（等价
+    /// 钉测把守）。entry（行修订）与 entryMemoKey
+    /// （高度备忘键的中性派生）共用本段，两路只在其
+    /// 后接各自的环境尾段（点亮/样式键 vs 中性占位）
     static func entryBase(
         _ entry: ChatEntry,
         dividerText: String?,
         showsUnreadDivider: Bool = false
     ) -> ChatNativeRowRevision {
-        var revision = ChatNativeRowRevision()
-        revision.addText(entry.role)
-        revision.addText(entry.content)
-        revision.addData(entry.imageData)
-        revision.addData(entry.imageDatasData)
-        revision.addText(entry.quoteRole)
-        revision.addText(entry.quoteContent)
-        revision.addText(entry.feedPostID)
-        revision.addText(entry.feedPostTitle)
-        revision.addText(entry.feedPostBody)
-        revision.addText(entry.feedPostSource)
-        revision.addText(entry.ideaQuoteID)
-        revision.addText(entry.ideaQuoteTitle)
-        revision.addText(entry.ideaQuoteBody)
-        revision.addText(entry.fileQuoteName)
-        revision.addText(entry.fileQuotePath)
-        revision.addText(entry.goalQuoteCategory)
-        revision.addText(entry.reasoning)
-        revision.addReal(entry.reasoningSeconds)
-        revision.addData(entry.toolCardData)
-        revision.addData(entry.remoteImagePathsData)
-        revision.addData(entry.remoteFilePathsData)
-        revision.addText(entry.echoKey)
-        revision.addText(entry.approvalKey)
-        revision.addText(entry.traceKey)
-        revision.addData(entry.traceEchoData)
-        // 台账 187：钉桩与反应镜像同列入账（字段枚
-        // 举全量纪律）——反应一变修订必变、行原位
-        // 重配出/收 pill
-        revision.addCount(entry.serverRowID ?? 0)
-        revision.addData(entry.reactionsData)
-        revision.addFlag(entry.sendFailed)
-        revision.addText(entry.sendStateRaw)
-        revision.addText(entry.deliveryState)
-        revision.parts.append(
-            .real(entry.createdAt.timeIntervalSinceReferenceDate)
-        )
+        var revision = ChatEntryRevisionSnapshot
+            .capture(entry)
+            .basePrefixRevision()
         revision.addText(dividerText)
         // 台账 148：NEW 分界线在席与否是渲染输入、
         // 同列入账（在席变化必触发重配与重测高）
