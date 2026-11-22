@@ -14285,3 +14285,10 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 - 实验室：`ReactionFloatingBarTests` 扩至 15 件——既有开关/路由/修饰符/会话 pick 原样回归；状态机与会话按同呈语义改写 3 件（pickAction 迁移/单次执行/互斥禁投）；旧定位函数断言 2 处随排宽更新（注明规则不变）；新增钳制五格（正常逐值/顶出屏钉顶钉底/底出屏/贴顶下方/贴底让位/整框出屏）＋不变量帧矩阵（10 帧×2 对齐×3 项数：两层完整入视口、卡恒居药丸下、可见带与两层留 gap 隔离）＋目录形状＋卡量测对位。与 §343 回归集同轮（ReactionFloatingBarTests＋HapticsMatrixTests＋MessageActionsTests＋SwipeReplyPanBridgeTests）合计 **41 passed / 0 failed**（xcresult ~/build/fbt.xcresult，Test-OneDayApp 2026-11-22 12:08 轮；首轮 40/1 系测试期望手算误 436→444、代码无误，修正后复跑全绿）。
 - 真机门（留用户）：①超长文长按药丸钉顶可见可点、一步落反应 ②长按当场三层全见、无第二步点按 ③长文三层不重叠、裁切边渐隐自然 ④短消息药丸定位无变化、卡贴消息下方 ⑤「＋」半页选中集外 emoji 落锤（兼验服务端拒否） ⑥流式行长按三层可用 ⑦右滑/竖滑不回退、深色＋最大字号各一帧。
+
+## §347 拆换件三审计：右滑引用换系统 swipe actions——无挂载点，停审计待裁（2026-11-22；分支 feat/swipe-actions，基线 rel-05084@85a1f96＝0.50.84/212；施工图 oneday-design-review/swipe-actions-design-20261122.md）
+
+- **审计结论**：聊天消息列表承载＝UICollectionView＋自定义 compositional 布局（section-per-row、行高由量测栈 .absolute 同步回喂，§329），行内容经 UIHostingConfiguration 托管进 cell；ChatView 全文无 SwiftUI List（唯一 `List {` 字样是 `for data in dataList {`）。SwiftUI `.swipeActions` 仅 List 行有效、UIKit 滑动动作仅 `UICollectionLayoutListConfiguration` 提供——两路在本面均无挂载点。换 list 布局＝推翻 §329 行高定案（.67/.68 崩溃史同域），属 gen4 列表重建、非拆换件。
+- **形态对位**：iMessage／Telegram／WhatsApp／Stream SDK 的右滑引用全为自研跟手平移＋过阈触发（Stream 开源源码 replyThreshold=60；本仓现行数值 30/60/90 正源出其生产口径）；微信无滑动引用（长按菜单唯一入口）；系统 swipe actions 是列表行按钮条点按形态，与跟手过阈触发不同构。「系统跟手回复」在 iOS 无公开 API（Apple 自家 Messages 亦自研）。现行桥（§265／换代包 7 位移方向锁／换代包 8 判定点前移）形态与主流同构。
+- **桥职责与先行账**：桥兼方向判定（began 前三态裁决）、滚动失败依赖、起始点排除、跟手喂数、越线 soft 触感＋re-arm 五项以上职责（全集见施工图 §1.3）；触感计数先行账：HapticsMatrixTests 硬断言 ChatView `.light`==2／全仓 ==5，桥 `.soft` 无计数断言——若将来整体退役，两处期待值各 −1 并注明、`.soft` 消失属行为变化须明示（施工图 §1.4）。
+- **处置**：本包零落码、零测试、停在审计；待主线裁 A 维持现行桥改判关账（审计推荐）／B gen4 立项（代价与 0.50.80 事故钉测前置条件见施工图 §三）／C 呈现细节顺带对位。
