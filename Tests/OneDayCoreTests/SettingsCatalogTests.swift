@@ -74,6 +74,8 @@ final class SettingsCatalogTests: XCTestCase {
             .voice,
             // 配对一期新增（台账 153/160）
             .addDevice,
+            // H5 新增（台账 35）
+            .pairingManagement,
             // 聊天诊断新增（台账 189/190）
             .chatDiagnostics,
         ]
@@ -97,7 +99,7 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
             [
-                "server", "addDevice", "gateway", "logs", "usage",
+                "server", "addDevice", "pairing", "gateway", "logs", "usage",
                 "mainSession", "serverSessions",
                 "status", "computer", "serverFiles",
                 "envVars", "healthCheck",
@@ -117,7 +119,7 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(
             segments.map { $0.entries.map(\.id) },
             [
-                ["server", "addDevice", "gateway", "logs", "usage"],
+                ["server", "addDevice", "pairing", "gateway", "logs", "usage"],
                 ["mainSession"],
                 ["status", "computer", "serverFiles"],
                 ["envVars", "healthCheck"],
@@ -281,6 +283,29 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(
             SettingsCatalog.search("扫码").contains {
                 $0.id == "addDevice"
+            }
+        )
+    }
+
+    /// H5（台账 35）：平台用户配对条目——标题直搜命
+    /// 中；与添加设备同段（服务器段）相邻但目的地
+    /// 不同（两物分清的机器面）；白名单关键词同达
+    func testPairingEntryIsSearchable() {
+        let hits = SettingsCatalog.search("平台用户配对")
+        XCTAssertEqual(hits.first?.id, "pairing")
+        XCTAssertEqual(hits.first?.destination, .pairingManagement)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertEqual(hits.first?.segment, .server)
+        XCTAssertTrue(hits.first?.showsInBrowse ?? false)
+        XCTAssertTrue(
+            SettingsCatalog.search("白名单").contains {
+                $0.id == "pairing"
+            }
+        )
+        // 与添加设备分清：扫码只达设备入驻、不搭本条目
+        XCTAssertFalse(
+            SettingsCatalog.search("扫码").contains {
+                $0.id == "pairing"
             }
         )
     }

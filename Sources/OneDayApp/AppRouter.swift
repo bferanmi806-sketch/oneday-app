@@ -73,6 +73,10 @@ enum SettingsRoute: Hashable {
     /// 添加设备（配对一期，台账 153/160）：已登录侧
     /// 出码面，台账 198 收敛 S13 后落设置根服务器段
     case addDevice
+    /// 平台用户配对（H5，台账 35，DESIGN §359）：
+    /// 网关消息平台用户白名单管理面，落设置根服务
+    /// 器段、紧随添加设备（两物分清见 Core 目录）
+    case pairingManagement
     /// 聊天诊断（台账 189/190）：本机聊天面探针可
     /// 读面，入口在关于页内部实验节（Core 目录
     /// chatDiagnostics 条目仅搜索可达）
