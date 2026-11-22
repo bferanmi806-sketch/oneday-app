@@ -75,7 +75,7 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         // 由 ChatSwapStep3 五套＋生产链双形态把守
         list.testSingleSectionOverride = false
         list.handle = listHandle
-        list.callbacks = ChatListCarrierCallbacks(
+        list.callbacks = ChatNativeListCallbacks(
             onScrollGeometry: {},
             onTopVisibleEntry: { _ in },
             onBlankTap: {}
@@ -98,7 +98,7 @@ final class ChatSettleScopeS5Tests: XCTestCase {
     ) {
         controller?.apply(
             rows: rows,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: 8,

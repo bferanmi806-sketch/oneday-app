@@ -823,7 +823,7 @@ final class ChatRootViewController: UIViewController,
         UICollectionViewDiffableDataSource<Int, String>!
 
     var handle: ChatNativeListHandle?
-    var callbacks: ChatListCarrierCallbacks?
+    var callbacks: ChatNativeListCallbacks?
 
     /// 与 gen3 容器同口：两宿主的滚动边缘注册经共
     /// 享句柄绑本面本体（§260）
@@ -831,7 +831,7 @@ final class ChatRootViewController: UIViewController,
         didSet { edgeScrollHandle?.register(collectionView) }
     }
 
-    private var layoutParams = ChatCarrierLayout(
+    private var layoutParams = ChatNativeLayout(
         horizontalPadding: 20, topPadding: 16,
         bottomPadding: 8, rowSpacing: 24,
         arrowTrailing: 16, arrowSize: 44
@@ -994,7 +994,7 @@ final class ChatRootViewController: UIViewController,
     /// 与 representable 只认最新喂入同义）
     private struct PendingApply {
         var rows: [ChatNativeRow]
-        var layout: ChatCarrierLayout
+        var layout: ChatNativeLayout
         var topInset: CGFloat
         var bottomMargin: CGFloat
         var composerView: AnyView?
@@ -1129,7 +1129,7 @@ final class ChatRootViewController: UIViewController,
         }
         rowHosts = [:]
     }
-    private var blankTapDelegate: ChatCarrierBlankTapDelegate?
+    private var blankTapDelegate: ChatNativeBlankTapDelegate?
 
     // MARK: 生命周期
 
@@ -2417,7 +2417,7 @@ final class ChatRootViewController: UIViewController,
     /// 之一；§325 起 .estimated 占位是固定常
     /// 量、不入本对账）。返回是否变更
     private func syncLayoutParams(
-        _ layout: ChatCarrierLayout
+        _ layout: ChatNativeLayout
     ) -> Bool {
         var paramsChanged = false
         if layoutBox.horizontalPadding
@@ -2602,7 +2602,7 @@ final class ChatRootViewController: UIViewController,
 
     func apply(
         rows newRows: [ChatNativeRow],
-        layout: ChatCarrierLayout,
+        layout: ChatNativeLayout,
         topInset: CGFloat,
         bottomMargin newMargin: CGFloat,
         composerView: AnyView?,
@@ -2658,7 +2658,7 @@ final class ChatRootViewController: UIViewController,
 
     private func applyNow(
         rows newRows: [ChatNativeRow],
-        layout: ChatCarrierLayout,
+        layout: ChatNativeLayout,
         topInset: CGFloat,
         bottomMargin newMargin: CGFloat,
         composerView: AnyView?,
@@ -2805,7 +2805,7 @@ final class ChatRootViewController: UIViewController,
     func applyChanges(
         rows newRows: [ChatNativeRow],
         changeSet: EntryChangeSet,
-        layout: ChatCarrierLayout,
+        layout: ChatNativeLayout,
         topInset: CGFloat,
         bottomMargin newMargin: CGFloat,
         composerView: AnyView?,
@@ -2845,7 +2845,7 @@ final class ChatRootViewController: UIViewController,
     private func applyChangesNow(
         rows newRows: [ChatNativeRow],
         changeSet: EntryChangeSet,
-        layout: ChatCarrierLayout,
+        layout: ChatNativeLayout,
         topInset: CGFloat,
         bottomMargin newMargin: CGFloat,
         composerView: AnyView?,
@@ -4212,14 +4212,14 @@ final class ChatRootViewController: UIViewController,
     // MARK: 点空白收键盘（delegate 与 gen3 共用定版）
 
     private func installBlankTapDismiss() {
-        let delegate = ChatCarrierBlankTapDelegate {
+        let delegate = ChatNativeBlankTapDelegate {
             [weak self] in
             self?.callbacks?.onBlankTap()
         }
         let tap = UITapGestureRecognizer(
             target: delegate,
             action: #selector(
-                ChatCarrierBlankTapDelegate.handleTap
+                ChatNativeBlankTapDelegate.handleTap
             )
         )
         tap.name = "OneDayBlankTapDismissNative"
@@ -4239,7 +4239,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     /// 器 ingest 产物）；非 nil 时控制器走
     /// applyChanges 增量路，nil 走旧路 apply
     var changeSet: EntryChangeSet? = nil
-    var layout: ChatCarrierLayout
+    var layout: ChatNativeLayout
     var topInset: CGFloat
     var bottomMargin: CGFloat
     /// 输入舱内容（R2 收编）：由控制器子托管、底
@@ -4255,7 +4255,7 @@ struct ChatNativeListView: UIViewControllerRepresentable {
     var keyboardFrame: Binding<KeyboardFrameUpdate?>
     var arrowView: AnyView?
     var handle: ChatNativeListHandle
-    var callbacks: ChatListCarrierCallbacks
+    var callbacks: ChatNativeListCallbacks
     var edgeScrollHandle: ChatListScrollViewHandle
     /// 台账 190②：就地量测口（行键→确定高）；
     /// 默认 nil（裸装配形态无量测台）
@@ -4321,5 +4321,130 @@ struct ChatNativeListView: UIViewControllerRepresentable {
                 keyboardFrame.wrappedValue = update
             }
         }
+    }
+}
+
+
+// MARK: - 共用件（§374.9 自旧承载文件迁入）
+
+/// §374.9（步骤 6）：gen3 承载文件 ChatListCarrier
+/// .swift 退役时，其共用件迁入本文件（原生面的实
+/// 现文件）——布局值/回调值/点空白 delegate 随迁
+/// 改 Native 名；锚存取 ChatListAnchorStore 名无
+/// 禁词、原样迁入（其 UserDefaults 键 chat.carrier
+/// .anchors.v1 是落盘兼容键、逐字不动）
+
+/// 承载布局参数（值源＝OneDayMetrics，ChatView 喂
+/// 入，承载内不写第二套数）
+struct ChatNativeLayout {
+    var horizontalPadding: CGFloat
+    var topPadding: CGFloat
+    var bottomPadding: CGFloat
+    var rowSpacing: CGFloat
+    /// 回底钮右距（与旧钮行 .padding(.trailing) 同值）
+    var arrowTrailing: CGFloat
+    /// 回底钮底缘距输入舱顶（蓝图/简报口径约 8pt）
+    var arrowGapAboveComposer: CGFloat = 8
+    /// 回底钮命中边（与旧钮 OneDayMetrics.minTap-
+    /// Target 同值）
+    var arrowSize: CGFloat
+}
+
+/// 承载回调（ChatView 注入；几何回调只报「变了」，
+/// 读数经句柄引用匣取——与 BottomDistanceRecorder
+/// 的 §199 纪律同式：写不失效任何视图）
+struct ChatNativeListCallbacks {
+    var onScrollGeometry: () -> Void
+    var onTopVisibleEntry: (UUID?) -> Void
+    var onBlankTap: () -> Void
+}
+
+/// 扩展锚的落盘口：旧 SideChatScrollAnchor 只有
+/// （entryID, atBottom）两字段、装不下条内偏移——
+/// 新承载的锚单独存本口（UserDefaults 编码字典，
+/// 键＝线程 id），旧锚保留为回落（扩展锚缺位时按
+/// 旧锚恢复）。切线程存取纪律与旧口一致（离线程
+/// 时存、入线程时取）
+enum ChatListAnchorStore {
+    private static let defaultsKey = "chat.carrier.anchors.v1"
+
+    private struct StoredAnchor: Codable {
+        var entryID: String?
+        var intraEntryOffset: Double
+        var atBottom: Bool
+    }
+
+    static func anchor(for threadID: UUID) -> ChatListAnchor? {
+        guard let dict = UserDefaults.standard.dictionary(
+            forKey: defaultsKey
+        ) as? [String: Data],
+            let data = dict[threadID.uuidString],
+            let stored = try? JSONDecoder().decode(
+                StoredAnchor.self, from: data
+            )
+        else { return nil }
+        return ChatListAnchor(
+            entryID: stored.entryID.flatMap(UUID.init(uuidString:)),
+            intraEntryOffset: stored.intraEntryOffset,
+            atBottom: stored.atBottom
+        )
+    }
+
+    static func setAnchor(
+        _ anchor: ChatListAnchor, for threadID: UUID
+    ) {
+        let stored = StoredAnchor(
+            entryID: anchor.entryID?.uuidString,
+            intraEntryOffset: anchor.intraEntryOffset,
+            atBottom: anchor.atBottom
+        )
+        guard let data = try? JSONEncoder().encode(stored)
+        else { return }
+        var dict = (UserDefaults.standard.dictionary(
+            forKey: defaultsKey
+        ) as? [String: Data]) ?? [:]
+        dict[threadID.uuidString] = data
+        UserDefaults.standard.set(dict, forKey: defaultsKey)
+    }
+}
+
+/// 点空白收键盘的识别器 delegate：仲裁口径与
+/// ScrollViewTapDismiss.swift 的定版逐字同义（触点
+/// 落在任何 UITextView 子树内不接收、与既有识别器
+/// 同时识别、不吞触摸）——旧承载的安装器靠 ascend
+/// 找滚动视图，新承载的滚动视图就在自家容器内、
+/// 直接装配，故只复用其 delegate 规则、不复用其
+/// 寻面装配
+final class ChatNativeBlankTapDelegate: NSObject,
+    UIGestureRecognizerDelegate
+{
+    private let onTap: () -> Void
+
+    init(onTap: @escaping () -> Void) {
+        self.onTap = onTap
+    }
+
+    @objc func handleTap() {
+        onTap()
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        var view: UIView? = touch.view
+        while let current = view {
+            if current is UITextView { return false }
+            view = current.superview
+        }
+        return true
+    }
+
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith
+            otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        true
     }
 }

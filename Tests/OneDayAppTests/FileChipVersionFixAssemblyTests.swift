@@ -46,7 +46,6 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
     private var swiftDataMount = SwiftDataTestMount()
     private var container: ModelContainer!
     private var entryID: UUID!
-    private var nativeListFlagPrior: Any?
 
     /// 与诊断实证同名（用户 2026-11-17 13:12 真机
     /// 所发账单文件）
@@ -54,29 +53,7 @@ final class FileChipVersionFixAssemblyTests: XCTestCase {
         "/opt/data/attachments/iCost_20261018200435.xlsx"
     private let fileName = "iCost_20261018200435.xlsx"
 
-    override func setUp() async throws {
-        nativeListFlagPrior = UserDefaults.standard.object(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        // 对象面是新面：旗键缺省＝开（R4 转默认口
-        // 径），摘键即回缺省、不写显式值
-        UserDefaults.standard.removeObject(
-            forKey: ChatNativeListFeature.defaultsKey
-        )
-        try await super.setUp()
-    }
-
     override func tearDown() async throws {
-        if let prior = nativeListFlagPrior {
-            UserDefaults.standard.set(
-                prior, forKey: ChatNativeListFeature.defaultsKey
-            )
-        } else {
-            UserDefaults.standard.removeObject(
-                forKey: ChatNativeListFeature.defaultsKey
-            )
-        }
-        nativeListFlagPrior = nil
         window?.rootViewController = nil
         window?.isHidden = true
         window = nil

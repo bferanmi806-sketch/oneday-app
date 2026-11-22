@@ -294,17 +294,6 @@ struct ChatView: View {
         ChatFeedChangeTracker()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
-    /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
-    /// 动）：Will 路置假（帧在途）、Did 路置真（帧
-    /// 已落定）；静息（无键盘动画）恒真。锚底请求
-    /// 据此分流：已落定当场滚、在途记挂账等落定兑
-    /// 现——代旧 300ms 定时猜测，见
-    /// anchorToBottomAfterKeyboard
-    @State private var keyboardFrameSettled = true
-    /// 键盘锚底挂账：帧在途时记一笔，DidChangeFrame
-    /// 落定刻兑现（settleKeyboardAnchor）；失焦／切
-    /// 线程即作废
-    @State private var keyboardAnchorPending = false
     /// 渲染计划缓存（§135 B 案）：按键（Core Chat-
     /// RenderPlanKey）命中即复用上轮的排序＋分隔＋
     /// 成组结果，无关状态写入不再全线程重算
@@ -376,10 +365,6 @@ struct ChatView: View {
             isAtBottom: isAtBottomForUnread
         )
     }
-    /// 列表可视高（0.3.5，§20）：onScrollGeometryChange
-    /// 回写，喂消息内容栈的撑满 minHeight——点空白收键
-    /// 盘的命中域（见 messageList 撑满注）
-    @State private var listViewportHeight: CGFloat = 0
     /// 演示模式自动开流只跑一次（演示态展示流式效果用）
     @State private var demoStreamStarted = false
     /// 0.2.1 附件与键盘：待发附件、三种选择器开关、输入焦点
@@ -467,7 +452,6 @@ struct ChatView: View {
     // 注）。首报到达前以 168 兜底（现行形态静止总量
     // 的同档近似：坞 83＋舱高约 77＋边距 8），host
     // 首个布局拍即以实测覆盖、不留陈值
-    @State private var composerBottomSpace: CGFloat = 168
     /// 键盘几何单一快照（键盘整包 R1，2026-11-13；
     /// 值类型在 Core KeyboardGeometrySnapshot）：
     /// 列表底留位与坞显隐自此只读本快照——键盘顶
@@ -531,74 +515,35 @@ struct ChatView: View {
     /// 把滚动边缘效果注册到各自覆盖容器（见
     /// ScrollEdgeRegistration）
     @State private var listScrollHandle = ChatListScrollViewHandle()
-    /// §257（换代包 3）：新承载特性开关（Core
-    /// ChatCarrierFeature，默认关＝旧承载；设置页
-    /// 实验区与本键同源）与新承载句柄（命令口＋几
-    /// 何读数匣，见 ChatListCarrier.swift）
-    @AppStorage(ChatCarrierFeature.defaultsKey)
-    private var gen3CarrierEnabled = false
-    @State private var carrierHandle = ChatListCarrierHandle()
-    /// §291（原生重建 R1）：原生面特性开关（Core
-    /// ChatNativeListFeature；设置页实验区与本键同
-    /// 源）与原生面句柄（与 gen3 句柄同形态，见
-    /// ChatNativeList.swift）。三旗并存期分叉口径：
-    /// 原生面开时优先于 gen3/旧面（施工图 §5.2 缺
-    /// 省面始终只有一个）。§297（R4）：缺省改开
-    /// （与 Core isEnabled 同口径：键缺省＝true、
-    /// 显式 false 为浸泡期回退）
-    @AppStorage(ChatNativeListFeature.defaultsKey)
-    private var nativeListEnabled = true
     @State private var nativeHandle = ChatNativeListHandle()
 
-    /// 当前面命令分发（§291 收口）：跟随/落定/锚
-    /// 恢复链只经本组分发器下达——原生面在场走原
-    /// 生句柄、否则 gen3 句柄，链本体不为每个承载
-    /// 再抄一份（§257 的执行双胞胎到本口收口）。
-    /// 两面句柄同形不同型（协议存在类型与本仓
-    /// Swift 6 隔离形态冲突、CI 两轮实证，见
-    /// ChatNativeListHandle 注），分发器即收口面
+    /// 当前面命令分发（§291 收口；§374.9 步骤 6
+    /// 再收口）：旧承载退役后在场面恒为原生面——跟
+    /// 随/落定/锚恢复链只经本组分发器下达原生句柄，
+    /// 链本体不为承载再分叉（分发器壳保留、调用点
+    /// 不动）
     private func surfaceScrollToBottom(animated: Bool) {
-        if nativeListEnabled {
-            nativeHandle.scrollToBottom(animated: animated)
-        } else {
-            carrierHandle.scrollToBottom(animated: animated)
-        }
+        nativeHandle.scrollToBottom(animated: animated)
     }
 
     private func surfaceCaptureAnchor() -> ChatListAnchor? {
-        nativeListEnabled
-            ? nativeHandle.captureAnchor()
-            : carrierHandle.captureAnchor()
+        nativeHandle.captureAnchor()
     }
 
     private func surfaceRestore(_ anchor: ChatListAnchor) {
-        if nativeListEnabled {
-            nativeHandle.restore(anchor)
-        } else {
-            carrierHandle.restore(anchor)
-        }
+        nativeHandle.restore(anchor)
     }
 
     private func surfaceScrollToEntry(
         _ id: UUID, animated: Bool
     ) {
-        if nativeListEnabled {
-            nativeHandle.scrollToEntry(id, animated: animated)
-        } else {
-            carrierHandle.scrollToEntry(id, animated: animated)
-        }
+        nativeHandle.scrollToEntry(id, animated: animated)
     }
 
-    /// 搜索落点分发（台账 150）：原生面走收敛式落
-    /// 点（多次重滚＋漂移容差）；gen3 回退面只做
-    /// 一次性定位、不做收敛迭代（回退面口径，见交
-    /// 卷对位表）
+    /// 搜索落点分发（台账 150）：原生面收敛式落
+    /// 点（多次重滚＋漂移容差）
     private func surfaceFocusEntry(_ id: UUID) {
-        if nativeListEnabled {
-            nativeHandle.focusEntry(id)
-        } else {
-            carrierHandle.scrollToEntry(id, animated: false)
-        }
+        nativeHandle.focusEntry(id)
     }
     /// §247（换代包 4）：流式呈现开关（Core Chat-
     /// StreamingFeature，缺省 true＝块级增量新
@@ -1300,62 +1245,6 @@ struct ChatView: View {
 
     // MARK: - 主面（0.2.6 承载换代：发送区回到布局流）
 
-    /// 聊天主面：顶栏是玻璃件＋身份胶囊（0.4.0 起渐隐
-    /// 带 topFade 已删、见 chatSurface；0.4.3 起顶栏改
-    /// 挂消息列表的 .safeAreaBar 注册，不再悬浮覆盖）；
-    /// 底部发送区 0.2.6 起退出覆盖层、回到布局流——
-    /// 消息列表以安全区 bar 承载发送舱（0.2.6–0.4.2 为
-    /// .safeAreaInset，0.4.3 改 .safeAreaBar 注册，见
-    /// messageList 与 §28）。换代原因：0.2.4/0.2.5
-    /// 连着两版在覆盖式 ZStack 里跟键盘打架（键盘弹起态
-    /// 发送舱膨胀成空玻璃泡，真机实证），根子是自研悬浮层
-    /// 在跟系统的键盘布局通道抢地盘；调研 Exyte/Chat、
-    /// Stream Chat SwiftUI、MessageKit 三家成熟方案后定案
-    /// 走「列表＋发送区同处布局流」的系统通道（Exyte 与
-    /// Stream 的共识结构，调研与取舍全文见 DESIGN-V4 §10）：
-    /// 键盘升起时系统安全区把发送区整段顶到键盘上方、交互
-    /// 收起跟随安全区动画，高度永远只由内容在单次布局里
-    /// 决定，不再有全屏提议经覆盖层污染胶囊的链路。
-    /// 取舍如实记：键盘收起态消息不再从发送舱背后流过
-    /// （inset 是留位不是覆盖），换来键盘联动的系统级精确
-    /// 与高度问题的整类消除；玻璃胶囊的长相不变（胶囊是
-    /// 内容、不是布局机制）。（0.4.3 注：注册 safeAreaBar
-    /// 后滚动内容可从条下穿过并被边缘效果化开——那是效
-    /// 果层的穿过，布局留位与键盘通道不变，见 §28）
-    /// 原 NavigationStack＋toolbar 在 0.2.4 已撤销：栈内无
-    /// 任何 push 依赖（全仓核查），顶栏以悬浮覆盖层实现。
-    /// （0.4.3 注：顶栏已改挂列表的 safeAreaBar 注册、不
-    /// 再经本容器的 overlay 悬浮，见下）
-    /// （§186 注，2026-11-12：底部发送区的承载再换代——
-    /// 退出列表 safeAreaBar 注册，改由 ComposerGuideHost
-    /// 以 UIKit keyboardLayoutGuide 在同层 ZStack 托管，
-    /// 列表底留位改实测 contentMargins；换代原因与证据
-    /// 见 ComposerGuideHost 文件头与 DESIGN §186。上文
-    /// 0.2.6/0.4.3 的「回布局流」结论就此更新为「留前景
-    /// 层级内、钉位改走引导线」：不在安全区栈里、也不回
-    /// 覆盖层推算，两条旧路都不走）
-    /// 输入舱宿主 overlay（自 chatSurface 抽出单
-    /// 独成件：主链表达式过重、类型检查超时——拆
-    /// 表达式是编译器给的处方，语义零改动）
-    @ViewBuilder
-    private func composerHostOverlay(
-        _ proxy: ScrollViewProxy
-    ) -> some View {
-        ComposerGuideHost(
-            bottomSpace: $composerBottomSpace,
-            topSafe: $windowTopSafeInset,
-            pocketHeight: $kbSnapshot.pocketHeight,
-            dockTop: $kbSnapshot.dockTopInWindow,
-            keyboardFrame: $kbFrameUpdate,
-            windowHeight: $kbSnapshot.windowHeight,
-            scrollHandle: listScrollHandle
-        ) {
-            bottomBar(
-                showsArrowRow: true,
-                onScrollToBottom: { scrollToBottom(proxy) }
-            )
-        }
-    }
 
     /// 顶簇宿主 overlay（同上拆分）
     @ViewBuilder
@@ -1426,61 +1315,6 @@ struct ChatView: View {
         }
     }
 
-    /// 旧承载列表面（§257 前的定版复合面：Scroll-
-    /// ViewReader＋消息列表＋两宿主 overlay），开
-    /// 关关时恒走本面、内容一字未动
-    private var legacyListSurface: some View {
-        ScrollViewReader { proxy in
-            // §186（2026-11-12，承载换代）：输入舱退出
-            // 列表的 safeAreaBar 注册，改由 Composer-
-            // GuideHost 托管（整栈仍在前景层级内、随抽屉前景滑
-            // 动；列表与舱同树同 proxy，贴底四路的调用
-            // 面一字不变，见 ComposerGuideHost 文件头
-            // 与 messageList 的 §186 注）。回底钮不在
-            // 此浮层（§124 三代落位，见下条沿革注）
-            // §193（2026-11-13，用户拍板锚定式重构）：
-            // 输入舱退出根层定尺寸——列表为根、舱改挂
-            // .overlay 次级层（次级视图被提议主视图已
-            // 定尺寸、不参加父级尺寸协商，OpenSwiftUI
-            // 次级视图语义），舱帧内落位由其控制器以
-            // UIKit 约束锚定（坞顶/窗口键盘引导线，
-            // 见 ComposerGuideHost 文件头 §193）。根
-            // ZStack 的「盒」自此不存在：列表与顶栏
-            // 的位置只由列表自身的安全区体系决定，
-            // 舱侧固有尺寸再飘也顶不动任何栏位。§192
-            // 的 layoutPriority 断链被本式取代（同为
-            // 退出协商，overlay 是结构性的）
-            messageList(proxy)
-                .overlay {
-                    composerHostOverlay(proxy)
-                }
-                // §195：顶簇同挂本复合面的 overlay 次
-                // 级层、由 TopBarGuideHost 以 UIKit 约
-                // 束锚定窗口顶（落位只认窗口顶安全区，
-                // 与本面/坞/键盘脱钩，详见该文件头）；
-                // 与输入舱同层同式、互不承载
-                .overlay {
-                    topBarHostOverlay
-                }
-            // （§124 沿革注，本层与回底钮的关系）：回底
-            // 钮三代浮层落位全败——0.41.0 挂发送区容器
-            // overlay＋负偏移→命中被宿主 frame 剪枝（点
-            // 不动）；0.46.1 迁 overlay＋PreferenceKey
-            // 发布 frame 算落位→发布链真机未交付（整钮
-            // 消失，§121）；0.47.1 改读宿主自身 safeArea-
-            // Insets.bottom 推算→键盘态同一截键盘高被
-            // frame 与 inset 两套参照扣两遍、钮高出一截
-            // 键盘（§124 诊断）。三轮共同根因＝落位一直
-            // 在不属于输入舱的坐标系里推算；§124 正修＝
-            // 钮搬进发送区布局流本体（bottomBar 内输入
-            // 舱上方一行），落位由构造保证、零推算。
-            // §186 换代后此结论不变：钮仍在 bottomBar
-            // 本体内（overlay 托管内容就是 bottomBar
-            // 整栈），落位改由托管控制器的
-            // 约束构造保证——仍是「在输入舱自己的坐标
-            // 系里」，不回浮层推算
-        }
-    }
 
     /// 聊天主面（§257 承载分叉）：列表面按特性开关
     /// 二选一（开＝carrierListSurface 新承载／关＝
@@ -1493,13 +1327,7 @@ struct ChatView: View {
         chatSurfaceLifecycle(
             chatSurfacePresentation(
                 Group {
-                    if nativeListEnabled {
-                        nativeListSurface
-                    } else if gen3CarrierEnabled {
-                        carrierListSurface
-                    } else {
-                        legacyListSurface
-                    }
+                    nativeListSurface
                 }
                 // §185：背景层穿到屏幕四边——上下栏纯色块修
                 // 复，页面背景单独忽略安全区铺满整屏，栏下内
@@ -2663,158 +2491,6 @@ struct ChatView: View {
 
     // MARK: - 新承载（§257 换代包 3）
 
-    /// 新承载列表面：容器（ChatListCarrierView）＋
-    /// 两宿主 overlay（与旧承载同式同层：输入舱托
-    /// 管与顶簇托管不换）＋跟随处理链的新承载版
-    /// （链尾）。页面级修饰在 chatSurface 链上共享，
-    /// 本面只管列表本体与回底钮浮层
-    private var carrierListSurface: some View {
-        ChatListCarrierView(
-            rows: carrierRows(),
-            layout: ChatCarrierLayout(
-                horizontalPadding: OneDayMetrics.pageGutter,
-                topPadding: OneDayMetrics.spacingM,
-                bottomPadding: OneDayMetrics.spacingS,
-                rowSpacing: OneDayMetrics.spacingL,
-                arrowTrailing: OneDayMetrics.spacingM,
-                arrowGapAboveComposer: 8,
-                arrowSize: OneDayMetrics.minTapTarget
-            ),
-            // 顶留位与旧承载同源（窗口顶安全区实测＋
-            // 顶簇实高）。底留位 §263 改实测单源：只
-            // 喂舱顶窗口实测（窗口高实测−舱顶实测回
-            // 报，即 barFrameInWindow.minY 同拍同源
-            // 值）＋未量得回落（快照派生、仅瞬态种
-            // 子）＋单点边距 spacingM（与承载底 pad-
-            // ding spacingS 合计 24pt、§260 校准值不
-            // 变）；留位本体由承载以帧底与舱顶两实
-            // 测相减自产。§260 派生 inset 喂入＋帧外
-            // 段扣减退役（gen3-gap-recheck 定案）。
-            // 旧承载 contentMargins 口径不动
-            topInset: windowTopSafeInset + topBarHeight,
-            composerTopInWindow: kbSnapshot.windowHeight
-                - composerBottomSpace,
-            fallbackBottomSpace: kbSnapshot.bottomSpace,
-            bottomMargin: OneDayMetrics.spacingM,
-            keyboardAnimationDuration:
-                kbSnapshot.animationDuration,
-            keyboardAnimationCurveRaw:
-                kbSnapshot.animationCurveRawValue,
-            arrowView: carrierArrowView,
-            handle: carrierHandle,
-            callbacks: carrierCallbacks,
-            // §260：边缘效果注册的共享句柄与旧承载
-            // 同一份——新承载本体经它登记，两宿主的
-            // 滚动边缘注册才绑得到新承载
-            edgeScrollHandle: listScrollHandle
-        )
-        .ignoresSafeArea(edges: [.top, .bottom])
-        .overlay { composerHostOverlayCarrier }
-        .overlay { topBarHostOverlay }
-        // 条目数变化（与旧承载同路同口径）：先以最新
-        // 读数＋尾锚事实重跑在底派生，再按在底事实
-        // 跟随贴底，未读同路喂入
-        .onChange(of: currentThread?.sortedEntries.count) { _, _ in
-            applyBottomProximity(
-                distance: bottomDistanceRecorder.latest
-            )
-            if isNearBottom {
-                scrollToBottomCarrier(animated: false)
-            }
-            feedAwayUnread()
-        }
-        // 流式跟随（旧承载 A3 登记—结算制的执行口
-        // 换承载版）：节流闸与挂账双守卫零改，只换
-        // 执行口
-        .onChange(of: streamingText) { _, newText in
-            // §247（包 4）：发布拍消费端切到新承载
-            // ——每拍为缺产物的文本块催产（闭合块恒
-            // 命中、每拍只剩尾块，见 kickStreaming-
-            // BlockProducts）；跟随判定链（下方）零改
-            if let newText {
-                kickStreamingBlockProducts(for: newText)
-            }
-            guard let newText else {
-                streamFollowGate.reset()
-                streamFollowSettleGeneration += 1
-                streamFollowPending = false
-                return
-            }
-            if isNearBottom,
-               streamFollowGate.shouldFollow(
-                   currentCount: newText.count
-               ) {
-                streamFollowSettleGeneration += 1
-                streamFollowPending = true
-                let generation = streamFollowSettleGeneration
-                Task { @MainActor in
-                    await Task.yield()
-                    settleStreamFollowCarrier(
-                        generation: generation
-                    )
-                }
-            }
-        }
-        .onChange(of: composerBottomSpace) {
-            settleStreamFollowCarrier(
-                generation: streamFollowSettleGeneration
-            )
-        }
-        // 发送贴底（旧承载同路）：置真跟随态＋即时
-        // 无动画贴底＋自发清未读账
-        .onChange(of: sendPinToken) { _, _ in
-            awayUnread.noteOwnSend(
-                entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
-            )
-            isNearBottom = BottomFollowPolicy.nearBottomAfterOwnSend()
-            scrollToBottomCarrier(animated: false)
-        }
-        .onChange(of: currentThreadID) { oldID, newID in
-            handleCarrierThreadSwitch(oldID: oldID, newID: newID)
-        }
-        .onChange(of: composerFocused) { _, focused in
-            if focused {
-                anchorToBottomAfterKeyboardCarrier()
-            } else {
-                keyboardAnchorPending = false
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardWillChangeFrameNotification
-            )
-        ) { _ in
-            keyboardFrameSettled = false
-            if composerFocused {
-                anchorToBottomAfterKeyboardCarrier()
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardDidChangeFrameNotification
-            )
-        ) { _ in
-            settleKeyboardAnchorCarrier()
-        }
-        .task(id: currentThreadID) {
-            guard let id = currentThreadID else { return }
-            if ChatListAnchorStore.anchor(for: id) != nil
-                || appState.sideChats.scrollAnchor(for: id) != nil {
-                restoreCarrierPosition(for: id)
-            } else {
-                carrierFirstFrameSettle(for: id)
-            }
-        }
-        .task(id: gen3CarrierEnabled) {
-            // 开关在本页在场时被打开：按当前线程锚恢
-            // 复一次（与切线程恢复同路），不让新承载
-            // 停在线程顶部
-            if let id = currentThreadID {
-                restoreCarrierPosition(for: id)
-                carrierFirstFrameSettle(for: id)
-            }
-        }
-    }
 
     // MARK: - 原生重建面（§291 R1）
 
@@ -2840,7 +2516,7 @@ struct ChatView: View {
             changeSet: chatListIncrementalEnabled
                 ? feedChangeTracker.lastChangeSet
                 : nil,
-            layout: ChatCarrierLayout(
+            layout: ChatNativeLayout(
                 horizontalPadding: OneDayMetrics.pageGutter,
                 topPadding: OneDayMetrics.spacingM,
                 bottomPadding: OneDayMetrics.spacingS,
@@ -2874,14 +2550,14 @@ struct ChatView: View {
                 bottomBar(
                     showsArrowRow: false,
                     onScrollToBottom: {
-                        scrollToBottomCarrier(
+                        scrollToBottom(
                             animated: true
                         )
                     }
                 )
             ),
             keyboardFrame: $kbFrameUpdate,
-            arrowView: carrierArrowView,
+            arrowView: surfaceArrowView,
             handle: nativeHandle,
             callbacks: nativeCallbacks,
             edgeScrollHandle: listScrollHandle,
@@ -2899,7 +2575,7 @@ struct ChatView: View {
                 distance: bottomDistanceRecorder.latest
             )
             if isNearBottom {
-                scrollToBottomCarrier(animated: false)
+                scrollToBottom(animated: false)
             }
             feedAwayUnread()
         }
@@ -2922,7 +2598,7 @@ struct ChatView: View {
                 let generation = streamFollowSettleGeneration
                 Task { @MainActor in
                     await Task.yield()
-                    settleStreamFollowCarrier(
+                    settleStreamFollow(
                         generation: generation
                     )
                 }
@@ -2933,10 +2609,10 @@ struct ChatView: View {
                 entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
             )
             isNearBottom = BottomFollowPolicy.nearBottomAfterOwnSend()
-            scrollToBottomCarrier(animated: false)
+            scrollToBottom(animated: false)
         }
         .onChange(of: currentThreadID) { oldID, newID in
-            handleCarrierThreadSwitch(oldID: oldID, newID: newID)
+            handleThreadSwitch(oldID: oldID, newID: newID)
         }
         // §293（R2／H8）→§302：本面在 ChatView 侧
         // 仍不订阅键盘通知、不走键盘锚定挂账链
@@ -2955,17 +2631,9 @@ struct ChatView: View {
             guard let id = currentThreadID else { return }
             if ChatListAnchorStore.anchor(for: id) != nil
                 || appState.sideChats.scrollAnchor(for: id) != nil {
-                restoreCarrierPosition(for: id)
+                restoreThreadPosition(for: id)
             } else {
-                carrierFirstFrameSettle(for: id)
-            }
-        }
-        .task(id: nativeListEnabled) {
-            // 开关在本页在场时被打开：按当前线程锚恢
-            // 复一次（与 gen3 面同路）
-            if let id = currentThreadID {
-                restoreCarrierPosition(for: id)
-                carrierFirstFrameSettle(for: id)
+                firstFrameSettle(for: id)
             }
         }
     }
@@ -2973,8 +2641,8 @@ struct ChatView: View {
     /// 原生面回调：与 carrierCallbacks 同式——几何
     /// 读数先同步进引用匣、判定推下一拍；读数源换
     /// 原生句柄
-    private var nativeCallbacks: ChatListCarrierCallbacks {
-        ChatListCarrierCallbacks(
+    private var nativeCallbacks: ChatNativeListCallbacks {
+        ChatNativeListCallbacks(
             onScrollGeometry: {
                 bottomDistanceRecorder.latest =
                     nativeHandle.latestDistance
@@ -2988,7 +2656,7 @@ struct ChatView: View {
                     applyBottomProximity(
                         distance: bottomDistanceRecorder.latest
                     )
-                    evaluateSettleOnEventCarrier()
+                    evaluateSettleOnEvent()
                 }
             },
             onTopVisibleEntry: { entryID in
@@ -3015,211 +2683,24 @@ struct ChatView: View {
         )
     }
 
-    /// gen3 承载的输入舱宿主 overlay：托管本体与旧承
-    /// 载同一 ComposerGuideHost、同一批实测回报绑
-    /// 定（§194 机制与冻结记账零改）；只有舱内容
-    /// 的回底钮行退场（钮归容器 overlay）。§293
-    /// （R2）起原生面不再经本 overlay——其舱收编
-    /// 入 ChatRootViewController 子托管（H8）
-    @ViewBuilder
-    private var composerHostOverlayCarrier: some View {
-        ComposerGuideHost(
-            bottomSpace: $composerBottomSpace,
-            topSafe: $windowTopSafeInset,
-            pocketHeight: $kbSnapshot.pocketHeight,
-            dockTop: $kbSnapshot.dockTopInWindow,
-            keyboardFrame: $kbFrameUpdate,
-            windowHeight: $kbSnapshot.windowHeight,
-            scrollHandle: listScrollHandle
-        ) {
-            bottomBar(
-                showsArrowRow: false,
-                onScrollToBottom: {
-                    scrollToBottomCarrier(animated: true)
-                }
-            )
-        }
-    }
 
     /// 容器 overlay 回底钮的视图供给：显隐与角标与
     /// 旧承载同一派生（showsBackToBottomButton＋
     /// AwayUnreadCounter），钮本体与旧承载共用同一
     /// 构建（scrollToBottomButton），只有承载与动
     /// 作口换
-    private var carrierArrowView: AnyView? {
+    private var surfaceArrowView: AnyView? {
         guard showsBackToBottomButton else { return nil }
         return AnyView(
             scrollToBottomButton(action: {
-                scrollToBottomCarrier(animated: true)
+                scrollToBottom(animated: true)
             })
         )
     }
 
-    /// 承载回调：几何读数先同步进引用匣（非状态、
-    /// 写不失效视图，与 BottomDistanceRecorder 的
-    /// §199 纪律同式），判定与落定评估推下一拍执
-    /// 行——承载 apply 拍内不许写 @State（防更新中
-    /// 改状态）
-    private var carrierCallbacks: ChatListCarrierCallbacks {
-        ChatListCarrierCallbacks(
-            onScrollGeometry: {
-                bottomDistanceRecorder.latest =
-                    carrierHandle.latestDistance
-                bottomDistanceRecorder.contentEndVisible =
-                    carrierHandle.contentEndVisible
-                bottomDistanceRecorder.containerHeight =
-                    carrierHandle.containerHeight
-                bottomDistanceRecorder.bottomInset =
-                    carrierHandle.bottomInset
-                DispatchQueue.main.async {
-                    applyBottomProximity(
-                        distance: bottomDistanceRecorder.latest
-                    )
-                    evaluateSettleOnEventCarrier()
-                }
-            },
-            onTopVisibleEntry: { entryID in
-                DispatchQueue.main.async {
-                    if topVisibleEntryID != entryID {
-                        topVisibleEntryID = entryID
-                    }
-                }
-            },
-            onBlankTap: {
-                composerFocusHandle.dismiss()
-            }
-        )
-    }
 
     // MARK: 新承载行构建
 
-    /// 行集组装：与旧承载 messageList 的行集同源同
-    /// 序（渲染计划条目/工具组→直播区→回告卡→审
-    /// 批区→空状态）——同一批数据、同一批行内容
-    /// 构建，只换承载。直播区/回告/审批/空态在新
-    /// 承载里是不透明行（整段托管、量实定高）
-    private func carrierRows() -> [ChatCarrierRow] {
-        var rows: [ChatCarrierRow] = []
-        if let thread = currentThread {
-            let plan = renderPlan(for: thread)
-            for item in plan.items {
-                switch item {
-                case .entry(let entry):
-                    rows.append(
-                        carrierEntryRow(
-                            entry,
-                            dividerText: plan.dividers[entry.id],
-                            sources: plan.sources[entry.id] ?? []
-                        )
-                    )
-                case .toolGroup(let groupEntries):
-                    let cards = groupEntries.compactMap(\.toolCard)
-                    rows.append(
-                        ChatCarrierRow(
-                            key: "toolgroup-\(groupEntries[0].id.uuidString)",
-                            entryID: groupEntries[0].id,
-                            version: groupEntries.count,
-                            estimatedHeight: 96,
-                            makeView: {
-                                AnyView(
-                                    ToolCardGroupView(cards: cards)
-                                )
-                            }
-                        )
-                    )
-                }
-            }
-        }
-        // §247（包 4）：直播区收编——不再整段一行
-        // 不透明托管，逐项成行（思考/工具原位更新、
-        // 正文走流式行），行集与旧承载 liveZone 的
-        // ForEach 同源同序（liveRenderItems 单口）
-        for item in liveRenderItems() {
-            rows.append(carrierLiveRow(item))
-        }
-        if let overviewStore {
-            for item in ReportCardPolicy.cards(
-                notifications: overviewStore.notifications,
-                isMainThread: isCurrentMainThread
-            ) {
-                rows.append(
-                    ChatCarrierRow(
-                        key: "report-\(item.id)",
-                        entryID: nil,
-                        version: 0,
-                        estimatedHeight: 110,
-                        makeView: {
-                            AnyView(
-                                reportCard(
-                                    item, store: overviewStore
-                                )
-                            )
-                        }
-                    )
-                )
-            }
-        }
-        rows.append(
-            ChatCarrierRow(
-                key: "approval-zone",
-                entryID: nil,
-                version: appState.sharedHubStore()
-                    .anchoredRecordIDs.count,
-                estimatedHeight: 0,
-                makeView: {
-                    AnyView(
-                        ChatApprovalZone(
-                            store: appState.sharedHubStore(),
-                            anchoredRecordIDs: appState
-                                .sharedHubStore().anchoredRecordIDs
-                        )
-                    )
-                }
-            )
-        )
-        if ChatEmptyState.shows(
-            threadIsNil: currentThread == nil,
-            entryCount: currentThread?.sortedEntries.count ?? 0,
-            isStreaming: isStreaming
-        ) {
-            rows.append(
-                ChatCarrierRow(
-                    key: "empty-hero",
-                    entryID: nil,
-                    version: 0,
-                    estimatedHeight: 190,
-                    makeView: { AnyView(emptyStateHero) }
-                )
-            )
-            rows.append(
-                ChatCarrierRow(
-                    key: "empty-suggestions",
-                    entryID: nil,
-                    version: 0,
-                    estimatedHeight: 190,
-                    makeView: { AnyView(emptyStateSuggestions) }
-                )
-            )
-            if showsModelSetupCard {
-                rows.append(
-                    ChatCarrierRow(
-                        key: "empty-modelsetup",
-                        entryID: nil,
-                        version: 0,
-                        estimatedHeight: 120,
-                        makeView: {
-                            AnyView(
-                                modelSetupCard.padding(
-                                    .top, OneDayMetrics.spacingL
-                                )
-                            )
-                        }
-                    )
-                )
-            }
-        }
-        return rows
-    }
 
     // MARK: 原生面行构建（§291 R1）
 
@@ -4262,7 +3743,7 @@ struct ChatView: View {
     ) -> ChatNativeRow {
         switch item {
         case .reasoning:
-            let row = carrierLiveRow(item)
+            let parts = liveSharedRowParts(item)!
             var revision = ChatNativeRowRevision()
             revision.addText(streamingReasoning)
             revision.addFlag(
@@ -4270,21 +3751,21 @@ struct ChatView: View {
                     && liveToolCards.isEmpty)
             )
             return ChatNativeRow(
-                key: row.key,
-                entryID: row.entryID,
+                key: parts.key,
+                entryID: nil,
                 revision: revision,
                 height: composer.liveReasoningHeight(
                     text: streamingReasoning ?? "",
                     contentStarted: !((streamingText ?? "")
                         .isEmpty && liveToolCards.isEmpty)
                 ),
-                makeView: row.makeView
+                makeView: parts.makeView
             )
         case .tool(let card):
-            let row = carrierLiveRow(item)
+            let parts = liveSharedRowParts(item)!
             return ChatNativeRow(
-                key: row.key,
-                entryID: row.entryID,
+                key: parts.key,
+                entryID: nil,
                 revision: Self.toolCardRevision(card),
                 height: composer.toolCardHeight(
                     card: card, width: composer.contentWidth,
@@ -4295,25 +3776,25 @@ struct ChatView: View {
                         ) ?? false,
                     plain: false
                 ),
-                makeView: row.makeView
+                makeView: parts.makeView
             )
         case .toolGroup(let cards):
-            let row = carrierLiveRow(item)
+            let parts = liveSharedRowParts(item)!
             var revision = ChatNativeRowRevision()
             for card in cards {
                 revision.parts.append(contentsOf:
                     Self.toolCardRevision(card).parts)
             }
             return ChatNativeRow(
-                key: row.key,
-                entryID: row.entryID,
+                key: parts.key,
+                entryID: nil,
                 revision: revision,
                 height: composer.toolGroupHeight(
                     cards: cards,
                     groupKey: ChatRowStateKeys
                         .liveToolGroup(item.id)
                 ),
-                makeView: row.makeView
+                makeView: parts.makeView
             )
         case .text:
             let text = streamingText ?? ""
@@ -4398,49 +3879,26 @@ struct ChatView: View {
         }
     }
 
-    /// §247（包 4）直播区逐项行：思考/单工具/工
-    /// 具组各自成行、内容变只重托管本行（原位
-    /// reconfigure 的本承载等价）；正文走流式行
-    /// （见 carrierStreamRow）。行内容与旧承载
-    /// liveZone 的对应分支逐一同构
-    private func carrierLiveRow(
+    /// §374.9（步骤 6）抽取：直播行三类（推理/工
+    /// 具/工具组）的键与视图构造——原 carrierLiveRow
+    /// 中被原生面复用的部分：nativeLiveRow 只消费
+    /// key 与 makeView（版本/估高由原生面自家 com-
+    /// poser 承接）；正文/封存段两类是 gen3 专属、
+    /// 随承载退役（原生面有自家分支）。三类恒有
+    /// 值，.text/.sealedText 传入即编程错误（调用点
+    /// 在三类的 case 分支内）
+    private func liveSharedRowParts(
         _ item: LiveRenderItem
-    ) -> ChatCarrierRow {
+    ) -> (key: String, makeView: @MainActor () -> AnyView)? {
         switch item {
         case .reasoning:
-            return ChatCarrierRow(
+            return (
                 key: "live-reasoning",
-                entryID: nil,
-                version: (streamingReasoning?.count ?? -1) &* 31
-                    &+ (((streamingText ?? "").isEmpty
-                         && liveToolCards.isEmpty) ? 0 : 1),
-                estimatedHeight: 120,
                 makeView: { AnyView(liveReasoningBlock) }
             )
-        case .text:
-            return carrierStreamRow()
-        case .sealedText(let index, let text):
-            // 封存段行（第 93 条）：键＝流式行键＋段序
-            // 后缀（与打开段行、落定行互不撞键）；内容
-            // 定稿，版本只随段文本（封段后恒定）；估高
-            // 与流式行同口（同为一段正文的气泡）
-            return ChatCarrierRow(
-                key: "\(currentStreamRowKey())#seg\(index)",
-                entryID: nil,
-                version: text.count,
-                estimatedHeight: gen4StreamingEnabled
-                    ? carrierStreamRowEstimate(text: text)
-                    : 120,
-                makeView: {
-                    AnyView(streamingBubbleIncremental(text))
-                }
-            )
         case .tool(let card):
-            return ChatCarrierRow(
+            return (
                 key: "live-\(item.id)",
-                entryID: nil,
-                version: liveToolCardVersion(card),
-                estimatedHeight: 96,
                 makeView: {
                     AnyView(
                         ToolCardView(
@@ -4453,13 +3911,8 @@ struct ChatView: View {
                 }
             )
         case .toolGroup(let cards):
-            return ChatCarrierRow(
+            return (
                 key: "live-\(item.id)",
-                entryID: nil,
-                version: cards.reduce(cards.count) {
-                    $0 &* 31 &+ liveToolCardVersion($1)
-                },
-                estimatedHeight: 96,
                 makeView: {
                     AnyView(
                         ToolCardGroupView(
@@ -4471,42 +3924,12 @@ struct ChatView: View {
                     )
                 }
             )
+        case .text, .sealedText:
+            return nil
         }
     }
 
-    /// 直播工具卡版本指纹：标题/摘要/结果任一变
-    /// 即重托管本行（卡在直播期的生长面）
-    private func liveToolCardVersion(_ card: ToolCard) -> Int {
-        var version = card.title.count
-        version = version &* 31 &+ card.summary.count
-        version = version &* 31 &+ (card.result?.count ?? -1)
-        version = version &* 31 &+ (card.resultFailed ? 1 : 0)
-        return version
-    }
 
-    /// §247（包 4）流式行：流式条目以本轮用户条
-    /// 目 id 为行键入承载（蓝图 §1.4「流式条目
-    /// 入快照」的本承载落法）——落定条目沿用同
-    /// 键（streamSettleMap），承载据同键＋版本变
-    /// 原位换内容、行不消失重建，即落定不换装。
-    /// 内容分叉：新路（开关开）非空文本走块级呈
-    /// 现＋块产物组合估算；旧路（开关关）与空文
-    /// 本（等待点/上传提示）回 streamingBubble
-    /// 既有形态＋120 占位估算
-    private func carrierStreamRow() -> ChatCarrierRow {
-        let text = streamingText ?? ""
-        return ChatCarrierRow(
-            key: currentStreamRowKey(),
-            entryID: nil,
-            version: streamRowVersion(text: text),
-            estimatedHeight: gen4StreamingEnabled
-                ? carrierStreamRowEstimate(text: text)
-                : 120,
-            makeView: {
-                AnyView(streamingBubbleIncremental(text))
-            }
-        )
-    }
 
     /// 流式行键：账本在飞轮的用户条目 id 为主形
     /// 态；账本缺位（恢复接管前一瞬等）回线程回
@@ -4528,73 +3951,7 @@ struct ChatView: View {
         )
     }
 
-    /// 流式行版本：新路＝全文长×31＋块数（块界
-    /// 跨越与尾块生长都翻版）；旧路＝全文长（与
-    /// 包 3 直播区版本的文本因子同口径）
-    private func streamRowVersion(text: String) -> Int {
-        guard gen4StreamingEnabled else { return text.count }
-        let blocks = StreamingBlockSegmenter.blocks(for: text)
-        return text.count &* 31 &+ blocks.count
-    }
 
-    /// 流式行高估算（新路）：逐块同步直读产物缓
-    /// 存（键＝块派生 id，与预热/条目产物同通
-    /// 道）、StreamingComposition 组合后走与条
-    /// 目行同一高度模型（ChatRowHeightModel，
-    /// hasDivider 恒假）——流式行与落定行同口径
-    /// 估算，落定前后估算不跳变；文本块产物未齐
-    /// 时组合总高为 nil、整行回暂定估算（字符粗
-    /// 估，与 provisionalRowHeight 同式）
-    private func carrierStreamRowEstimate(
-        text: String
-    ) -> CGFloat {
-        let style = LayoutStyleContext(
-            sizeCategory: dynamicTypeSize.contentSizeCategory,
-            boldText: UIAccessibility.isBoldTextEnabled
-        )
-        let textWidth = UIScreen.main.bounds.width
-            - OneDayMetrics.bubblePaddingH * 2
-            - OneDayMetrics.bubbleSideInset
-        let blocks = StreamingBlockSegmenter.blocks(for: text)
-        let products: [LayoutProduct?] = blocks.map { block in
-            guard block.isTextual else { return nil }
-            let key = StreamingBlockIdentity.productKey(
-                for: block, width: Double(textWidth),
-                style: style.coreKey
-            )
-            return LayoutProductStore.cache.product(for: key)
-        }
-        let totals = StreamingComposition.totals(
-            blocks: blocks, products: products
-        )
-        let traits = UITraitCollection(
-            preferredContentSizeCategory:
-                dynamicTypeSize.contentSizeCategory
-        )
-        let lineFloor = UIFont.preferredFont(
-            forTextStyle: .callout, compatibleWith: traits
-        ).lineHeight
-        let chars = max(text.count, 1)
-        let lines = min(
-            40, max(1, Int(ceil(Double(chars) / 18.0)))
-        )
-        let input = ChatRowHeightModel.Input(
-            textTotalHeight: totals.textTotalHeight,
-            textSegmentCount: totals.textSegmentCount,
-            structuralSegmentCount:
-                totals.structuralSegmentCount,
-            measuredContentHeight: nil,
-            hasDivider: false,
-            bubblePaddingV: Double(OneDayMetrics.bubblePaddingV),
-            segmentSpacing: Double(OneDayMetrics.spacingS),
-            dividerHeight: 0,
-            dividerSpacing: Double(OneDayMetrics.spacingS),
-            lineHeightFloor: Double(lineFloor),
-            provisionalHeight: Double(lines) * Double(lineFloor)
-                + Double(OneDayMetrics.bubblePaddingV) * 2
-        )
-        return CGFloat(ChatRowHeightModel.rowHeight(input))
-    }
 
     /// 块产物催产（StreamPublishGate 消费端切换
     /// 的落点）：发布文本每变一拍，缺产物的文本
@@ -4603,12 +3960,10 @@ struct ChatView: View {
     /// 每拍新增催产只剩尾块（单拍成本有界的执
     /// 行侧）；只在新承载＋新路时工作，旧路不产。
     /// §293（R2）：原生面恒走块级路径（不设 gen4
-    /// 关回落），其在场本身即催产资格——放行条件
-    /// ＝（gen3＋gen4）∨ 原生面
+    /// 关回落），其在场本身即催产资格。§374.9（步
+    /// 骤 6）：旧承载退役后原生面恒在场，原承载放
+    /// 行条件（(gen3＋gen4)∨原生）整删——本路恒开
     private func kickStreamingBlockProducts(for text: String) {
-        guard (gen3CarrierEnabled && gen4StreamingEnabled)
-            || nativeListEnabled
-        else { return }
         let style = LayoutStyleContext(
             sizeCategory: dynamicTypeSize.contentSizeCategory,
             boldText: UIAccessibility.isBoldTextEnabled
@@ -4638,186 +3993,9 @@ struct ChatView: View {
         }
     }
 
-    /// 流式气泡（新承载行内容分叉）：新路非空文
-    /// 本走块级呈现（StreamingBlockText）；其余
-    /// （旧路/空文本等待态）回既有 streaming-
-    /// Bubble 全形态（等待点/上传进度/逐词渐显）
-    @ViewBuilder
-    private func streamingBubbleIncremental(
-        _ text: String,
-        menuEntry: ChatEntry? = nil
-    ) -> some View {
-        if gen4StreamingEnabled, !text.isEmpty {
-            assistantBubble(menuEntry: menuEntry) {
-                StreamingBlockText(text: text)
-            }
-        } else {
-            streamingBubble(text, menuEntry: menuEntry)
-        }
-    }
 
-    private func carrierEntryRow(
-        _ entry: ChatEntry, dividerText: String?,
-        sources: [MessageSource] = []
-    ) -> ChatCarrierRow {
-        // §247（包 4）：落定映射命中时条目行沿用
-        // 流式行键＋带留高旗——与流式行同键换代、
-        // 落定帧行高按流式期量实连续（落定不换
-        // 装的键面）；未命中（非流式落定/映射被
-        // 首占拒）回本名键、常规口径
-        let settledKey = streamSettleMap.rowKey(for: entry.id)
-        // 台账 148：NEW 分界线在 gen3 面同呈现（共用
-        // entryRowContent）；估算高在模型输出上补一
-        // 个分界槽（footnote 一行＋spacingS，与原生
-        // 面合成槽同值，量实到达后覆盖）
-        let showsUnread = entry.id == unreadAnchorEntryID
-        var estimate = carrierRowEstimate(
-            for: entry, hasDivider: dividerText != nil
-        )
-        if showsUnread {
-            let traits = UITraitCollection(
-                preferredContentSizeCategory:
-                    dynamicTypeSize.contentSizeCategory
-            )
-            estimate += UIFont.preferredFont(
-                forTextStyle: .footnote, compatibleWith: traits
-            ).lineHeight + OneDayMetrics.spacingS
-        }
-        return ChatCarrierRow(
-            key: settledKey ?? "entry-\(entry.id.uuidString)",
-            entryID: entry.id,
-            version: carrierEntryVersion(entry),
-            estimatedHeight: estimate,
-            keepsMeasuredHeightOnVersionChange:
-                settledKey != nil,
-            makeView: {
-                AnyView(
-                    entryRowContent(
-                        entry, dividerText: dividerText,
-                        showsUnreadDivider: showsUnread,
-                        sources: sources
-                    )
-                )
-            }
-        )
-    }
 
-    /// 条目内容版本（gen3 承载专用）：内容长/工
-    /// 具卡数据/图数任一变即重托管＋重量实（半截
-    /// 条目流内生长靠本版本跟上）；锚点点亮翻转
-    /// 只重托管被点亮的那行
-    /// §320：文件数同图数一律折入——发送回填
-    /// （remoteFilePaths 落盘）是条目物化后才到的
-    /// 变化，不折入则版本不动、列表永不重配该行
-    /// （诊断 file-attach-invisible-diagnosis-
-    /// 20261117 §B5 定案；旧面直读条目模型无此
-    /// 症）。§325 起原生面不再消费本函数——原生
-    /// 面版本改 ChatNativeRowRevision 结构化派生
-    /// （全字段快照、无清单可漏）；本函数与
-    /// carrierRowEstimate 只余 gen3 面消费、随
-    /// R5 旧路退役一并销账
-    private func carrierEntryVersion(
-        _ entry: ChatEntry
-    ) -> Int {
-        var version = entry.content.count
-        version = version &* 31
-            &+ (entry.toolCardData?.count ?? 0)
-        version = version &* 31 &+ entry.remoteImagePaths.count
-        version = version &* 31 &+ entry.remoteFilePaths.count
-        if entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID {
-            version &+= 0x9e37
-        }
-        // 台账 148：未读锚翻转同属版本输入（锚行重
-        // 托管才画得出/撤得下分界线）
-        if entry.id == unreadAnchorEntryID {
-            version &+= 0x51ab
-        }
-        return version
-    }
 
-    /// 行高估算（承载侧定高，Core ChatRowHeight-
-    /// Model 组合）：产物覆盖面与预热资格同界（用
-    /// 户原文/助手摘标记后文本，工具卡/回响/锚定
-    /// 行不入产物）——缓存同步直读（预热已在进线
-    /// 程时预产），未命中走暂定估算、量实到达后由
-    /// 承载侧覆盖。文本宽与预热同账（LayoutProduct-
-    /// Service.textWidth 单源，§263）
-    private func carrierRowEstimate(
-        for entry: ChatEntry, hasDivider: Bool
-    ) -> CGFloat {
-        let style = LayoutStyleContext(
-            sizeCategory: dynamicTypeSize.contentSizeCategory,
-            boldText: UIAccessibility.isBoldTextEnabled
-        )
-        let textWidth = LayoutProductService.textWidth(
-            isUser: entry.role == "user",
-            screenWidth: UIScreen.main.bounds.width
-        )
-        var product: LayoutProduct?
-        if entry.role == "user" {
-            product = cachedLayoutProduct(
-                entryID: entry.id,
-                renderedText: entry.content,
-                width: textWidth, style: style
-            )
-        } else if entry.role == "assistant",
-                  entry.toolCard == nil, entry.traceKey == nil,
-                  entry.echoKey == nil, entry.approvalKey == nil {
-            let text = EntryScanMemo.scans(
-                entryID: entry.id,
-                content: entry.content,
-                remoteImagePaths: entry.remoteImagePaths
-            ).media.text
-            product = cachedLayoutProduct(
-                entryID: entry.id,
-                renderedText: text,
-                width: textWidth, style: style
-            )
-        }
-        let traits = UITraitCollection(
-            preferredContentSizeCategory:
-                dynamicTypeSize.contentSizeCategory
-        )
-        // §263：行高下限与正文同链——.body 的规格
-        // 行高由 specLineHeight 与量测池同栈实量
-        // （默认档 22），与量测池量到的 pitch 同源；
-        // preferredFont 的 .lineHeight 是字体自然
-        // 行高（20.29）、不是规格值，不许拿它喂下限
-        let lineFloor = InlineTextFonts.specLineHeight(
-            textStyle: .body,
-            category: style.sizeCategory,
-            boldText: style.boldText
-        )
-        let dividerHeight = UIFont.preferredFont(
-            forTextStyle: .footnote, compatibleWith: traits
-        ).lineHeight
-        let input = ChatRowHeightModel.Input(
-            textTotalHeight: product.map {
-                Double($0.textTotalHeight)
-            },
-            textSegmentCount: product?.segments.count ?? 0,
-            structuralSegmentCount:
-                product?.structuralSegmentCount ?? 0,
-            measuredContentHeight: nil,
-            hasDivider: hasDivider,
-            bubblePaddingV: Double(OneDayMetrics.bubblePaddingV),
-            segmentSpacing: Double(OneDayMetrics.spacingS),
-            dividerHeight: Double(dividerHeight),
-            dividerSpacing: Double(OneDayMetrics.spacingS),
-            lineHeightFloor: Double(lineFloor),
-            provisionalHeight: Double(
-                provisionalRowHeight(
-                    for: entry, lineFloor: lineFloor
-                )
-            )
-        )
-        // §320：行高模型只合成文本面——用户行正文
-        // 泡下方的文件牌组不在产物内，估算须另行
-        // 补入（回填换装后帧表先按估算落位，缺牌
-        // 高即先矮一截、量实回填才跳回）
-        return CGFloat(ChatRowHeightModel.rowHeight(input))
-            + fileChipStackEstimate(for: entry, style: style)
-    }
 
     /// 文件牌组估算高（§320）：托管行用户泡下方
     /// FileChip 卡组的占位高。几何与 FileChip 本
@@ -5304,752 +4482,7 @@ struct ChatView: View {
         return items
     }
 
-    @ViewBuilder
-    private var liveZone: some View {
-        ForEach(liveRenderItems()) { item in
-            switch item {
-            case .reasoning:
-                liveReasoningBlock
-            case .text:
-                if let streamingText {
-                    streamingBubble(streamingText)
-                        .id("streaming")
-                }
-            case .sealedText(let index, let text):
-                // 封存段只读呈现（第 93 条）：与打开段
-                // 同族气泡、内容定稿不动画重排
-                streamingBubble(text)
-                    .id("sealed-text-\(index)")
-            case .tool(let card):
-                ToolCardView(
-                    card: card,
-                    expansionKey: ChatRowStateKeys
-                        .toolLive(card.id),
-                    ledger: rowStateLedger
-                )
-                    .id("tool-\(card.id)")
-            case .toolGroup(let cards):
-                ToolCardGroupView(
-                    cards: cards,
-                    expansionKey: ChatRowStateKeys
-                        .liveToolGroup(
-                            "toolgroup-\(cards.first?.id ?? "none")"
-                        ),
-                    ledger: rowStateLedger
-                )
-                    .id("toolgroup-\(cards.first?.id ?? "none")")
-            }
-        }
-    }
 
-    private func messageList(_ proxy: ScrollViewProxy) -> some View {
-        ScrollView {
-            // §176（2026-11-12，气泡间距收口）：尾锚移
-            // 出 LazyVStack 的行距体系——旧形态锚是栈
-            // 内最后一个子项，与末条之间照收一份
-            // spacingL（24pt，诊断九环第 1 环）；改由
-            // 外层 VStack(spacing: 0) 承载消息栈＋尾锚，
-            // 行距只在消息之间生效、列表尾与行距脱钩
-            // （spacingL 本值不动、消息间密度不变）。
-            // 锚的 id 与全部 scrollTo 出口不变，§78/
-            // §135 贴底四路的落点仍是它
-            VStack(spacing: 0) {
-                LazyVStack(alignment: .leading, spacing: OneDayMetrics.spacingL) {
-                    if let thread = currentThread {
-                        // 0.30.0（聊天时间系统）：分隔条落点与
-                        // 文案由 Core ChatTimeline 按会话条目
-                        // 走查（工具卡条目不单独占分隔、也不
-                        // 重置锚点——以所属回合时间为准）；流
-                        // 式行/流内工具卡是当前回合的呈现层尾
-                        // 巴、不另起分隔（本回合的分隔由其
-                        // user 条目承担，见 timelineDividers）
-                        // §135 B 案：渲染计划走缓存单口（排
-                        // 序＋分隔＋成组三件一并按键复用），
-                        // 不再每遍 body 对全线程现算两遍
-                        let plan = renderPlan(for: thread)
-                        ForEach(plan.items) { item in
-                            switch item {
-                            case .entry(let entry):
-                                entryRowContent(
-                                    entry,
-                                    dividerText:
-                                        plan.dividers[entry.id],
-                                    sources: plan.sources[entry.id]
-                                        ?? []
-                                )
-                                .id(entry.id)
-                            case .toolGroup(let groupEntries):
-                                // 连续工具卡 ≥2 成组（0.36.10，
-                                // 诊断 D3-8）：组 id 借首条条目
-                                // id，与 .entry 形态互斥不撞
-                                ToolCardGroupView(
-                                    cards: groupEntries
-                                        .compactMap(\.toolCard)
-                                )
-                                .id(groupEntries[0].id)
-                            }
-                        }
-                    }
-                    // 直播区（0.36.10 重做）：思考/工具/正文
-                    // 按事件到达序交错（liveOrder），连续工
-                    // 具 ≥2 收成组；旧形态「卡列恒在前、正
-                    // 文恒在后」与真实先后倒序（诊断 D3-10）
-                    liveZone
-                    // 0.7.0（D2 回告入线）：任务/审批等完成回告
-                    // 以卡片只出现在主线——数据走总览桥通知、
-                    // 在呈现层拼装呈现，绝不写入任何 Hermes
-                    // 会话（红线 D4）；旁聊页经 ReportCard-
-                    // Policy 恒为空。卡不入 SwiftData、不进发
-                    // 送上下文（上下文只由 sortedEntries 组装、
-                    // 构造上隔离）
-                    if let overviewStore {
-                        ForEach(
-                            ReportCardPolicy.cards(
-                                notifications: overviewStore.notifications,
-                                isMainThread: isCurrentMainThread
-                            )
-                        ) { item in
-                            reportCard(item, store: overviewStore)
-                        }
-                    }
-                    // 留痕回响（§229 物化归位）：旧形态是
-                    // 本处一段呈现层流尾拼装（卡恒挂整个
-                    // 条目列之后、事件时间从不进时间轴，
-                    // 昨天的卡永远沉在今天消息下面）——
-                    // 已退役。回响改由 refreshEchoTraces
-                    // 拉成后物化为真条目（traceKey 标记、
-                    // createdAt＝事件时间），随 sorted-
-                    // Entries 在流内对应轮次以紧凑回响行
-                    // 呈现（见 bubble 的 traceEchoRow），
-                    // 本处不再有尾挂区
-                    // 就地审批（0.36.21，规格 §1/§3）：待批
-                    // 写入在流末尾出卡——桥载荷无会话归属字
-                    // 段，走退位形态（全部未决汇到当前流＋
-                    // 枢纽兜底）；与回告卡同纪律：只在呈现
-                    // 层拼装、绝不写入会话；store 与枢纽共
-                    // 享同一份（AppState.sharedHubStore）
-                    // §165（锚点包）：已在本机落锚的记录由
-                    // 其锚定行承载（单源，规格 §4.3），本区
-                    // 只出未锚记录；锚集随 store 刷新回写
-                    // （ApprovalAnchorMaterialization）
-                    ChatApprovalZone(
-                        store: appState.sharedHubStore(),
-                        anchoredRecordIDs: appState
-                            .sharedHubStore().anchoredRecordIDs
-                    )
-                    // §244 授权卡区：设备调用卡在权限上
-                    // 时的对话内授权卡（与审批卡同呈现纪
-                    // 律——只在呈现层拼装、绝不写入会话；
-                    // 设备通道无会话归属字段，卡汇当前
-                    // 对话流末尾，枢纽/设备页为兜底面）
-                    ChatPermissionZone()
-                    if ChatEmptyState.shows(
-                        threadIsNil: currentThread == nil,
-                        entryCount: currentThread?.sortedEntries.count ?? 0,
-                        isStreaming: isStreaming
-                    ) {
-                        // 空状态（DESIGN-V4 §5 两行字口径保
-                        // 留）：0.26.0 起形象位由 SF 符号换三
-                        // 狗头像、边长走形象档空态值（48/56/
-                        // 68）——用户外观令点名的作用面
-                        // 基础止血包（P9）：呈现判定并成一
-                        // 条（Core ChatEmptyState）——已建
-                        // 的零条目线程同出本面，不再白屏
-                        emptyStateHero
-                        emptyStateSuggestions
-                        // §119：无任何可用模型时，空态下方出
-                        // 引导卡（判定见 showsModelSetupCard；
-                        // 有模型时永不出现）
-                        if showsModelSetupCard {
-                            modelSetupCard
-                                .padding(.top, OneDayMetrics.spacingL)
-                        }
-                    }
-                }
-                Color.clear
-                    .frame(height: 1)
-                    .id("bottom")
-                    // 事实信号探针（手感 A 档，Core
-                    // BottomFactCalibration）：尾锚是内
-                    // 容的真末端（条目/直播/回告/审批全
-                    // 部区段都在它上方），它完整落在列
-                    // 表视口内＝屏幕上已无看不见的内容。
-                    // 帧取列表自有坐标空间（下方
-                    // coordinateSpace 命名）：锚的内容
-                    // 坐标与滚动偏移同含视口上方未物化
-                    // 行的估算高、屏幕帧里逐项抵消，故
-                    // 本信号对 LazyVStack 总高估算免疫
-                    // ——正是几何距底读数的病根所在。回
-                    // 调只在布尔翻转时触发、写引用匣不
-                    // 失效任何视图（§199 纪律），与
-                    // §135 退役的可见集逐帧回写链不同
-                    // 物：单锚、单布尔、无重算
-                    .onGeometryChange(for: Bool.self) { proxy in
-                        let frame = proxy.frame(
-                            in: .named("chatListViewport")
-                        )
-                        let viewportHeight =
-                            bottomDistanceRecorder.containerHeight
-                        // 有效视口（评审合成条目 6）：底
-                        // 边扣除底 inset 带——尾锚落进输
-                        // 入舱遮挡带（留位区）内不算「在
-                        // 屏可读」，事实信号只认扣除后的
-                        // 可视区（带宽取 adjusted 实值、
-                        // 经引用匣同拍读，见底 inset 订
-                        // 阅）
-                        let effectiveBottom = viewportHeight
-                            - bottomDistanceRecorder.bottomInset
-                        return viewportHeight > 0
-                            && frame.minY >= -1
-                            && frame.maxY <= effectiveBottom + 1
-                    } action: { _, endVisible in
-                        bottomDistanceRecorder
-                            .contentEndVisible = endVisible
-                        // R4：尾锚事实翻转是落定评估的
-                        // 事件源之一（事实到场即评，不
-                        // 等任何定时器）
-                        evaluateSettleOnEvent(proxy)
-                    }
-            }
-            // 0.7.0（M1 轻保活）：滚动目标布局登记——条目
-            // 可见性按 UUID id 回报，喂滚动锚的存/取
-            .scrollTargetLayout()
-            // §213：列表本体登记锚——0 帧透明视图坐内
-            // 容栈左上角，入层级即沿祖先链把 UIScroll-
-            // View 本体登记进 listScrollHandle（两宿主
-            // 的边缘效果注册靠它拿本体）；纯登记、不接
-            // 命中、不占布局、不改命中域（contentShape
-            // 在下方另行声明、辖区不变）
-            .background(alignment: .topLeading) {
-                ChatListScrollAnchor(handle: listScrollHandle)
-                    .frame(width: 0, height: 0)
-            }
-            .padding(.horizontal, OneDayMetrics.pageGutter)
-            .padding(.top, OneDayMetrics.spacingM)
-            .padding(.bottom, OneDayMetrics.spacingS)
-            // 命中域撑满（0.3.5，§20.2）：内容栈帧宽撑满、
-            // 高至少撑到列表可视高（容器高 − 底 content-
-            // Margins spacingS）。0.4.3 前顶栏是 overlay、
-            // 容器高含其悬浮区、常数按 64 近似扣减；顶栏
-            // 注册 safeAreaBar 后顶区由安全区自理、容器高
-            // 已不含它，64 常数退役。§195 后顶区改由顶
-            // contentMargins 让出、容器高口径不变
-            // （adjustedContentInset 通道同源、静止总量
-            // 122 不变）。0.3.4 前栈帧只裹住
-            // 已有消息：消息不足一屏时下半屏空白、气泡两
-            // 侧窄于栈宽的空白都落在栈外，点下去什么都不
-            // 发生——「点空白不收键盘」的定因。内容超高
-            // 时 minHeight 不起作用、原行为不变
-            .frame(
-                maxWidth: .infinity,
-                minHeight: max(
-                    0, listViewportHeight - OneDayMetrics.spacingS
-                ),
-                alignment: .topLeading
-            )
-            // 点空白收键盘·第五症修复（键盘整包，
-            // 2026-11-13）：本栈上的祖先单击 tap（0.2.1
-            // 起、0.19.0 以 contentShape 撑满命中域）整
-            // 件退役，辖区迁到滚动视图本体的 UIKit 点
-            // 按识别器（ScrollViewTapDismiss，装配点在
-            // 下方 ScrollView 的 background）。旧式三
-            // 处结构性病灶：①辖区只及栈帧——顶/底
-            // contentMargins 带（122/197pt）在栈帧之
-            // 外，点那两带的空白无任何手势接（「有时
-            // 不灵」的位置相关性：恰是最常点的末条下
-            // 方大空白）；②contentShape 全域命中把文
-            // 字区也圈进祖先 tap 的辖区、无 failure-
-            // requirement 仲裁——与选字会诊第一嫌疑
-            // （祖先 tap 仲裁冲突）同体；③SwiftUI 手
-            // 势竞技场与 UIKit 触摸/滚动手势的仲裁顺
-            // 序不归本方管辖。新式：识别器只装在 UIS-
-            // crollView 本体、辖区＝整个滚动视口（两
-            // 带与行间全覆盖）；delegate 的 should-
-            // Receive 按苹果 UIGestureRecognizer-
-            // Delegate 官方口径过滤——触点落在任何
-            // UITextView 子树内根本不进识别器（文字
-            // 区归选字/链接/长按自家体系，顺带落实会
-            // 诊建议修法 2）；cancelsTouchesInView＝
-            // false 不吞任何触摸；拖动收起仍归系统
-            // .scrollDismissesKeyboard（即 UIScroll-
-            // View.keyboardDismissMode=.interactive
-            // 的 SwiftUI 面，苹果文档口径）。0.2.7 当
-            // 年不挂本体的两条顾虑已消失：发送舱早已
-            // 退出列表安全区注册（§186，其命中域不在
-            // 滚动视图子树内、识别器够不着）；聚焦吞
-            // 噬是 SwiftUI 竞技场的病、UIKit 识别器
-            // ＋不过滤文本视图的 Composer 本体不在
-            // 其辖区内。栈帧撑满（minHeight）是布局
-            // 不是手势、原样保留
-            .background {
-                // 装配点（修正）：桥视图挂本栈背景
-                // ——内容在滚动视图子树内，安装器
-                // ascend 一步直达 UIScrollView 本
-                // 体；首版挂 ScrollView 自身的
-                // background（兄弟位）靠窗口选面
-                // 两度被同帧候选骗走，已废
-                ScrollViewTapDismissInstaller(
-                    focusHandle: composerFocusHandle
-                )
-            }
-        }
-        // §195（2026-11-13）：顶栏注册退役——顶簇迁
-        // TopBarGuideHost 锚定托管（chatSurface 的
-        // overlay，落位只认窗口顶安全区、与传播链
-        // 脱钩），本列表顶缘自此与底缘同式：断顶安
-        // 全区传播（下方 .ignoresSafeArea(edges:
-        // .top)）＋实测 contentMargins 留位（下方
-        // .contentMargins(.top)＝窗口顶安全区实测
-        // ＋顶簇实高，两值均由宿主布局拍回写）。
-        // 沿革：0.4.2 前 overlay 悬浮＋.content-
-        // Margins(.top, 88) 代偿（§28.1 原因一）；
-        // 0.4.3–§194 注册为本列表的 .safeAreaBar
-        // (edge: .top)、首屏位置由安全区本体让出；
-        // §194 真机落定帧实证：传播安全区被藏坞重
-        // 算偷 49、顶簇随之撞状态栏（耦合路径与断
-        // 链证据见 TopBarGuideHost 文件头）——注
-        // 册形态与顶缘传播一并退出。顶栏不挂
-        // background 的裁决（0.7.1）与顶缘 .soft
-        // 留任均不变：.soft 作用区改由顶
-        // contentMargins 区决定
-        // §213 追记（2026-11-13）：本样式同时是两宿
-        // 主注册容器（顶簇宿主视图/舱带容器）的效果
-        // 样式来源——样式挂滚动视图的 edge effect、
-        // 注册只塑造其在覆盖容器后的呈现（公开文档
-        // 口径）；§200 常驻材质底衬三件同日退役
-        .scrollEdgeEffectStyle(.soft, for: .top)
-        // 底缘沿革：0.4.2 同挂柔效、0.4.3 注册后按发送
-        // 舱高度发放（§28.1）；§170（用户 2026-11-11
-        // 亲定）整条隐藏——注册承载下效果带正罩发送舱
-        // 上方、回底钮行 52pt 基本透明而消息透过被糊，
-        // 即当时点名撤掉的「输入框上方那条朦胧带」。
-        // 割裂感 A 止血档接通（2026-11-13，用户 17:06
-        // 问清机制后 17:11 亲点「那你做吧」，§170 隐藏
-        // 口径就此被新拍板覆盖）：底缘改回系统 .soft。
-        // 与 §170 当年形态的载体差异如实记：栏位已退
-        // 注册改锚定托管（§186/§193/§195），效果作用
-        // 区改由底 contentMargins 区决定（与顶缘 §195
-        // 注同式）——即内容滚进输入舱/坞上方的留位带
-        // 时由系统糊化其隔着浮件的像，阅读区本体不被
-        // 擦淡；这与已作废的 §173 手搓渐变溶化是两回
-        // 事（17:06 口径钉死：只许系统滚动边缘效果、
-        // 禁自绘擦淡、禁私有 variableBlur）。同带内回
-        // 底钮行区的衬已由 A2 撤除，那段的过渡自此由
-        // 本效果承担；真机若证本带在新承载下重现 §170
-        // 形态的过糊，回退动作只此一行改回 hidden、
-        // 须用户复核后执行
-        .scrollEdgeEffectStyle(.soft, for: .bottom)
-        // 事实信号坐标空间（手感 A 档）：尾锚的几何回
-        // 调以本列表为原点读帧（见栈内尾锚注）——只命
-        // 名、不改任何布局与滚动行为
-        .coordinateSpace(name: "chatListViewport")
-        // 0.36.27（§97 件二，用户 03:48 点题「输入框
-        // 上面有点大，小点就行」）：列表底边距收一档
-        // spacingS 8 → spacingXS 4，与 inputBar 顶
-        // padding 同步收（见 inputBar 注）；「末条消息
-        // 底→发送舱卡顶」链总量 32 → 24（量账见 §97.2）
-        // §176（2026-11-12）：本处定为这条链的唯一可
-        // 调边距（单点所有权）——回 spacingS 8，
-        // inputBar 顶 padding 同步归零（链上这一段的
-        // 总量不变、记账只剩一处）；链写死总量 17、
-        // 九环对账见 DESIGN §176
-        // §186（2026-11-12，承载换代）：留位来源换代——
-        // 输入舱退出安全区注册后，列表底留位＝舱顶→窗
-        // 口底的实测距离（composerBottomSpace，Compo-
-        // serGuideHost 布局拍回写）＋spacingS：本行仍是
-        // 这条链的唯一记账点，spacingS 仍是唯一可调边
-        // 距（8）；链的静止总量与 §176 定版一致（实测距
-        // 离在静止帧＝坞高＋舱高，公式见 §186 对账）。
-        // 键盘态距离随引导线实测走（升起＝键盘高＋舱
-        // 高、交互收起逐拍跟随），不再经安全区扩张
-        // §195（2026-11-13）：顶留位同式入账——顶簇
-        // 迁锚定托管后，列表顶 contentMargins＝窗口
-        // 顶安全区实测（windowTopSafeInset）＋顶簇
-        // 实高（topBarHeight），两值均由宿主布局拍
-        // 回写；顶留位记账自此只剩本处一处（沿革见
-        // 列表顶缘 §195 注）
-        .contentMargins(
-            .top,
-            windowTopSafeInset + topBarHeight,
-            for: .scrollContent
-        )
-        // 键盘整包 R1（2026-11-13）：底留位改读键
-        // 盘几何快照的派生值（kbSnapshot.bottom-
-        // Space，Core 纯函数：键盘态＝键盘高＋栈
-        // 高、静息态＝坞下段＋栈高，与 §186 实测回
-        // 报同值同义）——留位的生产者自此只有快照
-        // 一处：键盘事件拍整体替换、动画参数同载，
-        // 下方 withAnimation 桥以通知自带时长/曲线
-        // 推进本留位与舱的 UIKit 动画同拍（苹果文
-        // 档：键盘通知 userInfo 载 frame/duration/
-        // curve 供伴随动画——MessageKit/Stream 同
-        // 式）；composerBottomSpace 实测回报降级为
-        // 诊断读数、退出公式（D2）
-        .contentMargins(
-            .bottom,
-            kbSnapshot.bottomSpace + OneDayMetrics.spacingS,
-            for: .scrollContent
-        )
-        // 0.2.6 承载换代核心：发送区进列表的底部安全区
-        // 留位——Exyte/Stream 式「列表＋发送区同处布局流」
-        // （DESIGN-V4 §10）。键盘避让自此走系统安全区通道：
-        // 键盘升起留位随安全区顶到键盘上方、交互收起跟随，
-        // 发送舱高度只由内容决定（高度口径归 Composer-
-        // Layout/ComposerTextMetrics 纯逻辑＋单测把守，§13）
-        // 0.4.3（§28）：承载由 safeAreaInset 改 safeAreaBar
-        // ——同一安全区布局族、不是覆盖层，差别只在注册：
-        // 系统自此认它作 bar，滚动内容从其下方穿过并吃
-        // 满底缘 scroll edge effect。键盘跟随仍由安全区
-        // 驱动（键盘即安全区扩张），0.2.6/0.4.1 的键盘
-        // 行为经构造＋代码审计＋单测复验，证据链见 §28.4
-        // §186（2026-11-12，承载换代）：底部 safeAreaBar
-        // 注册整段退役（0.2.6 进安全区、0.4.3 改注册的
-        // 沿革到此为止）——输入舱改由 ComposerGuideHost
-        // 以 keyboardLayoutGuide 托管（chatSurface 的
-        // ZStack 同层），本列表改以 .ignoresSafeArea
-        // (edges: .bottom) 退掉底部安全区传播：探针实
-        // 证传播来的坞预留（83pt）在页帧已收于坞上方的
-        // 嵌套里是双计、且键盘态正是「整栈重排顶坞」的
-        // 通道；退掉后列表帧延伸到屏底、底留位全由上
-        // 方 contentMargins 一处按实测记账。顶缘
-        // safeAreaBar（顶栏注册）与底缘效果隐藏（§170）
-        // 均不在本项范围、原样不动。0.6.1 的底缘带删
-        // 除与背景同源主治（chatSurface 背景全出血）
-        // 随承载换代继续成立（带本就已删、画布仍全出
-        // 血），不因本项回潮
-        // §195 更正（2026-11-13）：上文「顶缘 safe-
-        // AreaBar（顶栏注册）原样不动」就此作废——
-        // 顶栏注册已退役（见列表顶缘 §195 注），顶
-        // 缘传播同步退掉（下一行）：列表两缘自此都
-        // 不吃传播安全区，顶/底留位全走实测
-        // contentMargins 一处记账
-        .ignoresSafeArea(edges: .bottom)
-        .ignoresSafeArea(edges: .top)
-        // （声明式锚 .defaultScrollAnchor 已于 §135
-        // 退役：0.36.13 引入时注称「与 scrollTo 不冲
-        // 突、只管首帧」——发送空屏诊断的外部实证与
-        // 之相左（Apple Developer Forums thread/
-        // 741406：LazyVStack＋defaultScrollAnchor＋命
-        // 令式 scrollTo 并存是聊天类重入空白的经典组
-        // 合；Tactic Remote 的 scrollTo livelock 受控
-        // 复现），冲突时以外部实证为准、旧注作废。首
-        // 帧落位由下方 .task 定版链单点承担（0.22.0：
-        // 无存量滚动锚的线程出现一拍后无动画贴底））
-        .scrollDismissesKeyboard(.interactively)
-        // D9：查找功能 onChange 监听器
-        .onChange(of: findScrollTrigger) { _, _ in
-            guard currentFindIndex < findMatches.count else { return }
-            let targetID = findMatches[currentFindIndex]
-            withAnimation {
-                proxy.scrollTo(targetID, anchor: .center)
-            }
-            // D9 补全：命中高亮（1.5秒后淡出）
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(350))
-                findHighlightEntryID = targetID
-                try? await Task.sleep(for: .seconds(1.5))
-                if findHighlightEntryID == targetID {
-                    findHighlightEntryID = nil
-                }
-            }
-        }
-        .onChange(of: findQuery) { _, _ in
-            performFind()
-        }
-        // 距底距离回写（0.4.2，§27）：判定改迟滞双阈值
-        // （OneDayCore.BottomProximity：进入 <96／退出
-        // ≥176、带内保持原态）——0.4.1 前是 <140 单阈
-        // 值即时翻转，距离在阈值附近游走时 isNearBottom
-        // 逐帧翻转、连带「回到底部」钮显隐（底部 inset
-        // 高度）与跟随滚动反复触发，是划到底抖动的放
-        // 大器之一
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentSize.height - geometry.contentOffset.y
-                - geometry.containerSize.height
-        } action: { _, distance in
-            // 0.36.13：原始读数另存一份喂落定评估
-            // （见 bottomDistanceRecorder 注）
-            // §135：回写加等值守卫——几何回调在滚动
-            // 中逐帧到达，值未变的回写不许再触发一轮
-            // body 重算（距底读数在静止期恒同值）
-            // §199：原始读数改写引用匣——滚动中它逐帧
-            // 必变、等值守卫挡不住、@State 写每帧触发
-            // 全页重跑；匣写不失效任何视图，复核读到
-            // 的仍是读时点最新值，判定语义零变更
-            bottomDistanceRecorder.latest = distance
-            applyBottomProximity(distance: distance)
-            // R4：距底读数变化是落定评估的主事件源
-            // （滚动/量实/留位结算都经此读数到场）
-            evaluateSettleOnEvent(proxy)
-        }
-        // 列表可视高回写（0.3.5）：喂内容栈的撑满
-        // minHeight（点空白收键盘命中域，见栈内撑满注）
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.containerSize.height
-        } action: { _, newHeight in
-            // §135：等值守卫——可视高只在键盘/旋转等场
-            // 景变，逐帧同值回写纯属空转
-            if listViewportHeight != newHeight {
-                listViewportHeight = newHeight
-            }
-            // 手感 A 档：同值喂引用匣一份——尾锚事实回
-            // 调判「完整可见」要读视口高，匣写不失效
-            // 视图、与 @State 同源不分叉
-            bottomDistanceRecorder.containerHeight = newHeight
-        }
-        // 底 inset 实值回写（R2 有效视口）：adjusted-
-        // ContentInset.bottom 与距底读数同源（同一
-        // ScrollGeometry 的 contentInsets 面）——喂
-        // 引用匣供尾锚回调扣遮挡带，匣写不失效视图
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentInsets.bottom
-        } action: { _, newInset in
-            bottomDistanceRecorder.bottomInset = newInset
-        }
-        // 「点空白收键盘」手势在内容栈上（见 messageList 内注），
-        // 不挂 ScrollView 本体——其命中域含发送舱 inset
-        .onChange(of: currentThread?.sortedEntries.count) { _, _ in
-            // 落定评估（R4 事件化）：条目落盘即流式落
-            // 定事件（流结束的最后一贴本就由本路承
-            // 担）——先以最新读数＋尾锚事实重跑一遍派
-            // 生：流式中途单次大块增长可把距底顶出迟
-            // 滞带误翻离底（自家审计 S3），落定刻尾行
-            // 已量实、读数收敛或末端事实可见者在此校
-            // 回在底，下方跟随贴底随之接续；用户真离
-            // 底时读数与事实同向、派生不动
-            applyBottomProximity(
-                distance: bottomDistanceRecorder.latest
-            )
-            // 用户已上翻看历史时不强拉回底（0.2.2 交互专项）
-            // 0.4.2（§27）：跟随贴底改无动画一步贴合——
-            // 带 0.25s 动画的 scrollTo 追逐随内容生长移
-            // 动的锚点、永远在追移动靶，是到底抖动的主
-            // 因；人发起的滚动（回到底部钮/键盘锚底）仍
-            // 走动画，见 scrollToBottom
-            if isNearBottom {
-                scrollToBottom(proxy, animated: false)
-            }
-            // （0.36.13 的事实信号重算已于 §135 随信
-            // 号链退役：显隐改几何单源，本路不再重算
-            // 任何可见集派生量）
-            // 0.41.0：未读计数同路喂入（在底事实由几
-            // 何派生，见 isAtBottomForUnread）
-            feedAwayUnread()
-        }
-        // 0.7.0（M1 轻保活）：首个可见条目回写（UUID 型
-        // id 只有消息条目持有，流式行/底部锚是字符串 id、
-        // 不在此列）
-        // §135 降权定版（发送空屏诊断 A 案）：可见集
-        // 只余「滚动锚存取」一职——topVisibleEntryID
-        // 供切线程时存锚（恢复走 currentThreadID 的
-        // onChange）。0.36.5/0.36.13 的末条事实信号
-        // （lastEntryVisible/refreshLastEntryVisible）
-        // 与 0.41.0 的可见集喂未读两路均已退役：显隐
-        // 与计数改几何单源（见 BottomFollowPolicy
-        // §135 注）；回写加等值守卫，同值不再触发重
-        // 算。scrollTargetLayout 本体保留——锚存取的
-        // id 回报靠它
-        .onScrollTargetVisibilityChange(idType: UUID.self) { ids in
-            if topVisibleEntryID != ids.first {
-                topVisibleEntryID = ids.first
-            }
-        }
-        // 0.36.5（审计 bug 1）：发送贴底——send() 落盘
-        // 且链接成功后递增令牌，本处执行两步：置真跟
-        // 随态（Core 政策：自己发送无条件贴底，其后
-        // 流式跟随与落定跟随自动接续）、经单一所有者
-        // 即时无动画贴底。§135 前本处在所有者的内置
-        // 复贴之外自外加一层 120ms 复贴——双层复贴
-        // 连发是发送空屏的成因链之一，已删；复贴全
-        // 局只剩所有者一层（BottomStickCoordinator）
-        .onChange(of: sendPinToken) { _, _ in
-            // 0.41.0：自发发送清未读账（Core 口径：发送
-            // 无条件贴底、水位推到当前末条）
-            awayUnread.noteOwnSend(
-                entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
-            )
-            isNearBottom = BottomFollowPolicy.nearBottomAfterOwnSend()
-            scrollToBottom(proxy, animated: false)
-        }
-        // 0.7.0（M1 轻保活）：滚动位置随线程存锚——切走
-        // 记当前锚（在底记 atBottom、否则记首个可见条目），
-        // 切入按锚恢复。恢复为 best-effort：等一拍布局落
-        // 定再滚，锚条目已删则 scrollTo 无效静默；恢复前
-        // 先把 isNearBottom 对齐锚，防条目数变化事件的贴
-        // 底跟随把恢复位置冲掉
-        .onChange(of: currentThreadID) { oldID, newID in
-            if let oldID, oldID != newID,
-               threads.contains(where: { $0.id == oldID }) {
-                appState.sideChats.setScrollAnchor(
-                    SideChatScrollAnchor(
-                        entryID: isNearBottom ? nil : topVisibleEntryID,
-                        atBottom: isNearBottom
-                    ),
-                    for: oldID
-                )
-            }
-            // §135：贴底在途状态与发送打点是上一线程
-            // 的家当——切入先作废协调者、清落定观察
-            // 挂账（R4 事件化后无任务可取消）、清打点
-            // 标记，防旧线程的复贴与读数落到新线程头
-            // 上（可见集状态已随信号链退役，不再有旧
-            // 集可清）
-            stickCoordinator.invalidate()
-            settleMachine.cancel()
-            settleGeneration = nil
-            settleFallbackTask?.cancel()
-            settleFallbackTask = nil
-            sendFrameStartedAt = nil
-            sendFrameRestickLogged = false
-            // 手感 A 档同理清账：尾锚事实是上一线程的
-            // 末端读数、新线程首帧未量前不许误校；键
-            // 盘锚底挂账亦属上一线程的家当
-            bottomDistanceRecorder.contentEndVisible = false
-            keyboardAnchorPending = false
-            // 0.41.0：未读账同属上一线程家当——水位与
-            // 计数一并清零，新线程从零起算
-            awayUnread.resetAll()
-            guard let newID,
-                  let anchor = appState.sideChats.scrollAnchor(for: newID)
-            else { return }
-            isNearBottom = anchor.atBottom
-            Task {
-                try? await Task.sleep(for: .milliseconds(120))
-                guard currentThreadID == newID else { return }
-                if anchor.atBottom {
-                    scrollToBottom(proxy, animated: false)
-                } else if let entryID = anchor.entryID {
-                    proxy.scrollTo(entryID, anchor: .top)
-                }
-            }
-        }
-        // 0.22.0（视觉审计 C1，用户 2026-11-10 00:09 实机
-        // 点名）：冷开首屏首条气泡被顶栏压住、右上角让铃
-        // 铛钮盖住一角——定因（代码层）：顶栏/发送舱以
-        // safeAreaBar 注册，其顶 inset 在首帧布局之后才
-        // 落定，ScrollView 的初始 contentOffset 按未落定
-        // 的 inset（≈0）算出、首行直接贴到画框顶缘；此
-        // 后长线程靠条目数变化的贴底跟随（isNearBottom
-        // 默认 true）顺带把 offset 按已落定 inset 重新钳
-        // 制、病被掩盖，短线程内容不可滚动且无等效再钳
-        // 事件，压字态就此定格（内容栈 minHeight 的
-        // listViewportHeight 首帧为 0、同属首帧未落定
-        // 的一环，但它只管高度不管 offset）。修法：无存
-        // 量滚动锚的线程（恢复链不接管者）在出现一拍后
-        // 强制走一次无动画贴底——以已落定的 inset 重新
-        // 钳制 offset：短线程首行落到顶栏下方、长线程
-        // 仍开在底部；用户已上翻（isNearBottom=false）
-        // 不强拉，与既有跟随口径一致
-        .task(id: currentThreadID) {
-            guard let id = currentThreadID,
-                  appState.sideChats.scrollAnchor(for: id) == nil
-            else { return }
-            try? await Task.sleep(for: .milliseconds(80))
-            guard currentThreadID == id, isNearBottom else { return }
-            scrollToBottom(proxy, animated: false)
-        }
-        .onChange(of: streamingText) { _, newText in
-            // 0.4.2（§27）：流式跟随加节流闸（OneDayCore
-            // .StreamFollowGate）——0.4.1 前每个流式增量
-            // 都触发一次贴底滚动，增量以每秒数十次到达、
-            // 滚动动画无限重启追逐移动靶。本版每 ≥40 字
-            // 放行一次无动画贴底；流结束（nil）归零闸门，
-            // 最后一贴由上方条目数变化事件承担
-            guard let newText else {
-                streamFollowGate.reset()
-                // A3：流结束作废未结算的挂账贴（最后一
-                // 贴归条目数变化路，不许挂账尾随补贴）
-                streamFollowSettleGeneration += 1
-                streamFollowPending = false
-                return
-            }
-            if isNearBottom,
-               streamFollowGate.shouldFollow(
-                   currentCount: newText.count
-               ) {
-                // A3（割裂感止血档，调研 §1.4 A3）：贴
-                // 底改「登记—结算后执行」，不在文本变
-                // 化的同拍直贴——同拍时底留位可能还按
-                // 上一拍的舱高结算（舱帧回报走宿主布
-                // 局拍→Preference→下一拍回写的状态
-                // 链），按旧留位贴底会让流式末行在结算
-                // 拍差里探进舱带区（调研 J3 的时序分
-                // 量）。登记后两路任一到即消费：舱高变
-                // 了走 composerBottomSpace 的结算拍（硬
-                // 保证贴在其后）；舱高没变走让出一拍的
-                // 兜底（与回报回写同为下一拍序）。代号
-                // ＋挂账双守卫防过期与叠贴（执行口
-                // settleStreamFollow）；贴底本体与 120ms
-                // 落定观察机制零改动
-                streamFollowSettleGeneration += 1
-                streamFollowPending = true
-                let generation = streamFollowSettleGeneration
-                Task { @MainActor in
-                    await Task.yield()
-                    settleStreamFollow(
-                        proxy, generation: generation
-                    )
-                }
-            }
-        }
-        .onChange(of: composerBottomSpace) {
-            // A3 结算拍：底留位刚按最新舱高重算——挂
-            // 账中的流式跟随贴在此执行（贴底时留位已
-            // 结算，见 streamingText 登记处）；非流式期
-            // pending 恒假、本路无副作用（键盘升降/回
-            // 底钮显隐引起的留位变化不触发任何贴底）
-            settleStreamFollow(
-                proxy,
-                generation: streamFollowSettleGeneration
-            )
-        }
-        // 0.3.3 键盘锚底（真机第 3 条）：点输入框时页面本
-        // 在底部，键盘弹起后列表被安全区顶起、最后一条与
-        // 输入框之间留白段——弹起前在底部（isNearBottom
-        // 为弹起前的值）就在键盘动画落定后滚回锚点。触
-        // 发两路：聚焦边沿＋聚焦中键盘帧变化（候选栏收
-        // 展等）；用户主动上滑（isNearBottom=false）不
-        // 强拉，回到底部钮保留原职
-        .onChange(of: composerFocused) { _, focused in
-            if focused {
-                anchorToBottomAfterKeyboard(proxy)
-            } else {
-                // 失焦作废挂账：锚底只服务聚焦中的键
-                // 盘场景（手感 A 档事件驱动口径）
-                keyboardAnchorPending = false
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardWillChangeFrameNotification
-            )
-        ) { notification in
-            // R1（修正）：快照的键盘输入已收口到
-            // ComposerGuideHost 控制器的解析点（帧
-            // 顶转窗口坐标后经 kbFrameUpdate 包到
-            // 达、body 根 onChange 整包入快照）——
-            // 本订阅只余帧变化的挂账职责，不再解析
-            // 帧值（首版在此存屏幕坐标原值、与快照
-            // 窗口坐标不重合，已废）
-            // 帧开始变（升起/候选栏收展/交互收起逐
-            // 帧）：落定标记先撤——此后的锚底请求只
-            // 记挂账，等帧落定事件兑现（手感 A 档）
-            keyboardFrameSettled = false
-            if composerFocused {
-                anchorToBottomAfterKeyboard(proxy)
-            }
-        }
-        .onReceive(
-            NotificationCenter.default.publisher(
-                for: UIResponder.keyboardDidChangeFrameNotification
-            )
-        ) { _ in
-            // 帧落定事件：兑现挂账（无挂账只更新标
-            // 记）；交互式收起的手势尾段同走本路（手
-            // 势结束、帧落定即 Did）
-            settleKeyboardAnchor(proxy)
-        }
-    }
 
     /// 在底判定单一派生点（§135 几何单源；键盘整
     /// 包 R2 定版，2026-11-13）：一切 isNearBottom
@@ -6094,58 +4527,8 @@ struct ChatView: View {
         }
     }
 
-    /// 键盘锚底（事件驱动，手感 A 档——代 0.3.3 的
-    /// 300ms 定时补一刀）：旧路靠固定睡眠覆盖键盘动
-    /// 画时长，落定瞬间的一跳与键盘动画不连续、且等
-    /// 待间隙里任何变数都只能靠执行时复查兜底。新路
-    /// 只认键盘帧事件：帧已落定（无动画在途）即当场
-    /// 锚；帧在途（升起/候选栏收展/交互收起中）只记
-    /// 一笔挂账，DidChangeFrame 到达（＝帧落定事件
-    /// 本身）时兑现。落定事实由 Will/Did 两路通知维
-    /// 护（见 messageList 的键盘通知订阅），本函数不
-    /// 持有任何计时器——双时钟尾巴的定时猜测自此退
-    /// 役（§194 的键盘常数与宿主跟随曲线零改动，本
-    /// 处只换「何时补锚」的触发源）。执行时复查
-    /// isNearBottom 与聚焦态：在途期间用户上滑了、
-    /// 或已失焦，挂账作废不拉
-    private func anchorToBottomAfterKeyboard(_ proxy: ScrollViewProxy) {
-        guard isNearBottom else { return }
-        if keyboardFrameSettled {
-            scrollToBottom(proxy)
-        } else {
-            keyboardAnchorPending = true
-        }
-    }
 
-    /// 键盘帧落定兑现：DidChangeFrame 的消费口——帧
-    /// 标记落定后，有挂账且仍合锚底条件才滚；挂账
-    /// 无论兑现与否都在此清结（下一轮帧变化自会再
-    /// 经 Will 路重记）
-    private func settleKeyboardAnchor(_ proxy: ScrollViewProxy) {
-        keyboardFrameSettled = true
-        guard keyboardAnchorPending else { return }
-        keyboardAnchorPending = false
-        guard composerFocused, isNearBottom else { return }
-        scrollToBottom(proxy)
-    }
 
-    /// A3 流式跟随贴的结算执行口：代号须仍是最新登
-    /// 记（等待间来了更新增量或流结束，旧登记在此作
-    /// 废）、挂账未被另一路消费过，才清账并执行一贴
-    /// ——两路触发（留位结算拍/让一拍兜底）任一先到
-    /// 者执行、后到者被双守卫挡下，不叠贴。执行时
-    /// 复查 isNearBottom（等待间用户上滑了就不拉，
-    /// 与键盘锚底同口径）
-    private func settleStreamFollow(
-        _ proxy: ScrollViewProxy, generation: Int
-    ) {
-        guard generation == streamFollowSettleGeneration,
-              streamFollowPending
-        else { return }
-        streamFollowPending = false
-        guard isNearBottom else { return }
-        scrollToBottom(proxy, animated: false)
-    }
 
     // MARK: 新承载跟随链（旧链的执行双胞胎）
 
@@ -6156,7 +4539,7 @@ struct ChatView: View {
     /// 柄→容器）。判定与状态机零改——两承载共用
     /// 同一份 stickCoordinator/settleMachine 状态，
     /// 切换承载不重置跟随账
-    private func scrollToBottomCarrier(
+    private func scrollToBottom(
         animated: Bool = true
     ) {
         switch stickCoordinator.requestStick(
@@ -6165,7 +4548,7 @@ struct ChatView: View {
         case .coalesced:
             return
         case .perform(let generation):
-            performScrollToBottomCarrier(animated: animated)
+            performScrollToBottom(animated: animated)
             settleMachine.begin(animated: animated)
             settleGeneration = generation
             settleFallbackTask?.cancel()
@@ -6175,14 +4558,14 @@ struct ChatView: View {
                 guard !Task.isCancelled,
                       currentThreadID == pinnedThreadID
                 else { return }
-                evaluateSettleFallbackCarrier()
+                evaluateSettleFallback()
             }
         }
     }
 
     /// 新承载贴底本体（不带落定观察，与旧承载
     /// performScrollToBottom 对位）
-    private func performScrollToBottomCarrier(
+    private func performScrollToBottom(
         animated: Bool
     ) {
         surfaceScrollToBottom(animated: animated)
@@ -6191,7 +4574,7 @@ struct ChatView: View {
     /// 落定评估的新承载事件口：读数出自句柄引用匣
     /// （已由 carrierCallbacks 同步进 bottomDis-
     /// tanceRecorder），状态机与旧链同一台
-    private func evaluateSettleOnEventCarrier() {
+    private func evaluateSettleOnEvent() {
         guard settleMachine.isWatching,
               let generation = settleGeneration
         else { return }
@@ -6204,13 +4587,13 @@ struct ChatView: View {
                 generation: generation
             )
         )
-        handleSettleStepCarrier(
+        handleSettleStep(
             step, generation: generation,
             distance: distance, viaFallback: false
         )
     }
 
-    private func evaluateSettleFallbackCarrier() {
+    private func evaluateSettleFallback() {
         guard settleMachine.isWatching,
               let generation = settleGeneration
         else { return }
@@ -6223,7 +4606,7 @@ struct ChatView: View {
                 generation: generation
             )
         )
-        handleSettleStepCarrier(
+        handleSettleStep(
             step, generation: generation,
             distance: distance, viaFallback: true
         )
@@ -6232,7 +4615,7 @@ struct ChatView: View {
     /// 落定一步的执行（新承载版）：与 handleSettle-
     /// Step 逐值同义（打点/收官/校准/复贴），只换
     /// 复贴执行口
-    private func handleSettleStepCarrier(
+    private func handleSettleStep(
         _ step: BottomSettleMachine.Step,
         generation: Int,
         distance: CGFloat, viaFallback: Bool
@@ -6265,7 +4648,7 @@ struct ChatView: View {
             guard stickCoordinator.consumeRestick(
                 generation: generation
             ) else { return }
-            performScrollToBottomCarrier(animated: false)
+            performScrollToBottom(animated: false)
         case .continue:
             break
         }
@@ -6273,40 +4656,22 @@ struct ChatView: View {
 
     /// A3 流式跟随贴的新承载结算口（与 settle-
     /// StreamFollow 逐值同义，只换执行口）
-    private func settleStreamFollowCarrier(generation: Int) {
+    private func settleStreamFollow(generation: Int) {
         guard generation == streamFollowSettleGeneration,
               streamFollowPending
         else { return }
         streamFollowPending = false
         guard isNearBottom else { return }
-        scrollToBottomCarrier(animated: false)
+        scrollToBottom(animated: false)
     }
 
-    /// 键盘锚底的新承载版（与 anchorToBottom-
-    /// AfterKeyboard 同口径：帧落定直锚、在途记挂
-    /// 账、执行时复查）
-    private func anchorToBottomAfterKeyboardCarrier() {
-        guard isNearBottom else { return }
-        if keyboardFrameSettled {
-            scrollToBottomCarrier()
-        } else {
-            keyboardAnchorPending = true
-        }
-    }
 
-    private func settleKeyboardAnchorCarrier() {
-        keyboardFrameSettled = true
-        guard keyboardAnchorPending else { return }
-        keyboardAnchorPending = false
-        guard composerFocused, isNearBottom else { return }
-        scrollToBottomCarrier()
-    }
 
     /// 切线程的新承载版（与旧承载 currentThreadID
     /// 的 onChange 逐项对位）：存锚双写（扩展锚＋
     /// 旧锚，回落一致）、贴底在途状态全清、未读清
     /// 零、入线程按锚恢复
-    private func handleCarrierThreadSwitch(
+    private func handleThreadSwitch(
         oldID: UUID?, newID: UUID?
     ) {
         if let oldID, oldID != newID,
@@ -6333,16 +4698,15 @@ struct ChatView: View {
         sendFrameStartedAt = nil
         sendFrameRestickLogged = false
         bottomDistanceRecorder.contentEndVisible = false
-        keyboardAnchorPending = false
         awayUnread.resetAll()
         guard let newID else { return }
-        restoreCarrierPosition(for: newID)
+        restoreThreadPosition(for: newID)
     }
 
     /// 入线程恢复（新承载）：扩展锚（条目 id＋条内
     /// 偏移）优先、旧锚回落；等一拍布局落定再滚
     /// （与旧承载恢复同拍口径）
-    private func restoreCarrierPosition(for threadID: UUID) {
+    private func restoreThreadPosition(for threadID: UUID) {
         if let anchor = ChatListAnchorStore.anchor(
             for: threadID
         ) {
@@ -6376,7 +4740,7 @@ struct ChatView: View {
     /// 冷开首屏定版的新承载版（与旧承载 .task 定
     /// 版链同口径）：无任何存量锚的线程出现一拍后
     /// 无动画贴底，以已落定 inset 重新钳制 offset
-    private func carrierFirstFrameSettle(for threadID: UUID) {
+    private func firstFrameSettle(for threadID: UUID) {
         guard ChatListAnchorStore.anchor(for: threadID) == nil,
               appState.sideChats.scrollAnchor(for: threadID) == nil
         else { return }
@@ -6389,75 +4753,6 @@ struct ChatView: View {
         }
     }
 
-    /// 滚到底部锚点——全列表唯一的贴底所有者（§135
-    /// 收口，发送空屏诊断 A 案）：六路触发（条目数
-    /// 变化／发送令牌／流式跟随／键盘两路／首帧定
-    /// 版／线程恢复）与回底钮一律经此一口，不许直
-    /// 呼 performScrollToBottom。animated=true 只给
-    /// 人发起的滚动（回到底部钮、键盘锚底）：手感
-    /// A 档起走回底弹簧（MotionTokens.scrollTo-
-    /// BottomSpring：ζ＝1.0、响应按距缩放——代旧
-    /// pageCrossfade 固定 0.25s 的距离无关甩动）；
-    /// 内容跟随必须 animated=false 一步贴合当前底
-    /// 部——带动画的 scrollTo 追逐随内容生长不断移
-    /// 动的锚点，是划到底抖动的主因（0.4.2 定因，
-    /// §27，口径不变）。弹簧滚动途中用户手势可直
-    /// 接接管（系统滚动语义）：本口只发一贴、无循
-    /// 环重发，用户接管后位置与判定全归 §135 派生
-    /// 链，落定观察亦以「距底 ≥176 即放弃」防拽回
-    /// （见下）。
-    /// 所有者职责（判定在 Core BottomStickCoordi-
-    /// nator，钉测把守）：同帧重复请求合并为一贴；
-    /// 复贴全局只挂一笔——新贴底顶替旧复贴、复贴至
-    /// 多消费一次、切线程作废。复贴本体沿 0.36.13
-    /// 量实原理：贴底后按实测距底评估，尾行已量实后
-    /// 距底仍 >7pt（Core BottomSettle，§176 自 24
-    /// 收紧）才以无动画再贴一次；§135 前发送令牌路
-    /// 在这一层之外自带第二层复贴（一次发送连发
-    /// 3–5 贴），已删，现全局只此一层。
-    /// 落定形态（键盘整包 R4，2026-11-13）：复核
-    /// 不再是时钟——手感 A 档的 [120, 320, 640,
-    /// 1100]ms 定时复核序列（BottomSettleRecheck）
-    /// 整件退役：四个定时点与内容/键盘事件全无关
-    /// 系，落定尾巴（≥1.1s 起步＋四程串行）即症
-    /// ④。改事件化落定观察（Core BottomSettle-
-    /// Evaluation）：贴底后挂一笔观察，几何事件
-    /// （距底读数变化/尾锚事实翻转）到场即评——
-    /// 运动未停只等、停稳未达标才复贴、末端事实
-    /// 可见走校准收官、距底 ≥176 判用户已离底收
-    /// 官。事件停即静默，不留尾巴、不设超时
-    private func scrollToBottom(
-        _ proxy: ScrollViewProxy, animated: Bool = true
-    ) {
-        switch stickCoordinator.requestStick(
-            at: Date().timeIntervalSince1970
-        ) {
-        case .coalesced:
-            // 同帧已贴、复贴挂账中：落点由挂账的落定
-            // 观察校正，本路不再连发
-            return
-        case .perform(let generation):
-            performScrollToBottom(proxy, animated: animated)
-            // R4：状态机入观察——此后几何事件到场即
-            // 评估（evaluateSettleOnEvent）；新贴底
-            // 顶替本笔、切线程清账（见 currentThre-
-            // adID 的 onChange）。有界兜底同拍布防：
-            // 2 秒内无任何几何事件到场（贴底一步到
-            // 位、几何面纹丝不动）才单发一评，正常
-            // 路径下观察必先于它收官、它恒空转取消
-            settleMachine.begin(animated: animated)
-            settleGeneration = generation
-            settleFallbackTask?.cancel()
-            let pinnedThreadID = currentThreadID
-            settleFallbackTask = Task { @MainActor in
-                try? await Task.sleep(for: .seconds(2))
-                guard !Task.isCancelled,
-                      currentThreadID == pinnedThreadID
-                else { return }
-                evaluateSettleFallback(proxy)
-            }
-        }
-    }
 
     // MARK: - D9 对话内查找
 
@@ -6516,109 +4811,8 @@ struct ChatView: View {
         findScrollTrigger = UUID()
     }
 
-    /// 落定评估的事件消费口（键盘整包 R4）：几何
-    /// 事件（距底读数变化为主、尾锚事实翻转为辅）
-    /// 到场即喂状态机一步——状态推进与判定全在
-    /// Core BottomSettleMachine，本组函数只做协
-    /// 调者对账（窥视/消费/解挂）与执行
-    private func evaluateSettleOnEvent(
-        _ proxy: ScrollViewProxy
-    ) {
-        guard settleMachine.isWatching,
-              let generation = settleGeneration
-        else { return }
-        let distance = bottomDistanceRecorder.latest
-        let step = settleMachine.step(
-            distance: distance,
-            contentEndVisible: bottomDistanceRecorder
-                .contentEndVisible,
-            restickArmed: stickCoordinator.isRestickArmed(
-                generation: generation
-            )
-        )
-        handleSettleStep(
-            step, proxy: proxy, generation: generation,
-            distance: distance, viaFallback: false
-        )
-    }
 
-    /// 有界单发兜底（评审合成条目 4 的口子）：观察
-    /// 布防 2 秒仍无一几何事件到场——贴底已一步到
-    /// 位且几何面静止，事件路无从触发；此时以当前
-    /// 读数经 stepTimeout 喂回同一状态机（「无事
-    /// 件」即静止证据，不另设判定）。单发、随收官
-    /// /顶替/切线程取消，绝不循环、绝不自成落定
-    /// 机制——正常路径下观察恒先收官、本路只空转
-    private func evaluateSettleFallback(
-        _ proxy: ScrollViewProxy
-    ) {
-        guard settleMachine.isWatching,
-              let generation = settleGeneration
-        else { return }
-        let distance = bottomDistanceRecorder.latest
-        let step = settleMachine.stepTimeout(
-            distance: distance,
-            contentEndVisible: bottomDistanceRecorder
-                .contentEndVisible,
-            restickArmed: stickCoordinator.isRestickArmed(
-                generation: generation
-            )
-        )
-        handleSettleStep(
-            step, proxy: proxy, generation: generation,
-            distance: distance, viaFallback: true
-        )
-    }
 
-    /// 状态机一步结果的执行口：收官四值在此对账
-    /// 协调者并落地（校准经单一派生点、复贴先清
-    /// 账再执行防几何回调重入）；continue 无动作
-    private func handleSettleStep(
-        _ step: BottomSettleMachine.Step,
-        proxy: ScrollViewProxy, generation: Int,
-        distance: CGFloat, viaFallback: Bool
-    ) {
-        // §135 D 案打点：发送帧的首个落定评估读数
-        // （距底＋是否复贴＋距发送耗时），每轮只记
-        // 一笔——事件化后首评即旧首检的对应位（发
-        // 送路恒无动画贴底、首个几何事件即落定读
-        // 数，口径与旧读数可比）
-        if let started = sendFrameStartedAt,
-           !sendFrameRestickLogged {
-            sendFrameRestickLogged = true
-            ChatDiagTrace.record(
-                "发送打点 首评 距底 \(Int(distance))pt"
-                    + " 复贴 \(step == .restick)"
-                    + (viaFallback ? " 经兜底" : "")
-                    + " 距发送 "
-                    + "\(Int(Date().timeIntervalSince(started) * 1000))ms"
-            )
-        }
-        switch step {
-        case .settled, .exhausted:
-            stickCoordinator.disarmRestick(
-                generation: generation
-            )
-            closeSettleWatch()
-        case .calibrated:
-            // 末端事实可见：经单一派生点校准在底
-            // （钮随之消失），不复贴——屏幕上已无
-            // 未见内容，复贴只会顶动
-            applyBottomProximity(distance: distance)
-            stickCoordinator.disarmRestick(
-                generation: generation
-            )
-            closeSettleWatch()
-        case .restick:
-            closeSettleWatch()
-            guard stickCoordinator.consumeRestick(
-                generation: generation
-            ) else { return }
-            performScrollToBottom(proxy, animated: false)
-        case .continue:
-            break
-        }
-    }
 
     /// 观察收官清账：代号与兜底任务一并落空（状态
     /// 机已在 step 内自回未观察态）
@@ -6628,30 +4822,6 @@ struct ChatView: View {
         settleFallbackTask = nil
     }
 
-    /// 贴底本体（不带落定观察）：scrollToBottom 的首贴与
-    /// 复贴共用，复贴不经 scrollToBottom 以免自触发
-    /// 再复核成环。animated 路的曲线＝回底弹簧（手
-    /// 感 A 档）：响应按执行时点的实测距底缩放（引
-    /// 用匣读数），落点与旧 pageCrossfade 路一致
-    /// （同一 scrollTo 目标锚）
-    private func performScrollToBottom(
-        _ proxy: ScrollViewProxy, animated: Bool
-    ) {
-        if animated {
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.scrollToBottomSpring(
-                        distance: bottomDistanceRecorder.latest
-                    ),
-                    reduceMotion: reduceMotion
-                )
-            ) {
-                proxy.scrollTo("bottom", anchor: .bottom)
-            }
-        } else {
-            proxy.scrollTo("bottom", anchor: .bottom)
-        }
-    }
 
     /// 审批锚定行（§165，规格 §4.3）：锚定条目按记录
     /// 在桥两集的现态出三形态——待批＝与流末尾区同一

@@ -12,45 +12,9 @@ import Foundation
 
 // MARK: - 承载特性开关
 
-/// 承载特性开关（蓝图 §2 包 3：聊天格根在新旧两承
-/// 载间切换、默认旧；几何真机门不过不许转默认，包
-/// 6 收官时处置）。UserDefaults 布尔键，缺省 false
-/// ＝旧承载——键不存在与显式 false 同义，防脏值。
-public enum ChatCarrierFeature {
-    public static let defaultsKey = "chat.carrier.gen3"
-
-    public static func isEnabled(
-        defaults: UserDefaults = .standard
-    ) -> Bool {
-        defaults.bool(forKey: defaultsKey)
-    }
-}
 
 // MARK: - 原生重建特性开关（R1）
 
-/// 原生重建特性开关（DESIGN §291，施工图 chat-
-/// native-rebuild-blueprint §五）：聊天列表第三面
-/// （UICollectionView＋diffable＋compositional）的
-/// 旗。与 gen3 旗并存期缺省面始终只有一个：本旗开
-/// 时原生面优先于 gen3/旧面（ChatView chatSurface
-/// 分叉口径）。缺省口径随切片推进：R1–R3 缺省
-/// false（键不存在与显式 false 同义）；**R4 转默
-/// 认（DESIGN §297）起缺省 true**——键不存在＝开，
-/// 显式存值优先：浸泡期用户/测试显式置 false 即
-/// 回退现行面（本旗在浸泡期的回滚口角色），R5
-/// 退役三旗本体时本枚举随之删除。
-public enum ChatNativeListFeature {
-    public static let defaultsKey = "chat.list.native"
-
-    public static func isEnabled(
-        defaults: UserDefaults = .standard
-    ) -> Bool {
-        guard defaults.object(forKey: defaultsKey) != nil else {
-            return true
-        }
-        return defaults.bool(forKey: defaultsKey)
-    }
-}
 
 // MARK: - 增量喂入特性开关（换引擎步骤 1）
 

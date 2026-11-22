@@ -355,13 +355,6 @@ struct AboutView: View {
 
     // MARK: - 内部实验（结构归位 2026-11-20 沉底）
 
-    /// 会话页新承载开关（Core ChatCarrierFeature，
-    /// 与 ChatView 同键同源）：施工期机制、默认关；
-    /// 开后消息列表与回底钮换新承载（几何/跟随口
-    /// 径不变），关掉即回旧承载、无数据迁移。蓝图
-    /// A/B/F 组真机验收后由换代包 6 处置去留
-    @AppStorage(ChatCarrierFeature.defaultsKey)
-    private var gen3CarrierEnabled = false
 
     // §247 流式呈现开关已于台账 198 收敛 S6 迁出
     // 本节：键 chat.streaming.gen4 不变，唯一写口改
@@ -369,14 +362,6 @@ struct AboutView: View {
     // 文案互指）——本节不再留第二写口，免两处两名
     // 两副面孔（审计 B4）
 
-    /// §291（原生重建 R1）原生面开关（Core Chat-
-    /// NativeListFeature，与 ChatView 同键同源）：
-    /// 消息列表换 UICollectionView 原生承载，关掉
-    /// 即回现行面、无数据迁移。§297（R4）：默认改
-    /// 开，本开关自此为浸泡期回退口（R5 随三旗本
-    /// 体一并退役）
-    @AppStorage(ChatNativeListFeature.defaultsKey)
-    private var nativeListEnabled = true
     /// §374（换引擎步骤 1/2）增量喂入开关（与
     /// ChatView 同键同源，缺省开（0.50.96 转正）；步骤 2 起为新
     /// 路主路选择、关即回旧路全量对账）
@@ -433,38 +418,13 @@ struct AboutView: View {
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
     /// 能同级——沉本页末节并明示内部属性。台账 198
-    /// 收敛后本节＝两面旗（承载/原生面）＋聊天诊断
-    /// 入口：流式呈现旗已按 S6 迁外观页「回复呈现」
+    /// 收敛后本节＝聊天诊断入口＋§374 各步施工旗
+    /// （两面旗已随 §374.9 旧承载退役删除）：流式
+    /// 呈现旗已按 S6 迁外观页「回复呈现」
     /// 组（它是用户呈现偏好、不是内部机制，原与本
     /// 节同置是归组错位）
     private var labSection: some View {
         Section {
-            Toggle(isOn: $gen3CarrierEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("会话页新承载"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("实验开关：开启后消息列表与回到底部按钮换用新承载，出问题关掉即回旧承载。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $nativeListEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表原生重建"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：消息列表用系统集合视图承载（原生重建）；浸泡期回退口——关掉即回现行承载。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
             Toggle(isOn: $chatListIncrementalEnabled) {
                 VStack(
                     alignment: .leading,
