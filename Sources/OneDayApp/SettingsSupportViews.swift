@@ -419,6 +419,15 @@ struct AboutView: View {
         ChatListScrollLedgerFeature.defaultsKey
     )
     private var chatListScrollLedger = true
+    /// §374.8（换引擎步骤 5）选区单键暂缓开关
+    /// （与控制器同键同源，缺省开＝单键暂缓在
+    /// 场；关掉＝暂缓停用、全部变更直达的应急
+    /// 档，选区被打断风险随之回归，见 DESIGN
+    /// §374.8）
+    @AppStorage(
+        ChatListSelectionKeyGuardFeature.defaultsKey
+    )
+    private var chatListSelectionKeyGuard = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -529,6 +538,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：滚动中到达的消息变更只记账、停滚时在滚动结束回调当场应用一次；关掉即恢复现行滚动闸（停滚后武装结清拍消费，回退口）。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListSelectionKeyGuard) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表选区单键暂缓"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：正在选字的那一行内容更新先暂存、选区消失后自动补发，其余行照常更新；关掉后所有更新立即直达，选字可能被流式更新打断（应急回退）。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }

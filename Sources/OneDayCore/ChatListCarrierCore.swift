@@ -202,6 +202,37 @@ public enum ChatListScrollLedgerFeature {
     }
 }
 
+// MARK: - 选区单键暂缓开关（换引擎步骤 5）
+
+/// 选区保护单键暂缓的开关（DESIGN §374.8，施
+/// 工图步骤 5／对位表 #9）：缺省（键不存在）
+/// ＝在场——喂入分流只读选区在场行键
+/// （selectionActiveRowKey 单键），命中行的
+/// reconfigure 暂存至选区清账回调唤醒补发，
+/// 余行直达；显式置 false＝暂缓停用、全部变
+/// 更直达（仅作「暂缓本身出问题」时的应急
+/// 档：选区被流式更新打断的 141/142 风险随之
+/// 回归，不作常规回退）。§332 触摸序列门已
+/// 物理退役、不在本旗包裹内——整体回退（恢
+/// 复序列门）须自 git 历史取回代码，口径见
+/// DESIGN §374.8。本旗为一个版本周期的临时
+/// 旗；与增量旗／单 section 旗／步骤 4 四旗
+/// 独立、互不牵连；控制器在分流处同步本旗
+/// （翻转即时生效）
+public enum ChatListSelectionKeyGuardFeature {
+    public static let defaultsKey =
+        "chat.list.selectionKeyGuard"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard let stored = defaults.object(
+            forKey: defaultsKey
+        ) as? Bool else { return true }
+        return stored
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸
