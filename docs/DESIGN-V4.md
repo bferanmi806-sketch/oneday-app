@@ -14669,3 +14669,26 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 钉测 RowIncrementalEquivalenceS2Tests 8/8：①等价矩阵（富条目基段／全修订逐值同＋六类行备忘键穿线与旧现算逐字同＋facet 派生直取与 EntryScanMemo 现算同值）；②逐字段敏感性 32 项突变逐项验「快照变＋备忘失效＋修订变＋与全量路同值」；③环境尾段不触发重建；④流式逐拍生长等价（每拍恰一次重建）；⑤编辑重发同 id 换对象重建不吃旧账；⑥回填稳态全命中零重建＋prune 后重建仍等价；⑦计数对账（稳态趟 300 命中 0 重建）；⑧成本量测（下条）。
 - 成本量测（同机自校准、模拟器相对值；合成会话 300 条／606,375 字节，best-of-5）：全量趟（修前口径 entryBase＋entryMemoKey 旧现算）32,702µs；增量稳态趟 8,216µs（约 4.0×）；单行变化趟 8,450µs（≈稳态＋一行全量）。文本量对照（同行数、文本 ×4／约 2.4MB）：全量趟 84,372µs（随文本量涨 2.6×），增量稳态趟 8,063µs（与基线持平、实证与文本量脱钩）。绝对值只作相对对账，真机 hitch 率以探活报告第四节补测＋真机 verdict 为准，实验室绿不替代。
 - 回归共 140 项：新套件 8/8（Test-OneDayApp-s2suite1）＋回归 132 项（Test-OneDayApp-s2regB）130 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，已在未改动的 rel-05090 基线树单套复跑对证（同套 5 项同 2 红、失败断言逐字同），系基线老红、非本包引入（与在案 CI 基线红集 R2Assembly 2 件吻合）。逐套：ImageDecodeCacheS1Tests 5/5、ChatLagFeedLayerTests 7/7、ChatNativeListAssemblyTests 7/7、ChatNativeListR2AssemblyTests 3/5（基线 2 红）、ChatNativeListR3AssemblyTests 5/5、ChatNativeListR4AssemblyTests 3/3、ChatNativeMeasureDeskTests 9/9、ChatNativeRowHeightFittingTests 10/10、ChatNativeRowHeightProductionChainTests 1/1、ChatNativeFollowSourceTests 8/8、ChatNativeHotfix330Tests 10/10、ChatUnreadDividerAssemblyTests 4/4、MessageReactions187Tests 7/7、BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9。测试通道与在飞配对包共用、两轮被对方 kickstart 抢道杀跑后于空窗完成，run 名：smooth-s2-suite1／smooth-s2-regB／baseline-r2-check。
+## §364 台账 23 内容三面行题字阶对齐（2026-11-22；基线 rel-05091，分支 feat/ledger23-type-align）
+
+### §364.1 定版与裁定
+- 探活 ledger23-content-surfaces-recon-20261122 分三类：用户亲定偏离（不动）／真实未对齐（本节施工）／全件缺件（各有登记去向、不并入）。资源库面与流畅度 S4 合并施工（§363 线），本包只做点子/动态/目标三面。
+- 目标行题破 C14 单轨一处冲突，用户 2026-11-22 21:44 裁定**同例扩展**：跟点子/动态一样开例外、改大字阶半粗，不再维持单轨。
+
+### §364.2 落法（新增例外角色，三面同例）
+- 新增局部角色 contentListTitle（Core TypeRole 对账：title3／20／semibold；Design 落 Font.title3.weight(.semibold)）——只许点子/动态/目标三面行题消费、不许外溢；VisualDirectionGateTests 角色表（十四角色）＋Dynamic Type 缩放闸同批把守。
+- 动态帖行题、点子行题：.headline（17 semibold，§117.5 例外旧档）升 .contentListTitle。
+- 目标行题：.rowTitle（17 regular）改 .contentListTitle——对位 Muse 实测约 21pt semibold，落最近文本样式档 Title3 20（Δ1，文本样式承载 Dynamic Type 缩放，不许 .system(size:) 钉值——与 drawerTitle 先例同理）。
+- 目标进展摘要截断 2→3 行（Muse 2–3 行）；目标组头字重 regular→semibold（.body.weight(.semibold)，组头非行题、不撞 C14；Muse 实测半粗约 17pt）。
+
+### §364.3 不动与未核留痕
+- 用户亲定偏离全不动：动态简报胶囊行已删形态、去日期分组单条时间流、无未读面、单图通栏、点子撤采纳两段式与分类小节、资源库整面（归 S4）。
+- 未核项先量后改、本包未量到不落码：动态正文行高（走聊天 MarkdownText 渲染、现行落值未逐值量）、点子行 pitch、目标行间空档——三项保持现状，留真机量测帧对账（见 §364.4 真机门）。
+- AX/深色：字阶放大由新角色缩放闸（AX3 对 .large 须长大 1.2 倍以上）把守；Feed 行题既有 a11yLineLimit(2, ax: 4) 放宽在位；本包零颜色令牌改动，深色呈现随既有 Palette 对比闸。
+
+### §364.4 验收（实验室口径）与真机门
+- 回归共 19 套 200 项（run ledger23-r1＋补跑 r3；bundle Test-OneDayApp-ledger23／-ledger23r3）：199 过、1 红。逐套：VisualDirectionGateTests 8/8（角色表十四角色＋新角色缩放闸）、FeedBoardTests 13/13、FeedCompact126Tests 5/5、FeedDiscussQuoteTests 19/19、FeedIdeasParityTests 12/12、FeedSeedPostsTests 5/5、FeedV2Tests 13/13、FeedAppATests 9/9、GoalCategoryTests 11/11、GoalDepthTests 13/13、GoalRectifyTests 10/10、GoalsTailTests 13/13、IdeaAnchorTests 5/5、FeedDiscussQuoteAppTests 6/6、GoalsTailAppTests 6/6、SessionCatalogGuardTests 9/9、SettingsCatalogTests 20/20、ModelSettings119Tests 19/19、IdeasDeleteConfirmTests 3/4。
+- 唯一红 IdeasDeleteConfirmTests.testDeleteWithoutConnectionLeavesNoteAndClearsNotice：已在未改动的 rel-05091 基线树单套复跑对证（run ledger23-base，同套 3/4、同两条断言逐字同），系基线既有红、非本包引入；该套不在 0.50.91 发布验证集内（702 项未含），红的成因（删除未连接注记口径与组版后行为不一致）留主线另行立案，不在本包范围。
+- 留痕一：r1 首轮把 FeedAppATests／ModelSettings119Tests 误写 OneDayAppTests 前缀被静默跳过（34 项未跑），靠逐套对账揪出——两套实属 OneDayCoreTests，r3 以全限定名补跑 28/28 全绿，上数已并入。
+- 留痕二：r2 kick 时两查读数与 S4 线 probe4 的 kick 撞在同一瞬间，我方 kickstart -k 抢道杀跑对方该轮（对方为空窗重跑的探针轮、无成果损失）；通道纪律的竞态面记此一笔，后续 kick 前两查须以「RUN 已出现且无 EXIT 才算忙」与 ps 双读复核间隔执行。
+- 真机门：三面与 Muse 并排截图逐值量（行题/组头/摘要行数）；目标长标题 2 行截断与摘要 3 行帧；点框标完成→回读全程（形态外既有门，顺带复核活动行对齐基线）。

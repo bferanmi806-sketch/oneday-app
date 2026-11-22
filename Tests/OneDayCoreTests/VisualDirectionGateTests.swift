@@ -31,6 +31,9 @@ final class VisualDirectionGateTests: XCTestCase {
         // 基准按用户亲令对齐样板实测改 24（title2 自
         // 此为相对缩放锚、weight 不变，见 TypeRole
         // 头注订正）——断言随规格改值、非删测
+        // §364（台账 23，用户 2026-11-22 裁定同例
+        // 扩展）增 contentListTitle（Title3 20
+        // semibold，三面行题例外角色）——十四角色
         let expected: [TypeRole: (style: String, pt: CGFloat, weight: String)] = [
             .screenName: ("title", 28, "bold"),
             .drawerTitle: ("title2", 24, "bold"),
@@ -45,6 +48,7 @@ final class VisualDirectionGateTests: XCTestCase {
             .drawerNavTitle: ("body", 17, "medium"),
             .drawerRowTitle: ("body", 17, "regular"),
             .drawerRowTitleCurrent: ("body", 17, "semibold"),
+            .contentListTitle: ("title3", 20, "semibold"),
         ]
         XCTAssertEqual(Set(TypeRole.allCases), Set(expected.keys))
         for (role, spec) in expected {
@@ -81,6 +85,7 @@ final class VisualDirectionGateTests: XCTestCase {
             ("drawerNavTitle", .drawerNavTitle),
             ("drawerRowTitle", .drawerRowTitle),
             ("drawerRowTitleCurrent", .drawerRowTitleCurrent),
+            ("contentListTitle", .contentListTitle),
         ]
         for (name, font) in roles {
             let base = renderedTextHeight(font: font, category: .large)
