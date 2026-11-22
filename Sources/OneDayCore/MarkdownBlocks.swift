@@ -83,32 +83,51 @@ public enum MarkdownParser {
     /// 果、输出逐字不变；未命中才走 parseUncached
     public static func parse(_ content: String) -> [MarkdownBlock] {
         MarkdownParseMemos.blocks.value(for: content) {
-            parseUncached(content)
+            parseUncached(content).map(\.block)
         }
     }
 
-    private static func parseUncached(_ content: String) -> [MarkdownBlock] {
+    /// 带行号的解析（§348 流式增量切分专用）：与 parse
+    /// 同一解析过程，额外给出每块的首行行号（0 起）。
+    /// 不走解析备忘——消费方 StreamingBlockSegmenter
+    /// 自带备忘与追加链；输出与 parse 逐块恒等（差
+    /// 分钉测把守）
+    public static func parseWithRanges(
+        _ content: String
+    ) -> [(block: MarkdownBlock, startLine: Int)] {
+        parseUncached(content)
+    }
+
+    private static func parseUncached(
+        _ content: String
+    ) -> [(block: MarkdownBlock, startLine: Int)] {
         let lines = content.components(separatedBy: "\n")
-        var blocks: [MarkdownBlock] = []
+        var blocks: [(block: MarkdownBlock, startLine: Int)] = []
         var paragraph: [String] = []
         var code: [String]?
         var codeLanguage: String?
         var quote: [MarkdownQuoteLine] = []
         var list: [MarkdownListItem] = []
+        // 各累积器的首行行号：累积器由空转非空的那
+        // 一行即块首行，块落定时随块记账（§348）
+        var paragraphStart = 0
+        var codeStart = 0
+        var quoteStart = 0
+        var listStart = 0
 
         func flushParagraph() {
             guard !paragraph.isEmpty else { return }
-            blocks.append(.paragraph(paragraph.joined(separator: "\n")))
+            blocks.append((.paragraph(paragraph.joined(separator: "\n")), paragraphStart))
             paragraph = []
         }
         func flushQuote() {
             guard !quote.isEmpty else { return }
-            blocks.append(.blockquote(lines: quote))
+            blocks.append((.blockquote(lines: quote), quoteStart))
             quote = []
         }
         func flushList() {
             guard !list.isEmpty else { return }
-            blocks.append(.list(items: list))
+            blocks.append((.list(items: list), listStart))
             list = []
         }
         func flushAll() {
@@ -126,15 +145,16 @@ public enum MarkdownParser {
             // —— 围栏：开关行（信息串只在开栏时取） ——
             if trimmed.hasPrefix("```") {
                 if code != nil {
-                    blocks.append(.code(
+                    blocks.append((.code(
                         code: (code ?? []).joined(separator: "\n"),
                         language: codeLanguage
-                    ))
+                    ), codeStart))
                     code = nil
                     codeLanguage = nil
                 } else {
                     flushAll()
                     code = []
+                    codeStart = index
                     let info = trimmed.dropFirst(3)
                         .trimmingCharacters(in: .whitespaces)
                     codeLanguage = CodeHighlight.normalizeLanguage(
@@ -193,11 +213,11 @@ public enum MarkdownParser {
                     ))
                     rowIndex += 1
                 }
-                blocks.append(.table(
+                blocks.append((.table(
                     header: table.header,
                     alignments: table.alignments,
                     rows: rows
-                ))
+                ), index))
                 index = rowIndex
                 continue
             }
@@ -205,7 +225,7 @@ public enum MarkdownParser {
             // —— 标题（# 后必须带空格，1–6 级） ——
             if let heading = parseHeading(trimmed) {
                 flushAll()
-                blocks.append(heading)
+                blocks.append((heading, index))
                 index += 1
                 continue
             }
@@ -213,7 +233,7 @@ public enum MarkdownParser {
             // —— 分割线 ——
             if isHorizontalRule(trimmed) {
                 flushAll()
-                blocks.append(.divider)
+                blocks.append((.divider, index))
                 index += 1
                 continue
             }
@@ -222,6 +242,7 @@ public enum MarkdownParser {
             if let quoteLine = parseQuoteLine(trimmed) {
                 flushParagraph()
                 flushList()
+                if quote.isEmpty { quoteStart = index }
                 quote.append(quoteLine)
                 index += 1
                 continue
@@ -242,6 +263,7 @@ public enum MarkdownParser {
                 if interruptsParagraph {
                     flushParagraph()
                     flushQuote()
+                    if list.isEmpty { listStart = index }
                     list.append(item)
                     index += 1
                     continue
@@ -264,16 +286,17 @@ public enum MarkdownParser {
             // —— 段落行 ——
             flushQuote()
             flushList()
+            if paragraph.isEmpty { paragraphStart = index }
             paragraph.append(rawLine)
             index += 1
         }
         flushAll()
         if let code {
             // 未闭合围栏：按代码块收尾（流式半截口径）
-            blocks.append(.code(
+            blocks.append((.code(
                 code: code.joined(separator: "\n"),
                 language: codeLanguage
-            ))
+            ), codeStart))
         }
         return blocks
     }
