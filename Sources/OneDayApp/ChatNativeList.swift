@@ -578,18 +578,52 @@ private final class ChatNativeLayoutBox {
     /// 算管线退役）。§329 后只余布局提供者越界
     /// （section 序超出当前行集）的防御回落
     static let estimatedPlaceholder: CGFloat = 120
-    /// §329：当前行集的回喂高（序＝行序）：布局
-    /// 提供者按 section 序直读本表给 .absolute
-    /// 高；apply 落写、提供者只读，两处不许各算
-    /// 一份
-    var rowHeights: [CGFloat] = []
-    /// 台账 190②：与 rowHeights 同序的临界标记
-    /// （高未量测确定）：提供者对可见窗内的临界
-    /// 行经 syncMeasure 就地量测换确定高并回写
-    /// 本表（学 Telegram 无估算高：估算兜底只留
-    /// 给从未接近视口的行）；窗外临界行不付主线
-    /// 程量测、等量测台后台回填
-    var provisionalFlags: [Bool] = []
+    /// §374.3：行高账条目——修订＋采用高＋临界
+    /// 标记三值按键同账，代 §329 的平行四表
+    /// （rowHeights／provisionalFlags／rowKeys／
+    /// rowRevisions 按序对位）：高度以行键为身
+    /// 份（施工图对位 #3：照 Signal LayoutInfo／
+    /// 微信预排版的按身份缓存纪律），插行不挪
+    /// 账、失效随修订、布局按序位取键再按键读
+    /// 高；apply 落写、提供者只读，两处不许各
+    /// 算一份
+    struct HeightEntry {
+        var revision: ChatNativeRowRevision
+        var height: CGFloat
+        var provisional: Bool
+    }
+    /// §329 的回喂高＋台账 190② 的临界标记（高
+    /// 未量测确定：提供者对可见窗内的临界行经
+    /// syncMeasure 就地量测换确定高并回写本账
+    /// ——学 Telegram 无估算高，估算兜底只留给
+    /// 从未接近视口的行；窗外临界行不付主线程
+    /// 量测、等量测台后台回填），§374.3 起按键
+    /// 存取
+    var heightByKey: [String: HeightEntry] = [:]
+    /// 行序（与快照条目序恒同）：序位真源只余
+    /// 行键一列——非高度账本体（高度按键在
+    /// heightByKey），布局提供者按序取键读账
+    var rowOrder: [String] = []
+    /// §374.3：布局构造旗（控制器按 ChatList-
+    /// SingleSectionFeature 在喂入入口同步）：
+    /// 真＝单 section 逐 item 组高构造、假＝
+    /// §329 逐行 section 构造（回退形态）
+    var singleSection = false
+    /// 采用高按序镜像（测试读口/对账用；键缺
+    /// 席回落占位常量——防御、正常路径不达）
+    var orderedHeights: [CGFloat] {
+        rowOrder.map {
+            heightByKey[$0]?.height
+                ?? Self.estimatedPlaceholder
+        }
+    }
+    /// 序位读高（提供者口）：序→键→账
+    func height(at index: Int) -> CGFloat {
+        guard rowOrder.indices.contains(index)
+        else { return Self.estimatedPlaceholder }
+        return heightByKey[rowOrder[index]]?.height
+            ?? Self.estimatedPlaceholder
+    }
     /// 台账 190 留账·nanoMuse 列表三件①（DESIGN
     /// §335）：布局层确高备忘——确高一经喂入或就
     /// 地量得即归本匣所有（行键→（修订，确高））：
@@ -606,17 +640,12 @@ private final class ChatNativeLayoutBox {
         revision: ChatNativeRowRevision,
         height: CGFloat
     )] = [:]
-    /// 与 rowHeights 同序的行键/修订（applyNow 落
-    /// 写）：makeSection 就地量测回写时按序取键与
-    /// 修订入确高备忘
-    var rowKeys: [String] = []
-    var rowRevisions: [ChatNativeRowRevision] = []
-    /// 就地量测口（控制器装配：序→行键→量测台
+    /// 就地量测口（控制器装配：行键→量测台
     /// measureNow）；nil＝无量测台在席（探针裸
     /// 装配），提供者不就地量测
-    var syncMeasure: ((Int) -> CGFloat?)?
-    /// 可见窗（section 序，控制器按可见项±缓冲
-    /// 刷新）：syncMeasure 只许在本窗内触发
+    var syncMeasure: ((String) -> CGFloat?)?
+    /// 可见窗（行序，控制器按可见项±缓冲刷
+    /// 新）：syncMeasure 只许在本窗内触发
     var visibleWindow: Range<Int> = 0..<0
     /// 就地量测单窗预算（防整窗临界时主线程连
     /// 量失控；窗口刷新时由控制器重置）
@@ -1048,6 +1077,10 @@ final class ChatRootViewController: UIViewController,
     /// 落定拍调度账（与 gen3 §259 同式：滚动回调
     /// 只记账、施工与读数产出统一在落定拍）
     private var settleScheduled = false
+    /// §374.3 测试口：单 section 模式覆盖（非 nil
+    /// 时模式同步认本口不认全局开关——双控制器同
+    /// 进程对账/探针用；生产恒 nil）
+    var testSingleSectionOverride: Bool?
     /// §325.2：布局参数变更的失效记账（apply 只记
     /// 账、落定拍 pass 外合并施工，见 apply 注）
     private var pendingLayoutInvalidation = false
@@ -1246,14 +1279,11 @@ final class ChatRootViewController: UIViewController,
         bundle nibBundleOrNil: Bundle?
     ) {
         let box = ChatNativeLayoutBox()
+        box.singleSection =
+            ChatListSingleSectionFeature.isEnabled()
         layoutBox = box
-        let layout = UICollectionViewCompositionalLayout {
-            sectionIndex, _ in
-            box.noteSectionProviderCall()
-            return ChatRootViewController.makeSection(
-                box: box, sectionIndex: sectionIndex
-            )
-        }
+        let layout = ChatRootViewController
+            .makeLayout(box: box)
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
         )
@@ -1265,14 +1295,11 @@ final class ChatRootViewController: UIViewController,
 
     required init?(coder: NSCoder) {
         let box = ChatNativeLayoutBox()
+        box.singleSection =
+            ChatListSingleSectionFeature.isEnabled()
         layoutBox = box
-        let layout = UICollectionViewCompositionalLayout {
-            sectionIndex, _ in
-            box.noteSectionProviderCall()
-            return ChatRootViewController.makeSection(
-                box: box, sectionIndex: sectionIndex
-            )
-        }
+        let layout = ChatRootViewController
+            .makeLayout(box: box)
         collectionView = UICollectionView(
             frame: .zero, collectionViewLayout: layout
         )
@@ -1321,6 +1348,57 @@ final class ChatRootViewController: UIViewController,
         makeDataSource()
     }
 
+    /// 布局构造分流（§374.3）：匣内构造旗决定
+    /// 走 §329 逐行 section 构造还是单 section
+    /// 构造——两构造共用同一高度账（按键）与同
+    /// 一就地量测纪律，几何逐值等价（§374.3 对
+    /// 账钉测把守）
+    private static func makeLayout(
+        box: ChatNativeLayoutBox
+    ) -> UICollectionViewCompositionalLayout {
+        UICollectionViewCompositionalLayout {
+            sectionIndex, _ in
+            box.noteSectionProviderCall()
+            if box.singleSection {
+                return ChatRootViewController
+                    .makeSingleSection(box: box)
+            }
+            return ChatRootViewController
+                .makeRowSection(
+                    box: box, sectionIndex: sectionIndex
+                )
+        }
+    }
+
+    /// 就地量测回写（台账 190②，两构造共用）：
+    /// 可见窗内的临界行在提供者问高时同步量测
+    /// ——单行毫秒级、入屏前付清，确高按键回写
+    /// 匣内本账（本 pass 与后续 pass 同读新值）
+    /// 并入布局层确高备忘（§335）；窗外/预算尽
+    /// /无量测台时保留当趟喂入高（量测台回填后
+    /// 经发布代次重喂，两路同值）
+    private static func settleProvisionalHeight(
+        box: ChatNativeLayoutBox, key: String,
+        rowIndex: Int
+    ) {
+        guard box.visibleWindow.contains(rowIndex),
+              box.syncMeasureBudget > 0,
+              var entry = box.heightByKey[key],
+              entry.provisional,
+              let measured = box.syncMeasure?(key)
+        else { return }
+        entry.height = measured
+        entry.provisional = false
+        box.heightByKey[key] = entry
+        box.syncMeasureBudget -= 1
+        // §335：就地量得的确高同入布局层备忘——
+        // 本行自此在布局层有确值，后续重喂不许
+        // 打回临界
+        box.exactHeightByKey[key] = (
+            revision: entry.revision, height: measured
+        )
+    }
+
     /// compositional 单列 section（§329 改 section-
     /// per-row）：一行一 section、item/group 高＝
     /// .absolute(该行回喂高)——框架不估算、不修
@@ -1331,42 +1409,24 @@ final class ChatRootViewController: UIViewController,
     /// interGroupSpacing 口径逐值等价；左右 inset
     /// 恒 horizontalPadding。提供者越界（序≥行集
     /// 长）回落固定占位常量（防御、正常路径不达）
-    private static func makeSection(
+    /// §374.3：高度改按键读账（序→键→条目）；
+    /// 本构造保留作单 section 旗关时的回退形态
+    private static func makeRowSection(
         box: ChatNativeLayoutBox, sectionIndex: Int
     ) -> NSCollectionLayoutSection {
-        let rowCount = box.rowHeights.count
+        let rowCount = box.rowOrder.count
         // 台账 190②：将入视口的临界行在提供者问
-        // 高时就地量测——单行毫秒级、入屏前付清，
-        // 确定高直接回写匣内本序（本 section 与后
-        // 续布局 pass 同读新值）；窗外/预算尽/无
-        // 量测台时保留当趟喂入高（量测台回填后经
-        // 发布代次重喂，两路同值）
-        if sectionIndex < rowCount,
-           sectionIndex < box.provisionalFlags.count,
-           box.provisionalFlags[sectionIndex],
-           box.visibleWindow.contains(sectionIndex),
-           box.syncMeasureBudget > 0,
-           let measured = box.syncMeasure?(sectionIndex) {
-            box.rowHeights[sectionIndex] = measured
-            box.provisionalFlags[sectionIndex] = false
-            box.syncMeasureBudget -= 1
-            // §335：就地量得的确高同入布局层备忘
-            // （键/修订按序取匣内平行账）——本行自
-            // 此在布局层有确值，后续重喂不许打回
-            if sectionIndex < box.rowKeys.count,
-               sectionIndex < box.rowRevisions.count {
-                box.exactHeightByKey[box.rowKeys[
-                    sectionIndex
-                ]] = (
-                    revision: box.rowRevisions[
-                        sectionIndex
-                    ],
-                    height: measured
-                )
-            }
+        // 高时就地量测（共用口 settleProvisional-
+        // Height：窗/预算/量测台三闸同旧）
+        if sectionIndex < rowCount {
+            settleProvisionalHeight(
+                box: box,
+                key: box.rowOrder[sectionIndex],
+                rowIndex: sectionIndex
+            )
         }
         let height = sectionIndex < rowCount
-            ? box.rowHeights[sectionIndex]
+            ? box.height(at: sectionIndex)
             : ChatNativeLayoutBox.estimatedPlaceholder
         let itemSize = NSCollectionLayoutSize(
             widthDimension: .fractionalWidth(1),
@@ -1395,6 +1455,101 @@ final class ChatRootViewController: UIViewController,
         return section
     }
 
+    /// compositional 单 section 构造（§374.3，施
+    /// 工图对位 #4：单 section 形态照 MessageKit
+    /// ——单列、逐行确定高）：全体行同属 sec-
+    /// tion 0，根组＝纵向组、逐行一 item（item
+    /// 高＝.absolute(该行回喂高)），行距由
+    /// 根组 interItemSpacing 承担、顶/底/左右
+    /// inset 由 section contentInsets 承担，总
+    /// 几何与逐行 section 构造逐值等价（顶 top-
+    /// Padding＋Σ高＋rowSpacing×(n−1)＋底 bot-
+    /// tomPadding；H1 间距单源不变）。根组高取
+    /// 确值口径（步骤 0 探针 B 的 B1 档）：由同
+    /// 一高度账求和得出——全链零估算，§329「按
+    /// 构造拆除修正源」在根组一级同守（B2 粗估
+    /// 档在 spike 同样收敛，但其根高修正仍托框
+    /// 架 post-pass，与本仓口径相悖，故不取）。
+    /// 高度按键读账：序位→行键→条目
+    private static func makeSingleSection(
+        box: ChatNativeLayoutBox
+    ) -> NSCollectionLayoutSection {
+        let rowCount = box.rowOrder.count
+        // 台账 190②：窗内临界行在建组前逐行就地
+        // 量定（共用口三闸与逐行构造同）——高度
+        // 在本 pass 消费前已定，§329 构造纪律
+        // 不变
+        for index in 0..<rowCount
+        where box.heightByKey[
+            box.rowOrder[index]
+        ]?.provisional == true {
+            settleProvisionalHeight(
+                box: box, key: box.rowOrder[index],
+                rowIndex: index
+            )
+        }
+        // 组树形状定版（§374.3 spike 三变体实
+        // 数）：pass 成本由逐 item 帧求解主导、
+        // 逐行一子组层纯增常数（@1200 行 pass
+        // 8.55ms vs 单组多 item 3.36ms），故根组
+        // 直挂逐行 item、不设子组层
+        var subitems: [NSCollectionLayoutItem] = []
+        subitems.reserveCapacity(max(1, rowCount))
+        var contentHeight: CGFloat = 0
+        if rowCount == 0 {
+            // 空行集：零高占位 item（section 恒
+            // 在、条目为零——组树只描述几何、无
+            // 条目即不物化，占位高 0 不入总几何）
+            let zeroSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .absolute(0)
+            )
+            subitems.append(
+                NSCollectionLayoutItem(
+                    layoutSize: zeroSize
+                )
+            )
+        }
+        for index in 0..<rowCount {
+            let height = max(0, box.height(at: index))
+            let itemSize = NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .absolute(height)
+            )
+            subitems.append(
+                NSCollectionLayoutItem(
+                    layoutSize: itemSize
+                )
+            )
+            contentHeight += height
+        }
+        if rowCount > 1 {
+            contentHeight += box.rowSpacing
+                * CGFloat(rowCount - 1)
+        }
+        let rootSize = NSCollectionLayoutSize(
+            widthDimension: .fractionalWidth(1),
+            heightDimension: .absolute(contentHeight)
+        )
+        let root = NSCollectionLayoutGroup.vertical(
+            layoutSize: rootSize, subitems: subitems
+        )
+        if rowCount > 1 {
+            root.interItemSpacing = .fixed(
+                box.rowSpacing
+            )
+        }
+        let section = NSCollectionLayoutSection(
+            group: root
+        )
+        section.contentInsets = NSDirectionalEdgeInsets(
+            top: box.topPadding,
+            leading: box.horizontalPadding,
+            bottom: box.bottomPadding,
+            trailing: box.horizontalPadding
+        )
+        return section
+    }
     override func viewDidLoad() {
         super.viewDidLoad()
         // 句柄回指（representable 的 make/update 已
@@ -1458,17 +1613,15 @@ final class ChatRootViewController: UIViewController,
         )
         installComposerIfNeeded()
         installBlankTapDismiss()
-        // 台账 190②：布局匣就地量测口装配（序→当
-        // 前行集行键→喂入口转发；行集以调用时刻
-        // 的 rows 为准，提供者在布局 pass 内同步
-        // 调用、只读本匣与行集）
-        layoutBox.syncMeasure = { [weak self] index in
+        // 台账 190②：布局匣就地量测口装配（行键
+        // →喂入口转发；行集以调用时刻的 rowsBy-
+        // Key 为准，提供者在布局 pass 内同步调
+        // 用、只读本匣与行集）
+        layoutBox.syncMeasure = { [weak self] key in
             guard let self,
-                  self.rows.indices.contains(index)
+                  self.rowsByKey[key] != nil
             else { return nil }
-            return self.exactHeightProvider?(
-                self.rows[index].key
-            )
+            return self.exactHeightProvider?(key)
         }
         ChatDiagTrace.record(
             "原生重建 R1 新面装配（开关开）："
@@ -1995,10 +2148,10 @@ final class ChatRootViewController: UIViewController,
     }
 
     /// §329 测试读口：当前行集的回喂高（布局匣
-    /// rowHeights 的只读镜像）——生产链压测对账
-    /// 「采用高 vs 帧高」用，生产无消费
+    /// 高度账的按序镜像）——生产链压测对账「采
+    /// 用高 vs 帧高」用，生产无消费
     var testAdoptedRowHeights: [CGFloat] {
-        layoutBox.rowHeights
+        layoutBox.orderedHeights
     }
 
     /// §374.2 测试读口：快照条目序（新旧路终态
@@ -2015,14 +2168,9 @@ final class ChatRootViewController: UIViewController,
     }
 
     /// §374.2 测试读口：高度账按键镜像（布局匣
-    /// 行键/行高两平行表 zip——两表同长是构造纪
-    /// 律、zip 截断即暴露失衡）
+    /// 高度账本账的按键投影）
     var testRowHeightsByKey: [String: CGFloat] {
-        Dictionary(
-            uniqueKeysWithValues: zip(
-                layoutBox.rowKeys, layoutBox.rowHeights
-            ).map { ($0, $1) }
-        )
+        layoutBox.heightByKey.mapValues { $0.height }
     }
 
     /// §374.2 测试读口：快照施工计数镜像
@@ -2284,21 +2432,35 @@ final class ChatRootViewController: UIViewController,
     }
 
     /// 整表快照构建（旧路键集变分支与新路重建
-    /// 路共用：section-per-row、序＝行序、重配
-    /// 键原位重构）
+    /// 路共用：序＝行序、重配键原位重构；结构随
+    /// 布局构造分流——逐行构造＝一行一 section、
+    /// 单 section 构造＝全体条目同入 section 0）
     private func rebuiltSnapshot(
         newKeys: [String],
         reconfigureKeys: [String]
     ) -> NSDiffableDataSourceSnapshot<Int, String> {
         var snapshot =
             NSDiffableDataSourceSnapshot<Int, String>()
-        snapshot.appendSections(
-            Array(newKeys.indices)
-        )
-        for (index, key) in newKeys.enumerated() {
-            snapshot.appendItems(
-                [key], toSection: index
+        if layoutBox.singleSection {
+            // 空行集不建 section（与逐行构造逐值
+            // 一致：空集 contentSize 不含 section
+            // inset；由空集长出走整笔重建路、增量
+            // 条目编辑恒在非空集上发生）
+            if !newKeys.isEmpty {
+                snapshot.appendSections([0])
+                snapshot.appendItems(
+                    newKeys, toSection: 0
+                )
+            }
+        } else {
+            snapshot.appendSections(
+                Array(newKeys.indices)
             )
+            for (index, key) in newKeys.enumerated() {
+                snapshot.appendItems(
+                    [key], toSection: index
+                )
+            }
         }
         if !reconfigureKeys.isEmpty {
             snapshot.reconfigureItems(reconfigureKeys)
@@ -2429,6 +2591,64 @@ final class ChatRootViewController: UIViewController,
         return paramsChanged
     }
 
+    /// §374.3：单 section 期望模式（测试覆盖口
+    /// 优先、生产认全局开关）
+    private func desiredSingleSection() -> Bool {
+        testSingleSectionOverride
+            ?? ChatListSingleSectionFeature.isEnabled()
+    }
+
+    /// §374.3：单 section 模式同步（applyNow／
+    /// applyChangesNow 入口）：期望模式与匣内构
+    /// 造旗不符即翻转——快照结构随构造同变，本
+    /// 笔须整笔重建（调用方据返回值分流）；布局
+    /// 失效只记账（紧急级与参数变同级）、施工仍
+    /// 归落定拍唯一施工口（结构钉测把守：apply
+    /// 同步链内不许执行 invalidateLayout）。返
+    /// 回是否翻转
+    @discardableResult
+    private func refreshSingleSectionMode() -> Bool {
+        let enabled = desiredSingleSection()
+        guard enabled != layoutBox.singleSection
+        else { return false }
+        layoutBox.singleSection = enabled
+        pendingLayoutInvalidation = true
+        pendingLayoutInvalidationUrgent = true
+        return true
+    }
+
+    /// 高度账整笔落写（§374.3，applyNow 与重建
+    /// 路共用）：按键建账＋行序换现值；失效判据
+    /// 只认高谱——临界标记变而高未变不单独触发
+    /// 布局失效（台账 190②：标记只供提供者问高
+    /// 时消费，落定拍布局 pass 自会读到）。返回
+    /// 高谱是否变更
+    private func writeHeightLedgerFull(
+        rows newRows: [ChatNativeRow],
+        mergedHeights: [CGFloat],
+        mergedFlags: [Bool]
+    ) -> Bool {
+        var ledger: [String: ChatNativeLayoutBox
+            .HeightEntry] = [:]
+        ledger.reserveCapacity(newRows.count)
+        for (index, row) in newRows.enumerated() {
+            ledger[row.key] =
+                ChatNativeLayoutBox.HeightEntry(
+                    revision: row.revision,
+                    height: mergedHeights[index],
+                    provisional: mergedFlags[index]
+                )
+        }
+        let heightsChanged =
+            layoutBox.orderedHeights != mergedHeights
+        layoutBox.heightByKey = ledger
+        layoutBox.rowOrder = newRows.map(\.key)
+        if heightsChanged {
+            pendingLayoutInvalidation = true
+        }
+        return heightsChanged
+    }
+
     /// 回喂高合并（§329/§335，applyNow 与
     /// applyChangesNow 共用）：临界喂入而匣内
     /// 有同键同修订确高→以确高回填（值与标记
@@ -2545,6 +2765,9 @@ final class ChatRootViewController: UIViewController,
         // syncLayoutParams——§325.2 守卫集与 .66
         // 崩溃链防线见共用口注）
         let paramsChanged = syncLayoutParams(layout)
+        // §374.3：单 section 模式同步——翻转笔强
+        // 制整表重建（快照结构随构造同变）
+        let modeFlipped = refreshSingleSectionMode()
 
         let newByKey = Dictionary(
             uniqueKeysWithValues: newRows.map {
@@ -2558,6 +2781,7 @@ final class ChatRootViewController: UIViewController,
         // 更新；单形态下 reconfigure 恒同注册、不
         // 再有跨形态翻转分流（§320.1 退役）
         let keysChanged = oldKeys != newKeys
+            || modeFlipped
         let revisionMismatchKeys = newKeys.filter {
             revisionsByKey[$0] != nil
                 && revisionsByKey[$0]
@@ -2615,23 +2839,18 @@ final class ChatRootViewController: UIViewController,
                     keep.contains($0.key)
                 }
         }
-        layoutBox.rowKeys = newKeys
-        layoutBox.rowRevisions =
-            newRows.map(\.revision)
-        let heightsChanged =
-            layoutBox.rowHeights != mergedHeights
-        if heightsChanged {
-            layoutBox.rowHeights = mergedHeights
-            pendingLayoutInvalidation = true
-        }
         // 台账 190②：临界标记与行集同趟落写（标
         // 记变而高未变时——如上次高被量测坐实同
         // 值——不单独触发布局失效：匣内标记只供
         // 提供者问高时消费，落定拍布局 pass 自会
-        // 读到）
-        if layoutBox.provisionalFlags != mergedFlags {
-            layoutBox.provisionalFlags = mergedFlags
-        }
+        // 读到）——§374.3 起标记随高度账按键同
+        // 写、失效判据仍只认高谱（共用口 write-
+        // HeightLedgerFull）
+        let heightsChanged = writeHeightLedgerFull(
+            rows: newRows,
+            mergedHeights: mergedHeights,
+            mergedFlags: mergedFlags
+        )
         if keysChanged {
             applySnapshot(
                 rebuiltSnapshot(
@@ -2743,6 +2962,24 @@ final class ChatRootViewController: UIViewController,
         arrowView: AnyView?
     ) {
         let paramsChanged = syncLayoutParams(layout)
+        // §374.3：单 section 模式翻转笔——快照结
+        // 构随构造同变、整笔走重建路（稳态快路在
+        // 翻转笔不成立）
+        if refreshSingleSectionMode() {
+            applyChangesFullRebuild(
+                rows: newRows,
+                newKeys: newRows.map(\.key),
+                updateCandidates: Array(
+                    changeSet.updated
+                ),
+                paramsChanged: paramsChanged,
+                topInset: topInset,
+                bottomMargin: newMargin,
+                composerView: composerView,
+                arrowView: arrowView
+            )
+            return
+        }
         // 稳态快路：变更集全空（无编辑、无高变、
         // 无序变）——快照/高度账/修订账一律不碰，
         // 只走参数同步与收尾（§374.0 门②性质二：
@@ -2848,24 +3085,23 @@ final class ChatRootViewController: UIViewController,
         let reconfigureKeys = readyKeys.filter {
             dataSource.indexPath(for: $0) != nil
         }
-        // 高度账局部落写（布局匣平行四表）：先删
-        // （旧序索引）、后插（新序索引落位——续
-        // 行相对序不变＋已插键在位，新索引即终
-        // 位）、更新/高-only 原位写；确高备忘随
-        // 删出账、随合并入账（mergedHeight 本职）
-        var heights = layoutBox.rowHeights
-        var flags = layoutBox.provisionalFlags
-        var keys = layoutBox.rowKeys
-        var revs = layoutBox.rowRevisions
+        // 高度账局部落写（§374.3 按键账，代
+        // §374.2 的平行四表索引手术）：删→按键
+        // 出账＋行序摘除；插→按键入账＋行序按新
+        // 序索引落位（续行相对序不变＋已插键在
+        // 位，新索引即终位）；更新/高-only→按键
+        // 原位写。确高备忘随删出账、随合并入账
+        // （mergedHeight 本职）；失效判据只认高
+        // 值变（临界标记变而高未变不单独触发，
+        // 与整笔落写同口径）
         var heightsChanged = false
         for key in effectiveDeleted {
-            if let index = keys.firstIndex(of: key) {
-                keys.remove(at: index)
-                heights.remove(at: index)
-                flags.remove(at: index)
-                revs.remove(at: index)
+            if let index = layoutBox.rowOrder
+                .firstIndex(of: key) {
+                layoutBox.rowOrder.remove(at: index)
                 heightsChanged = true
             }
+            layoutBox.heightByKey[key] = nil
             layoutBox.exactHeightByKey[key] = nil
         }
         let orderedInserted = newKeys.filter {
@@ -2876,42 +3112,125 @@ final class ChatRootViewController: UIViewController,
                   let index = newIndexByKey[key]
             else { continue }
             let merged = mergedHeight(for: row)
-            keys.insert(key, at: index)
-            heights.insert(merged.height, at: index)
-            flags.insert(merged.provisional, at: index)
-            revs.insert(row.revision, at: index)
+            layoutBox.rowOrder.insert(
+                key, at: index
+            )
+            layoutBox.heightByKey[key] =
+                ChatNativeLayoutBox.HeightEntry(
+                    revision: row.revision,
+                    height: merged.height,
+                    provisional: merged.provisional
+                )
             heightsChanged = true
         }
         for key in changeSet.updated
             .union(changeSet.heightChanged) {
             guard let row = changedRowByKey[key],
-                  let index = keys.firstIndex(of: key)
+                  let existing = layoutBox
+                    .heightByKey[key]
             else { continue }
             let merged = mergedHeight(for: row)
-            if heights[index] != merged.height {
-                heights[index] = merged.height
+            if existing.height != merged.height {
                 heightsChanged = true
             }
-            flags[index] = merged.provisional
-            revs[index] = row.revision
+            layoutBox.heightByKey[key] =
+                ChatNativeLayoutBox.HeightEntry(
+                    revision: row.revision,
+                    height: merged.height,
+                    provisional: merged.provisional
+                )
         }
-        layoutBox.rowKeys = keys
-        layoutBox.rowRevisions = revs
         if heightsChanged {
-            layoutBox.rowHeights = heights
             pendingLayoutInvalidation = true
         }
-        if flags != layoutBox.provisionalFlags {
-            layoutBox.provisionalFlags = flags
-        }
-        // 快照增量编辑：删 section（连带其条目）
-        // →插 section＋条目（锚＝新序中最近的在
-        // 场前行、无前行则取最近在场后行之前、
-        // 皆无则尾附）→重构。section 身份账只在
-        // 本笔有结构变更时构建（纯更新笔零构
-        // 建、成本只随变更量）
+        // 快照增量编辑（两构造分流）：单 sec-
+        // tion 构造＝条目级编辑（删条目→锚定插
+        // 条目→重构）；逐行 section 构造＝sec-
+        // tion 级编辑（删 section→插 section＋
+        // 条目→重构）。锚义两构造同：新序中最近
+        // 的在场前行之后、无前行取最近在场后行
+        // 之前、皆无则尾附。section 身份账只在
+        // 逐行构造本笔有结构变更时构建（纯更新
+        // 笔零构建、成本只随变更量）
         var didEditSnapshot = false
-        if !effectiveDeleted.isEmpty
+        if layoutBox.singleSection,
+           !effectiveDeleted.isEmpty
+            || !orderedInserted.isEmpty {
+            var snapshot = dataSource.snapshot()
+            if !effectiveDeleted.isEmpty {
+                snapshot.deleteItems(
+                    Array(effectiveDeleted)
+                )
+                didEditSnapshot = true
+            }
+            if !orderedInserted.isEmpty {
+                var presentNow = Set(
+                    snapshot.itemIdentifiers
+                )
+                for key in orderedInserted {
+                    guard let index = newIndexByKey[key]
+                    else { continue }
+                    var placed = false
+                    var probe = index - 1
+                    while probe >= 0 && !placed {
+                        if presentNow.contains(
+                            newKeys[probe]
+                        ) {
+                            snapshot.insertItems(
+                                [key],
+                                afterItem: newKeys[probe]
+                            )
+                            placed = true
+                        }
+                        probe -= 1
+                    }
+                    if !placed {
+                        probe = index + 1
+                        while probe < newKeys.count
+                            && !placed {
+                            if presentNow.contains(
+                                newKeys[probe]
+                            ) {
+                                snapshot.insertItems(
+                                    [key],
+                                    beforeItem:
+                                        newKeys[probe]
+                                )
+                                placed = true
+                            }
+                            probe += 1
+                        }
+                    }
+                    if !placed {
+                        snapshot.appendItems(
+                            [key], toSection: 0
+                        )
+                    }
+                    presentNow.insert(key)
+                    didEditSnapshot = true
+                }
+            }
+            if !reconfigureKeys.isEmpty {
+                snapshot.reconfigureItems(
+                    reconfigureKeys
+                )
+            }
+            // 落写前终核（与逐行构造路同口径）：
+            // 件数与新行集不符（基态漂移超出逐键
+            // 校正面）即整表重建兜底——计数读口
+            // O(1)、不比对全集
+            if snapshot.numberOfItems
+                != newRows.count {
+                snapshot = rebuiltSnapshot(
+                    newKeys: newKeys,
+                    reconfigureKeys: reconfigureKeys
+                )
+            }
+            applySnapshot(
+                snapshot,
+                reconfiguring: reconfigureKeys.count
+            )
+        } else if !effectiveDeleted.isEmpty
             || !orderedInserted.isEmpty {
             var snapshot = dataSource.snapshot()
             var sectionIDByKey: [String: Int] = [:]
@@ -3085,18 +3404,11 @@ final class ChatRootViewController: UIViewController,
             .exactHeightByKey.filter {
                 keep.contains($0.key)
             }
-        layoutBox.rowKeys = newKeys
-        layoutBox.rowRevisions =
-            newRows.map(\.revision)
-        let heightsChanged =
-            layoutBox.rowHeights != mergedHeights
-        if heightsChanged {
-            layoutBox.rowHeights = mergedHeights
-            pendingLayoutInvalidation = true
-        }
-        if layoutBox.provisionalFlags != mergedFlags {
-            layoutBox.provisionalFlags = mergedFlags
-        }
+        let heightsChanged = writeHeightLedgerFull(
+            rows: newRows,
+            mergedHeights: mergedHeights,
+            mergedFlags: mergedFlags
+        )
         applySnapshot(
             rebuiltSnapshot(
                 newKeys: newKeys,
@@ -3209,7 +3521,7 @@ final class ChatRootViewController: UIViewController,
         let location = touch.location(in: collectionView)
         guard let indexPath = collectionView
                 .indexPathForItem(at: location),
-              indexPath.section < rows.count,
+              rowIndex(for: indexPath) < rows.count,
               let cell = collectionView.cellForItem(
                 at: indexPath
               ) as? ChatNativeHostingCell
@@ -3217,7 +3529,7 @@ final class ChatRootViewController: UIViewController,
         let cellPoint = touch.location(in: cell)
         let hitView = cell.hitTest(cellPoint, with: nil)
         return (
-            rows[indexPath.section].key,
+            rows[rowIndex(for: indexPath)].key,
             ChatNativeHostingCell.hitTestLandsOnTextView(
                 hitView, stopAt: cell
             )
@@ -3497,7 +3809,7 @@ final class ChatRootViewController: UIViewController,
         ),
               let attrs = collectionView
                 .layoutAttributesForItem(
-                    at: IndexPath(item: 0, section: index)
+                    at: indexPath(forRow: index)
                 )
         else {
             focusConvergence.abort()
@@ -3528,7 +3840,7 @@ final class ChatRootViewController: UIViewController,
         collectionView.layoutIfNeeded()
         guard let attrs = collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: 0, section: index)
+                at: indexPath(forRow: index)
             )
         else { return }
         let target = min(
@@ -3672,9 +3984,7 @@ final class ChatRootViewController: UIViewController,
         if !rows.isEmpty,
            let attrs = collectionView
                .layoutAttributesForItem(
-                   at: IndexPath(
-                       item: 0, section: rows.count - 1
-                   )
+                   at: indexPath(forRow: rows.count - 1)
                ) {
             let visibleTop = collectionView
                 .contentOffset.y
@@ -3700,13 +4010,15 @@ final class ChatRootViewController: UIViewController,
             + collectionView.contentInset.top
         var topEntry: UUID?
         let visibleItems = collectionView
-            .indexPathsForVisibleItems.map(\.section).sorted()
+            .indexPathsForVisibleItems.map {
+                rowIndex(for: $0)
+            }.sorted()
         for index in visibleItems {
             guard index < rows.count,
                   let entryID = rows[index].entryID,
                   let attrs = collectionView
                     .layoutAttributesForItem(
-                        at: IndexPath(item: 0, section: index)
+                        at: indexPath(forRow: index)
                     ),
                   attrs.frame.maxY > visibleTop
             else { continue }
@@ -3730,14 +4042,36 @@ final class ChatRootViewController: UIViewController,
         refreshVisibleWindow()
     }
 
-    /// 台账 190②：可见窗刷新——可见 section 序
-    /// ±4 行缓冲写入布局匣（就地量测只许窗内触
-    /// 发）；窗真变时重置单窗量测预算。只读可见
-    /// 项（至多一屏行数＋缓冲，与 §325.2 守卫 4
+    /// 行序↔indexPath 换算（§374.3 两构造分流单
+    /// 点）：逐行 section 构造＝(item 0, section
+    /// 行序)；单 section 构造＝(item 行序, sec-
+    /// tion 0)。凡按行序取布局属性/可见项/触摸
+    /// 落点皆经本口、不许各处自拼
+    private func indexPath(
+        forRow index: Int
+    ) -> IndexPath {
+        layoutBox.singleSection
+            ? IndexPath(item: index, section: 0)
+            : IndexPath(item: 0, section: index)
+    }
+
+    private func rowIndex(
+        for indexPath: IndexPath
+    ) -> Int {
+        layoutBox.singleSection
+            ? indexPath.item : indexPath.section
+    }
+
+    /// 台账 190②：可见窗刷新——可见行序±4 行
+    /// 缓冲写入布局匣（就地量测只许窗内触发）；
+    /// 窗真变时重置单窗量测预算。只读可见项
+    /// （至多一屏行数＋缓冲，与 §325.2 守卫 4
     /// 同纪律、禁全 rows 遍历）
     private func refreshVisibleWindow() {
         let sections = collectionView
-            .indexPathsForVisibleItems.map(\.section)
+            .indexPathsForVisibleItems.map {
+                rowIndex(for: $0)
+            }
         guard let first = sections.min(),
               let last = sections.max() else { return }
         let window = max(0, first - 4)..<(last + 5)
@@ -3841,7 +4175,7 @@ final class ChatRootViewController: UIViewController,
         collectionView.layoutIfNeeded()
         guard let attrs = collectionView
             .layoutAttributesForItem(
-                at: IndexPath(item: 0, section: index)
+                at: indexPath(forRow: index)
             )
         else { return }
         let target = min(
@@ -3882,7 +4216,7 @@ final class ChatRootViewController: UIViewController,
         for (index, row) in rows.enumerated() {
             guard let attrs = collectionView
                 .layoutAttributesForItem(
-                    at: IndexPath(item: 0, section: index)
+                    at: indexPath(forRow: index)
                 )
             else { continue }
             guard attrs.frame.maxY > visibleTop
@@ -3973,7 +4307,7 @@ final class ChatRootViewController: UIViewController,
         rows.enumerated().map { index, row in
             let frame = collectionView
                 .layoutAttributesForItem(
-                    at: IndexPath(item: 0, section: index)
+                    at: indexPath(forRow: index)
                 )?.frame ?? .zero
             return ChatListAnchor.RowFrame(
                 id: frameID(for: row),

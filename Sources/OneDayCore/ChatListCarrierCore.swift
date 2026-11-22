@@ -77,6 +77,29 @@ public enum ChatListIncrementalFeature {
     }
 }
 
+// MARK: - 单 section 布局特性开关（换引擎步骤 3）
+
+/// 单 section 布局特性开关（DESIGN §374.3，施工
+/// 图 chat-list-engine-swap-plan §四）：聊天列表
+/// 布局构造的选择旗——缺省 false（§329 逐行
+/// section 构造）；开启＝单 section 逐 item 组
+/// 高构造（高度账按键存取为两构造共用、本旗只
+/// 管构造与快照结构）。控制器在每次喂入入口同
+/// 步本旗：翻转即整笔重建快照＋布局失效记账
+/// （落定拍施工）；与增量喂入旗
+/// ChatListIncrementalFeature 独立、互不牵连；
+/// 关闭即整路回 §329 构造（回退口）
+public enum ChatListSingleSectionFeature {
+    public static let defaultsKey =
+        "chatListSingleSectionEnabled"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        defaults.bool(forKey: defaultsKey)
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸

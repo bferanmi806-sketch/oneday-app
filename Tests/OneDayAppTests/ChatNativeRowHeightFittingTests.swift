@@ -1093,4 +1093,160 @@ final class ChatNativeRowHeightProductionChainTests: XCTestCase {
         )
     }
 
+    // MARK: - §374.3 单 section 构造的生产链压测
+    //
+    /// §329 压测的单 section 变体：同一种子页、
+    /// 同一生产链（真 ChatView 挂窗取行），仅布
+    /// 局构造经 ChatListSingleSectionFeature 旗
+    /// 翻为单 section——断言同口径：落定相位后
+    /// 采用高＝帧高逐行、间隙 24±2、连续小步滚
+    /// 动往返全程提供者零新增调用、contentSize
+    /// 逐值不动（§329 成环在新构造下不复现的生
+    /// 产链证据；托管内容与新构造的相互作用在
+    /// 本例射程内、真机观察期仍归组版清单）
+    func testProductionChainContinuousScrollIsStableSingleSection()
+        throws
+    {
+        UserDefaults.standard.set(
+            true,
+            forKey: ChatListSingleSectionFeature
+                .defaultsKey
+        )
+        defer {
+            UserDefaults.standard.removeObject(
+                forKey: ChatListSingleSectionFeature
+                    .defaultsKey
+            )
+        }
+        var entryCount = 0
+        try assembleSeededPage(entryCount: &entryCount)
+        let expectedRows = entryCount + 1
+
+        var controller: ChatRootViewController?
+        let mounted = waitUntil {
+            guard let hit = self.findNativeRootController()
+            else { return false }
+            self.window.layoutIfNeeded()
+            controller = hit
+            return hit.collectionView.numberOfSections
+                == 1
+                && hit.collectionView
+                    .numberOfItems(inSection: 0)
+                    == expectedRows
+        }
+        XCTAssertTrue(
+            mounted,
+            "单 section 生产链行集须装配齐（期望 1 节 \(expectedRows) 行）"
+        )
+        let vc = try XCTUnwrap(controller)
+        let cv = vc.collectionView
+        window.layoutIfNeeded()
+
+        // 落定相位（同 §329 续修口径）
+        var stableSamples = 0
+        var lastHeights = vc.testAdoptedRowHeights
+        var lastPasses = vc.testSectionProviderCallCount
+        let settled = waitUntil(timeout: 20) {
+            window.layoutIfNeeded()
+            let heights = vc.testAdoptedRowHeights
+            let passes = vc.testSectionProviderCallCount
+            if heights == lastHeights, passes == lastPasses,
+                heights.count == expectedRows
+            {
+                stableSamples += 1
+            } else {
+                stableSamples = 0
+                lastHeights = heights
+                lastPasses = passes
+            }
+            return stableSamples >= 3
+        }
+        XCTAssertTrue(
+            settled,
+            "单 section 生产链行集须在滚动前落定（采用高谱与提供者计数稳定）"
+        )
+
+        let adopted = vc.testAdoptedRowHeights
+        XCTAssertEqual(adopted.count, expectedRows)
+        XCTAssertGreaterThan(
+            adopted.max() ?? 0, 500,
+            "长 markdown 行采用高须成规模，实测最大 \(adopted.max() ?? -1)"
+        )
+        XCTAssertLessThan(
+            adopted.min() ?? .infinity, 90,
+            "短行/空形态行采用高须小，实测最小 \(adopted.min() ?? -1)"
+        )
+
+        func frame(at index: Int) throws -> CGRect {
+            let attrs = cv.layoutAttributesForItem(
+                at: IndexPath(item: index, section: 0)
+            )
+            return try XCTUnwrap(attrs).frame
+        }
+        for index in 0..<expectedRows {
+            XCTAssertEqual(
+                try frame(at: index).height,
+                adopted[index], accuracy: 0.5,
+                "行 \(index) 帧高须＝采用高（单 section 布局零修正）"
+            )
+        }
+        for index in [0, 5, 13, 20, 33, expectedRows - 2] {
+            let gap = try frame(at: index + 1).minY
+                - frame(at: index).maxY
+            XCTAssertEqual(
+                gap, OneDayMetrics.spacingL, accuracy: 2.0,
+                "行 \(index) 间隙须 24±2，实测 \(gap)"
+            )
+        }
+
+        let steadySize = cv.contentSize
+        let passesBefore = vc.testSectionProviderCallCount
+        let maxOffset = max(
+            0, steadySize.height - cv.bounds.height
+        )
+        var y = maxOffset
+        var step = 0
+        while y > 0 {
+            y = max(0, y - 40)
+            cv.contentOffset = CGPoint(x: 0, y: y)
+            window.layoutIfNeeded()
+            step += 1
+            if step % 5 == 0 {
+                RunLoop.main.run(
+                    until: Date().addingTimeInterval(0.02)
+                )
+            }
+        }
+        while y < maxOffset {
+            y = min(maxOffset, y + 40)
+            cv.contentOffset = CGPoint(x: 0, y: y)
+            window.layoutIfNeeded()
+            step += 1
+            if step % 5 == 0 {
+                RunLoop.main.run(
+                    until: Date().addingTimeInterval(0.02)
+                )
+            }
+        }
+        XCTAssertEqual(
+            vc.testSectionProviderCallCount, passesBefore,
+            "单 section 连续滚动全程布局提供者不得再被调用（无重建），\(passesBefore) → \(vc.testSectionProviderCallCount)"
+        )
+        XCTAssertEqual(
+            cv.contentSize.height, steadySize.height,
+            accuracy: 0.5,
+            "单 section 滚动往返后 contentSize 须逐值不变"
+        )
+        for index in [0, 7, 21, expectedRows - 1] {
+            XCTAssertEqual(
+                try frame(at: index).height,
+                adopted[index], accuracy: 0.5,
+                "滚动后行 \(index) 帧高仍须＝采用高"
+            )
+        }
+        print(
+            "CHAIN-PASSES-SINGLE passes=\(vc.testSectionProviderCallCount) rows=\(expectedRows) content=\(steadySize.height)"
+        )
+    }
+
 }

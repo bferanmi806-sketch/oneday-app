@@ -15063,6 +15063,27 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 钉测（新增 7 法）：ChatSwapStep2EquivalenceTests 3 法——①16 趟等价矩阵（冷开/稳态/流式尾行/落定同键换代/落定后稳态/编辑/删除/插行/facet 翻转/高度-only/高回填三拍/序变/整批替换/收尾稳态）：新旧两路逐趟终态（快照条目序＋修订账＋高度账按键/按序）逐值同、影子账全程清零、关键趟变更集逐集断言（同键落定 updated＝{直播键}、高度-only 编辑集空而高集独载、序变旗立）；②同键落定追踪器口径；③高-only 回填计数钉测（快照施工/重配计数不动＋真编辑对照计数必动、防假绿）。ChatSwapStep2StructureTests 3 法（增量本体禁词四枚＋增量原语在场＋穿线三件＋变更集两字段与合成函数）。ChatSwapStep2ProbeTests 1 法（量测两性质、本步口径）。
 - **验收记账（2026-11-23，实验室口径）**：本步新钉测 **7/7**＋步骤 1 回归 **5/5**；同轮回归共 **16 套 103 项**（bundle swap2-full，xcresulttool 总数对账：100 过、3 红）——3 红恰在案基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays 键盘件），**新红零**；S371/S373 结构钉测全绿（chatScaffold 根链零触碰实证）；App 构建一次通过。未做：真实会话开旗长跑（组版时挂）、真机手感关（门④、归组版后用户 verdict）。本步不组版不打包。
 
+### §374.3 步骤 3：布局单 section 化＋高度按键存取（分支 feat/swap-step3-singlesection，基线 feat/swap-step2-applychanges @5f37d3b）
+
+- 开工门：步骤 0 探针 B 已开（swap-step0-probe-results-20261123.md：单 section 两变体在复刻 §329 成环条件下收敛、contentSize 与现行逐值等价 Δ=0、N=600 全量失效单 pass 6.03ms 不劣化）。
+- 落码面（ChatNativeList 布局层＋高度账，ChatView 根链与喂入/调度链不动）：
+  1. **高度账按键存取（对位 #3）**：布局匣 ChatNativeLayoutBox 的平行四表（rowHeights/provisionalFlags/rowKeys/rowRevisions 按序对位）整组退役，改 `heightByKey: [String: HeightEntry]`（修订＋采用高＋临界标记三值按键同账）＋`rowOrder`（行序真源只余行键一列、与快照条目序恒同，非高度账本体）。落写收口两口：整笔 writeHeightLedgerFull（applyNow/重建路共用）、增量按键手术（applyChangesNow：删出账＋行序摘除、插按键入账＋行序落位、更新/高-only 按键原位写）；失效判据只认高谱（临界标记变而高未变不单独触发布局失效，台账 190② 同旧）。就地量测回写改按键（settleProvisionalHeight 两构造共用：窗/预算/量测台三闸同旧，量得确高按键回写＋入 exactHeightByKey 备忘）；syncMeasure 口改行键入参。测试读口改按序镜像（orderedHeights）/按键投影，口径不变。
+  2. **单 section 构造（对位 #4）**：makeSingleSection——全体行同属 section 0，根组＝纵向组直挂逐行 item（item 高＝.absolute(回喂高)），行距由根组 interItemSpacing 承担、顶/底/左右 inset 由 section contentInsets 承担；总几何与逐行构造逐值等价（顶 topPadding＋Σ高＋rowSpacing×(n−1)＋底 bottomPadding，H1 间距单源不变）。组树形状经 spike 三变体定版取单组多 item（见量测节：逐行一子组层纯增常数、无几何收益）。快照结构随构造同变：rebuiltSnapshot 分流（单 section＝全体条目同入 section 0；空行集不建 section——与逐行构造空集逐值一致，由空集长出走整笔重建路）；applyChangesNow 增量编辑分流（单 section＝条目级 deleteItems/锚定 insertItems/reconfigureItems，落写前件数终核＋重建兜底同旧）。
+  3. **根高口径：确值（探针 B 的 B1 档）**。根组高＝同一高度账求和（Σ高＋行距×(n−1)），全链零估算——§329「按构造拆除修正源」在根组一级同守；B2 粗估档在 spike 同样收敛，但其根高修正仍托框架 post-pass（估算→实测替换正是 §329 点火源形态），与本仓口径相悖，故不取。
+  4. **开关 chatListSingleSectionEnabled**（Core ChatListSingleSectionFeature，缺省关；与 chat.list.incremental 独立）：控制器在 applyNow/applyChangesNow 入口同步（refreshSingleSectionMode）——翻转笔强制整笔重建＋布局失效记账（紧急级、施工仍归落定拍）；设置页实验区同键开关。旧构造（makeRowSection 逐行 section）保留作回退。indexPath↔行序换算收口一对（indexPath(forRow:)/rowIndex(for:)），触摸落点/搜索落点/滚动锚/帧表/可见窗/顶可见条目报告全部改走本口。
+  5. **结构钉测（本步新增、永久把守）**：「布局失效不在 apply 同步链内执行」——全文件 .invalidateLayout() 调用点恰一处且在 performSettleBeat 体内（ChatSwapStep3StructureTests），喂入链与两构造体内出现即红；同套把守高度账按键形态与平行表不回潮。
+- 与 §329 的关系：行高来源与消费纪律不变（量测回喂 .absolute、框架不估算不修正）；变的只是消费构造（section-per-row→单 section＋按键账）。§329 压测组双形态把守全绿：原生产链压测 CHAIN-PASSES passes=172 sections=43 content=11565.67（与 §329 历史值逐值同）＋单 section 变体 CHAIN-PASSES-SINGLE passes=4 rows=43 content=11565.67（contentSize 逐值同、提供者调用 172→4）＋合成压测 SINGLE-PASSES passes=5 steps=1576 content=31218.0（临界估高→确高 pass 间替换＋中途反向＋小步双向长程、逐行帧终态与确高前缀和逐值合）。
+- 量测对账（§374.0 门②；步骤 2 探针同口径：控制器单段、best-of-5 min、变更集计时区外产出、ProbePhone）：
+  | 趟型 | 逐行构造 300 行 | 逐行构造 1200 行 | 单 section 300 行 | 单 section 1200 行 |
+  |---|---|---|---|---|
+  | 稳态 | 3µs | 2µs | 2µs | 1µs |
+  | 单行更新 | 3,725µs | 14,710µs | 1,399µs | 5,528µs |
+  | 单行插入/删除 | 4,027µs | 15,861µs | 1,368µs | 5,293µs |
+  **定因（修正 §374.2 归因）**：§374.2 把单行趟残差归「section-per-row 的 diffable apply 本体」——本步三路对照证其主导项实为 **apply 强制的整趟 compositional 布局 pass**：①诊断三态（在窗/隐藏/脱窗）单行更新同值 14.3ms，纯布局 pass（全量失效＋layoutIfNeeded）独占 10.8ms（子组形）；②裸 UIKit spike 三变体（等高 80 行）pass/apply @1200 行——逐行 section 12,982/14,500µs、单 section 逐行子组 8,550/9,127µs、单 section 单组多 item 3,360/3,811µs（ChatSwapStep3SpikeTests 定因存档）；③pass 成本由逐 item 帧求解主导（contentSize 须全量求和、每 item 帧须逐个求解），与 section 结构、窗口状态、我方代码均无关。**结论：全形态脱钩（单行趟与行数无关）在 compositional 构造下不可达**；本步达成的治本口径＝换构造把常数压下：单 section 单组多 item 形控制器实测 pass 10,836→4,451µs、单行更新 @1200 行 14,710→5,528µs（对同树逐行构造 ÷2.7、对步骤 2 基线 15.1ms 同 ÷2.7），稳态 2µs 性质②不变。探针断言按此改钉（ChatSwapStep3ProbeTests：单行趟 <逐行构造 1/2.5、绝对上限 7ms@1200、300→1200 比值 <5 有界防超线性回潮）——目标修订与证据在此明示，非静默改判；若要再进一步，剩余杠杆只在换布局引擎（自维护布局＝自创机制，与「不要自己手搓」红线冲突），不在本步射程。
+- 验收记账（2026-11-23，实验室口径）：新套件五套（Structure 3＋Equivalence 2＋Pressure 1＋Probe 1＋Spike 1）＋拟合 10＋§329 生产链双形态 2＋回归簇（装配 R1–R4／S5／步骤 1–2 三套／S371／S373／落定结转／底距／量测台／330／190／跟随／未读线／增量等价／ChatPage／BottomFollow 两套）共 165 项：162 过、3 红恰基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays）、新红零；S371/S373 根链结构钉测全绿（chatScaffold 根链零触碰）；双控制器等价矩阵 2 趟全程逐值同（快照序/修订账/高度账按键＋按序/contentSize ±0.5/逐行帧 ±0.5）。
+- **真机观察期清单（实验室证不了、组版后真机验，逐项）**：①冷启不崩＋首屏落底（单 section 首建组树 1200 行级的首帧成本实验室只有模拟器口径）；②真实长会话上翻到顶×3 往返不崩、无可见高度跳变（§329 终判口径同旧：.67/.68 实验室难复现、真机才爆）；③流式中滑动（落定拍与单 section 布局 pass 的相互作用）；④长按选字/双击选词期间行高回填（选区存活归步骤 5 门、本步只登记观察）；⑤键盘起落跟随逐帧（舱在列表容器内子托管、与构造解耦，仍列观察）；⑥右滑回复命中（indexPath 换算收口后真机手势验）；⑦搜索落点/锚恢复（帧表经换算口，真机长会话验）；⑧就地量测在真机滚动中的帧干扰（窗内临界行主线程量测，模拟器口径不外推）。
+- 未做（明示）：就地量测口迁 prefetchDataSource（施工图对位 #5）不在本步落码——理由：本步硬门是 §329 构造安全，提供者内量测是「高度在本 pass 消费前已定」的构造保证，迁 prefetch 将把量测时机改为滚动空闲期预取、与临界行入屏前付清的现行纪律不是同一保证，属独立变更应单独成包单独验收；本步保留现行就地量测口（改按键）逐字同纪律。调度复合体收敛归步骤 4、选区简化归步骤 5。
+
 ## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
 
 ### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）

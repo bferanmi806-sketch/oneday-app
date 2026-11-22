@@ -382,6 +382,11 @@ struct AboutView: View {
     /// 路主路选择、关即回旧路全量对账）
     @AppStorage(ChatListIncrementalFeature.defaultsKey)
     private var chatListIncrementalEnabled = true
+    /// §374.3（换引擎步骤 3）单 section 布局开关
+    /// （与控制器同键同源，缺省关；开＝单 sec-
+    /// tion 构造、关即回 §329 逐行 section 构造）
+    @AppStorage(ChatListSingleSectionFeature.defaultsKey)
+    private var chatListSingleSectionEnabled = false
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -427,6 +432,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认关闭：开启后消息列表改走变更集增量喂入（只落写变化行）；关掉即回现行全量喂入，出问题随时回退。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListSingleSectionEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表单 section 布局"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认关闭：开启后消息列表改走单 section 布局构造（全体行同属一节、逐行确定高）；关掉即回现行逐行 section 构造，出问题随时回退。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
