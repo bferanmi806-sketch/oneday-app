@@ -15110,6 +15110,7 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 **过程事故一件（如实记账）：** ChatView 手术第一轮，删段助手的 doc 回溯把以 @ 开头的声明行（@State）误作属性行吞入，gen3 旗删除时连带删掉 composerFocused/composerFocusHandle/listScrollHandle 三个在场声明——App 构建当场拦截（cannot find in scope），以备份 diff 做声明级审计定位、三件原样恢复，复审全部被删声明与预期清单逐件对账（func/var/@State 三类）确认无其他误伤后才继续。此后删段回溯只认 /// 行、不认 @ 行。
 
 **回归记账（实验室口径）：**
+分支可达最大集全量轮（332 套一次跑，名单由本树 XCTestCase 类枚举生成、总数以 xcresulttool 对账）：3,020 件、3,012 过、8 红。8 红逐名定性——①在案基线 3 件：LibraryOrderingTests.testSortByTitleUsesDisplayTitle（台账 29）＋ChatNativeListR2AssemblyTests 两项；②整树存量红 4 件：ChatComposerQuote332Tests 三件（源码切片找 private var composerCard——该属性在步骤 5 基线树同样不存在、切片口径早已与源码脱节）＋ChatQuoteDock195Tests.testKeyboardStateQuoteGrowthEqualsStripHeight——四件在步骤 5 基线树（@8395c8f）同口径复跑（29 件小集）逐件同红、非本步引入；③全量轮单发 1 件：TraceEchoMaterializationAppTests.testFailedTraceMaterializesWithErrorSnapshot（纯模型层测试、与本步 diff 无交集）——基线小集绿、本树隔离复跑 6/6 绿，判全量跑套间干扰单发、机理未深挖（如实标注，不冒充根因已明）。**归本步的新红＝零。** 点名套件：BottomFollowTests 41/41、ChatSettleScopeS5Tests 8/8、ChatRootChainStructureS371Tests 与 ChatDepthStructureS373Tests 全绿、§329 压测（ChatSwapStep3PressureTests）绿、布局失效结构钉测（ChatSwapStep3StructureTests）绿、StreamingBlockProductTests 13/13、ChatSwapStep6StructureTests 3/3、改名后的 ChatListCoreTests 20/20。App 目标构建先行通过（BUILD SUCCEEDED）后才进测试轮。
 
 ### §374.10 换引擎 program 收官汇总（步骤 0–6，2026-11-23）
 
