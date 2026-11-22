@@ -14783,3 +14783,73 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 基线对账（同套件、生产仅加计数读口＋句柄记账属性时，run smooth-s5-base2）：①⑥绿；③④⑤恰红在各自判别断言（窗内施工 3≠2／结清同拍施工 2≠1／抽屉窗内落写 130≠60）——判别成立、非假绿。等价测②的跟随距离断言经基线实测证伪（裸装配无 ChatView 跟随链、距离随生长累积 372），已删并在测内登记，跟随归 BottomFollow 套件。
 - 量测（相对值）：失效施工频次——流式 12.5 拍/s 行高记账下修前每拍一施工（≈12.5 次/s），修后窗闸上限 ≈6.7 次/s；**单拍全量重召宽度不变**（60 行装配实测 60 提供者调用/次）——本包压频次与结清拍构成，不压单宽；单宽随行数涨的根归 S3。停滚结清：修前停指第一拍＝数据＋全量失效＋同步冲刷＋量测同拍串行，修后分列数据拍/布局拍两拍（钉测时序断言为据）。绝对 hitch 率归真机 Instruments（调研报告问题二 ⑤ 清单），实验室绿不替代真机 verdict。
 - 回归：回归 26 套 134 项（run smooth-s5-reg1，bundle Test-OneDayApp-s5reg）：132 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，与 §362.3 在案基线老红逐字同（同套同名、断言族同，已在未改动基线树对证、非本包引入）；新红零。抽屉侧 7 套（BridgeHarness／ContainerController／DeferredNavigationAssembly／MotionProbe／MuseMetrics／RigidBody／SafeAreaRealRoot）全过——ChatView 的 onChange 记账加行无回归。R3 ⑮′ 提供者计数断言全过（拆拍／窗合并未扰滚动冻结期计数口径）。
+
+## §367 缓存 C1 地基包：共用新鲜度门落三店＋拆动态跨面联动（2026-11-22；基线 rel-05091，分支 feat/cache-c1-freshness-gate）
+
+### §367.1 审计定性（出处：oneday-design-review/cache-audit-20261122.md）
+
+- 动态/点子/目标三店同式：内存留存＋在飞单飞＋失败保旧都有，唯独零 TTL——每次读触发（进面 .task/切回）整表全量重拉（审计差距分类 ②）。
+- 跨面放大一处：FeedView.reload 除本面外并发全量拉起 IdeasStore/GoalsStore/KanbanStore/MonitorsStore 四面（为 refs 标题解析备数据），进一次动态替四面各付一遍整表钱（差距分类 ④）。
+- 仓内范本两件：CronStore.loadIfNeeded（已载＋配置键跳过）、身份 30 秒节流（AppState.refreshIdentityName）；伴生探测 60 秒节流（CompanionProbeStore.foregroundRefreshInterval）为第三件。
+
+### §367.2 共用新鲜度门（FreshnessGate）
+
+- 值件构成：lastLoadedAt（上次成功载入时刻）＋loadedConfigKey（载入时配置键＝服务器 baseString）＋ttl。新鲜判定＝已成功载过、配置键相同、距上次成功载入未满 TTL，三者缺一即不新鲜。
+- 只许成功路径 stamp：load 主名单成功落账点回写时刻；未连接/拉取失败不落账，不许拿旧时刻冒充新时刻；已 ready 时刷新失败保持旧数据，其新鲜度仍按上次成功计。
+- 写后回读（refetch）主名单成功同样 stamp（回读即全量现值、按构造新鲜）；但回读本身不经门、不许被门跳过（红线见 §367.4）。
+- 落点：三店各持一枚门，读触发改走 loadIfNeeded（门内新鲜＝零请求直接返回）；load 本体与一切写路径签名/行为不变（load 增一个带默认值的时刻参数，只供钉测注入）。
+
+### §367.3 TTL 定档：60 秒（三店同档）
+
+- 先例区间：身份 30s（单口小数据、代价低，节流从严）；待批总览 30s 轮询（红线面、新鲜度优先，不作名单类参照）；伴生探测 60s（多口探针、代价高，节流取宽）。
+- 三店名单属慢变数据（动态由定时汇编产出、点子/目标由用户策展，分钟至小时级变化），且每次全量代价是多口整表（动态 3 口、点子 3 口、目标 1＋1 口），与伴生探测同为「多口高代价」型，取 60s 上档（FreshnessGate.standardListTTL）。
+- 兜底：下拉刷新与错误态重试恒走强制 load、不经门——用户主动刷新永远拿现值，TTL 只挡自动读触发。
+
+### §367.4 红线（本包不许动）
+
+- 写操作后的整表回读是正确性口径（防假成功）：三店 refetch 与一切写路径一字不动；新鲜度门只管读触发。写后回读是否仍全量，由请求计数钉测把守（§367.6）。
+- 待批/授权/配对/工具集面不碰（新鲜度优先的红线面，审计已定级）。
+
+### §367.5 拆 FeedView.reload 跨面联动（逐项定性）
+
+四路联动逐项核对「该面数据是否确由动态面驱动」（唯一消费点均为 refs 标题解析 refLabel）：
+
+| 联动 | 自有触发 | 定性 |
+|---|---|---|
+| IdeasStore.load | IdeasView .task | 拆——点子面自治 |
+| GoalsStore.load | GoalsView .task | 拆——目标面自治 |
+| KanbanStore.load | 枢纽台账段/目标详情/点子面各有触发 | 拆——看板面自治 |
+| MonitorsStore.load | 监测面/目标详情各有触发 | 拆——监测面自治 |
+
+- 真实依赖一条（保留、形态改懒拉）：refs 落点 IdeaDetailView 自身无任何加载触发——从动态点 idea 引用进入时，若点子店本进程从未加载，详情只剩「已不在列表」假空态。此依赖不在 reload 处保留全量联动，改落点自带门控懒拉：IdeaDetailView 挂 .task 调 IdeasStore.loadIfNeeded（已载/新鲜＝0 请求、未载才拉）——依赖保留、代价归零。
+- 其余三个落点自带触发、不依赖预热：GoalDetailView（loadDetail＋关联三路）、KanbanTaskDetailView（loadDetail）、MonitorDetailView（load）。
+- refLabel 标题在对应面本进程未加载前降级为类别文案（点子/目标/任务/监测）——此降级为既有设计（拉取失败同路），本包不新增形态。
+- 附带分流：GoalDetailView 关联三路（loadAssociationStores）中点子一路随本包入门——.task 走 loadIfNeeded、.refreshable 走强制 load（加 force 分流）；监测/看板两路不在三店范围，维持原触发。看板/监测两店本包不设门（不在 C1 三店范围），其余触发点维持现状。
+
+### §367.6 施工与验收门
+
+- 接缝：OneDayBridgeClient 立协议面 OneDayBridgeClientProtocol（三店所用 28 口：26 口直调＋简报保存两口经 saveBrief 闭包面，首轮构建实证补入），三店改注入（默认实客户端、调用点零改），照 HermesClientProtocol/ScriptedToolsetsClient 先例供假客户端请求计数。
+- 读触发切换：FeedView .task 改门控（reload 只留强制路供下拉与错误态重试）；IdeasView .task、GoalsView .task 改 loadIfNeeded（下拉/重试保持强制）；IdeasView 内 kanban 联动是点子面自身呈现依赖（行尾任务状态），不在本包拆解范围。
+- 钉测 CacheFreshnessGateC1Tests＋ScriptedBridgeClient：门纯值判定（未载/窗内/过期/配置键变）；三店计数——首拉 1 轮、TTL 内二次读触发＝0 请求、过期＝1 轮；写后回读不经门仍全量（点子 create、目标 create 各一例，计数断言回读端点在写后必增）。
+- 回归门：三面相关套件对 rel-05091 基线逐字对账、无新红；发布验证集基线 65 套 702 项口径在组版时复核（本包交卷跑相关套件＋新套件）。
+
+### §367.7 验收数字（回填）
+
+- 施工树：~/build/oneday-cache1（feat/cache-c1-freshness-gate，
+  基线 rel-05091 @02fe922）；tuist generate 后未还原 Derived/。
+- 钉测新套件 CacheFreshnessGateC1Tests 6/6 全过（门纯值
+  四态＋三店计数：首拉 1 轮、TTL 内二次读触发＝0 请求、
+  过期＝再 1 轮、写后回读不经门仍全量）。
+- 三面回归轮（cache1-suite2，ProbePhone）：12 套共 110
+  项、108 过、2 红。两红经未改动 rel-05091 基线树同套复
+  跑逐字对证为基线既有红、非本包引入：IdeasDeleteConfirm-
+  Tests.testDeleteWithoutConnectionLeavesNoteAndClearsNotice
+  （断言 :89/:92 同签名，§364 已立案）与 MutationOptimistic-
+  Tests.testOverviewMarkAllReadAppliesLocallyWithoutConfig
+  （:214 XCTAssertTrue，基线同签名、本轮新对证入账）。
+  C1 新红＝0。
+- 协议面订正：首轮构建实证三店实际用桥 28 口（26 直调
+  ＋saveFeedInterest/saveFeedPrompt 经 saveBrief 闭包
+  面），协议与 §367.2 已同步改 28 口。
+- 真机手感门（进面零请求体感、refs 标题降级观感）留
+  用户验收，本节不自称关账。

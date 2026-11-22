@@ -59,8 +59,15 @@ struct GoalDetailView: View {
 
     /// 关联段三路数据各自回各自的真源刷新（失败保持旧
     /// 数据不翻空，各 Store 自己的口径）
-    private func loadAssociationStores() async {
-        await ideasStore.load(appState: appState)
+    /// 关联三路：点子一路由新鲜度门分流（§367.5）
+    /// ——进面（.task）走 loadIfNeeded、下拉强制走
+    /// load；监测/看板不在 C1 三店范围，维持原触发
+    private func loadAssociationStores(force: Bool) async {
+        if force {
+            await ideasStore.load(appState: appState)
+        } else {
+            await ideasStore.loadIfNeeded(appState: appState)
+        }
         await monitorsStore.load(appState: appState)
         await kanban.load(appState: appState)
     }
@@ -145,7 +152,7 @@ struct GoalDetailView: View {
                     await store.loadDetail(
                         appState: appState, goalID: goalID
                     )
-                    await loadAssociationStores()
+                    await loadAssociationStores(force: true)
                     materializeGoalEchoes()
                 }
                 .sheet(isPresented: $showDelegate) {
@@ -172,7 +179,7 @@ struct GoalDetailView: View {
         }
         .task {
             await store.loadDetail(appState: appState, goalID: goalID)
-            await loadAssociationStores()
+            await loadAssociationStores(force: false)
             materializeGoalEchoes()
         }
         .sheet(isPresented: $showEdit) {

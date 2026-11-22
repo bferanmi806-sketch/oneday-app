@@ -33,8 +33,12 @@ final class FeedStore {
     /// 即清；成功路径恒 nil
     private(set) var likeNotice: String?
 
-    private let client = OneDayBridgeClient()
+    private let client: OneDayBridgeClientProtocol
     private var loadInFlight = false
+    /// 新鲜度门（§367）：读触发先过门，TTL 内零请求
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
     /// 点赞在飞集（FA-1）：同帖连点防竞态——在飞期
     /// 间再点直接忽略，等回执落定后才接受下一次
     private var likeInFlight: Set<String> = []
@@ -66,7 +70,8 @@ final class FeedStore {
         )
     }
 
-    init() {
+    init(client: OneDayBridgeClientProtocol = OneDayBridgeClient()) {
+        self.client = client
         if let saved = UserDefaults.standard.stringArray(
             forKey: Self.seedDeletedKey
         ) {
@@ -109,7 +114,23 @@ final class FeedStore {
 
     // MARK: - 加载
 
-    func load(appState: AppState) async {
+    /// 读触发入口（§367 新鲜度门）：TTL 内且配置没变
+    /// 直接用已载数据、零请求；首载/过期/换服务器才
+    /// 走 load 全量。下拉刷新与错误态重试不经此门、
+    /// 恒走 load 强制
+    func loadIfNeeded(appState: AppState) async {
+        await loadIfNeeded(appState: appState, now: Date())
+    }
+
+    /// 时刻注入的门控本体（钉测用：推进时刻验过期）
+    func loadIfNeeded(appState: AppState, now: Date) async {
+        guard !freshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await load(appState: appState, now: now)
+    }
+
+    func load(appState: AppState, now: Date = Date()) async {
         guard !loadInFlight else { return }
         guard let config = appState.config else {
             loadState = .failed(L10n.string("尚未连接服务器。"))
@@ -122,6 +143,7 @@ final class FeedStore {
                 try await client.feedPosts(config: config)
             )
             loadState = .ready
+            freshness.stamp(configKey: config.baseString, now: now)
             // §208 包 3：名单到手即扫存量旧预填草稿
             // ——逐字再生核验须拿原帖，本点是最早能
             // 严格核验的时点；清扫幂等、逐字不符一
@@ -171,7 +193,7 @@ final class FeedStore {
 
     private func saveBrief(
         appState: AppState,
-        _ call: (OneDayBridgeClient, ServerConfig) async throws
+        _ call: (OneDayBridgeClientProtocol, ServerConfig) async throws
             -> BridgeBriefDoc
     ) async -> Bool {
         guard let config = appState.config, !briefSaving else {

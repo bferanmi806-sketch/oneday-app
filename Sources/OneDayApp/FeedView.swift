@@ -191,7 +191,7 @@ struct FeedView: View {
                 }
             }
             .task {
-                await reload()
+                await loadIfNeeded()
             }
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -206,14 +206,17 @@ struct FeedView: View {
         }
     }
 
+    /// 强制重拉（下拉刷新/错误态重试专用）：只拉本
+    /// 面——跨面联动已拆（§367.5）：点子/目标/看板/
+    /// 监测各面按自己的触发自治，refs 标题解析改读
+    /// 各店已载数据、缺数降级类别文案（既有口径）
     private func reload() async {
         await store.load(appState: appState)
-        // refs 标题解析面：失败只降级为类别文案，不挡帖子
-        async let ideas: Void = ideasStore.load(appState: appState)
-        async let goals: Void = goalsStore.load(appState: appState)
-        async let board: Void = kanban.load(appState: appState)
-        async let monitors: Void = monitorsStore.load(appState: appState)
-        _ = await (ideas, goals, board, monitors)
+    }
+
+    /// 读触发入口（.task）：过新鲜度门，TTL 内零请求
+    private func loadIfNeeded() async {
+        await store.loadIfNeeded(appState: appState)
     }
 
     // MARK: - 就绪内容

@@ -96,7 +96,7 @@ struct GoalsView: View {
                 }
             }
             .task {
-                await store.load(appState: appState)
+                await store.loadIfNeeded(appState: appState)
             }
             .sheet(item: $createSheet) { sheet in
                 switch sheet {

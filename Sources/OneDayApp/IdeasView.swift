@@ -89,7 +89,7 @@ struct IdeasView: View {
                 }
             }
             .task {
-                await store.load(appState: appState)
+                await store.loadIfNeeded(appState: appState)
                 // §177：底栏角标退役后进页不再推进
                 // 「已见」水位（水位制整套随角标下线）
                 if !store.adoptedIdeas.isEmpty {
@@ -486,6 +486,12 @@ struct IdeaDetailView: View {
                     systemImage: "lightbulb.slash"
                 )
             }
+        }
+        // §367.5：refs 落点自带门控懒拉——从动态点引
+        // 用进入时本店可能从未加载，落点自己保底（已
+        // 载/新鲜＝0 请求），不再靠动态面预热全量联动
+        .task {
+            await store.loadIfNeeded(appState: appState)
         }
         .background(Palette.pageBG)
         .confirmationDialog(
