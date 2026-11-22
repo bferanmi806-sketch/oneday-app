@@ -710,6 +710,10 @@ struct DemoHermesClient: HermesClientProtocol {
     func listApprovals(config: ServerConfig, apiKey: String) async throws -> ApprovalsListResponse { throw HermesError.demoLimitReached }
     func routeProbe(config: ServerConfig, apiKey: String?, path: String) async -> RouteProbeResult? { nil }
     func revokeGrant(config: ServerConfig, apiKey: String, patternKey: String) async throws -> GrantRevocationReceipt { throw HermesError.demoLimitReached }
+    func pairingList(config: ServerConfig) async throws -> PairingListResponse { throw HermesError.demoLimitReached }
+    func pairingApprove(config: ServerConfig, platform: String, requestID: String) async throws -> PairingApproveReceipt { throw HermesError.demoLimitReached }
+    func pairingRevoke(config: ServerConfig, platform: String, userID: String) async throws { throw HermesError.demoLimitReached }
+    func pairingClearPending(config: ServerConfig) async throws -> PairingClearPendingReceipt { throw HermesError.demoLimitReached }
     func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }
     func clearReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }
 

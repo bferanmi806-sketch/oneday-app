@@ -133,6 +133,12 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 性，归服务器段与「当前服务器」同段（原维护
     /// 尾段落位退役）
     case addDevice
+    /// 平台用户配对（H5，台账 35，DESIGN §359）：
+    /// 网关消息平台的用户白名单——待批批准／已批准
+    /// 撤销／清待批。与 addDevice（设备 enrollment、
+    /// 管哪台手机连进来）是两物：本面管「谁能跟网
+    /// 关说话」，同段相邻、文案分清
+    case pairingManagement
     /// 聊天诊断（台账 189/190）：本机聊天面探针的
     /// 可读面——卡顿探针汇总／量测台积压／诊断留
     /// 痕（ChatDiagTrace）／气泡解析值（台账 188
@@ -258,6 +264,17 @@ public enum SettingsCatalog {
             summary: "生成认领二维码，让新设备扫码连上这台服务器",
             keywords: ["添加设备", "扫码", "二维码", "配对", "新设备", "enroll", "pairing", "qr"],
             destination: .addDevice, segment: .server
+        ),
+        // 平台用户配对（H5，台账 35，DESIGN §359）：
+        // 紧随添加设备——同属「准入」语义但管辖不同
+        // （设备入驻 vs 平台用户白名单），标题与副行
+        // 写明管辖对象防混
+        SettingsCatalogEntry(
+            id: "pairing", group: .serverAndWorkspace,
+            title: "平台用户配对",
+            summary: "批准在消息平台上申请和网关对话的新用户",
+            keywords: ["配对", "白名单", "批准", "用户", "pairing", "allowlist", "telegram", "whatsapp"],
+            destination: .pairingManagement, segment: .server
         ),
         SettingsCatalogEntry(
             id: "gateway", group: .serverAndWorkspace,

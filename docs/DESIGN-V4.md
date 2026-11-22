@@ -14560,6 +14560,32 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 实验室：Test-OneDayApp-speech-closeout.xcresult——SpeechPlayerTests 12/12＋SpeechEngineCallbackIsolationTests 3/3，全绿。回归：Test-OneDayApp-speech-regression.xcresult——BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9、ChatNativeFollowSourceTests 8/8，全绿。（注：任务简报点名的 ChatScrollFollowTests/NoticePresentationTests 两套在本树与 rel-05086 均无此类——git grep 双基线零命中；滚动跟随的实存覆盖即 BottomFollow 两套＋ChatNativeFollowSourceTests、提示呈现即 ChatNoticeTests，按实存回归并在此留痕。）
 - 未验（如实）：真机朗读全程（点播/暂停续播/打断暂停/播放条观感）仍待用户真机门，与台账 5（D1）真机终验同批；本包实验室绿不替代真机 verdict。
 
+## §359 平台用户配对面（2026-11-22；Hermes H5 客户端面，台账 35，基线 rel-05090，分支 feat/h5-pairing）
+
+### §359.1 对象正名与落点
+- 对象＝网关「消息平台用户配对」白名单（gateway/pairing.py 状态机：陌生用户在 Telegram／WhatsApp 等平台私聊网关得一次性配对码、TTL 1 小时、失败锁定、按平台分 store；管理员批准后 user_id 进该平台白名单）。与设备 enrollment（CAPABILITIES #1、手机扫码认领设备凭据）是两物：一个管「谁能跟网关说话」，一个管「哪台手机连进来」。
+- 落点：设置·服务与工作区·服务器段「平台用户配对」行（SettingsCatalog id "pairing"，紧随「添加设备」；目的地 .pairingManagement、路由 .pairingManagement、图标 person.badge.key 与添加设备的 qrcode 区分）。两面同段相邻，页首说明与行副行各自写明管辖对象防混。
+- 根行副题：待批数（>0 才显）——只读 PairingSummaryStore 回读留痕（按服务器隔离、进过本页才有数），不为副行单开轮询（探活报告 §3.4 口径）。
+
+### §359.2 契约映射（9119 Dashboard 面，ops.py 源码形状＋探活实证）
+- 鉴权：Dashboard 会话 cookie——四方法全走 AppState.performAdmin 统一通道（401 静默重登一次、终局 sessionExpired），页面如实呈现未登录态，不假数据。
+- GET /api/pairing → PairingListResponse{pending[{platform, request_id, user_id, user_name, age_minutes}], approved[{platform, user_id, user_name, approved_at}]}。待批永不回码本体；旧版明文条目 request_id 为空串——解码保留空串、canApprove=false、界面置灰并注明「旧版申请没有编号，不能在这里批准」（该类只能走码批准，不在本面）。
+- POST /api/pairing/approve {platform, request_id}（PairingApproveRequest 组装走 Core 纯函数；只走编号路径、不经手配对码本体）→ PairingApproveReceipt{ok, user}。POST /api/pairing/revoke {platform, user_id}（PairingRevokeRequest）。POST /api/pairing/clear-pending（无按平台参数、全平台一并清，确认文案写明范围）→ PairingClearPendingReceipt{ok, cleared 实清条数}。
+- approved_at 服务端原样字符串：能按 ISO 解析则格式化、不能原样显、缺失显「批准时间未记录」，不编造。
+- profile 参数本包不发（现行单档案部署，默认当前档案即真源；多档案留后续）。
+- 客户端形态：HermesClientProtocol 新增 pairingList／pairingApprove／pairingRevoke／pairingClearPending 四方法（Dashboard cookie 面，与 /api/sessions 同族写法、状态码原样上行）；Demo 侧按 C-13 只加一行 demoLimitReached 桩；测试双替身（FailingHermesClient／ScriptedSessionsClient）只同步签名、桩体恒抛 unreachable。
+
+### §359.3 写纪律（回读为准）
+- 三写全部「POST 受理 → 整表重拉 → PairingReadback 对账」：批准＝该用户进已批准列且离待批列；撤销（先确认框，文案写明后果）＝不在已批准列；清待批（段尾危险钮＋确认框，写明全平台范围）＝待批列为空且按回执 cleared 报实清条数。未确认一律保留服务端清单原样＋problem 人话，不本地假挪行。
+- 失败按 PairingActionDirective 分型：404 gone＝已过期/已被处理/不在名单（良性、刷新对齐）／429 platformLocked＝平台暂时锁定／401 sessionExpired＝未登录态／其余如实上抛。
+- 内容面实情：生产网关现只接 api_server 一个平台、无消息平台在配对域内——两列初期恒空，如实空态「还没有消息平台接入；接入 Telegram／WhatsApp 等平台后，在这里批准新用户」，不造样例数据、不做假深链（台账 48 落码后两面再互链）。
+
+### §359.4 验收与未验项
+- 实验室：Test-OneDayApp-pairing4.xcresult——PairingContractTests（清单双形态解码/旧版无编号条目/请求体恰两键/回执解码/分类矩阵/回读判定）＋SettingsCatalogTests（目的地全集对账＋组序＋段序＋本条目可搜且与扫码分清）＋PairingStoreTests（加载三态/批准确认与未确认/404 良性/429 锁定/无编号不发请求/撤销对账/清待批计数回执）＋SessionCatalogGuardTests，四套合计 49/49 全绿（run pairing-h5-r4，2026-11-22 18:47 起）。相邻回归 Test-OneDayApp-pairing5.xcresult——HubGateAndBrowserTests＋GrantsContractTests 16/16 全绿（run pairing-h5-r5-regression）。
+- 构建插曲（如实）：r1 被同仓他线 kick 抢道重跑、bundle 撞名废弃；r2 构建挂 PairingSummaryStore 并发安全（照 HealthSummaryStore 补 @MainActor＋@Observable 后过）；r3 测试脚本闭包显式 self 修正。均本包内收口、无产品面影响。
+- 随带：Derived/InfoPlists 版本戳经 tuist generate 刷回与基线 Project.swift 一致的 0.50.90/218（仓库内提交戳为陈旧 0.50.84/212），原样随本包提交、组版 generate 时再刷。
+- 未验（如实）：真机对真服务端全链未跑——无消息平台时空态已由实验室形态把守，真造待批→批准→回读在列→撤销→回读消失的联调门随台账 48（频道接入）或测试平台接入时一并走；9119 三个会话面 GET 的生产回文形状以源码形状构造样本钉测，联调时以受控实测替换 fixture。
+
 ## §361 流畅度专项 S1：图片行解码缓存一致性（探活 H1，2026-11-22；基线 rel-05090，分支 feat/smooth-s1-image-cache）
 
 ### §361.1 病灶（探活实证，smoothness-recon-20261122 主因 1／H1）

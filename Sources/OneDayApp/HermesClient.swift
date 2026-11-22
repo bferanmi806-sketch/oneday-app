@@ -520,6 +520,37 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, apiKey: String?, path: String
     ) async -> RouteProbeResult?
 
+    // MARK: 平台用户配对（H5，DESIGN §359；Dashboard cookie 面）
+
+    /// GET /api/pairing（cookie）：消息平台用户配对
+    /// 两列——待批（永不回码本体、只回 request_id）
+    /// ＋已批准白名单。与设备 enrollment 是两物（见
+    /// PairingModels 头注）。401 由 performAdmin 自动
+    /// 重登兜底、终局 sessionExpired
+    func pairingList(
+        config: ServerConfig
+    ) async throws -> PairingListResponse
+    /// POST /api/pairing/approve {platform, request_id}：
+    /// 按申请编号批准（不经手配对码本体）；404＝已过
+    /// 期/已被处理、429＝平台锁定，均以 unexpected-
+    /// Status 连码上行供 PairingActionDirective 分型；
+    /// 成败终局以事后清单回读为准、不认回执自报
+    func pairingApprove(
+        config: ServerConfig, platform: String, requestID: String
+    ) async throws -> PairingApproveReceipt
+    /// POST /api/pairing/revoke {platform, user_id}：
+    /// 把用户移出平台白名单（服务端同步镜像 allow-
+    /// list）；404＝不在名单，同上行分型、回读为准
+    func pairingRevoke(
+        config: ServerConfig, platform: String, userID: String
+    ) async throws
+    /// POST /api/pairing/clear-pending：清空全部平台
+    /// 待批（无按平台参数）；回执 cleared 为实清条数，
+    /// 回读待批列为空才算清干净
+    func pairingClearPending(
+        config: ServerConfig
+    ) async throws -> PairingClearPendingReceipt
+
     // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
 
     /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
@@ -2591,6 +2622,100 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(
                 endpoint: L10n.string("撤销授权")
+            )
+        }
+    }
+
+    // MARK: - 平台用户配对（H5，DESIGN §359）
+
+    func pairingList(
+        config: ServerConfig
+    ) async throws -> PairingListResponse {
+        try await getJSON(
+            config: config, path: "/api/pairing",
+            endpoint: L10n.string("平台用户配对")
+        )
+    }
+
+    func pairingApprove(
+        config: ServerConfig, platform: String, requestID: String
+    ) async throws -> PairingApproveReceipt {
+        var request = URLRequest(
+            url: config.endpoint("/api/pairing/approve")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        // 请求体组装走 Core 纯函数（单测把守形态）
+        request.httpBody = try encoder.encode(
+            PairingApproveRequest(
+                platform: platform, requestID: requestID
+            )
+        )
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            // 状态码原样上行（404 过期/429 锁定/401 会
+            // 话失效的呈现分型在 PairingActionDirective）
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("批准配对"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                PairingApproveReceipt.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("批准配对")
+            )
+        }
+    }
+
+    func pairingRevoke(
+        config: ServerConfig, platform: String, userID: String
+    ) async throws {
+        var request = URLRequest(
+            url: config.endpoint("/api/pairing/revoke")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try encoder.encode(
+            PairingRevokeRequest(platform: platform, userID: userID)
+        )
+        let (_, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("撤销配对"),
+                status: http.statusCode
+            )
+        }
+    }
+
+    func pairingClearPending(
+        config: ServerConfig
+    ) async throws -> PairingClearPendingReceipt {
+        var request = URLRequest(
+            url: config.endpoint("/api/pairing/clear-pending")
+        )
+        request.httpMethod = "POST"
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("清空待批配对"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                PairingClearPendingReceipt.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("清空待批配对")
             )
         }
     }

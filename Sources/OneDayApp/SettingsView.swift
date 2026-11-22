@@ -247,6 +247,8 @@ struct SettingsView: View {
                     VoiceSettingsView()
                 case .addDevice:
                     AddDeviceView()
+                case .pairingManagement:
+                    PairingManagementView()
                 case .chatDiagnostics:
                     ChatDiagnosticsView()
                 }
@@ -463,6 +465,17 @@ struct SettingsView: View {
             } else {
                 catalogNavRow(entry)
             }
+        case .pairingManagement:
+            if pendingPairingCount > 0 {
+                statusNavRow(
+                    icon: iconName(for: entry),
+                    title: L10n.string(entry.title),
+                    status: "\(pendingPairingCount) 条待批准",
+                    route: .pairingManagement
+                )
+            } else {
+                catalogNavRow(entry)
+            }
         case .status:
             statusNavRow(
                 icon: iconName(for: entry),
@@ -500,6 +513,18 @@ struct SettingsView: View {
     /// 体检留痕（原服务器管理页同源同读法）：「体检
     /// 与存档」行副题的上次一词结论
     @State private var healthSummaryStore = HealthSummaryStore.shared
+
+    /// 平台用户配对留痕（DESIGN §359）：「平台用户
+    /// 配对」行副题的待批数——只读本页回读后的缓存
+    /// （PairingSummaryStore），不为副行单开轮询；
+    /// 未知/为 0 不占副题位、降普通行
+    @State private var pairingSummaryStore = PairingSummaryStore.shared
+
+    private var pendingPairingCount: Int {
+        pairingSummaryStore.pendingCount(
+            for: appState.config?.baseString
+        ) ?? 0
+    }
 
     private var lastHealthWord: String? {
         healthSummaryStore
@@ -719,6 +744,7 @@ struct SettingsView: View {
         case .connectionSelfCheck: return .connectionSelfCheck
         case .voice: return .voice
         case .addDevice: return .addDevice
+        case .pairingManagement: return .pairingManagement
         case .chatDiagnostics: return .chatDiagnostics
         }
     }
@@ -760,6 +786,7 @@ struct SettingsView: View {
         case "status": return "waveform.path.ecg"
         case "voice": return "speaker.wave.2"
         case "addDevice": return "qrcode"
+        case "pairing": return "person.badge.key"
         case "disconnect": return "rectangle.portrait.and.arrow.right"
         default: return "gearshape"
         }
