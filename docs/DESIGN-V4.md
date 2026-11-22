@@ -14576,3 +14576,20 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 钉测 ImageDecodeCacheS1Tests 5/5：①等价矩阵 8 例（全集／单图／损坏／空集组合）对修前算法参考实现逐值相等、首读与再读（命中路）双验；②失效四步（换全集／撤全集／换单图／全清）新值逐 step 生效；③远端路径两属性等价＋失效；④带图行 entryMemoKey 连算 6 趟逐字不变、有图／无图键可区分（facet 摘要只消费三属性的值，属性等价即摘要等价）；⑤成本量测（下条）。
 - 成本量测（同机自校准、模拟器相对值；800KB＋200KB 两图行、20 趟）：修前原语（每趟全量解码）19,146µs（约 957µs／趟）；修后冷读 1 趟 955µs（与单趟原语同量级、即一次性成本）；修后稳态 20 趟 17µs（约 0.85µs／趟、纯源比对）——稳态单趟解码成本降至约千分之一、近零。绝对值与探活原语（M4 swiftc -O、4.67ms）环境不同、只作相对对账；真机绝对值以探活报告第四节补测为准，实验室绿不替代真机 verdict。
 - 回归：Test-OneDayApp-smooth1r2.xcresult 共 90/90 全绿——ImageDecodeCacheS1Tests 5、ChatNativeRowHeightFittingTests 10、ChatNativeMeasureDeskTests 9、ChatNativeFollowSourceTests 8、ChatLagFeedLayerTests 7、BottomFollowTests 41、BottomFollowTriggerTests 1、ChatNoticeTests 9。（留痕：首轮 run smooth-s1-image-cache 因三套误写 OneDayAppTests 前缀被 xcodebuild 静默跳过、只跑 39 项假绿——靠 bundle 逐套对账揪出，三套实属 OneDayCoreTests，改全限定名重跑即本轮 90。）
+
+## §362 流畅度专项 S2：行构建增量化（探活 H2，2026-11-22；基线 rel-05090＋合入 S1 §361，分支 feat/smooth-s2-row-incremental）
+
+### §362.1 病灶（探活实证，smoothness-recon-20261122 主因 2／H2）
+- ChatView.nativeRows 每趟对每一行全量重建行构建材料：ChatNativeRowRevision.entryBase 对正文／思考全文逐字节 FNV-1a 哈希＋约 70 项 parts 构建；composer.entryMemoKey 再付 revisionDigest 折算＋entryFacetDigest，其中助手行 facet 摘要经 EntryScanMemo.scans／facetPaths 的键组装又各付一遍正文全文哈希（稳态备忘命中也要先交键的过路费）。
+- 施工前同口径实测（模拟器、合成会话 300 条／正文＋思考 606,375 字节，实验室口径）：entryBase 全量趟 16,316µs；entryBase＋entryMemoKey 全量趟 32,739µs；EntryScanMemo 两键稳态命中趟（仅 120 条助手行）合计 11,826µs。触发趟的开关又装在 input／streamingText／量测回填等最高频状态上（趟数面归 S3），单趟成本随会话文本量线性涨、与变化量无关——是「整体不流畅」的结构性主体。
+
+### §362.2 修法（按行备忘、验证走精确相等，不自创第二套摘要）
+- 新增 ChatEntryRevisionSnapshot（条目侧入账字段原值全集 31 项）：capture 是字段读取单点、basePrefixRevision 是摘要枚举单点；entryBase 改为「快照前缀段＋环境尾段（分隔文案／未读分界旗）」，枚举实体迁址不改语义，输出与旧全量枚举逐值同。字段集增减必须两处同改，漏一处由等价钉测逐字段敏感性先红。
+- 新增 ChatEntryRowBuildMemo（与 ChatNativeRowDescriptorMemo 同形态：@MainActor 字典账＋趟末 prune＋计数口）：按条目 id 记账 Products（快照＋基段前缀＋facet 扫描派生懒置槽）。每趟每行只验证一次——摘当前快照与账面全字段精确相等（String／Data 走 CoW 同存储快速路、变更时 memcmp 精确比对；无哈希碰撞面，比旧 fnv 口径更严）：等即直取账面前缀与扫描派生，不等（首见／任一字段变更／同 id 换对象）即按新快照重建并换账。
+- 穿线：ChatView.nativeEntryRow 取 Products 一次，基段由备忘组装、同一 Products 经新增入参 buildProducts 穿进 composer.entryMemoKey → entryFacetDigest——助手行 facet 的交付 id 集／路径集取账面派生（纯函数于正文＋远端图路径，随快照同失效），facet 活状态（展开／审批／文件／解码态）仍逐趟活读折入、失效语义不变；不在席（量测台／旧调用路）走 EntryScanMemo 旧现算，两路逐值同。工具组行同走备忘 entryRevision 组装组修订。
+- 触发面与失效域不动（S3 范围）：input／streamingText 仍每趟触发 nativeRows，本包只降单趟成本。诚实口径：稳态单趟残余 ≈8.2ms（同合成会话）由「与行数成正比、与文本量脱钩」的部分构成——快照验证（31 项属性读＋精确比对）约 3–4ms、revisionDigest 对约 70 项定长摘要的折算＋环境指纹＋facet 活状态读＋键串组装约 4–5ms；单行变化趟只比稳态多付变化行的一次全量重建（实测 +234µs／行含量级）。残余若再压，方向是 revisionDigest 折算状态缓存，归 S3 连带评估、本包不抢。
+
+### §362.3 验收量测（实验室口径）
+- 钉测 RowIncrementalEquivalenceS2Tests 8/8：①等价矩阵（富条目基段／全修订逐值同＋六类行备忘键穿线与旧现算逐字同＋facet 派生直取与 EntryScanMemo 现算同值）；②逐字段敏感性 32 项突变逐项验「快照变＋备忘失效＋修订变＋与全量路同值」；③环境尾段不触发重建；④流式逐拍生长等价（每拍恰一次重建）；⑤编辑重发同 id 换对象重建不吃旧账；⑥回填稳态全命中零重建＋prune 后重建仍等价；⑦计数对账（稳态趟 300 命中 0 重建）；⑧成本量测（下条）。
+- 成本量测（同机自校准、模拟器相对值；合成会话 300 条／606,375 字节，best-of-5）：全量趟（修前口径 entryBase＋entryMemoKey 旧现算）32,702µs；增量稳态趟 8,216µs（约 4.0×）；单行变化趟 8,450µs（≈稳态＋一行全量）。文本量对照（同行数、文本 ×4／约 2.4MB）：全量趟 84,372µs（随文本量涨 2.6×），增量稳态趟 8,063µs（与基线持平、实证与文本量脱钩）。绝对值只作相对对账，真机 hitch 率以探活报告第四节补测＋真机 verdict 为准，实验室绿不替代。
+- 回归共 140 项：新套件 8/8（Test-OneDayApp-s2suite1）＋回归 132 项（Test-OneDayApp-s2regB）130 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，已在未改动的 rel-05090 基线树单套复跑对证（同套 5 项同 2 红、失败断言逐字同），系基线老红、非本包引入（与在案 CI 基线红集 R2Assembly 2 件吻合）。逐套：ImageDecodeCacheS1Tests 5/5、ChatLagFeedLayerTests 7/7、ChatNativeListAssemblyTests 7/7、ChatNativeListR2AssemblyTests 3/5（基线 2 红）、ChatNativeListR3AssemblyTests 5/5、ChatNativeListR4AssemblyTests 3/3、ChatNativeMeasureDeskTests 9/9、ChatNativeRowHeightFittingTests 10/10、ChatNativeRowHeightProductionChainTests 1/1、ChatNativeFollowSourceTests 8/8、ChatNativeHotfix330Tests 10/10、ChatUnreadDividerAssemblyTests 4/4、MessageReactions187Tests 7/7、BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9。测试通道与在飞配对包共用、两轮被对方 kickstart 抢道杀跑后于空窗完成，run 名：smooth-s2-suite1／smooth-s2-regB／baseline-r2-check。

@@ -275,6 +275,11 @@ struct ChatView: View {
     /// ChatNativeRowDescriptorMemo）
     @State private var nativeRowMemo =
         ChatNativeRowDescriptorMemo()
+    /// §362（流畅度专项 S2）：行构建增量备忘——
+    /// 未变行免 entryBase 全文哈希与 facet 扫描键
+    /// 组装（见 ChatEntryRowBuildMemo）
+    @State private var rowBuildMemo =
+        ChatEntryRowBuildMemo()
     @State private var settleGeneration: Int?
     @State private var settleFallbackTask: Task<Void, Never>?
     /// 键盘帧落定标记（手感 A 档，键盘锚底事件驱
@@ -3247,11 +3252,14 @@ struct ChatView: View {
         // 样式键每趟只算一份（旧形态逐行重算）：行
         // 修订与备忘戳共用本值
         let styleKey = nativeRowStyleKey
+        // §362：本趟在席条目集（行构建备忘趟末清账用）
+        var seenEntryIDs: Set<UUID> = []
         if let thread = currentThread {
             let plan = renderPlan(for: thread)
             for item in plan.items {
                 switch item {
                 case .entry(let entry):
+                    seenEntryIDs.insert(entry.id)
                     rows.append(
                         nativeEntryRow(
                             entry,
@@ -3262,12 +3270,15 @@ struct ChatView: View {
                         )
                     )
                 case .toolGroup(let groupEntries):
+                    for entry in groupEntries {
+                        seenEntryIDs.insert(entry.id)
+                    }
                     let cards = groupEntries.compactMap(\.toolCard)
                     var groupRevision = ChatNativeRowRevision()
                     for entry in groupEntries {
                         groupRevision.parts.append(contentsOf:
-                            ChatNativeRowRevision.entry(
-                                entry,
+                            rowBuildMemo.entryRevision(
+                                for: entry,
                                 dividerText: plan.dividers[entry.id],
                                 highlighted: false,
                                 styleKey: nativeRowStyleKey
@@ -3475,6 +3486,8 @@ struct ChatView: View {
         nativeRowMemo.prune(
             keeping: Set(rows.map(\.key))
         )
+        // §362：行构建备忘同趟清账（只留在席条目）
+        rowBuildMemo.prune(keeping: seenEntryIDs)
         return rows
     }
 
@@ -3502,8 +3515,13 @@ struct ChatView: View {
         // 一遍——量测键与行修订共用同一基段（旧形
         // 态两路各建一份全量快照、是每遍双构建的
         // 一半）；行修订＝基段＋点亮/样式键尾段
-        var baseRevision = ChatNativeRowRevision.entryBase(
-            entry,
+        // §362：基段走行构建增量备忘——快照验证命
+        // 中直取账面前缀（未变行免全文哈希）；Prod-
+        // ucts 穿线给下方备忘键组装（facet 扫描派
+        // 生同账），本趟本行只验证一次
+        let buildProducts = rowBuildMemo.products(for: entry)
+        var baseRevision = rowBuildMemo.baseRevision(
+            products: buildProducts,
             dividerText: dividerText,
             showsUnreadDivider: showsUnread
         )
@@ -3520,7 +3538,8 @@ struct ChatView: View {
         // 未命中投量测台后台预排版、当趟用上次高/
         // 兜底高，回填后经发布代次以确定高重喂
         let memoKey = composer.entryMemoKey(
-            baseRevision: baseRevision, entry: entry
+            baseRevision: baseRevision, entry: entry,
+            buildProducts: buildProducts
         )
         let resolved = rowMeasureDesk.resolve(
             memoKey: memoKey, rowKey: key,

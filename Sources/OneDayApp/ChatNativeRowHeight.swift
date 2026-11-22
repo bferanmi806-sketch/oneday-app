@@ -1111,7 +1111,8 @@ struct ChatNativeRowHeightComposer {
     /// 一项即旧高残留、与 §325 修订漏折同病，故
     /// 逐项按合成读点对账列全
     private func entryFacetDigest(
-        _ entry: ChatEntry
+        _ entry: ChatEntry,
+        buildProducts: ChatEntryRowBuildMemo.Products? = nil
     ) -> String {
         var parts: [String] = []
         parts.append(
@@ -1183,12 +1184,34 @@ struct ChatNativeRowHeightComposer {
             // 存在性/交付态逐路径/逐 id 折入——disp-
             // layText 的剥离集与各图/牌/交付槽高都
             // 由这批状态决定
-            let scans = EntryScanMemo.scans(
-                entryID: entry.id,
-                content: entry.content,
-                remoteImagePaths: entry.remoteImagePaths
+            // §362：扫描派生（交付 id 集／路径集，
+            // 纯函数于正文＋远端图路径）——同趟已验
+            // 证的 Products 在席时取行构建备忘账面
+            // （免 EntryScanMemo 键组装的正文哈希），
+            // 不在席走旧现算，两路逐值同
+            let scanLists: (
+                deliveryIDs: [String], paths: [String]
             )
-            for deliveryID in scans.delivery.deliveryIDs {
+            if let buildProducts {
+                scanLists = ChatEntryRowBuildMemo
+                    .facetScanLists(
+                        products: buildProducts, entry: entry
+                    )
+            } else {
+                scanLists = (
+                    EntryScanMemo.scans(
+                        entryID: entry.id,
+                        content: entry.content,
+                        remoteImagePaths: entry.remoteImagePaths
+                    ).delivery.deliveryIDs,
+                    EntryScanMemo.facetPaths(
+                        entryID: entry.id,
+                        content: entry.content,
+                        remoteImagePaths: entry.remoteImagePaths
+                    )
+                )
+            }
+            for deliveryID in scanLists.deliveryIDs {
                 parts.append(
                     "dl\(deliveryID)=\(deliveryMetaDigest(deliveryID))"
                 )
@@ -1204,11 +1227,7 @@ struct ChatNativeRowHeightComposer {
             // 趟起只剩备忘读＋逐路径状态摘要（状
             // 态本身仍逐趟活读、翻转即键变，失效
             // 语义不变）
-            for path in EntryScanMemo.facetPaths(
-                entryID: entry.id,
-                content: entry.content,
-                remoteImagePaths: entry.remoteImagePaths
-            ) {
+            for path in scanLists.paths {
                 parts.append(
                     "fx\(LayoutProductKey.fnv1a(path))=\(fileStateDigest(path))"
                 )
@@ -2732,14 +2751,15 @@ struct ChatNativeRowHeightComposer {
     @MainActor
     func entryMemoKey(
         baseRevision: ChatNativeRowRevision,
-        entry: ChatEntry
+        entry: ChatEntry,
+        buildProducts: ChatEntryRowBuildMemo.Products? = nil
     ) -> String {
         var revision = baseRevision
         revision.addFlag(false)
         revision.addText("")
         return "e|\(entry.id.uuidString)"
             + "|\(Self.revisionDigest(revision))"
-            + "|\(entryFacetDigest(entry))"
+            + "|\(entryFacetDigest(entry, buildProducts: buildProducts))"
             + "|\(environmentFingerprint)"
     }
 
