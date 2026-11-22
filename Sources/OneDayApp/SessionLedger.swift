@@ -408,6 +408,30 @@ final class SessionLedger {
         .incomplete(reason: "尚未拉取")
     /// 可见段刷新在飞标记（多路触发合并成一轮）
     private var isRefreshingVisible = false
+    /// 可见段新鲜度门（§370，缓存 C3）：名单类标准
+    /// 档 60s（§367.3 定档，与三店同口径）——落定/
+    /// 回前台/预挂载三路读触发先过本门，新鲜直接用
+    /// 已载名单、零请求；强制路（刷新令牌/行操作回
+    /// 读）不经门、成功同样落账
+    private var listFreshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
+    /// 名单失效代次（§370）：写事件落定即 invalidate
+    /// 自增；刷新起手记代次、落账时对账——代次变了
+    /// 说明拉取横跨一次写事件，本轮结果不许落账冒
+    /// 充新鲜（与 C2 epoch 同式）
+    private var listFreshnessEpoch = 0
+
+    /// 名单写事件落定的失效口（§370.2）：删除摘行/
+    /// 旁聊一轮落地/改名·置顶·归档回读落定都经此把
+    /// 新鲜度作废——下一次读触发必真拉，写后一致性
+    /// 优先于省请求
+    func invalidateListFreshness() {
+        listFreshnessEpoch += 1
+        listFreshness = FreshnessGate(
+            ttl: FreshnessGate.standardListTTL
+        )
+    }
 
     // MARK: - 主线钦定（第 90 条收尾：持有迁入，同键）
 
@@ -999,6 +1023,7 @@ final class SessionLedger {
         appState: AppState, localThreads: [ChatThread],
         modelContext: ModelContext
     ) async throws {
+        let epochAtStart = listFreshnessEpoch
         let visibleFetch = try await Self
             .fetchAll(appState: appState, archived: "exclude")
         let visible = visibleFetch.sessions
@@ -1011,6 +1036,16 @@ final class SessionLedger {
             !pendingDeletions.contains($0.id)
         }
         hasLoaded = true
+        // §370：可见段已按现值落位——新鲜度同拍落账
+        // （代次未变才落，横跨写事件不冒充新鲜）；此
+        // 后归档段/对账若摘行失效，保守作废、下次读
+        // 触发真拉
+        if epochAtStart == listFreshnessEpoch {
+            listFreshness.stamp(
+                configKey: appState.config?.baseString,
+                now: Date()
+            )
+        }
         let archivedFetch = try await Self
             .fetchAll(appState: appState, archived: "only")
         let archived = archivedFetch.sessions
@@ -1087,11 +1122,13 @@ final class SessionLedger {
     /// （频道页据此呈现失败态）
     @discardableResult
     func refreshVisible(
-        appState: AppState, localThreads: [ChatThread]
+        appState: AppState, localThreads: [ChatThread],
+        now: Date = Date()
     ) async -> Bool {
         guard !isRefreshingVisible else { return false }
         isRefreshingVisible = true
         defer { isRefreshingVisible = false }
+        let epochAtStart = listFreshnessEpoch
         guard let result = try? await Self
             .fetchAll(appState: appState, archived: "exclude")
         else { return false }
@@ -1104,7 +1141,37 @@ final class SessionLedger {
             for: result.sessions, appState: appState,
             budget: 12
         )
+        // §370：名单＋标题补拉整轮成功才落账新鲜度
+        // （失败不落账、不拿旧时刻冒充）；拉取横跨写
+        // 事件（代次已变）不落账——下一读触发照旧真
+        // 拉对账
+        if epochAtStart == listFreshnessEpoch {
+            listFreshness.stamp(
+                configKey: appState.config?.baseString,
+                now: now
+            )
+        }
         return true
+    }
+
+    /// 读触发入口（§370 新鲜度门）：抽屉落定/回前
+    /// 台/预挂载三路先过本门——TTL 内且配置键没变
+    /// 直接用已载名单、零请求；首载/过期/被写事件
+    /// 失效/换服务器才走 refreshVisible 全量。强
+    /// 制路（drawerRefreshTick 令牌、行操作
+    /// onChanged、频道页）不经此门、直调
+    /// refreshVisible（成功同样落账）
+    func refreshVisibleIfNeeded(
+        appState: AppState, localThreads: [ChatThread],
+        now: Date = Date()
+    ) async {
+        guard !listFreshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await refreshVisible(
+            appState: appState, localThreads: localThreads,
+            now: now
+        )
     }
 
     /// 冷缓存补拉（目录壳 refreshIfCold 的收编）：
@@ -1152,6 +1219,9 @@ final class SessionLedger {
     /// 的合一）：服务端会话已确认删除/不存在，两段
     /// 名单与主线兜底同拍摘除，不等下一轮全量拉取
     func removeSession(sessionID: String) {
+        // §370：删除落定即名单写事件——新鲜度作废，
+        // 下一次读触发必真拉对账（摘行本身仍即时）
+        invalidateListFreshness()
         visibleSessions.removeAll { $0.id == sessionID }
         archivedSessions.removeAll { $0.id == sessionID }
         if mainFallback?.id == sessionID { mainFallback = nil }

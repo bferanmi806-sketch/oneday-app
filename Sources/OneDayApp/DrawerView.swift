@@ -421,8 +421,12 @@ struct DrawerView: View {
         // 单本体是本地 @Query（开帧即现行数据）、身
         // 份重拉仍每次打开必发（节流在 AppState
         // 内），不许显旧身份不破
+        // §370 补：名单一路自此先过账本新鲜度门
+        // （60s）——落定触发点不变、只是新鲜时零请
+        // 求；身份一路口径不变（自有 30s 节流、不入
+        // 本门）
         .onChange(of: appState.router.drawerOpenSettledCount) {
-            Task { await loadDrawerData() }
+            Task { await loadDrawerDataIfNeeded() }
             // 身份呈现跟随（末写胜包）：抽屉页头就
             // 是名字与头像——每次打开重拉（节流在
             // AppState 内），不许显服务器已改掉的旧
@@ -435,7 +439,7 @@ struct DrawerView: View {
         // 树），语义打开时仍走上方 onChange 的拉取
         .onAppear {
             if !appState.sessionLedger.hasLoaded {
-                Task { await loadDrawerData() }
+                Task { await loadDrawerDataIfNeeded() }
             }
         }
         // 0.21.0 标题回流触发点补环：App 回前台重拉
@@ -444,7 +448,7 @@ struct DrawerView: View {
         // 路，本版坐实）
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                Task { await loadDrawerData() }
+                Task { await loadDrawerDataIfNeeded() }
             }
         }
         // 0.21.0：已链接旁聊一轮落地后的刷新令牌
@@ -474,6 +478,16 @@ struct DrawerView: View {
     /// 题改读记录列（全量名单、不再限第一页窗口）
     private func loadDrawerData() async {
         await appState.sessionLedger.refreshVisible(
+            appState: appState, localThreads: threads
+        )
+    }
+
+    /// 读触发路（§370）：落定/回前台/预挂载先过账
+    /// 本新鲜度门——TTL 内重复打开零请求、新鲜时
+    /// 直接用已载名单；强制路（刷新令牌、行操作
+    /// onChanged）仍走上方 loadDrawerData 直拉
+    private func loadDrawerDataIfNeeded() async {
+        await appState.sessionLedger.refreshVisibleIfNeeded(
             appState: appState, localThreads: threads
         )
     }

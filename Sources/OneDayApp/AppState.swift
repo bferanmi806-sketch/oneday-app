@@ -306,6 +306,10 @@ final class AppState {
     private(set) var drawerRefreshTick = 0
 
     func noteLinkedSideChatTurnFinished() {
+        // §370：新会话/服务端新标题的事实在本拍成立
+        // ——名单新鲜度同步作废（抽屉未挂载时令牌无
+        // 人消费，靠失效保下次打开必真拉）
+        sessionLedger.invalidateListFreshness()
         drawerRefreshTick += 1
         Task { @MainActor in
             try? await Task.sleep(for: .seconds(6))

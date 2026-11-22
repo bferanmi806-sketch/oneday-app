@@ -440,6 +440,15 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     /// ServerSession 的每次调用落此，缺席时仍抛
     /// unreachable（旧测试口径不变）
     var updateRecorder: SessionUpdateRecorder?
+    /// 名单分页计数器（§370）：在场时 serverSessions-
+    /// Page 每次调用按键计一次，缺席不计数（行为与
+    /// 旧口径一致）
+    var sessionsPageRecorder: SessionsPageFetchRecorder?
+    /// 连接脚本（§370 换服务器测用）：health/models
+    /// 在场时回脚本值，缺席仍抛 unreachable（旧口径
+    /// 不变）
+    var scriptedHealth: HealthResponse?
+    var scriptedModels: [String]?
     /// 消息分页脚本（§331，键＝"会话 id|offset"）：
     /// sessionMessagesPage 查它，缺席抛 unreachable
     /// （充当分页失败脚本）；配 messageFetchRecorder
@@ -460,6 +469,7 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     var messageFetchRecorder: SessionMessageFetchRecorder?
 
     func health(config: ServerConfig) async throws -> HealthResponse {
+        if let scriptedHealth { return scriptedHealth }
         throw HermesError.unreachable("离线桩")
     }
 
@@ -484,6 +494,7 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     }
 
     func models(config: ServerConfig, apiKey: String) async throws -> [String] {
+        if let scriptedModels { return scriptedModels }
         throw HermesError.unreachable("离线桩")
     }
 
@@ -758,6 +769,7 @@ struct ScriptedSessionsClient: HermesClientProtocol {
         config: ServerConfig, limit: Int, offset: Int, archived: String?
     ) async throws -> SessionsPage {
         let key = "\(archived ?? "nil")|\(offset)"
+        sessionsPageRecorder?.record(key: key)
         if let page = scriptedPages[key] { return page }
         throw HermesError.unreachable("脚本页缺失：\(key)")
     }
