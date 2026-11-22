@@ -54,6 +54,11 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         win.makeKeyAndVisible()
         let listHandle = ChatNativeListHandle()
         let list = ChatRootViewController()
+        // §377（0.50.97 组版）：本套断言以 §329 逐行
+        // section 构造寻址（section＝行／提供者计数），
+        // 缺省翻真后经测试覆盖口钉旧构造；新构造等价
+        // 由 ChatSwapStep3 五套＋生产链双形态把守
+        list.testSingleSectionOverride = false
         list.handle = listHandle
         list.callbacks = ChatListCarrierCallbacks(
             onScrollGeometry: {},
