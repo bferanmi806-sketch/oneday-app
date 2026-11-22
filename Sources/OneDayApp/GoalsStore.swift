@@ -52,8 +52,16 @@ final class GoalsStore {
     /// 「拉过、确实为空」——空态不许靠猜）
     private(set) var detailLoadedIDs: Set<String> = []
 
-    private let client = OneDayBridgeClient()
+    private let client: OneDayBridgeClientProtocol
     private var loadInFlight = false
+    /// 新鲜度门（§367）：读触发先过门，TTL 内零请求
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
+
+    init(client: OneDayBridgeClientProtocol = OneDayBridgeClient()) {
+        self.client = client
+    }
 
     func goal(id: String) -> BridgeGoal? {
         goals.first { $0.id == id }
@@ -65,7 +73,23 @@ final class GoalsStore {
 
     // MARK: - 加载
 
-    func load(appState: AppState) async {
+    /// 读触发入口（§367 新鲜度门）：TTL 内且配置没变
+    /// 直接用已载数据、零请求；首载/过期/换服务器才
+    /// 走 load 全量。下拉刷新与错误态重试不经此门、
+    /// 恒走 load 强制
+    func loadIfNeeded(appState: AppState) async {
+        await loadIfNeeded(appState: appState, now: Date())
+    }
+
+    /// 时刻注入的门控本体（钉测用：推进时刻验过期）
+    func loadIfNeeded(appState: AppState, now: Date) async {
+        guard !freshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await load(appState: appState, now: now)
+    }
+
+    func load(appState: AppState, now: Date = Date()) async {
         guard !loadInFlight else { return }
         guard let config = appState.config else {
             loadState = .failed(L10n.string("尚未连接服务器。"))
@@ -78,6 +102,7 @@ final class GoalsStore {
                 try await client.goals(config: config)
             )
             loadState = .ready
+            freshness.stamp(configKey: config.baseString, now: now)
             await refreshUngrouped(appState: appState)
         } catch let error as OneDayBridgeError {
             if loadState == .ready { return }
@@ -93,6 +118,11 @@ final class GoalsStore {
         guard let config = appState.config else { return }
         if let fetched = try? await client.goals(config: config) {
             installLoadedGoals(fetched)
+            // 写后回读即全量现值：落账新鲜度（回读本身
+            // 不经门、不许被门跳过，§367.4）
+            freshness.stamp(
+                configKey: config.baseString, now: Date()
+            )
         }
     }
 
