@@ -2,7 +2,7 @@ name: Build iOS (native, unsigned IPA)
 
 on:
   push:
-    branches: [main]
+    branches: [main, "rel-*", "feat/*"]
     paths:
       - "Sources/**"
       - "Tests/**"
