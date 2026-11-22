@@ -412,6 +412,14 @@ struct AboutView: View {
         ChatListDrawerFreezeDropFeature.defaultsKey
     )
     private var chatListDropDrawerFreeze = true
+    /// §374.7（换引擎步骤 4④）滚动闸记账降级
+    /// 开关（与控制器同键同源，缺省开＝已降级
+    /// 为过渡记账规则；关掉即恢复现行滚动闸，
+    /// 一个版本周期的回退口）
+    @AppStorage(
+        ChatListScrollLedgerFeature.defaultsKey
+    )
+    private var chatListScrollLedger = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -509,6 +517,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：抽屉开合动画期内到达的消息变更直接应用、不再冻结记账等动画结束；关掉即恢复动画期冻结（回退口）。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListScrollLedger) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表滚动期记账降级"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：滚动中到达的消息变更只记账、停滚时在滚动结束回调当场应用一次；关掉即恢复现行滚动闸（停滚后武装结清拍消费，回退口）。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
