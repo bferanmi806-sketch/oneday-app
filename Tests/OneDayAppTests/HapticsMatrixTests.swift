@@ -74,7 +74,10 @@ final class HapticsMatrixTests: XCTestCase {
         )
         // ChatView 内 impact .light 共两处：发送动作＋
         // 右滑引用过阈（0.36.19），不得多加
-        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: chat), 2)
+        // §352（D3 编辑重发）：编辑重发走自有发送路径、
+        // 是同一「发送」事件的第二落点，同档 +1（2→3）；
+        // 除此不得再多加
+        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: chat), 3)
     }
 
     func testDrawerGestureSnapHasLightImpact() throws {
@@ -102,7 +105,10 @@ final class HapticsMatrixTests: XCTestCase {
         // 17→16）；重启触感由网关状态页正主 perform()
         // 的既有落点承接（成功 success／失败 error
         // 原在位），行为不丢
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 52)
+        // §352（D3/D2）：编辑重发失败回滚与重新生成
+        // 失败各新增一 error 落点（与失败 notice 同点，
+        // 沿配对一期同口径），52→54
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 54)
         XCTAssertEqual(count(of: "Haptics.warning()", in: all), 6)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
@@ -121,7 +127,10 @@ final class HapticsMatrixTests: XCTestCase {
         // 染路径落定，cell 落点随之退役——现行由
         // SwipeReplyModifier 单路承接，计数回 5（即
         // R3 前单承载原数）；0.50.68 顺修期待值 6→5
-        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 5)
+        // §352（D3 编辑重发）：发送事件第二落点 +1
+        // （5→6），与 testSendActionHasLightImpact 的
+        // ChatView 内计数同源（2→3）
+        XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 6)
         XCTAssertEqual(
             count(of: ".sensoryFeedback(.selection", in: all), 3)
         XCTAssertEqual(

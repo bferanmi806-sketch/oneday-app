@@ -583,6 +583,7 @@ struct DemoHermesClient: HermesClientProtocol {
 
     func sessionMutationSnapshot(config: ServerConfig, id: String) async throws -> SessionMutationSnapshot { throw HermesError.demoLimitReached }
     func deleteServerSession(config: ServerConfig, id: String) async throws { throw HermesError.demoLimitReached }
+    func rewindSession(config: ServerConfig, id: String, targetMessageID: Int, predecessorRowID: Int?) async throws -> RewindReceipt { throw HermesError.demoLimitReached }
 
     func emptySessionCount(config: ServerConfig) async throws -> Int { throw HermesError.demoLimitReached }
 

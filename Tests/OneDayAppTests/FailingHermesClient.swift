@@ -269,6 +269,13 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func rewindSession(
+        config: ServerConfig, id: String,
+        targetMessageID: Int, predecessorRowID: Int?
+    ) async throws -> RewindReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func emptySessionCount(config: ServerConfig) async throws -> Int {
         throw HermesError.unreachable("离线桩")
     }

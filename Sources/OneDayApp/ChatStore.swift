@@ -387,6 +387,36 @@ final class ChatEntry {
             && !sendFailed
     }
 
+    /// 可编辑已发门控（D3，DESIGN §352，与 canReact
+    /// 同构的单点谓词）：user 发言行＋已钉桩（服务端
+    /// 有此行、rewind 有的放矢）＋已落定（非待发/非
+    /// 发送失败/不在发送队列未落定态）。线程级条件
+    /// （无在飞 run、当前线程、已绑服务端会话）在
+    /// ChatView 注入闭包时求值，不在本谓词
+    var canEditSent: Bool {
+        role == "user"
+            && serverRowID != nil
+            && toolCardData == nil
+            && !isSystemAnchored
+            && !isPendingSend
+            && !sendFailed
+            && !(sendState?.remainsInQueue ?? false)
+    }
+
+    /// 可重新生成门控的条目级部分（D2，DESIGN
+    /// §352）：assistant 发言行＋已落定。「是本线程
+    /// 最后一条已落定助手条目＋其轮 user 行已钉桩」
+    /// 是线程级判定，在 ChatView 呈现时刻求值（与
+    /// 朗读项同律），不进本谓词
+    var canRegenerateCandidate: Bool {
+        role == "assistant"
+            && toolCardData == nil
+            && !isSystemAnchored
+            && !isPendingSend
+            && !sendFailed
+            && !(sendState?.remainsInQueue ?? false)
+    }
+
     /// 待发条目（聊天可靠性包）：deliveryState 的
     /// 读口收口在此——呈现（气泡下「未发送」行）、
     /// 守卫（种子排除／整段替换跳过）与重发入口共

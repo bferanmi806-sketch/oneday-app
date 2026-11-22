@@ -657,6 +657,23 @@ struct ChatView: View {
     @State private var pendingForkQuote: MessageQuote?
     /// 0.7.0：当前待发送引用是否为分流种子（引用条文案分流）
     @State private var pendingQuoteIsFork = false
+    /// D3（DESIGN §352）：编辑已发消息的武装态——只
+    /// 钉目标条目 id＋服务端行 id；target 起条目名
+    /// 单在发送时刻按 sortedEntries 现算（Rewind-
+    /// TurnSlicing 单点切分），不在此持名单防过期
+    @State private var editSentTarget: EditSentTarget?
+    /// D3 破坏性确认的待发稿快照：非末轮编辑点发送
+    /// 时暂存——确认期间发送舱原样不动，确认后经
+    /// performEditSend 发出、取消即弃
+    @State private var pendingEditSend: EditSendDraft?
+    /// D3/D2 乐观隐藏集（仅显示层，renderPlan 消
+    /// 费）：rewind 在飞期间 target 起条目（D3）/
+    /// 本轮助手段（D2）不呈现，存储一字不动；成→
+    /// 真删后清空、败→直接清空全复原
+    @State private var rewindHiddenEntryIDs: Set<UUID> = []
+    /// D3/D2 的 rewind 驱动任务（发送管线另管
+    /// sendTask，本任务只辖 rewind 段与回滚）
+    @State private var rewindTask: Task<Void, Never>?
     /// §208：动态讨论的待发送引用（FeedPostQuote 值
     /// 快照）——与 pendingQuote 共用发送舱同一引用
     /// 槽位：至多一个在场，后入覆盖先入。同守引用
@@ -1060,6 +1077,39 @@ struct ChatView: View {
         // 分享单（与「选择」sheet 同排）
         .sheet(item: $messageSharePayload) { payload in
             MessageShareSheet(text: payload.text)
+        }
+        // D3（DESIGN §352）：编辑非末轮的破坏性确认
+        // ——N 轮实算（RewindTurnSlicing.roundsAfter
+        // 呈现时刻现算）、文案明示不可恢复；取消回
+        // 编辑态、发送舱一字不动
+        .confirmationDialog(
+            "编辑这条消息？",
+            isPresented: Binding(
+                get: { pendingEditSend != nil },
+                set: { if !$0 { pendingEditSend = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("发送并删除之后内容", role: .destructive) {
+                if let draft = pendingEditSend,
+                   let target = editSentTarget {
+                    performEditSend(draft: draft, target: target)
+                }
+                pendingEditSend = nil
+            }
+            Button("取消", role: .cancel) {
+                pendingEditSend = nil
+            }
+        } message: {
+            Text(editSendConfirmMessage)
+        }
+        // D3/D2 的线程纪律：编辑武装与乐观隐藏都是
+        // 当前线程的临时态，切线程即作废（与引用同
+        // 律，不许跨线程带过去）
+        .onChange(of: currentThreadID) { _, _ in
+            editSentTarget = nil
+            pendingEditSend = nil
+            rewindHiddenEntryIDs = []
         }
         // 选择面使用唯一、稳定的宿主；胶囊全量/紧凑档
         // 与 safeAreaBar 的布局切换不再重建呈现锚点。
@@ -3610,10 +3660,396 @@ struct ChatView: View {
                     withdrawUnsentEntry(entry)
                 }
             } : nil,
+            onEditSent: editSentAvailable(for: entry) ? {
+                DispatchQueue.main.async {
+                    editSentEntry(entry)
+                }
+            } : nil,
+            onRegenerate: regenerateAvailable(for: entry) ? {
+                DispatchQueue.main.async {
+                    regenerateLastTurn(from: entry)
+                }
+            } : nil,
             makeSpeakItem: {
                 speakMenuItem(for: entry)
             }
         )
+    }
+
+    /// D3 入口在否（DESIGN §352）：条目级谓词
+    /// （canEditSent）＋线程级条件在呈现时刻一并求
+    /// 值——已绑服务端会话（rewind 有的放矢）、当
+    /// 前线程、无在飞 run/流式
+    private func editSentAvailable(for entry: ChatEntry) -> Bool {
+        guard entry.canEditSent,
+              let thread = entry.thread,
+              thread.id == currentThreadID,
+              thread.serverSessionID != nil,
+              !isStreaming, !isDrivingRun,
+              appState.runLedger.entry(forThreadID: thread.id)
+                == nil
+        else { return false }
+        return true
+    }
+
+    /// D2 入口在否（DESIGN §352）：本条即本线程最
+    /// 后一条已落定助手条目、且其轮可切分（user
+    /// 行已钉桩），线程级条件同 D3
+    private func regenerateAvailable(
+        for entry: ChatEntry
+    ) -> Bool {
+        guard entry.canRegenerateCandidate,
+              let thread = entry.thread,
+              thread.id == currentThreadID,
+              thread.serverSessionID != nil,
+              !isStreaming, !isDrivingRun,
+              appState.runLedger.entry(forThreadID: thread.id)
+                == nil
+        else { return false }
+        let entries = thread.sortedEntries
+        guard RewindTurnSlicing.lastSettledAssistant(
+                  in: entries
+              )?.id == entry.id,
+              RewindTurnSlicing.regenerationTurn(
+                  assistant: entry.id, in: entries
+              ) != nil
+        else { return false }
+        return true
+    }
+
+    /// D3 确认弹窗正文（DESIGN §352 §五）：N＝将被
+    /// 删除的轮数、呈现时刻实算
+    private var editSendConfirmMessage: String {
+        let rounds = editSentTarget.flatMap { target in
+            currentThread.map {
+                RewindTurnSlicing.roundsAfter(
+                    target: target.entryID,
+                    in: $0.sortedEntries
+                )
+            }
+        } ?? 0
+        return "发送后，这条之后的所有对话（共 \(rounds) 轮）都会被删除，包括其中的图片和文件。删掉的内容无法恢复。"
+    }
+
+    /// 编辑已发消息（D3，DESIGN §352）：内容回收进
+    /// 发送舱＋武装编辑态——与 editUnsentEntry 的
+    /// 差别只在原条目去留：已发条目是服务端历史的
+    /// 一行，回收时一字不动（不删、不改显），删除
+    /// 只发生在发送时 rewind 成功之后。守卫同未发
+    /// 编辑口径（发送舱占用先拦、run 在飞先拦）
+    private func editSentEntry(_ entry: ChatEntry) {
+        guard entry.canEditSent,
+              let rowID = entry.serverRowID,
+              let thread = entry.thread,
+              thread.id == currentThreadID,
+              thread.serverSessionID != nil,
+              !isStreaming, !isDrivingRun
+        else { return }
+        guard appState.runLedger.entry(
+            forThreadID: thread.id
+        ) == nil else {
+            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            return
+        }
+        guard input.trimmingCharacters(
+                  in: .whitespacesAndNewlines
+              ).isEmpty,
+              attachments.isEmpty, pendingQuote == nil,
+              pendingFeedQuote == nil,
+              pendingSourceQuote == nil
+        else {
+            showNotice("输入框里还有没发完的内容，先发掉或清空，再来编辑这条。")
+            return
+        }
+        // 回收：正文/图片/引用走未发编辑同款口；文
+        // 件无本地字节可回收（落定轮次的暂存已
+        // 清），发送时凭 target 的 remoteFilePaths
+        // 预置路径随行（见 performEditSend）
+        input = entry.content
+        attachments = entry.allImageDatas.map {
+            PendingAttachment(kind: .image($0))
+        }
+        pendingQuote = entry.quote
+        switch entry.sourceQuote {
+        case .feed(let feedQuote):
+            pendingFeedQuote = feedQuote
+        case .idea, .file, .goal:
+            pendingSourceQuote = entry.sourceQuote
+        case nil:
+            break
+        }
+        editSentTarget = EditSentTarget(
+            entryID: entry.id, rowID: rowID
+        )
+        composerFocusHandle.focus()
+    }
+
+    /// 解除编辑态（横幅 ✕）：回收稿只是副本、原条
+    /// 目在列表里一字未动，清舱无损、无副作用
+    private func cancelEditSent() {
+        editSentTarget = nil
+        input = ""
+        attachments = []
+        pendingQuote = nil
+        pendingFeedQuote = nil
+        pendingSourceQuote = nil
+    }
+
+    /// D3 发送段（DESIGN §352）：待发条目落盘→乐
+    /// 观隐藏 target 起条目→rewind→成功真删旧段
+    /// 并汇入既有发送管线（launchTurn，幂等键由
+    /// driveRun 现铸）；失败全回滚——服务端未动
+    /// （rewind 未成）、用户改过的字回填发送舱一
+    /// 字不丢。rewind 成功后禁止回滚：其后失败走
+    /// 既有失败标记＋重发链（不再重复 rewind）
+    private func performEditSend(
+        draft: EditSendDraft, target: EditSentTarget
+    ) {
+        guard let thread = currentThread,
+              let targetEntry = thread.sortedEntries.first(
+                  where: { $0.id == target.entryID }
+              ),
+              let sessionID = thread.serverSessionID
+        else {
+            editSentTarget = nil
+            return
+        }
+        SpeechPlayer.shared.stop()
+        input = ""
+        attachments = []
+        pendingQuote = nil
+        pendingQuoteIsFork = false
+        pendingFeedQuote = nil
+        pendingSourceQuote = nil
+        errorMessage = nil
+        dismissNotice()
+        let combinedSourceQuote = draft.sourceQuote
+            ?? draft.feedQuote.map(SourceQuote.feed)
+        let entries = thread.sortedEntries
+        let tail = RewindTurnSlicing.tail(
+            from: target.entryID, in: entries
+        )
+        let predecessor = RewindTurnSlicing
+            .predecessorRowID(
+                before: target.entryID, in: entries
+            )
+        let imageDatas = draft.attachments.compactMap(
+            \.imageData
+        )
+        let filePayloads = draft.attachments.compactMap(
+            \.filePayload
+        )
+        sendFrameStartedAt = Date()
+        sendFrameRestickLogged = false
+        let newEntry = ChatEntry(
+            role: "user", content: draft.text, thread: thread,
+            imageData: imageDatas.first,
+            imageDatas: imageDatas,
+            quote: draft.quote,
+            sourceQuote: combinedSourceQuote
+        )
+        modelContext.insert(newEntry)
+        Haptics.impact(.light)
+        thread.updatedAt = Date()
+        try? modelContext.save()
+        newEntry.markSendState(.queued, in: modelContext)
+        if !filePayloads.isEmpty {
+            try? stagedSendStore.stage(
+                entryID: newEntry.id,
+                payloads: filePayloads.map {
+                    StagedSendPayload(
+                        name: $0.name, data: $0.data
+                    )
+                }
+            )
+        }
+        appState.sideChats.setDraft("", for: thread.id)
+        editSentTarget = nil
+        rewindHiddenEntryIDs = Set(tail.map(\.id))
+        // target 本轮文件凭服务端回执路径随行（落
+        // 定条目文件牌的唯一数据源即 remoteFile-
+        // Paths，resendFailedEntry 同路）：新加文件
+        // 走 filePayloads 上传——两路在 launchTurn
+        // 的既有口径下预置路径优先
+        let presetFilePaths = targetEntry.remoteFilePaths
+        rewindTask = Task {
+            do {
+                _ = try await appState.performAdmin {
+                    client, config in
+                    try await client.rewindSession(
+                        config: config, id: sessionID,
+                        targetMessageID: target.rowID,
+                        predecessorRowID: predecessor
+                    )
+                }
+            } catch {
+                modelContext.delete(newEntry)
+                try? stagedSendStore.remove(
+                    entryID: newEntry.id
+                )
+                try? modelContext.save()
+                rewindHiddenEntryIDs = []
+                input = draft.text
+                attachments = draft.attachments
+                pendingQuote = draft.quote
+                pendingFeedQuote = draft.feedQuote
+                pendingSourceQuote = draft.sourceQuote
+                showNotice(rewindFailureCopy(
+                    error,
+                    invalidTarget: "这条消息太早了，没法再编辑。",
+                    conflict: "对话刚刚有新变化，这次编辑没生效，原来的对话没有动。再试一次就行。",
+                    fallback: "这次编辑没生效，原来的对话没有动。再试一次就行。"
+                ))
+                Haptics.error()
+                return
+            }
+            for entry in tail {
+                modelContext.delete(entry)
+            }
+            try? modelContext.save()
+            rewindHiddenEntryIDs = []
+            let seedSnapshot = thread.sortedEntries
+                .filter {
+                    !$0.isPendingSend && $0.id != newEntry.id
+                }
+                .map {
+                    SeedEntry(
+                        role: $0.role, content: $0.content,
+                        timestamp: $0.createdAt
+                            .timeIntervalSince1970
+                    )
+                }
+            let context = outgoingContext(
+                of: thread, tailEntry: newEntry,
+                text: draft.text, quote: draft.quote,
+                sourceQuote: combinedSourceQuote
+            )
+            launchTurn(
+                thread: thread, userEntry: newEntry,
+                text: draft.text,
+                filePayloads: filePayloads,
+                presetFilePaths: presetFilePaths,
+                seedSnapshot: seedSnapshot, context: context
+            )
+        }
+    }
+
+    /// 重新生成（D2，DESIGN §352）：一键、不确
+    /// 认、不进发送舱——乐观隐藏本轮助手段→
+    /// rewind 到本轮 user 行→成功真删助手段、以
+    /// 原输入重提（新轮整段替换旧段）；失败显示
+    /// 复原＋人话，服务端零残留
+    private func regenerateLastTurn(
+        from assistantEntry: ChatEntry
+    ) {
+        guard assistantEntry.canRegenerateCandidate,
+              let thread = assistantEntry.thread,
+              thread.id == currentThreadID,
+              let sessionID = thread.serverSessionID,
+              !isStreaming, !isDrivingRun
+        else { return }
+        guard appState.runLedger.entry(
+            forThreadID: thread.id
+        ) == nil else {
+            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            Task { await resumeRunIfNeeded() }
+            return
+        }
+        let entries = thread.sortedEntries
+        guard let turn = RewindTurnSlicing.regenerationTurn(
+                  assistant: assistantEntry.id, in: entries
+              ),
+              let targetRowID = turn.user.serverRowID
+        else { return }
+        let userEntry = turn.user
+        let segment = turn.segment
+        let predecessor = RewindTurnSlicing
+            .predecessorRowID(
+                before: userEntry.id, in: entries
+            )
+        errorMessage = nil
+        dismissNotice()
+        sendFrameStartedAt = Date()
+        sendFrameRestickLogged = false
+        rewindHiddenEntryIDs = Set(segment.map(\.id))
+        rewindTask = Task {
+            do {
+                _ = try await appState.performAdmin {
+                    client, config in
+                    try await client.rewindSession(
+                        config: config, id: sessionID,
+                        targetMessageID: targetRowID,
+                        predecessorRowID: predecessor
+                    )
+                }
+            } catch {
+                rewindHiddenEntryIDs = []
+                showNotice(rewindFailureCopy(
+                    error,
+                    invalidTarget: "重新生成没成功，原来的回答没有动。再试一次就行。",
+                    conflict: "重新生成没成功，原来的回答没有动。再试一次就行。",
+                    fallback: "重新生成没成功，原来的回答没有动。再试一次就行。"
+                ))
+                Haptics.error()
+                return
+            }
+            // rewind 已成：助手段真删、user 条目原位
+            // 保留。此后禁止回滚——先给 user 条目预
+            // 置失败标记作崩溃守卫（rewind 成功至新
+            // 轮落定之间被杀：重启后 .failed 走手点
+            // 重发链、.queued 走发件箱自动接管，两
+            // 路都不重复 rewind），随即按 resend-
+            // FailedEntry 同式清标记进队列态、由
+            // launchTurn 接管推进
+            for entry in segment {
+                modelContext.delete(entry)
+            }
+            userEntry.markSendState(.failed, in: modelContext)
+            userEntry.sendFailed = false
+            userEntry.markSendState(.queued, in: modelContext)
+            rewindHiddenEntryIDs = []
+            let filePayloads = resendFilePayloads(
+                entryID: userEntry.id
+            )
+            let seedSnapshot = Array(
+                Self.seedEntries(of: thread).dropLast()
+            )
+            launchTurn(
+                thread: thread, userEntry: userEntry,
+                text: userEntry.content,
+                filePayloads: filePayloads,
+                presetFilePaths: userEntry.remoteFilePaths,
+                seedSnapshot: seedSnapshot,
+                context: outgoingContext(
+                    of: thread, tailEntry: userEntry,
+                    text: userEntry.content,
+                    quote: userEntry.quote,
+                    sourceQuote: userEntry.sourceQuote
+                )
+            )
+        }
+    }
+
+    /// rewind 失败的人话分流（DESIGN §352 §五）：
+    /// 定性两类走调用方专属句（D3/D2 各一份），其
+    /// 余走 HermesError 人话体系（登录/服务异常/
+    /// busy 各归其类），不露英文码与状态数
+    private func rewindFailureCopy(
+        _ error: Error, invalidTarget: String,
+        conflict: String, fallback: String
+    ) -> String {
+        if let rewindError = error as? RewindError {
+            switch rewindError {
+            case .invalidTarget:
+                return invalidTarget
+            case .conflictExhausted:
+                return conflict
+            }
+        }
+        if let hermesError = error as? HermesError {
+            return hermesError.userMessage
+        }
+        return fallback
     }
 
     /// 点反应（台账 187，toggle 单点）：点自己已点
@@ -4634,6 +5070,9 @@ struct ChatView: View {
     /// 划重算
     private final class RenderPlanCache {
         var key: ChatRenderPlanKey?
+        /// D3/D2 乐观隐藏集戳（DESIGN §352）：与
+        /// key 并列比对，隐藏集变化即计划失效
+        var hiddenStamp: Set<UUID> = []
         var dividers: [UUID: String] = [:]
         var items: [EntryRenderItem] = []
         var sources: [UUID: [MessageSource]] = [:]
@@ -4662,13 +5101,19 @@ struct ChatView: View {
             },
             dayStamp: Calendar.current.startOfDay(for: Date())
         )
-        if renderPlanCache.key == key {
+        if renderPlanCache.key == key,
+           renderPlanCache.hiddenStamp == rewindHiddenEntryIDs {
             return (
                 renderPlanCache.dividers, renderPlanCache.items,
                 renderPlanCache.sources
             )
         }
-        let sorted = thread.sortedEntries
+        // D3/D2（DESIGN §352）：乐观隐藏集只在本计
+        // 划层过滤（存储一字不动）；隐藏集入缓存戳
+        // 比对，集变即计划重算、不许吃旧计划
+        let sorted = thread.sortedEntries.filter {
+            !rewindHiddenEntryIDs.contains($0.id)
+        }
         let dividers = timelineDividers(for: sorted)
         let items = entryRenderItems(for: sorted)
         // D4 (§349): turn-level source aggregation,
@@ -4705,6 +5150,7 @@ struct ChatView: View {
             sources[sorted[index].id] = list
         }
         renderPlanCache.key = key
+        renderPlanCache.hiddenStamp = rewindHiddenEntryIDs
         renderPlanCache.dividers = dividers
         renderPlanCache.items = items
         renderPlanCache.sources = sources
@@ -8700,6 +9146,39 @@ struct ChatView: View {
     /// 垫撤销（卡面即玻璃，不卡上叠卡），✕ 自右中改
     /// 右上贴首行。发送后由 send() 清除、点 ✕ 即时清
     /// 除、切换线程经 onChange 清除（见 body）
+    /// D3 编辑横幅（DESIGN §352）：与 quoteBar 同
+    /// 位形态——铅笔＋一行说明＋尾 ✕ 取消（解武装
+    /// 清舱，原条目无损）
+    private var editSentBanner: some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            Image(systemName: "pencil")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.inkSecondary)
+            Text("正在编辑较早的一条消息")
+                .font(.footnote)
+                .foregroundStyle(Palette.inkSecondary)
+                .lineLimit(1)
+            Spacer()
+            Button {
+                cancelEditSent()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(width: 28, height: 28)
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("取消编辑")
+        }
+        .padding(.horizontal, OneDayMetrics.spacingSM)
+        .padding(.vertical, OneDayMetrics.spacingS)
+    }
+
     private func quoteBar(_ quote: MessageQuote) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Rectangle()
@@ -8980,6 +9459,22 @@ struct ChatView: View {
     /// 不变），引用块高计入舱高、不挤占打字行数
     private var composerCard: some View {
         VStack(spacing: 0) {
+            // D3（DESIGN §352）：编辑横幅与引用块同
+            // 位同式（卡根直接子级＋分隔线同进同
+            // 出）——在场即编辑态在武装
+            if editSentTarget != nil {
+                VStack(spacing: 0) {
+                    editSentBanner
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(height: 1)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .transition(.opacity)
+            }
             // §332（二次修复题 3）：引用块移出
             // SmoothExpand——与附件条同构造（卡
             // VStack 直接子级＋条件包含，引用块＋
@@ -9118,6 +9613,7 @@ struct ChatView: View {
             value: pendingQuote != nil
                 || pendingFeedQuote != nil
                 || pendingSourceQuote != nil
+                || editSentTarget != nil
         )
         // 第 1 修（P0 键盘不弹）的聚焦保底层：整卡背景
         // 命中域内点按（文本区外的卡面空隙，含引用块
@@ -11271,6 +11767,30 @@ private struct ComposerBarLayout: Layout {
         let combinedSourceQuote = sourceQuote
             ?? feedQuote.map(SourceQuote.feed)
         guard !isStreaming, !text.isEmpty || !pending.isEmpty else { return }
+        // D3（DESIGN §352）：编辑态在武装时发送分
+        // 流——target 之后还有已落定轮次（rounds-
+        // After>0）先弹破坏性确认：稿快照暂存、发
+        // 送舱原样不动，取消即回编辑态；末轮直走
+        // performEditSend。快照口径与下方正常发送
+        // 同（text/pending/quote/feedQuote/source-
+        // Quote 四件已在本函数起手取齐）
+        if let target = editSentTarget {
+            let draft = EditSendDraft(
+                text: text, attachments: pending,
+                quote: quote, feedQuote: feedQuote,
+                sourceQuote: sourceQuote
+            )
+            if let thread = currentThread,
+               RewindTurnSlicing.roundsAfter(
+                   target: target.entryID,
+                   in: thread.sortedEntries
+               ) > 0 {
+                pendingEditSend = draft
+                return
+            }
+            performEditSend(draft: draft, target: target)
+            return
+        }
         // H2-a：发送新消息即停播（施工图 3.3 播放态
         // 管理口径）——只在真发送的路径上停，守卫退
         // 回的空发不打扰正在听的朗读
@@ -14130,6 +14650,24 @@ extension View {
             }
         }
     }
+}
+
+/// D3 编辑武装目标（DESIGN §352）：值快照、不持
+/// SwiftData 对象（与 SelectionPayload 同律）
+private struct EditSentTarget {
+    let entryID: UUID
+    let rowID: Int
+}
+
+/// D3 待确认发稿快照（DESIGN §352）：send() 起手
+/// 的快照四件（正文/附件/引用两槽）整包暂存，确
+/// 认与取消都不回读发送舱现值
+private struct EditSendDraft {
+    let text: String
+    let attachments: [PendingAttachment]
+    let quote: MessageQuote?
+    let feedQuote: FeedPostQuote?
+    let sourceQuote: SourceQuote?
 }
 
 /// 「选择」sheet 载荷（0.4.1）
