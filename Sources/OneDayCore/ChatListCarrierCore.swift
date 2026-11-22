@@ -128,6 +128,32 @@ public enum ChatListCoalesceWindowDropFeature {
     }
 }
 
+// MARK: - 停滚结清单拍结清开关（换引擎步骤 4②）
+
+/// §366 停滚结清拆拍的收敛开关（DESIGN
+/// §374.5，施工图步骤 4②）：缺省（键不存在）
+/// ＝单拍结清——停滚后落定拍一拍内走全链结
+/// 清全部待结账目（落数据＋布局失效施工＋量
+/// 测／落位），不再拆数据拍／布局拍两拍顺
+/// 延；显式置 false＝恢复 §366 拆拍原逻辑
+/// （拆拍代码本体以本旗包裹保留一个版本周
+/// 期、回退口）。与删窗旗／增量旗／单
+/// section 旗独立、互不牵连；控制器在停
+/// 滚落写口同步本旗（翻转即时生效）
+public enum ChatListSettleSingleBeatFeature {
+    public static let defaultsKey =
+        "chat.list.settleSingleBeat"
+
+    public static func isEnabled(
+        defaults: UserDefaults = .standard
+    ) -> Bool {
+        guard let stored = defaults.object(
+            forKey: defaultsKey
+        ) as? Bool else { return true }
+        return stored
+    }
+}
+
 // MARK: - 锚点模型（条目 id ＋ 条内偏移）
 
 /// 滚动锚（蓝图 §1.2 锚定语义）：恢复的单位不是裸

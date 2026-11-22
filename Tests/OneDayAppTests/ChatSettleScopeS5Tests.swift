@@ -21,6 +21,12 @@ import XCTest
 /// ride＝false）钉回旧窗模式——窗代码在开关包裹下保
 /// 留一个版本周期、其语义仍由本套把守；其余各测与窗
 /// 模式无关、两模式同断言。
+/// §374.5 注：停滚结清缺省改单拍结清后，③之拆拍测经
+/// 覆盖口（testSettleSingleBeatOverride＝false）钉回
+/// 拆拍模式——拆拍代码在开关包裹下保留一个版本周
+/// 期、其语义仍由本测把守；单拍结清的新行为由新增
+/// 单拍测（缺省模式）在同场景下断言同拍结清；其余
+/// 各测与结清模式无关、两模式同断言。
 /// 装配与 ChatNativeHotfix330Tests 同式（窗口＋根 VC＋handle＋
 /// carrier 回调）。基线对账（未改生产行为、仅加计数读口时）：
 /// ①②绿、③之合并/拆拍/抽屉三测按设计红、参数直通绿（修前
@@ -394,6 +400,10 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         assemble()
         let vc = try XCTUnwrap(controller)
         let cv = vc.collectionView
+        // §374.5：本测钉拆拍模式（拆拍语义把守）——
+        // 缺省已改单拍结清，拆拍在开关包裹下保留一
+        // 个版本周期、经覆盖口置假在本测复活
+        vc.testSettleSingleBeatOverride = false
         apply(makeRows(count: 40))
         XCTAssertTrue(quiesce(), "装配后须收敛")
         let f0 = vc.testSettleLayoutFlushCount
@@ -441,6 +451,65 @@ final class ChatSettleScopeS5Tests: XCTestCase {
         )
         XCTAssertEqual(cv.numberOfSections, 42)
         drain(0.3)
+    }
+
+    // MARK: - ③ 新行为（§374.5）：停滚结清单拍结清
+
+    /// 缺省单拍结清（与拆拍测同场景）：滚动冻结期整
+    /// 笔喂入只记账；停滚后落定拍一拍结清——匣落写
+    /// 被观察到的同一拍布局失效必已施工（拆拍形态
+    /// 下本断言不可能成立——单拍的判别点），帧采
+    /// 纳新高与新行、结清后不再有第二拍补施工。
+    func testScrollClearingSettlesInSingleBeat() throws {
+        assemble()
+        let vc = try XCTUnwrap(controller)
+        let cv = vc.collectionView
+        // 缺省模式（不设覆盖口）：单拍结清为现行口径
+        apply(makeRows(count: 40))
+        XCTAssertTrue(quiesce(), "装配后须收敛")
+        let f0 = vc.testSettleLayoutFlushCount
+
+        vc.scrollViewWillBeginDragging(cv)
+        var rows = makeRows(count: 40)
+        rows[3] = textRow("k3", text: "row 3", height: 140)
+        rows.append(textRow("k40", text: "row 40"))
+        rows.append(textRow("k41", text: "row 41"))
+        apply(rows)
+        drain(0.15)
+        XCTAssertEqual(
+            vc.testAdoptedRowHeights.count, 40,
+            "滚动冻结期整笔喂入只记账、匣不落写"
+        )
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0,
+            "滚动冻结期不许施工布局失效"
+        )
+
+        vc.scrollViewDidEndDragging(
+            cv, willDecelerate: false
+        )
+        // 单拍判别点：匣落写（42 行）被观察到时布局
+        // 失效必须已同拍施工——两读数同拍跳变、无
+        // 「匣已落写而失效未施工」的中间态
+        XCTAssertTrue(
+            spinUntil(timeout: 3) {
+                vc.testAdoptedRowHeights.count == 42
+            },
+            "停滚后落定拍须落写整笔喂入"
+        )
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0 + 1,
+            "单拍结清：匣落写同拍布局失效须已施工（不许顺延下一拍）"
+        )
+        XCTAssertEqual(
+            frameHeight(vc, section: 3), 140, accuracy: 0.6
+        )
+        XCTAssertEqual(cv.numberOfSections, 42)
+        drain(0.3)
+        XCTAssertEqual(
+            vc.testSettleLayoutFlushCount, f0 + 1,
+            "结清后不许再有第二拍补施工"
+        )
     }
 
     // MARK: - ③ 新行为：抽屉运动窗冻结

@@ -15099,6 +15099,22 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - **验收记账（2026-11-23，实验室口径；两轮合计 188 项：185 过、3 红、新红零）**：新套 ChatSwapStep4ProbeTests 1/1＋ChatSwapStep4StructureTests 2/2（开关口径／穿线／窗本体保留把守）；ChatSettleScopeS5Tests 6/6——其中窗合并测与参数直通测经覆盖口钉回旧窗模式（窗在开关包裹下保留、其语义仍由本套把守，测内注记＋文件头 §374.4 注），拆拍／抽屉／等价／证据四测与窗模式无关、同断言全绿；BottomFollowTests 41/41＋BottomFollowTriggerTests 1/1；StreamingSettleMap 相关套（StreamingBlockProductTests）与 StreamPublishGateTests 在 Core 76/76 内全过；「布局失效不在 apply 同步链内执行」结构钉测（ChatSwapStep3StructureTests）全绿——本包未新增第二个失效施工点，只改既有唯一施工口的触发条件；S371/S373 全绿；步骤 1–3 各套（变更集／等价矩阵／§329 压测／探针／spike／结构）与 R3/R4 装配、行高拟合、量测台、Hotfix330、落定结转、重入、跟随源、未读分界、右滑桥、抽屉 S365 两套、S2 等价、ChatPage 装配同轮全过。3 红恰在案基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays；三测断言失败合计 7 条、与基线签名同），非本包引入。
 - **未删三件在册状态**：② settleClearingStage 拆拍——在册未动，归步骤 4 第 ② 件（结清回归单拍；「布局失效不在 apply 同步链内执行」不变量已由结构钉测把守）；③ 抽屉动画期冻结——在册未动，归第 ③ 件（删窗后抽屉唤醒拍的「绕窗」语义在删窗态下自动成立、留窗态下原义不变）；④ 滚动闸（§325.2）——在册未动，归第 ④ 件（降级为对位 #8 过渡记账规则）。
 - **真机门（留组版）**：流式回复中尾行行高跟随手感（采纳滞后消除的体感）、流式中滑动帧率——实验室 EmptyView 口径不外推真实内容，归组版后真机 verdict。
+
+### §374.5 步骤 4②：调度复合体收敛第二件——settleClearingStage 拆拍收敛为单拍结清（分支 feat/swap-step4b-settleonebeat，基线 feat/swap-step4a-drop150ms @88158e1）
+
+- **收敛了什么**：§366 ② 停滚结清拆拍。停滚落写口（flushDeferredSettle）的武装阶段改由单拍判定 `settleSingleBeat()` 分流：缺省（单拍）直接武装阶段 2——落定拍认领布局拍后一拍走全链（落数据＋触摸暂存重配＋布局失效施工＋layoutIfNeeded／量测／inset／落位）结清全部待结账目，不再经阶段 1 数据拍＋settleSplitBeatDelay（0.03s）顺延布局拍。**只动本件**：生产逻辑变更只有武装分支一行（diff 自查：ChatNativeList.swift 余为覆盖口声明、判定函数与注释；ChatView.swift 零改动、chatScaffold 根链零触碰）；抽屉动画期冻结（§366 ③）、滚动闸（§325.2）本体与行为逐字未动；第 ① 件的删窗开关与窗本体原样保留。**不变量保持**：「布局失效不在 apply 同步链内执行」未动摇——本包未新增失效施工点、未动落定拍唯一施工口本体，单拍只是让结清账目在同一落定拍内先落数据后施工失效（施工仍在落定拍 pass 外合并口），步骤 3 结构钉测继续把守、本轮全绿。
+- **开关与回退（施工图 §四口径）**：Core 新增 `ChatListSettleSingleBeatFeature`（键 `chat.list.settleSingleBeat`）——缺省（键不存在）＝单拍结清；显式置 false 即恢复 §366 拆拍原逻辑。拆拍代码本体（阶段变量 `settleClearingStage`、阶段 1 数据拍分支、`settleSplitBeatDelay` 顺延常量）以开关包裹保留、未物理删除，保留一个版本周期，量测与真机无恙后随后续步骤物理删除；设置页实验区同键开关（缺省开＝单拍、关掉恢复拆拍）；控制器另设测试覆盖口 `testSettleSingleBeatOverride`（生产恒 nil）。与删窗旗并存关系：两旗独立——单拍的绕窗资格由布局拍认领（clearingLayoutBeat）自带，与窗存废无关；两旗同置假即 §366 原形态全量复活。
+- **量测对账（ChatSwapStep4bProbeTests，ProbePhone，best-of-5 min；生产形态＝单 section＋变更集喂入；合成会话 300 行；结清账目＝滚动冻结期 6 笔喂入在槽内合成的整笔变更集：48 行改高＋改订、末笔追加 12 行；仪器＝落定拍布局失效施工计数＋采用高谱＋内容总高＋1ms 步进采样）**：
+
+  | 模式 | 结清墙钟 5 次（ms） | min（ms） | 布局施工数 | 中间态（匣落写而失效未施工） |
+  |---|---|---|---|---|
+  | 拆拍（回退形态） | 34.4／34.0／34.0／34.0／34.3 | 34.0 | 1 | 观察到（判别点成立） |
+  | 单拍结清（缺省） | 14.1／11.4／15.5／15.3／16.9 | 11.4 | 1 | 未出现 |
+
+  判读：①**墙钟不劣化、反更快**——拆拍 min 34.0ms＝数据拍＋30ms 顺延常量＋布局拍的地板；单拍 min 11.4ms 是全链一拍的实付（整笔 312 行变更集 apply＋300 行全量 pass，与 §374.3 单 section pass 量级口径相符），省掉的是顺延与一拍的固定开销，结清滞后自「停滚后约两拍＋30ms」降为一拍内。②**终态逐值同**——两态采用高谱与喂入谱逐值全同（48 改行 120＋行序、余 80、追加 12 行）、内容总高两态同值 35496.0、行数 312 两态同；布局施工两态恰一次（含结清后 0.35s 观察窗无第二拍补施工）。③**流式落定全链**——结清拆拍只在停滚落写口武装，流式落定链（发布闸→落定）不经本口，其终态等价由 S5 ② 流式生长等价测在本轮缺省单拍模式下以修前同断言全绿＋StreamingBlockProductTests 13/13、StreamingIncrementalEquivalenceTests 12/12 把守，本探针的结清终态对账是结清相自身的等价证据，两面合围。
+- **验收记账（2026-11-23，实验室口径；聚焦轮 13/13 全绿；回归轮 192 项：189 过、3 红、0 跳过、新红零）**：新套 ChatSwapStep4bProbeTests 1/1＋ChatSwapStep4bStructureTests 2/2（开关口径／穿线／拆拍本体保留把守）；ChatSettleScopeS5Tests 7/7——拆拍测经覆盖口钉回拆拍模式（拆拍在开关包裹下保留、其语义仍由本测把守，测内注记＋文件头 §374.5 注），新增单拍测在缺省模式同场景断言同拍结清（匣落写同拍失效已施工＋结清后无第二拍），窗合并／参数直通两测仍钉旧窗模式（第 ① 件口径、与本件无关），余测两模式同断言；BottomFollowTests 41/41＋BottomFollowTriggerTests 1/1；Core 合计 76/76（StreamPublishGateTests 9/9 含）；「布局失效不在 apply 同步链内执行」结构钉测（ChatSwapStep3StructureTests 3/3）全绿；S371 1/1、S373 2/2 全绿；步骤 1–4① 各套（变更集／等价矩阵／§329 压测／探针／spike／结构／删窗探针与结构）与 R3/R4 装配、行高拟合、量测台、Hotfix330、落定结转、重入、跟随源、未读分界、右滑桥、抽屉 S365 两套、S2 等价、ChatPage 装配同轮全过。3 红恰在案基线三件逐名同（ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed＋ChatPageAssemblyRegressionTests 的 testKeyboardUpMovesComposerOnlyDockStays；三测断言失败合计 7 条、与基线签名同），非本包引入。
+- **未删两件在册状态**：③ 抽屉动画期冻结（§366 ③）——在册未动，归步骤 4 第 ③ 件（删；增量应用成本已降、动画期直用为判据）；④ 滚动闸（§325.2）——在册未动，归第 ④ 件（降级为施工图对位 #8 的过渡记账规则，保留与否由第 ④ 件帧量测裁决）。第 ① 件窗本体与本件拆拍本体均在开关包裹下保留，物理删除随后续版本周期另行成包。
+- **真机门（留组版）**：停滚后内容落定手感（结清滞后自两拍＋30ms 降为一拍的体感）、流式中滑动停滚结清的跟手度、长会话停滚结清帧率——实验室 EmptyView 口径不外推真实内容，归组版后真机 verdict。
 ## §375 手感快速项 F1/F2（2026-11-23，feel-audit-20261123 队列 F1/F2 落地）（原拟号 §374，与换引擎 §374 撞号，组版 0.50.96 时顺延 §375）
 
 ### §375.1 病灶（审计实测，ProbePhone 同口径 best-of-5）

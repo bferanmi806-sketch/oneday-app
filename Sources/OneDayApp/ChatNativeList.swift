@@ -1085,6 +1085,10 @@ final class ChatRootViewController: UIViewController,
     /// 时落定拍删窗判定认本口不认全局开关——窗语
     /// 义钉测/量测探针用；生产恒 nil）
     var testCoalesceWindowDropOverride: Bool?
+    /// §374.5 测试口：停滚结清单拍结清覆盖（非 nil
+    /// 时停滚落写口单拍判定认本口不认全局开关——
+    /// 拆拍语义钉测/量测探针用；生产恒 nil）
+    var testSettleSingleBeatOverride: Bool?
     /// §325.2：布局参数变更的失效记账（apply 只记
     /// 账、落定拍 pass 外合并施工，见 apply 注）
     private var pendingLayoutInvalidation = false
@@ -1109,7 +1113,10 @@ final class ChatRootViewController: UIViewController,
     /// 全几何变、不许等窗，落定拍见此账立即施工）
     private var pendingLayoutInvalidationUrgent = false
     /// §366：停滚结清拆拍阶段（0＝常态；1＝下一拍
-    /// 只落数据；2＝紧接一拍落布局／量测／落位）
+    /// 只落数据；2＝紧接一拍落布局／量测／落位）。
+    /// §374.5：单拍结清缺省成立——停滚落写口直
+    /// 接武装 2，落定拍认领后一拍走全链结清；拆
+    /// 拍只在回退开关置假时经武装 1 复活
     private var settleClearingStage = 0
     /// §366：抽屉运动窗冻结记账（窗内落定拍只记
     /// 账、窗末唤醒拍合并施工；唤醒拍以本旗标认
@@ -2609,6 +2616,15 @@ final class ChatRootViewController: UIViewController,
     private func coalesceWindowDropped() -> Bool {
         testCoalesceWindowDropOverride
             ?? ChatListCoalesceWindowDropFeature
+                .isEnabled()
+    }
+
+    /// §374.5：停滚结清是否单拍结清（测试覆盖口
+    /// 优先、生产认 Core 开关；开关缺省＝单拍结
+    /// 清，置假恢复 §366 拆拍）
+    private func settleSingleBeat() -> Bool {
+        testSettleSingleBeatOverride
+            ?? ChatListSettleSingleBeatFeature
                 .isEnabled()
     }
 
@@ -4146,8 +4162,14 @@ final class ChatRootViewController: UIViewController,
         guard settleDeferredDuringScroll else { return }
         settleDeferredDuringScroll = false
         // §366：停滚结清拆两拍——本回调武装阶段 1，
-        // 落定拍先落数据、布局账顺延紧接的布局拍
-        settleClearingStage = 1
+        // 落定拍先落数据、布局账顺延紧接的布局拍。
+        // §374.5（步骤 4②）：单拍结清缺省成立——
+        // 直接武装阶段 2，落定拍认领布局拍后一拍
+        // 走全链（落数据＋触摸重配＋布局失效施工
+        // ＋量测／落位）结清全部待结账目、不再拆
+        // 拍顺延；回退开关置假才恢复武装阶段 1 的
+        // 拆拍原路（拆拍本体以开关包裹保留）
+        settleClearingStage = settleSingleBeat() ? 2 : 1
         scheduleSettle()
     }
 

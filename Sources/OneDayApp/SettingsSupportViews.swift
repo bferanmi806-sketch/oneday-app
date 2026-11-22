@@ -396,6 +396,14 @@ struct AboutView: View {
         ChatListCoalesceWindowDropFeature.defaultsKey
     )
     private var chatListDropCoalesceWindow = true
+    /// §374.5（换引擎步骤 4②）停滚结清单拍结清
+    /// 开关（与控制器同键同源，缺省开＝单拍结
+    /// 清；关掉即恢复 §366 停滚结清拆拍，一个
+    /// 版本周期的回退口）
+    @AppStorage(
+        ChatListSettleSingleBeatFeature.defaultsKey
+    )
+    private var chatListSettleSingleBeat = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -467,6 +475,19 @@ struct AboutView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Text(L10n.string("默认开启：落定拍布局失效不再攒 150ms 时间窗、见账即施工，流式行高采纳跟发布节拍；关掉即恢复时间窗合并（回退口）。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Toggle(isOn: $chatListSettleSingleBeat) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("聊天列表停滚结清单拍"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：停滚后落定拍一拍内结清全部待结账目（数据、布局、量测与落位），不再拆数据拍/布局拍两拍；关掉即恢复拆拍结清（回退口）。"))
                         .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                 }
