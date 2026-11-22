@@ -14540,3 +14540,22 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 ### §355.4 验收与未验项
 - 实验室：GrantsContractTests（清单双源解码/partial/rule_id 宽容/请求组装/回执别名集/分类矩阵/回读判定，对 B1–B7 字面）＋审批相邻回归套件。
 - 未验（如实）：真机对真服务端全链未跑——进页真拉清单、exec 真撤销后回读消失、撤后同命令重新撞批（服务端 B7 已验、App 侧未复跑）；演示模式下本区走 demoLimitReached 的呈现未专项验（与其它网关面同口径）。
+
+## §356 SpeechPlayer 隔离补丁正式成包（台账 16 关账，2026-11-22；基线 rel-05089，分支 feat/speechplayer-closeout）
+
+### §356.1 探活三档（逐条对 rel-05089 现状核实）
+- **已成**：①隔离补丁本体在树且形态正式——`AVSpeechAudioEngine` 类声明不带 conformance、一致性走 `extension AVSpeechAudioEngine: @MainActor SpeechAudioEngine {}`；两回调闭包为 `@MainActor` 属性；AVAudioPlayerDelegate 两回调留在非隔离上下文、只经 `Task { @MainActor }` 跳回；打断观察者 `nonisolated(unsafe)` 供 deinit 移除。源流：合流树未提交改动经 a1738fe 收编为 D1 基线、随 0.50.78 出货、历版沿用至今。②朗读全链真可用：speak 真接口（performAdmin＋client.speak）、voice-config 回读判定可用性（配置证伪定未开通、拉不到保持未知不造假，H2-a 纪律）、状态机 Core 单源（SpeechPlaybackMachine）、D1 暂停/继续随 0.50.79 出货。③SpeechPlayerTests 12 用例在发布验证集内；DTO/可用性/状态机纯逻辑由 OneDayCoreTests.VoiceSpeechTests 钉。④已提交 xcstrings 干净：Localizable 3254 键、InfoPlist 13 键，仓库紧凑格式、无空键与提取噪声键（唯一格式串键 `%@%@` 为 manual 三语正经条目）。
+- **未成（本包补齐）**：①DESIGN 无本补丁正式记载（全文检索 "SpeechPlayer" 零命中，口径只散见代码注释与提交信息）→ 本节补齐。②隔离契约缺运行时钉测：既有 12 用例全走 FakeEngine、只钉编排面；生产引擎 delegate 回调程（非隔离入口→跳主隔离→闭包落账）从未覆盖 → §356.2 补钉。③xcstrings 脏改动实存一处（见 §356.3）。
+- **口径已变**：台账原文记「合流树 xcstrings 脏改动」——实查合流树（oneday-05081）工作区已干净，唯一实存脏改动在 oneday-baseline（0.50.77 组版树）工作区；按实存处置、本节留痕。转写/voice-live 按用户 2026-11-20 定版不开，不在本包范围。
+
+### §356.2 成包动作（本包落码，SpeechPlayer.swift 本体零改动）
+- 新增钉测套件 `SpeechEngineCallbackIsolationTests`（与 SpeechPlayerTests 同文件）：最小可解码 WAV（8kHz/16bit 静音）构造生产引擎 `AVSpeechAudioEngine`，delegate 两方法直调（实现只读 flag、不读 player 本体、不真出声）——断言 ①播完成功只落 onNaturalFinish 且执行于主线程；②播完失败落 onPlaybackFailure 人话「这次朗读没成功。」；③解码错误同落失败人话。补丁契约自此编译期（Swift 6 严格并发：无隔离形态必编译挂）＋运行时双钉。
+- 红线自检：未碰 ChatView（手势/流式/底部栏结构零接触，§354 热修面不动）；未给任何系统回调闭包加 actor 隔离继承；无授权面改动。
+
+### §356.3 xcstrings 脏改动清理（如实定性与处置）
+- 实存：oneday-baseline 树未提交改动两文件——Localizable 约 9.7 万行、InfoPlist 414 行。逐项核对定性为 **Xcode 打开/构建工程的自动重写、零人工语义**：格式重排（`"k" : v` 间距＋键序）＋元数据增生（Localizable 61 键多 `extractionState:"stale"`、InfoPlist 8 键多 `comment` 字段，译文 value 逐字一致）＋提取新键（Localizable 空键/`$ %@`/`%@` 等字面量键、InfoPlist 的 CFBundleDisplayName/CFBundleName；这些键在 rel-05089 均不存在，属旧树代码形态的提取物）。
+- 处置：脏 diff 全量备份为 patch（Mac `~/build/xcstrings-baseline-dirty-backup-20261122.patch`，123302 行）后，该树两文件 checkout 还原至其 HEAD；清理后全机 30 棵 oneday-* 树复扫，xcstrings 未提交改动归零。本树（oneday-speech）经 tuist generate＋两轮构建后 git status 实测：xcstrings 未被改写（generate 只动 Derived 版本戳副产物、已还原）。
+
+### §356.4 验收与未验项
+- 实验室：Test-OneDayApp-speech-closeout.xcresult——SpeechPlayerTests 12/12＋SpeechEngineCallbackIsolationTests 3/3，全绿。回归：Test-OneDayApp-speech-regression.xcresult——BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9、ChatNativeFollowSourceTests 8/8，全绿。（注：任务简报点名的 ChatScrollFollowTests/NoticePresentationTests 两套在本树与 rel-05086 均无此类——git grep 双基线零命中；滚动跟随的实存覆盖即 BottomFollow 两套＋ChatNativeFollowSourceTests、提示呈现即 ChatNoticeTests，按实存回归并在此留痕。）
+- 未验（如实）：真机朗读全程（点播/暂停续播/打断暂停/播放条观感）仍待用户真机门，与台账 5（D1）真机终验同批；本包实验室绿不替代真机 verdict。

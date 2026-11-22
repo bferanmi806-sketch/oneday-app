@@ -1,3 +1,4 @@
+import AVFoundation
 import XCTest
 import OneDayCore
 @testable import OneDayApp
@@ -353,3 +354,107 @@ final class SpeechPlayerTests: XCTestCase {
 
 /// 假引擎的一致性同样隔离在主 actor（与生产引擎同口径）
 extension SpeechPlayerTests.FakeEngine: @MainActor SpeechAudioEngine {}
+
+/// 真引擎回调隔离钉测（台账 16 成包，DESIGN §356）：
+/// 补丁契约的运行时半边——AVAudioPlayerDelegate 回
+/// 调（非隔离入口）只许经 Task 跳回主隔离执行 @Main-
+/// Actor 闭包；编排面的用例全走 FakeEngine，从未覆
+/// 盖生产引擎这程。delegate 方法直调（实现只读
+/// flag、不读 player 本体），不真出声。
+@MainActor
+final class SpeechEngineCallbackIsolationTests: XCTestCase {
+
+    /// 最小可解码 WAV：8kHz/16bit/单声道静音 0.05 秒
+    private func silentWAV() -> Data {
+        var data = Data()
+        let sampleRate: UInt32 = 8000
+        let frames: UInt32 = 400
+        let byteRate = sampleRate * 2
+        let dataSize = frames * 2
+        func appendASCII(_ string: String) {
+            data.append(contentsOf: string.utf8)
+        }
+        func appendU32(_ value: UInt32) {
+            var little = value.littleEndian
+            withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
+        }
+        func appendU16(_ value: UInt16) {
+            var little = value.littleEndian
+            withUnsafeBytes(of: &little) { data.append(contentsOf: $0) }
+        }
+        appendASCII("RIFF")
+        appendU32(36 + dataSize)
+        appendASCII("WAVE")
+        appendASCII("fmt ")
+        appendU32(16)
+        appendU16(1)
+        appendU16(1)
+        appendU32(sampleRate)
+        appendU32(byteRate)
+        appendU16(2)
+        appendU16(16)
+        appendASCII("data")
+        appendU32(dataSize)
+        data.append(Data(count: Int(dataSize)))
+        return data
+    }
+
+    /// 等闭包在主隔离落账（回调经 Task 跳转，轮询让行）
+    private func waitForFlag(
+        _ flag: @escaping () -> Bool,
+        file: StaticString = #filePath, line: UInt = #line
+    ) async {
+        for _ in 0..<200 {
+            if flag() { return }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        XCTFail("回调闭包未在主隔离执行", file: file, line: line)
+    }
+
+    func testFinishSuccessfullyHopsToMainActorClosure() async throws {
+        let wav = silentWAV()
+        let engine = try AVSpeechAudioEngine(data: wav)
+        let player = try AVAudioPlayer(data: wav)
+        var finished = false
+        var finishedOnMain = false
+        var failedMessage: String?
+        engine.onNaturalFinish = {
+            finished = true
+            finishedOnMain = Thread.isMainThread
+        }
+        engine.onPlaybackFailure = { failedMessage = $0 }
+        engine.audioPlayerDidFinishPlaying(
+            player, successfully: true
+        )
+        await waitForFlag { finished }
+        XCTAssertTrue(finishedOnMain)
+        XCTAssertNil(failedMessage)
+    }
+
+    func testFinishUnsuccessfullyRoutesToFailure() async throws {
+        let wav = silentWAV()
+        let engine = try AVSpeechAudioEngine(data: wav)
+        let player = try AVAudioPlayer(data: wav)
+        var finished = false
+        var failedMessage: String?
+        engine.onNaturalFinish = { finished = true }
+        engine.onPlaybackFailure = { failedMessage = $0 }
+        engine.audioPlayerDidFinishPlaying(
+            player, successfully: false
+        )
+        await waitForFlag { failedMessage != nil }
+        XCTAssertEqual(failedMessage, "这次朗读没成功。")
+        XCTAssertFalse(finished)
+    }
+
+    func testDecodeErrorRoutesToFailure() async throws {
+        let wav = silentWAV()
+        let engine = try AVSpeechAudioEngine(data: wav)
+        let player = try AVAudioPlayer(data: wav)
+        var failedMessage: String?
+        engine.onPlaybackFailure = { failedMessage = $0 }
+        engine.audioPlayerDecodeErrorDidOccur(player, error: nil)
+        await waitForFlag { failedMessage != nil }
+        XCTAssertEqual(failedMessage, "这次朗读没成功。")
+    }
+}
