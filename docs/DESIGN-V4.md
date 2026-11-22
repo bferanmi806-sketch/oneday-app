@@ -14669,3 +14669,28 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 - 钉测 RowIncrementalEquivalenceS2Tests 8/8：①等价矩阵（富条目基段／全修订逐值同＋六类行备忘键穿线与旧现算逐字同＋facet 派生直取与 EntryScanMemo 现算同值）；②逐字段敏感性 32 项突变逐项验「快照变＋备忘失效＋修订变＋与全量路同值」；③环境尾段不触发重建；④流式逐拍生长等价（每拍恰一次重建）；⑤编辑重发同 id 换对象重建不吃旧账；⑥回填稳态全命中零重建＋prune 后重建仍等价；⑦计数对账（稳态趟 300 命中 0 重建）；⑧成本量测（下条）。
 - 成本量测（同机自校准、模拟器相对值；合成会话 300 条／606,375 字节，best-of-5）：全量趟（修前口径 entryBase＋entryMemoKey 旧现算）32,702µs；增量稳态趟 8,216µs（约 4.0×）；单行变化趟 8,450µs（≈稳态＋一行全量）。文本量对照（同行数、文本 ×4／约 2.4MB）：全量趟 84,372µs（随文本量涨 2.6×），增量稳态趟 8,063µs（与基线持平、实证与文本量脱钩）。绝对值只作相对对账，真机 hitch 率以探活报告第四节补测＋真机 verdict 为准，实验室绿不替代。
 - 回归共 140 项：新套件 8/8（Test-OneDayApp-s2suite1）＋回归 132 项（Test-OneDayApp-s2regB）130 过、2 红——红为 ChatNativeListR2AssemblyTests 的 testBlockClosureKeepsSegmentInExactlyOneItem／testComposerNotificationFollowAndSnapshotFeed，已在未改动的 rel-05090 基线树单套复跑对证（同套 5 项同 2 红、失败断言逐字同），系基线老红、非本包引入（与在案 CI 基线红集 R2Assembly 2 件吻合）。逐套：ImageDecodeCacheS1Tests 5/5、ChatLagFeedLayerTests 7/7、ChatNativeListAssemblyTests 7/7、ChatNativeListR2AssemblyTests 3/5（基线 2 红）、ChatNativeListR3AssemblyTests 5/5、ChatNativeListR4AssemblyTests 3/3、ChatNativeMeasureDeskTests 9/9、ChatNativeRowHeightFittingTests 10/10、ChatNativeRowHeightProductionChainTests 1/1、ChatNativeFollowSourceTests 8/8、ChatNativeHotfix330Tests 10/10、ChatUnreadDividerAssemblyTests 4/4、MessageReactions187Tests 7/7、BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9。测试通道与在飞配对包共用、两轮被对方 kickstart 抢道杀跑后于空窗完成，run 名：smooth-s2-suite1／smooth-s2-regB／baseline-r2-check。
+
+## §365 抽屉打开卡顿修复：桥等值守卫＋打开刷新落定后落写（调研 D1/D2，2026-11-22；基线 rel-05091，分支 feat/drawer-open-jank）
+
+### §365.1 病灶（调研实证，jank-drawer-chat-recon-20261122 问题一）
+- D1（强）：桥 apply(to:) 无等值守卫——ContentView 每次求值（含开/关语义翻转本身）都无条件重赋 contentRoot 与 drawerBuilder，后者 didSet 即 rebuildDrawerRoot() 把整个 DrawerView 树（含 @Query 名单）重建一次。动画机器本身已对齐成熟做法（transform 单写口、弹簧、shadowPath 守卫、宿主常驻），卡顿不在动画、在开启动作的「随行行李」：动画第一帧之前主线程先付双宿主根重建账。
+- D2（强）：DrawerView 的 onChange(of: drawerPresented) 在 presented 翻真拍即发两路数据拉取（sessionLedger.refreshVisible＋refreshIdentitySurfaces），两路完成发布正落在 0.27s 动画窗内，名单/页头在滑动途中重渲染。问题是时机不是功能——「每次打开必刷、不许显旧身份」的产品口径成立，要改的是发布落点。
+
+### §365.2 对位（成熟做法全件，调研报告问题一①）
+- 全件 2「菜单/面板内容是装一次的常驻视图，开合只是揭示、不重建内容树」（SideMenu 菜单由 Manager 持引用按普通 VC 呈现；FloatingPanel set(contentViewController:) 装入后常驻）→ D1 修法：宿主根只在真变时赋值。
+- 全件 3「打开瞬间零数据工作」（SideMenu/FloatingPanel 呈现路径无任何数据动作；Element X 时间线手势期冻结数据落写、手势结束才应用）→ D2 修法：刷新触发移到落定拍，落定后落写。
+
+### §365.3 修法
+- D1 容器侧：drawerBuilder 改「存而不建」——didSet 只存新闭包、不再触发 rebuildDrawerRoot；抽屉根重建时机收敛为唯一一处：viewDidLayoutSubviews 里 travel 真变时（含首次布局 0→travel 的建立拍，生产与既有测试装配都走此路）。依据：rebuildDrawerRoot 本就以 travel 为唯一入参，根视图内容与 travel 之外无依赖；闭包捕获的 selection 是 Binding、环境是对象引用，根视图读到的恒为最新值，存而不建不丢任何更新。容器另立两个只读计数口 drawerRootRebuildCount／contentRootApplyCount（与 semanticPresented／travel 同为容器可观测面），供钉测对账「开合全程重建次数＝预期值」。
+- D1 桥侧：apply(to:) 加输入指纹等值守卫。AnyView 与闭包本体不可比，比对落在「造视图的全部输入」上：DrawerBridgeFingerprint＝appState 对象身份＋modelContext 对象身份＋locale 标识＋reduceMotion＋当前选择页签；与控制器落账的上次指纹相等即整次 apply 跳过（两宿主根不重赋、四回调不重绑），任一输入真变才整笔重刷。onOpenChannel 闭包不入指纹：它只写 ContentView 的 @State（身份存储、跨求值同体），新旧闭包写同一存储，跳过不丢；selection 以当前值入指纹（页签真变时重刷，保 builder 捕获的初值口径与修前同）。开合对账不在 apply 内（updateUIViewController 在 apply 后独立比对 semanticPresented 执行 setDrawer），守卫不影响开合执行。
+- D1 预期（钉测口径）：装配完成后一次完整开→关→开全程，drawerRootRebuildCount 恒定（只在首次布局建立时 +1）、contentRootApplyCount 恒定（只在 make 时 +1）；指纹输入真变（页签切换）时各再 +1。
+- D2 落定信号：容器 finishSettle 是开合两路的唯一收口（瞬时路与 animator 完成回调都经它、拖拽落位经 setDrawer 归一），在此新增 onDrawerSettled 回调；桥接回 AppRouter.noteDrawerSettled(open:)——只在 open 落定时把可观察计数 drawerOpenSettledCount +1，关落定不触发打开刷新。
+- D2 触发点迁移：DrawerView 的两路拉取从 onChange(of: drawerPresented) 的 presented 支整支迁到 onChange(of: drawerOpenSettledCount)；原 onChange 只余关沿搜索词复位（DrawerSearchPolicy.shouldResetQuery 裁决与入参不变）。其余既有刷新路一律不动：onAppear 预取（!hasLoaded 时）、回前台重拉、drawerRefreshTick 令牌。
+- D2 新鲜度等价口径：名单本体是本地 @Query，打开第一帧呈现的即现行本地数据（与修前同）；两路拉取的发起从翻转拍移到落定拍（动画 0.27s 量级），结果发布随之退出动画窗——修前结果同样须等往返、落点多在窗内或窗后，落定后用户所见名单/页头新鲜度与修前同级；「不许显旧身份」不破（身份重拉仍每次打开必发、节流仍在 AppState 内）。Reduce Motion／瞬时开合时 finishSettle 与翻转同拍，行为与修前逐字同。
+- D3 留痕（不做）：抽屉侧文件内无干净串行化点——全文件键盘触点只有 setDrawer 开头的 resignKeyboard 一次 sendAction，容器与 DrawerView 均无键盘帧观察口；串行化（等键盘退场完再起弹簧）须新造键盘观察机制、且会延迟开启动作偏离参照形态，量级又未测（调研报告问题一⑤键盘起/落分态矩阵归真机补测）。本包不臆造，待真机数字再议。D4/D5 不碰；聊天落定拍冻结归 §366 线，本包不碰 ChatNativeList。
+
+### §365.4 验收（实验室口径）
+- 钉测全绿（bundle Test-OneDayApp-drawerfix365.xcresult，run drawerfix365）：DrawerOpenJankS365Tests 2/2（①桥级全链开→关→开：双宿主根计数全程恒定、只在首次布局/make 各 +1；开落定计数 0→1、关落定不计、再开 →2；打开动画走完到 travel。②指纹路：页签真变 apply 重跑、内容根 +1，抽屉 builder 只存不建、根重建恒定，落定计数不动）＋DrawerSettleSignalS365Tests 2/2（③容器级：builder 赋值零重建、travel 真变拍才以最新 builder 重建且旧 builder 不再被调。④落定回调：瞬时路同拍回写、动画路在途不抢报、落定后回写）。
+- 回归共 97 项 96 过 1 红（同 bundle，17 套）：DrawerContainerControllerTests 19/19、AppRouterTests 11/11、ComposerGuideHostTests 10/10、TopBarHitIntermittentTests 10/10、DeleteCloseoutTests 8/8、DrawerMuseMetricsTests 7/7、DrawerSafeAreaRealRootTests 5/5、TabBarFloatTests 4/4、HapticsMatrixTests 4/4、DrawerDeferredNavigationAssemblyTests 3/3、DrawerRigidBodyTests 3/3、ShellBgStructureProbeTests 3/3、ChatPageAssemblyRegressionTests 3/4、DrawerMotionProbeTests 1/1、DrawerBridgeHarnessTests 1/1、新套件 2/2＋2/2。
+- 唯一红＝ChatPageAssemblyRegressionTests.testKeyboardUpMovesComposerOnlyDockStays（断言：键盘升起后输入舱未跟随上移＋定位不到键盘帧）：本包树两跑同签名（13.17s／13.19s，含单项复跑 drawerfix365-rerun-kbd）、未改动的 rel-05091 基线树单跑同签名同断言逐字一致（13.33s，run baseline05091-kbd-check）——基线既有红（模拟器软件键盘呈现的环境敏感项），非本包引入，不在本包修。
+- 真机门：调研报告问题一⑤场景矩阵（开抽屉 ×{按钮、左缘手势}×{键盘起、键盘落}×{聊天静止、流式中}各 5 次，动画窗 hitch 按 WWDC20 口径判读；热点符号不应再命中 rebuildDrawerRoot／refreshVisible 发布）归用户真机 verdict；实验室绿不关账。
