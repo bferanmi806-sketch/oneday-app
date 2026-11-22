@@ -320,6 +320,22 @@ final class AppRouter {
         }
     }
 
+    /// 抽屉开落定计数（§365 D2）：容器 finishSettle
+    /// 经桥喂入（noteDrawerSettled），只记开落定——
+    /// DrawerView 的打开刷新（账本可见段＋身份重拉）
+    /// 触发点自语义翻转拍迁到此计数：完成发布退出
+    /// 0.27s 动画窗、名单/页头不在滑动途中重渲染
+    /// （调研 D2 定因）
+    private(set) var drawerOpenSettledCount = 0
+
+    /// 抽屉落定喂入（容器桥）：关落定不触发打开刷
+    /// 新、不计数
+    func noteDrawerSettled(open: Bool) {
+        if open {
+            drawerOpenSettledCount += 1
+        }
+    }
+
     /// 搜索落点请求（台账 150）：会话搜索命中点按时
     /// 与 pendingChatSessionID 同行置位（先置本两
     /// 件、后置 id，与 pendingChatChannelID 同式），

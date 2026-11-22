@@ -4,6 +4,21 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+/// 桥 apply 的输入指纹（§365 D1 等值守卫）：两个
+/// 宿主根视图与四回调的全部造料——环境对象身份
+/// （AppState/ModelContext）＋locale 标识＋Reduce
+/// Motion＋当前选择页签。指纹不变即桥两侧产物必
+/// 同，整次 apply 可跳过。onOpenChannel 不入指纹
+/// （只写 ContentView 的 @State 身份存储、新旧闭
+/// 包写同一存储，见 §365.3）
+struct DrawerBridgeFingerprint: Equatable {
+    var appState: ObjectIdentifier
+    var modelContext: ObjectIdentifier
+    var localeIdentifier: String
+    var reduceMotion: Bool
+    var selection: ContentView.MainTab
+}
+
 /// 抽屉容器（§156，用户 2026-11-11 20:58 亲递方案定
 /// 调）：外层容器换 UIKit，现有 SwiftUI 页面与底栏
 /// 一字不动。取代 0.17.0 的 SwiftUI 覆盖式 Drawer-
@@ -177,6 +192,21 @@ struct DrawerContainer<Content: View>: UIViewControllerRepresentable {
         let appState = appState
         let modelContext = modelContext
         let locale = locale
+        // §365 D1 等值守卫：AnyView/闭包本体不可比——
+        // 以「造视图的全部输入」指纹对账，与上次落账
+        // 相等即整次跳过（开合翻转本身不再重建双宿主
+        // 根，调研 D1 定因）；开合对账在本函数外独立
+        // 执行、不受守卫影响
+        let fingerprint = DrawerBridgeFingerprint(
+            appState: ObjectIdentifier(appState),
+            modelContext: ObjectIdentifier(modelContext),
+            localeIdentifier: locale.identifier,
+            reduceMotion: reduceMotion,
+            selection: selection
+        )
+        guard controller.lastAppliedFingerprint != fingerprint
+        else { return }
+        controller.lastAppliedFingerprint = fingerprint
         controller.reduceMotion = reduceMotion
         // 台账 147：呈现进度与关打断回写 Router 的
         // 延迟导航喂入口（判定在 Core 状态机）
@@ -185,6 +215,11 @@ struct DrawerContainer<Content: View>: UIViewControllerRepresentable {
         }
         controller.onDrawerCloseInterrupted = {
             appState.router.noteDrawerCloseInterrupted()
+        }
+        // §365 D2：落定回写 Router（打开刷新自此只在
+        // 开落定时触发、退出动画窗，见 DrawerView）
+        controller.onDrawerSettled = { open in
+            appState.router.noteDrawerSettled(open: open)
         }
         controller.drawerBuilder = { width in
             AnyView(
@@ -241,17 +276,33 @@ final class DrawerContainerController: UIViewController,
     var onDrawerCloseInterrupted: (() -> Void)?
     /// 抽屉根视图 builder（桥注入；travel 变化时容器
     /// 以新宽重取根视图，闭包内回调恒取最新桥状态）
-    var drawerBuilder: ((CGFloat) -> AnyView)? {
-        didSet { rebuildDrawerRoot() }
-    }
-    /// 内容根视图（桥注入；赋值即刷进内容宿主）
+    /// §365 D1：赋值只存不建——根重建唯一时机是布局
+    /// 里 travel 真变（rebuildDrawerRoot 以 travel 为
+    /// 唯一入参；闭包捕获的 Binding/环境恒为活引用，
+    /// 存而不建不丢更新）；旧 didSet 无条件重建是开
+    /// 合翻转自带整树重建的定因（调研 D1）
+    var drawerBuilder: ((CGFloat) -> AnyView)?
+    /// 内容根视图（桥注入；赋值即刷进内容宿主；桥侧
+    /// 由 §365 指纹守卫把关，容器侧赋值语义不变）
     var contentRoot: AnyView? {
         didSet {
             if let contentRoot {
                 contentHost.rootView = contentRoot
+                contentRootApplyCount += 1
             }
         }
     }
+    /// 桥上次 apply 的输入指纹（§365 D1 对账面；桥
+    /// 写、容器只存）
+    var lastAppliedFingerprint: DrawerBridgeFingerprint?
+    /// 抽屉根实际重建次数（§365 钉测对账口：只在
+    /// rebuildDrawerRoot 真正落笔时 +1）
+    private(set) var drawerRootRebuildCount = 0
+    /// 内容根实际刷入次数（§365 钉测对账口）
+    private(set) var contentRootApplyCount = 0
+    /// 开合落定回写（桥注入；§365 D2——finishSettle
+    /// 是开合两路的唯一收口，落定事实只从这里出）
+    var onDrawerSettled: ((Bool) -> Void)?
 
     private let drawerHost = UIHostingController<AnyView>(
         rootView: AnyView(EmptyView())
@@ -475,6 +526,7 @@ final class DrawerContainerController: UIViewController,
     private func rebuildDrawerRoot() {
         guard travel > 0, let drawerBuilder else { return }
         drawerHost.rootView = drawerBuilder(travel)
+        drawerRootRebuildCount += 1
     }
 
     /// 外观（浅/深）切换：阴影口径随外观分叉（第 78
@@ -740,6 +792,10 @@ final class DrawerContainerController: UIViewController,
         // >0、恒保持关闭
         contentHost.view.isUserInteractionEnabled = offset <= 0
         syncAccessibility(open: open)
+        // §365 D2：落定事实回写（桥接 Router 的开落
+        // 定计数；DrawerView 的打开刷新自此只在此触
+        // 发、退出动画窗）
+        onDrawerSettled?(open)
     }
 
     /// VoiceOver 树切换：开态只留抽屉、关态只留内容；

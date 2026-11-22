@@ -399,27 +399,35 @@ struct DrawerView: View {
         // 11-22 抽屉量测对齐包 B 项）：编辑入口归中
         // 枢身份行档案菜单与设置·身份详情两处既有家
         // （编辑页本体 AgentAvatarEditors 不动）
-        // 开抽屉时触发账本可见段刷新（第 67 条包一：
-        // source/标题改读账本记录列；信号源＝壳层维
-        // 护的语义开合状态）。
         // §162 状态呈现收敛：关抽屉（开→关一沿，Core
         // DrawerSearchPolicy 裁决）即复位搜索词——旧
         // 行为词残留到下次打开、入口直接落在上次的
         // 过滤态，与「重开呈默认态」不是一个状态；
         // 收敛后入口状态只许一个（全量名单＋空框）
         .onChange(of: appState.router.drawerPresented) { wasPresented, presented in
-            if presented {
-                Task { await loadDrawerData() }
-                // 身份呈现跟随（末写胜包）：抽屉页头就
-                // 是名字与头像——每次打开重拉（节流在
-                // AppState 内），不许显服务器已改掉的旧
-                // 身份
-                Task { await appState.refreshIdentitySurfaces() }
-            } else if DrawerSearchPolicy.shouldResetQuery(
+            if !presented, DrawerSearchPolicy.shouldResetQuery(
                 wasPresented: wasPresented, isPresented: presented
             ) {
                 drawerQuery = ""
             }
+        }
+        // §365 D2：开抽屉的账本可见段刷新（第 67 条
+        // 包一：source/标题改读账本记录列）＋身份重拉
+        // 的触发点，自语义翻转拍迁到开落定拍——旧形
+        // 态两路在翻转即发、完成发布正落在 0.27s 动
+        // 画窗内，名单/页头在滑动途中重渲染（调研
+        // D2）；落定后落写与成熟做法「打开零数据工
+        // 作、落定才应用」同构。新鲜度口径不变：名
+        // 单本体是本地 @Query（开帧即现行数据）、身
+        // 份重拉仍每次打开必发（节流在 AppState
+        // 内），不许显旧身份不破
+        .onChange(of: appState.router.drawerOpenSettledCount) {
+            Task { await loadDrawerData() }
+            // 身份呈现跟随（末写胜包）：抽屉页头就
+            // 是名字与头像——每次打开重拉（节流在
+            // AppState 内），不许显服务器已改掉的旧
+            // 身份
+            Task { await appState.refreshIdentitySurfaces() }
         }
         // 0.7.1（裁决 §3.5 S5 预挂载）：壳层在左缘触摸
         // 按下时即挂载本面抢建树——本面出现即补拉一
