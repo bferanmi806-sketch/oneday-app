@@ -91,6 +91,12 @@ struct AppearanceView: View {
     /// 口味，见 replyPresentationSection 区脚互指）
     @AppStorage(ChatStreamingFeature.defaultsKey)
     private var streamingEnabled = true
+    /// 反应浮排（DESIGN §343）：键 chat.reactions.
+    /// floatingBar（Core ChatReactionsFloatingBar-
+    /// Feature 单一事实源），本页写、聊天页读；缺
+    /// 省开，关＝长按回系统菜单「添加反应」子菜单
+    @AppStorage(ChatReactionsFloatingBarFeature.defaultsKey)
+    private var floatingBarEnabled = true
 
     private var languagePreference: AppLanguagePreference {
         AppLanguagePreference(rawValue: appLanguageRaw) ?? .system
@@ -448,10 +454,16 @@ struct AppearanceView: View {
                     .foregroundStyle(Palette.ink)
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            Toggle(isOn: $floatingBarEnabled) {
+                Text(L10n.string("反应浮排"))
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+            }
+            .frame(minHeight: OneDayMetrics.settingsRowHeight)
         } header: {
             appearanceHeader(L10n.string("回复呈现"))
         } footer: {
-            Text(L10n.string("流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。"))
+            Text(L10n.string("流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。反应浮排管长按消息时的反应入口：开着先浮出表情排，关掉回到菜单里的「添加反应」。"))
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
         }

@@ -14182,3 +14182,34 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 - 判读：**判绿**——零稳定新增、本包改动面（发件箱策略/记账/动作面项集/drain）
   与轮换成员所涉面（手势仲裁/行高滚动链/对比度公式）零交集。合流时若主线要
   求以合流树复跑，按合流树红集再对一次本节口径即可。
+
+## §343 反应浮排第一步：长按先浮药丸排、动作仍走系统面（2026-11-22；分支 feat/reaction-floating-bar，基线 rel-05081@9b65f7e＝0.50.81/209；施工图 oneday-design-review/reaction-floating-bar-design-20261122.md）
+
+### §343.1 构造
+
+- **呈现链**：`MessageMenuModifier`（挂载点不变、仍只落非文本层与铬件，§265 纪律不动）在浮排序由成立时，内容之外加同位 `LongPressGesture`（0.35s、simultaneous 不夺触摸）——触发后经挂钩回 ChatView 呈现场：`fullScreenCover` 弹自绘 overlay＝背景压暗（黑 32%）＋原消息快照在原位抬升（阴影＋1.02 缩放）＋快照上方一排反应药丸（`ReactionFloatingBarView`）。药丸点按走既有 `data.onPickReaction` 落反应并关 overlay；点快照或空白关 overlay 并转交动作面。
+- **竞速护栏**：自家手势 0.35s 先于系统 contextMenu 识别器（约 0.5s）触发；呈现场同时置 `menuSuppressed`，本条全部挂载点的系统菜单在浮排在场期间摘除，系统识别器到拍无菜单可呈，杜绝双面同呈；浮排关后自动复位。系统菜单本体不删：未触发浮排时（含 VoiceOver 呈菜单路径）菜单内容与 0.50.80 逐字同（反应子菜单＋actionItems，`menuContent()` 单源两形态共用）。
+- **快照**：`bubble(entry)` 本体静态复刻（`allowsHitTesting(false)`、渲染走原单源不另抄样式），以挂载点全局帧（背景 GeometryReader 经 `MessageMenuFrameKey` 在背景子树内发布/订阅，嵌套挂载点不串扰）原位对齐；宽＝挂载帧宽、高自然。药丸定位走 `ReactionBarPlacement.barOrigin` 纯函数：优先上方（间距 8）、上方不足改下方；横向按气泡对齐（用户行右对齐/助手行左对齐）夹进屏幕 8pt 安全边。
+- **状态机**：Core `ReactionBarStateMachine`（idle/bar/actionSheet）——点药丸仅在 bar 阶段放行投递（`deliverReaction` 后由 `ReactionBarSession.pick` 调 `data.onPickReaction`），转交后残留点按不双投；错序事件一律忽略。选字在场让行（§152 同口径：`presentReactionBar` 先查 `rowStateLedger.textSelectionEntryID`）。
+- **行级仲裁零碰**：右滑 pan 方向锁、滚动、UITextView 选字分工未动一字；新增长按为 simultaneous 观察型，不取消任何既有识别器。
+
+### §343.2 开关与回退
+
+- 功能开关 `chat.reactions.floatingBar`（Core `ChatReactionsFloatingBarFeature`，存取与 `ChatStreamingFeature` 同口径）：缺省 true＝浮排开；显式 false＝完全回 0.50.80 形态（修饰符不挂钩、纯系统菜单＋「添加反应」子菜单）。写口在设置→外观→回复呈现「反应浮排」，回滚不发版。
+- 路由单点 `ReactionBarRouting.route(flagEnabled:canReact:)`：开关关或本条不可反应（未钉桩/未落定）一律 `.systemMenu`——不可反应条目不因本包改变呈现面。
+
+### §343.3 单源纪律
+
+- 反应集 `MessageReactions.palette`、回调 `ChatRowActionSheetData.onPickReaction`/`ownEmoji`、动作集 `actionItems()` 均未动；呈现时刻组装仍走 `ChatView.actionSheetData(for:)`（与系统菜单同一 makeData）。自己的现反应在药丸内以 `Palette.primaryTint` 底色标出（与悬挂 pill own 段同口径）；VoiceOver 标签：未点「反应：%@」、已点「你的反应：%@，点按撤回」（ChatReactionViews 既有口径）。
+
+### §343.4 缝与已知缺口（真机门重点）
+
+- **转交面缝**：SwiftUI/UIKit 无程序化呈系统 contextMenu 的 API——点快照/空白的转交落为系统动作表（`confirmationDialog`，cover 关净后经 onDismiss 呈），动作项/序/危险色与系统菜单逐项同（actionItems 单源），但呈现形态是底部动作表而非浮动菜单、项无图符。此缝即施工图第一步预登记的风险点：真机看衔接是否露馅，露馅则按施工图进第二步（整面自绘）评估。
+- **触感缺口**：系统菜单呈现自带触感，浮排手势路无等价触感（本步未新增 Haptics 调用点——触感矩阵计数门纪律，不为本包改期待值）；真机若觉「按了没反馈感」再议。
+- **快照为复刻非位图**：流式行长按时快照是当拍复刻的活渲染（hit-testing 关、不可交互），内容随流更新属预期；静态行与原行逐像素同源。
+
+### §343.5 验收
+
+- 实验室：新套件 `ReactionFloatingBarTests` 8 件（开关口径/路由四格/修饰符装配形态/状态机全迁移＋错序/会话投递单点＋转交后禁投/定位四格）全过；回归集 SwipeReplyPanBridgeTests＋MessageActionsTests＋ChatNativeHotfix330Tests＋HapticsMatrixTests＋VisualDirectionGateTests 同轮合计 **49 passed / 0 failed**（xcresult Test-OneDayApp-2026.11.22_09-09-37）。
+- 真机门（留用户，施工图 §四）：①药丸位置与 Muse 对照 ②点反应一步落锤 ③转交动作面无闪跳（§343.4 缝）④右滑/竖滑不回退 ⑤深色＋最大字号各一帧 ⑥流式行长按可用。任一不过：关开关回子菜单形态，本包不阻塞组版。
+- 文案新键（「反应浮排」「反应：%@」「消息动作」等）走 L10n 源串键，en/繁体待补（与 D10 既登记口径同）。

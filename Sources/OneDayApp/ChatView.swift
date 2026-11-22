@@ -590,6 +590,19 @@ struct ChatView: View {
     /// 键→落定条目的同键沿用记账，会话内不落盘）
     @AppStorage(ChatStreamingFeature.defaultsKey)
     private var gen4StreamingEnabled = true
+    /// 反应浮排开关（DESIGN §343；Core ChatReactions-
+    /// FloatingBarFeature 单一事实源，缺省开）：设置
+    /// →外观→回复呈现写、本页 messageMenu 读；关＝
+    /// 长按回 0.50.80 系统菜单子菜单形态
+    @AppStorage(ChatReactionsFloatingBarFeature.defaultsKey)
+    private var floatingBarEnabled = true
+    /// 反应浮排会话（一次长按一份；nil＝无浮排）
+    @State private var reactionBarSession: ReactionBarSession?
+    /// 浮排转交的动作面数据（浮排关净后呈动作面；
+    /// 动作集仍走 actionItems 单源）
+    @State private var pendingReactionActionData:
+        ChatRowActionSheetData?
+    @State private var showReactionActions = false
     @State private var streamSettleMap = StreamingSettleMap()
     /// 0.6.0：通知 sheet（顶栏铃铛点开，总览桥驱动）
     @State private var showNotifications = false
@@ -1079,6 +1092,41 @@ struct ChatView: View {
                     items: session.items,
                     initialIndex: session.initialIndex
                 )
+            }
+        }
+        // 反应浮排（DESIGN §343）：长按先浮药丸排；
+        // 点快照/空白关浮排后转交动作面（数据暂存、
+        // cover 关净经 onDismiss 呈，动作集仍走
+        // actionItems 单源、项/序/危险色逐项同系统
+        // 菜单；系统 contextMenu 无程序化呈面 API、
+        // 转交面以系统动作表承接，见 §343 缝注记）
+        .fullScreenCover(
+            item: $reactionBarSession,
+            onDismiss: reactionBarCoverDismissed
+        ) { session in
+            reactionBarOverlay(session)
+        }
+        .confirmationDialog(
+            "",
+            isPresented: $showReactionActions,
+            titleVisibility: .hidden
+        ) {
+            if let data = pendingReactionActionData {
+                ForEach(data.actionItems()) { item in
+                    Button(
+                        item.title,
+                        role: item.isDestructive
+                            ? .destructive : nil
+                    ) {
+                        item.action()
+                    }
+                }
+            }
+            Button(L10n.string("取消"), role: .cancel) {}
+        }
+        .onChange(of: showReactionActions) { _, shown in
+            if !shown {
+                pendingReactionActionData = nil
             }
         }
         // §125：文件打开页（中间页）——聊天侧点牌的
@@ -7338,6 +7386,124 @@ struct ChatView: View {
         }
     }
 
+    /// 反应浮排呈现场（DESIGN §343）：挂钩自长按挂
+    /// 载点回调用——呈现时刻组装菜单数据（与系统菜
+    /// 单同一 actionSheetData 单源）、记挂载帧作快
+    /// 照原位对齐原点
+    private func presentReactionBar(
+        for entry: ChatEntry, frame: CGRect
+    ) {
+        // 选字在场让行（§152 同口径：选区优先、浮
+        // 排不抢本行正在进行的选字）
+        guard rowStateLedger.textSelectionEntryID != entry.id
+        else { return }
+        reactionBarSession = ReactionBarSession(
+            entryID: entry.id,
+            data: actionSheetData(for: entry),
+            sourceFrame: frame,
+            alignsTrailing: entry.role == "user"
+        )
+    }
+
+    /// 浮排 cover 关净回调：转交数据在席才呈动作面
+    /// （点药丸关浮排不走本路——投递时未暂存数据）
+    private func reactionBarCoverDismissed() {
+        if pendingReactionActionData != nil {
+            showReactionActions = true
+        }
+    }
+
+    /// 点快照/空白：关浮排转交动作面（数据先暂存、
+    /// cover 关净后由 onDismiss 呈——两面同拍呈会
+    /// 打架，与 §200 选择/分享一拍延后同因）
+    private func handoffReactionBarToActions(
+        _ session: ReactionBarSession
+    ) {
+        guard session.requestActions() else {
+            reactionBarSession = nil
+            return
+        }
+        pendingReactionActionData = session.data
+        reactionBarSession = nil
+    }
+
+    /// 浮排 overlay（DESIGN §343）：压暗＋原消息快
+    /// 照原位抬升＋上方药丸排。快照＝bubble 本体静
+    /// 态复刻（allowsHitTesting 关、渲染走原单源不
+    /// 另抄样式）；点快照与点空白同路转交动作面
+    @ViewBuilder
+    private func reactionBarOverlay(
+        _ session: ReactionBarSession
+    ) -> some View {
+        GeometryReader { screen in
+            let frame = session.sourceFrame
+            ZStack(alignment: .topLeading) {
+                Color.black.opacity(0.32)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        handoffReactionBarToActions(session)
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(
+                        L10n.string("消息动作")
+                    )
+                    .accessibilityAction {
+                        handoffReactionBarToActions(session)
+                    }
+                if let entry = currentThread?.sortedEntries
+                    .first(where: { $0.id == session.entryID }) {
+                    bubble(entry)
+                        .frame(
+                            width: frame.width,
+                            alignment: .topLeading
+                        )
+                        .allowsHitTesting(false)
+                        .shadow(
+                            color: .black.opacity(0.22),
+                            radius: 16, y: 6
+                        )
+                        .scaleEffect(1.02)
+                        .offset(x: frame.minX, y: frame.minY)
+                    Color.clear
+                        .frame(
+                            width: frame.width,
+                            height: frame.height
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            handoffReactionBarToActions(session)
+                        }
+                        .offset(x: frame.minX, y: frame.minY)
+                }
+                ReactionFloatingBarView(
+                    ownEmoji: session.data.ownEmoji
+                ) { emoji in
+                    if session.pick(emoji) {
+                        reactionBarSession = nil
+                    }
+                }
+                .offset(reactionBarOrigin(session, screen: screen.size))
+            }
+            .frame(
+                width: screen.size.width,
+                height: screen.size.height
+            )
+        }
+        .ignoresSafeArea()
+    }
+
+    private func reactionBarOrigin(
+        _ session: ReactionBarSession, screen: CGSize
+    ) -> CGSize {
+        let origin = ReactionBarPlacement.barOrigin(
+            sourceFrame: session.sourceFrame,
+            alignsTrailing: session.alignsTrailing,
+            screenSize: screen
+        )
+        return CGSize(width: origin.x, height: origin.y)
+    }
+
     /// 气泡长按动作面挂载（0.4.1 立制；台账 187 换
     /// 代）：门控与原生面同口径（台账 186——纯图片
     /// 条目同挂、长按没反应的旧口径已废；文本依赖
@@ -7351,6 +7517,16 @@ struct ChatView: View {
             isEnabled: !entry.content.isEmpty
                 || !entry.allImageDatas.isEmpty
                 || !entry.remoteImagePaths.isEmpty,
+            floatingBarHook: ReactionBarRouting.route(
+                flagEnabled: floatingBarEnabled,
+                canReact: entry.canReact
+            ) == .floatingBar
+                ? { frame in
+                    presentReactionBar(for: entry, frame: frame)
+                }
+                : nil,
+            menuSuppressed: reactionBarSession?.entryID
+                == entry.id,
             makeData: { actionSheetData(for: entry) }
         )
     }
@@ -13468,60 +13644,141 @@ private struct ComposerBarLayout: Layout {
 /// 列（首行三枚、余者各占一整行）、形态全毁，
 /// 0.50.80 热修改子菜单原生陈列；Muse 式浮排
 /// 反应条（预览上方独立药丸）另包施工
-private struct MessageMenuModifier: ViewModifier {
+struct MessageMenuModifier: ViewModifier {
     let isEnabled: Bool
+    /// 反应浮排挂钩（DESIGN §343）：非 nil＝本挂载
+    /// 点长按先走浮排（开关开＋本条可反应，路由在
+    /// ChatView.messageMenu 单点裁定）；nil＝纯系
+    /// 统菜单形态（0.50.80 口径逐字不变）
+    var floatingBarHook: ((CGRect) -> Void)? = nil
+    /// 浮排在场时本条菜单摘除（长按竞速护栏：自家
+    /// 手势 0.35s 先行呈浮排并置本旗、系统识别器
+    /// 约 0.5s 拍到时无菜单可呈，杜绝双面同呈；浮
+    /// 排关后自动复位。VoiceOver 呈菜单走系统路
+    /// 径、不经触摸长按，摘除只在浮排在场期间、
+    /// 与其互斥不亏入口）
+    var menuSuppressed: Bool = false
     /// 呈现时刻组装菜单数据（动作集单源）
     let makeData: () -> ChatRowActionSheetData
+
+    /// 测试装配钉：浮排序由是否在本修饰符生效
+    var usesFloatingBar: Bool { floatingBarHook != nil }
+
+    /// 挂载点全局帧（背景 GeometryReader 发布、长
+    /// 按触发时刻读——快照原位对齐的定位原点）
+    @State private var mountFrame: CGRect = .zero
 
     @ViewBuilder
     func body(content: Content) -> some View {
         if isEnabled {
-            content.contextMenu {
-                let data = makeData()
-                if data.canReact {
-                    Menu {
-                        ForEach(
-                            MessageReactions.palette,
-                            id: \.self
-                        ) { emoji in
-                            Button {
-                                data.onPickReaction(emoji)
-                            } label: {
-                                if emoji == data.ownEmoji {
-                                    Label(
-                                        emoji,
-                                        systemImage: "checkmark"
-                                    )
-                                } else {
-                                    Text(emoji)
-                                }
-                            }
-                        }
-                    } label: {
-                        Label(
-                            "添加反应",
-                            systemImage: MessageActionSymbols
-                                .react
-                        )
-                    }
-                }
-                ForEach(data.actionItems()) { item in
-                    Button(
-                        role: item.isDestructive
-                            ? .destructive : nil
-                    ) {
-                        item.action()
-                    } label: {
-                        Label(
-                            item.title,
-                            systemImage: item.systemImage
-                        )
-                    }
-                }
+            if let floatingBarHook {
+                floatingBarBody(content, hook: floatingBarHook)
+            } else {
+                content.contextMenu { menuContent() }
             }
         } else {
             content
         }
+    }
+
+    /// 浮排形态：系统菜单照旧在位（VoiceOver 与未
+    /// 触发浮排时的完整入口），另加同位长按手势
+    /// （0.35s、与既有手势同时识别不夺触摸——行
+    /// 级仲裁〔右滑 pan/滚动/选字〕一律不碰）＋挂
+    /// 载帧发布
+    @ViewBuilder
+    private func floatingBarBody(
+        _ content: Content,
+        hook: @escaping (CGRect) -> Void
+    ) -> some View {
+        Group {
+            if menuSuppressed {
+                content
+            } else {
+                content.contextMenu { menuContent() }
+            }
+        }
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: MessageMenuFrameKey.self,
+                    value: proxy.frame(in: .global)
+                )
+            }
+            .onPreferenceChange(
+                MessageMenuFrameKey.self
+            ) { frame in
+                mountFrame = frame
+            }
+        }
+        .simultaneousGesture(
+            LongPressGesture(
+                minimumDuration: 0.35, maximumDistance: 10
+            ).onEnded { _ in
+                hook(mountFrame)
+            }
+        )
+    }
+
+    /// 系统菜单内容（单源，两形态共用）：反应走
+    /// 「添加反应」子菜单、动作走 actionItems()
+    /// 逐项搬家
+    @ViewBuilder
+    private func menuContent() -> some View {
+        let data = makeData()
+        if data.canReact {
+            Menu {
+                ForEach(
+                    MessageReactions.palette,
+                    id: \.self
+                ) { emoji in
+                    Button {
+                        data.onPickReaction(emoji)
+                    } label: {
+                        if emoji == data.ownEmoji {
+                            Label(
+                                emoji,
+                                systemImage: "checkmark"
+                            )
+                        } else {
+                            Text(emoji)
+                        }
+                    }
+                }
+            } label: {
+                Label(
+                    "添加反应",
+                    systemImage: MessageActionSymbols
+                        .react
+                )
+            }
+        }
+        ForEach(data.actionItems()) { item in
+            Button(
+                role: item.isDestructive
+                    ? .destructive : nil
+            ) {
+                item.action()
+            } label: {
+                Label(
+                    item.title,
+                    systemImage: item.systemImage
+                )
+            }
+        }
+    }
+}
+
+/// 挂载点帧发布键（DESIGN §343）：MessageMenu-
+/// Modifier 的背景 GeometryReader 发布其在
+/// .global 的帧、修饰符自身在背景子树内订阅
+/// （订阅点不罩内容子树，嵌套挂载点的帧不串扰）
+private struct MessageMenuFrameKey: PreferenceKey {
+    nonisolated static let defaultValue: CGRect = .zero
+    static func reduce(
+        value: inout CGRect, nextValue: () -> CGRect
+    ) {
+        value = nextValue()
     }
 }
 
