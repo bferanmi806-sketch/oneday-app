@@ -63,6 +63,12 @@ public enum SettingsDestination: Equatable, Sendable {
     case profiles
     case memory
     case skills
+    /// 工具集治理（台账 34，DESIGN §358）：手机会话
+    /// （api_server 平台）工具集的启停与细调——与
+    /// 「技能」（能力包启停）分工：技能管能力包、本
+    /// 面管工具面；与命令授权（批 5）分工：那是命令
+    /// 白名单、本面是工具可用集
+    case toolsets
     case cron
     /// 服务端会话（台账 199，2026-11-21 用户裁）：
     /// 条目与目的地保留、去向改深链——名单正主是
@@ -231,6 +237,13 @@ public enum SettingsCatalog {
             summary: "智能体可用的能力，可启停",
             keywords: ["技能商店", "能力", "skill", "skills"],
             destination: .skills
+        ),
+        SettingsCatalogEntry(
+            id: "toolsets", group: .agent,
+            title: "工具集",
+            summary: "手机会话能用的工具，可启停与细调",
+            keywords: ["工具", "启停", "服务商", "终端后端", "toolset", "toolsets"],
+            destination: .toolsets
         ),
         SettingsCatalogEntry(
             id: "cron", group: .agent,

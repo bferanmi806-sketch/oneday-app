@@ -50,6 +50,15 @@ final class DemoFreezeGuardTests: XCTestCase {
         // 台账 187：反应两口同属清单外
         await assertDemoLimit { try await client.setReaction(config: config, apiKey: "x", sessionID: "s", rowID: 1, emoji: "👍") }
         await assertDemoLimit { try await client.clearReaction(config: config, apiKey: "x", sessionID: "s", rowID: 1) }
+        // 台账 34（DESIGN §358）：工具集治理八口同属清单外
+        await assertDemoLimit { try await client.toolsets(config: config, apiKey: "x") }
+        await assertDemoLimit { try await client.setToolsetEnabled(config: config, apiKey: "x", name: "web", enabled: true) }
+        await assertDemoLimit { try await client.toolsetConfig(config: config, name: "web") }
+        await assertDemoLimit { try await client.selectToolsetProvider(config: config, name: "web", provider: "x") }
+        await assertDemoLimit { try await client.toolsetModels(config: config, name: "web") }
+        await assertDemoLimit { try await client.selectToolsetModel(config: config, name: "web", model: "x") }
+        await assertDemoLimit { try await client.terminalBackends(config: config) }
+        await assertDemoLimit { try await client.selectTerminalBackend(config: config, backend: "local") }
     }
 
     /// 正对照：冻结清单内的连接页探活仍是活种子——证

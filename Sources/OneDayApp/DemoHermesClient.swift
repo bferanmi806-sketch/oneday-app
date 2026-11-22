@@ -722,6 +722,14 @@ struct DemoHermesClient: HermesClientProtocol {
     func pairingApprove(config: ServerConfig, platform: String, requestID: String) async throws -> PairingApproveReceipt { throw HermesError.demoLimitReached }
     func pairingRevoke(config: ServerConfig, platform: String, userID: String) async throws { throw HermesError.demoLimitReached }
     func pairingClearPending(config: ServerConfig) async throws -> PairingClearPendingReceipt { throw HermesError.demoLimitReached }
+    func toolsets(config: ServerConfig, apiKey: String) async throws -> ToolsetsListResponse { throw HermesError.demoLimitReached }
+    func setToolsetEnabled(config: ServerConfig, apiKey: String, name: String, enabled: Bool) async throws -> ToolsetToggleReceipt { throw HermesError.demoLimitReached }
+    func toolsetConfig(config: ServerConfig, name: String) async throws -> ToolsetConfigPanel { throw HermesError.demoLimitReached }
+    func selectToolsetProvider(config: ServerConfig, name: String, provider: String) async throws { throw HermesError.demoLimitReached }
+    func toolsetModels(config: ServerConfig, name: String) async throws -> ToolsetModelCatalog { throw HermesError.demoLimitReached }
+    func selectToolsetModel(config: ServerConfig, name: String, model: String) async throws { throw HermesError.demoLimitReached }
+    func terminalBackends(config: ServerConfig) async throws -> TerminalBackends { throw HermesError.demoLimitReached }
+    func selectTerminalBackend(config: ServerConfig, backend: String) async throws { throw HermesError.demoLimitReached }
     func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }
     func clearReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int) async throws -> ReactionUpdate { throw HermesError.demoLimitReached }
 

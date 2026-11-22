@@ -560,6 +560,63 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig
     ) async throws -> PairingClearPendingReceipt
 
+    // MARK: 工具集治理（台账 34，DESIGN §358）
+
+    /// GET /v1/toolsets（Bearer）：api_server 平台真值
+    /// 清单——手机会话实际能用的工具集逐行 enabled/
+    /// configured/tools（9119 的 /api/tools/toolsets 是
+    /// 配置面视图、enabled 按 cli 等配置平台计，不作
+    /// 本面真源）
+    func toolsets(
+        config: ServerConfig, apiKey: String
+    ) async throws -> ToolsetsListResponse
+    /// PUT /v1/toolsets/{name}（Bearer，34-S 新端点，
+    /// 部署包 1.4.0）{enabled}：启停写 platform_
+    /// toolsets.api_server（config-only 集镜像写自家
+    /// config 节 enabled）；对新构建的 run 立即生效、
+    /// 存量 run 不受影响。未知集 400 unknown_toolset
+    /// 等错误连码上行供 ToolsetToggleDirective 分型；
+    /// 成败终局以事后清单回读为准、不认回执自报
+    func setToolsetEnabled(
+        config: ServerConfig, apiKey: String,
+        name: String, enabled: Bool
+    ) async throws -> ToolsetToggleReceipt
+    /// GET /api/tools/toolsets/{name}/config（9119 会
+    /// 话）：细调面板——provider 矩阵＋各 provider 的
+    /// env 密钥状态（只回 is_set、永不回值）
+    func toolsetConfig(
+        config: ServerConfig, name: String
+    ) async throws -> ToolsetConfigPanel
+    /// PUT /api/tools/toolsets/{name}/provider（9119
+    /// 会话）{provider}：选服务商，写全局 config、全
+    /// 平台生效；成败以事后回读面板为准
+    func selectToolsetProvider(
+        config: ServerConfig, name: String, provider: String
+    ) async throws
+    /// GET /api/tools/toolsets/{name}/models（9119 会
+    /// 话）：后端模型目录（仅有目录的集 has_models）
+    func toolsetModels(
+        config: ServerConfig, name: String
+    ) async throws -> ToolsetModelCatalog
+    /// PUT /api/tools/toolsets/{name}/model（9119 会
+    /// 话）{model}：选后端模型，写全局 config、全平台
+    /// 生效；成败以事后回读目录为准
+    func selectToolsetModel(
+        config: ServerConfig, name: String, model: String
+    ) async throws
+    /// GET /api/tools/terminal/backends（9119 会话）：
+    /// 终端后端清单＋健康状态（ready/needs_setup/
+    /// unavailable 原样承接）
+    func terminalBackends(
+        config: ServerConfig
+    ) async throws -> TerminalBackends
+    /// PUT /api/tools/terminal/backend（9119 会话）
+    /// {backend}：选终端后端，写全局 config ter-
+    /// minal.backend、全平台生效；成败以事后回读为准
+    func selectTerminalBackend(
+        config: ServerConfig, backend: String
+    ) async throws
+
     // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
 
     /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
@@ -2754,6 +2811,128 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
                 endpoint: L10n.string("清空待批配对")
             )
         }
+    }
+
+    // MARK: - 工具集治理（台账 34，DESIGN §358）
+
+    func toolsets(
+        config: ServerConfig, apiKey: String
+    ) async throws -> ToolsetsListResponse {
+        try await getJSON(
+            config: config, path: "/v1/toolsets",
+            endpoint: L10n.string("工具集接口"), bearer: apiKey
+        )
+    }
+
+    func setToolsetEnabled(
+        config: ServerConfig, apiKey: String,
+        name: String, enabled: Bool
+    ) async throws -> ToolsetToggleReceipt {
+        var request = URLRequest(
+            url: config.endpoint("/v1/toolsets/\(name)")
+        )
+        request.httpMethod = "PUT"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        // 请求体组装走 Core 纯函数（单测把守形态）
+        request.httpBody = try encoder.encode(
+            ToolsetToggleRequest.set(enabled)
+        )
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            // 400 unknown_toolset / invalid_enabled 连码
+            // 上行：呈现层据码分型（ToolsetToggleDirective）
+            if let code = Self.gatewayErrorCode(from: data) {
+                throw HermesError.serverError(
+                    endpoint: L10n.string("工具集开关"),
+                    status: http.statusCode, code: code
+                )
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("工具集开关"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                ToolsetToggleReceipt.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("工具集开关")
+            )
+        }
+    }
+
+    func toolsetConfig(
+        config: ServerConfig, name: String
+    ) async throws -> ToolsetConfigPanel {
+        try await getJSON(
+            config: config,
+            path: "/api/tools/toolsets/\(name)/config",
+            endpoint: L10n.string("工具集配置")
+        )
+    }
+
+    func selectToolsetProvider(
+        config: ServerConfig, name: String, provider: String
+    ) async throws {
+        try await sendJSON(
+            config: config,
+            path: "/api/tools/toolsets/\(name)/provider",
+            method: "PUT",
+            endpoint: L10n.string("工具集服务商"),
+            body: ["provider": .string(provider)]
+        )
+    }
+
+    func toolsetModels(
+        config: ServerConfig, name: String
+    ) async throws -> ToolsetModelCatalog {
+        try await getJSON(
+            config: config,
+            path: "/api/tools/toolsets/\(name)/models",
+            endpoint: L10n.string("工具集模型")
+        )
+    }
+
+    func selectToolsetModel(
+        config: ServerConfig, name: String, model: String
+    ) async throws {
+        try await sendJSON(
+            config: config,
+            path: "/api/tools/toolsets/\(name)/model",
+            method: "PUT",
+            endpoint: L10n.string("工具集模型"),
+            body: ["model": .string(model)]
+        )
+    }
+
+    func terminalBackends(
+        config: ServerConfig
+    ) async throws -> TerminalBackends {
+        try await getJSON(
+            config: config, path: "/api/tools/terminal/backends",
+            endpoint: L10n.string("终端后端")
+        )
+    }
+
+    func selectTerminalBackend(
+        config: ServerConfig, backend: String
+    ) async throws {
+        try await sendJSON(
+            config: config, path: "/api/tools/terminal/backend",
+            method: "PUT",
+            endpoint: L10n.string("终端后端"),
+            body: ["backend": .string(backend)]
+        )
     }
 
     // MARK: - 消息反应（台账 187）

@@ -1003,6 +1003,37 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     func pairingClearPending(config: ServerConfig) async throws -> PairingClearPendingReceipt {
         throw HermesError.unreachable("离线桩")
     }
+    func toolsets(config: ServerConfig, apiKey: String) async throws -> ToolsetsListResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func setToolsetEnabled(config: ServerConfig, apiKey: String, name: String, enabled: Bool) async throws -> ToolsetToggleReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func toolsetConfig(config: ServerConfig, name: String) async throws -> ToolsetConfigPanel {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func selectToolsetProvider(config: ServerConfig, name: String, provider: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func toolsetModels(config: ServerConfig, name: String) async throws -> ToolsetModelCatalog {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func selectToolsetModel(config: ServerConfig, name: String, model: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func terminalBackends(config: ServerConfig) async throws -> TerminalBackends {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func selectTerminalBackend(config: ServerConfig, backend: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
 
     func setReaction(config: ServerConfig, apiKey: String, sessionID: String, rowID: Int, emoji: String) async throws -> ReactionUpdate {
         throw HermesError.unreachable("离线桩")

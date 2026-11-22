@@ -57,7 +57,7 @@ final class SettingsCatalogTests: XCTestCase {
     func testEveryDestinationIsCovered() {
         let covered = Set(SettingsCatalog.entries.map(\.destination))
         let all: [SettingsDestination] = [
-            .identity, .profiles, .memory, .skills, .cron,
+            .identity, .profiles, .memory, .skills, .toolsets, .cron,
             .serverSessions, .models, .envVars, .usage,
             .serverDetail, .connectors, .devicePermissions,
             .approvalRules,
@@ -89,7 +89,7 @@ final class SettingsCatalogTests: XCTestCase {
     func testAgentGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .agent).map(\.id),
-            ["models", "profiles", "memory", "skills", "cron"]
+            ["models", "profiles", "memory", "skills", "toolsets", "cron"]
         )
     }
 
