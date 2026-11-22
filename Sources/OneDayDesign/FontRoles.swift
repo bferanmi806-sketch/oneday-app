@@ -66,11 +66,15 @@ public extension Font {
     /// 收口包补件，用户 2026-11-13 18:57）
     static let drawerRowTitle: Font = .body
     /// 抽屉身份名（2026-11-21 样板对齐包新增局部角
-    /// 色）：Title2 22 bold——样板名字实测 24 bold，
-    /// 24 无文本样式档、取最近档保 Dynamic Type 缩
-    /// 放（Δ2 与理由见 Core TypeRole 头注）；只许抽
-    /// 屉身份行消费，screenName 本体不动
-    static let drawerTitle: Font = .title2.weight(.bold)
+    /// 色、2026-11-22 抽屉量测对齐包 C 项退役本静
+    /// 态值）：基准已按用户亲令对齐样板实测 24
+    /// bold，落法改 DrawerView 的 @ScaledMetric
+    /// (relativeTo: .title2) 相对缩放——Font 静态
+    /// 值承载不了相对缩放，本处不再有 drawerTitle
+    /// 静态 Font；规格单源在 Core TypeRole.drawer-
+    /// Title（title2 锚/24/bold），缩放把守在
+    /// DrawerMuseMetricsTests 的消费形态渲染测。
+    /// screenName 本体不动
     /// 抽屉当前行题（§157 局部角色）：Body 17 semi-
     /// bold——导航/频道/会话同一套选中规则的加重档，
     /// 恒与 selectionFill 浅灰底同出（Core TypeRole

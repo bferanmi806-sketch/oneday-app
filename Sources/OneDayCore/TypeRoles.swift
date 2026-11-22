@@ -33,6 +33,17 @@ import Foundation
 /// 最近档 Title2 22 落地、Δ2 在交卷对位表明示；
 /// screenName（Title1 28 bold）本体不动、继续供
 /// 身份详情/设置身份卡等其余露脸面
+/// 2026-11-22 抽屉量测对齐包 C 项订正（用户亲
+/// 令「不一致的对齐」、Δ2 不留）：drawerTitle
+/// 基准改 24 落地——textStyleName 仍 "title2"
+/// （自此为相对缩放的锚样式名）、defaultPoint-
+/// Size 改 24、weightName bold 不变；消费形态
+/// 改 DrawerView 的 @ScaledMetric(relativeTo:
+/// .title2) 基准 24（Font 静态值承载不了相对
+/// 缩放，Font.drawerTitle 随之退役）；缩放真伪
+/// 由 DrawerMuseMetricsTests 的消费形态渲染测
+/// 把守（与闸门渲染测同口径：AX3 对 .large 须
+/// 长大 1.2 倍以上）
 public enum TypeRole: String, CaseIterable {
     case screenName
     case rowTitleL
@@ -66,7 +77,7 @@ public enum TypeRole: String, CaseIterable {
     public var defaultPointSize: CGFloat {
         switch self {
         case .screenName: return 28
-        case .drawerTitle: return 22
+        case .drawerTitle: return 24
         case .rowTitleL, .rowTitle, .bodyText,
              .drawerNavTitle, .drawerRowTitle,
              .drawerRowTitleCurrent: return 17
