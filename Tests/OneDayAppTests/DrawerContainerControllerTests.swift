@@ -93,7 +93,9 @@ final class DrawerContainerControllerTests: XCTestCase {
     /// travel（真机症状是停在约 9.5% travel）。
     /// §313 注（历史）：慢阻尼定版（1.4/ζ 1.2）时本
     /// 类等待曾放宽到 3.5s；§322 换快档定版
-    /// （response 0.35/ζ 0.85、模型全程落定 ≈0.41s）
+    /// （§351 定版 response 0.27/ζ 0.90、模型全程
+    /// 落定 ≈0.24s；§322 档 0.35/0.85 落定 ≈0.41s
+    /// 转沿革）
     /// 后等待收回 2.0s——仍留约 5 倍余量防 CI 时序
     /// 抖动，但慢档若回潮（落定 ≈1.5s＋animator 收
     /// 尾）会逼近本界、不再无声放行
@@ -376,20 +378,23 @@ extension DrawerContainerControllerTests {
         )
     }
 
-    /// §202 K1/K2 边缘几何：开态 clip 帧纵向内嵌 2pt、
-    /// 半径 54.5；内容宿主反向补偿（原点 −2、高不变
-    /// ——前景空间内几何与 §202 前逐值一致、落定零残
-    /// 差）；合态回全幅；开态改窗口尺寸后内嵌保持
-    /// （resize 回归）。§313：阴影断言随 A-01 收敛改
-    /// 判——阴影挂 clip 本人按形状自动成影：两层
-    /// shadowPath 恒 nil（手写路径退役）、clip 阴影
-    /// 定值 radius 18/x −4、浅色开态 opacity 0.22
-    /// 台账 201 订正：§313 的同层成影经像素剖面证
-    /// 伪（masksToBounds 自裁阴影）——改双层结构：
-    /// 投影层（前景第一子）与裁切层（第二子）同帧
-    /// 同半径锁步、阴影断言改归投影层；像素成影本
-    /// 体由 DrawerSafeAreaRealRootTests 的接缝剖面
-    /// 测把守（数值断言不单独作绿）
+    /// §202 K1/K2 边缘几何（§351 刚体口径改版）：
+    /// 三层未变换几何钉前景全幅（bounds/center 恒
+    /// 定、开合全程不变），旧帧几何改由 transform
+    /// 等价呈现——派生 frame（transform 绕中心作
+    /// 用后的包围盒）与旧 clip 帧逐值一致（开态
+    /// y＝2、高 −4、半径 54.5）；内容宿主 model
+    /// 帧恒全幅（旧 −2 反向补偿改由裁切层 trans-
+    /// form 承担、内容视觉位置不变）；合态回全
+    /// 幅；开态改窗口尺寸后内嵌保持（resize 回
+    /// 归）。阴影：§313「自动成影、路径恒 nil」经
+    /// §351 定因改显式路径（开态非 nil、关态清
+    /// 除）、定值 radius 18/x −4、浅色开态 opa-
+    /// city 0.22 不变；台账 201 双层结构不变（投
+    /// 影层与裁切层同 bounds/center/transform/半
+    /// 径锁步）；像素成影本体由 DrawerSafeArea-
+    /// RealRootTests 的接缝剖面测把守（数值断言
+    /// 不单独作绿）
     func testOpenStateClipGeometryInsetsRadiusAndShadowPath() {
         window.overrideUserInterfaceStyle = .light
         let foreground = controller.view.subviews[1]
@@ -398,19 +403,37 @@ extension DrawerContainerControllerTests {
         let content = clip.subviews[0]
         controller.setDrawer(true, animated: false)
         controller.view.layoutIfNeeded()
+        // 未变换几何：三层全幅钉死
+        XCTAssertEqual(clip.bounds, foreground.bounds)
+        XCTAssertEqual(content.bounds, foreground.bounds)
+        XCTAssertEqual(shadow.bounds, foreground.bounds)
+        XCTAssertEqual(clip.center, CGPoint(x: 196.5, y: 426))
+        XCTAssertEqual(content.center, clip.center)
+        XCTAssertEqual(shadow.center, clip.center)
+        // 派生呈现几何与旧帧口径逐值等价（浅色横移
+        // 0、纵向 scaleY＝848/852）
         XCTAssertEqual(clip.frame.origin.x, 0, accuracy: 0.5)
         XCTAssertEqual(clip.frame.origin.y, 2, accuracy: 0.5)
         XCTAssertEqual(clip.frame.width, 393, accuracy: 0.5)
         XCTAssertEqual(clip.frame.height, 852 - 4, accuracy: 0.5)
-        XCTAssertEqual(content.frame.origin.y, -2, accuracy: 0.5)
-        XCTAssertEqual(content.frame.height, 852, accuracy: 0.5)
+        XCTAssertEqual(clip.transform.d, 848.0 / 852.0, accuracy: 0.0001)
+        XCTAssertEqual(clip.transform.tx, 0, accuracy: 0.001)
+        XCTAssertEqual(content.frame, foreground.bounds)
+        XCTAssertEqual(content.transform, .identity)
         XCTAssertEqual(clip.layer.cornerRadius, 54.5, accuracy: 0.5)
-        // 投影层锁步：同帧同半径
+        // 投影层锁步：同几何同 transform 同半径
         XCTAssertEqual(shadow.frame, clip.frame)
+        XCTAssertEqual(shadow.transform, clip.transform)
         XCTAssertEqual(shadow.layer.cornerRadius, 54.5, accuracy: 0.5)
         XCTAssertNil(foreground.layer.shadowPath)
-        XCTAssertNil(shadow.layer.shadowPath)
         XCTAssertNil(clip.layer.shadowPath)
+        // §351 显式阴影路径：开态非 nil、包围盒＝
+        // 投影层 bounds（局部坐标全幅圆角矩形）
+        XCTAssertNotNil(shadow.layer.shadowPath)
+        if let box = shadow.layer.shadowPath?.boundingBoxOfPath {
+            XCTAssertEqual(box.width, 393, accuracy: 0.5)
+            XCTAssertEqual(box.height, 852, accuracy: 0.5)
+        }
         XCTAssertEqual(shadow.layer.shadowRadius, 18, accuracy: 0.5)
         XCTAssertEqual(shadow.layer.shadowOffset.width, -4, accuracy: 0.5)
         XCTAssertEqual(shadow.layer.shadowOffset.height, 0, accuracy: 0.5)
@@ -425,12 +448,17 @@ extension DrawerContainerControllerTests {
         controller.view.layoutIfNeeded()
         XCTAssertEqual(clip.frame.origin.y, 2, accuracy: 0.5)
         XCTAssertEqual(clip.frame.height, 393 - 4, accuracy: 0.5)
+        XCTAssertEqual(clip.bounds.height, 393, accuracy: 0.5)
 
         controller.setDrawer(false, animated: false)
         controller.view.layoutIfNeeded()
         XCTAssertEqual(clip.frame, foreground.bounds)
         XCTAssertEqual(content.frame, foreground.bounds)
+        XCTAssertEqual(clip.transform, .identity)
         XCTAssertEqual(shadow.layer.shadowOpacity, 0, accuracy: 0.01)
+        XCTAssertNil(
+            shadow.layer.shadowPath,
+            "关态阴影路径应清除（§351）")
     }
 
     /// §313 深色阴影归零（第 78 条 D4）：深色外观下
@@ -463,6 +491,26 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(
             shadow.layer.shadowOpacity, 0, accuracy: 0.01,
             "深色开态阴影应归零")
+        // §351 深色接缝中间层：卡面（裁切层）横移
+        // 16 露出前景底色、内容宿主反向抵消；前景
+        // 底色深档解析＝#191919（25/255）
+        let foreground = controller.view.subviews[1]
+        let clip = foreground.subviews[1]
+        let content = clip.subviews[0]
+        XCTAssertEqual(clip.transform.tx, 16, accuracy: 0.5)
+        XCTAssertEqual(shadow.transform.tx, 16, accuracy: 0.5)
+        XCTAssertEqual(content.transform.tx, -16, accuracy: 0.5)
+        let backdrop = foreground.backgroundColor?.resolvedColor(
+            with: UITraitCollection(userInterfaceStyle: .dark))
+        XCTAssertNotNil(backdrop)
+        if let backdrop {
+            var r: CGFloat = 0, g: CGFloat = 0
+            var b: CGFloat = 0, a: CGFloat = 0
+            backdrop.getRed(&r, green: &g, blue: &b, alpha: &a)
+            XCTAssertEqual(r, 25.0 / 255.0, accuracy: 0.01)
+            XCTAssertEqual(g, 25.0 / 255.0, accuracy: 0.01)
+            XCTAssertEqual(b, 25.0 / 255.0, accuracy: 0.01)
+        }
         parent.setOverrideTraitCollection(
             UITraitCollection(userInterfaceStyle: .light),
             forChild: controller)
@@ -470,6 +518,9 @@ extension DrawerContainerControllerTests {
         XCTAssertEqual(
             shadow.layer.shadowOpacity, 0.22, accuracy: 0.01,
             "切回浅色后阴影应按当前 offset 重派生恢复")
+        XCTAssertEqual(
+            clip.transform.tx, 0, accuracy: 0.5,
+            "切回浅色后卡面横移应归零（无中间层）")
     }
 }
 

@@ -10,7 +10,16 @@ import Foundation
 /// 性），两处字面值由单测逐项对钉——不再有第三
 /// 处弹簧参数。
 ///
-/// 定版值（§322）：response 0.35／ζ 0.85——出处
+/// 定版值（§351 换代）：response 0.27／ζ 0.90
+/// ——出处＝2026-11-22 用户新递 Muse 真机视频
+/// （720×1566@30fps）开态接缝前锋逐帧轨迹最小
+/// 二乘拟合（原始最优 response 0.229/ζ 0.865；
+/// 候选带内取 0.27/0.90：对 Muse 轨迹 RMSE
+/// 0.037、优于 §322 档 0.077 一倍；永久落定
+/// 0.24s 对 Muse 开合总时长约 0.27–0.3s；过冲
+/// 0.15% 近无回摆——§322 档 0.63% 过冲＋落定后
+/// 残留微动正是用户视频里「停后尾巴」的同构性
+/// 状）。§322 档（response 0.35／ζ 0.85）出处
 /// ＝2026-11-17 Muse 录屏实测拟合（drawer-
 /// ghosting-diagnosis-20261117.md §5：纯弹簧关段
 /// 位移 400→209→81→24→3→0px、过冲 +4–5px≈
@@ -29,10 +38,10 @@ import Foundation
 public enum DrawerSpringTiming {
     /// 弹簧定版 response（秒；与 MotionTokens.
     /// drawerSpring 镜像同值，单测对钉）
-    public static let response: CGFloat = 0.35
+    public static let response: CGFloat = 0.27
     /// 弹簧定版阻尼比 ζ（欠阻尼、微过冲；与
     /// MotionTokens.drawerSpring 镜像同值，单测对钉）
-    public static let dampingFraction: CGFloat = 0.85
+    public static let dampingFraction: CGFloat = 0.90
     /// 松手吸附的动量投影时长（§322 随弹簧重算）：
     /// UIKit 手势无 SwiftUI 的 predictedEndTrans-
     /// lation，以「速度 × 本时长」近似其外推增量
@@ -42,8 +51,9 @@ public enum DrawerSpringTiming {
     /// ζω≈5.39，新弹簧 ζω≈15.26，0.22×5.39/
     /// 15.26≈0.078 → 取 0.08。保持旧值会把中速
     /// 甩动的投影行程高估约 2.8 倍、吸附判定系统
-    /// 性偏开
-    public static let settleProjectionInterval: CGFloat = 0.08
+    /// 性偏开。§351 随新弹簧同口径再缩放：新弹簧
+    /// ζω≈20.94，0.22×5.39/20.94≈0.057 → 取 0.06
+    public static let settleProjectionInterval: CGFloat = 0.06
 
     /// 弹簧刚度 k（质量恒 1）
     public static var stiffness: CGFloat {

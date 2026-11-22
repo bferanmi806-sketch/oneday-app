@@ -14440,3 +14440,38 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 ### §352.7 不做版本切换器（定案重申）
 
 Hermes 只有一条 active transcript、无分支存储，rewind 即截断——造 ‹n/n› 切换器即僵尸功能，禁。代偿＝D3 非末轮破坏性确认＋明示不可恢复（§352.4）。
+## §351 抽屉动效卡顿刚体化＋深色接缝中间层（2026-11-22；分支 feat/drawer-motion，基线 rel-05085＝0.50.85/213；用户真机双视频＋三图亲点）
+
+### §351.1 定因（先量后改）
+
+- 用户视频逐帧差分（主线量测、两路互证）：OneDay 开抽屉起始段「14,0,14,0,0,0」两次单帧跳变＋死帧才进入连续滑、一次开合中段 2 帧冻结（…10,0,0,9…）、停后残留微动尾巴（1,1,1 量级）、单次开合 10–13 帧（0.33–0.43s）；Muse 每次开合 7–9 帧（约 0.27s）、差分单峰平滑衰减、无死帧无二次启动。
+- 代码审计定因（主线亲读 rel-05085 坐实、本包复核）：病灶全在 `DrawerContainerView.applyOffset`＋`DrawerMotion.clipGeometry` 一条链——①verticalInset 按 progress 逐帧线性插值、applyOffset 每帧真写 clipView/contentHost/shadowView 三层 frame，CA 插值的正是 frame/bounds；②阴影无 shadowPath（注释自述「形状自动成影」），bounds 逐帧变的图层＋自动阴影＝渲染端逐帧按轮廓重栅格化全屏柔影（radius 18）；③clipView bounds 逐帧变＝裁切子树逐帧重合成（圆角已做阶跃堵对一半、inset 这条大口没堵）。
+- 探针修正一条（本包 DrawerMotionProbeTests 模拟器实测、改前基线 3 开 3 合×2 跑）：「动画期间主界面被逐帧重新布局」未复现——contentHost 在飞行中 bounds 恒定（只有原点 ≤2pt 位移、不触发子层布局），内容子树 layoutSubviews 计数 0–1/轮。故成本定性修正为图层几何抖动（帧/bounds 写入＋裁切重合成＋阴影重栅格），不在 SwiftUI 布局。另两次基线跑均在首次关闭出现一次约 60–65ms 显示链间隔（成因未定、不作结论）；presentation 层采样在本机测试窗环境恒 nil（窗口未上屏合成），该路量测不成立、未采用。进度采样链（CADisplayLink→onDrawerProgress）经审计无罪（@ObservationIgnored 状态机、不触发 SwiftUI 重算），未动。
+
+### §351.2 外部对位（改前先搜）
+
+- WWDC18《Designing Fluid Interfaces》：动画只动 transform/opacity、弹簧可打断、从呈现值出发、速度交接——本仓 animator＋呈现值接管（stopAnimatorCapturingPresentation）已同构，缺的是「只动 transform」一条，本包补齐。
+- 业界通行（iOS 侧栏实现共识）：呈现由单一 transform 动画驱动；阴影静态化（显式 shadowPath 或预渲染投影层）；内容常驻预构建（本仓 drawerHost/contentHost 恒挂载、已同构）；动画期间永不改 width/height/bounds。
+- Muse 视频量测（本包，720×1566@30fps 定格＋逐帧）：开合为整卡刚体纯平移（合态汉堡钮模板在开态以 NCC 0.996 命中、位移恰 +568px 纯平移、无 scale、无纵向内缩）；弹簧前锋轨迹最小二乘拟合 response 0.229/ζ 0.865；深色接缝三段台阶 #000000 → 中间带 lum≈24（≈#191919、宽约 28px≈14–16pt、全高恒定）→ 卡面 #2C2C2E；开态主面卡自 #1C1C1E 升一档至 #2C2C2E（变调取舍见 §351.4）。
+
+### §351.3 落码（刚体化）
+
+- `applyOffset` 收敛：三层（shadow/clip/content）未变换几何钉前景全幅（bounds＋center 写、单写点纪律不变、开合全程恒定）；呈现全走 transform——前景横移（原有）；卡面（clip＋shadow 锁步）transform＝横向 shift＋纵向 scaleY；内容宿主反向横移抵消 shift（窗口位移对内容透明、与 §202 反向补偿同构）。手势跟手路径同经本口、同受益。
+- 纵向内嵌等效：`DrawerMotion.cardScaleY`＝(H−2·inset)/H，与旧帧几何（clipGeometry 的 insetBy）逐值等价（单测对钉两口径）；Muse 本无此内缩、本 App 2pt 本就近乎不可见（H=852 时 scaleY≈0.9953），等效换算只为保住 §202 既定浮置几何、不引入新视觉量。`clipGeometry` 退为几何口径档案（值不变、单测保留）。
+- 阴影显式 shadowPath：按当前 bounds＋阶跃半径生成、只在帧/半径变化时于 applyOffset 一处重设（飞行中恒定、零重设零重栅格）、关态（progress 0 且无动画在途）清除；§313「手写路径退役」纪律随定因改版（退役前提＝自动成影不贵、已被真机录屏证伪）。
+- 弹簧换代：DrawerSpringTiming response 0.35/ζ 0.85/settleProjectionInterval 0.08 → **0.27/0.90/0.06**（拟合：候选带内对 Muse 轨迹 RMSE 0.037、优于旧档 0.077 一倍；派生刚度 541.5、阻尼 41.9、过冲 0.15%、永久落定 0.24s 对 Muse 总时长约 0.27–0.3s；旧档 0.63% 过冲＋落定残留微动与用户视频「停后尾巴」同构）；MotionTokens.drawerSpring 镜像同值、单测对钉。手势识别数值（30/60/90）与吸附判定口径未动（settleProjectionInterval 随弹簧同口径缩放、§322 先例）。
+
+### §351.4 深色接缝
+
+- 新令牌 `Palette.drawerBackdrop`：浅 #FCFCFC（与 pageBG 同值、浅色视觉零变化）、深 #191919（出处＝§351.2 视频定格量测 lum≈24）；容器前景层底色取之——卡面横向内缩露出带与纵向 scale 上下细带同读此底。
+- 卡面横向内缩定值 `DrawerCardGeometry.darkCardLeadingInset`＝16pt（量测带宽约 14–16pt）；`DrawerMotion.cardLeadingShift` 深色随 progress 线性行进、浅色恒 0（浅色接缝仍走 §345 柔影、已关账面不回归）。
+- 变调取舍（报主线知悉）：Muse 开态主面卡升一档（#1C1C1E→#2C2C2E）。本 App 卡面填充＝Palette.chatSurface（深 #000）、且由内容页自绘覆盖，容器侧没有独立「卡面底色」层可调；容器侧强加色会与内容自绘叠色、并与「内容即卡面」的既有结构冲突（与整卡 transform 本身不冲突）。本包不做容器侧变调：深色层次以中间带补齐三段中的缺段（抽屉 #000 → 中间带 #191919 → 卡面由内容呈现、用户截图实测 #2C2C2E）。是否再追变调，待真机并排后用户裁。
+
+### §351.5 验收
+
+- 新增 DrawerRigidBodyTests：合/开/飞行 model/落定/飞行中布局往返/旋转六态下三层 bounds/center 恒全幅（旧实现必红、防回潮）。
+- DrawerContainerControllerTests 几何测改版：未变换几何全幅钉＋派生 frame 与旧帧口径逐值等价＋显式 shadowPath 开态非 nil/关态清除＋深色卡面横移 16/内容 −16/前景底色解析 #191919；DrawerSpringTimingTests 换代值与新带（过冲 0.15%、全程落定 ∈(0.20, 0.30]）；DrawerMotionTests 新增 cardLeadingShift/cardScaleY 两测（scaleY 与 clipGeometry 等价对钉）；DrawerSafeAreaRealRootTests 新增深色三段像素测（中间带落 19–31、卡面落 38–50、带全高）；浅色接缝剖面测原样全绿（§345 不回归）。
+- 套件结果：定向 9 套 69/69 全绿（OneDayAppTests 选集 38＋OneDayCoreTests 选集 23＋VisualDirectionGateTests 8；xcresult Test-OneDayApp-2026.11.22_14-15-33 及 gate 补跑）。
+- 探针改后复跑（同基线口径）：6/6 轮显示链最大间隔 16.7ms、>25ms 间隔 0、内容布局计数 0；基线两次跑均出现的首次关闭约 60–65ms 单次间隔改后未复现（单跑样本、不作根除结论）。
+- 模拟器录屏逐帧差分（真 App 生产装配、开/合各 3 次）：
+- 真机手感门留用户（开合跟手/落定无尾巴、深色接缝三段并排 Muse）。

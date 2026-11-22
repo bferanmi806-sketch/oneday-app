@@ -76,6 +76,16 @@ public enum DrawerCardGeometry {
     /// 纵向内嵌定值（§202 K1）：开态前景卡上/下各内
     /// 嵌此值、整卡浮置
     public static let verticalInset: CGFloat = 2
+    /// 深色卡面横向内缩定值（§351）：深色开态卡面
+    /// 左缘右移此值、露出前景底色（Palette.drawer-
+    /// Backdrop #191919）作接缝中间层——出处＝
+    /// 2026-11-22 用户 Muse 真机视频（720×1566
+    /// @30fps）定格量测：接缝三段台阶 #000000 →
+    /// 中间带 lum≈24（≈#191919）宽约 28px（屏宽
+    /// 720px＝402pt、≈1.79px/pt → 约 14–16pt）→
+    /// 卡面 #2C2C2E；取 16pt。浅色无此层（接缝走
+    /// §345 柔影）
+    public static let darkCardLeadingInset: CGFloat = 16
     /// 柔影定值（§202 回宽）：radius 18（定版区间
     /// 16–20 取中值偏上）/x −4
     public static let shadowRadius: CGFloat = 18
