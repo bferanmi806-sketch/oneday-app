@@ -309,6 +309,13 @@ struct HubLedgerSection: View {
 
     // MARK: - 行
 
+    /// 行三段式（§344，中枢四欠账·记录行三段式）：
+    /// 左图标盒／中题＋副题／右段 trailing——与全
+    /// App 公用行件（ContentRow）的三段语法同构；
+    /// 中/右两段文案同出 LedgerBoard.rowParts 单源
+    /// 派生（副题只留状态词与失败分类，时刻/已耗时
+    /// 归右段）。旧版时间全压副题复合串、右段仅
+    /// 「补记」徽标偶现、常空
     private func ledgerRow(_ item: LedgerItem) -> some View {
         HStack(spacing: OneDayMetrics.spacingSM) {
             iconBox(item)
@@ -319,7 +326,93 @@ struct HubLedgerSection: View {
                     .lineLimit(2)
                 subtitle(item)
             }
-            Spacer()
+            Spacer(minLength: OneDayMetrics.spacingS)
+            trailingColumn(item)
+        }
+        .contentShape(Rectangle())
+        .opacity(item.status == .cancelled ? 0.55 : 1)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 副题（中段）：活跃态每秒重算（TimelineView 只
+    /// 包副题一行，列表本体不跟着整表重绘）；其余状
+    /// 态静态一帧。文案走 rowParts.subtitle（§344）
+    @ViewBuilder
+    private func subtitle(_ item: LedgerItem) -> some View {
+        if item.status.isActive {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                Text(
+                    LedgerBoard.rowParts(
+                        for: item,
+                        serverNow: store.displayServerNow(
+                            at: context.date
+                        )
+                    ).subtitle
+                )
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+                .lineLimit(1)
+            }
+        } else {
+            Text(
+                LedgerBoard.rowParts(
+                    for: item, serverNow: store.serverNow
+                ).subtitle
+            )
+            .font(.subheadline)
+            .foregroundStyle(
+                item.status == .stale
+                    ? Palette.danger : Palette.inkSecondary
+            )
+            .lineLimit(1)
+        }
+    }
+
+    /// 右段（§344）：时刻/已耗时（.metaMonospaced
+    /// 等宽次色，与 ContentRow 右段同角色）；活跃态
+    /// 随秒跳动只包本列小子树（与副题同口径）；证
+    /// 据迟滞的「最后确认」标龄注在其下 footnote
+    /// 行；「补记」徽标原样收进本列（旧版独占右侧）
+    @ViewBuilder
+    private func trailingColumn(_ item: LedgerItem) -> some View {
+        if item.status.isActive {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                trailingContent(
+                    item,
+                    serverNow: store.displayServerNow(
+                        at: context.date
+                    )
+                )
+            }
+        } else {
+            trailingContent(item, serverNow: store.serverNow)
+        }
+    }
+
+    @ViewBuilder
+    private func trailingContent(
+        _ item: LedgerItem, serverNow: Double
+    ) -> some View {
+        let parts = LedgerBoard.rowParts(
+            for: item, serverNow: serverNow
+        )
+        VStack(
+            alignment: .trailing,
+            spacing: OneDayMetrics.spacingMicro
+        ) {
+            if let trailing = parts.trailing {
+                Text(trailing)
+                    .font(.metaMonospaced)
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+            if let note = parts.trailingNote {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
             if item.isReconciled {
                 Text("补记")
                     .font(.caption2)
@@ -331,43 +424,6 @@ struct HubLedgerSection: View {
                             .stroke(Palette.hairline, lineWidth: 1)
                     }
             }
-        }
-        .contentShape(Rectangle())
-        .opacity(item.status == .cancelled ? 0.55 : 1)
-        .accessibilityElement(children: .combine)
-    }
-
-    /// 副题：活跃态每秒重算已耗时（TimelineView 只包
-    /// 副题一行，列表本体不跟着整表重绘）；其余状态
-    /// 静态一帧
-    @ViewBuilder
-    private func subtitle(_ item: LedgerItem) -> some View {
-        if item.status.isActive {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(
-                    LedgerBoard.subtitle(
-                        for: item,
-                        serverNow: store.displayServerNow(
-                            at: context.date
-                        )
-                    )
-                )
-                .font(.subheadline)
-                .foregroundStyle(Palette.inkSecondary)
-                .lineLimit(1)
-            }
-        } else {
-            Text(
-                LedgerBoard.subtitle(
-                    for: item, serverNow: store.serverNow
-                )
-            )
-            .font(.subheadline)
-            .foregroundStyle(
-                item.status == .stale
-                    ? Palette.danger : Palette.inkSecondary
-            )
-            .lineLimit(1)
         }
     }
 

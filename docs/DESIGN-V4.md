@@ -14213,3 +14213,45 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 - 实验室：新套件 `ReactionFloatingBarTests` 8 件（开关口径/路由四格/修饰符装配形态/状态机全迁移＋错序/会话投递单点＋转交后禁投/定位四格）全过；回归集 SwipeReplyPanBridgeTests＋MessageActionsTests＋ChatNativeHotfix330Tests＋HapticsMatrixTests＋VisualDirectionGateTests 同轮合计 **49 passed / 0 failed**（xcresult Test-OneDayApp-2026.11.22_09-09-37）。
 - 真机门（留用户，施工图 §四）：①药丸位置与 Muse 对照 ②点反应一步落锤 ③转交动作面无闪跳（§343.4 缝）④右滑/竖滑不回退 ⑤深色＋最大字号各一帧 ⑥流式行长按可用。任一不过：关开关回子菜单形态，本包不阻塞组版。
 - 文案新键（「反应浮排」「反应：%@」「消息动作」等）走 L10n 源串键，en/繁体待补（与 D10 既登记口径同）。
+
+## §344 中枢四欠账：身份区收紧／记录行三段式／失败给人话／图标底色块（2026-11-22；分支 feat/hub-four-debts，基线 rel-05082@e612aa6＝0.50.82/210；施工说明 oneday-design-review/hub-four-debts-design-20261122.md）
+
+台账 18 四项既定欠账一次收口。红线守恒：中枢只记账不执行的定版不变（只改呈现、不加执行入口）；不碰服务端、不碰聊天页与手势层；无新增触感调用点；新面准入四问自查（入口不变/无新面/间距尺寸全走令牌与公用件/AX＋深色列真机门）。
+
+### §344.1 身份区收紧（AgentHubView 页头）
+
+- 现状量测（源码实读）：§222 居中大头像 hero 纵向 ≈190pt（顶距 8＋头像 avatarPageHead 90＋名上距 spacingM 16＋名行 ≈34＋状态上距 8＋状态行 ≈22＋底距 12），其后分段条再占 68pt；承载信息只有头像/名/一行状态。
+- 改法：横排紧凑式，对位设置页身份卡（§164 横排单源形态）。圆钮行（✕/分享）独立成行（钮本体 36 盘/44 命中域/负边距抵消一字不动，撤 ZStack 叠放）；身份行 HStack(spacingSM)：头像菜单（avatarListRow 44）＋VStack(spacingMicro)｛名（.title bold 定版字阶不动、左对齐）＋状态行（现行 HStack 原样搬入独立件 statusLine，活动优先/连接兜底的 D4-1 语义不动）｝。收后 ≈118pt，**收 72pt（−38%）**。
+- 头像菜单改整头像承载（旧版仅角标 44 命中域出菜单；新版点头像任意处，命中域＝头像本体 44 恰达 minTapTarget）；铅笔角标降为纯提示件：18pt 圆＋FrameworkIcon.badgeGlyphSize 字形（借 CronOverviewRow L5 角标先例），Palette.surface 底＋hairline 描边＋§247.3 浮件档阴影。
+- 覆盖关系：§222 的纵向节奏口径（头像→名 ≈16、名→状态 ≈8）由本节横排口径覆盖；名字阶与状态语义不在覆盖内。avatarPageHead 令牌本身不动——身份详情页 hero 继续用，本面起枢纽页头与详情 hero 分档。
+
+### §344.2 记录行三段式（左图标位／中题＋副题／右时间或状态）
+
+- Core 新增 `LedgerBoard.rowParts(for:serverNow:calendar:locale:) -> LedgerRowParts(subtitle, trailing, trailingNote)` 为行呈现单源派生；`LedgerBoard.subtitle` 改由 rowParts 重组，**旧输出逐字不变**——LedgerModelsTests 31 项旧钉死值不改期待值、全绿即重组等值证据。九态分工：监测＝副「监测变化」/右检出时刻；进行中＝副状态词/右已耗时（证据迟滞的「最后确认 HH:mm:ss」归 trailingNote 右段第二行）；排队/待审批＝副状态词/右已等；完成＝副状态词/右结束时刻（无则 nil）；失败/取消＝副「状态词 · 原因分类」/右结束时刻；失联＝副「已失去联系」/右最后确认时刻；未知＝副状态词/右 nil。
+- 台账行（HubLedgerSection.ledgerRow）：右列 VStack（trailing 对齐）＝trailing 文案（.metaMonospaced＋tabularDigits＋inkSecondary，与公用行件 ContentRow 右段同角色）＋trailingNote（footnote）＋「补记」徽标（原样移入，旧版独占右侧、无徽标时右段常空）；活跃态副题与右列各包 TimelineView 逐秒更新（沿「只包小子树、不整表重绘」口径）；stale 副题危险色、取消态 0.55 透明、无障碍 combine 不动。
+- 定时行（CronOverviewRow，枢纽与状态页共用行件）：时间文本移右列（提醒＝下次「M月d日」＋「HH:mm」两行；每日＝「HH:mm」；间隔＝「上次运行 相对时刻」；其他周期＝下次 short），中列副题只留计划说明（间隔＝intervalText 回落 scheduleText；其余仅无下次时刻时回落 scheduleText，旧兜底不变）。两面同改是 198「行件合一」的应有之义。
+- 监测变化行（MonitorDetailView.changeRow）：左 IconTile＋未读点改砖右上角标（10pt primary 圆＋surface 描边，「未读」无障碍标签保留）；中摘要＋日期（AdminFormat.day）；右时刻（AdminFormat.timeOnly，metaMonospaced）。旧版无图标位、完整日期时间全压中列一行。
+- 台账详情 historyRow 本已是（时刻｜流转｜记录者）三段形态，不动、记为已合规。
+
+### §344.3 失败给人话（审计分三类，只动真泄漏）
+
+- 已合规不动：台账链（OneDayBridgeError 经 BridgeClientBase §233 门＋store message(for:) 映射）、定时链（HermesError.userMessage）、监测/看板 store 映射、审批链（客户端 L10n 固定句＋状态口径）、各段 ContentUnavailableView 固定人话句、HubDiffView/身份段失败态、SoulEditorView 结局映射。
+- 定案在先、明确不改两处：①审批 reason（ApprovalCardCopy.reasonLine）——§245/§301 定案，桥解析的结构化原因直出卡面（生产个案 62927061 修复本体），ApprovalCopyTests 钉死英文原因原文呈现，不许加门；②云电脑 creditsNote（BoxBridgeModels.creditsLine）——定案厂商原文呈现、不翻译不编造。台账详情 failSection 的 reason.excerpt 是详情页证据原文（原文的合法住所），不动。
+- 真泄漏一：浏览器段 actNote 与状态/截图失败——BoxBridgeClient 新增 `humanToolErrorText(_:)`：mcpErrorText 过 §233 ServerErrorText 门原样，不过门落 L10n「云电脑那边出了点问题，请稍后再试。」＋原文经 ChatDiagTrace 单串留痕；status/screenshot/act 三处消费点统一改走它。顺带堵住 mcpErrorText 空兜底英文 "tool error" 直出旧形态。getClient() 映射改固定人话：sessionFailed→「云电脑连接没建立起来，请稍后再试。」、toolCallFailed→「云电脑没能完成这次操作，请稍后再试。」（原文留痕）；networkError「网络不可达」不变。fetchCredits 的 credits_note 不经此门（定案②）。
+- 真泄漏二：监测详情「失败原因」——Core `MonitorPresentation.failureReasonText(of:)`：状态 .failed 时 lastError 过 §233 门原样，不过门/为空落「检查失败，服务端没给出能显示的原因。」；非失败态 nil。MonitorDetailView 改消费它（旧版 lastError 红字直出）。
+- 新 L10n 键 3 条只加 zh-Hans（xcstrings 3250→3253 键）；en/繁体按既登记欠账口径后补（与 §343/D10 先例同；validate_i18n 三语门为独立脚本、非构建门）。
+
+### §344.4 图标底色块（IconTile）
+
+- Design Components 新增 `IconTile`：饱和底色圆角块＋白色 SF 字形；几何借 AppSymbolTile 比例（圆角 size×0.26、字形 size×0.46 semibold），极性相反（彼白底彩字＝应用图标画法、本件饱和底白字＝设置入口画法），两件按承载分工不混用；缺省 size 30、色 Palette.primary；纯装饰、accessibilityHidden。
+- 色值决策：单色统一 Palette.primary。弃逐行分类色——与台账 tint 家族逐行对色等于新造一盘饱和版色板（违「不新造色板」），且台账类别绿与全域口径「绿只作小状态点、禁大面积绿填充」相冲。
+- 应用三处：台账详情下钻入口行「打开会话」(bubble.left)、「打开任务详情」(checklist)（旧版裸 Label 字形无砖无底；Button/NavigationLink 承载与文案不动）；监测变化行左位 (eye，监测身份字形与段图标/台账监测字形同形)。
+- 不动清单：台账行 pastel 类别图标盒（台账规格定型）、定时行白面方片＋琥珀角标/描边圆盘（L5 用户定案）、身份段 SOUL/记忆渐变双卡（已有底）、分段条与页首菜单图标（§222 定型）。
+
+### §344.5 验收
+
+- 新测：LedgerRowPartsTests 13（九态映射＋subtitle 重组等值）、HubFailureCopyTests 6（失败原因过门/不过门/空/非失败四态）、BoxBridgeHumanErrorTests 4（工具错误过门/英文技术串/超长/空兜底四态）。
+- 定向回归 14 套 **162 passed / 0 failed**（xcresult hubdebts-test，TEST_EXIT=0）：新三套 23＋LedgerModelsTests 31＋LedgerMonitorChangeTests 4＋MonitorBridgeModelsTests 21＋ServerErrorTextTests 14＋MCPProtocolTests 12＋ApprovalCopyTests 15＋HubCronTests＋SettingsCatalogTests＋HubSegmentsConsolidationTests 5＋HapticsMatrixTests 4＋BoxMCPClientTests 1。
+- 单元整树（OneDayCoreTests＋OneDayAppTests，xcresult hubdebts-unit）：**2814 passed / 5 failed / 2824 total**。5 红对账：ChatNativeListR2AssemblyTests 两件、EdgeEffectProbeTests、LibraryOrderingTests 共 4 件在基线 rel-05082 原树同测同红（base5.xcresult，4 failed/1 passed）＝既有红、非本包回归；TraceEchoMaterializationAppTests 一件在整树高负载下宿主崩溃，本包树单跑 6/6 绿（trace1.xcresult）、基线单跑亦过，判负载 flake。本包零新增红。
+- 真机门（留用户）：①页头横排 AX 最大字号档一帧 ②页头深色一帧 ③台账行右段秒级跳动观感 ④定时行右列两行时刻对齐 ⑤失败人话在真实断网/盒子离线时各露一帧。
+- 已知遗留（不扩围）：身份段 HubIdentitySection.headerRow 仍有大名（.title bold）＋45 头像，与收紧后页头同页异位重复（既存形态）；BoxFilesClient/BoxShellClient 有同类英文错误映射（非中枢面，另行收口）；SkillHubViews 行无图标属能力商店独立面（合并树定版为独立面，非本包范围）。

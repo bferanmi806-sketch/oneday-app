@@ -112,6 +112,45 @@ public struct AppSymbolTile: View {
     }
 }
 
+/// 入口图标底色块（§344，中枢四欠账·图标底色块）：
+/// 饱和底色圆角块＋白色 SF 字形——设置类页面入口
+/// 图标的统一待遇，供列表行左图标位（台账详情下
+/// 钻入口、监测变化行等）。几何与 AppSymbolTile
+/// 同比例（圆角 size×0.26、字形 size×0.46
+/// semibold），极性相反（彼白底彩字＝应用图标画
+/// 法、本件饱和底白字＝设置入口画法），两件分工
+/// 按承载、不混用。色由消费点给（缺省主题强调
+/// Palette.primary 单色统一，不逐行新造分类色）；
+/// 纯装饰（行文本自带语义），无障碍隐藏
+public struct IconTile: View {
+    private let symbol: String
+    private let color: Color
+    private let size: CGFloat
+
+    public init(
+        symbol: String, color: Color = Palette.primary,
+        size: CGFloat = 30
+    ) {
+        self.symbol = symbol
+        self.color = color
+        self.size = size
+    }
+
+    public var body: some View {
+        ZStack {
+            RoundedRectangle(
+                cornerRadius: size * 0.26, style: .continuous
+            )
+            .fill(color)
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.46, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
 /// 分区标题：0.23.0 起走字阶角色 sectionLabel（15
 /// medium，审计 S4：与抽屉分区头/设置分区头三面统一
 /// 同一角色；0.3.7 的 13 regular 旧档让位）、次色、

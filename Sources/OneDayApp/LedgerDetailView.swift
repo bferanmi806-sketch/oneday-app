@@ -61,7 +61,13 @@ struct LedgerDetailView: View {
                     Button {
                         onOpenSession(target)
                     } label: {
-                        Label("打开会话", systemImage: "bubble.left")
+                        // §344（图标底色块）：下钻入口
+                        // 行补统一 IconTile（旧版裸
+                        // Label 字形无砖无底）
+                        HStack(spacing: OneDayMetrics.spacingSM) {
+                            IconTile(symbol: "bubble.left")
+                            Text("打开会话")
+                        }
                     }
                 }
             }
@@ -107,7 +113,12 @@ struct LedgerDetailView: View {
                         store: kanbanStore, taskID: taskID
                     )
                 } label: {
-                    Label("打开任务详情", systemImage: "checklist")
+                    // §344（图标底色块）：同「打开会话」
+                    // 行，补统一 IconTile
+                    HStack(spacing: OneDayMetrics.spacingSM) {
+                        IconTile(symbol: "checklist")
+                        Text("打开任务详情")
+                    }
                 }
             }
         }
