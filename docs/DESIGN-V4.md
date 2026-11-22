@@ -14379,3 +14379,27 @@ TOPBAR-PLATE 终读数（两轮逐值同）：backing（0, 0, 402, 114）、bar�
 
 - 实验室：两轮实测——Core 先行轮 d4-citations-1（xcresult Test-OneDayApp-2026.11.22_12-59-43）34 passed / 0 failed（WebSourceExtractorTests 11 新测＋RichContentTests 23 回归）；App 合成轮 d4-citations-4（xcresult ~/build/dd-d4/Logs/Test/Test-OneDayApp-2026.11.22_13-36-46-+0800.xcresult）**77 passed / 0 failed**（WebSourceExtractorTests＋RichContentTests＋RenderMeasureTests＋MessageSourceStripFittingTests 3 新测＋ChatNativeRowHeightFittingTests＋ChatNativeHotfix330Tests＋ChatNativeMeasureDeskTests＋HapticsMatrixTests）。过程两坑实录：首轮 App 构建因新文件未入工程失败（tuist generate 补入后复跑）；拟合首跑展开态差 7pt——行价误用 plainHeight 限行价（spec 步长 18），按 §329 既有校准口改 swiftLineHeight 实高口（.footnote 15.67）后逐值合拢。拟合五钉：条收/展两态拟合＝合成价、条目级增量两态＝spacingS＋条高、无来源零增量（差分构造）、用户行不承接来源槽。
 - 真机门（留用户）：①真实联网搜索一轮落定后定稿气泡下出条、计数与域名正确 ②展开/收起手感与行高跟随无跳版 ③点行开链接（浏览器/通用链接路由正确） ④长清单（近封顶 10 条）展开滚动不卡 ⑤深色＋最大字号各一帧（标题截断、行高仍对账） ⑥流式落定瞬间条出现不闪烁/不顶行 ⑦旧会话（历史搜索轮）回放自动有条。
+
+## §348 流式增量喂入：切分层追加链增量＋切分备忘（2026-11-22；分支 feat/stream-incremental，基线 rel-05084@85a1f96＝0.50.84/212；施工图 oneday-design-review/stream-incremental-design-20261122.md）
+
+### §348.1 病根（量测先于定案，探针与静态审计互证）
+
+- 频率侧：§32 发布闸 80ms 窗/64 字 → 发布上限 12.5 次/秒（台账 20「约 12 次/秒」逐值吻合）；每拍全文快照写 @State，流式行描述符＋行高＋body 全量重求值。
+- 成本侧：2026-11-20 卡顿包已修呈现侧（逐块沉淀）与产物侧（内容寻址缓存），**切分侧未冻结**——原生面每拍 7–8 个调用点各调一次 `StreamingBlockSegmenter.blocks(for: 全文)`（行构建 1＋行高 2＋行版本 1＋承载估算 1＋body 2＋催产 1）；每次调用＝§167 解析备忘对变化文本恒未命中（每拍 1 次全文真解析）＋规范源重构全块重跑（备忘不覆盖此层，同拍 7–8 次）。每拍 O（已生成长度）、整场 O(N²)。
+- 探针实测（改前，12,000 字/128 字每拍/97 拍/每拍 7 调用）：总 282.7ms；每拍 first 2.66→last **8.82ms** 线性涨；解析备忘 hits 582/misses 97（每拍恰 1 次全文解析）。单次 blocks() 延迟 1k→16k 字＝0.21→2.90ms 严格线性。
+
+### §348.2 修法（全件对位见施工图第二节：八件中六件已在位，只补三格；落点全收在 Core 切分入口内，全部调用点零改动、与 ChatNativeList 装配接口影响面为零）
+
+- **切分结果备忘**：`blocks(for:)` 先查 ParseMemoBox（全文键，容量 64）——同拍多调用收敛为一次真求值（§167 同制，纯函数备忘、输出逐值不变）。
+- **追加链增量**：切分器持一条追加链（ChainBox 类盒托管，@unchecked Sendable＋NSLock，ParseMemoBox 同制——首轮以静态可变属性落码被 Swift 6 并发检查拦下后改此形态）；新文为链上文本的追加生长时，只对**不稳定域**重解析：域＝尾块＋其前一块（当前一块为列表时）。列表是解析器唯一能跨空行向后合并的构造——尾块首行后续拍转成列表项时会被前一列表跨空行 lookahead 收编（差分钉测首轮实证：段落行「1」补全为「1. 」案），故前一列表必须留在域内；域外块逐值复用。非追加（落定替换/restore/编辑/变短）全量重切并重置链，退化成本与旧制相同、永不劣化。
+- **解析器附加入口**：`MarkdownParser.parseWithRanges`（块＋首行行号）为增量记账供偏移；既有 `parse()` 行为与备忘零变更。逐块首行字符偏移一次成表 O(n)（逐块各自扫描全文的平方项经量测实证后改掉）。
+- **量测读面**：`StreamingSegmentationMetrics`（仿 MarkdownParseMetrics）：全量/增量求值、备忘命中计数＋最近增量后缀/全文长度。
+- 不动：发布闸、手势层与右滑桥、抽屉文件、块级流式与动画开关语义、查找高亮/引用/反应路径。
+
+### §348.3 验收
+
+- 差分等价 `StreamingIncrementalEquivalenceTests` 12 件：样本专挑状态修订路径（围栏跨拍闭合/表头分隔行分拍到达/列表隔空行续表/列表续行/引用标题分割线/有序列表打断段落/未闭合围栏/任务列表/混合长文/链被无关文本打断），步长 1–64 字逐步断言增量与强制全量逐块逐值相等。首轮 1 红（有序列表收编案）→ 修正不稳定域定义后复跑全绿。
+- 量测钉测 `StreamingIncrementalMeasureTests` 4 件：同文 7 调用只真求值 1 次（备忘命中 6）；60+ 拍追加流全量求值恒 1 次、余拍全增量、末拍后缀长 < 全文 1/2、整场全文解析备忘未命中 0（旧制每拍 1 次）；非追加/变短退化全量且逐值正确。
+- 探针同题复测（改后）：97 拍总 282.7→**107.2ms**；每拍 last 8.82→**2.47ms**（残余主要为备忘全文键哈希/LRU 维护的 O(n) 小常数项，非重解析）；单次冷调用 16k 字 2.90→**1.48ms**。解析备忘账 hits/misses＝0/0（切分不再经全文解析备忘）。
+- 回归集同轮（xcresult Test-OneDayApp-2026.11.22_13-32-13）：新钉测 16＋StreamingBlockProduct/StreamSegmentAssembler/StreamingAssemblyFidelity/StreamPublishGate/MarkdownBlocks/MarkdownParseMemo/MarkdownMessage/RenderMeasure/ChatNativeHotfix330/ReactionFloatingBar/HapticsMatrix 合计 **144 passed / 0 failed**；最终树（探针脚手架删除后）复验轮 Test-OneDayApp-2026.11.22_13-42-55 同集减探针 **142 passed / 0 failed**。
+- 真机门（留用户）：①数千字级长回答流式期滚动跟手、输入不发涩（与改前同题对比）②流式中途上滑翻历史再回底无跳帧/闪变 ③代码块/表格跨拍闭合瞬间无跳高无闪烁 ④深色＋最大字号各一帧流式形态不回退。

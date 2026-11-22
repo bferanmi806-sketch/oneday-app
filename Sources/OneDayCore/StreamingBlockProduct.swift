@@ -186,13 +186,168 @@ public struct StreamingBlock: Equatable, Sendable {
 /// 成代码块、半截表格不成表、行内未闭合标记字
 /// 面——都落在尾块内，不影响已闭合块）
 public enum StreamingBlockSegmenter {
+    /// §348（2026-11-22 流式增量包）：求值三级——
+    /// ①全文备忘（同文再查即表：同拍 7–8 个调用点
+    /// 收敛为一次真求值）②追加链增量（新文是链上
+    /// 文本的追加生长时，稳定前缀块逐值复用、只对
+    /// 尾块域重解析）③全量（首调/非追加/改写，行
+    /// 为与旧制逐值一致）。三级输出与旧制全量切分
+    /// 逐块恒等，差分钉测把守（StreamingIncremen-
+    /// talEquivalenceTests）
     public static func blocks(
         for text: String
     ) -> [StreamingBlock] {
         guard !text.isEmpty else { return [] }
-        let parsed = MarkdownParser.parse(text)
-        return parsed.enumerated().map { index, block in
-            let (kind, source) = canonical(block)
+        var evaluated = false
+        let result = memo.value(for: text) {
+            evaluated = true
+            return evaluate(text)
+        }
+        if !evaluated {
+            StreamingSegmentationMetrics.recordMemoHit()
+        }
+        return result
+    }
+
+    /// 强制全量切分（差分钉测的独立参照＋排障回退
+    /// 阀）：绕过备忘与追加链，与 blocks(for:) 同
+    /// 输出口径
+    public static func blocksForcingFullEvaluation(
+        for text: String
+    ) -> [StreamingBlock] {
+        guard !text.isEmpty else { return [] }
+        return segment(text).blocks
+    }
+
+    /// 测试隔离：清备忘与追加链（用例间互不串扰）
+    public static func resetCachesForTesting() {
+        memo.removeAll()
+        chainBox.lock.lock()
+        chainBox.state = nil
+        chainBox.lock.unlock()
+    }
+
+    // MARK: - 求值（三级路径）
+
+    /// 切分结果备忘：流式快照留存无用，容量只须覆
+    /// 盖同拍多调用与近期已落定段（§167 备忘同制）
+    private static let memo =
+        ParseMemoBox<[StreamingBlock]>(capacity: 64)
+
+    /// 追加链状态：上一轮真求值的全文、块序列与尾
+    /// 块首行字符偏移。只服务一条追加生长链；任何
+    /// 非追加求值全量重切并重置链——退化成本与旧
+    /// 制相同、永不劣化
+    private struct ChainState {
+        var text: String
+        var blocks: [StreamingBlock]
+        var blockStartOffsets: [Int]
+
+        /// 不稳定域块数：尾块，外加其前一块（当前一
+        /// 块是列表时）。列表是解析器唯一能跨空行向
+        /// 后合并的构造——尾块首行后续拍转成列表项
+        /// 时会被前一列表跨空行收编（lookahead），
+        /// 故列表在尾前时必须留在重解析域内（差分
+        /// 钉测 testOrderedInterruption 实证）
+        var regionCount: Int {
+            guard blocks.count >= 2 else { return blocks.count }
+            return blocks[blocks.count - 2].kind == .list
+                ? 2 : 1
+        }
+
+        var regionStartOffset: Int {
+            blockStartOffsets[blocks.count - regionCount]
+        }
+    }
+
+    /// 链状态托管盒：可变状态只在类内、读写全走
+    /// 锁（ParseMemoBox 的 @unchecked Sendable 同
+    /// 制，Swift 6 并发检查下静态可变属性不合规）
+    private final class ChainBox: @unchecked Sendable {
+        let lock = NSLock()
+        var state: ChainState?
+    }
+
+    private static let chainBox = ChainBox()
+
+    private static func evaluate(
+        _ text: String
+    ) -> [StreamingBlock] {
+        chainBox.lock.lock()
+        defer { chainBox.lock.unlock() }
+        if let chain = chainBox.state {
+            if chain.text == text {
+                return chain.blocks
+            }
+            if text.hasPrefix(chain.text),
+               let last = chain.blocks.last, last.isTail {
+                // 追加式生长：不稳定域（自域首块首行
+                // 起的后缀）单独重解析，域外块逐值
+                // 冻结。等价依据：解析器逐行状态机
+                // 在块边界处状态干净、状态修订只发
+                // 生在尾部块域内；唯一能跨域回合并
+                // 的列表跨空行收编，已由 region-
+                // Count 把前一列表块留在域内（差分
+                // 钉测把守）
+                let regionCount = chain.regionCount
+                let suffix = String(
+                    text.dropFirst(chain.regionStartOffset)
+                )
+                let tail = segment(suffix)
+                if !tail.blocks.isEmpty {
+                    var merged = Array(
+                        chain.blocks.dropLast(regionCount)
+                    )
+                    var offsets = Array(
+                        chain.blockStartOffsets
+                            .dropLast(regionCount)
+                    )
+                    for (offset, block)
+                        in zip(tail.blockStartOffsets,
+                               tail.blocks) {
+                        merged.append(StreamingBlock(
+                            index: merged.count,
+                            kind: block.kind,
+                            sourceText: block.sourceText,
+                            isTail: block.index
+                                == tail.blocks.count - 1
+                        ))
+                        offsets.append(
+                            chain.regionStartOffset + offset
+                        )
+                    }
+                    chainBox.state = ChainState(
+                        text: text, blocks: merged,
+                        blockStartOffsets: offsets
+                    )
+                    StreamingSegmentationMetrics
+                        .recordIncremental(
+                            suffixLength: suffix.count,
+                            fullLength: text.count
+                        )
+                    return merged
+                }
+            }
+        }
+        let full = segment(text)
+        chainBox.state = full.blocks.isEmpty ? nil
+            : ChainState(
+                text: text, blocks: full.blocks,
+                blockStartOffsets: full.blockStartOffsets
+            )
+        StreamingSegmentationMetrics
+            .recordFullEvaluation()
+        return full.blocks
+    }
+
+    /// 一次真切分（解析＋规范重构）：返回块序列与
+    /// 逐块首行在入参中的字符偏移（追加链记账用）
+    private static func segment(
+        _ text: String
+    ) -> (blocks: [StreamingBlock], blockStartOffsets: [Int]) {
+        let parsed = MarkdownParser.parseWithRanges(text)
+        let blocks = parsed.enumerated().map { index, entry in
+            let (kind, source) = canonical(entry.block)
             return StreamingBlock(
                 index: index,
                 kind: kind,
@@ -200,6 +355,21 @@ public enum StreamingBlockSegmenter {
                 isTail: index == parsed.count - 1
             )
         }
+        // 逐块首行偏移一次成表：逐行累加一趟 O(n)，
+        // 每块 O(1) 查表（逐块各自扫描全文是 O(n×块
+        // 数) 的平方项，量测实证后改，§348）
+        let lines = text.components(separatedBy: "\n")
+        var lineStarts: [Int] = []
+        lineStarts.reserveCapacity(lines.count)
+        var acc = 0
+        for line in lines {
+            lineStarts.append(acc)
+            acc += line.count + 1
+        }
+        let offsets = parsed.map { entry in
+            lineStarts[min(entry.startLine, lineStarts.count - 1)]
+        }
+        return (blocks, offsets)
     }
 
     /// 闭合前缀：全部非尾块的规范源以空行连接
@@ -312,6 +482,80 @@ public enum StreamingBlockSegmenter {
         case .divider:
             return (.divider, "---")
         }
+    }
+}
+
+// MARK: - 切分量测读面（§348）
+
+/// 流式切分求值账（仿 MarkdownParseMetrics 既有
+/// 读面）：全量/增量求值与备忘命中计数＋最近一次
+/// 增量的后缀/全文长度。量测钉测据此断言「单拍成
+/// 本有界、尾块增量路径在场」；真机排障亦可先读
+/// 此账判断增量是否在工作
+public enum StreamingSegmentationMetrics {
+    public struct Snapshot: Equatable {
+        public var fullEvaluations: Int
+        public var incrementalEvaluations: Int
+        public var memoHits: Int
+        public var lastIncrementalSuffixLength: Int
+        public var lastIncrementalFullLength: Int
+    }
+
+    /// 计数托管盒（@unchecked Sendable 同制：状态
+    /// 只在类内、读写全走锁）
+    private final class Counters: @unchecked Sendable {
+        let lock = NSLock()
+        var full = 0
+        var incremental = 0
+        var memoHits = 0
+        var lastSuffix = 0
+        var lastFull = 0
+    }
+
+    private static let counters = Counters()
+
+    public static func snapshot() -> Snapshot {
+        counters.lock.lock()
+        defer { counters.lock.unlock() }
+        return Snapshot(
+            fullEvaluations: counters.full,
+            incrementalEvaluations: counters.incremental,
+            memoHits: counters.memoHits,
+            lastIncrementalSuffixLength: counters.lastSuffix,
+            lastIncrementalFullLength: counters.lastFull
+        )
+    }
+
+    public static func reset() {
+        counters.lock.lock()
+        counters.full = 0
+        counters.incremental = 0
+        counters.memoHits = 0
+        counters.lastSuffix = 0
+        counters.lastFull = 0
+        counters.lock.unlock()
+    }
+
+    static func recordFullEvaluation() {
+        counters.lock.lock()
+        counters.full += 1
+        counters.lock.unlock()
+    }
+
+    static func recordIncremental(
+        suffixLength: Int, fullLength: Int
+    ) {
+        counters.lock.lock()
+        counters.incremental += 1
+        counters.lastSuffix = suffixLength
+        counters.lastFull = fullLength
+        counters.lock.unlock()
+    }
+
+    static func recordMemoHit() {
+        counters.lock.lock()
+        counters.memoHits += 1
+        counters.lock.unlock()
     }
 }
 
