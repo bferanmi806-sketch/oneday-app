@@ -474,6 +474,21 @@ final class AppState {
         return store
     }
 
+    /// 文件库名单店（§369 缓存 C4）：资源库／影音名
+    /// 单走 AppState 共享单例＋落盘快照（LibraryList-
+    /// Store），与 §259 三店同形态；名单不再随文件格
+    /// 视图生死、冷启先显快照后台对账
+    private var libraryListStoreInstance: LibraryListStore?
+
+    func sharedLibraryListStore() -> LibraryListStore {
+        if let libraryListStoreInstance {
+            return libraryListStoreInstance
+        }
+        let store = LibraryListStore()
+        libraryListStoreInstance = store
+        return store
+    }
+
     /// 记一笔本人裁决（AgentHubStore.decide 成功落
     /// 账后调用；recordGone 等他人先裁的路径不记——
     /// 那类回执是「未读重要事件」、不归本人消账）

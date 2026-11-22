@@ -14988,3 +14988,29 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 回归：账本族（SessionLedgerApp/Package2/TailClose、SessionCatalogGuard）＋抽屉族（DrawerOpenJankS365、DrawerSettleSignalS365）＋删除族（DeleteCloseout、DeleteOptimistic）＋C1 门套件（CacheFreshnessGateC1）对 rel-05092 基线无新红——实跑 bundle Test-OneDayApp-cache3.xcresult：10 套共 52 项全绿（C3 新套件 8/8、余 9 套 44 项全绿、零红），逐套在场已核（防静默跳过）。
 - 真机门留用户：60s 内连开抽屉数次名单零闪动零重拉感、新旁聊首轮落地后开抽屉见新标题、删会话后开抽屉不回滚。
 
+
+## §369 缓存 C4：资源库／影音名单落盘快照＋删除本地摘行（2026-11-22；基线 feat/smooth-s4-library-lazy @22e9b51，分支 feat/cache-c4-library-snapshot）
+
+### §369.1 定性与范围
+
+缓存审计（cache-audit-20261122.md 第 6 节）定性 ①③：文件库名单只活在 DeliverablesView 的视图 @State（DeliverablesView.swift:50），无落盘、无 AppState store——冷启进面必从 nil 整表 GET /file-library；删一个文件成功后 collect() 整表重拉；影音与资源库同面同源同病。缩略图层（FileThumbnailStore＋RemoteImagePipeline＋DeliveryStore）已 ⑤ 达标、不碰。S4（§363）治呈现与滚动（行形态、LibraryListSnapshot 计算层），本包只治取数，两包分开记账；本包基线直接站在 S4 顶端（22e9b51）之上，S4 的原生 Button 行＋.odPressable 与 LibraryListSnapshot 过滤/排序/字典语义一字未动，排序口味（台账 29）不碰。
+
+### §369.2 修法：LibraryListStore（新文件 Sources/OneDayApp/LibraryListStore.swift）
+
+名单状态自视图 @State 上提为 AppState 共享店（sharedLibraryListStore()，与 §259 点子/目标三店同形态、同懒建），视图改只读计算属性消费（deliverables 读点 13 处原样保留）。店内三件事：
+
+1. **落盘快照（stale 半边）**：载荷 SnapshotPayload（Codable：configKey＋savedAt＋条目 DTO 全表；DTO 在店内与 Deliverable 逐字段对映，不动 Core WorkspaceFileEntry 的可编码性）JSON 落 Caches/LibraryListSnapshot-v1.json（.atomic 写）。选 Caches 的理由：快照是可重建缓存、非真值，系统清掉只是退回冷拉；形式照身份落盘缓存先例（Codable JSON＋时间戳，§253）。
+2. **播种与对账（SWR 全程）**：refresh 先同步播种再恰一次全量拉取——播种＝内存无名单或名单属别台时，先清外来货、再以本键快照上屏（同步完成、网络返回前名单已在屏，.task 首跳内发生）；拉取成功走 reconciled 差异合并（结果与 fresh 逐项等价：同序、同条目、同来源；未变条目原值复用、消失丢弃、新增采纳；一次原子替换、不经过空白态）并整份覆写快照；拉取失败保留现有名单不清屏（旧 collect 失败口径原样，视图 loadError 只在「无数据失败／无配置」时置位、与旧口径逐项同）。对账单飞守卫（.task 与上传完成回调并发不重入，与各店 isLoading 同式）。
+3. **配置键纪律**：快照键＝连接配置键 ServerConfig.baseString（与 CronStore loadedForConfig、归档店、自检摘要同口径），内嵌载荷而非文件名——当前键与快照键不符即弃用快照、内存名单属别台同理清掉，快照不得跨服务器/账号串用；当前键为 nil（未连接）时不动现状、不调 fetch（旧 collect 无配置口径）。
+
+**失效事件逐项**：①对账成功→快照整份覆写为新名单；②本地删除成功→摘行后同步覆写；③删除失败回滚→恢复后同步覆写；④配置键变化→键不符自然弃用（下次对账成功以新键覆写）；⑤快照文件损坏/解码失败→按无快照处理（不崩、不冒充）；⑥改名等修订（fileLibraryRevision 递增）→仍走 .task 对账（恰一次拉取、成功后覆写快照），语义与旧 collect 同。
+
+### §369.3 删除口径：本地摘行（delete 与 deleteFromViewer 同通道）
+
+店内 delete(paths:perform:)：本地先摘行（单删/批量同口径）并同步落盘→逐个走真接口（performAdmin deleteFile，通道不变）→全部成功即定案，**不发任何名单请求**；任一失败把已摘行按原下标回滚、快照同步恢复，回 HermesError.userMessage 人话（兜底「删除失败，请稍后再试。」与旧口径逐字同），视图据结局发回执与触感（成功无触感/失败 error，与旧口径同）。已知代价（记明）：批量删除中途失败时，先行成功的那几行服务端已删、本地回滚会短暂复活，下一次对账即以服务端为准收敛——单删（现行两个 UI 入口都是单删）无此问题。无名单时（旁路）只走真接口、不做本地手术。
+
+### §369.4 验收
+
+- 钉测（Tests/OneDayAppTests/LibraryListStoreC4Tests.swift，12 项全绿）：假服务端请求计数（fetch 计名单请求、perform 计删除请求，与生产接线同形）——有快照冷启＝fetch 发起瞬间屏上已是快照名单＋全程恰 1 次对账、对账后与服务端逐项同序一致；无快照冷启＝拉取前为 nil、恰 1 次；单删/批量删＝名单请求 0 次（计数不动）、删除请求逐个计数、摘行后新店只播种即见删除后名单（快照同步）；删除失败＝整表原位回滚＋快照同步恢复；换配置键＝内存外来名单与 A 键快照在拉取前均已弃用、从 nil 全量拉、B 键覆写后 A 键播种落空；reconciled 与 fresh 逐项等价（增/删/改/重排矩阵＋nil 旧集）；对账失败保快照名单（keptAfterFailure）、无数据失败 failedNoData、无配置 noConfig 且 fetch 零调用、损坏快照按无快照处理；结构钉测＝视图名单 @State 退役＋走 sharedLibraryListStore()＋collect() 触发点恰 3 处（.task/上传完成/失败重试，基线 5 处含两条删除路径）。
+- 回归账：Test-OneDayApp-cache4.xcresult 共 99 项 98 过——LibraryListStoreC4Tests 12/12、S4 的 LibraryListSnapshotTests 5/5（等价矩阵＋结构钉测含本面 LazyVStack/无 .odPressFeedback()/.onTapGesture 全过）、ShellBgStructureProbeTests 3/3、HitArea44Tests 10/10、Core 文件库六套 53/53（LibraryMenuResolution/FileLibraryModels/DeliverableFileType/DeliverableIconStyle/DeliveryMarker/MediaMarker，另 BridgeDeliveryDecodeTests 3/3）；唯一红＝OneDayCoreTests/LibraryOrderingTests.testSortByTitleUsesDisplayTitle（「报告.docx vs alpha.pdf」），与 S4 基线老红逐字同签名（台账 29 排序口味待裁案、本包未碰），无新红、无静默跳过（12 套全在册、逐套计数对账）。
+- 未验（如实）：真机冷启首帧快照上屏与删除手感待装机 verdict（实验室口径已证：播种在 .task 首跳同步完成、网络返回前名单已置位；删除摘行即时、失败回滚带人话）。本包未组版，待主线随后续版本并入。

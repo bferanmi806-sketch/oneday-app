@@ -47,7 +47,15 @@ struct DeliverablesView: View {
 
     /// 0＝文件、1＝影音内容
     @State private var segment = 0
-    @State private var deliverables: [Deliverable]?
+    /// §369（缓存 C4）：名单走 AppState 共享店＋落盘
+    /// 快照（LibraryListStore）——冷启先显快照、后台
+    /// 对账换新，删除本地摘行不重拉；本面只读消费
+    private var listStore: LibraryListStore {
+        appState.sharedLibraryListStore()
+    }
+    private var deliverables: [Deliverable]? {
+        listStore.deliverables
+    }
     @State private var loadError: String?
     @State private var pendingDelete: Deliverable?
     @State private var shareItem: FileShareItem?
@@ -1319,22 +1327,26 @@ struct DeliverablesView: View {
         }
     }
 
-    /// 查看器内删除（0.36.4）：与行删除同通道（管理
-    /// 接口删＋重聚合）；落锤触感已由查看器在点删
-    /// 时发过、本处成功不叠、失败 error
+    /// 查看器内删除（0.36.4）：与行删除同通道（§369
+    /// 起同走名单店本地摘行＋真接口删、不重聚合）；
+    /// 落锤触感已由查看器在点删时发过、本处成功不
+    /// 叠、失败 error
     private func deleteFromViewer(_ entry: WorkspaceFileEntry) async {
-        do {
+        let outcome = await listStore.delete(
+            paths: [entry.path]
+        ) { path in
             try await appState.performAdmin { client, config in
                 try await client.deleteFile(
-                    config: config, path: entry.path,
+                    config: config, path: path,
                     recursive: false
                 )
             }
+        }
+        switch outcome {
+        case .success:
             notice = "已删除「\(entry.name)」。"
-            await collect()
-        } catch {
-            notice = (error as? HermesError)?.userMessage
-                ?? "删除失败，请稍后再试。"
+        case .failed(let message):
+            notice = message
             Haptics.error()
         }
     }
@@ -1396,50 +1408,68 @@ struct DeliverablesView: View {
     /// LibraryOrdering（本函数只负责聚合集本身）。
     /// 失败口径：首拉失败给错误态；已有数据时刷新失败
     /// 保留旧集不清屏（回响链同口径）
+    /// §369（缓存 C4）：聚合走名单店对账——店内先以
+    /// 落盘快照播种（冷启不等网络先上屏）、再恰一次
+    /// 全量拉取差异合并换新；本函数只做接线（桥读面
+    /// 单流）与既有 loadError 口径回填：无数据失败／
+    /// 无配置才给错误态、成功且非空清错误、已有数据
+    /// 刷新失败保留旧集不清屏（店内已保、本处不置错）
     private func collect() async {
-        guard let config = appState.config else {
-            if deliverables == nil {
-                loadError = "产出目录没读出来，可能是网络或服务暂时没响应"
+        let outcome = await listStore.refresh(
+            currentConfigKey: appState.config?.baseString
+        ) {
+            guard let config = appState.config else {
+                // 键非 nil 时配置同源必在；店内当前键
+                // 为 nil 时不会调用本闭包
+                throw HermesError.sessionExpired
             }
-            return
-        }
-        do {
             let page = try await bridgeClient.fileLibrary(
                 config: config
             )
-            deliverables = page.items.map {
+            return page.items.map {
                 Deliverable(entry: $0.entry, source: $0.source)
             }
+        }
+        switch outcome {
+        case .loaded:
             if !(deliverables?.isEmpty ?? true) {
                 loadError = nil
             }
-        } catch {
+            // 聚合落定后补消费定位请求（请求先于数
+            // 据到达时 onChange 已触发过、那时 deli-
+            // verables 为空未消费，见 consumeReveal-
+            // IfReady 的守卫）
+            consumeRevealIfReady()
+        case .noConfig, .failedNoData:
             if deliverables == nil {
                 loadError = "产出目录没读出来，可能是网络或服务暂时没响应"
             }
-            return
+        case .keptAfterFailure, .alreadyInFlight:
+            break
         }
-        // 聚合落定后补消费定位请求（请求先于数据到达
-        // 时 onChange 已触发过、那时 deliverables 为空
-        // 未消费，见 consumeRevealIfReady 的守卫）
-        consumeRevealIfReady()
     }
 
+    /// §369（缓存 C4）：删除走名单店本地摘行——先摘
+    /// 行上屏、真接口确认，成功不整表重拉；失败店内
+    /// 原位回滚，本处只管回执与触感
     private func delete(_ item: Deliverable) async {
-        do {
+        let outcome = await listStore.delete(
+            paths: [item.entry.path]
+        ) { path in
             try await appState.performAdmin { client, config in
                 try await client.deleteFile(
-                    config: config, path: item.entry.path,
+                    config: config, path: path,
                     recursive: false
                 )
             }
+        }
+        switch outcome {
+        case .success:
             notice = "已删除「\(item.entry.name)」。"
             // 成功无触感：确认时的 heavy 落锤已代表
             // 本链（规格 §2.3，同一因果链只震一次）
-            await collect()
-        } catch {
-            notice = (error as? HermesError)?.userMessage
-                ?? "删除失败，请稍后再试。"
+        case .failed(let message):
+            notice = message
             // 失败改判 error（0.36.2，表 D 语义归位）
             Haptics.error()
         }
