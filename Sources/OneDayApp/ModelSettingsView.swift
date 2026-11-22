@@ -107,7 +107,7 @@ struct ModelSettingsView: View {
         .listStyle(.insetGrouped)
         .navigationTitle("模型与服务商")
         .navigationBarTitleDisplayMode(.inline)
-        .refreshable { await store.load(appState: appState) }
+        .refreshable { await store.load(appState: appState, forceCatalog: true) }
         .task { await store.load(appState: appState) }
         .sheet(isPresented: $showProviderEditor) {
             ProviderEditorView(store: store) { added in
@@ -657,7 +657,8 @@ struct ModelSettingsView: View {
     private func refreshMainCard() async {
         busyCards.insert(Self.mainCardID)
         defer { busyCards.remove(Self.mainCardID) }
-        await appState.refreshModelCatalog()
+        // §368：手动刷新走强制口，必真拉不清 TTL 的账
+        await appState.refreshModelCatalogForced()
         testResults[Self.mainCardID] = appState.availableModels.isEmpty
             ? .failed(message: L10n.string("没能读到网关的模型清单，检查网络与登录状态后再试。"))
             : .connected(modelCount: appState.availableModels.count)

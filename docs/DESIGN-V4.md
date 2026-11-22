@@ -14931,3 +14931,29 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
   面），协议与 §367.2 已同步改 28 口。
 - 真机手感门（进面零请求体感、refs 标题降级观感）留
   用户验收，本节不自称关账。
+
+## §368 缓存施工 C2：模型目录单飞＋TTL＋三入口收口（2026-11-22；基线 rel-05091，分支 feat/cache-c2-model-catalog）
+
+### §368.1 病灶（缓存审计 cache-audit-20261122 第 5 节实证）
+
+- `AppState.refreshModelCatalog` 每次调用拉 4 个管理口（rawConfig、models、modelOptionsRaw、modelAnalytics 30d），无 TTL、无单飞；结果存 AppState 内存变量、失败保旧——显示层不闪，但网络层每次全付。
+- 触发点三处各拉各的：ChatView.swift:933 的 `.task`（聊天页每次挂载）、ModelSettingsView.swift:660（refreshMainCard）、ModelManagementStore.swift:99（load）/:502（testMainEndpoint）。冷启进聊天一整轮、进模型设置再一整轮、同面下拉又一整轮。
+- 模型目录是典型慢变数据：变更源只有两个——用户在本机改配置（写路径全在本 App 内）、服务端/上游侧低频变更。现行口径把慢变数据当活数据拉。
+
+### §368.2 修法（单一数据源＋新鲜度门，照 CronStore.loadIfNeeded 范本扩展）
+
+- 单一数据源不另起新店：目录数据（defaultModel／availableModels／chatModelGroups／gatewayAliases／providerModelTotal）本就只存 AppState 一处、三入口本就同走 refreshModelCatalog；本包给这一处装新鲜度门与单飞，三入口全部经门取数。
+- 新鲜度门三件套（CronStore 的 hasLoaded／loadedForConfig 范本再加时刻件）：`modelCatalogLoadedAt`（载入时刻）＋`modelCatalogLoadedForConfig`（配置键＝config.baseString，与 CronStore 的配置键跳过语义同式）＋epoch 失效代次。另立 `modelCatalogLoadTask` 在飞句柄作单飞。
+- 冷口 `refreshModelCatalog()`：新鲜（epoch 未变＋配置键同＋TTL 内）＝0 请求返回；过期或键变才起一轮；在飞则搭同一轮（并发触发只发一轮）。ChatView .task、管理面 load 冷路走它。
+- 强制口 `refreshModelCatalogForced()`：先失效、再确保「失效后的一轮」落地——不许被 TTL 吞，也不许被失效前已在飞的旧轮冒充（旧轮落地时其起始 epoch 与当前不符、不落新鲜 stamp，强制方据 attempt 代次判定已真拉或再补一轮，全灭时不空转）。手动刷新三处走它：ModelSettingsView.refreshMainCard、ModelManagementStore.testMainEndpoint（测连通以目录刷新结果为准，吞了就是假连通）、管理面下拉刷新（load(forceCatalog:)）。
+- 失效事件（写后失效，照审计 C2「模型写操作后显式失效」）：AppState.setDefaultModel 写成功后失效；noteDefaultModel 函数内失效（本口是写回同步口，三处调用——store.setDefaultModel 两口＋activateCombo——全为写后）；ModelManagementStore.writeBack 成功后失效（addProvider／deleteProvider／saveAux 的 config 写共用底座，注册表变更直接改目录分组）。切换服务器／连接配置变更不另设点：配置键（baseString）变化自动绕过 TTL，与 CronStore 同语义。
+- TTL 定档 300 秒，理由：仓内先例是身份节流 30s（用户盯着看的活数据）、伴生探测 60s（状态类）、C1 名单类 60s（他人／服务端事件可变、用户高频回访）——模型目录的变更源比它们都窄：本机写全部显式失效、不靠 TTL 兜底；服务端侧变更低频，且后果轻（目录最迟晚 300s 换新；顶栏选择有回退链兜底、已选会话的执行不受影响）。审计 C2 建议值同为 5 分钟。故定 300s，不随名单类的 60s 短定。
+- 落 stamp 的成功口径：一轮内 rawConfig 与 modelOptionsRaw 任一应答即落 stamp；两口全灭（离线）不落——下次触发照旧重试，失败恢复行为与修前一致。各口 try? 独立、失败保旧、空结果不覆盖的既有纪律逐字保留（fetchModelCatalog 本体即原 refreshModelCatalog 函数体，仅加 answered 记账）。
+- 红线：目录消费语义一字不改——sessionModelChoice 回退链、setDefaultModel 写校验、ChatModelGroups 拼装口径全不动，只改取数时机与去重；聊天消息与图片缓存（三级缓存已达标）不碰。
+
+### §368.3 验收（实验室口径）
+
+- 钉测 ModelCatalogFreshnessC2Tests 7/7（bundle Test-OneDayApp-cache2，run cache2-suite1）：①三入口同窗连发（冷口×3）＝四口各恰 1 次、落值口径不变（availableModels=[m-a, m-b]、defaultModel=m-a）；②并发三路＋rawConfig 延迟 0.15s 保证重叠在飞＝仍各 1 次（单飞）；③拨 loadedAt 过 TTL＝第二轮各 2 次；④connectDirect 换配置键＝TTL 内真拉（rawConfig/options/analytics 各 2、models 含 connectDirect 验钥 1 次共 3、stamp 键＝新 baseString）；⑤强制口 TTL 内真拉（各 2）、其后冷口回归 0 请求；⑥setDefaultModel 写后冷口真拉（rawConfig 3＝首轮＋写路径读＋失效后轮、options/analytics/models 各 2、updateConfig 1）；⑦目录两口全灭＝不落 stamp、连发两次各重试（rawConfig/options 各 2、loadedAt 恒 nil）。
+- 计数桩 CountingCatalogClient 由 FailingHermesClient 机械变换生成（同 ScriptedSessionsClient 口径），只给目录四口＋health/login/updateConfig 长行为，余恒 unreachable；不进 C-13 冻结面。
+- 回归同轮 14 套共 133 项全绿（xcresulttool 总账 133 过/0 败）：ModelCatalogFreshnessC2Tests 7、ModelAccountUnifyAppTests 9、SessionCatalogGuardTests 9（App 侧）；ModelCatalogTests、ModelSettings119Tests 19、ChatModelGroupsTests、MainModelAssignmentTests、ModelCombosTests、ModelMenuSelectionTests、ManagementModelsTests、SessionModelAccountTests、AdminModelsDecodeTests、ModelsDecodeTests、ChatModelsTests（Core 侧）。零红、与基线对账无新红（本轮全绿、无需基线复跑对证）。
+- 真机门留用户：冷启进聊天→立刻进模型设置→切回聊天，全程目录只拉一轮的手感与顶栏清单正确性；服务端侧改 config 后最迟 300s 换新是否可接受。

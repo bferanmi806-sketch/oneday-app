@@ -1143,17 +1143,107 @@ final class AppState {
 
     // MARK: - 模型目录（0.2.2 获取制）
 
+    /// §368 新鲜度门 TTL：300 秒。定档理由（§368.2）：
+    /// 模型目录的变更源最窄——本机写全部走显式失效、
+    /// 不靠 TTL 兜底；服务端侧变更低频且后果轻（目录
+    /// 晚换新，顶栏回退链兜底、已选会话执行不受影响）。
+    /// 仓内先例（身份 30s／伴生探测 60s／名单类 60s）
+    /// 都是变更源更宽的面，不可比照短定
+    static let modelCatalogTTL: TimeInterval = 300
+
+    /// §368 载入时刻＋配置键（CronStore 的 hasLoaded/
+    /// loadedForConfig 范本再加时刻件，凑成新鲜判定三
+    /// 件套）；internal 供钉测拨时刻模拟过期
+    var modelCatalogLoadedAt: Date?
+    var modelCatalogLoadedForConfig: String?
+    /// §368 失效代次：写/强制刷新递增；一轮载入只服
+    /// 务于它的起始代次——载入期间被失效的轮次，落地
+    /// 也不算新鲜
+    private var modelCatalogEpoch = 0
+    private var modelCatalogLoadedEpoch = -1
+    private var modelCatalogAttemptEpoch = -1
+    /// §368 单飞句柄：并发触发搭同一轮，不各拉各的
+    private var modelCatalogLoadTask: Task<Void, Never>?
+
+    /// §368 目录失效：模型写路径的成功点与强制刷新
+    /// 调用；只动取数时机，目录消费语义一字不变
+    func invalidateModelCatalog() {
+        modelCatalogEpoch += 1
+        modelCatalogLoadedAt = nil
+    }
+
+    private var modelCatalogIsFresh: Bool {
+        guard modelCatalogLoadedEpoch == modelCatalogEpoch,
+              modelCatalogLoadedForConfig == config?.baseString,
+              let modelCatalogLoadedAt
+        else { return false }
+        return Date().timeIntervalSince(modelCatalogLoadedAt)
+            < Self.modelCatalogTTL
+    }
+
+    /// 冷口（§368）：新鲜即 0 请求返回；过期/配置键
+    /// 变才起一轮；在飞则搭在飞的一轮
+    func refreshModelCatalog() async {
+        guard phase == .connected else { return }
+        if modelCatalogIsFresh { return }
+        await awaitOneModelCatalogLoad()
+    }
+
+    /// 强制口（§368）：手动刷新/测连通走它——先失效，
+    /// 再确保「失效后的一轮」落地，不许被 TTL 吞、
+    /// 也不许被失效前已在飞的旧轮冒充
+    func refreshModelCatalogForced() async {
+        guard phase == .connected else { return }
+        invalidateModelCatalog()
+        let target = modelCatalogEpoch
+        while modelCatalogLoadedEpoch != target,
+              modelCatalogAttemptEpoch < target {
+            await awaitOneModelCatalogLoad()
+            guard phase == .connected else { return }
+        }
+    }
+
+    /// 起一轮（或搭在飞的一轮）并等它落地；落 stamp
+    /// 只在本轮有应答时（成功口径见 fetchModelCatalog）
+    private func awaitOneModelCatalogLoad() async {
+        if let task = modelCatalogLoadTask {
+            await task.value
+            return
+        }
+        let epochAtStart = modelCatalogEpoch
+        let keyAtStart = config?.baseString
+        modelCatalogAttemptEpoch = epochAtStart
+        let task = Task { @MainActor in
+            let answered = await self.fetchModelCatalog()
+            if answered {
+                self.modelCatalogLoadedAt = Date()
+                self.modelCatalogLoadedForConfig = keyAtStart
+                self.modelCatalogLoadedEpoch = epochAtStart
+            }
+        }
+        modelCatalogLoadTask = task
+        await task.value
+        modelCatalogLoadTask = nil
+    }
+
     /// 刷新默认模型与可切换目录（0.2.4）：当前值来自
     /// /api/config；候选只来自上游（ModelCatalog 口径）：
     /// /api/model/options 优先，为空回落近 30 天用量 ∪
     /// 当前值；网关 /v1/models 的返回只作别名集用于排除，
-    /// 本身永不进候选（0.2.2 的并集口径是 bug 源头）
-    func refreshModelCatalog() async {
-        guard phase == .connected else { return }
+    /// 本身永不进候选（0.2.2 的并集口径是 bug 源头）。
+    /// §368：本函数只管取数与落值，新鲜度门/单飞在
+    /// refreshModelCatalog 两口；返回本轮是否有应答
+    /// （rawConfig 与 modelOptionsRaw 任一成功）——两
+    /// 口全灭（离线）不落 stamp，下次触发照旧重试，
+    /// 失败恢复与修前一致
+    private func fetchModelCatalog() async -> Bool {
+        var answered = false
         var registryEntries: [ProviderRegistry.Entry] = []
-        if let raw = try? await performAdmin({ client, config in
+        let rawResult = try? await performAdmin { client, config in
             try await client.rawConfig(config: config)
-        }), let current = raw["model"]?.stringValue {
+        }
+        if rawResult != nil { answered = true }
+        if let raw = rawResult, let current = raw["model"]?.stringValue {
             defaultModel = current
             // §119 未配模型判定输入：具名服务商的模型
             // 总数（读到配置才有值；未知时判定不报）
@@ -1175,6 +1265,7 @@ final class AppState {
         if let root = try? await performAdmin({ client, config in
             try await client.modelOptionsRaw(config: config)
         }) {
+            answered = true
             optionsRoot = root
             options = ModelCatalog.extractModelIDs(from: root)
         }
@@ -1229,6 +1320,7 @@ final class AppState {
                 persistSessionModelChoices()
             }
         }
+        return answered
     }
 
     /// 切换服务端默认模型：读全量 config → 只改 model 键 →
@@ -1251,6 +1343,9 @@ final class AppState {
         if !availableModels.contains(model) {
             availableModels.insert(model, at: 0)
         }
+        // §368：写后失效——下次触发必真拉（新值已同步
+        // 进内存，失效只影响取数时机）
+        invalidateModelCatalog()
     }
 
     /// 设置页在本页内写回 config 后同步内存态（避免两处口径漂移）。
@@ -1260,6 +1355,9 @@ final class AppState {
         if !availableModels.contains(model), !gatewayAliases.contains(model) {
             availableModels.insert(model, at: 0)
         }
+        // §368：本口是写回后的同步口（三处调用全为写
+        // 后），同步内存态的同时失效目录新鲜度
+        invalidateModelCatalog()
     }
 
     /// 拉配置摘要（总览旧路径，走统一通道）
