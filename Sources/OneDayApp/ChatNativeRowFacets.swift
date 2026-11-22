@@ -30,8 +30,13 @@ struct ChatEntryHeightSnapshot {
     /// 知、无异步翻转，同 toolCard/remoteImagePaths
     /// 的 facet 纪律）
     let reactions: [MessageReaction]
+    /// D4（§349）：本条所属轮的聚合来源（呈现层派
+    /// 生、拼装时注入）——非条目本体字段：来源的数
+    /// 据源是同轮工具条目的卡（工具行原文单源），
+    /// 快照只携派生结果供合成器定高
+    let sources: [MessageSource]
 
-    init(_ entry: ChatEntry) {
+    init(_ entry: ChatEntry, sources: [MessageSource] = []) {
         id = entry.id
         role = entry.role
         content = entry.content
@@ -50,6 +55,7 @@ struct ChatEntryHeightSnapshot {
         traceKey = entry.traceKey
         traceEcho = entry.traceEcho
         reactions = entry.reactions
+        self.sources = sources
     }
 }
 
@@ -108,6 +114,11 @@ enum ChatNativeRowFacetSnapshotter {
         recordExpansion(
             ledger,
             key: ChatRowStateKeys.toolEntry(entry.id),
+            into: &facets
+        )
+        recordExpansion(
+            ledger,
+            key: ChatRowStateKeys.sourcesEntry(entry.id),
             into: &facets
         )
         if entry.role == "user" {
