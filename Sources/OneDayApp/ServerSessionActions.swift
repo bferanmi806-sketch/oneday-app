@@ -47,9 +47,12 @@ enum ServerSessionActions {
             let row = try await appState.performAdmin { client, config in
                 try await client.serverSession(config: config, id: id)
             }
-            return row.cleanedServerTitle == title
-                ? .verified
-                : .failed(L10n.string("没改名成：服务器上的标题还是原来的，稍后再试一次。"))
+            guard row.cleanedServerTitle == title else {
+                return .failed(L10n.string("没改名成：服务器上的标题还是原来的，稍后再试一次。"))
+            }
+            // §370：改名落定即名单写事件——新鲜度作废
+            appState.sessionLedger.invalidateListFreshness()
+            return .verified
         } catch {
             return .failed(humanReason(error))
         }
@@ -69,9 +72,12 @@ enum ServerSessionActions {
             let row = try await appState.performAdmin { client, config in
                 try await client.serverSession(config: config, id: id)
             }
-            return row.isPinned == pinned
-                ? .verified
-                : .failed(L10n.string("没置顶成：服务器上这条还是没置顶的样子，稍后再试一次。"))
+            guard row.isPinned == pinned else {
+                return .failed(L10n.string("没置顶成：服务器上这条还是没置顶的样子，稍后再试一次。"))
+            }
+            // §370：置顶落定即名单写事件——新鲜度作废
+            appState.sessionLedger.invalidateListFreshness()
+            return .verified
         } catch {
             return .failed(humanReason(error))
         }
@@ -101,6 +107,9 @@ enum ServerSessionActions {
             if !archived {
                 appState.sessionLedger.unarchive(serverSessionID: id)
             }
+            // §370：归档/恢复落定即名单写事件——新鲜
+            // 度作废（可见段成员资格已变）
+            appState.sessionLedger.invalidateListFreshness()
             return .verified
         } catch {
             return .failed(humanReason(error))

@@ -14957,3 +14957,34 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 计数桩 CountingCatalogClient 由 FailingHermesClient 机械变换生成（同 ScriptedSessionsClient 口径），只给目录四口＋health/login/updateConfig 长行为，余恒 unreachable；不进 C-13 冻结面。
 - 回归同轮 14 套共 133 项全绿（xcresulttool 总账 133 过/0 败）：ModelCatalogFreshnessC2Tests 7、ModelAccountUnifyAppTests 9、SessionCatalogGuardTests 9（App 侧）；ModelCatalogTests、ModelSettings119Tests 19、ChatModelGroupsTests、MainModelAssignmentTests、ModelCombosTests、ModelMenuSelectionTests、ManagementModelsTests、SessionModelAccountTests、AdminModelsDecodeTests、ModelsDecodeTests、ChatModelsTests（Core 侧）。零红、与基线对账无新红（本轮全绿、无需基线复跑对证）。
 - 真机门留用户：冷启进聊天→立刻进模型设置→切回聊天，全程目录只拉一轮的手感与顶栏清单正确性；服务端侧改 config 后最迟 300s 换新是否可接受。
+## §370 缓存 C3：抽屉会话名单新鲜度门（2026-11-22；基线 rel-05092，分支 feat/cache-c3-drawer-list-ttl；先合 C1 §367 取共用 FreshnessGate）
+
+### §370.1 病灶（缓存审计定性 ②）
+
+- 抽屉名单无新鲜度概念：`SessionLedger.refreshVisible` 只有在飞守卫、无 TTL——每次触发走 `fetchAll` 全量分页（100/页、至多 10 页）＋`sessionTitles.ensureTitles` 标题补拉。两次开抽屉间隔 5 秒与 5 分钟付一样的整表代价（审计逐面证据 1）。
+- §365 已把两路拉取触发点迁到抽屉落定拍（D2），本包只在该触发点上加新鲜度门，不回退 §365 任何语义：D1 等值守卫、落定信号、身份一路（自有 30s 节流）均不动；总览待批 30s 轮询是红线面，不碰。
+
+### §370.2 修法
+
+- 账本持共用新鲜度门：`SessionLedger.listFreshness = FreshnessGate(ttl: .standardListTTL)`——TTL 定档 60s，照 §367.3 名单类标准档（慢变名单＋多口整表高代价型，对齐伴生探测 60s 先例），与 Feed/Ideas/Goals 三店同口径，不另拍一套。另立失效代次 `listFreshnessEpoch`（与 C2 epoch 同式）。
+- 新读触发入口 `refreshVisibleIfNeeded(appState:localThreads:now:)`：门判新鲜（已成功落账＋配置键同＋TTL 内）→ 直接用已载名单、零请求；否则走 `refreshVisible` 全量。`now` 可注入（钉测推进时刻用），生产口默认 `Date()`。
+- 落账纪律（与 C1 §367.4 同）：只许成功路径 stamp——`refreshVisible` 整轮（名单落位＋标题补拉）成功、且起手代次未变才 stamp；失败不落账、不拿旧时刻冒充。全量 `refresh()`（管理页路）可见段落位同拍 stamp（其名单按构造新鲜，省下随后开抽屉的重复付费）。
+- DrawerView 接线：三路读触发改走 IfNeeded——①落定 `drawerOpenSettledCount` onChange（§365 触发点本体）②scenePhase 回前台 ③onAppear 预挂载（`!hasLoaded` 守卫保留，未载时门恒放行、语义不变）。强制路保持直拉 `refreshVisible`：`drawerRefreshTick` 令牌（标题回流）、`ServerSessionRow.onChanged`（行操作后回读）、频道页进面——成功同样落账，惠及随后开抽屉。
+- 代次守卫：刷新起手记 epoch、落账时对账；横跨写事件的一轮结果照常落位、只是不记新鲜（下次读触发照旧真拉对账），不许冒充。
+
+### §370.3 失效事件（逐项写明；写后一致性优先于省请求）
+
+| 事件 | 汇聚点 | 处置 |
+|---|---|---|
+| 删除会话落定 | `SessionLedger.removeSession`（删除引擎/落定收口/维护面/频道面全经此一口） | `invalidateListFreshness()`：代次自增＋门重置；摘行本身仍即时（既有口径不变） |
+| 旁聊一轮落地（新会话首轮落地、服务端 AI 新标题在此刻成立） | `AppState.noteLinkedSideChatTurnFinished` | 令牌 bump 之外同步 invalidate——抽屉未挂载时令牌无人消费，靠失效保下次打开必真拉 |
+| 改名/置顶/归档回读落定 | `ServerSessionActions` 三件 `.verified` 分支 | invalidate——行 onChanged 强制刷新之外的兜底：抽屉未挂载时下次打开必真拉 |
+| 换服务器 | 门的配置键判定（`config.baseString`） | 键不匹配恒判不新鲜、自动真拉（门自带，无需事件钩） |
+| 本地线程改名（titleIsManual） | 本地 SwiftData，名单行题由 records 合并活读本地列 | 不失效：不经网络名单，@Query 即时呈现 |
+
+### §370.4 验收（实验室口径）
+
+- 钉测 `DrawerListFreshnessC3Tests`（脚本客户端分页计数，`SessionsPageFetchRecorder` 按键记账）：TTL 内第二趟 0 请求／过期真拉／强制路真拉且落账后门控跳过／removeSession 后真拉／一轮落地后真拉／改名 verified 后真拉／connectDirect 换键后真拉／失败不落账、紧接重试。
+- 回归：账本族（SessionLedgerApp/Package2/TailClose、SessionCatalogGuard）＋抽屉族（DrawerOpenJankS365、DrawerSettleSignalS365）＋删除族（DeleteCloseout、DeleteOptimistic）＋C1 门套件（CacheFreshnessGateC1）对 rel-05092 基线无新红——实跑 bundle Test-OneDayApp-cache3.xcresult：10 套共 52 项全绿（C3 新套件 8/8、余 9 套 44 项全绿、零红），逐套在场已核（防静默跳过）。
+- 真机门留用户：60s 内连开抽屉数次名单零闪动零重拉感、新旁聊首轮落地后开抽屉见新标题、删会话后开抽屉不回滚。
+
