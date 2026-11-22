@@ -136,6 +136,11 @@ public enum MessageActionSymbols {
     /// H2-a（台账 159）：助手消息「朗读／停止朗读」
     public static let speak = "speaker.wave.2"
     public static let speakStop = "stop.circle"
+    /// 台账 154（DESIGN §342）：发件箱三项——未发
+    /// 送条目动作面的重新发送／编辑／撤回
+    public static let resend = "arrow.clockwise"
+    public static let editUnsent = "pencil"
+    public static let withdrawUnsent = "trash"
     /// 0.50.80 热修：长按菜单「添加反应」子菜单图符
     public static let react = "face.smiling"
     /// D1（台账 5）：播放条主钮——暂停/继续
@@ -145,5 +150,6 @@ public enum MessageActionSymbols {
     public static let all = [
         reply, copy, select, share, fork, speak, speakStop,
         speakPause, speakResume, react,
+        resend, editUnsent, withdrawUnsent,
     ]
 }
