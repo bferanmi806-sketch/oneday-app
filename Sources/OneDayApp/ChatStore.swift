@@ -493,35 +493,101 @@ final class ChatEntry {
         return decoded
     }
 
+    /// 图片全集解码缓存（§361，非持久化）：与
+    /// toolCard 同制（§135 B 案）——源数据本体为
+    /// 失效键：imageDatasData／imageData 任一变更
+    /// 即源不等、自动重解；解码失败（损坏数据回
+    /// 落单图或空集）同样入缓存，不许每趟重试解
+    /// 码。旧形态 allImageDatas 是无缓存计算属
+    /// 性、每次访问现解码整团 JSON——行高备忘的
+    /// facet 摘要每趟必走（ChatNativeRowHeight
+    /// .entryFacetDigest），每图行每趟白付一次全
+    /// 量解码（800KB 图同源原语实测 4.67ms），是
+    /// 行表重算的固定过路费（流畅度专项 H1）
+    @Transient var allImageDatasCacheValue: [Data]? = nil
+    @Transient var allImageDatasCacheSource: Data? = nil
+    @Transient var allImageDatasCacheFallbackSource: Data? = nil
+
     /// 本条全部本地图片（§150）：新落盘走
     /// imageDatasData 全集；存量条目（旧口径只落
     /// 首图）回落 imageData 单张——呈现、查看器
     /// 集合、重演三处同走本口径，不再各取首图
+    /// （结果按源数据缓存，见 allImageDatasCache*）
     var allImageDatas: [Data] {
+        if let allImageDatasCacheValue,
+           allImageDatasCacheSource == imageDatasData,
+           allImageDatasCacheFallbackSource == imageData {
+            return allImageDatasCacheValue
+        }
+        let resolved: [Data]
         if let imageDatasData,
            let decoded = try? JSONDecoder().decode(
                [Data].self, from: imageDatasData
            ), !decoded.isEmpty {
-            return decoded
+            resolved = decoded
+        } else if let imageData {
+            resolved = [imageData]
+        } else {
+            resolved = []
         }
-        if let imageData { return [imageData] }
-        return []
+        allImageDatasCacheValue = resolved
+        allImageDatasCacheSource = imageDatasData
+        allImageDatasCacheFallbackSource = imageData
+        return resolved
     }
 
-    /// 服务端图片路径（历史导入消息用）
+    /// 远端图片路径解码缓存（§361，非持久化）：
+    /// 与 toolCard／allImageDatas 同制，源数据本
+    /// 体为失效键；解码失败回空集同样入缓存
+    @Transient var remoteImagePathsCacheValue: [String]? = nil
+    @Transient var remoteImagePathsCacheSource: Data? = nil
+
+    /// 服务端图片路径（历史导入消息用；结果按
+    /// 源数据缓存，见 remoteImagePathsCache*）
     var remoteImagePaths: [String] {
-        guard let remoteImagePathsData else { return [] }
-        return (try? JSONDecoder().decode(
-            [String].self, from: remoteImagePathsData
-        )) ?? []
+        if let remoteImagePathsCacheValue,
+           remoteImagePathsCacheSource == remoteImagePathsData {
+            return remoteImagePathsCacheValue
+        }
+        let resolved: [String]
+        if let remoteImagePathsData {
+            resolved = (try? JSONDecoder().decode(
+                [String].self, from: remoteImagePathsData
+            )) ?? []
+        } else {
+            resolved = []
+        }
+        remoteImagePathsCacheValue = resolved
+        remoteImagePathsCacheSource = remoteImagePathsData
+        return resolved
     }
 
-    /// 服务端文件路径（历史导入/对账补缺的用户附件用）
+    /// 远端文件路径解码缓存（§361，非持久化）：
+    /// 与 toolCard／allImageDatas 同制，源数据本
+    /// 体为失效键；解码失败回空集同样入缓存。
+    /// facet 摘要对每条远端文件路径逐趟读本属
+    /// 性（entryFacetDigest），同属 H1 过路费
+    @Transient var remoteFilePathsCacheValue: [String]? = nil
+    @Transient var remoteFilePathsCacheSource: Data? = nil
+
+    /// 服务端文件路径（历史导入/对账补缺的用户附件用；
+    /// 结果按源数据缓存，见 remoteFilePathsCache*）
     var remoteFilePaths: [String] {
-        guard let remoteFilePathsData else { return [] }
-        return (try? JSONDecoder().decode(
-            [String].self, from: remoteFilePathsData
-        )) ?? []
+        if let remoteFilePathsCacheValue,
+           remoteFilePathsCacheSource == remoteFilePathsData {
+            return remoteFilePathsCacheValue
+        }
+        let resolved: [String]
+        if let remoteFilePathsData {
+            resolved = (try? JSONDecoder().decode(
+                [String].self, from: remoteFilePathsData
+            )) ?? []
+        } else {
+            resolved = []
+        }
+        remoteFilePathsCacheValue = resolved
+        remoteFilePathsCacheSource = remoteFilePathsData
+        return resolved
     }
 
     /// 落盘两字段 → 引用值对象（任一缺失即无引用）

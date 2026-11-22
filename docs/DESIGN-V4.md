@@ -14559,3 +14559,20 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 ### §356.4 验收与未验项
 - 实验室：Test-OneDayApp-speech-closeout.xcresult——SpeechPlayerTests 12/12＋SpeechEngineCallbackIsolationTests 3/3，全绿。回归：Test-OneDayApp-speech-regression.xcresult——BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9、ChatNativeFollowSourceTests 8/8，全绿。（注：任务简报点名的 ChatScrollFollowTests/NoticePresentationTests 两套在本树与 rel-05086 均无此类——git grep 双基线零命中；滚动跟随的实存覆盖即 BottomFollow 两套＋ChatNativeFollowSourceTests、提示呈现即 ChatNoticeTests，按实存回归并在此留痕。）
 - 未验（如实）：真机朗读全程（点播/暂停续播/打断暂停/播放条观感）仍待用户真机门，与台账 5（D1）真机终验同批；本包实验室绿不替代真机 verdict。
+
+## §361 流畅度专项 S1：图片行解码缓存一致性（探活 H1，2026-11-22；基线 rel-05090，分支 feat/smooth-s1-image-cache）
+
+### §361.1 病灶（探活实证，smoothness-recon-20261122 主因 1／H1）
+- 行高备忘键的 facet 摘要（ChatNativeRowHeight.entryFacetDigest）在 user 图片行上每趟多次调用 ChatEntry.allImageDatas——该计算属性无缓存，每次访问都对 imageDatasData 整团 JSON 全量解码，只为回答「有没有图／逐图已解码」；同源原语实测单张 800KB 图一次解码 4.67ms（M4），每趟每图行各付一次，与图片行是否在屏、是否变化无关。
+- 同仓口径不一致：toolCard 早有源数据解码缓存（§135 B 案），图片路漏做；remoteImagePaths／remoteFilePaths 同为无缓存解码（facet 摘要对远端文件路径逐趟读 remoteFilePaths），量级小、同包收。
+
+### §361.2 修法（与 toolCard 同制，不自创第二套机制）
+- ChatStore.ChatEntry 新增三组 @Transient 缓存（非持久化、零迁移）：allImageDatasCacheValue／Source／FallbackSource、remoteImagePathsCacheValue／Source、remoteFilePathsCacheValue／Source；三属性改「先查缓存（源比对）→未命中按原语义解码并入缓存」。
+- 失效口径与 toolCard 逐字同构：源数据本体为失效键——imageDatasData／imageData／remoteImagePathsData／remoteFilePathsData 任一变更（落定回填、导入覆写、编辑重发换图）即源不等、自动重解；内容不变即键不变（Data 本体比对、非哈希另算）。解码失败（损坏数据回落单图／空集）同样入缓存，不许每趟重试解码。
+- 容量口径：缓存挂条目本体、每条目至多一份、随条目生命周期（与 toolCard 同口径）——无全局表、无额外 LRU；条目淘汰即缓存淘汰，总量即各条目自身解码产物之和。
+- 行为零变化：三属性返回值语义逐字保留（全集优先、解码失败／空集回落单图、路径解码失败回空集）。ChatSchemaV1.ChatEntry 是冻结迁移快照、不在热路径，本包不碰。
+
+### §361.3 验收量测（实验室口径）
+- 钉测 ImageDecodeCacheS1Tests 5/5：①等价矩阵 8 例（全集／单图／损坏／空集组合）对修前算法参考实现逐值相等、首读与再读（命中路）双验；②失效四步（换全集／撤全集／换单图／全清）新值逐 step 生效；③远端路径两属性等价＋失效；④带图行 entryMemoKey 连算 6 趟逐字不变、有图／无图键可区分（facet 摘要只消费三属性的值，属性等价即摘要等价）；⑤成本量测（下条）。
+- 成本量测（同机自校准、模拟器相对值；800KB＋200KB 两图行、20 趟）：修前原语（每趟全量解码）19,146µs（约 957µs／趟）；修后冷读 1 趟 955µs（与单趟原语同量级、即一次性成本）；修后稳态 20 趟 17µs（约 0.85µs／趟、纯源比对）——稳态单趟解码成本降至约千分之一、近零。绝对值与探活原语（M4 swiftc -O、4.67ms）环境不同、只作相对对账；真机绝对值以探活报告第四节补测为准，实验室绿不替代真机 verdict。
+- 回归：Test-OneDayApp-smooth1r2.xcresult 共 90/90 全绿——ImageDecodeCacheS1Tests 5、ChatNativeRowHeightFittingTests 10、ChatNativeMeasureDeskTests 9、ChatNativeFollowSourceTests 8、ChatLagFeedLayerTests 7、BottomFollowTests 41、BottomFollowTriggerTests 1、ChatNoticeTests 9。（留痕：首轮 run smooth-s1-image-cache 因三套误写 OneDayAppTests 前缀被 xcodebuild 静默跳过、只跑 39 项假绿——靠 bundle 逐套对账揪出，三套实属 OneDayCoreTests，改全限定名重跑即本轮 90。）
