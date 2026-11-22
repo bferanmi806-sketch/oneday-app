@@ -14559,3 +14559,26 @@ Hermes 只有一条 active transcript、无分支存储，rewind 即截断——
 ### §356.4 验收与未验项
 - 实验室：Test-OneDayApp-speech-closeout.xcresult——SpeechPlayerTests 12/12＋SpeechEngineCallbackIsolationTests 3/3，全绿。回归：Test-OneDayApp-speech-regression.xcresult——BottomFollowTests 41/41、BottomFollowTriggerTests 1/1、ChatNoticeTests 9/9、ChatNativeFollowSourceTests 8/8，全绿。（注：任务简报点名的 ChatScrollFollowTests/NoticePresentationTests 两套在本树与 rel-05086 均无此类——git grep 双基线零命中；滚动跟随的实存覆盖即 BottomFollow 两套＋ChatNativeFollowSourceTests、提示呈现即 ChatNoticeTests，按实存回归并在此留痕。）
 - 未验（如实）：真机朗读全程（点播/暂停续播/打断暂停/播放条观感）仍待用户真机门，与台账 5（D1）真机终验同批；本包实验室绿不替代真机 verdict。
+
+## §358 工具集治理面（2026-11-22；Hermes 台账 34，基线 rel-05090，分支 feat/h10-toolsets）
+
+### §358.1 落点与分工
+- 落点：设置页「智能体」组新增「工具集」行（SettingsCatalog `.toolsets`，排在「技能」之后）→ ToolsetsSettingsView 两级（列表＋逐集详情）；终端后端在列表页尾独立成段。入口副行只写静态说明——「已启用 N/总行数」的 N 须真拉才有数，目录 summary 是静态字段、不拿假数冒充；页内计数以真拉清单经 ToolsetStateResolution.enabledCount 计。
+- 分工（一个功能一个家）：技能＝能力包启停（/v1/skills 域）；工具集＝手机会话工具面治理（api_server 平台真值）；命令授权（§355）＝命令白名单。三者在智能体组内各占一行、互不吞。
+
+### §358.2 契约映射（部署包 1.4.0，34-S 真行为验收字面）
+- 读面 GET /v1/toolsets（8642 Bearer）→ ToolsetsListResponse{object, platform:"api_server", data[]}：生产实测 27 行（26 内置＋kanban 插件集），每行 name/label/description/enabled/configured/tools[] 逐行真值——手机会话实际能用的工具集。验收按逐行＋逐 tools 对账，不按「59 条」功能计数造行。9119 的 /api/tools/toolsets 是 cli 配置面视图，结构上不作本面读面（接错即口径污染）。
+- 启停 PUT /v1/toolsets/{name} {enabled}（34-S 新端点，写 platform_toolsets.api_server）→ {ok, name, platform, enabled}。生效口径（34-S 实测）：新构建的 run 立即按新集、存量 run 不受影响——列表页页首明示「对新会话生效」。错误连码上行按 ToolsetToggleDirective 分型：400 unknown_toolset＝集已不在清单（良性，刷新对齐不算失败）／400 invalid_enabled＝请求形态错（客户端 bug，如实报）／401、403＝密钥被拒／其余如实失败，不盲重试。9119 既有启停写口只写 cli 平台、对手机会话不生效，本面结构上不接（接了即僵尸开关）。
+- config-only 集真值（生产实测 stt）：8642 读面 enabled 按平台集成员计、恒报 false，其真值在 config 节 stt.enabled（34-S 实测 E 步；该读面口径是装机前既有、非本批引入）。ToolsetStateResolution 合成规则（通用、不写死集名）：config 节内带 enabled 键的行以 config 值为有效态，其余行以读面为准；呈现与回读判定同此口径。config 读不到时回落读面值并明示未确认（Store.configUnread），不许拿读面假值冒充真值。
+- 细调（9119 会话面，写全局 config、全平台生效）：GET …/toolsets/{name}/config（provider 矩阵＋active_provider；env 只回 is_set 布尔、永不回值）／PUT …/{name}/provider／GET …/{name}/models（目录）／PUT …/{name}/model／GET /api/tools/terminal/backends（ready/needs_setup/unavailable 三态＋未知值原样保留）／PUT /api/tools/terminal/backend。模型目录宽容解码：strengths 或字符串或数组、price 或字符串或数字，收口为展示字符串，不因形态漂移解码失败；has_models=false 的集详情页不显模型段，不造空段冒充可调。
+- env 录入一期不做（凭据纪律：密钥走保险库、不经普通设置面流转）：详情页 env 行只显已配置/未配置＋「不在这里录入、在服务器 .env 配置」指引，无假入口。post-setup 一键安装后置二期（长任务回执链与自动化面共用时再建）。
+- 客户端形态：HermesClientProtocol 新增八方法——toolsets/setToolsetEnabled 走 8642 Bearer（错误连码上行供分型），toolsetConfig/selectToolsetProvider/toolsetModels/selectToolsetModel/terminalBackends/selectTerminalBackend 走 9119 既有会话管线。Demo 侧按 C-13 只加一行 demoLimitReached 桩（DemoFreezeGuardTests 已钉八口）；测试双替身：FailingHermesClient 只同步签名、恒抛 unreachable；ScriptedToolsetsClient 由 gen_scripted.py 自 FailingHermesClient 机械生成，只给工具集八口＋rawConfig 查 ToolsetsScript 脚本盒出演真值（启停出演照服务端落盘形态：普通集翻清单行、config 承托集翻 config 节、清单行不动）。
+
+### §358.3 写后回读纪律（与 §355 同构）
+- 一切写口成功只算受理：启停随即重拉清单＋rawConfig，ToolsetReadback.isToggleConfirmed 认合成有效态；provider 认回读面板 active_provider；model 认回读目录 current；终端后端认回读 backends.active。对不上如实留人话、界面保持服务端原样，不本地假变。
+- 未就绪后端（status 非 ready）本地拦截不发写口——选一个未就绪的后端是假动作；行上置灰并给原因（detail 原样呈现）。
+- 装载分开成败：清单是主真源，失败整面 .failed；config 与终端后端是附带真源，各自失败只降级对应呈现，不拖垮清单；详情的面板与模型目录分开成败。未连接/无凭据不是失败、更不是空清单：.unavailable 如实说未就绪。
+
+### §358.4 验收与未验项
+- 实验室：LAB_PLACEHOLDER
+- 未验（如实）：真机门未跑——真机翻一个低频集（如 video_gen）→新开会话实测工具不可见/恢复后可见（僵尸禁令正验）；终端后端行状态与服务端实测一致；provider 切换后聊天内 web 搜索实走新后端（回读 config 面对账）。须随组版真机批一并验，本节实验室绿不替代真机 verdict。
