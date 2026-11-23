@@ -810,3 +810,66 @@ struct ScriptedToolsetsClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 }
+
+// MARK: - 高级能力面离线桩（工具集脚本客户端）（H8/H9/H11/H13，DESIGN §390）：
+// 与本体同口径恒抛 unreachable；脚本化行为只活在
+// ScriptedAdvancedClient，不许长进冻结桩本体。
+extension ScriptedToolsetsClient {
+    func delegationRouting(config: ServerConfig) async throws -> DelegationRouting {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setDelegationBackend(config: ServerConfig, backend: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setDelegationModelMap(config: ServerConfig, routes: [DelegationModelRoute], defaultRoute: String?) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setDelegationProfileRoutes(config: ServerConfig, routes: [DelegationProfileRoute], defaultRoute: String?) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func moaConfig(config: ServerConfig) async throws -> MoaConfig {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setMoaConfig(config: ServerConfig, moa: MoaConfig) async throws -> MoaConfig {
+        throw HermesError.unreachable("离线桩")
+    }
+    func auxiliaryTasks(config: ServerConfig) async throws -> AuxiliaryTasksResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setModelAssignment(config: ServerConfig, scope: String, task: String?, provider: String, model: String, confirmExpensive: Bool) async throws -> ModelSetReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+    func webhooksPage(config: ServerConfig) async throws -> WebhooksPage {
+        throw HermesError.unreachable("离线桩")
+    }
+    func createWebhook(config: ServerConfig, input: WebhookCreateInput) async throws -> WebhookCreateReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+    func deleteWebhook(config: ServerConfig, name: String) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setWebhookEnabled(config: ServerConfig, name: String, enabled: Bool) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func enableWebhooks(config: ServerConfig) async throws -> WebhooksEnableReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+    func curatorStatus(config: ServerConfig) async throws -> CuratorStatus {
+        throw HermesError.unreachable("离线桩")
+    }
+    func setCuratorPaused(config: ServerConfig, paused: Bool) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+    func runCurator(config: ServerConfig, profile: String?) async throws -> OpsSpawnResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+    func sessionStoreStats(config: ServerConfig) async throws -> SessionStoreStats {
+        throw HermesError.unreachable("离线桩")
+    }
+    func opsHooks(config: ServerConfig) async throws -> OpsHooksPage {
+        throw HermesError.unreachable("离线桩")
+    }
+    func kanbanDecompose(config: ServerConfig, board: String, id: String) async throws -> KanbanDecomposeReceipt {
+        throw HermesError.unreachable("离线桩")
+    }
+}

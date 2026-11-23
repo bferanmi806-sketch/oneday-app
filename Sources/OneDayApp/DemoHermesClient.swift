@@ -1166,3 +1166,27 @@ final class DemoSessionWriteStore: @unchecked Sendable {
         lock.withLock { deletedIDs.insert(id) }
     }
 }
+
+// MARK: - 高级能力面（H8/H9/H11/H13，DESIGN §390）：演示
+// 模式不接真面，与其余管理面同口径报演示上限
+extension DemoHermesClient {
+    func delegationRouting(config: ServerConfig) async throws -> DelegationRouting { throw HermesError.demoLimitReached }
+    func setDelegationBackend(config: ServerConfig, backend: String) async throws { throw HermesError.demoLimitReached }
+    func setDelegationModelMap(config: ServerConfig, routes: [DelegationModelRoute], defaultRoute: String?) async throws { throw HermesError.demoLimitReached }
+    func setDelegationProfileRoutes(config: ServerConfig, routes: [DelegationProfileRoute], defaultRoute: String?) async throws { throw HermesError.demoLimitReached }
+    func moaConfig(config: ServerConfig) async throws -> MoaConfig { throw HermesError.demoLimitReached }
+    func setMoaConfig(config: ServerConfig, moa: MoaConfig) async throws -> MoaConfig { throw HermesError.demoLimitReached }
+    func auxiliaryTasks(config: ServerConfig) async throws -> AuxiliaryTasksResponse { throw HermesError.demoLimitReached }
+    func setModelAssignment(config: ServerConfig, scope: String, task: String?, provider: String, model: String, confirmExpensive: Bool) async throws -> ModelSetReceipt { throw HermesError.demoLimitReached }
+    func webhooksPage(config: ServerConfig) async throws -> WebhooksPage { throw HermesError.demoLimitReached }
+    func createWebhook(config: ServerConfig, input: WebhookCreateInput) async throws -> WebhookCreateReceipt { throw HermesError.demoLimitReached }
+    func deleteWebhook(config: ServerConfig, name: String) async throws { throw HermesError.demoLimitReached }
+    func setWebhookEnabled(config: ServerConfig, name: String, enabled: Bool) async throws { throw HermesError.demoLimitReached }
+    func enableWebhooks(config: ServerConfig) async throws -> WebhooksEnableReceipt { throw HermesError.demoLimitReached }
+    func curatorStatus(config: ServerConfig) async throws -> CuratorStatus { throw HermesError.demoLimitReached }
+    func setCuratorPaused(config: ServerConfig, paused: Bool) async throws { throw HermesError.demoLimitReached }
+    func runCurator(config: ServerConfig, profile: String?) async throws -> OpsSpawnResponse { throw HermesError.demoLimitReached }
+    func sessionStoreStats(config: ServerConfig) async throws -> SessionStoreStats { throw HermesError.demoLimitReached }
+    func opsHooks(config: ServerConfig) async throws -> OpsHooksPage { throw HermesError.demoLimitReached }
+    func kanbanDecompose(config: ServerConfig, board: String, id: String) async throws -> KanbanDecomposeReceipt { throw HermesError.demoLimitReached }
+}

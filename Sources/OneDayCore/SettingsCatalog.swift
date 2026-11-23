@@ -69,6 +69,9 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 面管工具面；与命令授权（批 5）分工：那是命令
     /// 白名单、本面是工具可用集
     case toolsets
+    /// 委派路由（H8，DESIGN §390）：子智能体后端＋
+    /// 模型路线＋档案路线——与工具集页同组并列
+    case delegation
     case cron
     /// 服务端会话（台账 199，2026-11-21 用户裁）：
     /// 条目与目的地保留、去向改深链——名单正主是
@@ -244,6 +247,13 @@ public enum SettingsCatalog {
             summary: "手机会话能用的工具，可启停与细调",
             keywords: ["工具", "启停", "服务商", "终端后端", "toolset", "toolsets"],
             destination: .toolsets
+        ),
+        SettingsCatalogEntry(
+            id: "delegation", group: .agent,
+            title: "委派路由",
+            summary: "子任务走哪个后端、哪条模型路线、哪个档案",
+            keywords: ["委派", "子智能体", "后端", "路由", "delegation", "routing"],
+            destination: .delegation
         ),
         SettingsCatalogEntry(
             id: "cron", group: .agent,
