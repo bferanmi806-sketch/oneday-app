@@ -11122,9 +11122,11 @@ private struct ComposerBarLayout: Layout {
     /// drain 主循环：逐轮重扫当前线程发件箱（条目
     /// 会在重发中被复制/落定/删除，恒以最新名单为
     /// 准），按创建时间 FIFO 取首个可自动项派发、
-    /// await 其发送任务收尾后再扫下一轮；退避未满
-    /// 的队头挡住后续（保序），次数耗尽/人工接管
-    /// 的跳过不挡队。单趟派发上限 10 次防极端名单
+    /// await 其发送任务收尾后再扫下一轮；已落失
+    /// 败态且有自动尝试记账的退避条目跳过不挡队
+    /// （归发件箱原位重试轨，§419 裁决 B），从未
+    /// 投递条目永不跳；次数耗尽/人工接管的同样跳
+    /// 过不挡队。单趟派发上限 10 次防极端名单
     /// 空转。自动尝试全程静默：不新拉失败横幅（失
     /// 败呈现留气泡旁红叹号与未发送行），尝试前已
     /// 在的横幅不碰
@@ -11153,11 +11155,12 @@ private struct ComposerBarLayout: Layout {
             }
             var dispatched = false
             for candidate in candidates {
+                let record = appState.outboxRetry.record(
+                    for: candidate.id
+                )
                 let decision = OutboxAutoRetryPolicy.decision(
                     state: candidate.sendState,
-                    record: appState.outboxRetry.record(
-                        for: candidate.id
-                    ),
+                    record: record,
                     now: Date()
                 )
                 switch decision {
@@ -11178,7 +11181,27 @@ private struct ComposerBarLayout: Layout {
                     }
                     clearDeliveredOutboxRecords(in: thread)
                 case .backoff:
-                    // 队头退避未满：保序收趟，不跃队
+                    // §419 裁决 B（2026-11-23 主线裁）：
+                    // 已落失败态且已有自动尝试记账的条
+                    // 目归发件箱原位重试轨——其重试由
+                    // OutboxAutoRetry 在退避满后经后续
+                    // 趟次原位发生，drain 本趟跳过、不
+                    // 挡后续条目首投。队头退避挡整队＝
+                    // 头阻塞，与发件箱逐条独立重试的通
+                    // 行做法相悖；§414 期「队头退避保
+                    // 序不跃队」口径仅限 drain 路径就
+                    // 此 supersede（发件箱轨内部退避不
+                    // 变，两路按「是否曾投递」分界互
+                    // 斥，见 §414/S-2 接缝）。
+                    // 双守卫：只跳 attempts ≥ 1 的已投
+                    // 递失败条目；从未投递的 .queued 条
+                    // 目策略恒 .autoNow、结构上到不了
+                    // 本臂，万一到达（策略改判等异变）
+                    // 保守收趟——永不跳过未投递条目。
+                    if candidate.sendState == .failed,
+                       (record?.attempts ?? 0) >= 1 {
+                        continue
+                    }
                     return
                 case .manualOnly, .notInQueue,
                      .ownedByRunLedger:

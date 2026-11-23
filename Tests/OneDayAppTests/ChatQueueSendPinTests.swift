@@ -17,7 +17,12 @@ import XCTest
 /// 发——后一条被派发时前一条必已落定收尾（同会话
 /// 至多一轮在飞），两条的幂等键派发前后一字不变、
 /// 各只被自动派发一次、失败后原位落失败态（同 id
-/// 同序位、总数不变）。
+/// 同序位、总数不变）。甲落失败态后的退避不挡乙
+/// 首投（§419 裁决 B：已落失败态归发件箱原位重
+/// 试轨、drain 跳过不挡队），且 drain 不代偿甲的
+/// 重试——静置窗内甲 attempts 恒 1、失败态原位
+/// 不动（甲的后续重试由 OutboxAutoRetry 在退避
+/// 满后经后续趟次原位管辖，不归本趟 drain）。
 /// 钉二（Q1 消费面＋Q5 账本半边）：上一轮账本未落
 /// 定（结果未知对账中）时，排队条目原地不动——不
 /// 被抢发、无自动尝试记账、排队身份不变。
@@ -282,6 +287,39 @@ final class ChatQueueSendPinTests: XCTestCase {
             appState.outboxRetry.record(
                 for: scene.secondID
             )?.attempts, 1, "第二条被重复派发"
+        )
+        // 裁决 B 补钉：甲落失败态后其退避不挡乙首投
+        // 已由上文成立（乙 attempts＝1、且乙派发时甲
+        // 已落定）；此处再钉「甲的重试不归 drain」：
+        // 静置窗内 drain 即使再趟，甲的自动尝试账与
+        // 失败态原位必须恒定——甲归发件箱原位重试轨
+        // 按退避管辖，drain 只管从未投递的排队条目；
+        // 乙同窗内亦不得被重复派发，甲乙序位账不动
+        await spinRunLoop(seconds: 2.5)
+        let afterDwell = try readEntries(
+            in: container, threadID: scene.thread.id
+        )
+        XCTAssertEqual(afterDwell.count, 4)
+        XCTAssertEqual(afterDwell[2].id, scene.firstID)
+        XCTAssertEqual(afterDwell[3].id, scene.secondID)
+        XCTAssertTrue(
+            afterDwell[2].sendFailed,
+            "静置窗内第一条失败态被改动——已落失败态的重试不归 drain"
+        )
+        XCTAssertEqual(
+            afterDwell[2].clientMessageID, "queue-pin-msg-a"
+        )
+        XCTAssertEqual(
+            appState.outboxRetry.record(
+                for: scene.firstID
+            )?.attempts, 1,
+            "第一条在退避窗内被 drain 重派——其重试应由发件箱重试轨按退避原位管辖"
+        )
+        XCTAssertEqual(
+            appState.outboxRetry.record(
+                for: scene.secondID
+            )?.attempts, 1,
+            "第二条在静置窗内被重复派发"
         )
     }
 
