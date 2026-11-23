@@ -253,14 +253,17 @@ struct GoalIntroView: View {
                         } label: {
                             Text("开始吧")
                                 .font(.headline)
-                                // 第 85 条（BC-1）：主钮改走
-                                // primaryPale＋onPrimary 正道
-                                // （旧白字压 primary 暗档 2.33）
-                                .foregroundStyle(Palette.onPrimary)
+                                // 主按钮统一口径（2026-11-24 主线
+                                // 裁决，§453 改判后续）：目标介绍
+                                // 卡主钮同点子「开始吧」——饱和
+                                // 蓝底＋白字（primarySaturated），
+                                // 不再走第 85 条 BC-1 的
+                                // primaryPale＋onPrimary 配对
+                                .foregroundStyle(Color.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 48)
                                 .background(
-                                    Palette.primaryPale, in: Capsule()
+                                    Palette.primarySaturated, in: Capsule()
                                 )
                         }
                         .buttonStyle(.odPressable)

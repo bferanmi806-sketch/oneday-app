@@ -165,10 +165,12 @@ struct ApprovalCardFace<DetailArea: View>: View {
 
 /// 审批卡裁决钮（D10 定版④三档形态，角色走
 /// Core ApprovalCardButtonRole 单源）：批准＝
-/// 填充主钮（primaryPale＋onPrimary——2026-
-/// 11-15 第 85 条 BC-1 收口：旧「primary 实心
-/// ＋白字」暗档仅 2.33:1，改走与发送钮同源的
-/// 正道配对）；总是允许＝描边次钮（hairline
+/// 填充主钮（饱和蓝 primarySaturated＋白字——
+/// 2026-11-24 主按钮统一口径：主线裁决承接
+/// §453 改判，用户口味定主钮为饱和蓝底白字，
+/// 推翻 2026-11-15 第 85 条 BC-1 在主钮上的
+/// primaryPale＋onPrimary 收口）；总是允许＝
+/// 描边次钮（hairline
 /// 描边、无填充、墨字，与主钮拉开层级）；驳
 /// 回＝文字级（.plain、无背景、次色字，高走
 /// Spec textButtonHeight；不预红、危险语义靠
@@ -185,7 +187,7 @@ private struct ApprovalCardButton: View {
             Button(action: onTap) {
                 Text(action.title())
                     .font(.headline)
-                    .foregroundStyle(Palette.onPrimary)
+                    .foregroundStyle(Color.white)
                     .frame(maxWidth: .infinity)
                     .frame(
                         height: ApprovalCardSpec.buttonHeight(
@@ -193,7 +195,7 @@ private struct ApprovalCardButton: View {
                         )
                     )
                     .background(
-                        Palette.primaryPale, in: Capsule()
+                        Palette.primarySaturated, in: Capsule()
                     )
                     .contentShape(Capsule())
             }
