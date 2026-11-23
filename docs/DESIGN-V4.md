@@ -15393,4 +15393,7 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 ### §383.3 包一结果
 
-（落码后回填：diff 摘要、单测与发布集对账、桥调用清零证据、余项指针。）
+- 落码（分支 feat/bridge-convergence；落码提交 92085c9、编译修复 783a5bc）：①Core AgentIdentity.swift 新增改名写口——AgentNameWriteError 五态、AgentName.validatedNewName（桥 _validate_new_name 镜像）、applyingNewName/hasIdentityTitle（桥 _find_title_line 窗口镜像、写后自验 resolve==新名）；②AppState 新增 writeAgentNameDirect（校验→默认档案 soul 读改写→留痕自报）＋reportAgentNameTrace＋校验人话映射，renameAgent 与 adoptFetchedIdentityName 待推两调用点改走直连；③OneDayBridgeClient 新增 recordTrace（POST /traces 五要素自报）＋BridgeTraceReportRequest 请求体；④IdentityBridgeClient.setName 删除。桥端代码按施工图本包不删（存废结论见包三：不退役）。
+- 桥调用清零证据：全仓 `.setName(` 零命中、IdentityBridgeClient 代码行无 setName 与 /identity/name（BridgeConvergenceStructureTests 钉测在集内把守）。
+- 回归（run Test-OneDayApp-bridge383，ProbePhone 50C1A6D5）：发布集口径＝rel05098 bundle 97 套 817 项为基底，本包只增不减——新增 3 套 12 项（AgentIdentityTests 4，存量套此前未入发布集、本包随写口一并纳入；AgentNameWriteTests 6；BridgeConvergenceStructureTests 2），预期 100 套 829 项 → 实跑 **829/829 全绿、0 红、0 跳过**，xcresulttool 本体逐套对账一致。S371（ChatRootChainStructureS371Tests 1/1）、S373（ChatDepthStructureS373Tests 2/2）在集内全绿；受影响面在集套件点名全绿（MonitorBridgeModelsTests 21/21、LedgerModelsTests 31/31、GrantsContractTests 7/7；动态/点子/目标/交付面由全集绿覆盖）。过程记账：首轮因 recordTrace 漏传 send 的 collection 参数编译红（exit 65），修复（783a5bc）后重跑全绿。
+- 余包清单与卡点：包二（G20 rendition 再迁）卡 Hermes 原生 rendition API——只登记缺口、不动生产，日后立项走部署包流程；包三（identity 桥口存废结论＝不退役＋/decisions 双客户端重复收口）无技术卡点、随后续组版搭载；其余 19 组桥本体保留为终局形态（Hermes 上游新增对应 API 时再逐组复核）。
