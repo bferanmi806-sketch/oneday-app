@@ -675,6 +675,16 @@ struct SelectableTextRepresentable: UIViewRepresentable {
         if let cached, cached.string === attributed {
             return cached.size
         }
+        // §419 包 1 回归哨：量测台变异只许主线程——
+        // 后台量测一律走 ChatNativeTextMeasure 分发
+        // 落量测池；本段（setAttributedText＋size-
+        // ThatFits）被后台线程触达即线程禁闭破口。
+        // debug 断言、release 行为不变，保留一个版
+        // 本周期作哨
+        assert(
+            Thread.isMainThread,
+            "§419 量测台变异离主线程：measuredSize 变异段被后台线程触达"
+        )
         let measure = Self.measuringView
         if !measure.attributedText.isEqual(to: attributed) {
             measure.attributedText = attributed
