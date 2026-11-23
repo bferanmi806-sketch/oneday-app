@@ -77,11 +77,26 @@ final class ChatNativeRowMeasureDesk {
     @ObservationIgnored
     private var publishTask: Task<Void, Never>?
 
+    /// §422 待落写登记：resolve 命中时登记的清
+    /// 账与 lastKnown 回写，flushCollected 开头
+    /// 在求值期外统一执行
+    @ObservationIgnored
+    private var pendingSettlements:
+        [PendingSettlement] = []
+
+    private struct PendingSettlement {
+        let rowKey: String
+        let memoKey: String
+        let height: CGFloat
+    }
+
     /// 同步读口（body 求值内）：缓存命中回确定
-    /// 高并记 lastKnown；未命中回 lastKnown/兜底
-    /// 高，needsJob 报是否该为本行组装工单（在
-    /// 飞/已收集的不重复组装——组装要快照 facet、
-    /// 不许白费）
+    /// 高（清账与 lastKnown 回写只登记待落写、
+    /// 趟末 flushCollected 开头执行——§422 纯读
+    /// 化，求值期零字典写入、零工单析构）；未命
+    /// 中回 lastKnown/兜底高，needsJob 报是否该
+    /// 为本行组装工单（在飞/已收集的不重复组装
+    /// ——组装要快照 facet、不许白费）
     func resolve(
         memoKey: String, rowKey: String,
         fallback: CGFloat
@@ -91,13 +106,21 @@ final class ChatNativeRowMeasureDesk {
         noteResolveOrder(rowKey)
         if let hit = ChatNativeRowHeightComposer
             .cachedRowHeight(forKey: memoKey) {
-            lastKnownByRow[rowKey] = hit
-            // 命中即该行工单使命完成：清就地量测
-            // 留账（measureNow 再被问到时回缓存值
-            // 的路随之关闭——喂入链已以确定高重
-            // 喂、本行不再临界）
-            jobsByRowKey[rowKey] = nil
-            memoKeyByRowKey[rowKey] = nil
+            // §422（包 2，resolve 纯读化）：命中即
+            // 该行工单使命完成，但清账（双留账置
+            // nil）与 lastKnown 回写不在求值期当
+            // 场执行——旧形态在此写 jobsByRowKey
+            // 置 nil、Dictionary.subscript.setter
+            // 内同步析构工单，闭包析构链 swift_
+            // release 撞已释放内存（204455.ips
+            // 崩②）。改为只登记待落写，由 flush-
+            // Collected 开头在求值期外统一执行
+            pendingSettlements.append(
+                PendingSettlement(
+                    rowKey: rowKey, memoKey: memoKey,
+                    height: hit
+                )
+            )
             return (hit, false, true)
         }
         let needsJob = !inFlight.contains(memoKey)
@@ -121,11 +144,37 @@ final class ChatNativeRowMeasureDesk {
         noteBacklog()
     }
 
+    /// 趟末落写（§422）：执行 resolve 登记的待
+    /// 落写——lastKnown 回写无条件（与旧形态命
+    /// 中即写同值、只移时机）；双留账清账按命
+    /// 中键守卫：同行其后已收集新修订工单（键
+    /// 不同）不误清。工单析构自此只发生在求值
+    /// 期之外（此处与 finish/measureNow 入口）
+    private func applyPendingSettlements() {
+        guard !pendingSettlements.isEmpty
+        else { return }
+        let settlements = pendingSettlements
+        pendingSettlements = []
+        for item in settlements {
+            lastKnownByRow[item.rowKey] = item.height
+            if jobsByRowKey[item.rowKey]?.memoKey
+                == item.memoKey {
+                jobsByRowKey[item.rowKey] = nil
+            }
+            if memoKeyByRowKey[item.rowKey]
+                == item.memoKey {
+                memoKeyByRowKey[item.rowKey] = nil
+            }
+        }
+    }
+
     /// 趟末投递：默认逆序投单（最新行先量）；上
     /// 滑趋势在场时按锚距投单（锚上方最近行先
     /// 量、锚下方次之），清空收集箱。投递前先以
-    /// 本趟 resolve 序重建行序账
+    /// 本趟 resolve 序重建行序账；开头先执行
+    /// §422 待落写（趟末收尾段、求值期外）
     func flushCollected() {
+        applyPendingSettlements()
         rebuildRowIndex()
         let jobs = orderedForDispatch(collected)
         collected = []
