@@ -10848,6 +10848,13 @@ private struct ComposerBarLayout: Layout {
                     sendTask = nil
                     return
                 }
+                // §419 收尾定因（开放项①）：链接段落
+                // 败与 launchTurn 同段同处置——原位落
+                // 失败态（P1 口径）；旧「只报横幅、条
+                // 目原样留待发」使 .queued 恒 .autoNow，
+                // drain 无界重派队首（实测单条 1637
+                // 次）且后续条目永不派发
+                markTurnFailed(entry: entry)
                 errorMessage = "还是没能连上，消息仍保存在本机："
                     + ((error as? HermesError)?.userMessage
                         ?? "服务端会话建立失败")
