@@ -154,6 +154,13 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 取证性质，入口自支持组根行迁入关于页「内部
     /// 实验」节（与三施工旗同置），目录仅搜索可达
     case chatDiagnostics
+    /// 崩溃报告（总表 131 G-14，DESIGN §384）：本机
+    /// 崩溃/卡死诊断的可读面——MetricKit 回传落盘、
+    /// 已过隐私门的记录在此回读（采集端 §241.4 当
+    /// 年只有 CI 侧、本面与运行时收集同包补齐）。
+    /// 与聊天诊断同置：入口在关于页内部实验节，
+    /// 目录仅搜索可达
+    case crashReports
 }
 
 public struct SettingsCatalogEntry: Equatable, Sendable, Identifiable {
@@ -460,6 +467,15 @@ public enum SettingsCatalog {
             summary: "卡顿探针、量测积压与诊断留痕",
             keywords: ["诊断", "卡顿", "探针", "量测", "diagnostics", "lag"],
             destination: .chatDiagnostics, showsInBrowse: false
+        ),
+        // 崩溃报告（G-14，DESIGN §384）：与聊天诊断
+        // 同例——入口迁关于页内部实验节、只进搜索索引
+        SettingsCatalogEntry(
+            id: "crashReports", group: .support,
+            title: "崩溃报告",
+            summary: "本机崩溃与卡死诊断（已脱敏）",
+            keywords: ["崩溃", "闪退", "报告", "crash", "diagnostics"],
+            destination: .crashReports, showsInBrowse: false
         ),
     ]
 

@@ -88,6 +88,9 @@ enum SettingsRoute: Hashable {
     /// 读面，入口在关于页内部实验节（Core 目录
     /// chatDiagnostics 条目仅搜索可达）
     case chatDiagnostics
+    /// 崩溃报告（G-14，DESIGN §384）：入口在关于页
+    /// 内部实验节（Core 目录 crashReports 条目仅搜索可达）
+    case crashReports
 }
 
 /// 「工作区」组两页的 sheet 呈现槽枚举（原定义在

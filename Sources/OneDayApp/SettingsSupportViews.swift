@@ -414,6 +414,13 @@ struct AboutView: View {
         ChatListSelectionKeyGuardFeature.defaultsKey
     )
     private var chatListSelectionKeyGuard = true
+    /// §384（G-14）崩溃报告收集开关（与采集端同
+    /// 键同源，缺省开＝MetricKit 订阅在场；关掉
+    /// 即摘除订阅、不再收集，报告面存量仍可回读）
+    @AppStorage(
+        CrashCollectionFeature.defaultsKey
+    )
+    private var crashCollectionEnabled = true
 
     /// 内部实验节（原设置根「实验」组整组迁入，纲要
     /// D6-2／原则 7）：施工旗是内部机制，不与用户功
@@ -538,6 +545,54 @@ struct AboutView: View {
                             .font(.rowTitleL)
                             .foregroundStyle(Palette.ink)
                         Text(L10n.string("卡顿探针、量测积压与诊断留痕，仅供排障。"))
+                            .font(.rowSubtitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                .contentShape(Rectangle())
+            }
+            // 崩溃报告收集开关（G-14，DESIGN §384）：
+            // 与采集端 CrashDiagnosticsCollector 同键
+            // 同源，翻转经 onChange 即时摘/挂 MetricKit
+            // 订阅；报告只落本机过隐私门、不自动上传
+            Toggle(isOn: $crashCollectionEnabled) {
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingMicro
+                ) {
+                    Text(L10n.string("崩溃报告收集"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                    Text(L10n.string("默认开启：崩溃与卡死由系统回传后脱敏保存在本机，可在下方报告页查看；关掉即停止收集。"))
+                        .font(.rowSubtitle)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            .onChange(of: crashCollectionEnabled) { _, newValue in
+                CrashDiagnosticsCollector.shared.setEnabled(newValue)
+            }
+            // 崩溃报告入口（G-14）：与聊天诊断同置同
+            // 式（图标＋题、值路由），根页目录仅搜索可达
+            NavigationLink(value: SettingsRoute.crashReports) {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(
+                            size: FrameworkIcon.settingsGlyphSize,
+                            weight: .regular
+                        ))
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: OneDayMetrics.iconSlot, alignment: .center)
+                        .accessibilityHidden(true)
+                    VStack(
+                        alignment: .leading,
+                        spacing: OneDayMetrics.spacingMicro
+                    ) {
+                        Text(L10n.string("崩溃报告"))
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Text(L10n.string("本机崩溃与卡死诊断（已脱敏），仅供排障。"))
                             .font(.rowSubtitle)
                             .foregroundStyle(Palette.inkSecondary)
                     }

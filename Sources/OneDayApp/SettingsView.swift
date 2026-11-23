@@ -251,6 +251,8 @@ struct SettingsView: View {
                     PairingManagementView()
                 case .chatDiagnostics:
                     ChatDiagnosticsView()
+                case .crashReports:
+                    CrashReportsView()
                 }
             }
             .confirmationDialog(
@@ -749,6 +751,7 @@ struct SettingsView: View {
         case .addDevice: return .addDevice
         case .pairingManagement: return .pairingManagement
         case .chatDiagnostics: return .chatDiagnostics
+        case .crashReports: return .crashReports
         }
     }
 
@@ -781,6 +784,7 @@ struct SettingsView: View {
         // 是根行图标唯一重名（搜索结果里两行同图易
         // 混）——诊断行换放大镜文档符号，体检保留听诊器
         case "chatDiagnostics": return "doc.text.magnifyingglass"
+        case "crashReports": return "exclamationmark.triangle"
         case "privacy": return "lock.shield"
         case "terms": return "doc.text"
         // prototype-2 叶子（枢纽页四行图标随页退役）

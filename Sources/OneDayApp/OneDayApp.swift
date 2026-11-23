@@ -185,6 +185,10 @@ struct OneDayApp: App {
         // 删除面见 RetiredBridgeKeyCleanup，只删这组键、
         // 登录凭据不动）；每次启动跑一遍、幂等无害
         RetiredBridgeKeyCleanup.purge()
+        // §384（G-14）：崩溃/诊断采集订阅（MetricKit
+        // 平台通道）——开关缺省开，关口在关于页内部
+        // 实验节；记录过隐私门落本机、报告面回读
+        CrashDiagnosticsCollector.shared.startIfEnabled()
         // 演示模式（截图验收环）：启动参数触发，换假客户端＋
         // 内存库，正常启动路径与持久化口径零变化。
         let demo = DemoMode.current

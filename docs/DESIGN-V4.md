@@ -15525,3 +15525,30 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 桥调用清零证据：全仓 `.setName(` 零命中、IdentityBridgeClient 代码行无 setName 与 /identity/name（BridgeConvergenceStructureTests 钉测在集内把守）。
 - 回归（run Test-OneDayApp-bridge383，ProbePhone 50C1A6D5）：发布集口径＝rel05098 bundle 97 套 817 项为基底，本包只增不减——新增 3 套 12 项（AgentIdentityTests 4，存量套此前未入发布集、本包随写口一并纳入；AgentNameWriteTests 6；BridgeConvergenceStructureTests 2），预期 100 套 829 项 → 实跑 **829/829 全绿、0 红、0 跳过**，xcresulttool 本体逐套对账一致。S371（ChatRootChainStructureS371Tests 1/1）、S373（ChatDepthStructureS373Tests 2/2）在集内全绿；受影响面在集套件点名全绿（MonitorBridgeModelsTests 21/21、LedgerModelsTests 31/31、GrantsContractTests 7/7；动态/点子/目标/交付面由全集绿覆盖）。过程记账：首轮因 recordTrace 漏传 send 的 collection 参数编译红（exit 65），修复（783a5bc）后重跑全绿。
 - 余包清单与卡点：包二（G20 rendition 再迁）卡 Hermes 原生 rendition API——只登记缺口、不动生产，日后立项走部署包流程；包三（identity 桥口存废结论＝不退役＋/decisions 双客户端重复收口）无技术卡点、随后续组版搭载；其余 19 组桥本体保留为终局形态（Hermes 上游新增对应 API 时再逐组复核）。
+## §384 崩溃采集落地（2026-11-23；总表 131／G-14；分支 feat/crash-collection，基线 rel-05098 @3f9598f）
+
+**背景与冲突对账**：2026-11-14「大厂定版九项」③「崩溃报告收集带隐私门」曾判绿（§241.4），总账复核（2026-11-23）实查未落地——0.50.92/93 闪退仍靠手动 .ips 取证。本节先查实已判绿部分到底活在哪，再补齐缺口（用户 2026-11-23 令全部解冻、全推进）。
+
+### §384.1 实查对账（已判绿部分活在哪）
+
+- **§241.4 本体＝CI 侧、非 App 侧**：`Scripts/ci/crash_metadata.py` 在仓且在 CI 常驻——只处理 CI 测试轮在 runner 上产生的 .ips：字段白名单提取（时刻/进程/bundle id/App 与系统版本/异常类型与信号/终止命名空间与码/故障线程前 8 符号名）＋两道正则兜底清洗（用户名路径/UUID 形串），产物作 CI artifact（retention 7 天）、.ips 原文不出 runner。§241.4 当年即明示「崩溃报告无 App 运行时收集面，关口在收集侧（仓库变量）」——判绿口径只覆盖 CI 崩溃，运行时面自始缺位、非回归。
+- **App 侧逐点点名（本基线实查）**：MetricKit/MXDiagnostic 全仓零命中；`crash` 字面命中均为他义（服务端 doctor 的 crashErrorLine＝OpsHealth、Kanban run 的 crashed 态、历史 .ips 定因注释）。既有诊断面 ChatDiagnosticsView（设置→关于→内部实验节，台账 189/190）只读聊天探针（卡顿/量测/留痕），与崩溃无关。服务端：hermes/companion 无崩溃上报端点（本包只登记、不动生产，见 §384.3）。
+- **缺口定性（四缺其四，隐私门口径只有 CI 实现）**：①采集端缺——无 MetricKit 订阅、无任何运行时崩溃捕获；②上报缺——无端点、无外发通道（本包按纪律不补服务端，只登记）；③查看面缺——真机崩溃在 App 内无可达回读面；④隐私门缺 App 侧落点——白名单＋双道脱敏只活在 CI Python 脚本里，App 侧无对应件。
+
+### §384.2 落码（目标形态对位大厂通行做法）
+
+- **采集端＝MetricKit 主通道（平台原生）**：新 `CrashDiagnosticsCollector`（App 层，MXMetricManagerSubscriber 单例）订阅诊断载荷四类——崩溃（MXCrashDiagnostic）/卡死/CPU 异常/磁盘写异常；`OneDayApp.init` 启动注册，开关关即摘除。iOS 沙箱内 App 读不到自家 .ips 原文，MetricKit 载荷即其平台等价物（与 §241.4 CI .ips 提取分工：CI 管 CI 崩溃、本件管真机运行时）。载荷映射只取白名单字段：异常类型/信号（NSNumber 经码表转名）、终止命名空间与码（terminationReason 拆分）、App/系统版本、调用栈顶部符号名（callStackTree JSON 只走读 symbolName/binaryName 两键，binaryUUID/地址/偏移一律不读）。
+- **隐私门＝Core 单件 `CrashReportPrivacy`（§241.4 口径的 App 侧落点）**：①结构白名单——`CrashReportRecord` 只有白名单字段，设备名/incident/二进制 UUID/寄存器/源文件路径天然不入结构；②全文兜底三道正则——用户名路径、UUID 形串与 CI 同式，路径道**加严一档**（CI 只抹用户名段、余下路径段仍留；App 侧整条路径吞掉，判读不需要任何路径段），另加十六进制地址一道（MetricKit 符号串可能夹地址，CI 提取路径天然不取、本路径补此道）。记录只许经 `CrashReportRecord.make(...)` 构造——构造即过门，无未脱敏记录可落盘；凭据类内容无入口（白名单字段皆系统诊断元数据）。
+- **落盘＝`CrashReportStore`（Core）**：Application Support/OneDayDiagnostics/crash-reports.json，单 JSON 原子写、上限 50 条、最新在前、内容去重（MetricKit 重复投递不叠账）、文件损坏回空列不崩。开关 `CrashCollectionFeature`（键 `crash.collection.enabled`，缺省开），与 §241.4「设置内可关」口径对应——关口在收集侧：关于页内部实验节同键 Toggle，翻转经 onChange 即时摘/挂订阅。
+- **查看面＝`CrashReportsView`（僵尸功能禁令对位：真回读）**：设置→关于→内部实验节新增「崩溃报告」行（与聊天诊断同置同式）＋设置目录新条目 crashReports（支持组、仅搜索可达，与 chatDiagnostics 同例；SettingsRoute/图标 exclamationmark.triangle 同步）。面内逐条回读落盘记录（等宽、可选中复制）、整表经系统 ShareLink 由用户手动外发、清空一钮（确认框）；空态明示投递时机（事后回传、通常下次启动到达）。App 不自动上传任何报告。
+- **上报缺口处置**：服务端崩溃接收端点**只登记不动生产**——后续若立项，须走 hermes-deploy 部署包（先入包再应用）＋端点只收已过隐私门的白名单结构；本包 App 侧不预埋任何网络外发。
+
+### §384.3 钉测与回归
+
+- 新套 `CrashReportsTests`（OneDayCoreTests）6 项：三道清洗合成脏串零漏出（人名路径/UUID/地址）、make 构造全字段＋displayText 产物脱敏断言（脏字段混入后产物无路径/UUID/地址形态、判读信息保留）、符号截 8、存储落盘回读＋去重＋上限 50＋清空、损坏文件回空、开关缺省开/存值关口径。SettingsCatalogTests 同步两断言（目的地覆盖集＋隐藏集各加 crashReports）。
+- 聚焦轮（ProbePhone）：CrashReportsTests 6/6＋SettingsCatalogTests＋S371/S373 全绿（bundle Test-OneDayApp-crash1，xcresulttool 29/29、0 红）。
+- 发布集全量轮（ProbePhone，rel05098 发布集 97 套 817 项基底＋新套 CrashReportsTests 6 项＝98 套 823 项预期）→ 实跑 **823/823 全绿、0 红、0 跳过**（bundle Test-OneDayApp-crashfull，xcresulttool 总数逐项对账一致）；S371/S373 在发布集内全绿。
+
+### §384.4 真机门（用户，未过不关账）
+
+人为崩溃一次（或自然闪退一次）→ 杀进程重开 App 待 MetricKit 投递（通常下次启动）→ 设置→关于→内部实验节「崩溃报告」面可见该条、字段可判读（异常/信号/顶部符号在场）、全文无设备名/路径/UUID；收集开关关掉后不再新增记录。

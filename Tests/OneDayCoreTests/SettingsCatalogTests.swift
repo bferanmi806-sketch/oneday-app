@@ -80,6 +80,8 @@ final class SettingsCatalogTests: XCTestCase {
             .pairingManagement,
             // 聊天诊断新增（台账 189/190）
             .chatDiagnostics,
+            // 崩溃报告新增（G-14，DESIGN §384）
+            .crashReports,
         ]
         XCTAssertEqual(covered, Set(all))
     }
@@ -181,7 +183,7 @@ final class SettingsCatalogTests: XCTestCase {
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-["identity","privacy","terms","disconnect", "chatDiagnostics"]
+["identity","privacy","terms","disconnect", "chatDiagnostics", "crashReports"]
         )
     }
 
