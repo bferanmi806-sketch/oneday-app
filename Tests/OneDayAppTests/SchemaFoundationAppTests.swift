@@ -7,9 +7,9 @@ import XCTest
 /// 本地库版本迁移地基（根治版包 3，DESIGN §332；
 /// 待办第 122 条 G-05）验收钉测：
 /// ①指纹＝两版存储属性全集钉死（V1 冻结副本与已
-/// 发布库逐一一致、V2＝现行模型＝V1＋台账 187 两
+/// 发布库逐一一致、V3＝现行模型＝V2＋台账 154 一
 /// 字段，原地改任一版模型必红）；
-/// ②V1 形态旧库经迁移链工厂打开、轻量迁移到 V2
+/// ②V1/V2 形态旧库经迁移链工厂打开、轻量迁移到现行版
 /// 零丢失＋迁移前备份存在且可按 V1 打开；③备份
 /// 轮转保留 2 组；
 /// ④打开失败注入→降级明示＋留痕＋原文件与备份
@@ -82,7 +82,7 @@ final class SchemaFoundationAppTests: XCTestCase {
 
     // MARK: - ① 指纹（V1 冻结＋V2 现行，两版全集钉死）
 
-    func testSchemaFingerprintsPinnedForV1AndV2() {
+    func testSchemaFingerprintsPinnedForV1V2AndV3() {
         // 存储属性全集钉死：原地改任一版模型（加/删/
         // 改名字段）必然在此触发红——冻结的机械守卫
         let allowedExtras: Set<String> = [
@@ -113,6 +113,10 @@ final class SchemaFoundationAppTests: XCTestCase {
         let expectedEntryV2 = expectedEntryV1.union([
             "serverRowID", "reactionsData",
         ])
+        // 台账 154：V3 在 V2 全集上只加一可选字段
+        let expectedEntryV3 = expectedEntryV2.union([
+            "clientMessageID",
+        ])
 
         // V1：冻结副本——实体名与已发布库一致（迁移
         // 按名对位、改名即灾难）、存储全集逐一钉死
@@ -134,25 +138,9 @@ final class SchemaFoundationAppTests: XCTestCase {
             allowedExtras: allowedExtras
         )
 
-        // V2／现行：裸 Schema（现行模型）与 V2 逐实体
-        // 逐属性一致、全集＝V1＋两新字段
-        let plain = Schema([ChatThread.self, ChatEntry.self])
+        // V2：冻结副本（ChatSchemaV2Models.swift）——
+        // 全集＝V1＋两新字段，逐字冻结永不再改
         let v2 = Schema(versionedSchema: ChatSchemaV2.self)
-        XCTAssertEqual(
-            Set(plain.entities.map(\.name)),
-            Set(v2.entities.map(\.name))
-        )
-        for entity in plain.entities {
-            let counterpart = v2.entities.first {
-                $0.name == entity.name
-            }
-            XCTAssertNotNil(counterpart, entity.name)
-            XCTAssertEqual(
-                Set(entity.properties.map(\.name)),
-                Set(counterpart?.properties.map(\.name) ?? []),
-                entity.name
-            )
-        }
         XCTAssertEqual(
             ChatSchemaV2.versionIdentifier, Schema.Version(2, 0, 0)
         )
@@ -166,9 +154,41 @@ final class SchemaFoundationAppTests: XCTestCase {
             allowedExtras: allowedExtras
         )
 
-        // 迁移链：两版在册、V1→V2 一段轻量迁移
-        XCTAssertEqual(ChatMigrationPlan.schemas.count, 2)
-        XCTAssertEqual(ChatMigrationPlan.stages.count, 1)
+        // V3／现行：裸 Schema（现行模型）与 V3 逐实体
+        // 逐属性一致、全集＝V2＋clientMessageID
+        let plain = Schema([ChatThread.self, ChatEntry.self])
+        let v3 = Schema(versionedSchema: ChatSchemaV3.self)
+        XCTAssertEqual(
+            Set(plain.entities.map(\.name)),
+            Set(v3.entities.map(\.name))
+        )
+        for entity in plain.entities {
+            let counterpart = v3.entities.first {
+                $0.name == entity.name
+            }
+            XCTAssertNotNil(counterpart, entity.name)
+            XCTAssertEqual(
+                Set(entity.properties.map(\.name)),
+                Set(counterpart?.properties.map(\.name) ?? []),
+                entity.name
+            )
+        }
+        XCTAssertEqual(
+            ChatSchemaV3.versionIdentifier, Schema.Version(3, 0, 0)
+        )
+        XCTAssertEqual(ChatSchemaV3.versionTag, "3.0.0")
+        assertStoredSet(
+            v3, entity: "ChatThread", expected: expectedThread,
+            allowedExtras: allowedExtras
+        )
+        assertStoredSet(
+            v3, entity: "ChatEntry", expected: expectedEntryV3,
+            allowedExtras: allowedExtras
+        )
+
+        // 迁移链：三版在册、V1→V2→V3 两段轻量迁移
+        XCTAssertEqual(ChatMigrationPlan.schemas.count, 3)
+        XCTAssertEqual(ChatMigrationPlan.stages.count, 2)
     }
 
     /// 存储属性全集断言（两版共用）：期望集须全在、
@@ -196,7 +216,7 @@ final class SchemaFoundationAppTests: XCTestCase {
         )
     }
 
-    // MARK: - ② V1 旧库经迁移链打开（轻量迁移到 V2）＋备份实证
+    // MARK: - ② V1/V2 旧库经迁移链打开（轻量迁移到现行版）＋备份实证
 
     func testV1StoreOpensThroughMigrationChainWithZeroLoss()
         throws {
@@ -232,7 +252,7 @@ final class SchemaFoundationAppTests: XCTestCase {
 
         // 旧库文件复制一份作演练面（文件本体即 V1
         // 库形态），经新工厂（备份＋迁移链）打开：
-        // V1→V2 轻量迁移在容器 init 内沿链走完
+        // V1→V2→V3 轻量迁移在容器 init 内沿链走完
         let drillURL = dir.appendingPathComponent("drill.store")
         try copyStoreSet(from: sourceURL, to: drillURL)
         let bootstrap = ChatModelContainerBootstrapFactory
@@ -259,11 +279,12 @@ final class SchemaFoundationAppTests: XCTestCase {
         XCTAssertEqual(
             Set(entries.map(\.content)), ["第一条", "第二条"]
         )
-        // 迁移落定：V2 两新字段在旧条目上为默认（未
-        // 钉桩/无镜像）——升版不造数据
+        // 迁移落定：V2/V3 新字段在旧条目上为默认（未
+        // 钉桩/无镜像/无幂等身份）——升版不造数据
         XCTAssertTrue(
             entries.allSatisfy {
                 $0.serverRowID == nil && $0.reactionsData == nil
+                    && $0.clientMessageID == nil
             },
             "V1 旧条目迁移后新字段须为默认 nil"
         )
@@ -276,7 +297,7 @@ final class SchemaFoundationAppTests: XCTestCase {
         )
         XCTAssertTrue(
             backupURL.lastPathComponent
-                .contains("drill.store.backup-2.0.0-")
+                .contains("drill.store.backup-3.0.0-")
         )
         let backupContainer = try ModelContainer(
             for: v1Schema,
@@ -295,6 +316,95 @@ final class SchemaFoundationAppTests: XCTestCase {
         XCTAssertEqual(
             try backupContext.fetch(
                 FetchDescriptor<ChatSchemaV1.ChatEntry>()
+            ).count,
+            2
+        )
+    }
+
+    /// §383（台账 154）：V2 旧库经迁移链打开（V2→V3
+    /// 轻量迁移）——数据零丢失、clientMessageID 迁
+    /// 移后为默认 nil、迁移前备份按 V2 原库可打开
+    func testV2StoreOpensThroughMigrationChainWithZeroLoss()
+        throws {
+        let dir = try tempDir()
+        let sourceURL = dir.appendingPathComponent("default.store")
+        // V2 形态：以冻结 V2 schema 建库写数（模拟
+        // 0.50.98 已发布库），模型用 V2 冻结副本
+        let v2Schema = Schema(versionedSchema: ChatSchemaV2.self)
+        let writer = try ModelContainer(
+            for: v2Schema,
+            configurations: [ModelConfiguration(
+                schema: v2Schema, url: sourceURL
+            )]
+        )
+        swiftDataMount.retain(writer)
+        let writeContext = ModelContext(writer)
+        let thread = ChatSchemaV2.ChatThread(title: "V2 库主线")
+        thread.serverSessionID = "srv-main-98"
+        writeContext.insert(thread)
+        let userEntry = ChatSchemaV2.ChatEntry(
+            role: "user", content: "V2 第一条", thread: thread
+        )
+        userEntry.serverRowID = 101
+        writeContext.insert(userEntry)
+        writeContext.insert(
+            ChatSchemaV2.ChatEntry(
+                role: "assistant", content: "V2 第二条",
+                thread: thread
+            )
+        )
+        try writeContext.save()
+
+        let drillURL = dir.appendingPathComponent("drill2.store")
+        try copyStoreSet(from: sourceURL, to: drillURL)
+        let bootstrap = ChatModelContainerBootstrapFactory
+            .makePersistent(storeURL: drillURL)
+        XCTAssertFalse(bootstrap.usesFallback)
+        XCTAssertNil(bootstrap.failureMessage)
+        let container = try XCTUnwrap(bootstrap.container)
+        swiftDataMount.retain(container)
+
+        let context = ModelContext(container)
+        let threads = try context.fetch(
+            FetchDescriptor<ChatThread>()
+        )
+        let entries = try context.fetch(
+            FetchDescriptor<ChatEntry>()
+        )
+        XCTAssertEqual(threads.count, 1)
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(threads.first?.title, "V2 库主线")
+        XCTAssertEqual(
+            Set(entries.map(\.content)), ["V2 第一条", "V2 第二条"]
+        )
+        // V2 既有字段原样保留、V3 新字段为默认 nil
+        let migratedUser = try XCTUnwrap(
+            entries.first { $0.role == "user" }
+        )
+        XCTAssertEqual(migratedUser.serverRowID, 101)
+        XCTAssertTrue(
+            entries.allSatisfy { $0.clientMessageID == nil },
+            "V2 旧条目迁移后 clientMessageID 须为默认 nil"
+        )
+
+        // 迁移前备份实证：名带现行版本字面、可按 V2
+        // 原库方式打开、数据完好
+        let backupURL = try XCTUnwrap(bootstrap.backupStoreURL)
+        XCTAssertTrue(
+            backupURL.lastPathComponent
+                .contains("drill2.store.backup-3.0.0-")
+        )
+        let backupContainer = try ModelContainer(
+            for: v2Schema,
+            configurations: [ModelConfiguration(
+                schema: v2Schema, url: backupURL
+            )]
+        )
+        swiftDataMount.retain(backupContainer)
+        let backupContext = ModelContext(backupContainer)
+        XCTAssertEqual(
+            try backupContext.fetch(
+                FetchDescriptor<ChatSchemaV2.ChatEntry>()
             ).count,
             2
         )

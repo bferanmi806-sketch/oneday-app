@@ -16069,3 +16069,30 @@ App 现状（基线实查）：168 委派路由零接线（grep 命中的 delega
 - 子项 5【定案】服务端发送侧与部署包登记：批 4b 施工图（push_notify.py＋触发点＋回执处理＋入包形态＋验收 §4.5）本包复核仍成立、定案不重画；CAPABILITIES #11 规划中登记经本包实查在位（部署包 1.5.0）。长轮询兜底口径定案：APNs 在役前长轮询维持现状为唯一到达通道（G-21 审计「轮询降为兜底」是推送到位之后的事），本包不动轮询链。
 - 子项 6【登记缺口】两件：①POST/DELETE /v1/push/tokens 端点＋push_tokens.json 存储未装机（卡批 4b 装机；装机本身不依赖付费账号，但整批经用户令随账号搁置，归主线随账号解锁一并排）——App 上送现阶段真回 404、状态如实呈 serverNotReady，此即本包的真回读，不冒充已登记；②run 完成推送的会话落点：server→local 线程解析需 ChatStore 现场（账本 records(appState:localThreads:) 要本地线程现场重演），登记存储层无取数口——点按先记 pendingRoute 待接，随批 4b App 侧配套（§4.4）一并补，不假装已达。
 - 回归（定稿回填，2026-11-23）：聚焦轮 36/36 全绿（新三套 33 项＋S371 1＋S373 2）；发布集全量轮 **850/850 全绿、0 红、0 跳过**（run Test-OneDayApp-pushprep；名单＝rel05098 bundle 97 套 817 项＋新三套——PushRegistrationTests 16／PushRegistrationStoreTests 11／PushPrepStructureTests 6；xcresulttool 逐套对账 100 套全 Passed、新红零，S371/S373 在集内全绿）。途中修复三件：HermesError 新 case 触发 FileOpenFailure 穷尽 switch（补 .pushEndpointNotReady 归 other 兜底、同既有兜底口径）、通知委托单例并发安全（标 @unchecked Sendable，无可变状态）、两钉测自口径修正（断言时点／调用形态以括号判定）。提交链：2587918（§397 草案）→3831888（落码）→5c42e5d（回归修复）→本提交（定稿回填）。真机门归批 4b §4.5（真机收到真推送为准），本包实验室绿不冒充推送可用；就绪面入口随组版接入 §385 通知设置面（一行，见子项 3），子项 6 两缺口随批 4b 推进。
+## §398 台账 154：消息级幂等去重——服务端 client_message_id 入部署包＋App 发件箱复用同一身份（2026-11-23；分支 feat/client-message-id，基线 rel-05098 @3f9598f；未组版、随后续版并入）
+
+> 组版注记（0.50.99）：本节在源分支误记为 §383，与桥面收敛节（§383，本版已先合入）撞号，组版时顺延为 §398；原记账号 §383，节内小节号随之顺延，正文未动。
+
+### §398.1 缺口与定案（现状实查 2026-11-23）
+
+- 服务端：POST /v1/runs 的幂等是上游 v0.23.0 自带机制、**只认 Idempotency-Key 请求头**（RunIdempotencyStore：SQLite 落盘、键＝(scope, key)、scope＝sha256(鉴权主体)、指纹＝sha256(规范 JSON{body, gateway_session_key})、保留 24h；同键同体 202 回原 run＋replayed、同键异体 409 idempotency_key_conflict）；body 的 client_message_id 不被读取（能力注册表 #4 既有口径）。
+- App 主发送路径已合规：driveRun 提交前先落 RunLedgerEntry（持久化幂等键）、同键重试、账本重演取回。缺口在**跨 driveRun 的重发**：发件箱自动重试（OutboxAutoRetry/OutboxRetryStore，≤3 次）与手点重发每次都经 driveRun **新铸 UUID 键**，消息本体（ChatEntry）无持久身份达服务端——服务端已受理而 App 未知情（回执丢失/进程被杀于提交段）时重发＝新 run 重复投递。
+- 定案（双侧同 id）：①服务端入部署包 1.5.0——新增全文件补丁 patches/api_server_runs.py：无头时回退取 body 的 client_message_id 走同一 store 机器（语义/窗口/冲突与头路径完全一致、头优先、body 整体仍入指纹、字段非法 400 invalid_client_message_id），capabilities 的 runs_idempotency 加 client_message_id:true 探测旗。②App 侧 ChatEntry 持久化 clientMessageID：首轮驱动铸造落盘、一切重发复用、submitRun 头＋body 同值双带。
+
+### §398.2 App 落码清单
+
+- **Schema 升版（§332 规程第二次执行）**：ChatStore.swift 两模型逐字冻结为 ChatSchemaV2Models.swift（嵌套于 ChatSchemaV2、实体名不变）；ChatSchemaV2.models 改指冻结副本；新开 ChatSchemaV3（3.0.0）指现行模型、CurrentChatSchema 改指 V3；ChatMigrationPlan 追加 V2→V3 lightweight 段；SchemaFoundationAppTests 指纹登记 V3 全集（＝V2＋clientMessageID）＋V2 冻结集、迁移链计数 3 版 2 段、新增 V2 旧库迁移测、V1 迁移测备份名随现行版改 3.0.0。
+- ChatEntry 加 `clientMessageID: String? = nil`（可选＋默认 nil 轻量迁移；助手条目与存量恒 nil）。
+- ChatView.driveRun：非 demo 时幂等键改取条目 clientMessageID——已有则复用、nil 则铸造并 `modelContext.save()` 落盘后再建账本条目；单轮内账本重演口径不变；demo 仍现铸不落盘。
+- ChatView.resendFailedEntry：中段复制路随 remoteFilePathsData 一并转移 clientMessageID（同一条消息的重发）；editUnsentEntry 编辑回收路**不转移**——保存时新建条目＝新身份（内容已变、属新消息），与 §371 编辑语义一致。
+- HermesClient.submitRun：payload 加 `"client_message_id": idempotencyKey`（与头同值）。DemoHermesClient.submitRun 不构造请求体（C-13 签名/行为同构不变），无需改。
+- 新测 ClientMessageIDTests 3 项（默认 nil／落盘跨上下文回读／条目间独立）；submitRun 请求体字段为一行字典项、无既有网络桩接缝可钉（仓内客户端测一律走假客户端），以 diff 审＋服务端语义 harness 为据，此界限如实记账。
+
+### §398.3 服务端未上线期口径（不回退、不设开关）
+
+App 头＋body 同值双带：旧服务端忽略未知 body 字段、头键账本链（单轮重演）照常工作，行为与 0.50.98 完全一致；新服务端任一来源命中即去重。**不做能力探测开关**——双带本身即兼容形态，开关只会引入第二套行为面。服务端应用由主线报用户拍板后另行执行（方案＋回滚基线见 hermes-client-message-id-package-20261123.md），App 本包不依赖其先行。
+
+### §398.4 验证
+
+- 服务端包内本地验证 25/25（补丁模块＋上游真 Store 的 harness：字段解析全分支/指纹确定性/回放 202/冲突 409/能力旗），留档 hermes-deploy/verify-output-1.5.0-local-20261123.txt；行为级写型探针（真 HTTP 双提交）在应用时于一次性会话执行、默认不跑（CAPABILITIES #14）。
+- App 发布集口径回归（实跑 2026-11-23）：基底＝rel05098 bundle 97 套 817 项全限定名；SchemaFoundationAppTests 不在发布集 bundle 内（其指纹/迁移测历版单独跑），因本批动 schema 全套 11 项加跑（指纹测改名扩容＋V2 迁移测 +1）；ClientMessageIDTests 新套 3 项加跑 → 共 **831 项，实跑 831/831 全绿、0 红、0 跳过**（bundle Test-OneDayApp-idempotency，xcresulttool 逐项对账一致；S371/S373 在集内全绿）。首轮曾因 test-cmd.sh 未带 DEVELOPER_DIR 误走 Xcode 26.6 构建失败（LibraryListStoreC4Tests 严判类报错、与本批无关），按测试定版补 27.2 后第二轮即全绿——各线 test-cmd.sh 须自带 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer，运行器不代设。
