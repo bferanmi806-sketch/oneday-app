@@ -69,6 +69,7 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
              .speechProviderUnavailable,
              .enrollmentCodeInvalid, .enrollmentCodeExpired,
              .enrollmentLocked, .enrollmentTooManyPending,
+             .pushEndpointNotReady,
              .reactionTargetGone,
              .runBillingExhausted, .runServiceUnavailable,
              .runTimedOut, .runNetworkInterrupted,
@@ -92,6 +93,9 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
             // reactionTargetGone（台账 187）：反应面
             // 的目标行消失信号，文件打开面不会收到；
             // 同理归 other 兜底
+            // pushEndpointNotReady（总表 138）：推送
+            // 登记面的未开通信号，文件打开面不会收
+            // 到；同理归 other 兜底
             return .other
         }
     }

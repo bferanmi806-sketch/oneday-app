@@ -719,6 +719,7 @@ struct DemoHermesClient: HermesClientProtocol {
     func issueEnrollmentCode(config: ServerConfig, apiKey: String) async throws -> EnrollmentIssue { throw HermesError.demoLimitReached }
 
     func claimEnrollment(config: ServerConfig, code: String) async throws -> EnrollmentClaim { throw HermesError.demoLimitReached }
+    func registerPushToken(config: ServerConfig, apiKey: String, body: PushTokenRegistrationBody) async throws -> PushTokenRegisteredResponse { throw HermesError.demoLimitReached }
     func listGrants(config: ServerConfig, apiKey: String) async throws -> GrantsListResponse { throw HermesError.demoLimitReached }
     func listApprovals(config: ServerConfig, apiKey: String) async throws -> ApprovalsListResponse { throw HermesError.demoLimitReached }
     func routeProbe(config: ServerConfig, apiKey: String?, path: String) async -> RouteProbeResult? { nil }

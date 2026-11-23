@@ -529,6 +529,10 @@ struct FailingHermesClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func registerPushToken(config: ServerConfig, apiKey: String, body: PushTokenRegistrationBody) async throws -> PushTokenRegisteredResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func listGrants(config: ServerConfig, apiKey: String) async throws -> GrantsListResponse {
         throw HermesError.unreachable("离线桩")
     }
