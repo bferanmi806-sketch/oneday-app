@@ -15370,5 +15370,5 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 ### 回归与真机门
 
-- 回归：（待回填——发布集 97 套 817 基底＋新套 2 个 11 测＋定向 ImportDemotionAppTests/SessionCatalogGuardTests 与 Core 受影响 7 套，xcresulttool 对账）
+- 回归（2026-11-23，两轮合账，xcresulttool 本体对账）：发布集 97 套 **817/817 全绿、新红零**（名单＝rel05098 bundle 提取 85 套基底口径的延续——本包按目标拆两轮：Core 39 套 526/526＋App 58 套 291/291，逐套计数与 rel05098 基线逐值一致；S371 1/1、S373 2/2 在集内全绿）；新套 2 个 11 测全绿（HermesErrorG03Tests 8/8、ErrorBannerG03StructureTests 3/3）；定向套全绿（ImportDemotionAppTests 11/11 含新降级两测、SessionCatalogGuardTests 9/9、HermesErrorTests 6/6、FileOpenFailureTests 5/5、BasicsStopgapTests 17/17、StoreLoadStateTests 8/8、I18nFormattingTests 9/9、DemoLimitTests 2/2、EnrollmentPayloadTests 9/9）。过程注记：首轮 App 目标在执行中被并行线 kickstart 抢道杀跑（bundle 仅余 runner error 伪例 1 件、Core 部分已完整跑毕），按缺套清单补跑第二轮后合账，抢道事实在此留痕、不计本包红。
 - 真机门（用户，未过不关账）：①重装/无本地副本时打开长会话：首屏最新页先到、历史逐页补齐不整段报错；②断网发送失败：横幅人话＋时刻在位、无「重新发送」误挂（非失败条目时）；③发送被服务端拒（如会话忙/鉴权失效）：横幅主文案无人话外技术串、点「详情」可见状态码原文、关闭后下一条错误不残挂上一条详情；④登录过期再进：横幅为鉴权类人话。
