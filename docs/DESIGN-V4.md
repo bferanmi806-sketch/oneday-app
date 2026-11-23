@@ -16956,3 +16956,18 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 钉测（NotificationIntakePolicyTests 15 测，Test-Notif454.xcresult，notif454 exit 0）：前台会话完成被压／后台完成留底二级／无 refId 不压／空会话链不压／run_failed 与 task_error 在用户会话也一级／approval_pending 与裁决回执一级／monitor_change 二级／待批角标轴＝快照原值两态／聚合诸态（窗内并、链式跨窗并、超窗拆、一级截断、异 kind 不并、单条不并、未读传播）。同跑相邻套全绿：OverviewBridgeTests 28、NotificationTierStructureTests 7、ChatSendConfirmPinTests 7、MutationOptimisticTests 14；总 71/71、逐套点名计数闭合（防 -only-testing 静默跳过式假绿）。
 - 真机门（待用户 verdict）：普通回复后铃铛不再新增「运行完成」；run 失败仍在账且一级单行；后台/cron 完成留底并在 10 分钟窗内聚合成计数行；待批条数与中枢审核格一致。
 - 已知边界：桥快照未读数（monitor＋runs 轴）在压后一轮轮询内自洽（被压条目已向桥确认已读）；Store 层未做可注入客户端的集成测，判定逻辑由 Core 钉测把守；聚合仅铃铛呈现层折行，存档仍逐条（点开计数行看 lead 详情、cohort 标读，不做组内逐条展开页）。
+
+
+## §455 聊天空态建议个性化（2026-11-24）
+
+用户 03:54 亲点：新会话空态三条建议是写死的（「今天服务器状态怎么样？／把这周的会议整理成纪要／有哪些定时任务在跑？」）——「你拿了用户这么多信息了，知道他的习惯啦，还不懂他吗？还是固定的提示？」定版：建议必须从用户当下真实状态长出来，不许写死。
+
+- 写死点（改造前）：Core `EmptyChatSuggestions`（Onboarding.swift）三条文案＋三枚符号，ChatView.emptyStateSuggestions 直读、ChatNativeRowHeight 按写死文案估高。改造后该枚举降为**冷启回落池**（texts/symbols 不动，旧钉测 OnboardingTests 不破），常态由新引擎现算。
+- 引擎（Core 新文件 StarterSuggestions.swift，纯函数）：快照 `StarterContext` → `StarterSuggestionsEngine.suggestions`，最多 3 条。分级与序：**一级·需要处理**（待批 > 定时异常 > 目标卡住）> **二级·未完事项**（在办目标 > 最近交付 > 24 小时内将跑的定时）> **三级·时段相关**（按本地钟点一条：晨/日/晚/夜）> **回落补位**（真上下文凑不满 3 条时回落池按序填；连回落都被抑制时整池原样出，空态不许空白）。
+- 数据源逐项对账（全部 App 已在同步的真数据，不新造服务端接口）：待批＝AgentHubStore.approvalState（/pending 回读，与天内审批卡/枢纽审核段同一份），文案「有 N 条请求等我批，帮我逐条看看都要批什么」；定时异常＝CronStore.jobs 中 enabled 且 last_error 非空、取最近运行一条，文案点名任务；目标卡住＝GoalsStore.goals 中 activity.state == blocked 或 failedCount > 0、取最近活动一条； 在办目标＝activity.state running/waiting 最近活动一条（与卡住条不重复）；最近交付＝LibraryListStore.deliverables 中 48 小时内最新一份（多份时报总数）；将跑定时＝CronStore.jobs 未来 24 小时 nextRunAt 计数 > 0 才出。**未用两口（明示）**：记忆在办事项——App 侧无结构化口（MemoriesStore 只有 L0 条目文本），硬编问句即编造，不用；资源库——该店刷新口需呈现面喂 fetch 闭包，聊天侧只读已同步/快照播种数据，不为建议新拉一轮。
+- 冷启判定：任一数据源已就绪（approvalState .ready／goals loadState .ready／cron hasLoaded／deliverables 非 nil）才算上下文成立；未成立时 hour 传 nil，整面回落三条（与旧形态首帧一致），空态出现时经 .task 触发三店懒加载，数据到达后现算升级。
+- 点选与抑制：点一条＝记账后把该句作为用户消息走既有 send() 全链发出（与改造前同路、与选择框点选同路）。已用/已弃记账本 StarterSuggestionMarkBook（Core 纯值）＋App 侧 UserDefaults 落盘（键 starterSuggestionMarks.v1）；抑制窗按级分——状态类 7 天、时段 20 小时、回落 3 天；状态类 key 带状态指纹（待批＝条数＋首尾 id、定时异常＝last_run_at、目标卡住＝since/最近活动、交付＝路径＋mtime），状态一变 key 即换、旧抑制自动失效。当前呈现面无「划掉」手势，记账本已备 markDismissed 口，待呈现面有手势再接。
+- 文案纪律：每条都是能直接发出的完整问句、点名真实对象（任务名/目标名/文件名/条数全来自快照），无内部词；呈现仍过 L10n.string（回落池旧本地化行为不变，动态拼句整串不命中键即原样出）。
+- 领地动点（逐处登记）：ChatView 只动 emptyStateSuggestions 视图体与 empty-suggestions 行高调用一行（不碰发送路径 §451、不碰页头/顶栏 §449）；ChatNativeRowHeight 的 emptySuggestionsHeight 两函数加 texts 参数、备忘键带文案指纹（文案变即重估）；Onboarding 只改回落池注释。
+- 钉测（StarterSuggestionsTests 8 测）：一级三件序与三条上限；无上下文回落三条（文案/符号与回落池逐条同）；只有时段时时段打头＋回落补位；用过的待批条不再现且空位顺延；状态指纹换新后旧抑制不拦；记账本窗内抑制/窗外释放/prune；全抑制不空面；文案可发送性。
+- 真机门：新会话空态在有待批时首条为待批类、点条即发出并短期内不再现、无任何上下文时回落三条——归用户 verdict。

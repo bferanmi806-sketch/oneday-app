@@ -3095,7 +3095,7 @@ struct ChatView: View {
                 ChatNativeRow(
                     key: "empty-suggestions",
                     entryID: nil,
-                    height: composer.emptySuggestionsHeight(),
+                    height: composer.emptySuggestionsHeight(texts: StarterSuggestionsAssembly.currentSuggestions(appState: appState).map(\.text)),
                     makeView: { AnyView(emptyStateSuggestions) }
                 )
             )
@@ -5135,27 +5135,28 @@ struct ChatView: View {
         .padding(.top, OneDayMetrics.spacingXL)
     }
 
-    /// 空态建议条段（同上，两承载共用）
+    /// 空态建议条段（同上，两承载共用）：§455 起建
+    /// 议不再写死——StarterSuggestionsAssembly 以当
+    /// 下已同步真数据（待批/目标/定时/资源库）现算
+    /// 现排，凑不出才回落 EmptyChatSuggestions 冷启
+    /// 池；点按即发送（走现行 send() 全链，不另建发
+    /// 送路），点过即记账、短期内不重复出
     @ViewBuilder
     private var emptyStateSuggestions: some View {
-        // 引导线（原型 chat 面）：空态建议条三
-        // 条，点按即发送（走现行 send() 全链，
-        // 不另建发送路）。文案与图标名单一出处
-        // 在 Core EmptyChatSuggestions
+        let suggestions = StarterSuggestionsAssembly
+            .currentSuggestions(appState: appState)
         VStack(spacing: OneDayMetrics.spacingS) {
-            ForEach(
-                Array(EmptyChatSuggestions.texts.enumerated()),
-                id: \.offset
-            ) { index, suggestion in
+            ForEach(suggestions) { suggestion in
                 Button {
-                    input = suggestion
+                    StarterSuggestionsAssembly.markUsed(suggestion)
+                    input = suggestion.text
                     send()
                 } label: {
                     HStack(spacing: OneDayMetrics.spacingSM) {
-                        Image(systemName: EmptyChatSuggestions.symbols[index])
+                        Image(systemName: suggestion.symbol)
                             .font(.system(size: 15))
                             .foregroundStyle(Palette.inkSecondary)
-                        Text(L10n.string(suggestion))
+                        Text(L10n.string(suggestion.text))
                             .font(.callout)
                             .foregroundStyle(Palette.ink)
                         Spacer()
@@ -5175,6 +5176,10 @@ struct ChatView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, OneDayMetrics.spacingL)
+        .task {
+            await StarterSuggestionsAssembly
+                .loadContextIfNeeded(appState: appState)
+        }
     }
 
     /// 条目行内容（§257 起两承载共用同一构建，防两
