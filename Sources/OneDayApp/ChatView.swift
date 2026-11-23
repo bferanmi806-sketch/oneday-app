@@ -1,3 +1,4 @@
+import NukeUI
 import OneDayDesign
 import OneDayCore
 import Photos
@@ -7585,8 +7586,16 @@ struct ChatView: View {
             Spacer(minLength: 0)
             if let imageURL = quote.imageURL,
                let url = URL(string: imageURL) {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
+                // §418：取图换 Nuke LazyImage（统一管
+                // 线）；失败整块不显、不占位的旧口径由
+                // success-only 闭包等价实现；.id(url) 保
+                // 引用切换时换图（LazyImage 不随请求自变）
+                LazyImage(
+                    request: RemoteImageRequestFactory
+                        .publicRequest(
+                            url: url, longEdgeCap: 160)
+                ) { state in
+                    if let image = state.image {
                         image
                             .resizable()
                             .scaledToFill()
@@ -7596,6 +7605,8 @@ struct ChatView: View {
                             ))
                     }
                 }
+                .pipeline(OneDayImagePipelines.remote)
+                .id(url)
                 .frame(width: 36, height: 36)
                 .accessibilityHidden(true)
             }
