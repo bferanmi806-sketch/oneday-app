@@ -57,7 +57,9 @@ final class SettingsCatalogTests: XCTestCase {
     func testEveryDestinationIsCovered() {
         let covered = Set(SettingsCatalog.entries.map(\.destination))
         let all: [SettingsDestination] = [
-            .identity, .profiles, .memory, .skills, .toolsets, .cron,
+            .identity, .profiles, .memory, .skills, .toolsets,
+            // H8 新增（总表 168，DESIGN §390）
+            .delegation, .cron,
             .serverSessions, .models, .envVars, .usage,
             .serverDetail, .connectors, .devicePermissions,
             .approvalRules,
@@ -89,7 +91,12 @@ final class SettingsCatalogTests: XCTestCase {
     func testAgentGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .agent).map(\.id),
-            ["models", "profiles", "memory", "skills", "toolsets", "cron"]
+            [
+                "models", "profiles", "memory", "skills", "toolsets",
+                // H8 委派路由（总表 168，DESIGN §390）：
+                // 与工具集同组并列、居其后
+                "delegation", "cron",
+            ]
         )
     }
 
