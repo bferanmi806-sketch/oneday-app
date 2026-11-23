@@ -108,7 +108,13 @@ final class HapticsMatrixTests: XCTestCase {
         // §352（D3/D2）：编辑重发失败回滚与重新生成
         // 失败各新增一 error 落点（与失败 notice 同点，
         // 沿配对一期同口径），52→54
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 54)
+        // §451（发送机制换代，0.50.109 组版改钉）：
+        // 旧发送链 launchTurn 三落点＋resendPending
+        // 三落点（复刻的一条龙）收敛为提交泵
+        // performSubmission 三落点（上传失败／准备
+        // 失败／提交被拒），resend 改委托泵、失败触
+        // 感由泵内落点承接，行为不丢，54→51
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 51)
         XCTAssertEqual(count(of: "Haptics.warning()", in: all), 6)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
