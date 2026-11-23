@@ -2,6 +2,7 @@ import NukeUI
 import OneDayDesign
 import OneDayCore
 import Photos
+import QuickLook
 import PhotosUI
 import SwiftData
 import SwiftUI
@@ -742,6 +743,10 @@ struct ChatView: View {
     /// 不可预览直落分享单（fileShareItem）」两件套呈
     /// 现状态退役——分享单改由中间页内的动作触发
     @State private var fileOpenTarget: FileOpenTarget?
+    /// §452.6：聊天侧 QuickLook 直达呈示项
+    @State private var chatQuickLookItem: ChatQuickLookItem?
+    /// §452.6：聊天侧兜底页呈示目标
+    @State private var chatFallbackTarget: FileOpenTarget?
     @State private var liveToolCards: [ToolCard] = []
     /// 直播区事件序标记（0.36.10，诊断 D3-10）：思考/
     /// 工具/正文按首达顺序记位，渲染层（liveZone）据
@@ -1130,6 +1135,27 @@ struct ChatView: View {
         // 发送舱（FileOpenView 回的是 FileQuote 值、
         // 不再是整段机器文直写 input），发不发由用户
         // 点发送为准；宿主不在的落点见 FileOpenView
+        // §452.6：聊天侧 QuickLook 直达（全屏，QL 自
+        // 带分享出口）与兜底页两呈示面，与下方中间页
+        // sheet 分工：中间页只剩文件引用块重开一途
+        .fullScreenCover(item: $chatQuickLookItem) { item in
+            NavigationStack {
+                QuickLookPreview(url: item.url)
+                    .ignoresSafeArea()
+                    .navigationTitle(item.name)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("完成") {
+                                chatQuickLookItem = nil
+                            }
+                        }
+                    }
+            }
+        }
+        .sheet(item: $chatFallbackTarget) { target in
+            FileFallbackView(target: target)
+        }
         .sheet(item: $fileOpenTarget) { target in
             FileOpenView(
                 target: target, origin: .conversation,
@@ -6165,7 +6191,67 @@ struct ChatView: View {
             )
             return
         }
-        fileOpenTarget = FileOpenTarget(path: path, anchor: anchor)
+        // §452.6：聊天侧两路直达——可预览走 QuickLook
+        // 全屏、不可预览走兜底页，不再经 FileOpenView
+        // 中间页（§125 两段式仅文件页侧与引用块重开
+        // 保留）；未落盘的先经 ChatFileStore 下载
+        // （卡面同源状态），失败落兜底页由其主按钮
+        // 承接重试；敏感文件直达兜底页锁定变体
+        let target = FileOpenTarget(path: path, anchor: anchor)
+        if FileOpenRoute.resolve(target: target) == .locked {
+            chatFallbackTarget = target
+            return
+        }
+        if let localURL = ChatFileStore.shared
+            .localURL(for: path) {
+            presentChatFileRoute(target, localURL: localURL)
+            return
+        }
+        Task {
+            do {
+                let url = try await ChatFileStore.shared
+                    .download(path: path, appState: appState)
+                presentChatFileRoute(target, localURL: url)
+            } catch {
+                chatFallbackTarget = target
+            }
+        }
+    }
+
+    /// 路由呈示（§452.6）：FileOpenRoute 单源判定；
+    /// QL 资格以本地文件 canPreview 实测为准——判
+    /// quickLook 而 QL 不认、或判 infoOnly 而 QL 能
+    /// 认（未知格式），都按实测改道，不按扩展名硬判
+    private func presentChatFileRoute(
+        _ target: FileOpenTarget, localURL: URL
+    ) {
+        let qlOK = QLPreviewController.canPreview(
+            localURL as QLPreviewItem
+        )
+        switch FileOpenRoute.resolve(target: target) {
+        case .imageViewer:
+            openImageViewer(
+                ChatImageViewerItem(source: .remotePath(target.path))
+            )
+        case .quickLook:
+            if qlOK {
+                chatQuickLookItem = ChatQuickLookItem(
+                    url: localURL, name: target.name
+                )
+            } else {
+                chatFallbackTarget = target
+            }
+        case .infoOnly:
+            if qlOK {
+                chatQuickLookItem = ChatQuickLookItem(
+                    url: localURL, name: target.name
+                )
+            } else {
+                chatFallbackTarget = target
+            }
+        case .saveOnly, .locked:
+            chatFallbackTarget = target
+        }
     }
 
     /// 长按菜单的文本口径（0.4.1）：助手消息剥 Markdown
