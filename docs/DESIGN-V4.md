@@ -16610,3 +16610,18 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 验证：发布集 143 套 1075 项（0.50.103 的 1044 −37 退役/瘦身 ＋68 新增、逐套对账闭合），1071 过、4 红——3 红与 0.50.103 发布 bundle 逐字同红（DrawerContainerControllerTests scene-gate 两例＋SwipeReplyPanBridgeTests 一例，UIHostingController 子视图告警型、本通道基线），1 红为 §417 已裁决性能门；ChatFailKeepPinTests 7/7 绿（drain 门过、失败包留在本版）。冒烟轮 15/15 绿，含 testSmokeA4FilesGridFirstFrame 转绿（§401.4 演示缺口一销账）。Release 构建成功，IPA 本体亲验 0.50.104／232／site.didichou.oneday，16,616,719 字节，md5 2a399697a4e9904371c011a81828d36a，三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）。
 
 真机门（随版清单）：断网四行为重验（浅色泡＋时钟＋「等待发送…」→恢复自动续发→失败红感叹号原位重发）、排队五项、落定三项与朗读三项（0.50.103 存量未判项）、#13 选区四件/表格一帧/代码块/长文档/浅深双色、#23 图卡与查看器链、量测崩溃窗口观察。
+
+## §432 AI 自反应 App 包（2026-11-24；分支 feat/reaction-app，基线 rel-05104 @4f19d38，落码 61cda6c；施工图 ai-self-reaction-spec-20261124.md §4；目标版本 0.50.106）
+
+- 口径终版（覆盖图内旧口径）：AI 自反应贴**本轮触发的用户消息行**——施工图 §4 初稿「贴 AI 自己末条回复/AI 气泡角」经 2026-11-24 00:32 用户点选大厂做法、00:33 以气泡语言钉死作废；服务端侧（部署包 1.8.0，CAPABILITIES #19）attach 目标同为触发用户行。范围口径：纯聊天轮（零工具调用＋completed＋有最终文本）才贴，干过活的轮/报错轮不贴（attach 端硬过滤，App 无感）。
+- R5 先验结论（旧版 App 对 author="agent" 条目渲染）：rel-05104 现行渲染＝双 author 合并进同一 ReactionPillView（own 段可点撤回、agent 段只读文本），用户行左下/助手行右下双挂载（ChatView 5312/5656），行高 reactionReserve 见 reactions 非空即 16——旧版 App 遇 agent 反应条目**正常渲染不崩不丢**，1.8.0 服务端先行上线与旧版 App 共存安全；本包起分工改两槽（见落码）。
+- 落码（61cda6c，11 文件 +571/−29）：
+  - Core 分型单点：MessageReaction.isAgent（HermesAdminModels，与 isOwn 同点）；MessageReactions.agentEmoji（至多一个）/ownReactions（pill 输入只含 own 段）。
+  - Core 新文件 AISelfReaction.swift：ChatReactionsAISelfFeature（键 chat.reactions.aiSelf，缺省 true、显式 false 才关，与浮排特性同口径）；AISelfReactionDecision（badgeEmoji 角标判定＋hasVisibleChrome 铬件在场判定，呈现与行高共用单源）；SelfReactionsSettingsRowPolicy（行显隐＝协商结论 available 才出）。
+  - 能力协商 #19：CapabilitiesResponse.selfReactionsSupported（features.self_reactions）；CapabilityNegotiation.selfReactionsAvailability（nil→unknown、true→available、缺失/false→unavailable，与 #14 同口径）。
+  - App 呈现：AgentReactionBadgeView（ChatReactionViews；高 24、几何与 pill 同源、单个 emoji、无计数、**不可点**——用户摘不掉 AI 的反应；VoiceOver「助手反应：X」）；ChatView reactionChrome 分流（own→pill、agent→角标、HStack 同角并排、两面不合并），两挂载点（用户行 bottomLeading/AI 行 bottomTrailing）共用；@AppStorage 同键折入 nativeRowStyleKey（ai1/ai0）使开关翻转行高失效重算。
+  - 行高：ChatEntryHeightSnapshot 增 aiSelfReactionsEnabled 快照字段（快照时点读、不活读，facet 纪律）＋hasReactionChrome 转 Core 判定；reactionReserve 改读之——开关关时仅有 agent 反应的行不再预留死空间，有 own 段照旧一笔不双算。
+  - 设置面：AppState.selfReactionsAvailability（结论按服务器 base 落盘＋init 播种＋refreshSelfReactionsAvailability——已 available 不重探、其余态外观页 .task 每次重探，服务端后升级自愈见行；失败静默保旧结论，演示模式恒 unknown 行不出）；AppearanceView 回复呈现节增「AI 反应」Toggle（能力门控、行不出时区脚不提此开关；区脚补句写明关＝只关本机呈现、数据不删、重开全量回来）。
+- 钉测：AISelfReaction432Tests 5 法（特性键缺省口径/协商三态/角标判定矩阵——own 不误触、双 author 只认 agent 段/开关×能力位四象限——行只看能力位、角标只看开关与数据/行高预留随开关两态＋own 段不双算）。
+- 构建与回归证据：本机 build 先行：tuist install＋generate 后 xcodebuild build（OneDayApp scheme）**BUILD SUCCEEDED**。测试轮 RUN 2026-11-24 01:13:42（kick 脚本双读判闲后覆写 test-cmd.sh、未抢组版线道），bundle **Test-ReactionApp432**：10 套共 88 测，87 过、1 红、0 跳过——新套 AISelfReaction432Tests 5/5 全绿；MessageReactions187Tests、MessageReactions187CoreTests、ReactionFloatingBarTests、ChatNativeRowHeightFittingTests、ReplyRenderingAlignmentTests、CapabilityNegotiationTests、CapabilitySelfCheckTests、SettingsCatalogTests 八套全绿。唯一红＝ChatNativeRowHeightProductionChainTests/testProductionChainContinuousScrollIsStable（行集须装配齐「期望 43 行」首断言后帧断言雪崩，86 failures/42 unexpected）；基线对账轮（临时 worktree @4f19d38 同套单跑，bundle Test-ReactionApp432-Baseline）**同测同红、首断言逐字相同、失败数逐值相同（86/42）**——本通道基线红（与 §420 记账同族：装配套族在本通道整批红、发布通道不出现），本包零新增回归。
+- 真机门（归用户 verdict，随 0.50.106 发货后验）：①纯聊天一轮后自己气泡角出现 AI 表情角标、悬挂位置与自有 pill 并排不打架；②设置→外观→回复呈现「AI 反应」行在场（须服务端已应用 1.8.0 且翻闸）且开关拨动有感；③关开关→角标消失、行高不留死空间；重开→历史角标全量回来；④服务端未应用 1.8.0 的环境下开关行不出（僵尸禁令）；⑤干过活（用工具）的轮用户气泡无角标；⑥角标点按无反应（摘不掉）。
