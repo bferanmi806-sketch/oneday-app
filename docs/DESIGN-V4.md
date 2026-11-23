@@ -16793,3 +16793,28 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 渲染与状态机：OptionsCardView 挂 assistant 气泡下方随行滚动（与审批卡「输入栏上方固定」分工写明于施工图 §3.5）；状态纯派生 live/selected/expired/hidden（live＝尾位 assistant 行＋其后无 user 行＋无在飞 run＋非演示）；点选 sendOption 走既有 send() 发送链（编辑态/引用/附件在席时忽略点选），点选即消费、卡收起为「已选：<label>」回执行，发送失败走 §414 发件箱、卡不复活。行高走合成器 optionsCardSlot（活卡＝项数×minTapTarget＋行间 spacingXS＋spacingS；已选/过期＝一行）＋entryFacetDigest 经 entryMemoKey 入参折入 oc 段（与 sources 同为呈现层派生入参），三路（同步/预计算/量测工单）同参穿线。
 - 与 Exyte 二期：协议面宿主无关、换装零服务端改动；渲染点迁 Exyte 行组件下方，覆盖层与 sendOption 原样保留（施工图 §5）。
 - 钉测：OneDayCoreTests/OptionsCard441Tests（解码三态/尾位规则/状态矩阵/覆盖层/能力判定/行高输入映射）。真机门六项归用户 verdict：①纯聊天提问轮出卡、选项逐字一致、正文无双份；②点选项发出 send_text、卡收起回执、新轮正常起；③不点直接打字→卡置灰，杀 App 重进旧卡不再出现（v1 口径）；④工具轮后提问卡照常出现可点；⑤闸关/旧服务端全程无卡无空位无崩；⑥审批待批同场两面互不串位。
+## §437 自主设置权一期·App 半边（2026-11-24，feat/selfsettings-p1，基线 rel-05105）
+
+施工图 §435 一期 App 3 步的落码（服务端半边另线：一期服务端模块/端点/种子随部署包升版，本节只记 App 半边）。本期只换「界面从哪来」，不换「值存哪」——任何现行设置项的读写语义零动。
+
+### 落码
+
+- **Core 注册表层**（新文件 Sources/OneDayCore/SettingsRegistry.swift）：记录模型 SettingsRegistryRecord（§2.1 九字段的 App 子集：key/type/title/summary/icon/surface/segment/sort/destination/options/default/value/capability/source；wire 宽容解码，单条残缺不炸整表）、响应模型 SettingsRegistryResponse{version, records}、标量值 SettingsRegistryValue（bool/number/string，bool 先试解防串味）、生效值口径 value ?? default。
+- **合并引擎**（SettingsCatalog 扩展）：行模型 SettingsRowModel（destination/value 两型）。effectiveBrowseRows/effectiveBrowseSegments/effectiveSearch 三口与现行 browseEntries/browseSegments/search 并行：registry=nil（能力位不亮/断服/拉取失败）或某面无有效记录→该面纯内置（逐面回落）；有有效记录→记录按 (sort, 下发序) 成行（目的地记录按 id 锚回本组内置条目——跨组/不存在锚不回即丢弃，不许凭空造页；值记录自带类型与题），未被引用的内置浏览条目按原序附后（只许重排与增行、不许静默删行，部分种子优雅降级）；浏览尊重 showsInBrowse（搜索专行不被提进浏览）；搜索目的地集合恒为全量内置（永不删行），值行按题/副行并入同分层。
+- **能力位**：CapabilityNegotiation.settingsRegistryAvailability 读 features.settings_registry 布尔旗标（#21，单源判定；缺失=unknown、假=unavailable，消费方同按回落处理）。
+- **客户端**：HermesClientProtocol 加只读 settingsRegistry（GET /v1/settings/registry，bearerGetJSON 同式）；DemoHermesClient 按 C-13 加一行桩；五家测试替身（Counting 两家/Failing/ScriptedToolsets/SessionCatalogGuard 内嵌）同 idiom 补 unreachable 桩。
+- **接线**：SettingsView 加 @State settingsRegistry 与 loadSettingsRegistry（.task 内、能力位 available 才拉注册表、任一环失败保持 nil）；四组浏览/服务与工作区分段/搜索全改走 effective 三口，目的地行仍走既有 catalogNavRow/browseRow/searchRow（行为不变），值行走新 SettingsRegistryRowView。
+- **五型通用渲染**（新文件 Sources/OneDayApp/SettingsRegistryRowView.swift）：bool 开关/enum 选择器/string 文本框/number 数值框/text 文本块（题下副行），控件型与展示值由 Core SettingsRegistryRowModel 派生。**一期只读**：服务端无写端点、值存储一律不动，控件一律 disabled 呈只读态——可点而无效的假控件即僵尸，不做；写面随二期 AI 工具面同批打开。行盒与根页共用行同档（图标槽/行题字阶/行高/分隔线贯通）。
+
+### 钉测与回归
+
+- 新增 SettingsRegistryTests 11 项：回落全等三口（每组浏览行逐字＝内置、分段逐段全等、五查询搜索全等）、逐面回落（注册表只覆盖 agent 面时其余面全等＋分段全等）、五型行模型各一例（生效值/默认值回落/候选集）、五型按 sort 成行、目的地记录锚回重排＋不存在/跨组丢弃、部分引用永不删行、搜索专行不进浏览、注册表态搜索含值行、解码容错、能力位判定四态。
+- 定向轮（bundle Test-SelfSettings437，ProbePhone）：SettingsRegistryTests＋SettingsCatalogTests＋CapabilityNegotiationTests＋SettingsRouteInboxStructureTests 共 42/42 全绿。
+- 全量回归（bundle Test-SelfSettings437-Regress，Core+App 两目标整跑）：3316 过、27 红。红名单逐名对账：发布集口径内唯一红＝MarkdownEngineDifferentialTests/testPerformanceGate（#13 已裁决，与 104/105 逐字同红）；其余 26 红全在发布集之外的整树基线红家族——ChatNativeList*Assembly（R2/R3/R4＋装配 5 项）、ChatComposerQuote332×3、ChatQuoteDock195×1、ChatSearchFocusAssembly×3、ChatNativeFollowSource/RowHeightProductionChain/SelectionProtection/TraceEcho 各 1、TextPipelineRunLayer 1、LibraryOrdering（台账 29）1——与在案整树老红名单逐族吻合，且与本包改动面（设置注册表/能力位/客户端新方法）零代码路径交集；设置/能力/客户端相邻套全绿。注：pristine rel-05105 同命令基线轮因测试通道被他线连占（五次 kick 判忙）未及单独排跑，逐名 diff 待 106 组版整集复跑时随合并树一并完成。
+
+### 与他线交集（组版处置清单）
+
+- Sources/OneDayApp/HermesClient.swift（协议+实现各加一方法）、DemoHermesClient.swift（一行桩）：与自反应线（feat/reaction-app，其接手线动过 HermesAdminModels 等）如有同文件交集，合并逐 hunk 对账；本线两处均为纯新增、无改行。
+- Sources/OneDayCore/CapabilityNegotiation.swift：纯新增一判定函数；自反应线在其树上同文件有 selfReactionsAvailability 新增，组版时同为追加型、预计零冲突。
+- Sources/OneDayApp/SettingsView.swift：页头/中枢线（feat/header-zoom）动聊天页头与中枢页，本线只动设置根页各组取数口与一行状态，面不重叠；若组版同文件相遇，按节分块合并。
+- 服务端契约（交服务端一期线）：GET /v1/settings/registry 回 {version, records[]}，records 字段口径以本节 Core 模型为准（default 为 wire 键名）；features.settings_registry=true 为渲染总闸；种子须逐面覆盖该面全部目的地（destination=条目 id），未覆盖面 App 自动回落内置、无需服务端处理。

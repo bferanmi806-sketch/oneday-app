@@ -68,6 +68,10 @@ struct CountingKanbanLearningClient: HermesClientProtocol {
         throw HermesError.unreachable("离线桩")
     }
 
+    func settingsRegistry(config: ServerConfig, apiKey: String) async throws -> SettingsRegistryResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
     func healthDetailed(config: ServerConfig, apiKey: String) async throws -> HealthDetailedResponse {
         throw HermesError.unreachable("离线桩")
     }
