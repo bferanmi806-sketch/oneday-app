@@ -81,6 +81,10 @@ struct FeedView: View {
     /// spacingS）生效。不许再回到无条件写死
     @State private var topOverlayHeight: CGFloat?
 
+    /// §415：派生快照指纹缓存（visiblePosts 收口，
+    /// 照资源库 LibrarySnapshotCache 模板）
+    @State private var snapshotCache = FeedSnapshotCache()
+
     /// 列表顶部边距（§126）：政策收口在 Core
     /// FeedBoard.topClearance——无重叠恒 0，真重叠
     /// ＝实测重叠高度＋spacingS
@@ -97,7 +101,14 @@ struct FeedView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
+        // §415：派生快照一趟算齐下传（旧 visiblePosts
+        // 计算属性＋readyContent 内 sorted 每趟重排
+        // 已退役，派生收口 FeedListSnapshot）
+        let snapshot = snapshotCache.snapshot(
+            posts: store.posts, searchText: searchText,
+            isSearching: isSearching
+        )
+        return NavigationStack(path: $path) {
             Group {
                 switch store.loadState {
                 case .loading:
@@ -126,7 +137,7 @@ struct FeedView: View {
                         .buttonStyle(.bordered)
                     }
                 case .ready:
-                    readyContent
+                    readyContent(snapshot)
                 }
             }
             .background {
@@ -222,7 +233,9 @@ struct FeedView: View {
     // MARK: - 就绪内容
 
     @ViewBuilder
-    private var readyContent: some View {
+    private func readyContent(
+        _ snapshot: FeedListSnapshot
+    ) -> some View {
         if store.posts.isEmpty, !store.seedPosts.isEmpty {
             // FA-2：从未产出且无真帖时，种子帖垫底——
             // 与真帖同列表形态呈现（行本体共用 postRow，
@@ -262,7 +275,7 @@ struct FeedView: View {
                 // 简报胶囊行已整行删除（§126）：简报
                 // 入口只剩工具栏滑杆钮；动态不再有占
                 // 行的页头横幅，标题之下直接是帖流
-                if isSearching, visiblePosts.isEmpty {
+                if isSearching, snapshot.visiblePosts.isEmpty {
                     Section {
                         ContentUnavailableView(
                             "没有找到相关动态",
@@ -276,9 +289,9 @@ struct FeedView: View {
                 // 盛全部帖（FeedBoard.sorted 纯时间
                 // 序）；日期分组与分组头整套撤下（用
                 // 户亲定「不要今天、昨天这些时间」）
-                if !visiblePosts.isEmpty {
+                if !snapshot.visiblePosts.isEmpty {
                     Section {
-                        ForEach(FeedBoard.sorted(visiblePosts)) { post in
+                        ForEach(snapshot.visiblePosts) { post in
                             postRow(post)
                         }
                     }
@@ -323,21 +336,6 @@ struct FeedView: View {
         }
     }
 
-    /// 搜索过滤（0.47.0）：标题或正文命中即留；排
-    /// 序与全量同走 FeedBoard.sorted 唯一口径（单条
-    /// 时间流，§177 起不再经 dayGroups 分组——该函
-    /// 数保留在 Core 仅作口径存档，不再有呈现调用方）
-    private var visiblePosts: [BridgeFeedPost] {
-        let query = searchText.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        guard isSearching, !query.isEmpty else { return store.posts }
-        return store.posts.filter {
-            $0.title.localizedCaseInsensitiveContains(query)
-                || $0.body.localizedCaseInsensitiveContains(query)
-        }
-    }
-
     /// 帖子行（0.47.0 §117 对标形态）：内容 emoji 大
     /// 字（桥值优先、kind 缺省兜底）＋semibold 标题＋
     /// 正文内联（Markdown、链接可点）＋第一张图通栏
@@ -354,7 +352,7 @@ struct FeedView: View {
     private func postRow(_ post: BridgeFeedPost) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Text(post.displayEmoji)
-                .font(.system(size: 38))
+                .font(.contentEmoji)
                 .frame(width: 44, height: 44)
                 // 内容 emoji 是帖的类别信号、动作行另
                 // 有类别文字——对 VO 隐藏免逐字念名
@@ -543,7 +541,7 @@ struct FeedView: View {
                 sourcesPost = post
             } label: {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .foregroundStyle(Palette.inkSecondary)
                     // 第 83 条（命中域收口）：字形不变、命
                     // 中域外扩 44；负内边距按字形名义 15 抵
@@ -655,7 +653,7 @@ struct FeedView: View {
                                 Image(
                                     systemName: ref.refType!.symbolName
                                 )
-                                .font(.system(size: 11))
+                                .font(.caption2)
                                 Text(refLabel(ref))
                                     .lineLimit(1)
                             }
@@ -742,7 +740,7 @@ struct FeedPostDetailView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         HStack(spacing: 8) {
                             Image(systemName: post.kind.symbolName)
-                                .font(.system(size: 15))
+                                .font(.subheadline)
                                 .foregroundStyle(Palette.inkSecondary)
                             Text(post.kind.label)
                                 .font(.footnote.weight(.medium))
@@ -843,7 +841,7 @@ struct FeedPostDetailView: View {
                                                 Image(
                                                     systemName: "link"
                                                 )
-                                                .font(.system(size: 12))
+                                                .font(.caption)
                                                 Text(link.title.isEmpty
                                                      ? link.url : link.title)
                                                     .lineLimit(2)
@@ -874,14 +872,13 @@ struct FeedPostDetailView: View {
                                                 Image(
                                                     systemName: type.symbolName
                                                 )
-                                                .font(.system(size: 12))
+                                                .font(.caption)
                                                 Text(type.label)
                                                 Spacer()
                                                 Image(
                                                     systemName: "chevron.right"
                                                 )
-                                                .font(.system(size: 11,
-                                                                weight: .semibold))
+                                                .font(.caption2.weight(.semibold))
                                             }
                                             .font(.subheadline)
                                             .foregroundStyle(Palette.primary)
@@ -989,7 +986,7 @@ struct FeedSourceCardView: View {
             }
             Spacer()
             Image(systemName: "arrow.up.forward")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(Palette.inkSecondary)
         }
         .padding(12)
@@ -1036,7 +1033,7 @@ struct FeedSourcesSheet: View {
                                 Link(destination: url) {
                                     HStack(spacing: OneDayMetrics.rowInnerGap) {
                                         Image(systemName: "link")
-                                            .font(.system(size: 12))
+                                            .font(.caption)
                                         Text(link.title.isEmpty
                                              ? link.url : link.title)
                                             .lineLimit(2)
@@ -1061,12 +1058,12 @@ struct FeedSourcesSheet: View {
                                 } label: {
                                     HStack(spacing: OneDayMetrics.rowInnerGap) {
                                         Image(systemName: type.symbolName)
-                                            .font(.system(size: 12))
+                                            .font(.caption)
                                         Text(type.label)
                                             .foregroundStyle(Palette.bodyInk)
                                         Spacer()
                                         Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .semibold))
+                                            .font(.caption2.weight(.semibold))
                                             .foregroundStyle(Palette.inkSecondary)
                                     }
                                 }

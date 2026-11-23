@@ -444,20 +444,30 @@ struct FilesBrowserView: View {
     /// 图片查看器 zoom 转场命名空间（0.36.4）
     @Namespace private var browserViewerNamespace
 
+    /// §415：派生快照指纹缓存（shownEntries 收口，
+    /// 照资源库 LibrarySnapshotCache 模板）
+    @State private var snapshotCache = FilesBrowserSnapshotCache()
+
     private var rootPath: String {
         listing?.lockedRoot ?? listing?.root ?? "/opt/data"
     }
 
-    private var shownEntries: [WorkspaceFileEntry] {
-        guard let listing else { return [] }
-        return FileBrowserLogic.sorted(
-            FileBrowserLogic.filtered(listing.entries, query: query),
-            by: sortKey, ascending: sortAscending
+    /// 当前派生快照（§415）：body 单点取、下传内
+    /// 容面共用；导航目的地闭包在触发时点调本口现
+    /// 取（与旧 shownEntries 在闭包内现算同时点同
+    /// 果，命中指纹时回同一份快照）
+    private func currentSnapshot() -> FilesBrowserSnapshot {
+        snapshotCache.snapshot(
+            entries: listing?.entries, query: query,
+            sortKey: sortKey, ascending: sortAscending
         )
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // §415：派生快照一趟算齐下传（旧 shownEntries
+        // 计算属性每趟 body 现算 filter＋sort 已退役）
+        let snapshot = currentSnapshot()
+        return VStack(alignment: .leading, spacing: 0) {
             if let listing {
                 breadcrumbBar(listing: listing)
                     .padding(.horizontal, OneDayMetrics.pageGutter)
@@ -469,7 +479,7 @@ struct FilesBrowserView: View {
                 // 留给下拉露出面（交付物页 §4.2）与记忆
                 // 段内搜索消费，见该件头注
             }
-            content
+            content(snapshot)
         }
         .background(Palette.pageBG)
         // 搜索挂导航栏抽屉常显（第 88 条）：位置自面
@@ -568,9 +578,7 @@ struct FilesBrowserView: View {
         // 全部图片），其余走文件打开页（§125 中间页）
         .navigationDestination(for: WorkspaceFileEntry.self) { entry in
             if entry.mediaKind == .image {
-                let images = shownEntries.filter {
-                    $0.mediaKind == .image
-                }
+                let images = currentSnapshot().imageEntries
                 ImageViewerView(
                     items: images.map {
                         ChatImageViewerItem(
@@ -749,7 +757,9 @@ struct FilesBrowserView: View {
     }
 
     @ViewBuilder
-    private var content: some View {
+    private func content(
+        _ snapshot: FilesBrowserSnapshot
+    ) -> some View {
         if listing == nil && loadError == nil {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -765,7 +775,7 @@ struct FilesBrowserView: View {
             ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    if shownEntries.isEmpty {
+                    if snapshot.entries.isEmpty {
                         ContentUnavailableView(
                             query.isEmpty
                                 ? "这个文件夹是空的" : "没有匹配的文件",
@@ -777,9 +787,9 @@ struct FilesBrowserView: View {
                         )
                         .padding(.top, OneDayMetrics.spacingXXL)
                     } else {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 0) {
                             ForEach(
-                                Array(shownEntries.enumerated()),
+                                Array(snapshot.entries.enumerated()),
                                 id: \.element.id
                             ) { index, entry in
                                 if index > 0 {
@@ -807,10 +817,10 @@ struct FilesBrowserView: View {
             }
             // §131：定位直达——目录数据到位且目标行在
             // 列时滚一次（只滚一次，之后用户自由浏览）
-            .onChange(of: shownEntries.map(\.path)) { _, paths in
+            .onChange(of: snapshot.paths) { _, paths in
                 guard !highlightConsumed,
                       let highlightName,
-                      let target = shownEntries.first(where: {
+                      let target = snapshot.entries.first(where: {
                           $0.name == highlightName && !$0.isDirectory
                       })
                 else { return }
