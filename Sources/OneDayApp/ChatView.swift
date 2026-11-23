@@ -68,6 +68,12 @@ struct ChatView: View {
     /// sheet（AgentHubView .activity 四段，自带导航栈；
     /// 0.6.0 的 onOpenActivity 切格注入自此退役）
     @State private var showHub = false
+    /// 中枢 zoom 转场命名空间（§434）：源＝顶簇居
+    /// 中大头像（headerIdentityHero 挂 matched-
+    /// TransitionSource），目标＝中枢页（呈现点挂
+    /// navigationTransition）
+    @Namespace private var hubZoomNamespace
+    private static let hubZoomSourceID = "hubHero"
     /// §153：顶栏模型分组选择面（sheet）开关
     @State private var showModelPicker = false
     /// 隐藏服务商待确认（§158）：点隐藏的组正是服务
@@ -989,17 +995,17 @@ struct ChatView: View {
         // Cover 的硬切感就此退场。枢纽内自带 sheet（分
         // 享/模型/档案编辑）是嵌套呈现、照常工作；左
         // 缘右滑与 ✕ 关闭口径不变
-        .sheet(isPresented: $showHub) {
-            // 结构归位（2026-11-20）：枢纽段外模型区已
-            // 撤、§263 的 followThread 跟随入参随之退役
-            // ——模型切换正主＝本页胶囊模型段 Menu 与模
-            // 型设置页，枢纽不再读当前会话
-            AgentHubView(
-                onApprovalChanged: {
-                    Task { await overviewStore?.refresh(appState: appState) }
-                }
-            )
-            .hubSheetPresentation()
+        // §434（2026-11-24，用户亲点）：呈现改导航
+        // push＋系统 zoom 转场——§217 的 sheet 卡片
+        // 式（hubSheetPresentation）就此退役；宿主
+        // NavigationStack 在 ContentView 聊天格（本
+        // 页在栈内注册目的地）。结构归位包「枢纽不
+        // 读当前会话」的口径由本节按用户新令覆盖：
+        // 中枢「选择模型」入口注入本会话模型账
+        // （§153 同组件同数据源），枢纽本体仍不自
+        // 拉模型账、只消费注入包
+        .navigationDestination(isPresented: $showHub) {
+            hubDestination
         }
         // 0.36.6：语音输入权限预备页（问前先讲用途，
         // 续编 S1–S4；点麦克风且权限未定时才出现）
@@ -1881,10 +1887,52 @@ struct ChatView: View {
         .background(.ultraThinMaterial)
     }
 
+    /// 中枢目的地（§434）：zoom 与标准 push 二选一
+    /// 由 ZoomTransitionPolicy 裁决（§247.2 单源：
+    /// Reduce Motion→标准；源＝顶簇居中大头像、
+    /// 常驻不滚走故恒可用）。审批终态回调与模型
+    /// 入口注入在此一处收口（三处 showHub 置位点
+    /// 共用同一目的地）
+    @ViewBuilder
+    private var hubDestination: some View {
+        let hub = AgentHubView(
+            onApprovalChanged: {
+                Task { await overviewStore?.refresh(appState: appState) }
+            },
+            modelEntry: HubModelEntry(
+                groups: appState.pickerModelGroups,
+                current: currentChoice,
+                currentLabel: ModelDisplayNames.triggerLabel(
+                    for: currentChoice.model
+                ),
+                onSelect: { choice in
+                    selectCurrentChoice(choice)
+                }
+            )
+        )
+        .hubFullPageChrome()
+        if ZoomTransitionPolicy.decide(
+            reduceMotion: reduceMotion,
+            sourceAvailable: true
+        ) == .zoom {
+            hub.navigationTransition(
+                .zoom(
+                    sourceID: Self.hubZoomSourceID,
+                    in: hubZoomNamespace
+                )
+            )
+        } else {
+            hub
+        }
+    }
+
     /// TopBarGuideHost），列表顶留位据此记账
     private var topBarCluster: some View {
         VStack(spacing: OneDayMetrics.rowInnerGap) {
             headerBar
+            // §434：居中身份区（大头像＋身份胶囊）进
+            // 顶簇——位置在顶栏行之下、进展胶囊之上
+            headerIdentityHero
             ProgressCapsuleView(
                 currentSessionID: currentThread?.serverSessionID,
                 onOpenSession: { sessionID in
@@ -1968,15 +2016,17 @@ struct ChatView: View {
                 // 未读通知＋待审批，总览桥聚合）。原右钮
                 // 「新建会话」退场——新建入口在抽屉底条与
                 // 抽屉空态行各有一处，不占顶栏三件套之位
-                // D9 补全：顶栏菜单（查找功能收入菜单）
-                Menu {
-                    Button {
-                        showFind = true
-                    } label: {
-                        Label("在对话中查找", systemImage: "magnifyingglass")
-                    }
+                // §434（用户亲点删「更多」钮）：原 D9 菜
+                // 单内仅「在对话中查找」一项、且系全
+                // App 独一份入口——菜单整件删除，功能
+                // 改直达放大镜圆钮（单功能不进菜单的大
+                // 厂单义钮做法）；盘/字形/命中域与同排
+                // 圆钮同规格，点开仍是下方 findBar，行
+                // 为零变化
+                Button {
+                    showFind = true
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "magnifyingglass")
                         .font(.system(
                             size: HeaderButtonSpec.glyphPointSize,
                             weight: .regular
@@ -1994,7 +2044,8 @@ struct ChatView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.odPressable)
-                .accessibilityLabel("菜单")
+                .accessibilityLabel("在对话中查找")
+                .accessibilityIdentifier("topbar.findButton")
 
                 Spacer(minLength: OneDayMetrics.spacingXS)
 
@@ -2073,38 +2124,76 @@ struct ChatView: View {
     /// 测教训见 ModelCapsuleView 文件头）；隔断宽
     /// ＝spacingS，不许压小
     private var topBarCenterCluster: some View {
-        HStack(alignment: .center, spacing: 0) {
+        // §434：中央组只剩模型胶囊——头像钮迁往顶
+        // 簇下方的居中身份区（headerIdentityHero，
+        // 67pt 大头像＋身份胶囊，对位 Muse 聊天
+        // 页）；§202 路线 B 的「一钮一动作」不变
+        // （模型胶囊仍只开选择面、头像仍只开枢
+        // 纽），只是不再同排并置，16pt 命中死区隔
+        // 断随并置消失一并退役
+        ModelCapsuleView(
+            modelTriggerLabel: ModelDisplayNames.triggerLabel(
+                for: currentChoice.model
+            ),
+            modelAccessibilityLabel: "当前模型 \(displayModelName)，切换模型",
+            onOpenModelPicker: { showModelPicker = true }
+        )
+    }
+
+    /// 居中身份区（§434，对位 Muse 聊天页页头量
+    /// 测）：大头像 67pt 居中＋名/状态身份胶囊压其
+    /// 下沿（胶囊高 44、与头像重叠 ≈8）——两者点
+    /// 按同入中枢页；头像是 zoom 转场的源（mat-
+    /// chedTransitionSource），胶囊同路触发同一
+    /// push（源恒为头像，两源同 id 系统行为未定
+    /// 不冒进，见 spec 第三节）。名/状态数据源与
+    /// 旧顶簇头像钮同源（agentDisplayName＋over-
+    /// viewStatusWord），不新造
+    private var headerIdentityHero: some View {
+        ZStack(alignment: .bottom) {
             HubAvatarButton(
                 avatar: appState.agentAvatarImage,
                 displayName: appState.agentDisplayName,
                 statusWord: overviewStatusWord,
                 statusColor: overviewStatusColor,
-                avatarPointSize: avatarTier.capsulePointSize,
+                avatarPointSize: OneDayMetrics.avatarChatHero,
                 onOpenHub: { showHub = true }
             )
-            // 显式隔断（命中死区）：宽 16——动作门三
-            // 轮实测（run 43378398732 探针点定界）：
-            // 两钮的实际命中域都比无障碍帧外扩约
-            // 4pt（平台命中宽容、与玻璃无关——无玻
-            // 璃的头像钮同扩），8pt 间隔下两域在中
-            // 点相接、无真死区；16pt 才留出中央
-            // ≥7pt 死带。隔断自带空点按手势，在自
-            // 己帧内吃点不触发（§202.6 补记）
-            Color.clear
-                .frame(
-                    width: OneDayMetrics.spacingM,
-                    height: OneDayMetrics.minTapTarget
-                )
-                .contentShape(Rectangle())
-                .onTapGesture {}
-            ModelCapsuleView(
-                modelTriggerLabel: ModelDisplayNames.triggerLabel(
-                    for: currentChoice.model
-                ),
-                modelAccessibilityLabel: "当前模型 \(displayModelName)，切换模型",
-                onOpenModelPicker: { showModelPicker = true }
+            .matchedTransitionSource(
+                id: Self.hubZoomSourceID, in: hubZoomNamespace
             )
+            .padding(.bottom, 36)
+
+            Button {
+                showHub = true
+            } label: {
+                VStack(spacing: OneDayMetrics.spacingMicro) {
+                    Text(appState.agentDisplayName)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(Palette.ink)
+                        .lineLimit(1)
+                    HStack(spacing: OneDayMetrics.spacingXS) {
+                        Circle()
+                            .fill(overviewStatusColor)
+                            .frame(width: 6, height: 6)
+                        Text(overviewStatusWord)
+                            .font(.caption)
+                            .foregroundStyle(Palette.inkSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, OneDayMetrics.spacingSM)
+                .frame(height: OneDayMetrics.minTapTarget)
+                .glassEffect(.regular, in: Capsule())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel(
+                "\(appState.agentDisplayName)，\(overviewStatusWord)，打开枢纽"
+            )
+            .accessibilityIdentifier("topbar.identityCapsule")
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, OneDayMetrics.spacingXS)
     }
 
     /// （模型触发钮本体在 ModelCapsuleView；§153 的

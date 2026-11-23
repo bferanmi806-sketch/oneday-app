@@ -26,8 +26,6 @@ import SwiftUI
 struct HubIdentitySection: View {
     let store: AgentHubStore
 
-    @Environment(AppState.self) private var appState
-
     var body: some View {
         if store.identityFailed {
             ContentUnavailableView {
@@ -44,8 +42,13 @@ struct HubIdentitySection: View {
             let presentation = SoulPresentationBuilder.build(
                 from: sections, displayName: store.displayName
             )
-            List {
-                Section {
+            // §434：段容器由 List 改白页平铺（Scroll-
+            // View＋VStack）——参照身份格是整页排版
+            // 不是系统列表 chrome；各行原 listRowIn-
+            // sets 逐值转 padding、纵距口径不变，内
+            // 容与提炼零改动
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
                     headerRow
                     if presentation.isEmpty {
                         emptyPersonaRow
@@ -56,47 +59,29 @@ struct HubIdentitySection: View {
                         }
                     }
                     editRow
-                }
-                Section {
                     cardsRow
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .listStyle(.plain)
         } else {
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    /// 段内大名（左对齐）＋右端小头像：与页头大头像同
-    /// 源（AppState 单一出口），不再放装饰符号占位
+    /// 段内大名（左对齐）：§434 前与右端小头像同行
+    /// （与页头大头像同源）；页头改居中 hero 后小头
+    /// 像与 hero 重复、退役，本行只留名作正文题——
+    /// 对位参照身份格以名起头的排版
     private var headerRow: some View {
-        HStack(spacing: OneDayMetrics.spacingSM) {
-            Text(store.displayName)
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundStyle(Palette.ink)
-                .lineLimit(1)
-            Spacer()
-            appState.agentAvatarImage
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: OneDayMetrics.avatarSectionHead,
-                    height: OneDayMetrics.avatarSectionHead
-                )
-                .clipShape(Circle())
-                .overlay {
-                    Circle().stroke(Palette.hairline, lineWidth: 0.5)
-                }
-        }
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(
-            top: OneDayMetrics.spacingSM,
-            leading: OneDayMetrics.pageGutter,
-            bottom: OneDayMetrics.spacingXS,
-            trailing: OneDayMetrics.pageGutter
-        ))
+        Text(store.displayName)
+            .font(.title)
+            .fontWeight(.bold)
+            .foregroundStyle(Palette.ink)
+            .lineLimit(1)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingSM)
+            .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     /// 人设为空时的安静占位（不编造内容）：只给出去处
@@ -104,13 +89,9 @@ struct HubIdentitySection: View {
         Text("暂无人设内容，点下方编辑添加。")
             .font(.body)
             .foregroundStyle(Palette.inkSecondary)
-            .listRowSeparator(.hidden)
-            .listRowInsets(EdgeInsets(
-                top: OneDayMetrics.spacingXS,
-                leading: OneDayMetrics.pageGutter,
-                bottom: OneDayMetrics.spacingXS,
-                trailing: OneDayMetrics.pageGutter
-            ))
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingXS)
+            .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     /// 简介区：提炼后的散文段落，灰字、段间留节奏
@@ -124,13 +105,9 @@ struct HubIdentitySection: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
         }
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(
-            top: OneDayMetrics.spacingXS,
-            leading: OneDayMetrics.pageGutter,
-            bottom: OneDayMetrics.spacingXS,
-            trailing: OneDayMetrics.pageGutter
-        ))
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingXS)
+        .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     /// 风格区：「风格」小标签＋黑字段落（与基准同权重对）
@@ -147,13 +124,9 @@ struct HubIdentitySection: View {
                     .foregroundStyle(Palette.ink)
             }
         }
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(
-            top: OneDayMetrics.spacingSM,
-            leading: OneDayMetrics.pageGutter,
-            bottom: OneDayMetrics.spacingXS,
-            trailing: OneDayMetrics.pageGutter
-        ))
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingSM)
+        .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     /// 全宽编辑钮（§218：填充胶囊，系统填充色深色自适
@@ -174,13 +147,9 @@ struct HubIdentitySection: View {
             .background(Palette.fillSecondary, in: Capsule())
         }
         .buttonStyle(.odPressable)
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(
-            top: OneDayMetrics.spacingM,
-            leading: OneDayMetrics.pageGutter,
-            bottom: OneDayMetrics.spacingS,
-            trailing: OneDayMetrics.pageGutter
-        ))
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingM)
+        .padding(.bottom, OneDayMetrics.spacingS)
     }
 
     /// 双卡并列等宽（§218 卡面重排；§222 再对基准量
@@ -216,13 +185,9 @@ struct HubIdentitySection: View {
             }
             .buttonStyle(.odPressable)
         }
-        .listRowSeparator(.hidden)
-        .listRowInsets(EdgeInsets(
-            top: OneDayMetrics.spacingS,
-            leading: OneDayMetrics.pageGutter,
-            bottom: OneDayMetrics.spacingM,
-            trailing: OneDayMetrics.pageGutter
-        ))
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingS)
+        .padding(.bottom, OneDayMetrics.spacingM)
     }
 
     private func identityCard(

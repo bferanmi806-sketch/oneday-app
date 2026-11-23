@@ -3,45 +3,31 @@ import OneDayDesign
 import SwiftData
 import SwiftUI
 
-/// 枢纽页分段（规格 phase3-hub-spec §1 #9/#10）：图标
-/// 纯符号、无文字；VoiceOver 读段名（Label 自带）。
-/// §217（2026-11-13 用户拍板收段）：七段收四段——
-/// 活动／定时／浏览器／身份（顺序即此）。任务、审
-/// 核、监测三段撤出分段栏，内容并入活动段：任务与
-/// 审批本就在工作台账里有同源条目（伴生采集器
-/// kanban／write-gate 两源），下钻在台账详情里补齐
-/// （任务详情、审批改动与原对话锚点）；审批规则本
-/// 体已按 §244 归设置页权限区、本段只留审批记录
-/// （归位合流 2026-11-20 注释订正）；
-/// 监测变化由客户端合成同形条目（LedgerMonitor-
-/// Synthesis）。三段的 Section 视图与各自 store 的
-/// 段内呈现随之退役，数据面（KanbanStore/Monitors-
-/// Store/AgentHubStore）保留供活动段下钻与聊天卡用。
-enum HubSegment: String, CaseIterable, Identifiable {
-    case activity
-    case cron
-    case browser
-    case identity
+/// 枢纽页分段沿革：§217 七段收四段（活动/定时/
+/// 浏览器/身份，任务/审核/监测并入活动段）；
+/// §434（2026-11-24，用户亲裁）分格改注册表驱动
+/// ——写死枚举 HubSegment 整段退役，格集由 Core
+/// HubSegmentRegistry 按真回读输入裁决（工作/
+/// 审核/电脑/身份/邮箱五格登记，有真能力才长
+/// 格），段 id/标题/图标单源在 HubSegmentID。
+/// 定时并入工作格作「预定任务」折叠节（HubLed-
+/// gerSection 内），审核格转正（HubAuditSec-
+/// tion），浏览器格正名为电脑格（本体仍是
+/// BrowserFaceView，云电脑通道）。
 
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .activity: return "活动"
-        case .cron: return "定时"
-        case .browser: return "浏览器"
-        case .identity: return "身份"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .activity: return "list.bullet"
-        case .cron: return "clock"
-        case .browser: return "display"
-        case .identity: return "touchid"
-        }
-    }
+/// 中枢「选择模型」入口的注入包（§434）：宿主
+/// （ChatView）把本会话模型账（分组/当前选择/
+/// 落账回调）整包注入——选择器本体 ChatModel-
+/// PickerView 同组件同数据源复用（§153），枢纽
+/// 不另造一套；未注入时入口不出（测试装配台等
+/// 无会话上下文的宿主不假装有模型可换）。
+struct HubModelEntry {
+    let groups: [ChatModelGroup]
+    let current: ChatModelChoice
+    /// 当前模型触发标签（宿主按 ModelDisplay-
+    /// Names 同源派生，行尾展示）
+    let currentLabel: String
+    let onSelect: (ChatModelChoice) -> Void
 }
 
 /// 智能体枢纽页（三期，规格 phase3-hub-spec）：页头
@@ -108,52 +94,89 @@ enum HubSegment: String, CaseIterable, Identifiable {
 /// mode 属性与段集分支全删，本面只剩全量形态一种；
 /// 上文 0.6.0/0.17.0/§155 各段关于 Mode 的记述自此
 /// 均为历史。
+/// §434（2026-11-24，页头改版包，用户五次亲点＋
+/// 授权自拍）：呈现由 sheet 改导航 push（宿主
+/// ChatView 须在 NavigationStack 内，zoom 转场挂
+/// 宿主侧；本视图自带内层 NavigationStack 承载格
+/// 内下钻的口径不变）；页头改居中 hero（覆盖
+/// §344 横排）；分格改注册表驱动五格（覆盖 §217
+/// 四段写死）；身份头下增「选择模型」入口（覆盖
+/// 结构归位包「段外模型行撤除」——本轮用户亲点
+/// 恢复为入口形态，点开仍是 §153 同一选择面、本
+/// 会话作用域不变）；左缘右滑自研手势退役归系
+/// 统 pop。正本＝header-zoom-spec-20261124.md。
 struct AgentHubView: View {
     /// 审批终态回调（活动格据此刷新总览桥角标）
     var onApprovalChanged: (() -> Void)? = nil
+    /// 选择模型入口注入（§434）：宿主给齐才出入口
+    var modelEntry: HubModelEntry? = nil
 
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var store: AgentHubStore?
-    @State private var segment: HubSegment = .activity
-    /// 根页边缘拖退出已触发旗（0.36.27 §97 件五）：
-    /// 整段拖动只许 dismiss 一次，松手复位防重入
-    @State private var edgeDismissTriggered = false
+    @State private var segment: HubSegmentID = .work
+    /// 分格注册表输入（§434）：初值＝连通＋本地通
+    /// 道状态（Box 钥匙在位可同步判），其余回读旗
+    /// 在开页任务回读后刷新——格集随真回读生长，
+    /// 不在视图层写死
+    @State private var segmentInputs: HubSegmentInputs =
+        AgentHubView.initialSegmentInputs()
+    /// 模型选择面（§434 入口点开，与聊天页同组件）
+    @State private var showModelPicker = false
     /// 头像/名称编辑面（0.36.22 档案菜单两项）
     @State private var showAvatarEditor = false
     @State private var showNameEditor = false
+
+    /// 注册表初值输入：连通先行（枢纽开页即连通
+    /// 语境，store 未就绪时内容区本就只显加载态）；
+    /// Box 在位走钥匙串同步判（box.mcp.key，与
+    /// BoxMCPClient 同键同源）；邮件位服务端未广
+    /// 告、恒 false，广告后在此接 /v1/capabilities
+    /// features 解码即长格
+    static func initialSegmentInputs() -> HubSegmentInputs {
+        HubSegmentInputs(
+            connected: true,
+            grantsReadbackOK: false,
+            approvalsReadbackOK: false,
+            boxConfigured:
+                KeychainStore.read(account: "box.mcp.key") != nil,
+            mailAdvertised: false
+        )
+    }
     /// 分享名片（0.36.22）：名片图离屏渲染产物，随档
     /// 案修订/页头名/域名变化重算；未就绪时分享钮回
     /// 落纯文本名片
     @State private var shareItem: AgentShareItem?
 
-    /// 可见段：四段全量（§217 收段后口径）。旧
-    /// .activity 单段形态（活动格）自 §155 起无入
-    /// 口、「留一版防回滚」的 Mode 定义已随台账
-    /// 199 整段删除——本面自此只有全量一种形态
-    var availableSegments: [HubSegment] {
-        HubSegment.allCases
+    /// 可见段（§434 注册表驱动）：格集＝注册表按
+    /// 当前输入的裁决（工作/审核/电脑/身份/邮箱
+    /// 按真能力生长），不再写死全集。初值输入下
+    /// 恒含锚格（工作/身份），回读刷新后审核/电
+    /// 脑格按活证长入
+    var availableSegments: [HubSegmentID] {
+        HubSegmentRegistry.resolve(segmentInputs)
     }
 
-    /// 通知落点的段位改道（§217）：原指向任务/审核/
-    /// 监测三撤段的落点全部改落活动段——三段内容已
-    /// 并入活动（审批聚焦与监测深链字段仍由 AppState
-    /// 携带、活动段内对号消费），落点语义一条不丢。
-    /// 纯函数收口于此供单测钉死（HubSegmentsConsoli-
-    /// dationTests）
+    /// 通知落点的段位改道（§217 立、§434 沿用）：
+    /// 原指向任务/审核/监测三撤段的落点全部改落
+    /// 工作段——内容已并入工作台账（审批聚焦与
+    /// 监测深链字段仍由 AppState 携带、工作段内
+    /// 对号消费），落点语义一条不丢。纯函数收口
+    /// 于此供单测钉死（HubSegmentsConsolidation-
+    /// Tests）
     static func segment(
         for destination: NotificationDestination
-    ) -> HubSegment {
+    ) -> HubSegmentID {
         switch destination {
         case .approvalDecision, .approvalHome,
              .monitorChange, .monitorsHome:
-            return .activity
+            return .work
         case .approvalAnchor, .approvalThread, .none:
             // §165：锚点落点不在枢纽、本函数不被这类
-            // 落点调用；防御性回落活动段
-            return .activity
+            // 落点调用；防御性回落工作段
+            return .work
         }
     }
 
@@ -165,33 +188,11 @@ struct AgentHubView: View {
             + "|\(appState.serverShareHost ?? "")"
     }
 
-    /// 根页左缘右滑退出手势（0.36.27 §97 件五）：起
-    /// 始点须落在左缘 28pt 内（.global 坐标判），只
-    /// 消费横向分量、途中过 60 即 dismiss（整段只触
-    /// 发一次、旗防重入，松手复位）；浏览器段排除
-    /// （与退役探针的 segment 门一致，网页自有横移
-    /// 手势优先）。纵向拖动横向分量≈0、永不过线，
-    /// 枢纽内纵滚不受扰
-    private var hubEdgeDismissGesture: some Gesture {
-        DragGesture(
-            minimumDistance: HubEdgeSwipe.minimumDistance,
-            coordinateSpace: .global
-        )
-        .onChanged { value in
-            guard segment != .browser, !edgeDismissTriggered
-            else { return }
-            if HubEdgeSwipe.shouldTrigger(
-                startGlobalX: value.startLocation.x,
-                translationX: value.translation.width
-            ) {
-                edgeDismissTriggered = true
-                dismiss()
-            }
-        }
-        .onEnded { _ in
-            edgeDismissTriggered = false
-        }
-    }
+    /// （根页左缘右滑退出手势 HubEdgeSwipe 已随
+    /// §434 退役：中枢呈现由 sheet 改导航 push 后，
+    /// 返回归系统交互式 pop 手势——平台原生优先，
+    /// 自研边缘手势不与系统手势并存。Core 的
+    /// HubEdgeSwipe 阈值件保留备查。）
 
     var body: some View {
         ZStack {
@@ -213,13 +214,6 @@ struct AgentHubView: View {
                     }
                 }
                 .background(Palette.pageBG)
-                // 根页左缘右滑退出（0.36.27 §97 件五）：
-                // 挂点＝栈根内容本体——推入页覆盖其上、
-                // 触摸不达此处，「仅根页生效」由挂点天
-                // 然成立；构造与聊天右滑引用同族（同宿
-                // 主已真机证明），判读走 Core HubEdge-
-                // Swipe 阈值小件
-                .simultaneousGesture(hubEdgeDismissGesture)
             }
         }
         .sheet(isPresented: $showAvatarEditor) {
@@ -265,6 +259,10 @@ struct AgentHubView: View {
             // 次打开必刷新」——强制重拉保住（§155 起全
             // 量模式同口径，不再只限 .activity）
             await store?.loadApproval(force: true)
+            // §434：授权账本同轮回读（审核格数据＋注
+            // 册表活证），随后按真回读刷新分格输入
+            await store?.loadGrants()
+            refreshSegmentInputs()
             // §123（H2）：通知落点消费——按落点切到对
             // 应段（聚焦字段由对应段自己消费），消费后
             // 清零，不许陈年请求在下次手动开枢纽时复
@@ -289,28 +287,101 @@ struct AgentHubView: View {
         }
     }
 
+    /// 回读后刷新注册表输入（§434）：旗标只认真回
+    /// 读结果——grants 或审批任一 ready，审核格长
+    /// 入；当前段若被新格集落下（仅回读翻转时理
+    /// 论可能），回落首格不留空段
+    private func refreshSegmentInputs() {
+        guard let store else { return }
+        var inputs = segmentInputs
+        if case .ready = store.grantsState {
+            inputs.grantsReadbackOK = true
+        }
+        if case .ready = store.approvalState {
+            inputs.approvalsReadbackOK = true
+        }
+        segmentInputs = inputs
+        if !availableSegments.contains(segment) {
+            segment = availableSegments.first ?? .work
+        }
+    }
+
     private func content(_ store: AgentHubStore) -> some View {
         VStack(spacing: 0) {
             header(store)
+            if let modelEntry {
+                modelEntryRow(modelEntry)
+            }
             segmentPicker
             segmentContent(store)
         }
         .onChange(of: segment) { _, newSegment in
             Task { await loadSegment(newSegment, store: store) }
         }
+        .sheet(isPresented: $showModelPicker) {
+            if let modelEntry {
+                // 同组件同数据源（§153/§434）：分组与
+                // 当前选择由宿主注入的本会话模型账；
+                // 隐藏分组回调传 nil——枢纽是复用面，
+                // 不在此处改服务商收纳（组件头注口径）
+                ChatModelPickerView(
+                    groups: modelEntry.groups,
+                    current: modelEntry.current,
+                    onSelect: { choice in
+                        modelEntry.onSelect(choice)
+                        showModelPicker = false
+                    },
+                    onHideGroup: nil
+                )
+            }
+        }
     }
 
-    private func loadSegment(_ segment: HubSegment, store: AgentHubStore) async {
+    private func loadSegment(_ segment: HubSegmentID, store: AgentHubStore) async {
         switch segment {
-        case .activity:
-            break // 台账段自持 LedgerStore（段内 .task 驱动）；审批数据由开枢纽时的强制重拉保鲜（见 body .task），§217 后不再有独立审核段的切段加载
-        case .cron:
-            break // 定时段自持共享 CronStore（段内 .task 驱动，台账 198 收敛）
-        case .browser:
-            break // 0.9.0：浏览器面自带盒桥轮询（面内 .task 驱动）
+        case .work:
+            break // 工作段自持 LedgerStore（段内 .task 驱动）；审批数据由开枢纽时的强制重拉保鲜（见 body .task）
+        case .audit:
+            await store.loadGrants() // 审核段内 .task 亦拉，双路同守卫不重复发
+        case .computer:
+            break // 电脑面自带盒桥轮询（面内 .task 驱动）
         case .identity:
             await store.loadIdentityIfNeeded()
+        case .mail:
+            break // 注册表不长此格时不可达；长格后接邮件面自持加载
         }
+    }
+
+    /// 选择模型入口行（§434，用户口径：身份头下
+    /// 方、分段胶囊上方）：整行填充胶囊——左标签
+    /// ＋右当前模型名与 chevron，点开模型选择面。
+    /// 形态与身份段编辑钮同族（填充胶囊 44）
+    private func modelEntryRow(_ entry: HubModelEntry) -> some View {
+        Button {
+            showModelPicker = true
+        } label: {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                Text("选择模型")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                Spacer()
+                Text(entry.currentLabel)
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            .padding(.horizontal, OneDayMetrics.spacingM)
+            .frame(maxWidth: .infinity)
+            .frame(height: OneDayMetrics.minTapTarget)
+            .background(Palette.fillSecondary, in: Capsule())
+        }
+        .buttonStyle(.odPressable)
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingS)
+        .accessibilityLabel("选择模型，当前 \(entry.currentLabel)")
     }
 
     // MARK: - 页头（规格 §2）
@@ -365,20 +436,16 @@ struct AgentHubView: View {
     }
 
     private func header(_ store: AgentHubStore) -> some View {
-        // §344（中枢四欠账·身份区收紧）：页头由 §222 的
-        // 居中大头像 hero 改横排紧凑式——§222 纵向预算
-        // ≈190pt（头像 avatarPageHead 90＋名上距 16＋名
-        // 行 34＋状态上距 8＋状态行 22＋上下距 20），承
-        // 载信息只有头像/名/一行状态，占高过大；收后
-        // ≈118pt（圆钮行＋身份行横排，收约 72pt）。对
-        // 位设置页身份卡（§164 的横排单源形态：头像
-        // avatarListRow 44＋名/状态纵叠，行高
-        // settingsRowHeight 60）。名字字阶不动（.title
-        // 28 bold 是 HIG Title1 用户定版口径）；avatar
-        // PageHead 令牌本身不动——身份详情页 hero 继续
-        // 用，本面起与详情 hero 分档；§222 的「头像→名
-        // ≈16、名→状态 ≈8」纵向节奏口径由本节横排口
-        // 径覆盖（字阶与状态语义不在覆盖内）
+        // §434（2026-11-24，用户亲点对位 Muse 身
+        // 份页大头态）：页头恢复居中 hero——§344 的
+        // 横排紧凑行（44 头像＋名/状态同行、总高
+        // ≈118）由本节覆盖：头像 avatarHubHero 85
+        // 居中（参照工具采样定值）、名居中（字阶
+        // .title 28 bold 不动，HIG Title1 用户定版
+        // 口径）、状态行居中；纵向节奏承 §222 hero
+        // 口径（头像→名 16、名→状态 8）。§344 的
+        // 收紧理由（占高过大）让位于用户本轮明确
+        // 的整页对位要求，覆盖关系在此登记
         VStack(spacing: 0) {
             // 圆钮行（✕ 关闭＋分享名片）：0.36.22 起
             // 两模式统一常驻——整页呈现下活动模式同
@@ -415,26 +482,23 @@ struct AgentHubView: View {
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
 
-            // 身份行（§344）：头像菜单＋名/状态纵叠，
-            // 与设置页身份卡同几何（spacingSM 横距、
-            // spacingMicro 题副紧排）
-            HStack(spacing: OneDayMetrics.spacingSM) {
+            // 身份 hero（§434）：头像居中＋名居中＋
+            // 状态行居中（状态语义与派生不动，仍是
+            // statusLine 本体：活动优先、连接兜底）
+            VStack(spacing: 0) {
                 avatarBlock
 
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(store.displayName)
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .lineLimit(1)
+                Text(store.displayName)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .padding(.top, OneDayMetrics.spacingM)
 
-                    statusLine(store)
-                }
-
-                Spacer(minLength: 0)
+                statusLine(store)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, OneDayMetrics.spacingS)
             }
+            .frame(maxWidth: .infinity)
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingS)
         }
@@ -482,12 +546,11 @@ struct AgentHubView: View {
     /// 档案菜单——「更换虚拟形象」「编辑名称」改的是
     /// 本机档案（AgentProfileStore），不是服务器身份；
     /// 身份段仍在段列里、服务端身份编辑口径不变。
-    /// §344（身份区收紧）：头像降 avatarListRow 44 档
-    /// （与设置页身份卡同档）；菜单改整头像承载——
-    /// 点头像任意处出菜单（旧版仅角标 44 命中域），
-    /// 铅笔角标降为纯提示件：18pt 圆＋badgeGlyphSize
-    /// 字形（借定时行 L5 角标先例：CronOverviewRow），
-    /// Palette.surface 底＋hairline 描边＋浮件档阴影
+    /// §434（hero 化）：头像升 avatarHubHero 85 档
+    /// （参照采样定值）；菜单仍整头像承载——点头像
+    /// 任意处出菜单（§344 立的口径不变），铅笔角标
+    /// 随头像放大为 26pt 圆（字形等比），Palette.
+    /// surface 底＋hairline 描边＋浮件档阴影不变
     private var avatarBlock: some View {
         Menu {
             Button {
@@ -506,8 +569,8 @@ struct AgentHubView: View {
                     .resizable()
                     .scaledToFill()
                     .frame(
-                        width: OneDayMetrics.avatarListRow,
-                        height: OneDayMetrics.avatarListRow
+                        width: OneDayMetrics.avatarHubHero,
+                        height: OneDayMetrics.avatarHubHero
                     )
                     .clipShape(Circle())
                     .overlay {
@@ -519,12 +582,12 @@ struct AgentHubView: View {
                     Circle().stroke(Palette.hairline, lineWidth: 0.5)
                     Image(systemName: "pencil")
                         .font(.system(
-                            size: FrameworkIcon.badgeGlyphSize,
+                            size: FrameworkIcon.badgeGlyphSize + 4,
                             weight: .bold
                         ))
                         .foregroundStyle(Palette.ink)
                 }
-                .frame(width: 18, height: 18)
+                .frame(width: 26, height: 26)
                 // §247.3 档 F 浮件档（阴影两档之一）
                 .shadow(
                     color: Palette.shadowBase.opacity(
@@ -564,7 +627,8 @@ struct AgentHubView: View {
     /// 「原生 segmented 先行」定案（0.36.22）由本节覆
     /// 盖。选中填充取 selectionFill——与 OpenMuse 底栏
     /// 激活项同一填充角色（Palette 本源）。段集/顺序/
-    /// 图标仍走 HubSegment 单源（§217 四段口径不动）；
+    /// 图标走注册表输出（§434：HubSegmentRegistry
+    /// 裁决的 HubSegmentID 列，形态本体不变）；
     /// 无障碍与旧 Picker 等价：按钮＋段名标签＋选中
     /// trait（UI 布局探针按标签回落查按钮、兼容）。
     /// 条下 Divider 撤除——基准是留白节奏不是线（宪
@@ -631,45 +695,51 @@ struct AgentHubView: View {
     @ViewBuilder
     private func segmentContent(_ store: AgentHubStore) -> some View {
         switch segment {
-        case .activity:
+        case .work:
             // 工作台账（§95）：段自持 LedgerStore，行
             // 下钻打开会话走既有 pendingChatSessionID
             // 通道，与旧活动行同路（下钻即关页）。
-            // §217：三段并入后本段
-            // 兼收任务/审批下钻补齐与监测合成条目——
-            // 共享 hubStore 一并注入（锚点数据在 store
-            // 里，与聊天就地卡同源；审批规则本体已按
-            // §244 归设置页权限区，本段只留审批记录）
+            // §217 起本段兼收任务/审批下钻补齐与监测
+            // 合成条目；§434 起定时并入本段作「预定
+            // 任务」折叠节（段内自理，见 HubLedger-
+            // Section），原定时段整段退役
             HubLedgerSection(hubStore: store, onOpenSession: { sessionID in
                 appState.router.pendingChatSessionID = sessionID
                 dismiss()
             })
-        case .cron:
-            // 定时段数据自台账 198 收敛起走共享
-            // CronStore，不再经枢纽 store 私拉一份
-            HubCronSection(appState: appState)
-        case .browser:
+        case .audit:
+            // 审核段（§434 转正）：授权账本＋审批记
+            // 录，数据在 AgentHubStore（grants 回读
+            // ＋决定账），本体 HubAuditSection
+            HubAuditSection(hubStore: store)
+        case .computer:
+            // 电脑段：与应用格「浏览器」页共用同一
+            // 面 BrowserFaceView（云电脑真画面＋接
+            // 管，Simular Box 直连通道）
             HubBrowserSection()
         case .identity:
             HubIdentitySection(store: store)
+        case .mail:
+            // 注册表未广告 mail 位时本段不长出、本
+            // 分支不可达；长格后在此接邮件面
+            EmptyView()
         }
     }
 }
 
 
-/// 枢纽卡片式呈现口径（§217，用户 2026-11-13 拍板
-/// 对齐 Muse 枢纽录屏形态）：系统 sheet 的大
-/// detent——iOS 26 的卡片呈现语言（圆角卡浮起、后
-/// 景缩退压暗、落定近全屏、关闭反向回缩淡出，全
-/// 走系统弹簧），不自绘转场。呈现方（ChatView 的
-/// .sheet 与测试装配台）共用本修饰符一处收口，防
-/// 两处口径漂移；真机与录屏的帧级比对归真机验收
-/// （HubSegmentsConsolidationTests 只钉系统行为的
-/// 可测面：detent 在位、落定留边、圆角容器在场、
-/// 呈现/关闭全程有帧位移非硬切）。
+/// 枢纽全页呈现口径（§434，覆盖 §217 的 sheet 卡
+/// 片式）：呈现改导航 push＋系统 zoom 转场（源＝
+/// 聊天页居中大头像，裁决走 Core ZoomTransition-
+/// Policy），本修饰符只管全页 chrome——外层栈导
+/// 航栏与壳底栏在枢纽页藏起（枢纽自有 ✕ 行与页
+/// 头，不与系统返回钮/底栏并置）；关闭＝✕ 或系
+/// 统交互式 pop，zoom 自动反向缩回。§217 的
+/// hubSheetPresentation（.large detent＋拖拽指示
+/// 器）随呈现方式整段退役。
 extension View {
-    func hubSheetPresentation() -> some View {
-        presentationDetents([.large])
-            .presentationDragIndicator(.visible)
+    func hubFullPageChrome() -> some View {
+        toolbar(.hidden, for: .navigationBar)
+            .toolbar(.hidden, for: .tabBar)
     }
 }

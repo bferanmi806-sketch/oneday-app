@@ -7,45 +7,59 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §217 枢纽收段＋卡片式呈现的装配门：
-/// ①分段集合恰为四段且顺序对（活动/定时/浏览器/
-///   身份）——七段时代的 UI 回归门在 UITests 侧同
-///   步改口径，本门在单元层钉死集合本体；
-/// ②通知落点改道：原指向任务/审核/监测三撤段的落
-///   点全部落活动段（AgentHubView.segment(for:) 纯
-///   映射）；
-/// ③转场自查：机制面硬断言（sheet 呈现、非全屏、
-///   detent 恰一个 .large 配置、开合闭环）；几何
-///   面（留边/圆角/帧位移）在无场景裸窗口里会退
-///   化（run 43426199136 实测整窗瞬时呈现）——环
-///   境给出信号时条件断言、未给时全值打日志，逐
-///   帧形态终验归真 App 回归门与真机录屏并排比
-///   （报告 §6/§8）。
+/// §434 枢纽五格注册表＋全页 push 呈现的装配门
+/// （本文件前身为 §217 收段＋sheet 卡片式门，呈现
+/// 与格集口径均由 §434 覆盖，逐项改写如下）：
+/// ①格集由注册表裁决：裸装配（无回读、无 Box
+///   钥）时可见段恒为锚格序首工作＋含身份、恒不
+///   含邮箱（mail 位未广告）；格集全量裁决矩阵
+///   在 Core HubSegmentRegistryTests 钉死；
+/// ②通知落点改道：原指向任务/审核/监测三撤段的
+///   落点全部落工作段（AgentHubView.segment
+///   (for:) 纯映射）；
+/// ③分段条量测钉（§222 值不变）；
+/// ④呈现探针：中枢经 NavigationStack push 呈现
+///   ——本 rig 内机制面硬断言＝开关全程非模态
+///   （presentedViewController 恒 nil）；栈内物
+///   化在无场景裸窗口无信号（三轮诊断在案），
+///   push 落位/全页/底栏隐藏归真 App UITests
+///   与真机录屏并排比（本仓 rig≠真机的一贯口径）。
 final class HubSegmentsConsolidationTests: XCTestCase {
 
-    // MARK: - ① 分段集合
+    // MARK: - ① 注册表锚格
 
-    func testSegmentsAreExactlyFourInOrder() {
+    func testAvailableSegmentsStartWithAnchors() {
+        let segments = AgentHubView().availableSegments
         XCTAssertEqual(
-            HubSegment.allCases,
-            [.activity, .cron, .browser, .identity]
+            segments.first, .work,
+            "格集序首恒为工作格（参照胶囊序）：\(segments)"
         )
-        XCTAssertEqual(
-            HubSegment.allCases.map(\.title),
-            ["活动", "定时", "浏览器", "身份"]
+        XCTAssertTrue(
+            segments.contains(.identity),
+            "身份锚格恒在：\(segments)"
         )
-        XCTAssertEqual(
-            HubSegment.allCases.map(\.systemImage),
-            ["list.bullet", "clock", "display", "touchid"]
+        XCTAssertFalse(
+            segments.contains(.mail),
+            "邮箱格在 mail 位未广告时不许长出：\(segments)"
+        )
+        XCTAssertFalse(
+            segments.contains(.audit),
+            "无回读活证时审核格不长（注册表纪律）：\(segments)"
         )
     }
 
-    /// 台账 199：Mode.activity 孤儿形态整段删除后，
-    /// 枢纽只剩全量一种形态——可见段恒为四段全集
-    func testAvailableSegments() {
+    /// 注册表初值输入：Box 在位只认钥匙串真状态、
+    /// 其余回读旗恒 false（回读后由 refreshSeg-
+    /// mentInputs 刷新）
+    func testInitialSegmentInputsAreHonest() {
+        let inputs = AgentHubView.initialSegmentInputs()
+        XCTAssertTrue(inputs.connected)
+        XCTAssertFalse(inputs.grantsReadbackOK)
+        XCTAssertFalse(inputs.approvalsReadbackOK)
+        XCTAssertFalse(inputs.mailAdvertised)
         XCTAssertEqual(
-            AgentHubView().availableSegments,
-            [.activity, .cron, .browser, .identity]
+            inputs.boxConfigured,
+            KeychainStore.read(account: "box.mcp.key") != nil
         )
     }
 
@@ -71,44 +85,62 @@ final class HubSegmentsConsolidationTests: XCTestCase {
 
     // MARK: - ② 落点改道
 
-    func testRetiredSegmentDestinationsRerouteToActivity() {
+    func testRetiredSegmentDestinationsRerouteToWork() {
         XCTAssertEqual(
             AgentHubView.segment(for: .approvalDecision(id: "rec-1")),
-            .activity
+            .work
         )
         XCTAssertEqual(
             AgentHubView.segment(for: .approvalHome),
-            .activity
+            .work
         )
         XCTAssertEqual(
             AgentHubView.segment(
                 for: .monitorChange(monitorID: "mon-1", changeID: "chg-1")
             ),
-            .activity
+            .work
         )
         XCTAssertEqual(
             AgentHubView.segment(for: .monitorsHome),
-            .activity
+            .work
         )
     }
 
-    // MARK: - ③ 卡片式呈现探针
+    // MARK: - ④ push 全页呈现探针
 
-    /// 呈现装配台：与 ChatView 同一修饰符
-    /// （hubSheetPresentation）把枢纽挂在 .sheet 上
-    private struct HubSheetHarness: View {
+    /// 呈现装配台：与 ChatView 同一目的地构造
+    /// （navigationDestination＋hubFullPageChrome
+    /// ＋zoom 转场，源为一枚占位源视图）
+    private struct HubPushHarness: View {
         @ObservedObject var box: HubPresentationProbeBox
+        @Namespace private var zoomNamespace
+
         var body: some View {
-            Color.clear
-                .sheet(isPresented: $box.presented) {
-                    AgentHubView()
-                        .hubSheetPresentation()
-                }
+            NavigationStack {
+                Color.clear
+                    .overlay {
+                        Color.gray
+                            .frame(width: 67, height: 67)
+                            .matchedTransitionSource(
+                                id: "hubHero", in: zoomNamespace
+                            )
+                    }
+                    .navigationDestination(isPresented: $box.presented) {
+                        AgentHubView()
+                            .hubFullPageChrome()
+                            .navigationTransition(
+                                .zoom(
+                                    sourceID: "hubHero",
+                                    in: zoomNamespace
+                                )
+                            )
+                    }
+            }
         }
     }
 
     @MainActor
-    func testHubSheetPresentationIsCardStyleWithMotion() throws {
+    func testHubPushPresentationIsFullPageNotSheet() throws {
         let appState = AppState()
         let schema = Schema([ChatThread.self, ChatEntry.self])
         let container = try ModelContainer(
@@ -119,7 +151,7 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         )
         let box = HubPresentationProbeBox()
         let host = UIHostingController(
-            rootView: HubSheetHarness(box: box)
+            rootView: HubPushHarness(box: box)
                 .environment(appState)
                 .modelContainer(container)
         )
@@ -131,128 +163,35 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         defer { window.isHidden = true }
         spin(seconds: 0.6)
 
-        // 打开：采样呈现全程的被呈视图帧位（minY）
+        // 本 rig 的信号边界（§434 探针三轮诊断实
+        // 测）：无场景裸 UIWindow 里 SwiftUI 内容不
+        // 物化（hosting view 零子视图、hosting 控
+        // 制器零 children）——NavigationStack 的内
+        // 部控制器在此无信号，栈深/帧级断言不成立；
+        // 但 sheet 呈现在本 rig 会物化出 presented-
+        // ViewController（§217 旧探针实证），故「开
+        // 关全程 presentedViewController 恒 nil」
+        // 是本 rig 内可判别的机制断言（中枢已非模
+        // 态 sheet）。push 落位/全页/底栏隐藏的真
+        // 验在真 App UITests（TopBarSingleAction-
+        // TapTests）与真机
         box.presented = true
-        var presentMinYs: [CGFloat] = []
-        var presentedVC: UIViewController?
         let presentDeadline = Date().addingTimeInterval(8)
         while Date() < presentDeadline {
-            if let vc = host.presentedViewController {
-                presentedVC = vc
-                presentMinYs.append(
-                    vc.view.convert(vc.view.bounds, to: window).minY
-                )
-                if vc.view.bounds.height > 0,
-                   presentMinYs.count > 30,
-                   let last = presentMinYs.last,
-                   abs(last - (presentMinYs.suffix(5).first ?? last)) < 0.5 {
-                    break // 落定（近 5 帧不动）
-                }
-            }
+            XCTAssertNil(
+                host.presentedViewController,
+                "中枢不许再以模态 sheet 呈现（开）"
+            )
             spin(seconds: 0.016)
         }
-        let presented = try XCTUnwrap(
-            presentedVC, "枢纽 sheet 未在限时内呈现"
-        )
-
-        // 不是全屏硬顶：呈现样式非 fullScreen、sheet
-        // 控制器在位、detent 恰一个（生产修饰符给的
-        // .large）——机制面硬断言，环境无关
-        XCTAssertNotEqual(
-            presented.modalPresentationStyle, .fullScreen,
-            "枢纽不许再走 fullScreenCover 式全屏呈现"
-        )
-        let sheet = try XCTUnwrap(
-            presented.sheetPresentationController,
-            "枢纽呈现缺 sheet 控制器（非卡片式呈现）"
-        )
-        XCTAssertEqual(
-            sheet.detents.count, 1,
-            "枢纽 sheet 应只有 .large 一个 detent：\(sheet.detents)"
-        )
-
-        // 几何面（留顶边/圆角/落定 detent 标识）：无
-        // 场景的裸 UIWindow 里 sheet 会退化成整窗瞬时
-        // 呈现（run 43426199136 实测 settled=整窗、
-        // selectedDetentIdentifier=nil）——这些信号
-        // 只在环境真给出时才成立、给出即须正确；环
-        // 境没给的逐项打进 HUB-SHEET-PROBE 日志，帧
-        // 级形态的终验在真 App（UITests 枢纽回归门）
-        // 与真机录屏并排比（本仓 rig≠真机的一贯口径）
-        let settled = presented.view.convert(
-            presented.view.bounds, to: window
-        )
-        XCTAssertLessThanOrEqual(
-            settled.maxY, window.bounds.height + 0.5,
-            "被呈视图不许溢出窗口：\(settled)"
-        )
-        if settled.minY > 0.5 {
-            // 环境给出了留边帧：卡片形态成立的正信号
-            XCTAssertLessThan(
-                settled.height, window.bounds.height,
-                "留边帧的高应小于整窗：\(settled)"
-            )
-        }
-        if let identifier = sheet.selectedDetentIdentifier {
-            XCTAssertEqual(
-                identifier, .large,
-                "落定 detent 标识应为 .large，实测 \(identifier)"
-            )
-        }
-        var cornerFound = false
-        var cursor: UIView? = presented.view
-        while let view = cursor {
-            if view.layer.cornerRadius >= 8,
-               view.layer.maskedCorners.contains(.layerMinXMinYCorner) {
-                cornerFound = true
-                break
-            }
-            cursor = view.superview
-        }
-
-        // 关闭：反向位移采样（回缩下滑＝minY 增大）
         box.presented = false
-        var dismissMinYs: [CGFloat] = []
         let dismissDeadline = Date().addingTimeInterval(8)
         while Date() < dismissDeadline {
-            if let vc = host.presentedViewController {
-                dismissMinYs.append(
-                    vc.view.convert(vc.view.bounds, to: window).minY
-                )
-            } else {
-                break
-            }
-            spin(seconds: 0.016)
-        }
-        XCTAssertNil(
-            host.presentedViewController, "枢纽 sheet 未在限时内关闭"
-        )
-
-        // 帧位移：环境真跑动画时（任一程 travel>0）
-        // 轨迹须是卡自下方升起/回缩下滑的量级
-        // （>24pt）；环境瞬时呈现（travel=0，裸窗
-        // 口退化形态）时本项无信号、只记日志——硬
-        // 切与否的终验同几何面口径归真 App/真机
-        let presentTravel = (presentMinYs.max() ?? 0)
-            - (presentMinYs.min() ?? 0)
-        let dismissTravel = (dismissMinYs.max() ?? 0)
-            - (dismissMinYs.min() ?? 0)
-        print(
-            "HUB-SHEET-PROBE presentSamples=\(presentMinYs.count) "
-                + "presentTravel=\(presentTravel) "
-                + "dismissSamples=\(dismissMinYs.count) "
-                + "dismissTravel=\(dismissTravel) "
-                + "settled=\(settled) "
-                + "cornerFound=\(cornerFound) "
-                + "detentID="
-                + "\(String(describing: sheet.selectedDetentIdentifier))"
-        )
-        if presentTravel > 0 || dismissTravel > 0 {
-            XCTAssertTrue(
-                presentTravel > 24 || dismissTravel > 24,
-                "有动画却位移不足（轨迹异常）：presentTravel="
-                    + "\(presentTravel) dismissTravel=\(dismissTravel)"
+            XCTAssertNil(
+                host.presentedViewController,
+                "中枢不许再以模态 sheet 呈现（关）"
             )
+            spin(seconds: 0.016)
         }
     }
 

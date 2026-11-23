@@ -56,9 +56,13 @@ struct HubAvatarButton: View {
                 width: avatarPointSize,
                 height: avatarPointSize
             )
+            // §434：命中帧取大者——形象档（≤34）时恒
+            // 为 44 外扩、旧行为不变；聊天页 hero 档
+            // （67）时以头像本体为准，不许 44 帧反压
+            // 大头像致布局溢出
             .frame(
-                width: OneDayMetrics.minTapTarget,
-                height: OneDayMetrics.minTapTarget
+                width: max(avatarPointSize, OneDayMetrics.minTapTarget),
+                height: max(avatarPointSize, OneDayMetrics.minTapTarget)
             )
             .contentShape(Circle())
         }

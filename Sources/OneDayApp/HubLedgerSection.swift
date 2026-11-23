@@ -22,6 +22,11 @@ import SwiftUI
 /// 入同流，点达监测详情（变化在详情内对号呈现、
 /// 控制动作也在详情里），新建监测同入页首菜单。
 /// 通知落点（审批聚焦/监测深链）也改由本段消费。
+/// §434（2026-11-24）：本段正名为中枢「工作」格
+/// （注册表 HubSegmentID.work）；原定时段并入本
+/// 段作列表首个折叠节「预定任务」（HubCronSec-
+/// tion 整段退役）；行距与图标盒按参照行解剖放
+/// 开（pitch ≈70pt、图标盒 40）。
 struct HubLedgerSection: View {
     /// 枢纽共享审批 store（规则区与台账详情的审批
     /// 补齐用，与聊天就地卡同源同数据）
@@ -48,6 +53,17 @@ struct HubLedgerSection: View {
     }
     @State private var showCreateTask = false
     @State private var showCreateMonitor = false
+    /// 预定任务折叠节展开态（§434）：默认收起——对
+    /// 参照大头态列表格「N 项预定任务」折叠行形态
+    @State private var cronExpanded = false
+    /// 定时数据（§434 并格）：与原定时段同源——共
+    /// 享 CronStore 单源（台账 198 收敛口径不变）
+    private var cronStore: CronStore {
+        appState.sharedCronStore()
+    }
+    private var cronTotalCount: Int {
+        cronStore.hubGroups.reduce(0) { $0 + $1.items.count }
+    }
     /// 通知落点聚焦的条目 id（审批＝appr:<记录 id>、
     /// 监测＝monitor-change:<变化 id>）：置位后滚
     /// 动定位＋行底色点亮，与原审核段聚焦同形态
@@ -89,6 +105,11 @@ struct HubLedgerSection: View {
             await store.load(appState: appState)
             await kanbanStore.loadIfNeeded(appState: appState)
             await monitorsStore.loadIfNeeded(appState: appState)
+            // §434：预定任务折叠节同轮备数（原定时段
+            // .task 的两拉迁入，与 HubCronSection 原
+            // 口径一致）
+            await cronStore.loadIfNeeded()
+            await cronStore.loadLastRunsIfNeeded()
             consumeFocusFields()
             await store.runVisibleLoop(appState: appState)
         }
@@ -226,6 +247,26 @@ struct HubLedgerSection: View {
     private var ledgerList: some View {
         ScrollViewReader { proxy in
             List {
+                // §434：预定任务折叠节（原定时段并入工
+                // 作格，对位参照大头态列表格的同名折叠
+                // 节）——数据走共享 CronStore、行走共
+                // 用 CronOverviewRow、点行下钻定时管理
+                // 页；未就绪/为空时整节不出，不占位
+                if cronStore.hasLoaded, !cronStore.hubGroups.isEmpty {
+                    Section(isExpanded: $cronExpanded) {
+                        ForEach(cronStore.hubGroups, id: \.kind) { group in
+                            ForEach(group.items) { item in
+                                NavigationLink {
+                                    CronJobsView()
+                                } label: {
+                                    CronOverviewRow(item: item)
+                                }
+                            }
+                        }
+                    } header: {
+                        Text("预定任务 · \(cronTotalCount) 项")
+                    }
+                }
                 // §244：审批规则已归位设置页权限区，
                 // 本列表只剩台账记录本体（审批记录条
                 // 目即记录入口，点开有原文与锚点）
@@ -329,6 +370,11 @@ struct HubLedgerSection: View {
             Spacer(minLength: OneDayMetrics.spacingS)
             trailingColumn(item)
         }
+        // §434 行距对位：参照工作行 pitch ≈70pt——
+        // 行内上下各补 spacingS，两行文本块＋图标盒
+        // 40 的总高与参照同档（原行距为 List 默认
+        // 紧排，是「感觉 low」的结构因之一）
+        .padding(.vertical, OneDayMetrics.spacingS)
         .contentShape(Rectangle())
         .opacity(item.status == .cancelled ? 0.55 : 1)
         .accessibilityElement(children: .combine)
@@ -427,7 +473,8 @@ struct HubLedgerSection: View {
         }
     }
 
-    /// 图标盒（36pt，与旧活动行同骨架）：底色按类别
+    /// 图标盒（§434 起 40pt——参照行解剖对位档，
+    /// 原 36）：底色按类别
     /// 给 pastel 令牌；状态层——进行中＝系统转圈（真
     /// 转、状态变了同帧停：呈现只由条目状态驱动，没
     /// 有第二条驱动源）、排队＝小点、待审批＝盾牌、
@@ -443,10 +490,10 @@ struct HubLedgerSection: View {
                 Circle()
                     .fill(Palette.inkMuted)
                     .frame(width: 6, height: 6)
-                    .offset(x: 11, y: 11)
+                    .offset(x: 13, y: 13)
             }
         }
-        .frame(width: 36, height: 36)
+        .frame(width: 40, height: 40)
     }
 
     @ViewBuilder
