@@ -1426,8 +1426,11 @@ struct DeliverablesView: View {
         // config 与真实连接同为 hermes.didichou.site、
         // 同键会让种子快照与真实快照串用（店口径：快
         // 照不得跨服务器／账号串用），演示恒加后缀键
-        let configKey = appState.config?.baseString.map {
-            appState.isDemo ? $0 + "#demo" : $0
+        let configKey: String?
+        if let base = appState.config?.baseString {
+            configKey = appState.isDemo ? base + "#demo" : base
+        } else {
+            configKey = nil
         }
         let outcome = await listStore.refresh(
             currentConfigKey: configKey

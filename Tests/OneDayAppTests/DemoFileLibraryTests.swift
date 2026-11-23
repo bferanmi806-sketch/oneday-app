@@ -117,9 +117,9 @@ final class DemoFileLibraryTests: XCTestCase {
             try await self.assemble()
         }
         XCTAssertEqual(outcome, .loaded, "演示对账应成功落店")
+        let expectedCount = try await assemble().count
         XCTAssertEqual(
-            store.deliverables?.count,
-            try await assemble().count,
+            store.deliverables?.count, expectedCount,
             "店内名单应与装配名单等量"
         )
 
