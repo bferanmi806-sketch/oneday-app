@@ -114,6 +114,8 @@ public enum CapabilityNegotiation {
         return capabilities.optionsCardSupported == true
             ? .available
             : .unavailable
+    }
+
     /// #21 设置注册表（AI 自主设置权一期，DESIGN
     /// §437）：features.settings_registry 布尔旗标——
     /// 亮＝设置面按注册表渲染、假＝服务端未发布此能
@@ -125,6 +127,19 @@ public enum CapabilityNegotiation {
         guard let flag = capabilities?.featureFlag("settings_registry")
         else { return .unknown }
         return flag ? .available : .unavailable
+    }
+
+    /// #19 AI 自反应（部署包 1.8.0，DESIGN §432）：
+    /// features.self_reactions 布尔旗标；能力面已
+    /// 取到而旗标缺失/为假＝服务端未发布此能力
+    /// （非未知），与 #14 同口径
+    public static func selfReactionsAvailability(
+        _ capabilities: CapabilitiesResponse?
+    ) -> CapabilityAvailability {
+        guard let capabilities else { return .unknown }
+        return capabilities.selfReactionsSupported == true
+            ? .available
+            : .unavailable
     }
 
     // MARK: - 整表合成

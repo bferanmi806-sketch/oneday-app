@@ -2699,18 +2699,21 @@ struct ChatNativeRowHeightComposer {
             + optionsCardSlot(entry)
     }
 
-    /// 反应 pill 悬出预留（台账 187）：pill 压气泡底
-    /// 角、半身悬在泡外（ChatReactionMetrics 几何单
-    /// 源）——行高只多悬出净深一笔；无反应恒 0（两
-    /// 态差由测试以断言钉住）。只挂 user/assistant
-    /// 发言行（本函数只在 entryHeightCore 的两支尾
-    /// 部被调，工具卡/回响/锚定行走不到）
+    /// 反应铬件悬出预留（台账 187＋§432）：pill/角
+    /// 标压气泡底角、半身悬在泡外（ChatReaction-
+    /// Metrics 几何单源）——行高只多悬出净深一
+    /// 笔；在场判定走快照 hasReactionChrome（与呈
+    /// 现同判：§432 起 AI 反应开关关时，仅有 agent
+    /// 反应的行不再预留），无铬件恒 0（两态差由
+    /// 测试以断言钉住）。只挂 user/assistant 发言
+    /// 行（本函数只在 entryHeightCore 的两支尾部
+    /// 被调，工具卡/回响/锚定行走不到）
     private func reactionReserve(
         _ entry: ChatEntryHeightSnapshot
     ) -> CGFloat {
-        entry.reactions.isEmpty
-            ? 0
-            : ChatReactionMetrics.rowReserve
+        entry.hasReactionChrome
+            ? ChatReactionMetrics.rowReserve
+            : 0
     }
 
     /// 选择框槽（总表 203／§441）：气泡下方选项

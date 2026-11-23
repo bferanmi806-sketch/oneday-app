@@ -53,6 +53,67 @@ final class AppState {
     /// Store 探活链唯一喂入、自检面等呈现层只读；判定
     /// 口径在 Core ConnectionStatus
     var connectionStatus = ConnectionStatus()
+    /// AI 自反应能力结论（DESIGN §432）：外观页
+    /// 「AI 反应」开关行的显隐单读此值——判定单源
+    /// 在 Core CapabilityNegotiation，本处只持有最
+    /// 近一次回读结论（按服务器落盘，换服务器不
+    /// 串）；未探得恒 unknown＝行不出（僵尸禁令）
+    private(set) var selfReactionsAvailability:
+        CapabilityAvailability = .unknown
+
+    private static let selfReactionsAvailabilityKey =
+        "selfReactionsAvailability.v1"
+
+    private static func storedSelfReactionsAvailability(
+        for base: String?
+    ) -> CapabilityAvailability {
+        guard let base,
+              let dict = UserDefaults.standard.dictionary(
+                forKey: selfReactionsAvailabilityKey
+              ) as? [String: String]
+        else { return .unknown }
+        switch dict[base] {
+        case "available": return .available
+        case "unavailable": return .unavailable
+        default: return .unknown
+        }
+    }
+
+    private static func storeSelfReactionsAvailability(
+        _ verdict: CapabilityAvailability, for base: String
+    ) {
+        guard verdict != .unknown else { return }
+        var dict = (UserDefaults.standard.dictionary(
+            forKey: selfReactionsAvailabilityKey
+        ) as? [String: String]) ?? [:]
+        dict[base] = verdict == .available
+            ? "available" : "unavailable"
+        UserDefaults.standard.set(
+            dict, forKey: selfReactionsAvailabilityKey
+        )
+    }
+
+    /// AI 自反应能力回读（§432）：外观页出现时
+    /// 调——已判 available 不重探（省一记 GET），
+    /// 其余态（未探/曾判无）每次重探：服务端后升
+    /// 级（部署包 1.8.0 应用）时用户重进外观即自
+    /// 愈见行。失败静默保旧结论（呈现降级不报
+    /// 错，§394 口径）；演示模式假客户端抛错同理
+    /// 恒保 unknown、行不出
+    func refreshSelfReactionsAvailability() async {
+        guard selfReactionsAvailability != .available,
+              let config, let apiKey,
+              let caps = try? await client.capabilities(
+                config: config, apiKey: apiKey
+              )
+        else { return }
+        let verdict =
+            CapabilityNegotiation.selfReactionsAvailability(caps)
+        selfReactionsAvailability = verdict
+        Self.storeSelfReactionsAvailability(
+            verdict, for: config.baseString
+        )
+    }
     /// 对话模型 id：探活第三步从 /v1/models 取第一个，缺失时回退实测值
     private(set) var modelID: String = "hermes-agent"
     // MARK: - §153 本会话模型（顶栏包 B1/B2/B4）
@@ -1001,6 +1062,12 @@ final class AppState {
             // 方法须在全部存储属性初始化之后（二轮 CI
             // 实证：前置调用报 self 未完全初始化）
             loadSessionModelChoices()
+            // §432：AI 自反应能力结论按当前服务器回
+            // 读落盘值播种（未连接/无记录恒 unknown）
+            selfReactionsAvailability =
+                Self.storedSelfReactionsAvailability(
+                    for: config?.baseString
+                )
         }
         let signalBox = WeakAppStateBox(self)
         if let hermesClient = client as? HermesClient {

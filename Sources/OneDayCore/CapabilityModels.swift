@@ -87,6 +87,14 @@ public struct CapabilitiesResponse: Decodable, Sendable {
         return nil
     }
 
+    /// AI 自反应能力位（部署包 1.8.0，CAPABILITIES
+    /// #19，DESIGN §432）：features.self_reactions
+    /// 布尔旗标；缺失回 nil（未广告），判定归
+    /// CapabilityNegotiation
+    public var selfReactionsSupported: Bool? {
+        featureFlag("self_reactions")
+    }
+
     /// 关键端点完整性（施工图 §1.5：缺失才上屏告警）
     public var missingKeyEndpoints: [String] {
         Self.keyEndpoints.filter { endpoints[$0] == nil }

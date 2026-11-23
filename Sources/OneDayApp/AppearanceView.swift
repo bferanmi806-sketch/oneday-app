@@ -97,6 +97,23 @@ struct AppearanceView: View {
     /// 省开，关＝长按回系统菜单「添加反应」子菜单
     @AppStorage(ChatReactionsFloatingBarFeature.defaultsKey)
     private var floatingBarEnabled = true
+    /// AI 反应（DESIGN §432）：键 chat.reactions.
+    /// aiSelf（Core ChatReactionsAISelfFeature 单一
+    /// 事实源），本页写、聊天页角标判定读；缺省
+    /// 开，关＝只隐藏本机呈现（数据不删、重开全量
+    /// 回来）。行显隐由服务端能力位门控（见
+    /// aiSelfRowVisible），无能力位整行不出
+    @AppStorage(ChatReactionsAISelfFeature.defaultsKey)
+    private var aiSelfReactionsEnabled = true
+
+    /// AI 反应行显隐（§432）：单读 AppState 的能力
+    /// 协商结论（Core SelfReactionsSettingsRow-
+    /// Policy 判定），未探得/未广告恒不出
+    private var aiSelfRowVisible: Bool {
+        SelfReactionsSettingsRowPolicy.isRowVisible(
+            availability: appState.selfReactionsAvailability
+        )
+    }
     /// 气泡样式（台账 179，OB-I1）：键 chatBubbleStyle
     /// （Core AppearanceStorageKeys 单源），本页写、
     /// Palette 圆角读口现读；缺省定版 standard
@@ -182,6 +199,9 @@ struct AppearanceView: View {
             modeSection
             replyPresentationSection
             languageSection
+        }
+        .task {
+            await appState.refreshSelfReactionsAvailability()
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
@@ -538,15 +558,37 @@ struct AppearanceView: View {
                     .foregroundStyle(Palette.ink)
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            // §432：AI 反应行——服务端未广告 self_
+            // reactions 能力位时整行不出（僵尸禁令）
+            if aiSelfRowVisible {
+                Toggle(isOn: $aiSelfReactionsEnabled) {
+                    Text(L10n.string("AI 反应"))
+                        .font(.rowTitleL)
+                        .foregroundStyle(Palette.ink)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+            }
         } header: {
             appearanceHeader(L10n.string("回复呈现"))
         } footer: {
-            Text(L10n.string("流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。反应浮排管长按消息时的反应入口：开着先浮出表情排，关掉回到菜单里的「添加反应」。"))
+            Text(replyPresentationFooter)
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
+    }
+
+    /// 回复呈现区脚（§432 增补）：AI 反应一句只在
+    /// 开关行在场时拼入——行不在场不提不存在的开
+    /// 关；句内写清关开关的语义（只关本机呈现、
+    /// 数据不删、重开全量回来，施工图 §4 口径）
+    private var replyPresentationFooter: String {
+        var text = L10n.string("流式增量呈现管回复怎么长出来：开着按块增量刷新，关掉回到逐词出现。打字动画只管新文字带不带渐显，与增量方式是两件事。系统开启减弱动态效果时，始终直接显示。反应浮排管长按消息时的反应入口：开着先浮出表情排，关掉回到菜单里的「添加反应」。")
+        if aiSelfRowVisible {
+            text += L10n.string("AI 反应管助手贴在你消息上的表情：关了只是本机不显示，记录还在，重新打开会全量回来。")
+        }
+        return text
     }
 
     // MARK: - ⑥ 语言（§145）

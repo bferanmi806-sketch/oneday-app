@@ -562,6 +562,15 @@ struct ChatView: View {
     /// 长按回 0.50.80 系统菜单子菜单形态
     @AppStorage(ChatReactionsFloatingBarFeature.defaultsKey)
     private var floatingBarEnabled = true
+    /// AI 反应开关（DESIGN §432；Core ChatReactions-
+    /// AISelfFeature 单一事实源，缺省开）：设置→外
+    /// 观→回复呈现写、本页角标判定读；关＝角标只在
+    /// 本机隐藏（数据不删、重开全量回来）。翻转经
+    /// nativeRowStyleKey 折入行修订，行高预留同步
+    /// 失效重算（快照侧同读本键，见 ChatEntry-
+    /// HeightSnapshot.aiSelfReactionsEnabled）
+    @AppStorage(ChatReactionsAISelfFeature.defaultsKey)
+    private var aiSelfReactionsEnabled = true
     /// 反应浮排会话（一次长按一份；nil＝无浮排）
     @State private var reactionBarSession: ReactionBarSession?
     @State private var streamSettleMap = StreamingSettleMap()
@@ -3786,6 +3795,7 @@ struct ChatView: View {
             components(Palette.bodyInk),
             components(Palette.inkSecondaryOnFill),
             components(Palette.userBubbleText),
+            aiSelfReactionsEnabled ? "ai1" : "ai0",
         ].joined(separator: "|")
     }
 
@@ -5422,7 +5432,7 @@ struct ChatView: View {
                 // ——悬出净深由行高合成器的 reactionReserve
                 // 同步预留（ChatReactionMetrics 单源）
                 .overlay(alignment: .bottomLeading) {
-                    reactionPill(for: entry)
+                    reactionChrome(for: entry)
                         .offset(
                             x: ChatReactionMetrics.cornerInset,
                             y: ChatReactionMetrics.hangDepth
@@ -5772,7 +5782,7 @@ struct ChatView: View {
             // 台账 187：反应 pill 压气泡底角·朝中线
             // 侧（AI 行右下，§334 正名），余口径同用户支
             .overlay(alignment: .bottomTrailing) {
-                reactionPill(for: entry)
+                reactionChrome(for: entry)
                     .offset(
                         x: -ChatReactionMetrics.cornerInset,
                         y: ChatReactionMetrics.hangDepth
@@ -5871,20 +5881,39 @@ struct ChatView: View {
         send()
     }
 
-    /// 反应 pill（台账 187）：镜像非空才在场——构
-    /// 建时同步已知（导入/回补/乐观写都先落镜像），
-    /// 无异步翻转；点自己的段＝撤回（applyReaction
-    /// 单写口），助手段只读。视图本体在 ChatReac-
-    /// tionViews（用户/助手两支共用一份形态）
+    /// 反应铬件（台账 187＋§432 分工）：镜像非空才
+    /// 在场——构建时同步已知（导入/回补/乐观写都
+    /// 先落镜像），无异步翻转。按 author 分型两
+    /// 面：自己的段走 pill（点段＝撤回，apply-
+    /// Reaction 单写口），助手的段走气泡角小角标
+    /// （AgentReactionBadgeView，在场判定 Core
+    /// AISelfReactionDecision 单点——开关关即不
+    /// 在场），两面同角并排、永不合并。视图本体
+    /// 在 ChatReactionViews（用户/助手两支共用一
+    /// 份形态与挂载几何）
     @ViewBuilder
-    private func reactionPill(for entry: ChatEntry) -> some View {
-        if !entry.reactions.isEmpty {
-            ReactionPillView(
-                reactions: entry.reactions,
-                onClearOwn: {
-                    applyReaction(nil, for: entry)
+    private func reactionChrome(for entry: ChatEntry) -> some View {
+        let own = MessageReactions.ownReactions(
+            in: entry.reactions
+        )
+        let badge = AISelfReactionDecision.badgeEmoji(
+            reactions: entry.reactions,
+            featureEnabled: aiSelfReactionsEnabled
+        )
+        if !own.isEmpty || badge != nil {
+            HStack(spacing: 6) {
+                if !own.isEmpty {
+                    ReactionPillView(
+                        reactions: own,
+                        onClearOwn: {
+                            applyReaction(nil, for: entry)
+                        }
+                    )
                 }
-            )
+                if let badge {
+                    AgentReactionBadgeView(emoji: badge)
+                }
+            }
         }
     }
 
