@@ -8107,7 +8107,17 @@ private struct ComposerBarLayout: Layout {
 
     private var trailingControl: some View {
         ZStack {
-            if trailingState.isDiscKey {
+            if trailingState == .stopAndSend {
+                // 修复包二锁一（§419）：双钮形态——停
+                // 止降为左侧裸符号小钮、主键仍是发送
+                // 圆盘（点按走排队落位）；两钮同排、
+                // 随状态交叉淡化
+                HStack(spacing: 2) {
+                    stopMiniButton
+                    sendStopButton
+                }
+                .transition(.opacity)
+            } else if trailingState.isDiscKey {
                 sendStopButton
                     .transition(.opacity)
             } else {
@@ -8130,8 +8140,15 @@ private struct ComposerBarLayout: Layout {
     /// 自动降级。圆盘与字号口径沿旧两键（直径
     /// ComposerLayout.buttonHeight、停止 12/发送 13）
     private var sendStopButton: some View {
-        Button {
-            if isStreaming {
+        // 修复包二锁一（§419）：圆盘键语义由 trail-
+        // ingState 裁决，不再直读 isStreaming——.stop
+        // 态出停止；.send/.stopAndSend 态出发送（流式
+        // 中有字时点按走排队落位，停止另有左侧小
+        // 钮）；符号形变仍在本键内走 symbolEffect
+        // （0.3.0 口径不变）
+        let isStopDisc = trailingState == .stop
+        return Button {
+            if isStopDisc {
                 // 0.31.0：停止＝runs 真取消（requestRun-
                 // Stop 发服务端 stop），不再是旧通道的
                 // 本地断流假取消
@@ -8140,8 +8157,8 @@ private struct ComposerBarLayout: Layout {
                 send()
             }
         } label: {
-            Image(systemName: isStreaming ? "stop.fill" : "arrow.up")
-                .font(.system(size: isStreaming ? 12 : 13, weight: .bold))
+            Image(systemName: isStopDisc ? "stop.fill" : "arrow.up")
+                .font(.system(size: isStopDisc ? 12 : 13, weight: .bold))
                 // 0.6.1：发送钮改 OpenMuse 原貌——浅蓝圆
                 // primaryPale＋深墨箭头 onPrimary（chat.tsx:
                 // 985/996），取代旧深蓝圆＋白箭头
@@ -8167,7 +8184,40 @@ private struct ComposerBarLayout: Layout {
                 )
         }
         .buttonStyle(.odPressable)
-        .accessibilityLabel(isStreaming ? "停止生成" : "发送")
+        .accessibilityLabel(isStopDisc ? "停止生成" : "发送")
+    }
+
+    /// 修复包二锁一（§419）：双钮形态的停止小钮——
+    /// 裸符号、无圆盘（与 mic 同呈现档），只在
+    /// .stopAndSend 态与发送圆盘同排出现；点按语义
+    /// 与圆盘停止键一致（requestRunStop 真取消当前
+    /// 轮；排队条目不清——停止只停当前轮口径不变）
+    private var stopMiniButton: some View {
+        Button {
+            requestRunStop()
+        } label: {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Palette.ink)
+                .frame(
+                    width: ComposerLayout.buttonHeight,
+                    height: ComposerLayout.buttonHeight
+                )
+                // 第 83 条（命中域收口）：与 mic 同式——
+                // 字形不变、命中域外扩 44、负内边距抵
+                // 消外扩、布局仍按 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel("停止生成")
     }
 
     /// （旧发送/停止两键已合并为 sendStopButton 变形键，见上。）
@@ -10009,7 +10059,13 @@ private struct ComposerBarLayout: Layout {
         // 损）；落盘构造与上下文拼装共用本值
         let combinedSourceQuote = sourceQuote
             ?? feedQuote.map(SourceQuote.feed)
-        guard !isStreaming, !text.isEmpty || !pending.isEmpty else { return }
+        // 修复包二锁二（§419）：守卫只把内容总闸——
+        // !isStreaming 摘除：流式中发送同路走下方构
+        // 造段，账本在席（在飞轮）时由 §414 账本分
+        // 支落位待发、轮终 drain 串行派发；「同会话
+        // 至多一轮在飞」改由出口 drain 守卫把守，
+        // 入口不再禁止
+        guard !text.isEmpty || !pending.isEmpty else { return }
         // D3（DESIGN §352）：编辑态在武装时发送分
         // 流——target 之后还有已落定轮次（rounds-
         // After>0）先弹破坏性确认：稿快照暂存、发
@@ -10178,10 +10234,22 @@ private struct ComposerBarLayout: Layout {
         // 0.31.0「同会话同时至多一轮在飞」的互斥不
         // 变——改的是投递面（落位排队），不是取消
         // 互斥
+        // 修复包二（§419）：流式在飞期主动发送同路
+        // 落位——发送守卫摘除 !isStreaming 后，生成
+        // 中发送时账本即在飞轮本体，落位形态与派
+        // 发链与本节同一套，触发面自此覆盖流式主
+        // 动发送
         if appState.runLedger.entry(forThreadID: thread.id)
             != nil {
             newEntry.markPendingSend(in: modelContext)
-            showNotice("上一条还在确认结果，这条已先记下，确认完会自动发送。")
+            // 修复包二（§419）：触发面扩到流式主动发
+            // 送后，流式在飞期落位静默——排队条目上
+            // 屏（时钟＋浅色）即反馈，不叠提示；非流
+            // 式滞留（切后台/杀进程遗留/对账未完）维
+            // 持 §414 提示口径
+            if !isStreaming {
+                showNotice("上一条还在确认结果，这条已先记下，确认完会自动发送。")
+            }
             Task { await resumeRunIfNeeded() }
             return
         }
