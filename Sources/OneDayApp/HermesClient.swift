@@ -1173,6 +1173,12 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
             "session_id": sessionID,
             "input": try input.encodedValue(),
             "model": model,
+            // 台账 154（§383）：与 Idempotency-Key 头同值
+            // 双带消息级幂等身份——hermes-deploy 1.5.0 起
+            // 服务端在头缺失时按 body 的 client_message_
+            // id 回原 run；旧服务端忽略未知字段、行为不
+            // 变，无能力探测开关
+            "client_message_id": idempotencyKey,
         ]
         // 逐请求切上游与 chat 通道同口径（§15）：清单
         // 内模型带 provider=custom 才按名落上游渠道

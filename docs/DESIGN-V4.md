@@ -15345,3 +15345,29 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §383 台账 154：消息级幂等去重——服务端 client_message_id 入部署包＋App 发件箱复用同一身份（2026-11-23；分支 feat/client-message-id，基线 rel-05098 @3f9598f；未组版、随后续版并入）
+
+### §383.1 缺口与定案（现状实查 2026-11-23）
+
+- 服务端：POST /v1/runs 的幂等是上游 v0.23.0 自带机制、**只认 Idempotency-Key 请求头**（RunIdempotencyStore：SQLite 落盘、键＝(scope, key)、scope＝sha256(鉴权主体)、指纹＝sha256(规范 JSON{body, gateway_session_key})、保留 24h；同键同体 202 回原 run＋replayed、同键异体 409 idempotency_key_conflict）；body 的 client_message_id 不被读取（能力注册表 #4 既有口径）。
+- App 主发送路径已合规：driveRun 提交前先落 RunLedgerEntry（持久化幂等键）、同键重试、账本重演取回。缺口在**跨 driveRun 的重发**：发件箱自动重试（OutboxAutoRetry/OutboxRetryStore，≤3 次）与手点重发每次都经 driveRun **新铸 UUID 键**，消息本体（ChatEntry）无持久身份达服务端——服务端已受理而 App 未知情（回执丢失/进程被杀于提交段）时重发＝新 run 重复投递。
+- 定案（双侧同 id）：①服务端入部署包 1.5.0——新增全文件补丁 patches/api_server_runs.py：无头时回退取 body 的 client_message_id 走同一 store 机器（语义/窗口/冲突与头路径完全一致、头优先、body 整体仍入指纹、字段非法 400 invalid_client_message_id），capabilities 的 runs_idempotency 加 client_message_id:true 探测旗。②App 侧 ChatEntry 持久化 clientMessageID：首轮驱动铸造落盘、一切重发复用、submitRun 头＋body 同值双带。
+
+### §383.2 App 落码清单
+
+- **Schema 升版（§332 规程第二次执行）**：ChatStore.swift 两模型逐字冻结为 ChatSchemaV2Models.swift（嵌套于 ChatSchemaV2、实体名不变）；ChatSchemaV2.models 改指冻结副本；新开 ChatSchemaV3（3.0.0）指现行模型、CurrentChatSchema 改指 V3；ChatMigrationPlan 追加 V2→V3 lightweight 段；SchemaFoundationAppTests 指纹登记 V3 全集（＝V2＋clientMessageID）＋V2 冻结集、迁移链计数 3 版 2 段、新增 V2 旧库迁移测、V1 迁移测备份名随现行版改 3.0.0。
+- ChatEntry 加 `clientMessageID: String? = nil`（可选＋默认 nil 轻量迁移；助手条目与存量恒 nil）。
+- ChatView.driveRun：非 demo 时幂等键改取条目 clientMessageID——已有则复用、nil 则铸造并 `modelContext.save()` 落盘后再建账本条目；单轮内账本重演口径不变；demo 仍现铸不落盘。
+- ChatView.resendFailedEntry：中段复制路随 remoteFilePathsData 一并转移 clientMessageID（同一条消息的重发）；editUnsentEntry 编辑回收路**不转移**——保存时新建条目＝新身份（内容已变、属新消息），与 §371 编辑语义一致。
+- HermesClient.submitRun：payload 加 `"client_message_id": idempotencyKey`（与头同值）。DemoHermesClient.submitRun 不构造请求体（C-13 签名/行为同构不变），无需改。
+- 新测 ClientMessageIDTests 3 项（默认 nil／落盘跨上下文回读／条目间独立）；submitRun 请求体字段为一行字典项、无既有网络桩接缝可钉（仓内客户端测一律走假客户端），以 diff 审＋服务端语义 harness 为据，此界限如实记账。
+
+### §383.3 服务端未上线期口径（不回退、不设开关）
+
+App 头＋body 同值双带：旧服务端忽略未知 body 字段、头键账本链（单轮重演）照常工作，行为与 0.50.98 完全一致；新服务端任一来源命中即去重。**不做能力探测开关**——双带本身即兼容形态，开关只会引入第二套行为面。服务端应用由主线报用户拍板后另行执行（方案＋回滚基线见 hermes-client-message-id-package-20261123.md），App 本包不依赖其先行。
+
+### §383.4 验证
+
+- 服务端包内本地验证 25/25（补丁模块＋上游真 Store 的 harness：字段解析全分支/指纹确定性/回放 202/冲突 409/能力旗），留档 hermes-deploy/verify-output-1.5.0-local-20261123.txt；行为级写型探针（真 HTTP 双提交）在应用时于一次性会话执行、默认不跑（CAPABILITIES #14）。
+- App 发布集口径回归（实跑 2026-11-23）：基底＝rel05098 bundle 97 套 817 项全限定名；SchemaFoundationAppTests 不在发布集 bundle 内（其指纹/迁移测历版单独跑），因本批动 schema 全套 11 项加跑（指纹测改名扩容＋V2 迁移测 +1）；ClientMessageIDTests 新套 3 项加跑 → 共 **831 项，实跑 831/831 全绿、0 红、0 跳过**（bundle Test-OneDayApp-idempotency，xcresulttool 逐项对账一致；S371/S373 在集内全绿）。首轮曾因 test-cmd.sh 未带 DEVELOPER_DIR 误走 Xcode 26.6 构建失败（LibraryListStoreC4Tests 严判类报错、与本批无关），按测试定版补 27.2 后第二轮即全绿——各线 test-cmd.sh 须自带 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer，运行器不代设。

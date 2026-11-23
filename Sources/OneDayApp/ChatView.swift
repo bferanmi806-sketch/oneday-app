@@ -10165,8 +10165,10 @@ private struct ComposerBarLayout: Layout {
     /// 用户条目时刻清其后条目（deleteTurnPartial-
     /// Entries），原地重发中段条目会误伤其后已落定
     /// 的轮次，只能复制。两路都汇进 launchTurn 同一
-    /// 链：新 run＋新幂等键由 driveRun 现铸、账本在
-    /// 飞守卫防叠发（与 send() 同一道闸），成功落定
+    /// 链：新 run 由 driveRun 驱动、幂等键复用原条
+    /// 目的 clientMessageID（§383，复制路一并转移：
+    /// 服务端回原 run 不双跑）、账本在飞守卫防叠发
+    /// （与 send() 同一道闸），成功落定
     /// 自动清标记、再失败由各失败分支重新挂上
     private func resendFailedEntry(_ entry: ChatEntry) {
         guard entry.sendFailed, !isStreaming,
@@ -10195,6 +10197,11 @@ private struct ComposerBarLayout: Layout {
                 sourceQuote: entry.sourceQuote
             )
             copy.remoteFilePathsData = entry.remoteFilePathsData
+            // §383：消息级幂等身份随复制转移——重发的
+            // 仍是同一条消息，服务端按此 id 回原 run；
+            // 编辑回收路径不转移（内容已变、新条目新
+            // 身份）
+            copy.clientMessageID = entry.clientMessageID
             modelContext.insert(copy)
             // 上传未成的载荷随复制转移（键随条目走）
             if let payloads = failedFilePayloads[entry.id] {
@@ -11082,11 +11089,29 @@ private struct ComposerBarLayout: Layout {
             serverSessionID: sessionID, threadID: thread.id
         )
         let provider = choice.providerField
+        // 台账 154（DESIGN §383）：消息级幂等身份——
+        // 账本幂等键自此取条目的 clientMessageID：首
+        // 轮铸造并落盘，之后发件箱自动重试/手点重发/
+        // 中段复制重发跨 driveRun 复用同一 id，服务
+        // 端按此 id 回原 run（hermes-deploy 1.5.0 的
+        // client_message_id 语义，头＋body 同值双带）；
+        // 单轮内账本重演口径不变。demo 无服务端、键
+        // 只在内存账本里用，仍现铸不落盘。
+        let idempotencyKey: String
+        if demoMode {
+            idempotencyKey = UUID().uuidString
+        } else if let existing = userEntry.clientMessageID {
+            idempotencyKey = existing
+        } else {
+            idempotencyKey = UUID().uuidString
+            userEntry.clientMessageID = idempotencyKey
+            try? modelContext.save()
+        }
         var ledgerEntry = RunLedgerEntry(
             threadID: thread.id.uuidString,
             sessionID: sessionID ?? "",
             runID: nil,
-            idempotencyKey: UUID().uuidString,
+            idempotencyKey: idempotencyKey,
             userEntryID: userEntry.id.uuidString,
             submittedAt: Date()
         )

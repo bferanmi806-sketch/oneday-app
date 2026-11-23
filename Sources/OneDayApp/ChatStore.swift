@@ -7,14 +7,15 @@ import SwiftData
 /// ——续聊导入时把服务端会话 id 落在 serverSessionID，
 /// 再点同一条服务端会话按 id 找回本线程、不重复导入。
 /// §332（根治版包 3）版本链：本文件两模型（Chat-
-/// Thread/ChatEntry）是**现行版本 ChatSchemaV2** 的
-/// 模型集（台账 187 升版：加 serverRowID/reac-
-/// tionsData 两可选字段）。V1 已复制冻结在 Chat-
-/// SchemaV1Models.swift、永不再改；下一次结构变
-/// 更同规程：冻结 V2、新模型进 ChatSchemaV3 并在
-/// ChatMigrationPlan 追加迁移段（见 ChatSchema.
-/// swift）。指纹由 SchemaFoundationAppTests 钉死，
-/// 原地改动必然在 CI 触发红。
+/// Thread/ChatEntry）是**现行版本 ChatSchemaV3** 的
+/// 模型集（台账 154 升版：ChatEntry 加 client-
+/// MessageID 可选字段）。V1/V2 已复制冻结在 Chat-
+/// SchemaV1Models.swift／ChatSchemaV2Models.swift、
+/// 永不再改；下一次结构变更同规程：冻结 V3、新模
+/// 型进 ChatSchemaV4 并在 ChatMigrationPlan 追加迁
+/// 移段（见 ChatSchema.swift）。指纹由 Schema-
+/// FoundationAppTests 钉死，原地改动必然在 CI 触
+/// 发红。
 @Model
 final class ChatThread {
     var id: UUID
@@ -248,11 +249,13 @@ final class ChatEntry {
     /// 基础止血包（P1/P2）：发送失败标记——本条用户
     /// 消息的一轮没能成立（上传/链接失败）或 run 落
     /// 定失败时置真：条目留原地、气泡旁挂失败标记、
-    /// 点标记以原条目重发（新 run＋新幂等键，不新建
-    /// 重复条目）；重发启动即清、再失败再置。发送队
-    /// 列正解的状态机全套归专包，本字段只承「失败」
-    /// 一态（默认 false、SwiftData 轻量迁移，同
-    /// isPinned 先例）
+    /// 点标记以原条目重发（新 run＋同一 clientMes-
+    /// sageID 复用，台账 154 起改口径：服务端按消息
+    /// 级幂等回原 run、不新建重复轮次；不新建重复条
+    /// 目）；重发启动即清、再失败再置。发送队列正解
+    /// 的状态机全套归专包，本字段只承「失败」一态
+    /// （默认 false、SwiftData 轻量迁移，同 isPinned
+    /// 先例）
     var sendFailed: Bool = false
     /// §237（基础正解批 P1）：发送队列状态原值
     /// （Core ChatSendState）——待发/上传中/链接中/
@@ -261,6 +264,17 @@ final class ChatEntry {
     /// markSendState 同步维护，不许再散写状态字面量
     /// （可选＋默认 nil、SwiftData 轻量迁移）
     var sendStateRaw: String? = nil
+    /// 台账 154（DESIGN §383）：消息级幂等身份——
+    /// 本条用户消息的 client_message_id：首轮驱动
+    /// （driveRun）时铸造并落盘，此后一切重发（发
+    /// 件箱自动重试/手点重发/中段复制重发）复用同
+    /// 一 id 出队，服务端（hermes-deploy 1.5.0 起）
+    /// 按此 id 在 24h 窗口内回原 run，治「已受理而
+    /// App 未知」窗口的重复投递。编辑回收再发走新
+    /// 条目＝新身份（内容已变、属新消息）。助手条
+    /// 目与历史存量条目恒 nil（可选＋默认 nil、
+    /// SwiftData 轻量迁移，随 ChatSchemaV3 升版）
+    var clientMessageID: String? = nil
     /// 聊天可靠性包（2026-11-13）：发送投递状态——
     /// nil＝已投递/不适用；"pending"＝本条已在本地
     /// 落盘成形、但服务端尚未受理（发送准备阶段的
