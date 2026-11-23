@@ -130,7 +130,7 @@ final class CacheFreshnessGateC1Tests: XCTestCase {
 
         let created = await store.create(
             appState: appState, title: "新目标", note: "",
-            milestoneTitles: [], parentId: nil, category: nil
+            parentId: nil, category: nil
         )
         XCTAssertTrue(created)
         XCTAssertEqual(script.createGoalCount, 1)

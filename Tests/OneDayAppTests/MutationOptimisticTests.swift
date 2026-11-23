@@ -66,9 +66,6 @@ final class MutationOptimisticTests: XCTestCase {
     private func goal() -> BridgeGoal {
         BridgeGoal(
             id: "g1", title: "目标", note: "",
-            milestones: [
-                BridgeMilestone(id: "m1", title: "一", done: false),
-            ],
             createdAt: 1, updatedAt: 2
         )
     }
@@ -76,26 +73,9 @@ final class MutationOptimisticTests: XCTestCase {
     func testGoalApplyReplacesRowImmediately() {
         let store = GoalsStore()
         store.installLoadedGoals([goal()])
-        store.applyGoal(goal().withMilestoneDone(id: "m1", done: true))
-        XCTAssertEqual(
-            store.goal(id: "g1")?.milestones.first?.done, true
-        )
         store.applyGoal(goal().withStatus(.completed, completedAt: 9))
         XCTAssertEqual(store.goal(id: "g1")?.status, .completed)
         XCTAssertEqual(store.goal(id: "g1")?.completedAt, 9)
-    }
-
-    func testToggleMilestoneWithoutConfigDoesNotFlip() async {
-        let store = GoalsStore()
-        store.installLoadedGoals([goal()])
-        let ok = await store.toggleMilestone(
-            appState: AppState(), goalID: "g1", milestoneID: "m1"
-        )
-        XCTAssertFalse(ok)
-        XCTAssertEqual(
-            store.goal(id: "g1")?.milestones.first?.done, false
-        )
-        XCTAssertNotNil(store.notes["g1"])
     }
 
     func testSetStatusWithoutConfigDoesNotFlip() async {

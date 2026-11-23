@@ -11,18 +11,15 @@ public struct BridgeTaskGoalAssignment: Codable, Equatable, Sendable {
     public var taskId: String
     /// 归属目标 id；nil＝未归类
     public var goalId: String?
-    /// 归到目标下哪个里程碑（桥校验属该目标）；可空
-    public var milestoneId: String?
     /// 归属落字时刻（epoch 秒）；未归类时为 nil
     public var assignedAt: Double?
 
     public init(
         taskId: String, goalId: String?,
-        milestoneId: String? = nil, assignedAt: Double? = nil
+        assignedAt: Double? = nil
     ) {
         self.taskId = taskId
         self.goalId = goalId
-        self.milestoneId = milestoneId
         self.assignedAt = assignedAt
     }
 }
@@ -33,15 +30,13 @@ public struct BridgeTaskGoalAssignment: Codable, Equatable, Sendable {
 /// 「键在不在」区分清除与漏传，漏传是 400）
 public struct BridgeTaskGoalWrite: Encodable, Sendable {
     public var goalId: String?
-    public var milestoneId: String?
 
-    public init(goalId: String?, milestoneId: String? = nil) {
+    public init(goalId: String?) {
         self.goalId = goalId
-        self.milestoneId = milestoneId
     }
 
     private enum CodingKeys: String, CodingKey {
-        case goalId, milestoneId
+        case goalId
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -51,7 +46,6 @@ public struct BridgeTaskGoalWrite: Encodable, Sendable {
         } else {
             try container.encodeNil(forKey: .goalId)
         }
-        try container.encodeIfPresent(milestoneId, forKey: .milestoneId)
     }
 }
 
@@ -62,15 +56,13 @@ public struct BridgeTaskGoalWrite: Encodable, Sendable {
 /// 回原归属，不重复建卡
 public struct BridgeGoalDelegateRequest: Encodable, Sendable {
     public var title: String
-    public var milestoneId: String?
     public var idempotencyKey: String?
 
     public init(
-        title: String, milestoneId: String? = nil,
+        title: String,
         idempotencyKey: String? = nil
     ) {
         self.title = title
-        self.milestoneId = milestoneId
         self.idempotencyKey = idempotencyKey
     }
 }
@@ -80,18 +72,16 @@ public struct BridgeGoalDelegateRequest: Encodable, Sendable {
 public struct BridgeGoalDelegateResponse: Decodable, Equatable, Sendable {
     public var taskId: String
     public var goalId: String?
-    public var milestoneId: String?
     public var assignedAt: Double?
     public var title: String?
 
     public init(
         taskId: String, goalId: String?,
-        milestoneId: String? = nil, assignedAt: Double? = nil,
+        assignedAt: Double? = nil,
         title: String? = nil
     ) {
         self.taskId = taskId
         self.goalId = goalId
-        self.milestoneId = milestoneId
         self.assignedAt = assignedAt
         self.title = title
     }

@@ -98,6 +98,18 @@ struct GoalsView: View {
             .task {
                 await store.loadIfNeeded(appState: appState)
             }
+            .task {
+                // G-3a（2026-11-24）：目标面可见期间每
+                // 30 秒指纹重验，指纹没变零扰动；智能
+                // 体新记的进展不用退出重进就能看见
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(30))
+                    if Task.isCancelled { break }
+                    await store.revalidateFingerprints(
+                        appState: appState
+                    )
+                }
+            }
             .sheet(item: $createSheet) { sheet in
                 switch sheet {
                 case .categories:

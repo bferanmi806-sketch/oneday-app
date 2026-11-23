@@ -6,7 +6,7 @@ import Foundation
 /// 总览桥同一把、用户零新增粘贴）。契约逐字冻结：
 ///
 /// - GET    /goals → {items:[Goal]}；POST /goals → 201 Goal
-/// - PATCH  /goals/{id}（milestones 全量替换）；DELETE → {ok:true}
+/// - PATCH  /goals/{id}（标题/备注编辑）；DELETE → {ok:true}
 /// - GET    /ideas → {items:[Idea]}；POST /ideas → 201 Idea
 /// - DELETE /ideas/{id} → {ok:true}
 /// - 时间一律 epoch 秒（float）；title 空 → 400、id 不存在 → 404
@@ -16,18 +16,10 @@ import Foundation
 
 // MARK: - 目标 DTO
 
-public struct BridgeMilestone: Codable, Equatable, Identifiable, Sendable {
-    public let id: String
-    public let title: String
-    public let done: Bool
-
-    public init(id: String, title: String, done: Bool) {
-        self.id = id
-        self.title = title
-        self.done = done
-    }
-}
-
+/// G-6（2026-11-24）：里程碑整概念移除——Muse 数据模型
+/// 里没有里程碑，目标的拆解靠子目标（一层）＋进展条目
+/// 流。桥 1.0.71 起目标视图不再下发 milestones 字段；
+/// 本模型同步摘除 BridgeMilestone 与全部勾选/进度派生
 /// 目标状态（P2，设计档 §2.4 状态机）：只有 active/
 /// completed 两态（学 Muse，无暂停态）；未知值按
 /// active 收（宽容解码口径，与点子状态同纪律）
@@ -271,7 +263,11 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
     /// 契约全形带 note；缺失/null 按空串收（不因备注
     /// 字段漂移整表解码失败）
     public let note: String
-    public let milestones: [BridgeMilestone]
+    /// G-3a（2026-11-24）：条目指纹（桥 _goal_view 按条目
+    /// 数＋最新条目＋目标 updatedAt 现算的 sha1 短串）；
+    /// App 在面期间拿它做条件重验——指纹变了才全量重
+    /// 拉。旧桥载荷缺失时为 nil（重验自然不触发）
+    public let entriesFingerprint: String?
     /// epoch 秒（float）
     public let createdAt: Double
     public let updatedAt: Double
@@ -299,7 +295,7 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
 
     public init(
         id: String, title: String, note: String,
-        milestones: [BridgeMilestone],
+        entriesFingerprint: String? = nil,
         createdAt: Double, updatedAt: Double,
         status: GoalStatus = .active, completedAt: Double? = nil,
         parentId: String? = nil, source: GoalSource = .manual,
@@ -310,7 +306,7 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
         self.id = id
         self.title = title
         self.note = note
-        self.milestones = milestones
+        self.entriesFingerprint = entriesFingerprint
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.status = status
@@ -323,7 +319,7 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, title, note, milestones, createdAt, updatedAt
+        case id, title, note, entriesFingerprint, createdAt, updatedAt
         case status, completedAt, parentId, source, latestEntry
         case category, activity
     }
@@ -333,9 +329,9 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
         id = try container.decode(String.self, forKey: .id)
         title = try container.decode(String.self, forKey: .title)
         note = try container.decodeIfPresent(String.self, forKey: .note) ?? ""
-        milestones = try container.decodeIfPresent(
-            [BridgeMilestone].self, forKey: .milestones
-        ) ?? []
+        entriesFingerprint = try container.decodeIfPresent(
+            String.self, forKey: .entriesFingerprint
+        )
         createdAt = try container.decodeIfPresent(
             Double.self, forKey: .createdAt
         ) ?? 0
@@ -365,28 +361,6 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
         )
     }
 
-    /// 里程碑勾选的本地乐观副本（§233）：只翻一项
-    /// done，其余字段原样。服务端仍是真源——写后回
-    /// 读整表替换，失败以原副本恢复呈现
-    public func withMilestoneDone(
-        id: String, done: Bool
-    ) -> BridgeGoal {
-        BridgeGoal(
-            id: self.id, title: title, note: note,
-            milestones: milestones.map {
-                $0.id == id
-                    ? BridgeMilestone(
-                        id: $0.id, title: $0.title, done: done
-                    )
-                    : $0
-            },
-            createdAt: createdAt, updatedAt: updatedAt,
-            status: status, completedAt: completedAt,
-            parentId: parentId, source: source,
-            category: category, latestEntry: latestEntry
-        )
-    }
-
     /// 状态流转的本地乐观副本（§233）：completedAt
     /// 由桥在流转时落字，乐观期由调用方以本地时刻占
     /// 位（重开传 nil），回读后以桥值为准
@@ -395,7 +369,7 @@ public struct BridgeGoal: Decodable, Equatable, Identifiable, Sendable {
     ) -> BridgeGoal {
         BridgeGoal(
             id: id, title: title, note: note,
-            milestones: milestones,
+            entriesFingerprint: entriesFingerprint,
             createdAt: createdAt, updatedAt: updatedAt,
             status: status, completedAt: completedAt,
             parentId: parentId, source: source,
@@ -932,22 +906,12 @@ public struct BridgeOKResponse: Decodable, Equatable, Sendable {
 
 // MARK: - 请求体（POST 新建目标）
 
-/// 新建目标时里程碑只有标题（id 与 done 由服务端定）
-public struct BridgeMilestoneDraft: Encodable, Equatable, Sendable {
-    public let title: String
-
-    public init(title: String) {
-        self.title = title
-    }
-}
-
-/// POST /goals 请求体：{title, note?, milestones?,
+/// POST /goals 请求体：{title, note?,
 /// parentId?, source?, category?}——可选字段为 nil 时不
 /// 落键（合成 Encodable 对 Optional 走 encodeIfPresent）
 public struct BridgeGoalCreateRequest: Encodable, Equatable, Sendable {
     public let title: String
     public let note: String?
-    public let milestones: [BridgeMilestoneDraft]?
     /// P2：子目标创建带父 id（桥校验父存在且为顶层）
     public let parentId: String?
     /// P2：创建来源；App 表单/子目标添加恒 manual，
@@ -959,35 +923,27 @@ public struct BridgeGoalCreateRequest: Encodable, Equatable, Sendable {
 
     public init(
         title: String, note: String?,
-        milestones: [BridgeMilestoneDraft]?,
         parentId: String? = nil, source: GoalSource? = nil,
         category: GoalCategory? = nil
     ) {
         self.title = title
         self.note = note
-        self.milestones = milestones
         self.parentId = parentId
         self.source = source
         self.category = category
     }
 
-    /// 表单口径收口：标题/备注去首尾空白，备注空→不带
-    /// 字段、里程碑空标题行剔除、全空→不带字段
+    /// 表单口径收口：标题/备注去首尾空白，备注空→不带字段
     public static func make(
-        title: String, note: String, milestoneTitles: [String],
+        title: String, note: String,
         parentId: String? = nil, category: GoalCategory? = nil
     ) -> BridgeGoalCreateRequest {
         let trimmedNote = note.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
-        let drafts = milestoneTitles
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .map { BridgeMilestoneDraft(title: $0) }
         return BridgeGoalCreateRequest(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             note: trimmedNote.isEmpty ? nil : trimmedNote,
-            milestones: drafts.isEmpty ? nil : drafts,
             parentId: parentId,
             source: parentId == nil ? nil : .manual,
             category: category
@@ -1043,22 +999,32 @@ public struct BridgeGoalEntry: Decodable, Equatable, Identifiable, Sendable {
     public let goalId: String
     public let body: String
     public let source: GoalEntrySource
+    /// G-2（2026-11-24）：条目标题（桥 1.0.70 起可选下
+    /// 发——后台提炼记账与迁移历史带的题）；详情时间线
+    /// 在正文上方以半粗呈现，无题为 nil
+    public let title: String?
+    /// G-2：条目来源标记（如 bookkeeping＝日结提炼）；
+    /// 呈现不直接用，只作数据完整——旧载荷为 nil
+    public let origin: String?
     /// epoch 秒（float）
     public let createdAt: Double
 
     public init(
         id: String, goalId: String, body: String,
-        source: GoalEntrySource, createdAt: Double
+        source: GoalEntrySource, createdAt: Double,
+        title: String? = nil, origin: String? = nil
     ) {
         self.id = id
         self.goalId = goalId
         self.body = body
         self.source = source
         self.createdAt = createdAt
+        self.title = title
+        self.origin = origin
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, goalId, body, source, createdAt
+        case id, goalId, body, source, createdAt, title, origin
     }
 
     public init(from decoder: Decoder) throws {
@@ -1072,6 +1038,8 @@ public struct BridgeGoalEntry: Decodable, Equatable, Identifiable, Sendable {
         createdAt = try container.decodeIfPresent(
             Double.self, forKey: .createdAt
         ) ?? 0
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        origin = try container.decodeIfPresent(String.self, forKey: .origin)
     }
 }
 
@@ -1260,127 +1228,29 @@ public struct BridgeBriefingsResponse: Decodable, Equatable, Sendable {
     }
 }
 
-// MARK: - 请求体（PATCH 目标：milestones 全量替换）
+// MARK: - 请求体（PATCH 目标：标题＋备注）
 
-/// PATCH 里程碑全量替换的单条：已有条带 id（服务端
-/// 按 id 对齐）、新建条 id 为 nil 不落键（服务端发新 id）
-public struct BridgeMilestonePatch: Encodable, Equatable, Sendable {
-    public let id: String?
-    public let title: String
-    public let done: Bool
-
-    public init(id: String?, title: String, done: Bool) {
-        self.id = id
-        self.title = title
-        self.done = done
-    }
-}
-
-/// PATCH /goals/{id} 请求体：标题＋备注＋里程碑全量。
-/// 冻结合约只点名 milestones 全量替换；标题/备注编辑
-/// 同走本端点（编辑保存一次 PATCH 送全形）
+/// PATCH /goals/{id} 请求体：标题＋备注（G-6 起里程
+/// 碑整概念移除，编辑保存一次 PATCH 只送这两项；桥
+/// 侧对 milestones 键已转忽略，旧版 App 的全量体不会
+/// 再把里程碑写回）
 public struct BridgeGoalPatchRequest: Encodable, Equatable, Sendable {
     public let title: String
     public let note: String
-    public let milestones: [BridgeMilestonePatch]
 
-    public init(
-        title: String, note: String,
-        milestones: [BridgeMilestonePatch]
-    ) {
+    public init(title: String, note: String) {
         self.title = title
         self.note = note
-        self.milestones = milestones
-    }
-}
-
-/// 编辑草稿里的一条里程碑（详情编辑器与计划组装共用形）
-public struct MilestoneDraftState: Equatable, Sendable {
-    /// 已有条带服务端 id；新建条为 nil
-    public let id: String?
-    public var title: String
-    public var done: Bool
-
-    public init(id: String?, title: String, done: Bool) {
-        self.id = id
-        self.title = title
-        self.done = done
-    }
-}
-
-/// PATCH 体组装计划（纯函数，单测钉死）：勾选与编辑
-/// 保存共用同一条全量替换口径——不做增量 PATCH，
-/// 每次都把标题/备注/里程碑全量送出，服务端以此为准
-public enum GoalPatchPlan {
-    /// 勾选翻转：以服务端现值为底，只翻目标条的 done，
-    /// 其余条 id/标题/done 原样全量带回。id 不存在 → nil
-    /// （调用方不发请求、不假装成功）
-    public static func toggle(
-        goal: BridgeGoal, milestoneID: String
-    ) -> BridgeGoalPatchRequest? {
-        guard goal.milestones.contains(where: { $0.id == milestoneID })
-        else { return nil }
-        let milestones = goal.milestones.map { milestone in
-            BridgeMilestonePatch(
-                id: milestone.id,
-                title: milestone.title,
-                done: milestone.id == milestoneID
-                    ? !milestone.done : milestone.done
-            )
-        }
-        return BridgeGoalPatchRequest(
-            title: goal.title, note: goal.note, milestones: milestones
-        )
     }
 
-    /// 编辑保存：标题/备注取草稿（去首尾空白），里程碑
-    /// 取草稿全量（空标题行剔除，与新建口径一致）
-    public static func update(
-        title: String, note: String, milestones: [MilestoneDraftState]
+    /// 编辑保存口径：标题/备注去首尾空白（与新建同口径）
+    public static func edited(
+        title: String, note: String
     ) -> BridgeGoalPatchRequest {
-        let kept = milestones
-            .map {
-                MilestoneDraftState(
-                    id: $0.id,
-                    title: $0.title.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ),
-                    done: $0.done
-                )
-            }
-            .filter { !$0.title.isEmpty }
-        return BridgeGoalPatchRequest(
+        BridgeGoalPatchRequest(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            note: note.trimmingCharacters(in: .whitespacesAndNewlines),
-            milestones: kept.map {
-                BridgeMilestonePatch(id: $0.id, title: $0.title, done: $0.done)
-            }
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines)
         )
-    }
-}
-
-// MARK: - 进度派生
-
-/// 目标进度（列表卡 x/y 与进度条共用，全 App 只此一处算）
-public enum GoalProgress {
-    public static func counts(of goal: BridgeGoal) -> (done: Int, total: Int) {
-        (
-            done: goal.milestones.count(where: { $0.done }),
-            total: goal.milestones.count
-        )
-    }
-
-    /// 进度条填充比例；无里程碑为 0（不拿 0/0 说成完成）
-    public static func fraction(of goal: BridgeGoal) -> Double {
-        let counts = counts(of: goal)
-        guard counts.total > 0 else { return 0 }
-        return Double(counts.done) / Double(counts.total)
-    }
-
-    /// 列表卡进度短文案：「2/5」
-    public static func text(of goal: BridgeGoal) -> String {
-        let counts = counts(of: goal)
-        return "\(counts.done)/\(counts.total)"
     }
 }
 
@@ -1432,9 +1302,9 @@ public enum GoalBoard {
     }
 
     /// 行内进展摘要的来源（设计档 §2.4）：最新一条进展
-    /// 条目优先；无条目时回既有口径——备注，再无备注而
-    /// 有里程碑时给「x/y 里程碑」；全无则空串（行只剩
-    /// 标题，不编造近况）
+    /// 条目优先；无条目时回备注；全无则空串（行只剩
+    /// 标题，不编造近况）。G-6 后里程碑兜底分支随概念
+    /// 一并移除
     public static func summary(
         for goal: BridgeGoal, latestEntry: BridgeGoalEntry?
     ) -> String {
@@ -1444,18 +1314,7 @@ public enum GoalBoard {
         if !goal.note.isEmpty {
             return goal.note
         }
-        if !goal.milestones.isEmpty {
-            return "\(GoalProgress.text(of: goal)) 里程碑"
-        }
         return ""
-    }
-
-    /// 里程碑全勾（且至少一个）：呈现「可以完成了」的
-    /// 事实判据——只是提示，完成永远由用户点（状态机
-    /// 口径：系统不替用户下结论）
-    public static func allMilestonesDone(_ goal: BridgeGoal) -> Bool {
-        !goal.milestones.isEmpty
-            && goal.milestones.allSatisfy { $0.done }
     }
 }
 

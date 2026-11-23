@@ -16863,3 +16863,14 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - UI 补跑（bundle Test-TopBar434UI-rel05106.xcresult）：testHubLayoutWithFullCatalog 过；testTopBarSingleActionDispatch 红——失败文（:137，命中盘宽 67.0、间隙点 fired=model）与 §434 分支本体（feat/header-zoom @9db3c06，对照 bundle Test-TopBar434UI-branch.xcresult）**逐字同形**，判分支既存、非合并引入；该测 §434 自记「其真跑归组版 CI」，本次为其首次真跑现形，修复归 §434 线后续（顶簇命中几何：头像钮命中盘 67≠44、两元素间隔 <8pt、间隙死区未成立），不拦本版（发布集外）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05106-release）；~/build/OneDay-0.50.106.ipa，16,762,717 字节，md5 c76da88b0be7245a72d8526ba1223e33；本体三值亲验 0.50.106／234／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本机 ~/workspace/oneday-releases/）。
 - 分支 rel-05106 未 push、未打 tag（主线处置）；需求总表 0.50.106 版本行与真机复验清单待主线组版复核时入账。
+
+## §460 目标对齐 C/D 段 App 半边（2026-11-24，feat/goals-align-cd，基线 rel-05106 @3b2d9ea）
+
+施工图正本＝主线工作区 oneday-design-review/goals-parity-audit-20261124.md（G-3a/G-5/G-6 App 半边＋G-2 条目标题呈现）。服务端半边已随 companion 1.0.71 上线（同日，部署包 hermes-deploy 清单 1.0.71 条）：目标视图 entriesFingerprint、看板轮询 15 秒＋会话复用（回声延迟实测 15.2 秒 ≤30 秒验收）、里程碑服务端整概念移除、generate 端点内部化（无回调钥 404）。
+
+- **G-3a 在面指纹重验**：BridgeGoal 加 entriesFingerprint（可选解码，旧载荷 nil）；GoalsStore.installLoadedGoals 同步落 goalFingerprints；revalidateFingerprints 拉列表比对指纹集——全等零扰动，有变才装载新名单并给 detailLoadedIDs 内且指纹变了的目标 refetchEntries。GoalsView 与 GoalDetailView 各挂一条 30 秒 .task 循环（视图消失即取消）。钉测 GoalsFingerprintRevalidationTests 2 法（同指纹零条目回拉／变指纹换名单＋已开详情条目回拉），脚本客户端 BridgeScript 增 entriesByGoal 出演与 goalEntriesCount 计数。
+- **G-2 条目标题呈现**：BridgeGoalEntry 加 title/origin（可选解码）；详情时间线 entryRow 在来源行与正文之间加半粗标题行（有题才显）。origin 只作数据完整、不单独呈现（来源标签已覆盖出处语义）。
+- **G-6 里程碑移除（App 全面）**：模型层删 BridgeMilestone/BridgeMilestoneDraft/BridgeMilestonePatch/MilestoneDraftState/GoalPatchPlan/GoalProgress 与 BridgeGoal.milestones、withMilestoneDone；新建/编辑请求体只剩标题/备注（BridgeGoalPatchRequest.edited 收口去空白）；GoalBoard.summary 删里程碑兜底分支、allMilestonesDone 删除；GoalTaskAssignment 三写体与归属/委派回执删 milestoneId 字段（BridgeGoalTask 读面字段保留——桥任务行仍下发该键恒 null，解码兼容）。呈现层删：详情里程碑段与头部进度条＋「可以标为完成」提示、编辑表单里程碑组、新建表单里程碑组、委派表单挂里程碑选择器、GoalListRows.MilestoneCheckRow。GoalsStore 删 toggleMilestone，create/saveEdits/delegateTask 同步去参。测试改写：OneDayBridgeModelsTests（旧样本 milestones 键转解码忽略钉＋指纹/条目标题解码钉＋PATCH 体只剩两键钉）、GoalDepthTests（summary 口径＋删 allMilestonesDone 测）、GoalCategoryTests（归属解码去 milestoneId 断言）、MutationOptimistic(Core)Tests（删里程碑乐观段、状态副本改钉指纹不动）、CacheFreshnessGateC1/ScriptedBridgeClient（去 milestones 构造参）。
+- **G-5 子目标核对（App 侧销项）**：详情 subgoalsSection 与服务端规则逐项对齐——子目标只在顶层目标详情出现（parentId==nil 门）、恰一层（子目标详情不再长子目标段）、完成子目标不自动完成父目标（文案与服务端行为一致）、删目标弹窗明示子目标一并删（服务端级联已验）。无代码改动。
+- **G-7 App 侧**：全仓无 briefings/generate 调用点（已核），无改动；端点收口在服务端完成。
+- 真机门：目标面停留时智能体记进展 ≤约 30 秒内自现、详情开着时回声条目自达、条目标题呈现——归组版真机 verdict，不以实验室绿关账。

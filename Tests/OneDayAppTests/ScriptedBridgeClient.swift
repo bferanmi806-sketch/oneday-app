@@ -25,10 +25,12 @@ final class BridgeScript: @unchecked Sendable {
     var goalsCount = 0
     var createGoalCount = 0
     var ungroupedCount = 0
+    var goalEntriesCount = 0
 
     var feedPostsResult: [BridgeFeedPost] = []
     var ideasList: [BridgeIdea] = []
     var goalsList: [BridgeGoal] = []
+    var entriesByGoal: [String: [BridgeGoalEntry]] = [:]
     private var createdIdeaSeq = 0
     private var createdGoalSeq = 0
 
@@ -47,7 +49,7 @@ final class BridgeScript: @unchecked Sendable {
         createdGoalSeq += 1
         let goal = BridgeGoal(
             id: "goal-created-\(createdGoalSeq)",
-            title: "脚本新建目标", note: "", milestones: [],
+            title: "脚本新建目标", note: "",
             createdAt: 1, updatedAt: 1
         )
         goalsList.append(goal)
@@ -183,6 +185,10 @@ struct ScriptedBridgeClient: OneDayBridgeClientProtocol {
     func goalEntries(
         config: ServerConfig, goalID: String
     ) async throws -> [BridgeGoalEntry] {
+        script.goalEntriesCount += 1
+        if let entries = script.entriesByGoal[goalID] {
+            return entries
+        }
         throw stub
     }
 

@@ -5,10 +5,10 @@ import SwiftUI
 
 /// A-11 结构拆分（2026-11-16）：自 GoalsView.swift 按职责拆出（编辑/新建/委派三表单），内容逐字未改、零行为变更（DESIGN §311）。
 
-/// 目标编辑（sheet，0.33.0 自详情拆出）：草稿全量编辑
-/// ——标题/备注/里程碑勾选·改名·增删都在本地草稿里改，
-/// 保存时一次 PATCH 全量替换（已有里程碑 id 原样带
-/// 回）＋回读逐项对账确认（GoalsStore.saveEdits）
+/// 目标编辑（sheet，0.33.0 自详情拆出）：草稿编辑
+/// ——标题/备注在本地草稿里改，保存时一次 PATCH＋
+/// 回读对账确认（GoalsStore.saveEdits）；G-6 后里程
+/// 碑已随概念移除，编辑面只剩标题/备注/类别
 struct GoalEditView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -19,8 +19,6 @@ struct GoalEditView: View {
     @State private var title: String
     @State private var note: String
     @State private var category: GoalCategory?
-    @State private var milestones: [MilestoneDraftState]
-    @State private var newMilestoneTitle = ""
     @State private var isSaving = false
     @State private var saveError: String?
 
@@ -31,9 +29,6 @@ struct GoalEditView: View {
         _title = State(initialValue: goal?.title ?? "")
         _note = State(initialValue: goal?.note ?? "")
         _category = State(initialValue: goal?.category)
-        _milestones = State(initialValue: (goal?.milestones ?? []).map {
-            MilestoneDraftState(id: $0.id, title: $0.title, done: $0.done)
-        })
     }
 
     private var acting: Bool {
@@ -47,7 +42,6 @@ struct GoalEditView: View {
                     alignment: .leading, spacing: OneDayMetrics.spacingL
                 ) {
                     fieldsGroup
-                    milestonesGroup
                     if let saveError {
                         InlineError(saveError)
                     }
@@ -110,73 +104,13 @@ struct GoalEditView: View {
         }
     }
 
-    private var milestonesGroup: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("里程碑")
-                .padding(.bottom, OneDayMetrics.spacingS)
-            VStack(spacing: 0) {
-                ForEach(milestones.indices, id: \.self) { index in
-                    if index > 0 {
-                        GroupDivider()
-                    }
-                    HStack(spacing: OneDayMetrics.spacingS) {
-                        MilestoneCheckRow(
-                            done: milestones[index].done,
-                            title: milestones[index].title
-                        ) {
-                            milestones[index].done.toggle()
-                        }
-                        Button(role: .destructive) {
-                            milestones.remove(at: index)
-                        } label: {
-                            Image(systemName: "minus.circle")
-                                .foregroundStyle(Palette.inkMuted)
-                                .frame(
-                                    width: OneDayMetrics.minTapTarget,
-                                    height: OneDayMetrics.minTapTarget
-                                )
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.odPressable)
-                    }
-                    .padding(.horizontal, OneDayMetrics.spacingM)
-                    .padding(.vertical, OneDayMetrics.spacingSM)
-                }
-                if !milestones.isEmpty {
-                    GroupDivider()
-                }
-                HStack(spacing: OneDayMetrics.spacingS) {
-                    TextField("新增里程碑", text: $newMilestoneTitle)
-                    Button("添加") {
-                        let trimmed = newMilestoneTitle.trimmingCharacters(
-                            in: .whitespacesAndNewlines
-                        )
-                        guard !trimmed.isEmpty else { return }
-                        milestones.append(
-                            MilestoneDraftState(
-                                id: nil, title: trimmed, done: false
-                            )
-                        )
-                        newMilestoneTitle = ""
-                    }
-                    .disabled(newMilestoneTitle.trimmingCharacters(
-                        in: .whitespacesAndNewlines
-                    ).isEmpty)
-                }
-                .padding(.horizontal, OneDayMetrics.spacingM)
-                .padding(.vertical, OneDayMetrics.spacingSM)
-            }
-            .odGroup()
-        }
-    }
-
     private func save() async {
         isSaving = true
         saveError = nil
         defer { isSaving = false }
         let ok = await store.saveEdits(
             appState: appState, goalID: goalID, title: title,
-            note: note, milestones: milestones
+            note: note
         )
         guard ok else {
             saveError = store.notes[goalID]
@@ -199,11 +133,11 @@ struct GoalEditView: View {
     }
 }
 
-/// 新建目标（sheet）：标题＋备注＋里程碑标题行（可多
-/// 行添加），创建走 GoalsStore 的回读确认——确认出现
-/// 才关表单，未确认原因留表单内。0.40.0：从分类流进来
-/// 时类别已预置（presetCategory），表单里有类别行可
-/// 改可清；不经分类流的入口类别行为未分类
+/// 新建目标（sheet）：标题＋备注，创建走 GoalsStore
+/// 的回读确认——确认出现才关表单，未确认原因留表单
+/// 内。0.40.0：从分类流进来时类别已预置
+/// （presetCategory），表单里有类别行可改可清；不经
+/// 分类流的入口类别行为未分类
 struct GoalCreateView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -214,7 +148,6 @@ struct GoalCreateView: View {
     @State private var title = ""
     @State private var note = ""
     @State private var category: GoalCategory?
-    @State private var milestoneTitles: [String] = []
 
     init(store: GoalsStore, presetCategory: GoalCategory? = nil) {
         self.store = store
@@ -260,48 +193,6 @@ struct GoalCreateView: View {
                         }
                         .odGroup()
                     }
-                    VStack(alignment: .leading, spacing: 0) {
-                        SectionLabel("里程碑（可选）")
-                            .padding(.bottom, OneDayMetrics.spacingS)
-                        VStack(spacing: 0) {
-                            ForEach(milestoneTitles.indices, id: \.self) { index in
-                                if index > 0 {
-                                    GroupDivider()
-                                }
-                                HStack(spacing: OneDayMetrics.spacingS) {
-                                    TextField(
-                                        "里程碑 \(index + 1)",
-                                        text: $milestoneTitles[index]
-                                    )
-                                    Button(role: .destructive) {
-                                        milestoneTitles.remove(at: index)
-                                    } label: {
-                                        Image(systemName: "minus.circle")
-                                            .foregroundStyle(Palette.inkMuted)
-                                            .frame(
-                                                width: OneDayMetrics.minTapTarget,
-                                                height: OneDayMetrics.minTapTarget
-                                            )
-                                            .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.odPressable)
-                                }
-                                .padding(.horizontal, OneDayMetrics.spacingM)
-                                .padding(.vertical, OneDayMetrics.spacingSM)
-                            }
-                            if !milestoneTitles.isEmpty {
-                                GroupDivider()
-                            }
-                            Button {
-                                milestoneTitles.append("")
-                            } label: {
-                                Label("添加里程碑", systemImage: "plus.circle")
-                            }
-                            .padding(.horizontal, OneDayMetrics.spacingM)
-                            .padding(.vertical, OneDayMetrics.spacingSM)
-                        }
-                        .odGroup()
-                    }
                     if let error = store.createError {
                         InlineError(error)
                     }
@@ -323,7 +214,6 @@ struct GoalCreateView: View {
                             if await store.create(
                                 appState: appState, title: title,
                                 note: note,
-                                milestoneTitles: milestoneTitles,
                                 category: category
                             ) {
                                 dismiss()
@@ -337,10 +227,10 @@ struct GoalCreateView: View {
     }
 }
 
-/// 委派表单（sheet，0.40.0）：一件事的标题＋可挂的里程
-/// 碑；提交走 GoalsStore.delegateTask（桥一次调用建卡
-/// ＋写 goalId 字段→回读确认，§308 单轨），确认落定才
-/// 关表单，失败原因留表单内——与新建目标同一纪律
+/// 委派表单（sheet，0.40.0）：一件事的标题；提交走
+/// GoalsStore.delegateTask（桥一次调用建卡＋写 goalId
+/// 字段→回读确认，§308 单轨），确认落定才关表单，
+/// 失败原因留表单内——与新建目标同一纪律
 struct GoalDelegateView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.dismiss) private var dismiss
@@ -350,7 +240,6 @@ struct GoalDelegateView: View {
     let goal: BridgeGoal
 
     @State private var title = ""
-    @State private var milestoneId: String?
     @State private var isSubmitting = false
     @State private var submitError: String?
 
@@ -374,30 +263,6 @@ struct GoalDelegateView: View {
                                     text: $title, axis: .vertical
                                 )
                                 .lineLimit(1...3)
-                            }
-                            if !goal.milestones.isEmpty {
-                                GroupDivider()
-                                FieldRow(label: "挂到里程碑（可选）") {
-                                    Picker(
-                                        "里程碑",
-                                        selection: $milestoneId
-                                    ) {
-                                        Text("不挂")
-                                            .tag(String?.none)
-                                        ForEach(
-                                            goal.milestones,
-                                            id: \.id
-                                        ) { milestone in
-                                            Text(milestone.title)
-                                                .tag(
-                                                    String?.some(
-                                                        milestone.id
-                                                    )
-                                                )
-                                        }
-                                    }
-                                    .labelsHidden()
-                                }
                             }
                         }
                         .odGroup()
@@ -453,8 +318,7 @@ struct GoalDelegateView: View {
         submitError = nil
         defer { isSubmitting = false }
         let ok = await store.delegateTask(
-            appState: appState, goalID: goal.id, title: title,
-            milestoneId: milestoneId
+            appState: appState, goalID: goal.id, title: title
         )
         if ok {
             ensureGoalThread()

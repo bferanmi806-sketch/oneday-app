@@ -90,7 +90,7 @@ final class GoalCategoryTests: XCTestCase {
     func testCreateRequestCarriesCategoryOnlyWhenSet() throws {
         let withCategory = try jsonObject(
             BridgeGoalCreateRequest.make(
-                title: "跑步", note: "", milestoneTitles: [],
+                title: "跑步", note: "",
                 category: .health
             )
         )
@@ -98,7 +98,7 @@ final class GoalCategoryTests: XCTestCase {
 
         let without = try jsonObject(
             BridgeGoalCreateRequest.make(
-                title: "跑步", note: "", milestoneTitles: []
+                title: "跑步", note: ""
             )
         )
         XCTAssertNil(without["category"])
@@ -210,7 +210,8 @@ final class GoalCategoryTests: XCTestCase {
         let a = try decoder.decode(
             BridgeTaskGoalAssignment.self, from: Data(full.utf8)
         )
-        XCTAssertEqual(a.milestoneId, "ms_1")
+        // G-6：milestoneId 已自归属模型移除，旧载荷的
+        // 同名键解码忽略（能解到这里即证明）
         XCTAssertEqual(a.assignedAt, 1794200000.0)
 
         let sparse = """
@@ -220,7 +221,7 @@ final class GoalCategoryTests: XCTestCase {
             BridgeTaskGoalAssignment.self, from: Data(sparse.utf8)
         )
         XCTAssertNil(b.goalId)
-        XCTAssertNil(b.milestoneId)
+        XCTAssertNil(b.assignedAt)
     }
 
     func testMonitorGoalIdDecodes() throws {

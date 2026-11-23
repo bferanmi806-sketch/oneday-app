@@ -157,7 +157,8 @@ final class ClosureLoopTests: XCTestCase {
             BridgeTaskGoalAssignment.self, from: Data(full.utf8)
         )
         XCTAssertEqual(a.goalId, "g_1")
-        XCTAssertEqual(a.milestoneId, "ms_1")
+        // G-6：milestoneId 已自归属模型移除，旧载荷同
+        // 名键解码忽略（能解到这里即证明）
         XCTAssertEqual(a.assignedAt, 1794200000.0)
         let cleared = """
         {"taskId": "t_1", "goalId": null,
@@ -184,20 +185,21 @@ final class ClosureLoopTests: XCTestCase {
         XCTAssertTrue(json.keys.contains("goalId"))
         XCTAssertTrue(json["goalId"] is NSNull)
         let set = try JSONEncoder().encode(
-            BridgeTaskGoalWrite(goalId: "g_1", milestoneId: "ms_1")
+            BridgeTaskGoalWrite(goalId: "g_1")
         )
         let setJSON = try XCTUnwrap(
             JSONSerialization.jsonObject(with: set)
                 as? [String: Any]
         )
         XCTAssertEqual(setJSON["goalId"] as? String, "g_1")
-        XCTAssertEqual(setJSON["milestoneId"] as? String, "ms_1")
+        // G-6：写体不再带 milestoneId 键
+        XCTAssertNil(setJSON["milestoneId"])
     }
 
     func testGoalDelegateRequestEncodes() throws {
         let data = try JSONEncoder().encode(
             BridgeGoalDelegateRequest(
-                title: "订场地", milestoneId: nil,
+                title: "订场地",
                 idempotencyKey: "k-1"
             )
         )
