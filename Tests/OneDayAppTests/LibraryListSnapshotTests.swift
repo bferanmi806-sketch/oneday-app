@@ -259,7 +259,7 @@ final class LibraryListSnapshotTests: XCTestCase {
         XCTAssertEqual(
             src.components(separatedBy: "LazyVStack(spacing: 0)")
                 .count - 1,
-            2, "文件/影音两列表面都应为 LazyVStack"
+            1, "§452.7③ 定版单列表：本面只应一处 LazyVStack"
         )
         XCTAssertFalse(
             src.contains("deliverables?.first(where:"),
