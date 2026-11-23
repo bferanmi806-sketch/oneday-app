@@ -3085,14 +3085,6 @@ struct ChatView: View {
         ) {
             rows.append(
                 ChatNativeRow(
-                    key: "empty-hero",
-                    entryID: nil,
-                    height: composer.emptyHeroHeight(),
-                    makeView: { AnyView(emptyStateHero) }
-                )
-            )
-            rows.append(
-                ChatNativeRow(
                     key: "empty-suggestions",
                     entryID: nil,
                     height: composer.emptySuggestionsHeight(texts: StarterSuggestionsAssembly.currentSuggestions(appState: appState).map(\.text)),
@@ -5097,45 +5089,7 @@ struct ChatView: View {
         }
     }
 
-    /// 空态形象段（§257 起两承载共用同一构建：
-    /// 旧承载挂 LazyVStack、新承载作不透明行托
-    /// 管，内容只有本一处出处）
-    @ViewBuilder
-    private var emptyStateHero: some View {
-        VStack(spacing: OneDayMetrics.spacingS) {
-            // 0.36.22：空态形象同样读档案头像
-            appState.agentAvatarImage
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: avatarTier.emptyStatePointSize,
-                    height: avatarTier.emptyStatePointSize
-                )
-                .clipShape(Circle())
-                .overlay {
-                    Circle().stroke(
-                        Palette.hairline, lineWidth: 0.5
-                    )
-                }
-                .accessibilityHidden(true)
-            Text(L10n.format(
-                "和 %@ 聊聊", appState.agentDisplayName
-            ))
-                // 0.3.3 收编：手写 fontWeight 漂移
-                // 改走 sectionTitle 角色（阶梯账
-                // 见原字重账本，已废止）
-                .font(.callout)
-                .foregroundStyle(Palette.ink)
-            Text(L10n.string("消息经你自己的服务器发给 Agent，记录只存这台手机。"))
-                .font(.caption)
-                .foregroundStyle(Palette.inkSecondary)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, OneDayMetrics.spacingXL)
-    }
-
-    /// 空态建议条段（同上，两承载共用）：§455 起建
+    /// 空态建议条段（§457 起为空态唯一构成）：§455 起建
     /// 议不再写死——StarterSuggestionsAssembly 以当
     /// 下已同步真数据（待批/目标/定时/资源库）现算
     /// 现排，凑不出才回落 EmptyChatSuggestions 冷启

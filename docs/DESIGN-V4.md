@@ -16971,3 +16971,15 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 领地动点（逐处登记）：ChatView 只动 emptyStateSuggestions 视图体与 empty-suggestions 行高调用一行（不碰发送路径 §451、不碰页头/顶栏 §449）；ChatNativeRowHeight 的 emptySuggestionsHeight 两函数加 texts 参数、备忘键带文案指纹（文案变即重估）；Onboarding 只改回落池注释。
 - 钉测（StarterSuggestionsTests 8 测）：一级三件序与三条上限；无上下文回落三条（文案/符号与回落池逐条同）；只有时段时时段打头＋回落补位；用过的待批条不再现且空位顺延；状态指纹换新后旧抑制不拦；记账本窗内抑制/窗外释放/prune；全抑制不空面；文案可发送性。
 - 真机门：新会话空态在有待批时首条为待批类、点条即发出并短期内不再现、无任何上下文时回落三条——归用户 verdict。
+
+## §457 聊天空态收口：删中央招呼块（2026-11-24）
+
+用户 04:10 亲点（附新会话空态截图、红圈圈住中央块）：空态中央的招呼块——头像＋「和 三狗 聊聊」＋「消息经你自己的服务器发给 Agent，记录只存这台手机。」——整块删除，「只要推荐的任务就行」。定版：空态只留 §455 建议行一族，不拿新装饰填空。
+
+- 删除落点：ChatView 删 empty-hero 行登记与 emptyStateHero 视图本体（§257 起两承载共用同一构建，一处出处、删一处全清）；ChatNativeRowHeight 删 emptyHeroHeight／emptyHeroHeightUncached 量测对。全仓 grep 复核：emptyStateHero／emptyHeroHeight／empty-hero 三 token 在 Sources＋Tests 零其他引用，无悬空调用。
+- 删后落位：建议行成空态首行，其段高 emptySuggestionsHeightUncached 首项即顶距 OneDayMetrics.spacingL（§455 既有令牌，未改值、无自创偏移），建议行以 spacingL 顶距贴列表顶起排。
+- 残留登记：composer 的 emptyStateAvatarSize 入参管线仍在（ChatView 仍传值），已无任何高度函数消费，属无害存量；本包最小删未扩面，后续动 composer 时顺手清。
+- 领地：不碰页头（§449）、不碰发送路径（§451）；基线叠 §455 分支 feat/dynamic-starters @89d55eb（分支 feat/empty-state-trim）。
+- 钉测：新增 EmptyStateTrim457StructureTests 2 测——招呼块 token 与两句招呼文案在生产源码代码行（整行注释除外）零残留；empty-suggestions 行与 emptyStateSuggestions 视图仍在场。
+- 验收（Test-EmptyTrim457.xcresult，ProbePhone）：build-for-testing exit 0；三套共 34 测全过 0 红——EmptyStateTrim457StructureTests 2/2、StarterSuggestionsTests 8/8、OnboardingTests 24/24。
+- 真机门：新会话空态只剩建议行、纵向落位观感——归用户 verdict，随 107 出。

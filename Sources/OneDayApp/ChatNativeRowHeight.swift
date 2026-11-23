@@ -2388,32 +2388,6 @@ struct ChatNativeRowHeightComposer {
 
     // MARK: - 空态族
 
-    /// 空态形象段高：顶距 spacingXL＋头像档＋
-    /// spacingS＋标题 callout＋spacingS＋说明
-    /// caption 居中折行
-    func emptyHeroHeight() -> CGFloat {
-        rowMemo("eh|\(environmentFingerprint)") {
-            emptyHeroHeightUncached()
-        }
-    }
-
-    func emptyHeroHeightUncached() -> CGFloat {
-        let titleHeight = plainHeight(
-            L10n.format("和 %@ 聊聊", agentDisplayName),
-            .callout, width: contentWidth
-        )
-        let captionHeight = plainHeight(
-            L10n.string(
-                "消息经你自己的服务器发给 Agent，记录只存这台手机。"
-            ),
-            .caption1, width: contentWidth
-        )
-        return OneDayMetrics.spacingXL
-            + emptyStateAvatarSize
-            + OneDayMetrics.spacingS + titleHeight
-            + OneDayMetrics.spacingS + captionHeight
-    }
-
     /// 空态建议条段高：顶距 spacingL＋各条建议
     /// 行（minHeight 50、行内文 callout 折行兜
     /// 底）＋行间 spacingS；§455 起文案动态化，
