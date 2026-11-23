@@ -60,10 +60,11 @@ struct IdentityAvatarState: Decodable, Sendable {
 
 
 /// 身份桥客户端（P1 身份包）：头像仓读面＋§253 起
-/// 的写穿面——App 改名/换头像与智能体改名改头像走
-/// 同一组服务端窄口（服务端单真值：校验、备份、回
-/// 读验名、留痕全在桥侧收口，App 不开第二条写路、
-/// 不在本地裁决）。路径挂当前服务器根下
+/// 的换头像写穿面（服务端单真值：校验、备份、留
+/// 痕全在桥侧收口）。App 改名已随 §383 包一迁
+/// Dashboard 直连写（Core 校验＋soul 直写＋留痕
+/// 自报），本类不再有改名写口；桥侧改名口只余
+/// AI 侧 MCP 工具与面板在用。路径挂当前服务器根下
 /// /api/identity-bridge，Bearer 只从 BridgeCredential
 /// 统一读（与全 App 桥客户端同口径，0.33.1）。
 /// C-10 收敛：连接/单钥/管线/文案走统一基座，本类只
@@ -93,25 +94,13 @@ final class IdentityBridgeClient: @unchecked Sendable {
         )
     }
 
-    // MARK: - 写穿（§253：App 改名/换头像直达服务端真值）
+    // MARK: - 写穿（§253：App 换头像直达服务端真值）
     //
     // 判读口径（§232 安全门）：2xx 过；401 未授权；
     // 其余取服务端 error 文案先过 ServerErrorText.
     // userSafe 才许带出，不过门/解不出落本类通用人
     // 话（只报是哪件失败、带状态码定位），绝不露服
     // 务端原文。
-
-    /// 改名写穿：POST /identity/name（dryRun=false、
-    /// actor=user；服务端复校、写 SOUL 人设标题行、
-    /// 落 name-state 账并留痕）。成功后调用方以
-    /// Dashboard 回读刷新名字缓存
-    func setName(config: ServerConfig, name: String) async throws {
-        try await post(
-            config: config, path: "/identity/name",
-            body: ["name": name, "dryRun": false, "actor": "user"],
-            endpoint: L10n.string("身份名")
-        )
-    }
 
     /// 预置头像写穿：POST /identity/avatar kind=preset
     /// （append-only 新条目并设为当前；服务端回 201）

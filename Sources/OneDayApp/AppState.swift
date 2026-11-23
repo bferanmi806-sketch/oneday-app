@@ -548,7 +548,7 @@ final class AppState {
 
     /// 服务器名回读后的统一收尾（§253）：先处置迁移
     /// 待推——§253 迁移时本机旧改名胜出且与回读名不
-    /// 同时，先经桥写口写穿服务端，成功后重读一次以
+    /// 同时，先直连写穿服务端（§383 包一），成功后重读一次以
     /// 服务端回读为准落缓存；写穿失败保留缓存里的待
     /// 推值呈现、本次回读不覆盖（下个触发点再试）。
     /// 无待推时整份替换名字缓存
@@ -559,9 +559,10 @@ final class AppState {
            let pending = agentProfileStore.cachedName {
             if pending == fetched.name {
                 agentProfileStore.markNamePushed()
-            } else if let config {
-                let pushed = (try? await IdentityBridgeClient()
-                    .setName(config: config, name: pending)) != nil
+            } else if config != nil {
+                let pushed = (try? await writeAgentNameDirect(
+                    pending
+                )) != nil
                 if pushed {
                     agentProfileStore.markNamePushed()
                     if let again = await fetchResolvedIdentityName() {
@@ -683,25 +684,149 @@ final class AppState {
         )
     }
 
+    /// 改名直连写（§383 包一）：校验（Core，与
+    /// 桥规则同口径）→ 默认档案 soul 读改写（与
+    /// 名读同源：profiles 取默认档）→ 留痕自报。
+    /// 桥 _set_name 的备份/name-state 账随迁退
+    /// 出 App 写路（桥侧对他路写入有 mtime 兜底，
+    /// §383.2 记账）；写后回读验名由调用方的回
+    /// 读尾链承接。错误口径与 §253 写穿一致：校
+    /// 验失败给具体人话、401 映射未授权、余皆通
+    /// 用失败文案不露原文
+    private func writeAgentNameDirect(
+        _ rawName: String
+    ) async throws {
+        guard let config else {
+            throw IdentityBridgeError.noKey
+        }
+        let name: String
+        do {
+            name = try AgentName.validatedNewName(rawName)
+        } catch let error as AgentNameWriteError {
+            throw IdentityBridgeError.failed(
+                Self.agentNameWriteMessage(error)
+            )
+        }
+        let outcome: (previousName: String, replacedTitle: Bool)
+        do {
+            let profiles = try await performAdmin { client, config in
+                try await client.profiles(config: config)
+            }
+            guard let profile = profiles.first(where: {
+                $0.isDefault == true
+            }) ?? profiles.first else {
+                throw IdentityBridgeError.failed(
+                    L10n.string("身份名保存失败，请稍后再试。")
+                )
+            }
+            outcome = try await performAdmin { client, config in
+                let document = try await client.profileSoul(
+                    config: config, name: profile.name
+                )
+                let previous = AgentName.resolve(
+                    soulContent: document.content
+                )
+                let replaced = AgentName.hasIdentityTitle(
+                    in: document.content
+                )
+                guard let updated = AgentName.applyingNewName(
+                    name, to: document.content
+                ) else {
+                    throw IdentityBridgeError.failed(
+                        L10n.string("身份名保存失败，请稍后再试。")
+                    )
+                }
+                try await client.updateProfileSoul(
+                    config: config, name: profile.name,
+                    content: updated
+                )
+                return (previousName: previous,
+                        replacedTitle: replaced)
+            }
+        } catch let error as IdentityBridgeError {
+            throw error
+        } catch HermesError.sessionExpired {
+            throw IdentityBridgeError.unauthorized
+        } catch {
+            throw IdentityBridgeError.failed(
+                L10n.string("身份名保存失败，请稍后再试。")
+            )
+        }
+        await reportAgentNameTrace(
+            config: config, name: name,
+            previousName: outcome.previousName,
+            replacedTitle: outcome.replacedTitle
+        )
+    }
+
+    /// 改名留痕自报（§383 包一，best-effort）：
+    /// 五要素与桥 _set_name 自记同形（action=
+    /// identity.set_name、actor=user、target 为
+    /// soul 名位、result 摘要同桥文案式样），
+    /// detail 标 via=app-direct 以别于桥内改名；
+    /// 自报失败不回滚改名——落本地诊断留痕（对
+    /// 齐「留痕不许静默消失」口径的 App 侧等价物）
+    private func reportAgentNameTrace(
+        config: ServerConfig, name: String,
+        previousName: String, replacedTitle: Bool
+    ) async {
+        let mode = replacedTitle ? "replace" : "insert"
+        let summary = "智能体改名为「\(name)」"
+            + "（\(mode) 标题行，"
+            + "原 soul 名「\(previousName)」）"
+        do {
+            try await OneDayBridgeClient().recordTrace(
+                config: config, action: "identity.set_name",
+                actor: "user", targetKind: "identity",
+                targetID: "soul-name", targetLabel: name,
+                targetRef: "oneday://identity/name",
+                status: "ok", result: summary, error: nil,
+                detail: ["via": "app-direct"]
+            )
+        } catch {
+            ChatDiagTrace.record(
+                "改名留痕自报失败 [identity.set_name] \(error)"
+            )
+        }
+    }
+
+    /// 改名校验人话（与桥 _validate_new_name 的
+    /// 拒绝文案同义，编辑器经 identityWriteErrorText 呈现）
+    private static func agentNameWriteMessage(
+        _ error: AgentNameWriteError
+    ) -> String {
+        switch error {
+        case .empty:
+            return L10n.string("名字不能为空。")
+        case .tooLong:
+            return L10n.string("名字超过 20 字了。")
+        case .punctuation:
+            return L10n.string("名字不能含句读标点。")
+        case .structural:
+            return L10n.string("这个名字是文档结构词，换一个。")
+        case .illegalCharacter:
+            return L10n.string("名字含非法字符。")
+        }
+    }
+
     // MARK: - 身份写穿（§253：App 改名/换头像直达服务端单真值）
     //
-    // 三个写口共用口径：走服务端既有窄口写穿（校验/
-    // 备份/留痕在服务端），成功后以服务端回读/仓指
-    // 针整份替换缓存——App 不留第二真值。失败原样抛
-    // 回编辑器呈现（IdentityBridgeError 文案已过
-    // §232 安全门）。演示模式无真服务端：只动缓存演
-    // 示、不发网络（与演示数据同性子）。
+    // 写口共用口径：成功后以服务端回读/仓指针整份
+    // 替换缓存——App 不留第二真值。失败原样抛回编辑
+    // 器呈现（IdentityBridgeError 文案已过 §232 安全
+    // 门）。演示模式无真服务端：只动缓存演示、不发网
+    // 络（与演示数据同性子）。改名面 §383 包一修订：
+    // 改名走 Dashboard 直连写（校验与标题行手术在
+    // Core、与桥规则同口径；留痕经桥 POST /traces
+    // 自报补账）；换头像仍走服务端既有窄口写穿。
 
-    /// App 改名写穿
+    /// App 改名（§253 立口、§383 包一迁 Dashboard 直连写）
     func renameAgent(to newName: String) async throws {
         if isDemo {
             agentProfileStore.applyName(newName, serverUpdatedAt: nil)
             return
         }
-        guard let config else { throw IdentityBridgeError.noKey }
-        try await IdentityBridgeClient().setName(
-            config: config, name: newName
-        )
+        try await writeAgentNameDirect(newName)
         if let fetched = await fetchResolvedIdentityName() {
             agentProfileStore.applyName(
                 fetched.name, serverUpdatedAt: fetched.updatedAt
