@@ -2,6 +2,535 @@
   "sourceLanguage": "zh-Hans",
   "version": "1.0",
   "strings": {
+    "分享 / 存到文件": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Share / Save to Files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享 / 存到文件"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享 / 存到檔案"
+          }
+        }
+      }
+    },
+    "已存到手机的档案包库：在另一台服务器上打开「导入档案→手机里的包」就能装上。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved to the package library on this phone: open “Import Profile → Package on Phone” on another server to install it there."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已存到手机的档案包库：在另一台服务器上打开「导入档案→手机里的包」就能装上。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已存到手機的檔案包庫：在另一台伺服器上打開「匯入檔案→手機裡的包」就能裝上。"
+          }
+        }
+      }
+    },
+    "下载到手机": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Download to Phone"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载到手机"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下載到手機"
+          }
+        }
+      }
+    },
+    "下载没成功，包还在服务器上（路径见上），稍后再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The download didn't finish. The package is still on the server (path above) — try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下载没成功，包还在服务器上（路径见上），稍后再试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下載沒成功，包還在伺服器上（路徑見上），稍後再試。"
+          }
+        }
+      }
+    },
+    "手机里的包": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Package on Phone"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手机里的包"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手機裡的包"
+          }
+        }
+      }
+    },
+    "服务器路径": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server Path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器路径"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器路徑"
+          }
+        }
+      }
+    },
+    "填导出时服务端回的那串路径，导回同一台服务器用。包在手机里（从别的服务器下载的）切到「手机里的包」。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the path the server returned when exporting, to restore onto the same server. If the package is on this phone (downloaded from another server), switch to “Package on Phone”."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填导出时服务端回的那串路径，导回同一台服务器用。包在手机里（从别的服务器下载的）切到「手机里的包」。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "填匯出時伺服器回的那串路徑，匯回同一台伺服器用。包在手機裡（從別的伺服器下載的）切到「手機裡的包」。"
+          }
+        }
+      }
+    },
+    "手机里的档案包": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile Packages on Phone"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手机里的档案包"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手機裡的檔案包"
+          }
+        }
+      }
+    },
+    "手机里还没有档案包。在任意一台服务器的档案行选「导出档案→下载到手机」，包就会出现在这里；也可以从文件里选一个包。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No profile packages on this phone yet. On any server, choose “Export Profile → Download to Phone” on a profile and the package will appear here; or pick a package from Files."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手机里还没有档案包。在任意一台服务器的档案行选「导出档案→下载到手机」，包就会出现在这里；也可以从文件里选一个包。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手機裡還沒有檔案包。在任意一台伺服器的檔案行選「匯出檔案→下載到手機」，包就會出現在這裡；也可以從檔案裡選一個包。"
+          }
+        }
+      }
+    },
+    "删除本地副本": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete Local Copy"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除本地副本"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刪除本機副本"
+          }
+        }
+      }
+    },
+    "从文件选择档案包": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a Profile Package from Files"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从文件选择档案包"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "從檔案選擇檔案包"
+          }
+        }
+      }
+    },
+    "这个文件读不出来，换一个包再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file couldn't be read. Try another package."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个文件读不出来，换一个包再试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這個檔案讀不出來，換一個包再試。"
+          }
+        }
+      }
+    },
+    "包里是什么": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What's in the Package"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包里是什么"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包裡是什麼"
+          }
+        }
+      }
+    },
+    "包内档案": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile Inside"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包内档案"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包內檔案"
+          }
+        }
+      }
+    },
+    "这个包的清单读不出来（可能不是档案导出包，或包已损坏）。仍可试装——服务端导入时会校验，坏包会被拒绝。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This package's contents couldn't be read (it may not be a profile export, or it may be damaged). You can still try installing — the server checks packages on import and rejects bad ones."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个包的清单读不出来（可能不是档案导出包，或包已损坏）。仍可试装——服务端导入时会校验，坏包会被拒绝。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這個包的清單讀不出來（可能不是檔案匯出包，或包已損壞）。仍可試裝——伺服器匯入時會校驗，壞包會被拒絕。"
+          }
+        }
+      }
+    },
+    "包超过 25MB，手机上传通道装不了（与文件上传同一上限）。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This package is over 25 MB and can't be installed through the phone upload channel (the same limit as file uploads)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包超过 25MB，手机上传通道装不了（与文件上传同一上限）。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "包超過 25MB，手機上傳通道裝不了（與檔案上傳同一上限）。"
+          }
+        }
+      }
+    },
+    "装到这台服务器": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install on This Server"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装到这台服务器"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝到這台伺服器"
+          }
+        }
+      }
+    },
+    "给装好的档案起个名字（默认用包内原名）。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Name the installed profile (defaults to the name inside the package)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "给装好的档案起个名字（默认用包内原名）。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "給裝好的檔案起個名字（預設用包內原名）。"
+          }
+        }
+      }
+    },
+    "「default」是内置档案，不能作为导入名，换一个。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“default” is the built-in profile and can't be used as an import name. Pick another."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「default」是内置档案，不能作为导入名，换一个。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「default」是內置檔案，不能作為匯入名，換一個。"
+          }
+        }
+      }
+    },
+    "这台服务器上已有同名档案，换一个名字再装。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This server already has a profile with that name. Pick another name to install."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这台服务器上已有同名档案，换一个名字再装。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這台伺服器上已有同名檔案，換一個名字再裝。"
+          }
+        }
+      }
+    },
+    "装到当前连着的这台服务器；换一台装，先在服务器列表切换，再回这里选同一个包。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installs onto the server you're currently connected to. To install on another one, switch servers first, then come back and pick the same package."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装到当前连着的这台服务器；换一台装，先在服务器列表切换，再回这里选同一个包。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝到目前連著的這台伺服器；換一台裝，先在伺服器列表切換，再回這裡選同一個包。"
+          }
+        }
+      }
+    },
+    "装包失败，请关闭后在列表里核对，或稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation didn't complete. Close this and check the list, or try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "装包失败，请关闭后在列表里核对，或稍后重试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝包失敗，請關閉後在列表裡核對，或稍後重試。"
+          }
+        }
+      }
+    },
+    "档案名": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile Name"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "档案名"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "檔案名"
+          }
+        }
+      }
+    },
     "崩溃": {
       "extractionState": "manual",
       "localizations": {

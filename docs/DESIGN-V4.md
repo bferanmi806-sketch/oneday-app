@@ -15345,3 +15345,39 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §393 智能体成包（台账 165；2026-11-23；分支 feat/agents-page-package，基线 rel-05098 @3f9598f；用户 2026-11-23「全部解冻」第二波）
+
+**关系先行（与 0.50.81「Agents 页伪入口退役」对清）**：本条不复活任何独立 Agents 页/新入口。成包能力落回**配置档案页**（设置·智能体，档案的唯一家）：P10 已在位的「导出档案/导入档案」两枚动作原位升级——退役的是当年无真能力支撑的伪入口，本条补的是真能力（包离机＋跨机装＋装前预览），落点与合并树「一个功能一个家」一致。
+
+### §393.1 现状表（2026-11-23 实查）
+
+**服务端（只读回读＋源码对账）**：
+- 生产 hermes 容器 nousresearch/hermes-agent:v0.23.0，HERMES_HOME=/opt/data（容器内实查）；探查时服务器内存 4317/7725MB（56%，红线内）。
+- /api/profiles 全套在役（9119 面）：列表/切换/soul/建删/导出/导入，App 已接（P10）。部署包 CAPABILITIES.md 无 profiles 条目——系 Hermes 本体面、非部署包能力。
+- **上游导出/导入只换路径不换字节**（hermes_cli/web_routers/profiles.py 源码注释明言 "Paths are exchanged, not bytes — the desktop backends share the filesystem with the native dialogs"）；导出默认落点＝$HERMES_HOME/profile-exports/<档案名>-%Y%m%d-%H%M%S.tar.gz（hermes_cli/profiles.py get_profile_export_path）；生产 /opt/data/profile-exports 尚不存在（首导自建）。导出包口径：凭据文件排除＋暂存文本强制脱敏（export_profile 源码），可安全离机；import 明拒 name=default、拒同名已存在。
+- 文件面 /api/files 托管根锁 /opt/data（托管容器形态，hermes_cli/web_server_files.py 源码＋HermesClient.swift 既有实查注记）：download 回原始字节、upload（data_url，解码上限 100MB、父目录自动建）——**profile-exports 在根内，取包/装包字节通道由既有端点组合成立，服务端零缺口、零新增端点**。App 侧上传另有 FileBrowserLogic.uploadByteLimit 25MB 既有闸（与文件上传同闸，本包沿用）。
+- 生产现只有 default 档案（/opt/data/profiles 为空、无 active_profile 文件）——成包用例（装到另一台/经手机中转）不依赖本机多档案。
+
+**App 现状（P10 形态）**：ProfilesView 列表/切换/建/删/soul 入口齐；导出只展示服务器路径；导入只收手填服务器路径（同机导回）。文件头注记「本机文件无上传通道，不假装能传文件」——该前提已被文件面组合证伪（上传通道实存，P10 当时未组合）。缺的产品面（165 本体，OB-F1 对照）＝①包离机（下载到手机＋分享/存文件）②跨机装包（手机选包→上传目标服务器→导入→回读确认）③装前预览（真解包清单，不靠文件名猜）。
+
+### §393.2 落码（施工图全件）
+
+1. **Core 新文件 ProfilePackage.swift**（纯逻辑、零网络）：gzip 解压（剥 RFC 1952 头尾＋Compression 框架 COMPRESSION_ZLIB 解 raw deflate，社区通行 gzip 解法；解压上限 100MB 防炸弹包）＋ustar 头走读（GNU 'L' 长名/pax 'x' 跳过/ustar prefix 拼接/base-256 大小判坏包）产出 Manifest（包内档案名＝顶层目录、条目数、文件数、文件总字节、SOUL.md/config.yaml 在否、条目预览）；顶层目录不唯一回 nil（与上游 import archive_root 口径一致）。文件名推断（剥 .tar.gz 与 -%Y%m%d-%H%M%S 后缀，仅作预填）；导入名校验（空/default/同名三拦）；装包路径口径（exportsDirectory 常量＋uploadRelativePath 只取文件名末段防穿越）。
+2. **App 新文件 AgentPackageLibrary.swift**：本地包库（Documents/AgentPackages：list/save/read/delete，同名覆盖）——包与服务器解耦的中转站。
+3. **ProfilesView 改造**：①ProfileExportSheet 补「下载到手机」（fileData 取字节→落包库→ShareLink 分享/存文件；空字节判失败、不存空包）＋原路径展示保留（同机导回不断）。②ImportProfileSheet 改双模式：服务器路径（P10 原形态，文案改实——不再称手机无通道）／手机里的包（本地包库名单＋DocumentPickerView 选包——.fileImporter 退役口径不复活、走 §317 状态旗路；选中即真解包出清单卡：包内档案名/文件数·总大小/有人设·有配置，解不开如实标注仍可试装；导入名预填＝清单名或文件名推断、过 Core 校验三拦；25MB 闸明示）。③装包链 installLocalPackage（宿主）：单次 performAdmin 内四段——取根（files 列表回执 root/lockedRoot，不猜目录）→uploadFile 上传（overwrite=false）→回读 exports 目录列表（同名条目在且字节一致、取绝对路径，不过抛 PackageInstallError 不进导入段）→importProfile；毕后回读档案列表、目标名出现才报装成。
+4. **i18n**：新增 UI 串 23 键入 Localizable.xcstrings（zh-Hans/zh-Hant/en 三语，文本插入不重排；validate_i18n 仍为基线 9 条旧投诉、新增零投诉；文案避行话黑名单）。
+5. **测试**：OneDayCoreTests/ProfilePackageTests 7 件（真 tar.gz fixture 解析全字段/双顶层拒/非 gzip 拒/截断拒/推断/校验/路径）；OneDayAppTests/ProfilePackageStructureTests 3 件（导出面 fileData＋落库＋ShareLink 在场、导入面 DocumentPickerView 在场且 .fileImporter 零残留＋真解包调用＋名校验调用、装包链宿主在场）。发布集回归见 §393.4 回填。
+
+### §393.3 入口四问
+
+1. **入口**：配置档案页既有两枚动作（档案行长按「导出档案」、页内「导入档案」钮），无新入口。
+2. **重复**：档案只此一家；技能 hub 是技能包（单个能力）、本条是智能体整包（档案＋其技能集），分工不变、不互吞。
+3. **令牌/公用件**：odGroup/odSecondary/odPrimary/odPressable、InlineError、SectionLabel、FileBrowserLogic（dataURL/上传闸）、DocumentPickerView 全走既有件，无页内自造数值与新组件。
+4. **AX＋深色**（代码层）：全量语义字体（.body/.footnote）、Palette 令牌与系统 Form 呈现（深色随系统）、行皆 Button 带文字标签、选中勾为文字旁附属符号；真机帧验入 §393.4 真机门。
+
+### §393.4 验收门与缺口登记
+
+- 实验室门（已过）：新测 10/10（单跑轮 Test-AgentsPkg-new）；发布集回归 827/827 全绿、0 红、0 跳过（run Test-AgentsPkg-release，2026-11-23 10:30 收尾；名单＝rel05098 bundle 提取 97 套 817＋本包 2 套 10 项，xcresulttool 总数对账一致）；S371/S373 在集内同绿。build-for-testing 全量编译先行通过。
+- **真机门（用户，未过不关账）**：①在生产导出 default 或任一档案→下载到手机→分享存文件成功、包大小与服务器侧一致；②切到另一台已连服务器（或同台改名）→导入面选该包→清单卡档案名/文件数与包实际一致→装成且新档案出现在列表、能切换使用；③深色＋最大字号各一帧（导出面/导入面）；④坏包（随手改扩展名的文本文件）试装被服务端拒、App 报错人话。
+- **缺口登记**：服务端零缺口（见 §393.1）；端到端字节流（真导出包经 download/upload 过一遍生产）属组版联调/真机门，未在施工期动生产（只读纪律）。OpenBot 式公开模板市场（publish/catalog 远端分发）不在本条：Hermes 无对应服务端面，做了即自造平台，撞「不手搓」红线——本条成包口径＝点对点包流转（导出成包→离机→装到任意已连服务器），市场面待上游有面再议。
