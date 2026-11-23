@@ -16159,3 +16159,24 @@ rel-05099 @46150bf。图标来源单点切换（tabLabel＋TabBarSymbols 两处�
 - 生命周期常设门（§395）：版本对 0.50.99→0.50.100 实跑 S1–S5 五段全过（journey-result-100.txt：首装/升级/同版重装/降级启动全 ALIVE、标记跨升级·重装·降级保留、删除重装回初始态）。注：本轮旅程与发布集测试尾段同窗并行（14:39–14:40，旅程只走 simctl 不占 test-cmd 通道），两边产物均全绿、无干扰实据；后续组版宜错峰。
 - IPA：本地 Mac 出包（pkg100 自 pkg99 sed 派生、派生四查过）、IPA 本体亲验 0.50.100/228/site.didichou.oneday、15,815,763 字节、md5 e6db2df66279031033ccb43689fa8b83（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）；包内含 OneDayWidgets.appex。体积较 0.50.99 增 14,620 字节（五枚矢量资产＋钉测外生产增量）。
 - 真机门（用户，未过不关账）：§382/§403 冷启底栏——不点底栏先截图逐格量填充率 ≤0.35（修复前 0.60–0.81 逐格对账）、点一轮后复截同形、深色一帧、与 Muse 并排；73 无新增真机门（零结构/视觉改动）。总表 73 已加「已并入 0.50.100」组版注记、复选框未动，划线等主线裁/verdict；§382 在总表无独立编号行，只在本节与 §403 记账。
+
+## §407 预排版层施工步骤 1：发送错行主治＋文件行定高（2026-11-23；分支 feat/prelayout-step1，基线 rel-05100 @681fe54；施工图 chat-telegram-alignment-20261123.md 步骤 1＋16:11 改单 A 案）
+
+### §407.1 落点四件
+1. **预定高**：ChatView 新增 sessionSentEntryIDs（send/performEditSend 两处登记）；nativeEntryRow 对集内用户行在 resolve 未命中时以 measureNow 就地同步量测（与量测台同源同值），入列即确定终态高、heightIsProvisional=false；作用域只限本会话新行，历史行仍走量测台后台路（防冷开全表同步量测压主线程）。
+2. **状态翻转不换高**：合成器 userEntryHeight 摘除三项状态输入（失败扣列宽 spacingS+44、待发加 caption1 槽、失败 max(44)）；视图 bubble() 摘除 HStack 内失败钮与列内待发状态行，改 sendStateMark overlay 挂正文列左侧让位区（失败红叹号/待发时钟，两态互斥、失败优先，落点与旧钮同位：列左 spacingS 间隙外 44 钮身），待发文案保留于无障碍标签、点达另有发件箱动作面承接。
+3. **占位行（改单新增）**：nativeRows 直播区收成单行 livePlaceholderRow（键 live-placeholder 恒定、高＝合成器 livePlaceholderHeight＝max(6, spec(.callout))＋spacingXS×2＋bubblePaddingV×2、与等待泡上传形态同几何；修订只折状态文案：上传/思考/工具/生成四相）；在飞判定＝sendTask 在席 ∨ 直播项非空。§293 逐项直播行退出原生喂入（nativeLiveRow 仅余共享件身份）。落定拍占位行移除＋落定条目行入列，offset 只走既有锚定路径。
+4. **文件行定高**：封面形态公式两处收为单源纯函数＝meta.cover.cover（合成器 facetDeliveryCoverForm 活读＋快照器 recordDelivery，摘除 hasCachedImage/hasCachedThumbnail 两路到达态 peek）；DeliveryFileCard 视图同判——登记旗在册恒预留 148 封面区（图未到显占位面/菊花、取数穷尽落类型图标、图到只换图），不在册恒图标行、loadCover 整路不跑。
+
+### §407.2 钉测与回归
+- 新套 ChatPreLayoutStep1Tests 5 项：旧码 2 过 3 红——翻转（长文 base 334.33／待发 354.33／失败 400.33／叠态 420.33；短文待发 +20）、封面（播种缩略图缓存后 62.33→210.33）、结构 12 断言红；落码后 **5/5 全绿**。把守两项旧码即绿（用户文件牌高对大小 facet 免疫；measureNow 就地量测端到端）。
+- 定向回归 22 套共 101 项：86 过、15 红——其中 14 红经 pristine rel-05100 同五套（装配四套＋跟随套）基线对账**逐名相同**（基线 27 项中 14 红），为既有基线红集（发布门名单本就不含装配四套）、非本包回归；余 1 红为本包结构断言串跨行误配、已修并复跑 5/5。发布集全量按包约定留 0.50.102 组版统一跑。
+- 帧量测（施工图验收项「发送路径同口径不劣化」）：实验室无发送帧量测口径可跑，本包以高度账钉测代行，真机门见 §407.4。
+
+### §407.3 改单与三分类
+- 改单（16:11 A 案）：第 4 项流式 delta 修正整项删除——本包从未写 delta 代码，**无回退对象**；占位行落点见 §407.1-3。
+- 三分类（16:12 口径逐件）：预定高＝**②机制抄**（卡住依赖：AsyncDisplayKit 节点布局协议、TelegramCore EngineMessage/Postbox、SwiftSignalKit apply 闭包形态——「入列即终态布局」结构照抄，载体换我方量测台 measureNow 同口）；文件行定高＝**②机制抄**（卡住：Postbox 的 TelegramMediaFile/TelegramMediaImage 模型类型＋AsyncDisplayKit asyncLayout 签名；「旗/尺寸入模、形态只读模型」机制照抄，常量换我方卡规格 148）；占位行＝**③原生**（定高行系本仓列表平凡件）＋②纪律（待发一次按终态布局、状态只进预定区）；**①直接搬查过不用**：ChatHistoryAwaitsMessages.swift（纯 Foundation）语义为历史孔洞加载占位、与发送生成占位输入不合，不强搬。
+- 行为变更登记：(a) 待发呈现由气泡下文字行改气泡旁时钟标记（文案入无障碍标签）；(b) 登记旗 cover=false 的交付文件不再被客户端管线缩略图撑成封面卡（恒图标行）；(c) 残留：自发文件牌在链接拍才落条目（remoteFilePaths 回填）属**内容到达**、非状态翻转——链接拍以确定高一次算定（集内行就地量测同口），不在本包四件内、留账备查。
+
+### §407.4 真机门（未过不关账）
+发送全程帧验：刚发消息上屏不跳行、失败/待发标记点达可重发、生成中占位行恒高不抖、落定整条换入不错行；交付文件卡封面区图到只换图不换高。实验室绿不代真机 verdict。

@@ -291,20 +291,12 @@ enum ChatNativeRowFacetSnapshotter {
         else { return }
         facets.deliveryMetas[id] = result
         if case .loaded(let meta) = result {
-            let synthetic = WorkspaceFileEntry(
-                name: meta.name, path: meta.path,
-                isDirectory: false, size: meta.size,
-                mtime: nil, mimeType: meta.mime
-            )
+            // §407：封面形态只认登记旗（与活读
+            // facetDeliveryCoverForm 同公式单源）——
+            // 缓存到达态不进快照，免得工单量测与同
+            // 步合成在缓存时序下分家
             facets.deliveryCoverForms[id] =
                 meta.cover.cover
-                || DeliveryStore.shared.hasCachedImage(
-                    id: meta.id, variant: .cover
-                )
-                || FileThumbnailStore.shared
-                    .hasCachedThumbnail(
-                        for: synthetic, targetPixelSize: 720
-                    )
         }
     }
 }

@@ -187,12 +187,13 @@ struct DeliveryImageView: View {
 /// 卡＝封面区（有封面时通栏）＋文件名（.body
 /// semibold、至多 2 行）＋副行「类型 · 大小」；
 /// 大小是登记时端点实测的真值（meta.size），不
-/// 走文件牌的回填链、不编造。封面取数序：登记
-/// 快照 cover → §32 客户端管线（FileThumbnail-
-/// Store：QL 首面/图片降采样，用 meta.path 取
-/// 原文件）→ 都无则回落 C8 类型图标行（File-
-/// IconBox），不留白卡。点开落点由宿主给（§125
-/// FileOpenView 中间页）。
+/// 走文件牌的回填链、不编造。封面形态（§407
+/// 定高）：只认登记旗 meta.cover.cover——在册
+/// 即恒预留 148 封面区，取数序＝登记快照 cover
+/// → §32 客户端管线回落填同区，都无则占位面落
+/// 类型图标；不在册恒 C8 类型图标行（File-
+/// IconBox），管线缩略图不再撑起封面区。点开
+/// 落点由宿主给（§125 FileOpenView 中间页）。
 struct DeliveryFileCard: View {
     @Environment(AppState.self) private var appState
 
@@ -201,6 +202,9 @@ struct DeliveryFileCard: View {
     let onOpen: () -> Void
 
     @State private var coverImage: UIImage?
+    /// §407：封面取数已穷尽（快照＋管线皆空）——
+    /// 占位面自此落类型图标、不再挂菊花
+    @State private var coverSettled = false
 
     /// §32 客户端管线用的合成条目：名/路径/大小
     /// 全是登记实测，其余按名称口径推导——与
@@ -223,16 +227,40 @@ struct DeliveryFileCard: View {
     var body: some View {
         Button(action: onOpen) {
             VStack(alignment: .leading, spacing: 0) {
-                if let coverImage {
-                    Image(uiImage: coverImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 148)
-                        .clipped()
+                // §407（文件行定高）：封面区按登记
+                // 旗预留——cover 在册即恒占 148，图
+                // 未到显占位面、到后只换图；不在册
+                // 恒图标行形态。旧形态按 coverImage
+                // 到达态出没封面区＝到图换高，退役
+                // （合成器 deliveryFileCardHeight 同
+                // 判：形态只认 meta.cover.cover）
+                if meta.cover.cover {
+                    if let coverImage {
+                        Image(uiImage: coverImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 148)
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Palette.bubbleFill)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 148)
+                            .overlay {
+                                if coverSettled {
+                                    FileIconBox(
+                                        name: meta.name,
+                                        size: 40
+                                    )
+                                } else {
+                                    ProgressView()
+                                }
+                            }
+                    }
                 }
                 HStack(spacing: OneDayMetrics.spacingSM) {
-                    if coverImage == nil {
+                    if !meta.cover.cover {
                         FileIconBox(name: meta.name, size: 40)
                     }
                     VStack(
@@ -276,18 +304,23 @@ struct DeliveryFileCard: View {
     }
 
     private func loadCover() async {
-        guard coverImage == nil else { return }
-        if meta.cover.cover,
-           let data = await DeliveryStore.shared.image(
-               id: meta.id, variant: .cover,
-               client: client, appState: appState
-           ),
+        // §407：取图只许填已预留的封面区——登记旗
+        // 不在册时整路不跑（恒图标行形态，管线缩
+        // 略图不再把卡撑成封面形态）
+        guard meta.cover.cover, coverImage == nil,
+              !coverSettled
+        else { return }
+        if let data = await DeliveryStore.shared.image(
+            id: meta.id, variant: .cover,
+            client: client, appState: appState
+        ),
            let image = UIImage(data: data) {
             coverImage = image
             return
         }
-        // 登记快照没有/取不到：§32 客户端管线回落
-        // （QL 首面/降采样）；再无保持图标行形态
+        // 登记快照取不到：§32 客户端管线回落填同
+        // 一预留区（QL 首面/降采样）；再无则占位
+        // 面落类型图标、形态不变
         coverImage = await FileThumbnailStore.shared.thumbnail(
             for: entry, targetPixelSize: 720
         ) {
@@ -297,5 +330,6 @@ struct DeliveryFileCard: View {
                 )
             }
         }
+        coverSettled = true
     }
 }
