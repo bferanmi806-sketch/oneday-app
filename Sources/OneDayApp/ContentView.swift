@@ -414,8 +414,14 @@ struct ContentView: View {
             // 镜、字形才吃 tint，0.33.0 默认蓝 tint 下垫
             // 仍浅灰为证）
             Tab(value: MainTab.chat) {
-                ChatView(overviewStore: overviewStore)
-                    .tint(.primary)
+                // §434：聊天格包 NavigationStack——中枢
+                // 页改导航 push＋系统 zoom 转场的宿主栈
+                // （目的地注册在 ChatView 内）；栈只包
+                // 本格，其余格与壳层结构不动
+                NavigationStack {
+                    ChatView(overviewStore: overviewStore)
+                }
+                .tint(.primary)
             } label: {
                 tabLabel(TabBarSymbols.chat)
             }
