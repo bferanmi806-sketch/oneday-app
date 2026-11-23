@@ -12,6 +12,7 @@ struct CronJobsView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var showCreate = false
+    @State private var showBlueprints = false
 
     /// 名单走共享 CronStore（台账 198 收敛·普查
     /// R4/D2）：与枢纽定时段、状态页摘录同一份取数
@@ -58,6 +59,10 @@ struct CronJobsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                Button("模板") { showBlueprints = true }
+                    .accessibilityLabel("从模板新建定时任务")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     showCreate = true
                 } label: {
@@ -68,6 +73,11 @@ struct CronJobsView: View {
         }
         .sheet(isPresented: $showCreate) {
             CronJobFormView(job: nil) {
+                Task { await store.refresh() }
+            }
+        }
+        .sheet(isPresented: $showBlueprints) {
+            CronBlueprintPickerView {
                 Task { await store.refresh() }
             }
         }
@@ -635,6 +645,10 @@ struct CronJobFormView: View {
     @State private var name: String
     @State private var prompt: String
     @State private var schedule: String
+    /// 投递目标（§388 H6）：服务端单源拉取，""＝不指定
+    /// （沿服务端默认）；拉不到时只剩「默认」一档、不假造
+    @State private var deliveryTargets: [CronDeliveryTarget] = []
+    @State private var selectedDeliver: String
     @State private var errorMessage: String?
     @State private var isSaving = false
 
@@ -643,6 +657,7 @@ struct CronJobFormView: View {
         self.onSaved = onSaved
         _name = State(initialValue: job?.name ?? "")
         _prompt = State(initialValue: job?.prompt ?? "")
+        _selectedDeliver = State(initialValue: job?.deliver ?? "")
         // 编辑态预填：schedule 是字符串时原样，对象时用展示串
         // 兜底（服务端能解析展示串之外的表达式才建议改动）
         if case .string(let raw) = job?.scheduleRaw {
@@ -687,6 +702,23 @@ struct CronJobFormView: View {
                         presetButton("每周一 9 点", "0 9 * * 1")
                     }
                     .padding(.top, OneDayMetrics.spacingM)
+                    SectionLabel("投递")
+                        .padding(.top, OneDayMetrics.spacingL)
+                        .padding(.bottom, OneDayMetrics.spacingS)
+                    VStack(spacing: 0) {
+                        FieldRow(label: "投递目标") {
+                            Picker("", selection: $selectedDeliver) {
+                                Text("默认（按服务器设置）").tag("")
+                                ForEach(deliveryTargets) { target in
+                                    Text(deliveryTargetTitle(target))
+                                        .tag(target.id)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                        }
+                    }
+                    .odGroup()
                     if let errorMessage {
                         InlineError(errorMessage)
                             .padding(.top, OneDayMetrics.spacingM)
@@ -699,6 +731,7 @@ struct CronJobFormView: View {
             .background(Palette.pageBG)
             .navigationTitle(job == nil ? "新建定时任务" : "编辑定时任务")
             .navigationBarTitleDisplayMode(.inline)
+            .task { await loadDeliveryTargets() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -733,6 +766,12 @@ struct CronJobFormView: View {
                     "schedule": .string(trimmedSchedule),
                 ]
                 updates["name"] = .string(trimmedName)
+                // 投递目标改了才带（清空回默认的语义服务端
+                // 未定，只许改到具体目标、不许假装能清空）
+                if !selectedDeliver.isEmpty,
+                   selectedDeliver != (job.deliver ?? "") {
+                    updates["deliver"] = .string(selectedDeliver)
+                }
                 try await appState.performAdmin { client, config in
                     try await client.updateCronJob(
                         config: config, id: job.id, updates: updates
@@ -745,7 +784,8 @@ struct CronJobFormView: View {
                         name: trimmedName.isEmpty ? nil : trimmedName,
                         prompt: trimmedPrompt,
                         schedule: trimmedSchedule,
-                        deliver: nil
+                        deliver: selectedDeliver.isEmpty
+                            ? nil : selectedDeliver
                     )
                 }
             }
@@ -753,6 +793,25 @@ struct CronJobFormView: View {
             dismiss()
         } catch {
             errorMessage = (error as? HermesError)?.userMessage ?? "保存失败，请稍后再试。"
+        }
+    }
+
+    /// 投递目标行题：名字＋未设主频道的如实标注
+    private func deliveryTargetTitle(_ target: CronDeliveryTarget) -> String {
+        if let note = target.availabilityNote {
+            return "\(target.name)（\(note)）"
+        }
+        return target.name
+    }
+
+    /// 投递目标取数：失败静默降级为仅「默认」一档（表单
+    /// 本体可用优先，不拿投递名单的失败拦住建任务）
+    private func loadDeliveryTargets() async {
+        guard deliveryTargets.isEmpty else { return }
+        if let targets = try? await appState.performAdmin({ client, config in
+            try await client.cronDeliveryTargets(config: config)
+        }) {
+            deliveryTargets = targets
         }
     }
 }

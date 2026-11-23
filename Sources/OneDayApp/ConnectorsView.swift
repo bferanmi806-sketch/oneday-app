@@ -646,6 +646,37 @@ struct ConnectorsView: View {
             .listRowBackground(Palette.surface)
             .listRowInsets(rowInsets)
         }
+        // §388 H7：MCP 目录入口——与上方静态连接器目录
+        // 同段不同源：静态册是客户端写死的，MCP 目录是
+        // 服务端实时批准目录（点按安装新能力）；已连接
+        // 的 MCP 管理仍在「已连接」段，不在此重复
+        Section {
+            NavigationLink {
+                MCPCatalogView(facade: facade)
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                        Text("MCP 目录")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Text("服务器批准的 MCP 目录，点按安装")
+                            .font(.footnote)
+                            .foregroundStyle(Palette.inkSecondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                    Text("去逛逛")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                .contentShape(Rectangle())
+            }
+        } header: {
+            headerText("MCP 目录")
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(rowInsets)
         // 0.36.10（判词 1）：页底总结段整段删除——
         // 「尚未接入」在每行状态字、「接入路径」在各
         // 自详情页（接入路径行＋accessDetail 明写 App

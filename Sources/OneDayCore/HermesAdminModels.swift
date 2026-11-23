@@ -279,6 +279,236 @@ public struct CronJob: Decodable, Sendable, Identifiable {
     }
 }
 
+// MARK: - /api/cron/blueprints（定时任务蓝图，§388 H6）
+//
+// 部署实查（v0.23.0 web_routers/cron.py:929＋cron/blueprint_
+// catalog.py blueprint_catalog_entry）：GET 返回
+// {"blueprints":[条目]}，条目＝表单模式＋现成命令/深链/计划
+// 人话；POST /api/cron/blueprints/instantiate {blueprint,
+// values} 按 fields 填空建任务，校验失败 422 字段级报错。
+// 蓝图是服务端单源（内置目录＋插件蓝图），App 只拉取渲染、
+// 不落本地副本。
+
+/// 蓝图的一个填空槽：type ∈ time/enum/text/weekdays（服务端
+/// _SLOT_TYPES 闭集）；default 是任意 JSON 值（多为字符串）
+public struct CronBlueprintField: Decodable, Sendable, Identifiable {
+    public let name: String
+    public let type: String
+    public let label: String
+    public let defaultValue: JSONValue?
+    public let options: [String]
+    public let optional: Bool
+    /// false＝options 只是建议（如 deliver 槽，真实可选集随
+    /// 网关配置变，服务端下游再校验）
+    public let strict: Bool
+    public let help: String
+
+    public var id: String { name }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, type, label, options, optional, strict, help
+        case defaultValue = "default"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decode(String.self, forKey: .name)
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? "text"
+        label = try container.decodeIfPresent(String.self, forKey: .label) ?? name
+        defaultValue = try container.decodeIfPresent(JSONValue.self, forKey: .defaultValue)
+        options = try container.decodeIfPresent([String].self, forKey: .options) ?? []
+        optional = try container.decodeIfPresent(Bool.self, forKey: .optional) ?? false
+        strict = try container.decodeIfPresent(Bool.self, forKey: .strict) ?? true
+        help = try container.decodeIfPresent(String.self, forKey: .help) ?? ""
+    }
+
+    public init(
+        name: String, type: String, label: String,
+        defaultValue: JSONValue? = nil, options: [String] = [],
+        optional: Bool = false, strict: Bool = true, help: String = ""
+    ) {
+        self.name = name
+        self.type = type
+        self.label = label
+        self.defaultValue = defaultValue
+        self.options = options
+        self.optional = optional
+        self.strict = strict
+        self.help = help
+    }
+
+    /// 表单初始文本：默认值按 JSON 形态摊平（字符串原样、
+    /// 数字/布尔转字面），无默认给空串
+    public var defaultText: String {
+        switch defaultValue {
+        case .string(let value): return value
+        case .number(let value):
+            return value == value.rounded()
+                ? String(Int(value)) : String(value)
+        case .bool(let value): return value ? "true" : "false"
+        default: return ""
+        }
+    }
+
+    public var isTime: Bool { type == "time" }
+    public var isEnum: Bool { type == "enum" }
+    public var isWeekdays: Bool { type == "weekdays" }
+}
+
+/// 一张蓝图（模板）：服务端表单模式原样建模，未知键忽略
+public struct CronBlueprint: Decodable, Sendable, Identifiable {
+    public let key: String
+    public let title: String
+    public let description: String
+    public let category: String
+    public let tags: [String]
+    public let fields: [CronBlueprintField]
+    /// "builtin" / "plugin"
+    public let source: String?
+    public let plugin: String?
+    /// 计划模板原文（如 "{minute} {hour} * * *"），仅展示参考
+    public let schedule: String?
+    /// 计划人话（如 "daily at 08:00"，服务端按默认值生成）
+    public let scheduleHuman: String?
+    public let command: String?
+    public let appUrl: String?
+
+    public var id: String { key }
+
+    private enum CodingKeys: String, CodingKey {
+        case key, title, description, category, tags, fields
+        case source, plugin, schedule, scheduleHuman, command, appUrl
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        key = try container.decode(String.self, forKey: .key)
+        title = try container.decodeIfPresent(String.self, forKey: .title) ?? key
+        description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
+        category = try container.decodeIfPresent(String.self, forKey: .category) ?? ""
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        fields = try container.decodeIfPresent([CronBlueprintField].self, forKey: .fields) ?? []
+        source = try container.decodeIfPresent(String.self, forKey: .source)
+        plugin = try container.decodeIfPresent(String.self, forKey: .plugin)
+        schedule = try container.decodeIfPresent(String.self, forKey: .schedule)
+        scheduleHuman = try container.decodeIfPresent(String.self, forKey: .scheduleHuman)
+        command = try container.decodeIfPresent(String.self, forKey: .command)
+        appUrl = try container.decodeIfPresent(String.self, forKey: .appUrl)
+    }
+
+    public init(
+        key: String, title: String, description: String = "",
+        category: String = "", tags: [String] = [],
+        fields: [CronBlueprintField] = [], source: String? = nil,
+        plugin: String? = nil, schedule: String? = nil,
+        scheduleHuman: String? = nil, command: String? = nil,
+        appUrl: String? = nil
+    ) {
+        self.key = key
+        self.title = title
+        self.description = description
+        self.category = category
+        self.tags = tags
+        self.fields = fields
+        self.source = source
+        self.plugin = plugin
+        self.schedule = schedule
+        self.scheduleHuman = scheduleHuman
+        self.command = command
+        self.appUrl = appUrl
+    }
+}
+
+public struct CronBlueprintsResponse: Decodable, Sendable {
+    public let blueprints: [CronBlueprint]
+
+    private enum CodingKeys: String, CodingKey { case blueprints }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        blueprints = try container.decodeIfPresent(
+            [CronBlueprint].self, forKey: .blueprints
+        ) ?? []
+    }
+}
+
+/// 蓝图填空组装（纯函数，钉测把守）：文本值按槽定义收敛为
+/// instantiate 的 values——必填槽空值即整单不成立（返回
+/// nil）；可选槽空值不带；其余原样带字符串（服务端 fill
+/// 链对 time/enum/weekdays/text 均按字符串校验）
+public enum CronBlueprintFill {
+    public static func values(
+        fields: [CronBlueprintField], texts: [String: String]
+    ) -> [String: JSONValue]? {
+        var result: [String: JSONValue] = [:]
+        for field in fields {
+            let raw = (texts[field.name] ?? field.defaultText)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if raw.isEmpty {
+                if field.optional { continue }
+                return nil
+            }
+            result[field.name] = .string(raw)
+        }
+        return result
+    }
+}
+
+// MARK: - /api/cron/delivery-targets（投递目标，§388 H6）
+//
+// 部署实查（web_routers/cron.py:754＋cron/scheduler_delivery
+// .py:527）：GET 返回 {"targets":[…]}，local 打头，其后是
+// 已接网关平台；平台没设主频道时 home_target_set=false 仍
+// 列出，UI 须如实标注而不是藏掉。
+
+public struct CronDeliveryTarget: Decodable, Sendable, Identifiable {
+    public let id: String
+    public let name: String
+    public let homeTargetSet: Bool
+    public let homeEnvVar: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name
+        case homeTargetSet = "home_target_set"
+        case homeEnvVar = "home_env_var"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? id
+        homeTargetSet = try container.decodeIfPresent(
+            Bool.self, forKey: .homeTargetSet
+        ) ?? false
+        homeEnvVar = try container.decodeIfPresent(String.self, forKey: .homeEnvVar)
+    }
+
+    public init(id: String, name: String, homeTargetSet: Bool, homeEnvVar: String? = nil) {
+        self.id = id
+        self.name = name
+        self.homeTargetSet = homeTargetSet
+        self.homeEnvVar = homeEnvVar
+    }
+
+    /// 行尾标注：没设主频道时点明（选了也投不到主频道）
+    public var availabilityNote: String? {
+        homeTargetSet ? nil : "未设主频道"
+    }
+}
+
+public struct CronDeliveryTargetsResponse: Decodable, Sendable {
+    public let targets: [CronDeliveryTarget]
+
+    private enum CodingKeys: String, CodingKey { case targets }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        targets = try container.decodeIfPresent(
+            [CronDeliveryTarget].self, forKey: .targets
+        ) ?? []
+    }
+}
+
 // MARK: - /api/sessions（服务端会话，需会话）
 
 /// 实测样本：{"sessions": [{"id": "…", "source": "dashboard",
