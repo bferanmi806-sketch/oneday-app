@@ -14,6 +14,11 @@ struct ChatEntryHeightSnapshot {
     let createdAt: Date
     let sendFailed: Bool
     let isPendingSend: Bool
+    /// §414 增补（断网发送态规格 5.3）：未确认发送
+    /// 位——与条目谓词 isUnconfirmedSend 同源派生
+    /// （快照点单点取值），原生面 cell 侧消费同值
+    /// 决定气泡浅色态，不许另写一份判定
+    let isUnconfirmedSend: Bool
     let quote: MessageQuote?
     let sourceQuote: SourceQuote?
     let reasoning: String?
@@ -43,6 +48,7 @@ struct ChatEntryHeightSnapshot {
         createdAt = entry.createdAt
         sendFailed = entry.sendFailed
         isPendingSend = entry.isPendingSend
+        isUnconfirmedSend = entry.isUnconfirmedSend
         quote = entry.quote
         sourceQuote = entry.sourceQuote
         reasoning = entry.reasoning

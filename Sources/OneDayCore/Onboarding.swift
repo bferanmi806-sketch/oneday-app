@@ -60,7 +60,10 @@ public struct OnboardingFailure: Error, Sendable, Equatable {
         switch error {
         case .invalidServerAddress:
             kind = .invalidAddress
-        case .unreachable, .transientNetwork, .healthCheckFailed:
+        case .unreachable, .transientNetwork, .notSentOffline,
+             .healthCheckFailed:
+            // notSentOffline（§414 增补分型）：保形同
+            // 落——拆分前经 transientNetwork 归本型
             kind = .unreachable
         case .loginRejected, .apiKeyRejected:
             kind = .credentialRejected

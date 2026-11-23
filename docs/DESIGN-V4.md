@@ -16284,3 +16284,39 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
+
+## §414 修复包一「失败不消失」＋断网四缺口（2026-11-23）
+
+### 三路（与红感叹号定版脱节的失败呈现）
+
+- 路一（落盘前弹回→落位待发）：send() 落盘前失败旧行为是删本轮条目＋输入退回发送舱，断网时用户眼里即「刚发的消息没了」。改：失败条目以 markPendingSend 落盘保留为待发条目（原位）；账本落定后由发件箱 drain 同入口派发——drain 钩子三处（launchTurn/resendPending 收尾、resumeRunIfNeeded 落定后）＋既有触发面（进/切线程 .task、网络恢复 epoch、回前台、流式下降沿）共用 drainOutboxIfNeeded，守卫含账本在位即不许动（账本门）。
+- 路二（重发删原条→原位重发）：resendFailedEntry 整段改写——同 id 同序位原位重发、出站只喂本条；半截候选收口到 turnPartialCandidates（补下一轮界：中段重发轮之后已落定轮次不入选；补待发豁免：账本滞留期落位的待发条目不被当作本轮半截吞掉）。
+- 路三（编辑未发送删条重建→原位写回）：ChatEntry.applyUnsentEdit 原位写回——同 id/同时刻/同序位，内容与图片全集与引用换新，发送状态一字不动。
+
+机制层不推倒：原位保留＋自动重试 3 次（OutboxAutoRetryPolicy 单点判定：失败首次自动重试不等退避，其后 30/60/120s 指数退避封顶 300s，耗尽回落手点；准备段瞬态无条件接管，提交段在飞归账本对账链）。
+
+### 断网四缺口（0.50.103 断网 P0 判不过）
+
+1. 文案单源化：占位行状态文案收口 placeholderStatusText 纯函数五相——「正在生成…」只许 .submitAccepted 后出现，未受理段显「等待发送…」、已受理未知显「正在确认结果…」；五处守卫提示收口 ledgerBusyNotice。
+2. 提交分型拆分：HermesError 新增 .notSentOffline 分型——.notConnectedToInternet/.dataNotAllowed 从「结果未知」桶拆出，不走 600s 对账磨耗，折回待发巷由发件箱 drain 恢复后续发；真未知仍走 154 消息级幂等全套。
+3. 气泡浅色态：新增 isUnconfirmedSend 单点谓词——未确认泡体 opacity 0.45（Muse 形态），确认后 0.2s 过渡回全色；SwiftUI 面与 ChatNativeRowFacets 两面同源一位，填充变化不进高度；高度快照同源字段派生。
+4. 时钟读口改挂：sendStateMark 的时钟条件改挂 isUnconfirmedSend（原读 sendFailed 与 deliveryState=="pending"，与 markSendState 对 queued/uploading/linking/sending 不写 deliveryState 的写口错位，标记形同虚设）。
+
+### 钉测形态沿革（UI 钉→drain 钉）
+
+原计划的 UI 钉（点发送钮、读气泡旁标记）在本仓托管式单测环境被三轮诊断证伪：accessibilityElements 属性口与 accessibilityElementCount/at: 协议口遍历均为零元素零标签，消息正文仅经真实 UITextView 可见，SwiftUI Button 不可达、accessibilityActivate 点按驱动走不通。故端到端钉改走发件箱 drain 的真实派发面（挂载 .task／网络恢复 epoch 均为生产同路触发），断言落存储回读与自动尝试记账；send() 落位分支本体、时钟/红叹号标记在屏呈现列真机门。
+
+等待层两段定因（收尾实证）：①@MainActor 异步测试内同步 wait(for:) 冻住主线程，DispatchQueue.main.asyncAfter 的 fulfill 回调不被 XCTest wait 泵送服务——两轮确定性全超时（每轮 16 失败、时长逐项一致）；同仓 ChatReliabilityOfflineTests 用逐字相同 spinRunLoop＋RootView 挂载但类无 @MainActor、同期全绿，隔离是唯一鉴别变量。②改 RunLoop 手工泵送后计时器可达，但同步自旋仍占住 MainActor 执行器，drain 的 Task 在整个轮询期被饿死（探针实证：守卫全过、decision=autoNow 的打印落在测试收尾之后才出现）。终版口径：钉测等待一律 Task.sleep 真挂起，让出执行器。
+
+### 验证状态（2026-11-23 收尾冻结时点）
+
+- 六套回归 20:17 轮全绿（HermesErrorTests、OutboxAutoRetryTests、ChatPreLayoutStep1Tests、ChatReliabilityOfflineTests、ClientMessageIDTests、OutboxActionSheetTests）；生产代码自该轮后未改（其后只动测试文件），该轮结论对当前生产 diff 仍成立，全量钉测轮留组版合并测试统一跑。
+- drain 三钉（等待层修复后，RUN 2026-11-23 22:02:18）：账本门 testPendingEntryHeldWhileLedgerStale 绿（账本滞留期零派发、待发身份序位不动）；重发原位 testFailedEntryResendDispatchedInPlace 绿（派发记账＋再失败原位落失败态＋总数/id 集/序位不变）；待发派发 testPendingEntryDispatchedInPlaceOnceLedgerSettles 部分绿——派发记账断言过、「派发后原位落失败态」断言未过，见开放项 1。
+- 模型/谓词级钉同期绿：turnPartialCandidates 下一轮界、applyUnsentEdit 原位写回、placeholderStatusText 五相、isUnconfirmedSend 谓词、HermesError 分型表。
+
+### 已知开放验证项（留 0.50.104 合并测试轮处理）
+
+1. 待发派发落定未证：待发条目（.queued）经 drain 派发（记账已落）后，未在 10s 观察窗内原位落失败态；resumeOutboxEntry 对 .queued 续发路径的落定形态未定因（疑经链接/对账段耗时超窗，未证）。合并测试轮复跑该钉判定：仍不过先分清钉窗太短还是续发落定缺失，不许改生产迁就钉。
+2. 探针装配记账可见性未对账：探针装配下 drain 实证入场、守卫全过、decision=autoNow 且其条 id 与探针 failedID 为同一条（探针 v3 打印对账：threadID 一致、decision 条 id＝failedID），但探针按 failedID 读自动重试记账在收尾读时仍为空、recordKeys 仅见上一轮残账；而同一记账在钉装配（22:02 轮）如实落地。两装配的记账可见性差异未对账，留合并测试轮以发布集整轮复跑判定。
+3. 路二基线红未重做：基线红跑（RUN 2026-11-23 20:43:41）被基线行量测台间歇 segv 打死——xcresult 记 testFailedEntryResendDispatchedInPlace「Test crashed with signal segv」（0 通过、非断言红）；.ips OneDayApp-2026-11-23-204455 定性：App 主线程在 ChatView body 求值渲染种子线程行时，ChatNativeRowMeasureDesk.resolve 内 Dictionary 写入销毁 ChatNativeRowMeasureJob 触发 swift_release 链 EXC_BAD_ACCESS @0x18。红跑时生产改动已 stash，崩点在基线存量量测代码、与本包改动无涉；与 15:32 .ips（ChatNativeRowHeightComposer 量测栈）同属行量测子系统间歇崩溃家族（已知观察项）。修复后同钉已绿，基线红证据缺口如实留账，重做冻结并入本清单。
+4. 真机门（归用户 verdict）：飞行模式发纯文本→浅色泡＋时钟标记＋「等待发送…」；关飞行模式→自动续发转全色、「生成中」只在受理后出现；发送失败→红感叹号原位重发不删条；杀进程重进→待发条目原位可见。

@@ -439,6 +439,20 @@ final class ChatEntry {
         deliveryState == "pending"
     }
 
+    /// 未获服务端确认的在途发送（§414 增补，断网
+    /// 发送态规格 5.3）：呈现层单点谓词——气泡浅
+    /// 色态与 sendStateMark 时钟共用此口，不再读
+    /// deliveryState（该字段保留存量兼容与种子/
+    /// 半截守卫语义，不再承担呈现）。判据只认发
+    /// 送状态机：remainsInQueue 四态（queued/
+    /// uploading/linking/sending）在途未确认；失
+    /// 败态由红感叹号分工、泡体回正常色，故同式
+    /// 排除 sendFailed（.failed 的 remainsInQueue
+    /// 为真、靠此项摘出）；delivered/无状态为假
+    var isUnconfirmedSend: Bool {
+        sendState?.remainsInQueue == true && !sendFailed
+    }
+
     /// 发送准备失败的保留落盘（聊天可靠性包）：条
     /// 目不删、只打待发标记并存盘——ChatView.send
     /// 的上传/链接失败分支统一走此口（旧行为是删
@@ -476,6 +490,55 @@ final class ChatEntry {
             sendFailed = false
             deliveryState = nil
         case .queued, .uploading, .linking, .sending:
+            break
+        }
+        try? context.save()
+    }
+
+    /// §414（修复包一·路三）：未发送条目的原位编辑
+    /// 写回——正文/图片全集/引用两槽按新值覆写（来
+    /// 源引用字段组先全清再按族回填，与 init 的三
+    /// 方互斥口径同）；id、createdAt 与发送状态一
+    /// 律不动：编辑只换内容，身份、位置与待发/失
+    /// 败态由重发链自理
+    func applyUnsentEdit(
+        content: String, imageDatas: [Data],
+        quote: MessageQuote?, sourceQuote: SourceQuote?,
+        in context: ModelContext
+    ) {
+        self.content = content
+        imageData = imageDatas.first
+        imageDatasData = imageDatas.isEmpty
+            ? nil
+            : try? JSONEncoder().encode(imageDatas)
+        quoteRole = quote?.role
+        quoteContent = quote?.content
+        feedPostID = nil
+        feedPostTitle = nil
+        feedPostBody = nil
+        feedPostSource = nil
+        ideaQuoteID = nil
+        ideaQuoteTitle = nil
+        ideaQuoteBody = nil
+        fileQuoteName = nil
+        fileQuotePath = nil
+        goalQuoteCategory = nil
+        switch sourceQuote {
+        case .feed(let quote):
+            feedPostID = quote.postID
+            feedPostTitle = quote.title
+            feedPostBody = quote.body
+            feedPostSource = quote.sourceLine
+        case .idea(let quote):
+            ideaQuoteID = quote.ideaID
+            ideaQuoteTitle = quote.title
+            ideaQuoteBody = quote.body
+        case .file(let quote):
+            fileQuoteName = quote.name
+            fileQuotePath = quote.path
+        case .goal(let quote):
+            goalQuoteCategory = quote.category.rawValue
+        case nil:
             break
         }
         try? context.save()
