@@ -15381,4 +15381,8 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 **结构钉测（新套 FilePreviewSingleTrackStructureTests）**：①退役符号禁词普查（DocumentReaderView/SpreadsheetReaderView/BridgeSpreadsheet/opensInReader/isSpreadsheet 在 App/Core 生产代码行零残留）；②QLPreviewController 构造点普查只许两处文件（RichContentViews.swift＝QuickLookPreview 共用组件、DeviceEverydayExecutors.swift＝例外 E2 呈现桥）；③盒文件资格门与分享兜底在场（BoxFilesView 切片断言 canPreview＋FileShareSheet）；④设备工具 preview 资格门在场（DeviceEverydayExecutors 切片断言 QLPreviewController.canPreview）。
 
-**回归记账**：（定稿回填）
+**收口结果（定稿）**：R1/R2 落码提交 18ff775（普查草案 6f7ac73）；diff 规模＝生产源码 2 文件 +42/−1（BoxFilesView +32/−1：资格门＋不支持预览态＋分享/保存兜底＋sheet 承载；DeviceEverydayExecutors +11：preview 资格门）＋新钉测 1 文件（FilePreviewSingleTrackStructureTests 4 项）＋本节。普查 10 点：单轨不动 5（P1/P2/P3/P7＋P10 设计内三态归 E4）、收口 2（P5→R1、P6→R2）、例外保留 6（E1–E6，其中 P4 归 E1、P8 归 E5、P9 归 E6）。
+
+**回归记账（定稿）**：聚焦轮 23/23 全绿（新结构套 4＋S371/S373＋FileOpenRouteTests，bundle Test-OneDayApp-qlpreview-focus）。发布集轮：名单＝Test-OneDayApp-rel05098 bundle 提取 97 套全限定名＋新套 1 ＝ 98 套，预期 817＋4＝821 项 → 实跑 **821/821 全绿、0 红、0 跳过**（bundle Test-OneDayApp-qlpreview-release，xcresulttool 本体对账：套级与 rel05098 bundle 逐套比对，缺 0、增仅本包新套）。S371/S373 在发布集内全绿（chatScaffold 根链零触碰）。通道注记：本轮时段多线并行、测试通道争用严重，两轮均经「双读判闲→忙即中止」纪律守候空窗踢入，未抢道、未覆写他人轮次。
+
+**真机门（留组版后用户 verdict）**：①盒文件打开 QL 不认的类型（如 .ipa/.zip 直落盒文件面）——落「不支持预览」态＋分享/保存可用、不再空白页；②盒文件常规类型（PDF/文本/表格）QL 呈现与图片查看器不回退；③设备工具 file_preview 对不可预览类型回人话错误、对可预览类型照常呈现；④主链三面（聊天/文件页/资料库）打开/分享/下载冒烟不回退。
