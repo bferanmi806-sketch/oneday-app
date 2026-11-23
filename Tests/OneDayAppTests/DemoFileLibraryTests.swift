@@ -3,7 +3,7 @@ import OneDayCore
 import XCTest
 @testable import OneDayApp
 
-/// §419 演示模式文件库死面修复钉测（§401.4 缺口一）：
+/// §421 演示模式文件库死面修复钉测（§401.4 缺口一）：
 /// 演示态资源库聚合读面自 0.50.60 改走伴生桥单流、
 /// 桥无 demo 分支且演示态无桥钥，打开必落「产出目
 /// 录没读出来」错误面、重试不恢复（死面）。修法＝
@@ -178,11 +178,11 @@ final class DemoFileLibraryTests: XCTestCase {
         let src = try String(contentsOf: srcURL, encoding: .utf8)
         XCTAssertTrue(
             src.contains("Self.demoDeliverables("),
-            "§419：collect 演示态应回落演示装配、不走桥死面"
+            "§421：collect 演示态应回落演示装配、不走桥死面"
         )
         XCTAssertTrue(
             src.contains("\"#demo\""),
-            "§419：演示名单键应加 #demo 后缀与真实同址隔离"
+            "§421：演示名单键应加 #demo 后缀与真实同址隔离"
         )
     }
 }

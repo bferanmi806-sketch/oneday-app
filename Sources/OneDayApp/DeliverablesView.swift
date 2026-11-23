@@ -1422,7 +1422,7 @@ struct DeliverablesView: View {
     /// 无配置才给错误态、成功且非空清错误、已有数据
     /// 刷新失败保留旧集不清屏（店内已保、本处不置错）
     private func collect() async {
-        // 演示态名单键与真实同址隔离（§419）：演示
+        // 演示态名单键与真实同址隔离（§421）：演示
         // config 与真实连接同为 hermes.didichou.site、
         // 同键会让种子快照与真实快照串用（店口径：快
         // 照不得跨服务器／账号串用），演示恒加后缀键
@@ -1440,7 +1440,7 @@ struct DeliverablesView: View {
                 // 为 nil 时不会调用本闭包
                 throw HermesError.sessionExpired
             }
-            // 演示态回落演示回执（§419，§401.4 缺口一
+            // 演示态回落演示回执（§421，§401.4 缺口一
             // 修向）：桥读面无 demo 分支、演示态无桥钥，
             // 走桥恒落错误面；改从演示客户端 files 种
             // 子面装配（冻结清单内），不给桥加 demo 分支
@@ -1475,7 +1475,7 @@ struct DeliverablesView: View {
         }
     }
 
-    /// 演示态名单装配（§419）：从演示客户端 files 种
+    /// 演示态名单装配（§421）：从演示客户端 files 种
     /// 子面走查种子目录集装配名单——目录集与 Demo-
     /// HermesClient.files 的存量种子目录逐一对应
     /// （2026-11-11 冻结清单「文件种子面」，不扩种
