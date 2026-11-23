@@ -277,6 +277,8 @@ struct SettingsView: View {
             SkillsView()
         case .toolsets:
             ToolsetsSettingsView()
+        case .delegation:
+            DelegationRoutingView()
         case .cron:
             CronJobsView()
         case .serverSessionDetail(let id):
@@ -720,6 +722,7 @@ struct SettingsView: View {
         case .memory: return .agent(.memory)
         case .skills: return .agent(.skills)
         case .toolsets: return .agent(.toolsets)
+        case .delegation: return .agent(.delegation)
         case .cron: return .agent(.cron)
         case .models: return .models
         case .envVars: return .envVars
@@ -761,6 +764,7 @@ struct SettingsView: View {
         case "memory": return "memorychip"
         case "skills": return "puzzlepiece.extension"
         case "toolsets": return "wrench.and.screwdriver"
+        case "delegation": return "arrow.triangle.branch"
         case "models": return "text.bubble"
         case "cron": return "clock.arrow.2.circlepath"
         case "serverSessions": return "bubble.left"

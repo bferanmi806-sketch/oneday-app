@@ -13,6 +13,7 @@ enum AgentRoute: Hashable {
     /// 工具集治理（台账 34，DESIGN §358）：设置·智能
     /// 体组「工具集」页
     case toolsets
+    case delegation
     case cron
     /// （.serverSessions 名单页路由已随台账 199 删
     /// 除：名单正主归全部对话一级面，设置「服务端

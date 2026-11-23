@@ -464,6 +464,19 @@ struct ModelSettingsView: View {
                         .lineLimit(1)
                 }
             }
+            NavigationLink {
+                MoaView(modelStore: store)
+            } label: {
+                VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                    Text("多模型会商")
+                        .font(.body)
+                        .foregroundStyle(Palette.ink)
+                    Text("几个模型先各自答、一个汇总——重要问题用。")
+                        .font(.footnote)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                }
+            }
         } header: {
             Text("辅助模型")
         }

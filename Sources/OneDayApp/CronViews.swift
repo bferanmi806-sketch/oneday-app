@@ -19,6 +19,29 @@ struct CronJobsView: View {
     private var store: CronStore { appState.sharedCronStore() }
     private var jobs: [CronJob] { store.jobs }
 
+    /// 接入组行（与技能页商店行同形：标题＋说明＋箭头）
+    private func accessRow(title: String, detail: String) -> some View {
+        HStack(spacing: OneDayMetrics.spacingSM) {
+            VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink)
+                Text(detail)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            Spacer(minLength: OneDayMetrics.spacingS)
+            Image(systemName: "chevron.right")
+                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
+                .foregroundStyle(Palette.inkMuted)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .padding(.vertical, OneDayMetrics.spacingS)
+        .frame(minHeight: OneDayMetrics.rowHeight)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -48,6 +71,33 @@ struct CronJobsView: View {
                     )
                     .padding(.top, OneDayMetrics.spacingXXL)
                 }
+                // 接入组（H11/H13，DESIGN §390）：外部事件
+                // 与钩子只读——与定时任务同属自动化面
+                SectionLabel("接入")
+                    .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                    .padding(.bottom, OneDayMetrics.spacingS)
+                VStack(spacing: 0) {
+                    NavigationLink {
+                        WebhooksView()
+                    } label: {
+                        accessRow(
+                            title: "外部事件",
+                            detail: "GitHub、监控、表单的事件直达触发 Hermes"
+                        )
+                    }
+                    .buttonStyle(.odPressable)
+                    GroupDivider()
+                    NavigationLink {
+                        OpsHooksView()
+                    } label: {
+                        accessRow(
+                            title: "钩子",
+                            detail: "服务器上已配的自动命令，只看不改"
+                        )
+                    }
+                    .buttonStyle(.odPressable)
+                }
+                .odGroup()
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingM)

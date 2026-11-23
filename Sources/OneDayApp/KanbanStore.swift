@@ -23,6 +23,9 @@ final class KanbanStore {
     private(set) var actingIDs: Set<String> = []
     /// 卡内行内提示（未确认/失败的人话，不弹模态）
     private(set) var notes: [String: String] = [:]
+    /// 最近一次自动拆解的回执结论（§390）：execute
+    /// 写入、perform 落进 notes 后即弃
+    private var lastDecomposeSummary: String?
     private(set) var detail: KanbanTaskDetail?
     private(set) var detailLoading = false
     private(set) var creating = false
@@ -223,6 +226,7 @@ final class KanbanStore {
         }
         actingIDs.insert(task.id)
         notes.removeValue(forKey: task.id)
+        lastDecomposeSummary = nil
         defer { actingIDs.remove(task.id) }
         let steps = KanbanControlPlan.steps(action: action, task: task)
         do {
@@ -253,7 +257,11 @@ final class KanbanStore {
         if detail?.task.id == task.id {
             await loadDetail(appState: appState, id: task.id)
         }
-        if !isConfirmed(action: action, taskID: task.id) {
+        if action == .decompose, let summary = lastDecomposeSummary {
+            // 拆解回执自带结论（拆了几个/为何没拆），
+            // 原样落注记，不走呈现态确认口径
+            notes[task.id] = summary
+        } else if !isConfirmed(action: action, taskID: task.id) {
             notes[task.id] = L10n.string("动作已发出，但状态还没有确认变化，请刷新核对。")
         }
     }
@@ -303,6 +311,13 @@ final class KanbanStore {
                     config: config, board: board
                 )
             }
+        case .decompose(let taskID):
+            let receipt = try await appState.performAdmin { client, config in
+                try await client.kanbanDecompose(
+                    config: config, board: board, id: taskID
+                )
+            }
+            lastDecomposeSummary = receipt.summary
         }
     }
 
@@ -336,6 +351,9 @@ final class KanbanStore {
             return current.presentation != .needsInput
         case .create:
             return false
+        case .decompose:
+            // 回执结论已落注记（见 perform），不另判
+            return true
         }
     }
 }
