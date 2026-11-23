@@ -16284,3 +16284,32 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
+
+## §417 Markdown 换底：自研状态机 → swift-markdown 0.6.0（2026-11-23；分支 feat/md-swift-markdown，基线 rel-05102 @64f2b56；施工图 swap-md-image-prep-20261123.md 第一部 Path B；差分签收表 md-swap-diff-signoff-20261123.md）
+
+### §417.1 落点
+1. **轨道**：新建 Tuist/Package.swift 钉 swift-markdown exact 0.6.0（Package.resolved 实钉 swift-markdown 0.6.0＋swift-cmark 0.9.0 两枚、只增本包行）；Project.swift 的 OneDayCore target 加 `.external(name: "Markdown")`。与 Exyte 线并行铺的同仓 SPM 轨道结构同式，合并时由组版线并集收口。
+2. **降解层**：新增 MarkdownTreeLowering.swift（enum MarkdownTreeParsing）——swift-markdown Markup 树手写递归降解为现行 MarkdownBlock／InlineRun 模型（块模型冻结、消费面零改动）；`MarkdownParser.parse` 签名与备忘入口不变、内部按引擎分派。块持「规范形序列化原文」（定界符归一、实体解开、字面按需回转义，见签收表 A8／C3）。
+3. **引擎开关**：新增 MarkdownEngine（键 markdown.engine.legacy，默认 false＝新核）；切换即清 blocks＋runs 两备忘盒防两核产物混存。保留一个发布周期作回滚，删除条件＝parseUncached 与 parseWithRanges 孤岛随 S2 退役 StreamingBlockProduct 后同批。
+4. **runs 路**：InlineRunBuilder 默认路改树行内 Visitor 直产；链路＝行首防护（行首块标记转义防吞字面）→ MarkdownInline 删除线分段（A6 实证保留）→ 段内树解析 → NSDataDetector 裸链接补位（autolink 扩展上游未挂）。旧路降为 legacyRunsUncached 回滚位。
+
+### §417.2 差分与签收（语料先行）
+- 语料 129 篇块级（三套钉测全 fixture＋边角 45＋真实文档 12＋生成变体 24＋≥20KB 长文）＋49 篇行内，新旧双跑逐项比对（MarkdownEngineDifferentialTests 为可执行签收闸，未登记差异即红；报告 mdswap-diff-blocks.txt／mdswap-diff-runs.txt 每跑重写于 worktree 根）。
+- A 类补齐 11 项（智能标点关、表格树形按探针实测重写、引用空行按源行距、引用源行剥标记、列表项内引用不吞、删除线分段层、裸链接检测器补位、字面回转义、Setext 双形按旧口径、空标题回段落、runs 行首防护）——补齐后与旧逐字一致。
+- B 类新更对 7 项＋C 类可接受差 5 项：逐条登记于签收表（~~~ 围栏／缩进代码／参考式链接／列表溢出净文本／引用 lazy 续行／链内 strong 保真；硬断标记／实体／尖括号链接规范形／空 alt 占位符）。
+- 施工图登记三项处置：D1 引用嵌套摊平保留（深度逐层保真、差分实证）；D2 行内 Image＝替代文本作普通 run（实测旧行为同口径）；D3 Setext 偏离施工图「按新更对」建议、双形按旧口径补齐（--- 形在 LLM 输出里压倒性是分割线意图、变 H2 是呈现回归，理由记签收表）。
+
+### §417.3 钉测与性能门
+- 放行门六套实跑（2026-11-23 19:47 轮，bundle Test-OneDayApp-mdswap）：MarkdownBlocksTests 39／MarkdownMessageTests 9／MarkdownParseMemoTests 5 不改断言全绿＋InlineRunBuilderTests 13／TextPipelineRunLayerTests 全绿＋差分套未签收差异 0；唯一红＝性能门断言（见下）。
+- **性能门未达标（如实记账）**：全链（parse＋装配 segments）128 篇×5 轮中位，旧核 0.0114s、新核 0.0261s、比值 2.30×（门限 ≤1.10；四轮实测 2.09–2.41，mdswap-perf.txt）。分段探针定因：swift-markdown 裸解析 8.8ms 已是旧状态机全程 3.2ms 的 2.7 倍——成本在库的 C 树→Swift Markup 树转换、属选型固有地板；降解层已做一次解析两件产物（runs 种入备忘）与多处快退，改变不了量级。旧扫描器快正因其只是逐行扫描器（B 类规范差异即其代价）。生产口径：双备忘下冷解析每唯一内容只付一次、稳态查表，流式路径走 parseWithRanges 孤岛不经新核。处置（接受成本换正确性／暂缓）待用户裁决，断言门限不擅改。
+- 三分类：解析核＝**①直接搬**（swift-markdown 官方库、版本钉死、降解层只做模型翻译不自创解析）；删除线分段与裸链接补位＝**②机制抄／平台件**（分段为本仓既有件因上游节点缺形保留、补位用 NSDataDetector 平台原生件）；Setext／空标题等口径对齐＝按旧约补齐（行为合同优先于新核默认）。
+
+### §417.4 退役清单（据实证修订施工图）
+- 旧状态机本体（parseUncached）：退出生产默认路，留回滚位＋孤岛（parseWithRanges 唯一实现），不删代码——删之必动三套钉测中 MarkdownInline 分段的 4 例与孤岛差分钉测，违「不改断言」放行门；与施工图「保留一个发布周期、下版单独成步删除」一致。
+- MarkdownInline 分段：**不退役**（A6 实证为新核必要组成，施工图退役项据实修订）。
+- InlineRunBuilder 对 AttributedString(markdown:) 的生产依赖：已退役（仅回滚位留存）。
+- MarkdownDelimiterAudit：保留不动（装配一致性断言，与解析核无关、仍在役）。
+- CodeHighlight：保留不动（语言归一口径两核共用）。
+
+### §417.5 真机门（未过不关账）
+组版后随整版验：消息选区四件（点选／长按菜单／拷贝／引用）行为不变、§392 表格一帧对位、代码块渲染与拷贝、≥20KB 长文档滚动、浅深双色各一帧；实验室绿不代真机 verdict。
