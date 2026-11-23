@@ -1429,6 +1429,15 @@ struct DeliverablesView: View {
             // 为 nil 时不会调用本闭包
             throw HermesError.sessionExpired
         }
+        // 演示态回落演示回执（§421，§401.4 缺口一
+        // 修向）：桥读面无 demo 分支、演示态无桥钥，
+        // 走桥恒落错误面；改从演示客户端 files 种
+        // 子面装配（冻结清单内），不给桥加 demo 分支
+        if appState.isDemo {
+            return try await Self.demoDeliverables(
+                client: appState.client, config: config
+            )
+        }
         let page = try await bridgeClient.fileLibrary(
             config: config
         )
@@ -1439,9 +1448,20 @@ struct DeliverablesView: View {
 
     /// 对账（强制口）：上传落定/失败重试走本口——
     /// 不经新鲜度门、必真拉
+    /// 名单键（§421 演示隔离）：演示 config 与真实
+    /// 连接同为 hermes.didichou.site、同键会让种子
+    /// 快照与真实快照串用（店口径：快照不得跨服务
+    /// 器／账号串用），演示恒加后缀键。collect 与
+    /// collectIfNeeded 共用（§416×§421 并存合并）
+    private var libraryConfigKey: String? {
+        guard let base = appState.config?.baseString
+        else { return nil }
+        return appState.isDemo ? base + "#demo" : base
+    }
+
     private func collect() async {
         let outcome = await listStore.refresh(
-            currentConfigKey: appState.config?.baseString
+            currentConfigKey: libraryConfigKey
         ) {
             try await fetchLibraryPage()
         }
@@ -1454,7 +1474,7 @@ struct DeliverablesView: View {
     /// 改名落点），修订触发的重跑不被门吞
     private func collectIfNeeded() async {
         let outcome = await listStore.refreshIfNeeded(
-            currentConfigKey: appState.config?.baseString
+            currentConfigKey: libraryConfigKey
         ) {
             try await fetchLibraryPage()
         }
@@ -1485,6 +1505,50 @@ struct DeliverablesView: View {
         case .keptAfterFailure, .alreadyInFlight:
             break
         }
+    }
+
+    /// 演示态名单装配（§421）：从演示客户端 files 种
+    /// 子面走查种子目录集装配名单——目录集与 Demo-
+    /// HermesClient.files 的存量种子目录逐一对应
+    /// （2026-11-11 冻结清单「文件种子面」，不扩种
+    /// 子）；只收文件条目（目录行跳过，其内容经各自
+    /// 目录入集）、按 path 去重，来源记种子目录（数
+    /// 据层记录口径，与桥回执 source 同位）。分类走
+    /// entry.mediaKind 既有口径（文件段／影音段），
+    /// 本函数不另立判据。
+    static func demoDeliverables(
+        client: HermesClientProtocol, config: ServerConfig
+    ) async throws -> [Deliverable] {
+        let seedDirectories = [
+            "/opt/data",
+            "/opt/data/cache/images",
+            "/opt/data/cache/videos",
+            "/opt/data/cache/audio",
+            "/opt/data/cache/documents",
+            "/opt/data/cache/screenshots",
+            "/opt/data/cron/output",
+            "/opt/data/image_cache",
+            "/opt/data/images",
+            "/opt/data/reports",
+            "/opt/data/cache/scratch",
+            "/opt/data/audio_cache",
+        ]
+        var seenPaths = Set<String>()
+        var items: [Deliverable] = []
+        for directory in seedDirectories {
+            let listing = try await client.files(
+                config: config, path: directory
+            )
+            for entry in listing.entries
+            where !entry.isDirectory {
+                guard seenPaths.insert(entry.path).inserted
+                else { continue }
+                items.append(
+                    Deliverable(entry: entry, source: directory)
+                )
+            }
+        }
+        return items
     }
 
     /// §369（缓存 C4）：删除走名单店本地摘行——先摘

@@ -16557,3 +16557,26 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 - 开放项①（§414 遗留第 1 条）定因＋补漏（收尾轮，3dc20df）：resendPending 的 prepareSendShape 失败 catch 只设 errorMessage、条目状态一字未动，条目恒留 .queued；OutboxAutoRetryPolicy 对 .queued 恒 .autoNow（无次数/退避门，前提是「准备段瞬态被进程中断、从未抵达提交段」，不含「drain 派发后链接段落败」）→ drain 无界重派队首同一条（第一轮实测 attempts＝1637）、队首永不让位、后续条目饿死；§414 钉 line 301 与本包 FIFO 钉同根红。launchTurn 同段失败有 markTurnFailed（基础止血包 P1 口径），待发路漏落——补漏：resendPending shape catch 补 markTurnFailed(entry:) 与 launchTurn 逐字对齐（取消臂不补）。第二轮实证：甲 attempts 恒 1、原位落失败态、§414 钉转绿。§414 开放项第 1 条就此关闭；第 2 条（探针装配记账可见性未对账）仍开、与本包无涉。
 - 口径冲突已裁（2026-11-23 主线裁 B 案；下为待裁期原记，结论以本条末段裁决为准）：FIFO 钉乙侧四断言仍红（第二轮 :242/:245/:259/:281）——甲落 .failed（attempts＝1）后策略决策 .backoff（30s），drainOutboxLoop 现行实现对 .backoff 为 return 收趟（§414 期「队头退避未满、保序不跃队」口径），乙首投被队头退避挡住、窗内不派发。排队图 §1.3「逐条成轮」口径下，队首条目已落定失败（终态呈现）不应挡后续条目的首投——两包口径未对账到这一格。A 案：维持挡队（排队消息在前条失败退避期内不发；FIFO 钉改判或改形态）；B 案：drain 对 .backoff 改 continue 跳过（已落失败态条目不挡后续首投，其自身重试仍受策略退避管辖；须评估中段失败条目重试与后续条目的上下文序影响）。裁决与落法（落码笔 7608af6）：采 B 案——理由：失败条目已落 .failed 即归发件箱原位重试轨（§414/S-2 接缝：两条投递路按「是否曾投递」分界互斥），drain 只管从未投递的 .queued；队头退避挡整队＝头阻塞，与 Telegram/WhatsApp 发件箱「逐条独立重试、队列照走」的通行做法相悖。drainOutboxLoop 对 .backoff 改 continue 跳过，双守卫：只跳 state＝.failed 且 attempts ≥ 1 的条目；从未投递的 .queued 条目永不许跳（策略对其恒 .autoNow、结构上到不了本臂，万一到达即保守 return 兜底）。§414 期「队头退避保序不跃队」口径就此 supersede（仅限 drain 路径；发件箱轨内部退避不变）。FIFO 钉按 B 语义改判并补静置窗断言：甲落 .failed 后乙首投不被挡、按序投递；甲的重试仍由 OutboxAutoRetry 在原位按退避发生、drain 不碰（静置窗内甲 attempts 恒 1、失败态原位不动）；甲乙 id/序位账完整；终局轮 33 测全绿（见钉测条）。上下文序评估：本裁决只改首投时机，条目在线程中的序位与落盘内容不变，被跳过条目的重试仍独立成轮，无新增上下文序风险。
 - 真机门（发版前逐项过，缺一不关账）：施工图 §4 五项——生成中连发 3 条（含 1 条附件）按序逐条发、回复不串轮；排队中停止当前轮、落定后自动续发；排队中杀进程重启、队列仍在且不双发；飞行模式排队 2 条恢复网络后按序投递不双跑（与总表 154 同轮互验）；键盘距底约一行／半屏两档的跟随判定。
+
+## §421 演示模式文件库死面修复（2026-11-23；分支 feat/demo-files-fix，基线 rel-05103 @3c7c9e7；§401.4 缺口一销账）
+
+### §421.1 定因（代码实证）
+
+- 资源库聚合读面自 0.50.60 改走伴生桥 `GET /file-library` 单流（DeliverablesView.collect→OneDayBridgeClient.fileLibrary），视图直持桥客户端、桥无 demo 分支；桥基座 Bearer 只读 Keychain BridgeCredential，演示态无钥 → `OneDayBridgeError.noKey` 恒抛 → LibraryListStore 对账结局 `.failedNoData` → 视图落「产出目录没读出来，可能是网络或服务暂时没响应」错误面，点重试重复 collect 恒失败、永不恢复＝死面（错误态、非白屏）。冒烟门 testSmokeA4FilesGridFirstFrame 的登记红同源（演示态首帧零文件卡）。
+- 死面只在聚合读面：点文件打开（FileOpenView）、分享、复制文字全走 appState.performAdmin→client.fileData，演示态即 DemoHermesClient 有回执（png 占位图／md、txt 文本样本），文件只是到不了可点状态。
+- 附带同源（本节不治、登记）：GlobalSearchView 的文件源同走 bridgeClient.fileLibrary，演示态同样抛错；该面失败形态为静默无结果、非死面，留主线另行立项。
+
+### §421.2 修法（§401.4 主线裁第二路：demoMode 下文件页回落演示回执）
+
+- DeliverablesView.collect 的 fetch 闭包分叉：`appState.isDemo` 时不走桥，改调 `Self.demoDeliverables(client:config:)` 从 appState.client（演示态＝DemoHermesClient）的 files 面装配名单——走查种子目录集 12 处（/opt/data 根＋cache/images|videos|audio|documents|screenshots＋cron/output＋image_cache＋images＋reports＋cache/scratch＋audio_cache），只收文件条目（目录行跳过）、按 path 去重、来源记种子目录；分类走 entry.mediaKind 既有口径，本函数不另立判据。实装配结果：14 条＝文件段 4（网络巡检周报.md／每日简报-1108.txt／weekly.md／交付说明.md）＋影音段 10（图 6／视频 2／音频 2）。
+- 出处与纪律：①装配形态与 AppState `.connected` 演示装配同构（config 只作展示、数据由假客户端消化）；②种子集即 2026-11-11 冻结清单内「文件种子面」（DemoHermesClient.files 存量），不扩种子、不给桥加 demo 分支（守 C-13「新增桥不再给 Demo 待遇」）；③冒烟门 A4 期待的三种子卡名正在该集内。
+- 名单键隔离：演示时传名单店的 currentConfigKey 为 baseString＋"#demo"——演示 config 与真实连接同址（hermes.didichou.site）同键，种子快照落盘会与真实快照串用（店口径：快照不得跨服务器／账号串用），故隔离；钉测③钉死双向（演示键写的快照真实键播种读不到、演示键自己能播种）。
+- 不动：LibraryListStore 本体、桥客户端、非演示路径（非演示 collect 与改前逐字同路，仅键表达式在非演示态恒等原值）。
+
+### §421.3 钉测与回归
+
+- 新套 DemoFileLibraryTests 5 例（Tests/OneDayAppTests）：①装配非空＋A4 三种子卡在位＋无目录行＋path 不重复；②分类计数（文件段 ≥4／影音段 ≥10＋种子归段）；③名单店同路 refresh 结局 .loaded＋键隔离双向；④种子文档 fileData 回执非空（FileOpenView 同路）；⑤结构钉（collect 含演示分叉调用与 "#demo" 后缀，防回退走桥）。
+- 通道实跑（2026-11-23 22:50 轮，ProbePhone）：DemoFileLibraryTests 5/5 绿＋LibraryListStoreC4Tests 回归 12/12 绿，合计 17/17、xcodebuild exit 0（结果包 Test-OneDayApp-demo-files.xcresult）。
+- 编译前置：build-for-testing TEST BUILD SUCCEEDED（22:35）。
+- 真机/活树门（留组版后）：冒烟门 testSmokeA4FilesGridFirstFrame 应转绿（本包未跑 UITests 轮，销 §401.4 缺口一以该例转绿为最终凭据，随 0.50.104 冒烟门轮一并验）。
+- 组版合并注记：本分支与新鲜度收口分支（feat/freshness-unify）同改 DeliverablesView.collect 区段（彼改 refresh 入口分工、此改 fetch 闭包与键表达式），组版时该区段须语义合并——演示分叉在 fetch 闭包内、与 refresh/refreshIfNeeded 入口分工正交，合并后两义须并存。
