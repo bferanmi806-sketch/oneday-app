@@ -167,6 +167,71 @@ final class AgentHubStore {
     /// 支消费后即除名）
     private var alwaysApproveMarks: Set<String> = []
 
+    // MARK: - 授权账本（§434 审核格；能力 #12 活证）
+
+    /// grants 回读状态：ready 即端点在位且清单读回
+    /// ——分格注册表（HubSegmentRegistry）据此决定
+    /// 审核格长不长（与审批账回读互为冗余，任一成
+    /// 立即长格）；读不回按 unavailable 诚实降级，
+    /// 不给假清单
+    enum GrantsState: Equatable {
+        case loading
+        case ready(GrantsListResponse)
+        case unavailable
+    }
+
+    private(set) var grantsState: GrantsState = .loading
+    /// 正在撤销的授权键（只禁用当前行）
+    private(set) var revokingGrantKeys: Set<String> = []
+    /// 授权面行内提示（撤销失败等人话）
+    private(set) var grantsNote: String?
+
+    /// GET /v1/grants 回读（网关 Bearer 面，部署包
+    /// 1.3.0）：exec 命令授权＋写闸规则只读投影两源
+    /// 拼合；双源皆败服务端回 503、走 unavailable
+    func loadGrants(force: Bool = false) async {
+        if case .loading = grantsState, !force {
+            // 首次进入即 loading，直接走加载
+        } else if !force, grantsState != .loading {
+            return
+        }
+        grantsState = .loading
+        guard let config = appState.config,
+              let apiKey = appState.apiKey else {
+            grantsState = .unavailable
+            return
+        }
+        do {
+            let response = try await appState.client
+                .listGrants(config: config, apiKey: apiKey)
+            grantsState = .ready(response)
+        } catch {
+            grantsState = .unavailable
+        }
+    }
+
+    /// 撤销一条 exec 授权（写闸条目不走本端点，客户
+    /// 端结构上不发）：成败终局以事后清单回读为准、
+    /// 不认回执自报（HermesClient 头注口径）
+    func revokeGrant(_ entry: GrantEntry) async {
+        guard entry.source == .exec,
+              let patternKey = entry.patternKey,
+              let config = appState.config,
+              let apiKey = appState.apiKey else { return }
+        revokingGrantKeys.insert(entry.grantKey)
+        defer { revokingGrantKeys.remove(entry.grantKey) }
+        do {
+            _ = try await appState.client.revokeGrant(
+                config: config, apiKey: apiKey,
+                patternKey: patternKey
+            )
+            grantsNote = nil
+            await loadGrants(force: true)
+        } catch {
+            grantsNote = L10n.string("撤销没成，请稍后再试")
+        }
+    }
+
     // 浏览器段已于 0.9.0 迁出本 Store：状态改读盒桥，
     // 由 BrowserFaceView 自持 BoxBridgeStore（见
     // HubBrowserSection），本 Store 不再留错位源状态。
