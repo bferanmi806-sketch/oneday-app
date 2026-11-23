@@ -441,7 +441,7 @@ struct ConnectorsView: View {
             }
             .buttonStyle(.odPressable)
         } header: {
-            headerText("云电脑")
+            headerText("远程电脑")
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(rowInsets)

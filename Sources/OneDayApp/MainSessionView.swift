@@ -258,7 +258,7 @@ struct MainSessionView: View {
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
         .scrollContentBackground(.hidden)
         .background(Palette.settingsBG)
-        .navigationTitle("主线会话")
+        .navigationTitle("主线对话")
         .navigationBarTitleDisplayMode(.large)
         .overlay(alignment: .bottom) {
             if showCopyToast {

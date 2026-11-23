@@ -23,7 +23,7 @@ struct ToolsetsSettingsView: View {
             content
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("工具集")
+        .navigationTitle("工具")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await store.load(appState: appState)

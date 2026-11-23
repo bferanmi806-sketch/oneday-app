@@ -123,6 +123,31 @@ struct ServerDetailView: View {
                 }
                 .odGroup()
 
+                // 添加与配对（§450 收纳）：一次性引
+                // 导不占设置根行——添加设备（出码入
+                // 驻）与设备配对（平台用户准入）自根
+                // 页服务器段收进本页，点达仍走设置路
+                // 由原目的地（行为不变、只换门的位置）
+                SectionLabel("添加与配对")
+                    .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                    .padding(.bottom, OneDayMetrics.spacingS)
+                VStack(spacing: 0) {
+                    NavigationLink(value: SettingsRoute.addDevice) {
+                        serverLinkRow(
+                            title: "添加设备",
+                            summary: "生成认领二维码，让新设备扫码连上这台服务器"
+                        )
+                    }
+                    GroupDivider()
+                    NavigationLink(value: SettingsRoute.pairingManagement) {
+                        serverLinkRow(
+                            title: "设备配对",
+                            summary: "批准在消息平台上申请和网关对话的新用户"
+                        )
+                    }
+                }
+                .odGroup()
+
                 // 版本与更新段（DESIGN §360；台账 36
                 // 案 A 只读感知面，段本体自带取数）
                 ServerVersionSection()
@@ -145,6 +170,31 @@ struct ServerDetailView: View {
                 apiKeyText = appState.apiKey ?? ""
             }
         }
+    }
+
+    /// 页内导航行（§450）：与本页既有行同几何（横
+    /// 向距＋行高），题＋副行＋右箭头
+    private func serverLinkRow(
+        title: String, summary: String
+    ) -> some View {
+        HStack(spacing: OneDayMetrics.spacingSM) {
+            VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                Text(title)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink)
+                Text(summary)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.system(size: FrameworkIcon.composerGlyphSize))
+                .foregroundStyle(Palette.inkSecondary)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .frame(minHeight: OneDayMetrics.rowHeight)
+        .contentShape(Rectangle())
     }
 
     /// 有改动才许保存：与已存值逐字比对（地址按归一化前

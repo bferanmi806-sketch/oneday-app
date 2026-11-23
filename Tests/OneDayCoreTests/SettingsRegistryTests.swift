@@ -368,6 +368,35 @@ final class SettingsRegistryTests: XCTestCase {
         XCTAssertNil(response.records[3].type)
     }
 
+    /// §450（R4）：按 key 直查——审批规则页据此取
+    /// 两条 config-backed 写入审批记录呈现；缺失返
+    /// 回 nil（消费方整行不出、不造假行）
+    func testRecordForKeyFindsConfigBackedApprovals() {
+        let registry = SettingsRegistryResponse(version: 1, records: [
+            SettingsRegistryRecord(
+                key: "memory.write_approval", type: .bool,
+                title: "记忆写入审批",
+                surface: "settings.agent", sort: 0,
+                defaultValue: .bool(true), value: .bool(true)
+            ),
+            SettingsRegistryRecord(
+                key: "skills.write_approval", type: .bool,
+                title: "技能写入审批",
+                surface: "settings.agent", sort: 1,
+                defaultValue: .bool(true), value: .bool(true)
+            ),
+        ])
+        XCTAssertEqual(
+            registry.record(forKey: "memory.write_approval")?.title,
+            "记忆写入审批"
+        )
+        XCTAssertEqual(
+            registry.record(forKey: "skills.write_approval")?.title,
+            "技能写入审批"
+        )
+        XCTAssertNil(registry.record(forKey: "no.such.key"))
+    }
+
     func testSettingsRegistryAvailabilityReadsFeatureFlag() throws {
         let decoder = JSONDecoder()
         let on = try decoder.decode(

@@ -101,6 +101,9 @@ struct ApprovalRulesSettingsView: View {
     /// 命令授权区数据（§355）：与桥规则面分工——真源
     /// 在网关 grants 面，随本页同 task/同下拉刷新拉取
     @State private var grantsStore = GrantsLedgerStore()
+    /// 设置注册表（§450）：写入审批两条 config-
+    /// backed 记录的呈现原料，与设置根页同拉法
+    @State private var settingsRegistry: SettingsRegistryResponse?
 
     private var store: AgentHubStore { appState.sharedHubStore() }
 
@@ -118,16 +121,19 @@ struct ApprovalRulesSettingsView: View {
             CommandGrantsSection(
                 store: grantsStore, appState: appState
             )
+            writeApprovalSection
         }
         .navigationTitle("审批规则")
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await store.loadApproval()
             await grantsStore.load(appState: appState)
+            await loadSettingsRegistry()
         }
         .refreshable {
             await store.loadApproval(force: true)
             await grantsStore.load(appState: appState)
+            await loadSettingsRegistry()
         }
         .confirmationDialog(
             "撤销这条规则？",
@@ -148,6 +154,47 @@ struct ApprovalRulesSettingsView: View {
         } message: { rule in
             Text("撤销后，「\(rule.scopeLabel)」的写入会重新逐条等你审批。")
         }
+    }
+
+    /// 写入审批（§450 治理归一）：注册表里两条
+    /// config-backed 记录（记忆/技能写入审批）此
+    /// 前只在注册表里、设置无行，治理被劈两处——
+    /// 本节按 key 直查注册表呈现（§437 五型只读渲
+    /// 染、值由服务器回读）；记录缺失整行不出、
+    /// 不造假行，整表拉不到整节不出（回落口径同
+    /// 设置根页：注册表是增益不是依赖）
+    @ViewBuilder
+    private var writeApprovalSection: some View {
+        let records = [
+            "memory.write_approval", "skills.write_approval",
+        ].compactMap { settingsRegistry?.record(forKey: $0) }
+        if !records.isEmpty {
+            Section {
+                ForEach(records) { record in
+                    SettingsRegistryRowView(record: record)
+                }
+            } header: {
+                Text("写入审批")
+            } footer: {
+                Text("打开时，AI 新写或改动你的记忆、技能之前会先等你批准；关掉时直接写入、不再逐条问。这两项由服务器保存，本页只看当前状态。")
+            }
+        }
+    }
+
+    /// 注册表拉取（与设置根页同口径，§437）：能力
+    /// 位不亮／拉不到／解不开保持 nil，本节随之不出
+    private func loadSettingsRegistry() async {
+        guard let config = appState.config,
+              let apiKey = appState.apiKey,
+              let capabilities = try? await appState.client
+                .capabilities(config: config, apiKey: apiKey),
+              CapabilityNegotiation.settingsRegistryAvailability(
+                  capabilities
+              ) == .available,
+              let registry = try? await appState.client
+                .settingsRegistry(config: config, apiKey: apiKey)
+        else { return }
+        settingsRegistry = registry
     }
 
     /// 未就绪态的诚实呈现（规则区本体只在 .ready
