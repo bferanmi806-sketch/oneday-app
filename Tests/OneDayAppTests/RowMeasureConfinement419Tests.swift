@@ -72,7 +72,7 @@ final class RowMeasureConfinement419Tests: XCTestCase {
     /// 含代码块＋表格的条目（两处直调必经）；token
     /// 只入代码块标识符（等长变体版式同高）、round/
     /// item 入文保证逐轮逐条内容互异
-    private func stressText(
+    private static func stressText(
         round: Int, item: Int, token: String
     ) -> String {
         """
@@ -98,14 +98,14 @@ final class RowMeasureConfinement419Tests: XCTestCase {
         let mainBox = ComposerBox(makeComposer())
         let backgroundBox = ComposerBox(makeComposer())
         let mainHeight = mainBox.composer.markdownHeight(
-            stressText(round: 900, item: 1, token: "mm")
+            Self.stressText(round: 900, item: 1, token: "mm")
         )
         XCTAssertGreaterThan(mainHeight, 0)
         let done = DispatchSemaphore(value: 0)
         let backgroundHeight = ResultBox()
         DispatchQueue.global(qos: .userInitiated).async {
             let height = backgroundBox.composer.markdownHeight(
-                self.stressText(round: 900, item: 1, token: "bg")
+                Self.stressText(round: 900, item: 1, token: "bg")
             )
             backgroundHeight.store(
                 path: "bg", round: 0, item: 0, height: height
@@ -147,7 +147,7 @@ final class RowMeasureConfinement419Tests: XCTestCase {
                 for round in 0..<rounds {
                     for item in 0..<items {
                         let height = box.composer.markdownHeight(
-                            self.stressText(
+                            Self.stressText(
                                 round: round, item: item,
                                 token: workerTokens[worker]
                             )
@@ -166,7 +166,7 @@ final class RowMeasureConfinement419Tests: XCTestCase {
         for round in 0..<rounds {
             for item in 0..<items {
                 let height = mainBox.composer.markdownHeight(
-                    stressText(round: round, item: item, token: "mm")
+                    Self.stressText(round: round, item: item, token: "mm")
                 )
                 results.store(
                     path: "main", round: round, item: item,

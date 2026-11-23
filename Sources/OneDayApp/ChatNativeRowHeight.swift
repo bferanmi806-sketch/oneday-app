@@ -1305,21 +1305,23 @@ struct ChatNativeRowHeightComposer {
             // 文本（横滚不折行；呈现是 SwiftUI
             // Text——量测高只借行数、实高走
             // swiftTextHeight，§329 续修校准）
+            // §419 包 1 收口：原直调 referenceHeight
+            // (width: nil) 绕过分发、后台工单可达量测
+            // 台变异（崩①）；nil 在 measuredWidth 落
+            // 自然宽 10_000——改走分发原语同宽：主线
+            // 程同口逐值不变、后台落量测池同宽同值
+            let codeFont = monospacedFont(.footnote)
             let codeHeight = swiftTextHeight(
-                measured: SelectableTextRepresentable
-                    .referenceHeight(
-                        attributed: NSAttributedString(
-                            string: code,
-                            attributes: [
-                                .font: monospacedFont(
-                                    .footnote
-                                ),
-                            ]
-                        ),
-                        width: nil
+                measured: ChatNativeTextMeasure.height(
+                    attributed: NSAttributedString(
+                        string: code,
+                        attributes: [.font: codeFont]
                     ),
+                    width: 10_000,
+                    emptyLineHeight: codeFont.lineHeight
+                ),
                 stepStyle: .footnote,
-                firstLineFont: monospacedFont(.footnote)
+                firstLineFont: codeFont
             )
             return OneDayMetrics.spacingSM * 2
                 + OneDayMetrics.minTapTarget
@@ -1486,9 +1488,18 @@ struct ChatNativeRowHeightComposer {
     private func tableCellTextHeight(
         _ cell: String, width: CGFloat
     ) -> CGFloat {
-        SelectableTextRepresentable.referenceHeight(
+        // §419 包 1 收口：原直调 referenceHeight 绕
+        // 过分发、后台工单可达量测台变异（崩①同
+        // 族）；改走分发原语——主线程同口逐值不
+        // 变、后台落量测池
+        ChatNativeTextMeasure.height(
             attributed: tableCellAttributed(cell),
-            width: width
+            width: width,
+            emptyLineHeight: MarkdownTableGridLayout
+                .baseFont(
+                    category: sizeCategory, boldText: boldText
+                )
+                .lineHeight
         )
     }
 
