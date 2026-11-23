@@ -15776,3 +15776,44 @@ H7（MCP 目录）：
 
 - 回归（2026-11-23，两轮合账，xcresulttool 本体对账）：发布集 97 套 **817/817 全绿、新红零**（名单＝rel05098 bundle 提取 85 套基底口径的延续——本包按目标拆两轮：Core 39 套 526/526＋App 58 套 291/291，逐套计数与 rel05098 基线逐值一致；S371 1/1、S373 2/2 在集内全绿）；新套 2 个 11 测全绿（HermesErrorG03Tests 8/8、ErrorBannerG03StructureTests 3/3）；定向套全绿（ImportDemotionAppTests 11/11 含新降级两测、SessionCatalogGuardTests 9/9、HermesErrorTests 6/6、FileOpenFailureTests 5/5、BasicsStopgapTests 17/17、StoreLoadStateTests 8/8、I18nFormattingTests 9/9、DemoLimitTests 2/2、EnrollmentPayloadTests 9/9）。过程注记：首轮 App 目标在执行中被并行线 kickstart 抢道杀跑（bundle 仅余 runner error 伪例 1 件、Core 部分已完整跑毕），按缺套清单补跑第二轮后合账，抢道事实在此留痕、不计本包红。
 - 真机门（用户，未过不关账）：①重装/无本地副本时打开长会话：首屏最新页先到、历史逐页补齐不整段报错；②断网发送失败：横幅人话＋时刻在位、无「重新发送」误挂（非失败条目时）；③发送被服务端拒（如会话忙/鉴权失效）：横幅主文案无人话外技术串、点「详情」可见状态码原文、关闭后下一条错误不残挂上一条详情；④登录过期再进：横幅为鉴权类人话。
+## §390 H8/H9/H11/H13 合包：委派路由＋MoA 会商＋Webhooks＋小件（2026-11-23，分支 feat/h8h9h11h13-bundle，基线 rel-05098 @3f9598f；总表 168/169/171/173 解冻落码）（本节号 §390 为本包占用，组版时如与并行线撞号按 §375 先例顺延）
+
+### 390.0 开工对账（四条逐条实查，2026-11-23）
+
+服务端能力：四组端点均为 Hermes 本体 v0.23.0 在役面（官方仓源码逐 handler 冻结契约，克隆在 research_notes/hermes-official-inventory-20261122）；对生产 https://hermes.didichou.site 只读回读，/api/delegation/routing、/api/model/moa、/api/model/auxiliary、/api/webhooks、/api/curator、/api/sessions/stats、/api/ops/hooks、/api/host/identity 全回 401（在位＋鉴权生效、零 404），/api/status 回 version 0.23.0、config 52/52、gateway 在跑。部署包 CAPABILITIES.md 未登记这四组——是上游本体面、非部署包能力，本包不动部署包、不动生产。
+
+App 现状（基线实查）：168 委派路由零接线（grep 命中的 delegation 全是目标委派功能、与本条无关）；169 只有辅助面两行 MoA 槽（moa_reference/moa_aggregator），无预设面、无选择器会商选项，辅助分配写路走 config 全量写回（§119）；171 零接线；173 四小件均无呈现（curator/sessions-stats/ops-hooks 零接线，主机身份已有 H1-d 对账定案，见 390.4）。
+
+### 390.1 H8 委派路由（总表 168）——落码
+
+- 契约（delegation.py，9119 cookie 面）：GET /api/delegation/routing 全量读（configured/blocked_reason/backends/model_map/profile_routes/profiles）；PUT backend 切换、PUT backends/model_map 与 backends/profile_routes 均整块替换、服务端逐条校验（名/说明/模型必填、provider 或 base_url 至少其一、名不重复、default 在名单内；档案名必须是已存在档案）；模型路由 api_key 读回为脱敏预览、原样带回服务端保留真钥，改名靠 original_name 对回。
+- 落码：Core HermesAdvancedModels（DelegationRouting/Backend/ModelRoute/ProfileRoute＋DelegationValidation 本地预检与服务端逐条同义）；HermesClient 四口；DelegationRoutingStore（写后回读对账：切后端看 configured 同名、整块保存看名单序＋default）；DelegationRoutingView（设置·智能体组新增「委派路由」行，与工具集同组并列；后端段＋模型路线编辑器＋档案路线编辑器，密钥只显脱敏预览、新填才经手）。
+- kanban decompose：POST /api/plugins/kanban/tasks/{id}/decompose 已有服务端面——KanbanAction 加 .decompose（「自动拆解」，派发类），只在待整理/已排期态出现（policy 首位），KanbanControlPlan/Store 执行＋回执 summary 落注记（拆了几张/为何没拆照服务端 reason）。入口即任务卡详情（目标详情点入任务即达），与目标面同家、不另建页。
+- 真机门：切后端后新会话派一个子任务、实走新后端；建一条 heavy 路线后派重活看是否走强模型；对一个待整理任务点「自动拆解」看子任务真出现。
+
+### 390.2 H9 MoA＋辅助端点对齐（总表 169）——落码
+
+- 契约（models.py）：GET/PUT /api/model/moa（presets 整图权威、省名即删；写前 validate_moa_payload 硬拒 422：每预设至少一个完整 reference 槽＋aggregator 完整，槽完整＝provider 与 model 都非空）；会话用 MoA＝逐请求 provider="moa"、model=预设名（agent_init 实证走虚拟门面）。辅助专用端点：GET /api/model/auxiliary、POST /api/model/set（scope=auxiliary；贵模型未确认回 200 {ok:false, confirm_required:true} 非错误，带 confirm 重发才落；写 config.yaml、新会话生效）。
+- 落码：MoaView（设置·模型辅助段新增「多模型会商」入口：预设列表＋编辑器，参考槽增删启停、汇总槽必填、高级字段以原预设为底带回不丢；保存前 MoaPreset.problems 本地预检同服务端口径）；MoaStore 整图保存、采纳回执 normalize 真值并核对名集＋生效预设；模型选择器：AppState.fetchModelCatalog 同轮拉 moa 配置、有预设时目录尾追加「多模型会商」组（ChatModelChoice providerField="moa"，sourceLabel 加 moa 分支），拉不到不加、不拖垮目录。
+- 辅助端点对齐：ModelManagementStore.saveAux 迁移——provider/model 改走 POST /api/model/set（scope=auxiliary），写后 GET /api/model/auxiliary 回读该行 assignment 对账，本地 rawConfig 只做镜像同步不再发第二次网络写；confirm_required 时原话提示、再存一次同值带确认重发；enabled 开关端点无字段、仍走 config 写回（两个带开关槽的罕见路径，写在端点写之前、端点为 provider/model 最后写者）。§119「不给伴生加新端点」是伴生口径、本体专用端点不在此列，本条即其对齐落点；保存文案改「新会话起生效」（端点源码明言 applies to new sessions）。
+- 真机门：建一个预设后在聊天选择器选它发一轮，回执应有多模型会商痕迹；改一行辅助分配后新开会话验该用途走新模型；选贵模型时应先弹确认口径（再存一次才落）。
+
+### 390.3 H11 Webhooks（总表 171）——管理面落码，入站实触发属联调门
+
+- 契约（ops.py）：GET /api/webhooks（enabled/base_url/subscriptions 摘要，永不含密钥本体）；POST 建订阅（名规范化小写连字符、deliver_only 配 log 被 400 拒、密钥只在建时回一次）；DELETE、PUT /{name}/enabled（热生效）；POST /api/webhooks/enable（写平台开关＋网关重启编排，回 needs_restart）。入站触发面是网关 webhook 平台 POST /webhooks/{route_name}（HMAC 签名）。
+- 落码：WebhooksView（自动化面·定时任务页尾「接入」组进入）：平台段（开关状态＋入口地址＋开启钮，needs_restart 如实交代不报假成功）、订阅列表（启停回读对账、删除回读消失、地址可复制）、建订阅表单（本地预检同服务端：名合法、deliver_only 不能配 log；deliver 为 log 或平台名、deliver_chat_id 可选）、一次性密钥只存 Store 内存展示一次（不落盘不进日志，关掉即清、丢了删建）。
+- 真机/联调门：建一条订阅后从外部（如 GitHub 仓库 webhook 或 curl 带 HMAC 签名）真打一次事件，看 Hermes 被触发处理——管理面落码不替代这一验。
+
+### 390.4 H13 小件（总表 173）——混合：两落码＋一落码只读＋两定案
+
+- 技能策展 curator（落码）：GET /api/curator、PUT /api/curator/paused、POST /api/curator/run（多档案在役时无名目标被服务端拒，须带 ?profile= 指名）。SkillsView 尾加「技能整理」块：状态（启用/暂停/上次整理/间隔）、暂停/恢复写后回读对账、立即跑一次先取当前档案名指名触发（回执 pid 只作受理凭据，跑完看 last_run_at 更新、不假报完成）。
+- sessions/stats 口径复核（落码＋复核结论）：GET /api/sessions/stats 是会话库口径（total/active_store/archived/messages/by_source，exclude_children=true 压缩链折一行、与会话名单同口径），与 App 现用的 /api/system/stats（系统资源面）不是一回事——复核结论：两面并存各表一面、不互相替代。StatusView 系统段加「会话存储」块呈现前者。
+- ops/hooks 对账（落码只读＋定案）：伴生 companion 无 hooks 模块（部署包 INVENTORY/manifest/伴生目录实查无此模块），本体 config hooks 是唯一真源、不构成双轨——定案。呈现只读（OpsHooksView，自动化面「接入」组进入）：钩子增删＝登记任意 shell 命令＋同意名单，属服务器运维动作，手机面不开放写口。
+- 主机身份（定案＋缺口登记）：/api/host/identity 是 token 门的 rendezvous 所有权证明、不是给 App 的身份端点（H1-d 身份对账 OpsIdentity 已裁定）；App 主机身份面已由 /api/status＋profiles/active 对账（体检第四组）承载。本条的指纹钉扎半边依赖总表 155/157（均未开工），本包只登记缺口、不造假面——待 155/157 落码时合用。
+- credentials/pool 不露面（定案把守）：与单钥口径冲突（用户永远只持一把 Hermes 登录密钥），现行 App 本就不露面，本包不新增任何凭据池呈现；后续任何「凭据池」提案先过单钥口径这一关。
+
+### 390.5 回归与钉测
+
+- 新增：OneDayCoreTests/HermesAdvancedModelsTests（17 件：四面契约解码、密钥预览往返、校验同义、pickerGroup 形、目录条目与看板动作结构钉）＋OneDayAppTests/AdvancedStoresTests（11 件：四 Store 加载三态/回读对账确认与未确认/预检拦截/一次性密钥/needs_restart 口径/curator 指名）。
+- 发布集回归：从 rel05098 发布 bundle 用 xcresulttool 提取 97 套全限定名（目标/套件）＋本包新 2 套，合计 845 件——**845/845 全绿、新红零**；S371（1 件）/S373（2 件）随集全绿。首轮跑 833 件 3 红，逐项定案：SettingsCatalog 两红是目录新增 delegation 条目的期望未同步（已更新测试口径：覆盖集加 .delegation、agent 组浏览序 toolsets 后加 delegation）；WebSourceExtractor 12 件首轮缺跑是名单文件末行无换行被 while read 吞掉（生成法已修、复跑 12 件全回）；ChatSwapStep4c 延迟探针首轮在多线满载下红（删冻 80ms vs 基线 50ms），复跑绿、本包未触聊天列表代码，判负载抖动。
+- S371/S373 随发布集同轮全绿（见上行）。

@@ -636,6 +636,86 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, backend: String
     ) async throws
 
+    // MARK: 高级能力面（H8 委派路由／H9 MoA＋辅助端点／H11
+    // Webhooks／H13 小件，DESIGN §390；Dashboard cookie 面，
+    // 契约见 OneDayCore.HermesAdvancedModels 头注）
+
+    /// GET /api/delegation/routing：委派路由全量——现行后端
+    /// （含跑不了的原因）＋已注册后端＋模型路由＋档案路由
+    func delegationRouting(
+        config: ServerConfig
+    ) async throws -> DelegationRouting
+    /// PUT /api/delegation/backend {backend}：切换委派后端；
+    /// 成败终局以 delegationRouting 回读为准、不认回执自报
+    func setDelegationBackend(
+        config: ServerConfig, backend: String
+    ) async throws
+    /// PUT /api/delegation/backends/model_map {options,
+    /// default}：模型路由整块替换（服务端逐条校验）
+    func setDelegationModelMap(
+        config: ServerConfig, routes: [DelegationModelRoute],
+        defaultRoute: String?
+    ) async throws
+    /// PUT /api/delegation/backends/profile_routes
+    /// {profiles, default}：档案路由整块替换
+    func setDelegationProfileRoutes(
+        config: ServerConfig, routes: [DelegationProfileRoute],
+        defaultRoute: String?
+    ) async throws
+    /// GET /api/model/moa：MoA 预设全图（normalize 形）
+    func moaConfig(config: ServerConfig) async throws -> MoaConfig
+    /// PUT /api/model/moa：MoA 整图写回；回执即服务端
+    /// normalize 后的真值（写后回读同体，不另拉）
+    func setMoaConfig(
+        config: ServerConfig, moa: MoaConfig
+    ) async throws -> MoaConfig
+    /// GET /api/model/auxiliary：辅助用途现行分配（专用
+    /// 端点，与 config 的 auxiliary 节同源同值）
+    func auxiliaryTasks(
+        config: ServerConfig
+    ) async throws -> AuxiliaryTasksResponse
+    /// POST /api/model/set {scope, task?, provider, model,
+    /// confirm_expensive_model}：主槽或单个辅助槽赋值；
+    /// 贵模型未确认回 ok=false＋confirm_required（非错误）
+    func setModelAssignment(
+        config: ServerConfig, scope: String, task: String?,
+        provider: String, model: String, confirmExpensive: Bool
+    ) async throws -> ModelSetReceipt
+    /// GET /api/webhooks：平台开关＋订阅清单（摘要无密钥）
+    func webhooksPage(config: ServerConfig) async throws -> WebhooksPage
+    /// POST /api/webhooks：建订阅；回执带一次性密钥（只此一次）
+    func createWebhook(
+        config: ServerConfig, input: WebhookCreateInput
+    ) async throws -> WebhookCreateReceipt
+    /// DELETE /api/webhooks/{name}：删订阅（成败以回读为准）
+    func deleteWebhook(config: ServerConfig, name: String) async throws
+    /// PUT /api/webhooks/{name}/enabled {enabled}：启停一条
+    /// （热生效、不重启网关）
+    func setWebhookEnabled(
+        config: ServerConfig, name: String, enabled: Bool
+    ) async throws
+    /// POST /api/webhooks/enable：开 webhook 平台（服务端
+    /// 伴随网关重启编排，回 needs_restart 供呈现如实交代）
+    func enableWebhooks(
+        config: ServerConfig
+    ) async throws -> WebhooksEnableReceipt
+    /// GET /api/curator：技能策展状态（启用/暂停/节奏/上次运行）
+    func curatorStatus(config: ServerConfig) async throws -> CuratorStatus
+    /// PUT /api/curator/paused {paused}：暂停/恢复策展
+    func setCuratorPaused(config: ServerConfig, paused: Bool) async throws
+    /// POST /api/curator/run：立即跑一次策展（后台动作；
+    /// profile 非空时带 ?profile= 指名，多档案在役时服务端
+    /// 拒绝对无名目标执行）
+    func runCurator(
+        config: ServerConfig, profile: String?
+    ) async throws -> OpsSpawnResponse
+    /// GET /api/sessions/stats：会话存储统计（名单折行同口径）
+    func sessionStoreStats(
+        config: ServerConfig
+    ) async throws -> SessionStoreStats
+    /// GET /api/ops/hooks：已配置 shell 钩子＋同意状态（只读）
+    func opsHooks(config: ServerConfig) async throws -> OpsHooksPage
+
     // MARK: 消息反应（台账 187；网关 Bearer 面，与认领同族）
 
     /// PUT /v1/reactions/{session_id}/{row_id} {emoji}：
@@ -724,6 +804,11 @@ protocol HermesClientProtocol: Sendable {
     ) async throws
     /// POST /api/plugins/kanban/tasks/{id}/reclaim?board=（急停释放 claim）
     func kanbanReclaimTask(config: ServerConfig, board: String, id: String) async throws
+    /// POST /api/plugins/kanban/tasks/{id}/decompose?board=
+    /// （H8 附带，DESIGN §390）：把一张 triage 任务用辅助
+    /// 模型拆成子任务；非 ok 不是 HTTP 错误——回执 reason
+    /// 是服务端原文，成败以回执＋看板回读为准
+    func kanbanDecompose(config: ServerConfig, board: String, id: String) async throws -> KanbanDecomposeReceipt
     /// POST /api/plugins/kanban/runs/{run_id}/terminate?board=（停止当前运行）
     func kanbanTerminateRun(config: ServerConfig, board: String, runID: Int) async throws
 }
@@ -3008,6 +3093,206 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         )
     }
 
+    // MARK: - 高级能力面（H8/H9/H11/H13，DESIGN §390）
+
+    func delegationRouting(
+        config: ServerConfig
+    ) async throws -> DelegationRouting {
+        try await getJSON(
+            config: config, path: "/api/delegation/routing",
+            endpoint: L10n.string("委派路由")
+        )
+    }
+
+    func setDelegationBackend(
+        config: ServerConfig, backend: String
+    ) async throws {
+        try await sendJSON(
+            config: config, path: "/api/delegation/backend",
+            method: "PUT", endpoint: L10n.string("委派后端"),
+            body: ["backend": .string(backend)]
+        )
+    }
+
+    func setDelegationModelMap(
+        config: ServerConfig, routes: [DelegationModelRoute],
+        defaultRoute: String?
+    ) async throws {
+        var body: [String: JSONValue] = [
+            "options": .array(routes.map { .object($0.putFields()) }),
+        ]
+        if let defaultRoute { body["default"] = .string(defaultRoute) }
+        try await sendJSON(
+            config: config, path: "/api/delegation/backends/model_map",
+            method: "PUT", endpoint: L10n.string("委派模型路由"),
+            body: body
+        )
+    }
+
+    func setDelegationProfileRoutes(
+        config: ServerConfig, routes: [DelegationProfileRoute],
+        defaultRoute: String?
+    ) async throws {
+        var body: [String: JSONValue] = [
+            "profiles": .array(routes.map { .object($0.putFields()) }),
+        ]
+        if let defaultRoute { body["default"] = .string(defaultRoute) }
+        try await sendJSON(
+            config: config, path: "/api/delegation/backends/profile_routes",
+            method: "PUT", endpoint: L10n.string("委派档案路由"),
+            body: body
+        )
+    }
+
+    func moaConfig(config: ServerConfig) async throws -> MoaConfig {
+        try await getJSON(
+            config: config, path: "/api/model/moa",
+            endpoint: L10n.string("多模型会商")
+        )
+    }
+
+    func setMoaConfig(
+        config: ServerConfig, moa: MoaConfig
+    ) async throws -> MoaConfig {
+        try await sendJSONDecoding(
+            config: config, path: "/api/model/moa",
+            method: "PUT", endpoint: L10n.string("多模型会商"),
+            body: moa.putBody()
+        )
+    }
+
+    func auxiliaryTasks(
+        config: ServerConfig
+    ) async throws -> AuxiliaryTasksResponse {
+        try await getJSON(
+            config: config, path: "/api/model/auxiliary",
+            endpoint: L10n.string("辅助模型")
+        )
+    }
+
+    func setModelAssignment(
+        config: ServerConfig, scope: String, task: String?,
+        provider: String, model: String, confirmExpensive: Bool
+    ) async throws -> ModelSetReceipt {
+        var body: [String: JSONValue] = [
+            "scope": .string(scope),
+            "provider": .string(provider),
+            "model": .string(model),
+            "confirm_expensive_model": .bool(confirmExpensive),
+        ]
+        if let task { body["task"] = .string(task) }
+        return try await sendJSONDecoding(
+            config: config, path: "/api/model/set",
+            method: "POST", endpoint: L10n.string("模型分配"),
+            body: body
+        )
+    }
+
+    func webhooksPage(config: ServerConfig) async throws -> WebhooksPage {
+        try await getJSON(
+            config: config, path: "/api/webhooks",
+            endpoint: L10n.string("外部事件")
+        )
+    }
+
+    func createWebhook(
+        config: ServerConfig, input: WebhookCreateInput
+    ) async throws -> WebhookCreateReceipt {
+        try await sendJSONDecoding(
+            config: config, path: "/api/webhooks",
+            method: "POST", endpoint: L10n.string("新建外部事件"),
+            body: input.putBody()
+        )
+    }
+
+    func deleteWebhook(config: ServerConfig, name: String) async throws {
+        try await sendJSON(
+            config: config, path: "/api/webhooks/\(name)",
+            method: "DELETE", endpoint: L10n.string("删除外部事件")
+        )
+    }
+
+    func setWebhookEnabled(
+        config: ServerConfig, name: String, enabled: Bool
+    ) async throws {
+        try await sendJSON(
+            config: config, path: "/api/webhooks/\(name)/enabled",
+            method: "PUT", endpoint: L10n.string("外部事件启停"),
+            body: ["enabled": .bool(enabled)]
+        )
+    }
+
+    func enableWebhooks(
+        config: ServerConfig
+    ) async throws -> WebhooksEnableReceipt {
+        try await sendJSONDecoding(
+            config: config, path: "/api/webhooks/enable",
+            method: "POST", endpoint: L10n.string("开启外部事件"),
+            body: [:]
+        )
+    }
+
+    func curatorStatus(config: ServerConfig) async throws -> CuratorStatus {
+        try await getJSON(
+            config: config, path: "/api/curator",
+            endpoint: L10n.string("技能整理")
+        )
+    }
+
+    func setCuratorPaused(config: ServerConfig, paused: Bool) async throws {
+        try await sendJSON(
+            config: config, path: "/api/curator/paused",
+            method: "PUT", endpoint: L10n.string("技能整理暂停"),
+            body: ["paused": .bool(paused)]
+        )
+    }
+
+    func runCurator(
+        config: ServerConfig, profile: String?
+    ) async throws -> OpsSpawnResponse {
+        var query: [URLQueryItem] = []
+        if let profile, !profile.isEmpty {
+            query.append(URLQueryItem(name: "profile", value: profile))
+        }
+        // sendJSON 无解码口，curator/run 回执 {ok,pid,name}
+        // 与 ops 两段式同形：手拼一次（与 pairingApprove 同式）
+        var request = URLRequest(
+            url: url(
+                config: config, path: "/api/curator/run", query: query
+            )
+        )
+        request.httpMethod = "POST"
+        let (data, http) = try await dataRequest(request)
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("立即整理技能"), status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(OpsSpawnResponse.self, from: data)
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("立即整理技能")
+            )
+        }
+    }
+
+    func sessionStoreStats(
+        config: ServerConfig
+    ) async throws -> SessionStoreStats {
+        try await getJSON(
+            config: config, path: "/api/sessions/stats",
+            endpoint: L10n.string("会话统计")
+        )
+    }
+
+    func opsHooks(config: ServerConfig) async throws -> OpsHooksPage {
+        try await getJSON(
+            config: config, path: "/api/ops/hooks",
+            endpoint: L10n.string("钩子")
+        )
+    }
+
     // MARK: - 消息反应（台账 187）
 
     func listApprovals(
@@ -3491,6 +3776,17 @@ extension HermesClient {
             method: "POST", endpoint: L10n.string("任务急停"),
             query: kanbanQuery(board: board),
             body: ["reason": .string("App 停止")]
+        )
+    }
+
+    func kanbanDecompose(
+        config: ServerConfig, board: String, id: String
+    ) async throws -> KanbanDecomposeReceipt {
+        try await kanbanSendDecoding(
+            config: config, path: "\(kanbanBase)/tasks/\(id)/decompose",
+            method: "POST", endpoint: L10n.string("拆解任务"),
+            query: kanbanQuery(board: board),
+            body: [:]
         )
     }
 

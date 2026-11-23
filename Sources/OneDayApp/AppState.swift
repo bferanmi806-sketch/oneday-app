@@ -1444,6 +1444,18 @@ final class AppState {
             // 选择器消费端过 Core visibleGroups；含默
             // 认的组结构上不许被滤掉（Core 闸）
             chatModelGroups = groups
+            // §390 H9：会商组同轮追加——拉到 MoA 配置
+            // 且有预设时在目录尾加「多模型会商」组
+            // （逐请求 provider=moa）；拉不到/无预设
+            // 就不加，不拖垮目录（同拼装失败不覆盖）
+            if !isDemo {
+                let moa = try? await performAdmin { client, config in
+                    try await client.moaConfig(config: config)
+                }
+                if let moa, !moa.presets.isEmpty {
+                    chatModelGroups = groups + [moa.pickerGroup()]
+                }
+            }
         }
         // §153 旧全局选择一次性迁移：chatModelID 旧值
         // 播种给主线会话键（升级不丢用户既有选择）；

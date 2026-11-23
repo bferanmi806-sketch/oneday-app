@@ -322,6 +322,7 @@ struct StatusView: View {
                     .font(.callout)
                     .foregroundStyle(Palette.inkSecondary)
             }
+            SessionStatsBlock()
             // 体检次入口（H1-a）：状态页是「看现在」、
             // 体检面是「跑一遍查问题」——本行只呈上次
             // 结论与时间，点进体检面，不在此处跑检查

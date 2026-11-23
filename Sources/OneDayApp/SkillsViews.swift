@@ -102,6 +102,7 @@ struct SkillsView: View {
                     )
                     .padding(.top, OneDayMetrics.spacingXXL)
                 }
+                CuratorBlock()
                 if let notice {
                     Text(notice)
                         .font(.footnote)
