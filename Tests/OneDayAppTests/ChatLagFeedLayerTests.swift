@@ -11,7 +11,8 @@ import OneDayDesign
 /// 账后不复用；②修订摘要制——parts 不载正文/图
 /// 本体、派生确定且全字段敏感；③流式逐块沉淀
 /// ——尾块生长/新块闭合不改已闭合块的呈现源；
-/// ④直播行高确定性与尾块增量；⑤探针计数可回
+/// ④直播行高确定性与尾块增量（③④§409 步 D
+/// 退役）；⑤探针计数可回
 /// 读；⑥每遍成本对比 harness（长会话回放：旧式
 /// 全量入账载荷 vs 摘要制载荷＋第二趟重建数，
 /// 数值 print 进 CI 日志作实验室口径对账，非真
@@ -171,68 +172,7 @@ final class ChatLagFeedLayerTests: XCTestCase {
         )
     }
 
-    // MARK: - ③ 流式逐块沉淀
-
-    func testClosedBlocksSettleUnderTailGrowth() {
-        let head = "第一段正文，内容冻结。\n\n第二段正文，同样冻结。\n\n"
-        let sources1 = StreamingBlockText
-            .closedBlockSources(for: head + "尾块还在生长")
-        XCTAssertEqual(sources1.count, 2)
-        // 尾块生长：已闭合块呈现源逐字不变
-        let sources2 = StreamingBlockText
-            .closedBlockSources(
-                for: head + "尾块还在生长，长长长长"
-            )
-        XCTAssertEqual(
-            sources1, sources2,
-            "尾块生长不许改动已闭合块的呈现源（旧段零重排的数据面）"
-        )
-        // 尾块闭合＋新尾开始：旧闭合源仍居前缀、新
-        // 闭合块只追加在尾
-        let sources3 = StreamingBlockText
-            .closedBlockSources(
-                for: head + "尾块还在生长，长长长长\n\n新尾巴"
-            )
-        XCTAssertEqual(sources3.count, 3)
-        XCTAssertEqual(
-            Array(sources3.prefix(2)), sources1,
-            "新块闭合后旧闭合块仍居原位、源不变"
-        )
-        // 间隙两级口径（与落定整段呈现同规）：段
-        // 落→段落＝paragraphSpacing、末块→散文尾
-        // 块同走 paragraphSpacing（旧断言 spacing-
-        // SM 即台账 185 的 4pt 残差来源，2026-11-
-        // 20 修正）；段落→代码＝spacingSM
-        let parts = StreamingBlockText.closedParts(
-            for: head + "尾块还在生长"
-        )
-        XCTAssertEqual(parts.count, 2)
-        XCTAssertEqual(
-            StreamingBlockText.gapAfter(index: 0, parts: parts),
-            OneDayMetrics.paragraphSpacing,
-            "散文相邻必须走段内段距、否则落定帧段距跳变"
-        )
-        XCTAssertEqual(
-            StreamingBlockText.gapAfter(
-                index: 1, parts: parts, tailKind: .paragraph
-            ),
-            OneDayMetrics.paragraphSpacing,
-            "末块→散文尾块同属可并段集、落定并段后界距为段距"
-        )
-        let codeParts = StreamingBlockText.closedParts(
-            for: "先说结论。\n\n```\nlet a = 1\n```\n\n尾巴在长"
-        )
-        XCTAssertEqual(codeParts.count, 2)
-        XCTAssertEqual(
-            StreamingBlockText.gapAfter(
-                index: 0, parts: codeParts
-            ),
-            OneDayMetrics.spacingSM,
-            "段落→代码是段界、走 spacingSM"
-        )
-    }
-
-    // MARK: - ④ 直播行高
+    // MARK: - ④ 直播行高（§409 步 D 退役；下方合成器工厂供 ② 复用）
 
     private func makeComposer()
         -> ChatNativeRowHeightComposer
@@ -247,43 +187,6 @@ final class ChatLagFeedLayerTests: XCTestCase {
             hubStore: AppState().sharedHubStore(),
             agentDisplayName: "Hermes",
             emptyStateAvatarSize: 72
-        )
-    }
-
-    func testLiveTextHeightDeterministicAndTailDriven() {
-        let composer = makeComposer()
-        let text = "第一段正文。\n\n第二段正文。\n\n尾巴"
-        let first = composer.liveTextHeight(
-            text: text, isUploading: false
-        )
-        XCTAssertEqual(
-            composer.liveTextHeight(
-                text: text, isUploading: false
-            ),
-            first,
-            "同文连算须逐值同高（增量口径不许漂移）"
-        )
-        // 尾块长到必然多折行 → 总高只随尾块增量涨
-        let grownTail = "第一段正文。\n\n第二段正文。\n\n"
-            + String(
-                repeating: "尾块继续生长的内容",
-                count: 12
-            )
-        XCTAssertGreaterThan(
-            composer.liveTextHeight(
-                text: grownTail, isUploading: false
-            ),
-            first
-        )
-        // 新块闭合（尾块后另起一段）→ 高再涨一档
-        let newBlock = grownTail + "\n\n新的一段正文开始。"
-        XCTAssertGreaterThan(
-            composer.liveTextHeight(
-                text: newBlock, isUploading: false
-            ),
-            composer.liveTextHeight(
-                text: grownTail, isUploading: false
-            )
         )
     }
 

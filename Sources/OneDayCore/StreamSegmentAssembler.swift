@@ -1,40 +1,36 @@
 import Foundation
 
-/// 流式分段装配器（0.50.53，第 93 条）：在发布闸之上
-/// 补「段」这一维——一轮 run 的正文不是一条文本，
-/// 而是被工具调用切开的若干助理段（服务端落库即
-/// 一段一条消息：段 A 正文→工具→段 B 正文）。段的
-/// 身份以服务端事件序为准：tool.started 是段边界
-/// 信号，边界到达即封存当前段、下一段增量进新缓冲。
+/// 流式分段装配器（0.50.53，第 93 条；§409 步 E
+/// 随闸瘦身）：一轮 run 的正文不是一条文本，而是
+/// 被工具调用切开的若干助理段（服务端落库即一段
+/// 一条消息：段 A 正文→工具→段 B 正文）。段的身
+/// 份以服务端事件序为准：tool.started 是段边界信
+/// 号，边界到达即封存当前段、下一段增量进新累积器。
 ///
 /// 病根（第 93 条定案）：旧装配只有一只整轮单缓冲
-/// 的 StreamPublishGate，followRunEvents 的工具事
-/// 件分支从不封段——跨工具边界后，新段增量继续拼
-/// 进上一段的缓冲，直播呈现里上一段全文被带进下
-/// 一段（半截落盘后再重挂 events 时更与已落盘条目
-/// 同屏双份呈现）。修法不是呈现层去重，而是装配
-/// 层按段分开：每段一只独立发布闸（发布节流口径
-/// 与 §32 逐字不变，段内拼接行为零变更），封段后
-/// 旧段只读、新段从空缓冲起步。
+/// 的发布闸，followRunEvents 的工具事件分支从不
+/// 封段——跨工具边界后，新段增量继续拼进上一段的
+/// 缓冲，直播呈现里上一段全文被带进下一段（半截
+/// 落盘后再重挂 events 时更与已落盘条目同屏双份
+/// 呈现）。修法不是呈现层去重，而是装配层按段分
+/// 开：每段一只独立累积器，封段后旧段只读、新段
+/// 从空起步。
 ///
-/// 纯逻辑：时刻由调用方以单调时钟（秒）注入，与
-/// StreamPublishGate 同制，单测可钉死回放。
+/// §409 步 E：段内发布语义（窗口合并/快照/collect-
+/// Due/flush）随 StreamPublishGate 瘦身一并删除，
+/// 时刻参数全删；fullSegments/mergedFullText 口径
+/// 与第 93 条账本逐字不变——半截落盘按段成条与
+/// 落定兜底合并都读这里。
 public struct StreamSegmentAssembler: Equatable {
-    /// 已封存段的全文（按事件序，只读）：封段时经
-    /// flush 取精确全文，非空才入列——空段不存在
+    /// 已封存段的全文（按事件序，只读）：封段时取
+    /// 当前段精确全文，非空才入列——空段不存在
     public private(set) var sealedSegments: [String] = []
-    /// 当前打开段的发布闸（本段增量在此累积/发布）
+    /// 当前打开段的累积器（本段增量在此入账）
     public private(set) var currentGate = StreamPublishGate()
 
     public init() {}
 
-    /// 当前段已发布的快照（视图呈现当前段用）
-    public var currentPublished: String {
-        currentGate.publishedText
-    }
-
-    /// 当前段精确全文（已发布＋待发布）：收尾判定
-    /// 与落盘走它，不经发布快照、节流永不丢字
+    /// 当前段精确全文：收尾判定与落盘走它
     public var currentFullText: String {
         currentGate.fullText
     }
@@ -62,45 +58,19 @@ public struct StreamSegmentAssembler: Equatable {
         fullSegments.joined(separator: "\n\n")
     }
 
-    /// 喂入当前段一个增量。发布条件与 StreamPublish-
-    /// Gate 逐字相同（首增量立即发布/80ms 窗/64 字
-    /// 阈值）；发布时返回当前段的新快照，否则 nil
-    @discardableResult
-    public mutating func offer(
-        _ delta: String, at now: TimeInterval
-    ) -> String? {
-        currentGate.offer(delta, at: now)
+    /// 喂入当前段一个增量（立即入账）
+    public mutating func offer(_ delta: String) {
+        currentGate.offer(delta)
     }
 
-    /// 定时巡查（视图侧 ticker）：只作用于当前段——
-    /// 封存段早已 flush 定稿，不存在待发布残余
-    public mutating func collectDue(
-        at now: TimeInterval
-    ) -> String? {
-        currentGate.collectDue(at: now)
-    }
-
-    /// 强制发布当前段残余（半截落盘前的收尾）：有
-    /// 残余返回当前段新快照，否则 nil
+    /// 段边界（工具调用开始）：封存当前段——取精
+    /// 确全文，非空才入封存列，随后当前累积器归
+    /// 零，下一段增量从空起步。当前段为空时无段
+    /// 可封（并行工具连发多次边界、工具先行轮次
+    /// 都走此支），返回 nil 且不产空段。返回封存
+    /// 的段全文（未封成时 nil）
     @discardableResult
-    public mutating func flushCurrent(
-        at now: TimeInterval
-    ) -> String? {
-        currentGate.flush(at: now)
-    }
-
-    /// 段边界（工具调用开始）：封存当前段——先
-    /// flush 取精确全文，非空才入封存列，随后当前
-    /// 闸归零，下一段增量从空缓冲起步、首增量恢复
-    /// 立即发布。当前段为空时无段可封（并行工具连
-    /// 发多次边界、工具先行轮次都走此支），返回
-    /// nil 且不产空段。返回封存的段全文（未封成
-    /// 时 nil）
-    @discardableResult
-    public mutating func sealCurrentSegment(
-        at now: TimeInterval
-    ) -> String? {
-        _ = currentGate.flush(at: now)
+    public mutating func sealCurrentSegment() -> String? {
         let text = currentGate.fullText
         guard !text.isEmpty else { return nil }
         sealedSegments.append(text)
@@ -108,23 +78,22 @@ public struct StreamSegmentAssembler: Equatable {
         return text
     }
 
-    /// 新一轮流开始时整器归零（封存列与当前闸同清）
+    /// 新一轮流开始时整器归零（封存列与当前段同清）
     public mutating func reset() {
         self = StreamSegmentAssembler()
     }
 
     /// 恢复回填（半截落盘后重进本轮）：封存段与打
-    /// 开段按落盘原序装回——打开段经一只新闸喂入
-    /// （首喂立即发布，回填即刻见全段），其后续增
-    /// 量只许拼进打开段、永不回流封存段
+    /// 开段按落盘原序装回——打开段整段入一只新累
+    /// 积器，其后续增量只许拼进打开段、永不回流
+    /// 封存段
     public mutating func restore(
-        sealed: [String], current: String,
-        at now: TimeInterval
+        sealed: [String], current: String
     ) {
         reset()
         sealedSegments = sealed.filter { !$0.isEmpty }
         if !current.isEmpty {
-            _ = currentGate.offer(current, at: now)
+            currentGate.offer(current)
         }
     }
 }

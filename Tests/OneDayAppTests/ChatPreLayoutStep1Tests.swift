@@ -303,10 +303,13 @@ final class ChatPreLayoutStep1Tests: XCTestCase {
             "本会话新行登记应至少两处（send/performEditSend）"
         )
         // 预定高：nativeEntryRow 就地量测闸
+        // §409 步 A：nativeLiveRow 本体已删，段终点
+        // 锚改 kick 函数；步 C：kick 亦删，再换锚
+        // fileChipStackEstimate
         let entryRowSeg = try segment(
             chatView,
             from: "private func nativeEntryRow",
-            to: "private func nativeLiveRow"
+            to: "private func fileChipStackEstimate"
         )
         XCTAssertTrue(
             entryRowSeg.contains("urgentHeight = rowMeasureDesk.measureNow("),

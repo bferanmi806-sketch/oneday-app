@@ -175,7 +175,11 @@ final class ChatNativeListR2AssemblyTests: XCTestCase {
             key: key, entryID: nil,
             revision: ChatNativeRowRevision(parts: [.text(text), .count(version)]),
             makeView: {
-                self.bubble(StreamingBlockText(text: text))
+                // §409 步 D：StreamingBlockText 已
+                // 退役，流式行替身改落定同款
+                // MarkdownText（本 harness 只验装配
+                // 与修订换装、不验块沉淀）
+                self.bubble(MarkdownText(text))
             }
         )
     }

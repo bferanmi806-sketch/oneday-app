@@ -68,38 +68,6 @@ public enum BottomFollowPolicy {
     }
 }
 
-/// 流式跟随滚动节流闸（0.4.2，§27）：流式文本每个
-/// 增量都变化一次，逐次触发贴底滚动等于让滚动动画
-/// 无限追逐随文本生长移动的底部。本闸按已跟随到的
-/// 字符数记账：新增 ≥40 字才放行一次跟随；流结束的
-/// 最后一贴由落盘条目变化事件承担，不经本闸。
-public struct StreamFollowGate: Equatable {
-    /// 放行一次跟随所需的最小新增字符数
-    public static let minimumGrowth = 40
-    /// 已跟随到的流式全文长度
-    public private(set) var followedCount = 0
-
-    public init() {}
-
-    /// currentCount 为当前流式全文长度。放行时记账
-    /// 到当前长度并返回 true；增量不足返回 false。
-    /// 长度比已跟随数还小（新一轮流未经 reset 直接
-    /// 开始）按从零计，不卡死
-    public mutating func shouldFollow(currentCount: Int) -> Bool {
-        let baseline = currentCount >= followedCount ? followedCount : 0
-        guard currentCount - baseline >= Self.minimumGrowth else {
-            return false
-        }
-        followedCount = currentCount
-        return true
-    }
-
-    /// 一轮流结束／切换会话时归零
-    public mutating func reset() {
-        followedCount = 0
-    }
-}
-
 /// 最后一个渲染项的滚动目标 id（0.36.13，诊断
 /// chat-bottom-geometry §2.3 事实路堵洞；§135 起
 /// App 侧消费退役——事实信号链随发送空屏诊断 A 案

@@ -93,42 +93,6 @@ final class BottomFollowTests: XCTestCase {
         )
     }
 
-    // MARK: - 流式节流闸
-
-    func testGateBlocksSmallGrowth() {
-        var gate = StreamFollowGate()
-        XCTAssertFalse(gate.shouldFollow(currentCount: 1))
-        XCTAssertFalse(gate.shouldFollow(currentCount: 39))
-        XCTAssertEqual(gate.followedCount, 0)
-    }
-
-    func testGateFollowsAtMinimumGrowthAndAccumulates() {
-        var gate = StreamFollowGate()
-        XCTAssertTrue(gate.shouldFollow(currentCount: 40))
-        XCTAssertEqual(gate.followedCount, 40)
-        // 增量按已跟随数累计：39 不放行、40 放行
-        XCTAssertFalse(gate.shouldFollow(currentCount: 79))
-        XCTAssertTrue(gate.shouldFollow(currentCount: 80))
-        XCTAssertEqual(gate.followedCount, 80)
-    }
-
-    func testGateResetReArms() {
-        var gate = StreamFollowGate()
-        XCTAssertTrue(gate.shouldFollow(currentCount: 100))
-        gate.reset()
-        XCTAssertEqual(gate.followedCount, 0)
-        XCTAssertFalse(gate.shouldFollow(currentCount: 20))
-        XCTAssertTrue(gate.shouldFollow(currentCount: 45))
-    }
-
-    func testGateShorterNewStreamCountsFromZero() {
-        var gate = StreamFollowGate()
-        XCTAssertTrue(gate.shouldFollow(currentCount: 200))
-        // 未 reset 直接开始一条更短的新流：按从零计
-        XCTAssertFalse(gate.shouldFollow(currentCount: 39))
-        XCTAssertTrue(gate.shouldFollow(currentCount: 40))
-    }
-
     // MARK: - 迟滞锁死序列（0.36.13，诊断 chat-bottom-geometry §2.2）
 
     func testProximityLatchSequenceStaysOffUntilBelowEnter() {

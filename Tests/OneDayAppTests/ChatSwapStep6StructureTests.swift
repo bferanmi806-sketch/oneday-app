@@ -125,7 +125,8 @@ final class ChatSwapStep6StructureTests: XCTestCase {
     }
 
     /// 跟随链单源：同名链函数只剩一份定义、
-    /// chatSurface 单路原生面
+    /// chatSurface 单路原生面（§409 步 B：
+    /// settleStreamFollow 随流式跟随退役出列）
     func testFollowChainSingleSourceInChatView() throws {
         let chatView = codeLines(
             try source("Sources/OneDayApp/ChatView.swift")
@@ -136,7 +137,6 @@ final class ChatSwapStep6StructureTests: XCTestCase {
             "func evaluateSettleOnEvent(",
             "func evaluateSettleFallback(",
             "func handleSettleStep(",
-            "func settleStreamFollow(",
         ] {
             let count = chatView.components(
                 separatedBy: name
