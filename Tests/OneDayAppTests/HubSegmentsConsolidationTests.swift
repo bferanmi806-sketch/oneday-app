@@ -162,8 +162,18 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         defer { window.isHidden = true }
         spin(seconds: 0.6)
 
+        // 导航控制器随栈渲染才进层级——轮询等它出现
+        var navFound: UINavigationController?
+        let navDeadline = Date().addingTimeInterval(8)
+        while Date() < navDeadline {
+            if let found = findNavigationController(in: host) {
+                navFound = found
+                break
+            }
+            spin(seconds: 0.016)
+        }
         let nav = try XCTUnwrap(
-            findNavigationController(in: host),
+            navFound,
             "装配台内应存在 NavigationStack 的导航控制器"
         )
         XCTAssertEqual(
@@ -215,6 +225,11 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         )
     }
 
+    /// 定位 SwiftUI NavigationStack 的内部导航控制
+    /// 器：它不在 hosting 控制器的 children 链上
+    /// （首轮探针实测），改走视图层级——先找
+    /// UINavigationBar，再沿响应链上溯到拥有它的
+    /// UINavigationController
     private func findNavigationController(
         in viewController: UIViewController
     ) -> UINavigationController? {
@@ -223,6 +238,25 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         }
         for child in viewController.children {
             if let found = findNavigationController(in: child) {
+                return found
+            }
+        }
+        guard let bar = findNavigationBar(in: viewController.view)
+        else { return nil }
+        var responder: UIResponder? = bar
+        while let current = responder {
+            if let nav = current as? UINavigationController {
+                return nav
+            }
+            responder = current.next
+        }
+        return nil
+    }
+
+    private func findNavigationBar(in view: UIView) -> UIView? {
+        if view is UINavigationBar { return view }
+        for subview in view.subviews {
+            if let found = findNavigationBar(in: subview) {
                 return found
             }
         }
