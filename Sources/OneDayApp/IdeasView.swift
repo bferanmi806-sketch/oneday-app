@@ -614,7 +614,7 @@ struct IdeaDetailView: View {
                     // 对位 Muse 样张 #0064D4）——推翻第
                     // 85 条 BC-1 在本钮的 primaryPale 口
                     // 径（§453 改判追记）；同栏「打开对
-                    // 话」未跟改，待主线裁
+                    // 话」已由主按钮统一线跟改同口径
                     .foregroundStyle(Color.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
@@ -631,12 +631,15 @@ struct IdeaDetailView: View {
                 } label: {
                     Text("打开对话")
                         .font(.headline)
-                        // 第 85 条（BC-1）：同「开始吧」主钮
-                        // 配色正道（primaryPale＋onPrimary）
-                        .foregroundStyle(Palette.onPrimary)
+                        // 主按钮统一口径（2026-11-24 主线
+                        // 裁决，§453 改判后续）：与「开始吧」
+                        // 同栏同槽同为主钮——饱和蓝底＋白
+                        // 字（primarySaturated），不再走第
+                        // 85 条 BC-1 的 primaryPale 配对
+                        .foregroundStyle(Color.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
-                        .background(Palette.primaryPale, in: Capsule())
+                        .background(Palette.primarySaturated, in: Capsule())
                 }
                 // 手感 A 档：与「开始吧」同式补按下态
                 .buttonStyle(.odPressable)

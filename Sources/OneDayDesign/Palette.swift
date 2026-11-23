@@ -415,13 +415,17 @@ public enum Palette {
     /// 强调实填：与 primary 同源同值（0.26.0 前即同
     /// 值双名，本版直接别名化，语义不变）
     public static var primaryFill: Color { primary }
-    /// 主钮饱和蓝（2026-11-24 用户亲裁新增）：点子
-    /// 详情 sheet「开始吧」主钮专用面——饱和蓝底＋
-    /// 白字，对位 Muse 点子 sheet 样张（采样自用户
-    /// 2026-11-24 04:06 附件图一「开始吧」钮面，钮面
-    /// 像素中位 #0064D4）；推翻第 85 条 BC-1 在该钮
-    /// 的 primaryPale＋onPrimary 口径，其余
-    /// primaryPale 消费面（发送钮/审批主钮等）不动。
+    /// 主钮饱和蓝（2026-11-24 用户亲裁新增）：饱和
+    /// 蓝底＋白字，对位 Muse 点子 sheet 样张（采样
+    /// 自用户 2026-11-24 04:06 附件图一「开始吧」钮
+    /// 面，钮面像素中位 #0064D4）；初落仅点子详情
+    /// sheet「开始吧」一钮（推翻第 85 条 BC-1 在该
+    /// 钮的 primaryPale＋onPrimary 口径），同日主线
+    /// 裁决扩为全 App 主按钮统一面：点子「打开对
+    /// 话」、目标介绍卡「开始吧」、审批卡「批准」、
+    /// 通用主钮组件 PrimaryButtonStyle 全部消费本
+    /// 令牌。ChatView 输入栏圆形钮等非主钮形态与
+    /// primaryPale 其余消费面（面色/浅底）不动。
     /// 暗档同值（该蓝压暗面白字对比仍足）
     public static let primarySaturated = appleColor(
         light: 0x0064D4,

@@ -16914,3 +16914,7 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 ### §453 改判追记（2026-11-24）：点子「开始吧」主钮改色
 
 用户 2026-11-24 04:20 亲裁（原话「我觉得人家的蓝色和白色挺好的呀」，指 Muse 点子 sheet 图一）：点子详情 sheet「开始吧」主钮改**饱和蓝底＋白字**，**推翻本节交卷时保留的 BC-1 对比度口径**（浅蓝 primaryPale＋深墨字 onPrimary）。落法：Palette 新增专用令牌 `primarySaturated`＝#0064D4（采样自用户 04:06 附件图一钮面像素中位），仅 IdeasView「开始吧」一钮消费；同栏已采纳态「打开对话」与全 App 其余 primaryPale 主钮面（发送钮/审批主钮/目标「开始吧」/通用主钮组件等）**未跟改**，跟改范围清单在分支 feat/idea-start-button 交卷内，待主线裁。分支 feat/idea-start-button（基线本节分支 tip 9e29aca）。
+
+### §453 改判后续（2026-11-24）：全 App 主按钮配色统一
+
+主线裁决（承接上条改判与开始吧线交卷的影响面清单 1–4）：用户口味已定——**全 App 真主钮统一为饱和蓝底＋白字**（`Palette.primarySaturated` #0064D4），第 85 条 BC-1 的 primaryPale＋onPrimary 口径在主钮面上整体退役。本线（分支 feat/primary-button-unify，基线 feat/idea-start-button tip 524145e）跟改四处：①IdeasView 已采纳态「打开对话」（与「开始吧」同栏同槽同为主钮）；②GoalListRows 目标介绍卡「开始吧」；③ApprovalCardFace 审批卡「批准」填充主钮（`.filledPrimary` 角色；「总是允许」描边次钮与「驳回」文字级不动）；④OneDayDesign/Components.swift 通用主钮组件 `PrimaryButtonStyle` 改取色（启用＝primarySaturated＋白字、禁用＝primarySaturated 35%），其全部 23 个 `.odPrimary` 调用点经逐点甄别均为 Button 上的真主钮、无面色冒充钮的用法，随组件统一。**不动清单**：`primaryPale` 令牌本身（仍兼面色/浅底：FeedView 面色、ConnectView 251/671、DictationViews 圆形面、NotificationGuideView 52 等）；ChatView 发送钮/回底钮等输入栏圆形图标钮（清单 5，形态不同、归聊天面口径）；次钮、文字钮、危险色钮。语义注记一处：EmptyCleanupView 的「删除空会话」钮带 `role: .destructive` 却借用 `.odPrimary` 样式（既有设计），本线按组件统一随行变饱和蓝，未擅自改危险红——如需红由主线另裁。真机观感归用户 verdict，并入 0.50.107。

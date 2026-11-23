@@ -409,17 +409,18 @@ public struct PrimaryButtonStyle: ButtonStyle {
         var body: some View {
             configuration.label
                 .font(.headline)
-                .foregroundStyle(Palette.onPrimary)
+                .foregroundStyle(Color.white)
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: OneDayMetrics.primaryButtonHeight)
                 .background(
-                    // 0.6.1：主钮改 OpenMuse 原貌——浅蓝填充
-                    // primaryPale（#C8E7FF）＋深墨字（onPrimary），
-                    // 取代旧「深蓝填充＋白字」；禁用 35% 为
-                    // OneDay 既有口径（它无禁用原值）
+                    // 2026-11-24 主按钮统一口径（主线裁
+                    // 决，§453 改判后续）：饱和蓝填充
+                    // primarySaturated（#0064D4）＋白字，
+                    // 取代 0.6.1 的 primaryPale＋onPrimary
+                    // 口径；禁用 35% 为 OneDay 既有口径
                     isEnabled
-                        ? Palette.primaryPale
-                        : Palette.primaryPale.opacity(0.35),
+                        ? Palette.primarySaturated
+                        : Palette.primarySaturated.opacity(0.35),
                     in: RoundedRectangle(cornerRadius: OneDayMetrics.buttonCorner)
                 )
                 .opacity(configuration.isPressed ? 0.85 : 1)
