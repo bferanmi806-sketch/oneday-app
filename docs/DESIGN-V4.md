@@ -16742,3 +16742,4 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 轨迹复跑（代验说明）：量测管线针对真机录屏，模拟器录屏同法复跑未做，按图内验收口径以呈现层钉测代——开：中途 3 采样间距守恒（断言门偏差 ≤10pt、间距 ≥−1 不被盖；旧散布 406px≈227pt）；合：中途同守恒、终点距底 ≤1pt（旧 +149px≈83pt 不归位）、留位回静息 ±1.5pt 内。真机门留用户 verdict（开合跟随手感＋落点）。
 - 与 W2 正修的差（复核图内三项）：①本修不动列表引擎（仍 compositional），W2 换 Exyte 后键盘定位在其引擎内重做，本修事务纪律（同事务应用＋事务窗冻结＋双向意图捕获）平移为 W2 验收口径；②不做逐帧呈现帧采样驱动，平台动画事务插值已达成散布门；③交互式手势收键盘沿 WillChangeFrame 路径同式处理，不另立引擎。
 - 状态：已落码提交（d03b67e＋本节），未 push（主线处置）；待组版并入与用户真机 verdict。
+- 同树连绿第二轮（Test-KbSmooth438-Pin2.xcresult，RUN 2026-11-24 02:06，dd-kbsmooth）：ChatKeyboardPinAssemblyTests 单套复跑 4/4 全绿、exit 0；与首轮五套轮内同套 4/4 绿构成同树（d03b67e）连绿两轮。
