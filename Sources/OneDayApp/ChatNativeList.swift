@@ -1029,6 +1029,18 @@ final class ChatRootViewController: UIViewController,
     /// 落点意图置真时刻（收敛重拍的时间窗预算起
     /// 点，见 performSettleBeat 的尾差处理）
     private var landingIntentSince: CFTimeInterval = 0
+    /// §426（缺陷三）键盘贴底意图：键盘将升起的
+    /// 事务开始前（几何未动时）捕获的「在底事实」
+    /// ——升起前在底 ⇒ 整个键盘事务（升起/帧变/
+    /// 收起前）每拍重钉；用户拖动接管或键盘收起
+    /// 即消。与 landingIntent 分工：彼管内容落点
+    /// （冷开/命令/落定），此管键盘几何事务——旧
+    /// 链键盘路径无任何意图、只靠布局拍按当拍几
+    /// 何采样 wasAtBottom，而量测留位在落定拍一
+    /// 次跳到终值后距离读数恒≈键盘高、采样恒假，
+    /// 永不重钉（真机 verdict 钉死：键盘起后记录
+    /// 不到最新、须手拉）
+    private var keyboardPinIntent = false
     /// §302.3 意图消费的几何稳定账：上一落定拍的
     /// contentSize——与本拍逐值同才算几何静止；消
     /// 费另须本拍钉前已在底（上一钉熬过整拍布局
@@ -1551,6 +1563,19 @@ final class ChatRootViewController: UIViewController,
     private func setKeyboardUp(
         _ up: Bool, note: Notification
     ) {
+        // §426（缺陷三）：贴底意图在事务开始前捕
+        // 获——本点几何未动（帧顶存账/常量重算都
+        // 在其后），距离读数是升起前的真事实；等
+        // 几何变完再判，新几何下恒不在底、永不重
+        // 钉（旧链病灶）。收起即消（回落方向留位
+        // 收缩不搁浅内容，布局拍在底链自理）
+        if up, !keyboardUp {
+            keyboardPinIntent = !userInteracting
+                && collectionView.bounds.height > 0
+                && currentDistance() <= Self.atBottomTolerance
+        } else if !up {
+            keyboardPinIntent = false
+        }
         if up {
             updateKeyboardTop(from: note)
         } else {
@@ -2229,7 +2254,7 @@ final class ChatRootViewController: UIViewController,
         // 画期本拍逐帧到达、落定拍在帧间逐拍合并落
         // 写，跟随链不断（§302 对账改走落定拍）
         scheduleSettle()
-        if (wasAtBottom || landingIntent)
+        if (wasAtBottom || landingIntent || keyboardPinIntent)
             && !userInteracting {
             pinToBottom()
             // §302.3：布局拍只钉不消费意图——末钉
@@ -3542,9 +3567,11 @@ final class ChatRootViewController: UIViewController,
         collectionView.layoutIfNeeded()
         measureBottomSpace()
         reconcileInsets()
+        var didRestoreAnchor = false
         if let anchor = pendingAnchor {
             pendingAnchor = nil
             executeRestore(anchor)
+            didRestoreAnchor = true
         } else if landingIntent && !userInteracting {
             let prePinDistance = currentDistance()
             pinToBottom()
@@ -3592,6 +3619,17 @@ final class ChatRootViewController: UIViewController,
             } else {
                 landingSettleContentSize = nil
             }
+        }
+        // §426（缺陷三）：键盘事务钉底——意图在事
+        // 务开始前已捕获（setKeyboardUp），本拍几
+        // 何（量测留位＋inset 施工）已落定，按派生
+        // 标尺直钉终值；锚恢复拍不叠钉（恢复优先
+        // 级不变）。事务中逐拍重钉＝末行恒贴舱顶、
+        // 不被动画中的舱盖住/压扁（用户视频 f011
+        // 的缝状卡即无钉时舱滑过尾行所致）
+        if keyboardPinIntent, !userInteracting,
+           !didRestoreAnchor {
+            pinToBottom()
         }
         stepSearchFocus()
         layoutArrow()
@@ -3908,6 +3946,9 @@ final class ChatRootViewController: UIViewController,
         // 点位；减速开始前的空窗由本态覆盖）
         userBrowsing = true
         landingIntent = false
+        // §426（缺陷三）：键盘贴底意图同点消——
+        // 用户在键盘事务中接管位置，机器不许再钉
+        keyboardPinIntent = false
         landingSettleContentSize = nil
         // 台账 150：搜索落点同弃——读者的位置优先
         // 于机器落点（OB 的 drags 计数同口径）

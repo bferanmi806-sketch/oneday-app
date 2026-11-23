@@ -16610,3 +16610,40 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 验证：发布集 143 套 1075 项（0.50.103 的 1044 −37 退役/瘦身 ＋68 新增、逐套对账闭合），1071 过、4 红——3 红与 0.50.103 发布 bundle 逐字同红（DrawerContainerControllerTests scene-gate 两例＋SwipeReplyPanBridgeTests 一例，UIHostingController 子视图告警型、本通道基线），1 红为 §417 已裁决性能门；ChatFailKeepPinTests 7/7 绿（drain 门过、失败包留在本版）。冒烟轮 15/15 绿，含 testSmokeA4FilesGridFirstFrame 转绿（§401.4 演示缺口一销账）。Release 构建成功，IPA 本体亲验 0.50.104／232／site.didichou.oneday，16,616,719 字节，md5 2a399697a4e9904371c011a81828d36a，三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）。
 
 真机门（随版清单）：断网四行为重验（浅色泡＋时钟＋「等待发送…」→恢复自动续发→失败红感叹号原位重发）、排队五项、落定三项与朗读三项（0.50.103 存量未判项）、#13 选区四件/表格一帧/代码块/长文档/浅深双色、#23 图卡与查看器链、量测崩溃窗口观察。
+
+## §426 0.50.104 真机 verdict 热修（2026-11-24；分支 feat/send-confirm-visual，基线 rel-05104；随 0.50.105 组版）
+
+用户 2026-11-24 00:01–00:08 对 0.50.104 真机验收连报四缺陷（前两条附截图、第三四条附双视频对照与口径），主线并入同一热修线。本节四小节分列：定因链、修法、钉测与回归。
+
+### §426.1 缺陷一：未确认气泡变色时机错（§414 规格 5.3 违例）
+
+- 现象：连发第二条后回复已在生成（占位行「正在生成…」在席——按 §414 该文案只许 .submitAccepted 后出现、即服务器已收），该气泡仍浅色（opacity 0.45）＋时钟在席；第一条已完成轮次的气泡为全色。用户口径（定版）：服务器确认收到＝发送成功、立即全色、时钟消失；浅色只表示还没确认送达。与 §414 原设计一致。
+- 定因链：`ChatEntry.isUnconfirmedSend`＝`sendState.remainsInQueue && !sendFailed`（ChatStore.swift）；呈现两读数（泡体 opacity、sendStateMark 时钟）同读此谓词。`markSendState(.delivered)` 全仓唯一写点在 `applySettledTurn`（落定入账）——受理三点（driveRun 首提、reconcileRun 重演取回、resumeRunIfNeeded 恢复确立）只 `runMachine.apply(.submitAccepted)` 动相位机、不动条目状态。故受理后整段生成期条目恒挂未确认态、落定才变色。
+- 修法：三受理点与 `.submitAccepted` 同点补记送达——新私有原语 `markAcceptedEntryDelivered(thread:userEntryID:)`（remainsInQueue 守卫、已送达/无状态不动；失败条目重发受理时经 delivered 语义自清失败标记），与占位文案相位门共用同一信号、不新造第二信号；落定点既有写点保留作兜底（幂等同值）。呈现读数抽单源静态函数 `ChatView.userBubbleOpacity(isUnconfirmedSend:)` 与 `ChatView.sendStateMarkKind(sendFailed:isUnconfirmedSend:)`（失败优先、与旧分支同序），视图两处改读单源——呈现层自此可钉。
+- 钉测（ChatSendConfirmPinTests）：逐态呈现读数（队列四态＝0.45＋时钟、失败＝1＋红叹号、无状态/已投递＝1＋无标记）；受理转换在未落定（serverRowID 仍 nil）时落下→读数即翻全色/无标记；断网 markPendingSend 保持 0.45＋时钟。
+
+### §426.2 缺陷二：运行完成卡每轮骚扰（活动会话终态重复播报）
+
+- 现象：用户就在当前会话里看着回复完成，列表尾仍弹「运行完成／一轮运行已完成」回告卡（× 可关），顶栏铃铛挂角标；双视频里同一完成卡叠出两张（两轮各一）。
+- 定因链：卡面＝回告卡行（`ReportCardPolicy.cards` 取未读前 3 入主线列表尾、`reportCard` 渲染、×＝markRead）；来源＝companion overview_bridge 的 runs 聚合源 `_run_notification`：run 终态 completed→kind=task_completed、failed→run_failed，通知 `id="run-"+run_id`、**`refId=session_id`**（桥契约的结构联动键）。App 侧旧链对该类通知无「前台正打开会话」抑制：轮询（30s）拉到未读即成卡、角标（服务端快照未读数，markRead 本地先行同拍减一）照挂。成熟做法对照：iOS 前台通知抑制——正看着的内容不再播报。
+- 修法（与 0.36.5 ApprovalResolution 自动消账同式）：Core 新纯判定 `RunCompletionResolution.receiptsToResolve(notifications:foregroundServerSessionID:)`——未读＋终态 kind（task_completed/run_failed）＋refId 与当前打开会话的服务端 id 逐字同才命中；`OverviewBridgeStore.loadNotifications` 增 `foregroundServerSessionID` 入参、审批消账段后同式逐条走既有 markRead 通道（本地先落已读＋角标同拍减一＋桥确认）；ChatView 拉通知时传 `currentThread?.serverSessionID`，其余调用方不传（恒空转）。消账只翻已读——通知中心记录保留、历史留痕不丢；非当前会话/后台完成的照旧弹卡报角标（基线行为不动）。本地通知分级提醒（NotificationTierAlerter）在消账后消费，命中的终态同拍不再发系统提醒，与前台抑制同义。
+- 钉测：Core 三钉（前台会话命中 completed＋failed 两 kind、他会话不命中；已读/非终态 kind/无 refId 不命中；nil/空前台恒空）＋App 合成钉（消账后卡不现、记录仍在名单、他会话卡照现）。
+
+### §426.3 缺陷三：键盘弹起后列表不到最新（与缺陷二同属键盘事务家族）
+
+- 现象：键盘弹起后消息列表没有跟到最新一条、要手动上拉；双视频中途帧另见尾部回告卡被上升的输入舱压成一条缝（f011）。
+- 定因链（ChatRootViewController）：键盘路径**不置任何钉底意图**——`landingIntent` 置位点只有冷开喂入与 `scrollToBottom()` 命令；键盘事务中列表跟随只靠 ①布局拍 `viewDidLayoutSubviews` 按当拍几何采样 `wasAtBottom` 后钉底 ②落定拍在 `landingIntent` 在席时钉底。量测留位 `measuredBottomSpace` 在落定拍读舱的 model 帧——UIView 动画里 model 帧首拍即终值，底 inset 一拍跳增≈键盘高（340 级），而 `currentDistance()` 以派生 inset 为标尺：跳后距底恒≈键盘高＞容差 48，后续一切采样恒判「不在底」→永不重钉。判定全在几何变完之后做，正是此症。
+- 回归判定：**非 0.50.104 新增回归**——rel-05103..rel-05104 本文件 diff 只有在底容差 0.5→48pt 三处放宽（§419 收敛），断链结构两版同在；48 档对 300+ 的跳量同样无救。此前无键盘升降真机验收项，本次 verdict 钉死。
+- 修法（守家规：不回退 keyboardLayoutGuide 跟随、不新造第二套贴底机制、只修既有钉底链的时机与判定）：新意图位 `keyboardPinIntent`——`setKeyboardUp` 在事务开始前（帧顶存账与常量重算之前、几何未动时）以旧几何捕获在底事实（`!userInteracting && currentDistance() <= atBottomTolerance`）；落定拍在量测＋inset 施工后、布局拍在 `(wasAtBottom || landingIntent || keyboardPinIntent)` 条件下，意图在席即按派生标尺直钉终值（逐拍重钉，事务首拍即一步到位、无逐帧爬行）；用户拖动（scrollViewWillBeginDragging，与 landingIntent 同点）或键盘收起即消。锚恢复拍不叠钉（恢复优先级不变）。栈口径：回告卡等尾行同为列表行、与消息行共用同一 inset 单记账（effectiveBottomInset 单写口 reconcileInsets），压扁/被盖源头即无钉时舱滑过尾行——意图钉底立住后尾行恒贴舱顶上方、事务全程不被盖；本线不另造栈记账（审批舱 S4 在 Exyte 二期同守此条）。
+- 钉测（ChatKeyboardPinAssemblyTests，装配面发真键盘通知）：贴底→升起→末行完整可见＋距底≈0＋留位增量恰＝键盘高、收起回落同守；动画中途帧（0.6s 动画的 0.12s 拍）末行已完整可见＋留位一步到位；离底 400→升起→contentOffset 逐值不动、末行不完整可见。旧码先红（RUN 见进度卡 sendconfirm-progress.md）、修后转绿。
+
+### §426.4 缺陷四：生成中占位行改纯三点动态
+
+- 口径（用户 00:09 钉死）：参照 iMessage 输入指示器——三点在气泡内逐点脉动、无文字；「等待发送…」保留文字（未送达状态的事实文案、与 0.50.103 断网 P0 verdict 绑定，非装饰）；相位门不变：三点只许出现在 .submitAccepted 之后，未接受只显「等待发送…」。占位行恒高口径不变（S1 定版、合成器常量不读内容形态）。
+- 修法：新纯函数 `ChatView.placeholderVisual(phase:runIDEstablished:tailSendState:isUploading:)` 与文案单源 `placeholderStatusText` 同判定源分相——已受理（生成相、或 run 已确立的结果未知相）＝`.typingDots`；未受理（含上传段）＝`.statusText`。`livePlaceholderContent` 分相显隐：三点相零文字、文字相三点不在席；无障碍标签恒读状态文案（朗读口径不丢）。`TypingDots` 按 iMessage 口径落数：点径 8pt、点距 4pt、周期 1.4s、错峰 0.22s、透明度 0.3↔1.0 正弦平方脉动，Reduce Motion 静止 0.6（参数为钉测钉死常量、改数须同批改本节）。
+- 钉测：视觉形态与文案单源全组合（7 相×runID 两值×尾态 7 值×上传两值）一致性对账——三点恰对应已受理四文案（正在生成/思考/调用工具/正在确认结果）；关键相钉死（未确立＋sending＝文字且文案恰「等待发送…」；生成相＝三点；上传段＝文字）；三点动画测状态不测像素（幅度域 [0.3, 1.0]、同刻三点相位互异、整周期复现、Reduce Motion 恒值、落数常量）。
+
+### §426.5 回归与组版注记
+
+- 回归集：ChatFailKeepPinTests／ChatQueueSendPinTests／ChatReliabilityOfflineTests／ChatSendConfirmPinTests／ChatKeyboardPinAssemblyTests／通知族（OverviewBridgeTests、NotificationTierTests、NotificationTierStructureTests、NotificationDetailTests、NotificationSummaryTests、MutationOptimisticTests）＋ ChatSimplifiedModelPinTests（占位行邻接面），名单按 bundle 全限定名提取、计数对账（防静默跳过）。
+- 需求总表 0.50.104 版本行已加两条 verdict 不过注记（缺陷一＝断网四行为之变色时机、缺陷二＝运行完成卡骚扰），缺陷三、四同轮记于该行（键盘跟底、占位行形态）；四缺陷真机门随 0.50.105 整版 verdict。

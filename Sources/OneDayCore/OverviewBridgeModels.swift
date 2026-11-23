@@ -100,6 +100,38 @@ public enum ApprovalResolution {
     }
 }
 
+/// 运行终态前台消账（§426 缺陷二，与 Approval-
+/// Resolution 同式）：用户正打开某会话看着其中
+/// 的 run 落定——终态在聊天里已经当面呈现，桥
+/// 随后聚合出的同会话运行完成/失败通知再弹回
+/// 告卡、再加角标就是同一件事报两遍（用户真机
+/// 截图钉死：当面看完回复、卡片照弹、角标照
+/// 挂）。命中口径只认结构信号：未读＋终态 kind
+/// （task_completed/run_failed）＋refId（桥契约
+/// ＝该 run 的服务端会话 id）与当前打开会话的
+/// 服务端 id 逐字同。消账只翻已读——通知中心
+/// 记录保留、历史留痕不丢；非当前会话/非终态/
+/// 无 refId 一律不动（其他会话与后台完成的照
+/// 旧弹卡报角标）
+public enum RunCompletionResolution {
+    public static func receiptsToResolve(
+        notifications: [OverviewNotification],
+        foregroundServerSessionID: String?
+    ) -> [String] {
+        guard let foregroundServerSessionID,
+              !foregroundServerSessionID.isEmpty
+        else { return [] }
+        return notifications.compactMap { item in
+            guard !item.read,
+                  item.kind == "task_completed"
+                    || item.kind == "run_failed",
+                  item.refId == foregroundServerSessionID
+            else { return nil }
+            return item.id
+        }
+    }
+}
+
 public struct OverviewNotificationsResponse: Decodable, Equatable, Sendable {
     public let items: [OverviewNotification]
 
