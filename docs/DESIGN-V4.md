@@ -16910,3 +16910,7 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 ### 六、真机门（归用户 verdict）
 
 目标页真实目标行有无现状摘要（无→服务端 latestEntry 落字另立案）；未归类入口行与管理页全功能；创建区内联分类点行直达介绍卡；动态卡底四件在窄屏不折行、关于节展开/收起动画与实心态、精确时刻只在节内出现；点子页无＋入口、点卡出 sheet 且只有四构成、开始吧真开工；§364 三项观感复核（动态正文行高、点子行 pitch、目标行空档）。
+
+### §453 改判追记（2026-11-24）：点子「开始吧」主钮改色
+
+用户 2026-11-24 04:20 亲裁（原话「我觉得人家的蓝色和白色挺好的呀」，指 Muse 点子 sheet 图一）：点子详情 sheet「开始吧」主钮改**饱和蓝底＋白字**，**推翻本节交卷时保留的 BC-1 对比度口径**（浅蓝 primaryPale＋深墨字 onPrimary）。落法：Palette 新增专用令牌 `primarySaturated`＝#0064D4（采样自用户 04:06 附件图一钮面像素中位），仅 IdeasView「开始吧」一钮消费；同栏已采纳态「打开对话」与全 App 其余 primaryPale 主钮面（发送钮/审批主钮/目标「开始吧」/通用主钮组件等）**未跟改**，跟改范围清单在分支 feat/idea-start-button 交卷内，待主线裁。分支 feat/idea-start-button（基线本节分支 tip 9e29aca）。

@@ -415,6 +415,21 @@ public enum Palette {
     /// 强调实填：与 primary 同源同值（0.26.0 前即同
     /// 值双名，本版直接别名化，语义不变）
     public static var primaryFill: Color { primary }
+    /// 主钮饱和蓝（2026-11-24 用户亲裁新增）：点子
+    /// 详情 sheet「开始吧」主钮专用面——饱和蓝底＋
+    /// 白字，对位 Muse 点子 sheet 样张（采样自用户
+    /// 2026-11-24 04:06 附件图一「开始吧」钮面，钮面
+    /// 像素中位 #0064D4）；推翻第 85 条 BC-1 在该钮
+    /// 的 primaryPale＋onPrimary 口径，其余
+    /// primaryPale 消费面（发送钮/审批主钮等）不动。
+    /// 暗档同值（该蓝压暗面白字对比仍足）
+    public static let primarySaturated = appleColor(
+        light: 0x0064D4,
+        dark: UIColor(
+            red: 0x00 / 255.0, green: 0x64 / 255.0,
+            blue: 0xD4 / 255.0, alpha: 1
+        )
+    )
     /// 主填充蓝（OpenMuse blue #C8E7FF，ui.tsx:24——它
     /// 的主按钮面色：浅蓝填充＋深墨字，与用户泡同源；
     /// 暗色取 blueDark #1473C8 作深档）
