@@ -103,6 +103,11 @@ enum DemoSeeder {
         for (index, sample) in samples.enumerated() {
             let entry = ChatEntry(role: sample.role, content: sample.content, thread: thread)
             entry.createdAt = base.addingTimeInterval(Double(index * 47))
+            // §440 定案留用：种子条目补合成
+            // serverRowID 使 canReact 成立、浮排在演
+            // 示态可呈——生产条目本有行号，种子缺号
+            // 是夹具与生产形状不一致（DESIGN §440）
+            entry.serverRowID = 1000 + index
             context.insert(entry)
         }
         thread.createdAt = base

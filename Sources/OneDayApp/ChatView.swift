@@ -6279,21 +6279,33 @@ struct ChatView: View {
         )
     }
 
-    /// 浮排 overlay（DESIGN §343／§346）：一次呈
-    /// 现三层——压暗＋原消息快照＋药丸排在上＋动作
-    /// 卡在下，定位全走 ReactionBarPlacement.
-    /// layout 的视口钳制（三层互不重叠、完整落在
-    /// 安全区内）。快照＝bubble 本体活复刻（allows-
-    /// HitTesting 关、渲染走原单源不另抄样式），按
-    /// 可见带钳高、裁切边渐隐；点快照与点空白同
-    /// 路收起（动作已同呈、无需转交）
+    /// 浮排 overlay（DESIGN §343／§346／§440）：
+    /// 一次呈现三层——压暗＋原消息快照＋药丸排在
+    /// 上＋动作卡在下，定位全走 ReactionBar-
+    /// Placement.layout 的整摞契约（§440：药丸贴
+    /// 带上、卡贴带下、整摞平移进安全区视口）。
+    /// 快照＝bubble 本体活复刻（allowsHitTesting
+    /// 关、渲染走原单源不另抄样式），按可见带钳
+    /// 高、裁切边渐隐，落位走 layout 的
+    /// snapshotPlacementY；点快照/点空白/在压暗
+    /// 区拖动（滚动意图）同路收起（§440 补拖动
+    /// 路——点外即散不分轻点还是拖动）
     @ViewBuilder
     private func reactionBarOverlay(
         _ session: ReactionBarSession
     ) -> some View {
         GeometryReader { screen in
             let frame = session.sourceFrame
-            let insets = screen.safeAreaInsets
+            // §440：视口 insets 走 key window 实读单
+            // 源——根 GeometryReader 挂 ignoresSafe-
+            // Area（保全屏坐标原点、快照与原消息同
+            // 系）时其 safeAreaInsets 恒为零，旧写法
+            // 视口因此退化成全屏（H0 定因）；反之摘
+            // 掉根修饰又会把整个浮层坐标原点压进安
+            // 全区（实测整摞下移 62、快照与原消息
+            // 错位）。两头都不行：原点归全屏、insets
+            // 归 window，两量分开取
+            let insets = Self.keyWindowSafeAreaInsets
             let viewport = CGRect(
                 x: insets.leading,
                 y: insets.top,
@@ -6316,6 +6328,12 @@ struct ChatView: View {
                     .onTapGesture {
                         reactionBarSession = nil
                     }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 12)
+                            .onChanged { _ in
+                                reactionBarSession = nil
+                            }
+                    )
                     .accessibilityAddTraits(.isButton)
                     .accessibilityLabel(
                         L10n.string("关闭")
@@ -6337,9 +6355,15 @@ struct ChatView: View {
                         .onTapGesture {
                             reactionBarSession = nil
                         }
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 12)
+                                .onChanged { _ in
+                                    reactionBarSession = nil
+                                }
+                        )
                         .offset(
                             x: layout.snapshotVisibleRect.minX,
-                            y: layout.snapshotVisibleRect.minY
+                            y: layout.snapshotPlacementY
                         )
                 }
                 ReactionFloatingBarView(
@@ -6375,6 +6399,26 @@ struct ChatView: View {
         .ignoresSafeArea()
     }
 
+    /// §440：key window 的安全区 insets（浮排视口
+    /// 单源）。取路与 DeviceTopmostPresenter 同
+    /// （connectedScenes→keyWindow）；浮排根
+    /// GeometryReader 的 safeAreaInsets 因根挂
+    /// ignoresSafeArea 恒为零、不可作数
+    private static var keyWindowSafeAreaInsets: EdgeInsets {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+        let keyWindow = windows.first { $0.isKeyWindow }
+            ?? windows.first
+        let ui = keyWindow?.safeAreaInsets ?? .zero
+        return EdgeInsets(
+            top: ui.top,
+            leading: ui.left,
+            bottom: ui.bottom,
+            trailing: ui.right
+        )
+    }
+
     /// 浮排快照（DESIGN §346）：无裁切＝原位全帧
     /// 复刻（与第一步同路）；有裁切＝可见带容器内
     /// 按原帧偏移、clipped＋裁切边渐隐 mask。可见
@@ -6407,7 +6451,10 @@ struct ChatView: View {
                     )
                     .clipped()
                     .mask(snapshotFadeMask(layout))
-                    .offset(x: visible.minX, y: visible.minY)
+                    .offset(
+                        x: visible.minX,
+                        y: layout.snapshotPlacementY
+                    )
             } else {
                 bubble(entry)
                     .frame(
@@ -6420,7 +6467,10 @@ struct ChatView: View {
                         radius: 16, y: 6
                     )
                     .scaleEffect(1.02)
-                    .offset(x: frame.minX, y: frame.minY)
+                    .offset(
+                        x: frame.minX,
+                        y: layout.snapshotPlacementY
+                    )
             }
         }
     }

@@ -1023,3 +1023,491 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         return buttons.joined(separator: ", ")
     }
 }
+
+// MARK: - §440 长按呈现（独立册，见类注释）
+
+/// §440 长按呈现复现与量测（2026-11-24，用户真机
+/// 亲报三件：预览截断／反应条与菜单锚定漂移／点
+/// 空白不能取消）。
+/// 目标口径（续办两轮改判）：其一，目标元素必须
+/// 完整落进聊天区才许长按（首版测把贴顶元素中心
+/// 按在顶栏区、浮排没呈起来、收起断言空过）；其
+/// 二，靶子必须是**可反应条目**——种子长助手消息
+/// 无 serverRowID（canReact 谓词不过）长按只出系
+/// 统菜单、量不到浮排；同种子会话的用户消息「按
+/// 你说的顺序来」可反应、与既有浮排测同靶。呈没
+/// 呈浮排以药丸钮／「关闭」压暗钮在场判别（动作
+/// 卡条目与系统菜单同名、不作判据）。截断几何由
+/// ReactionFloatingBarTests 单测钉，本册只钉真窗
+/// 口三层帧对账与收起往返（顶带／底带／侧边点按
+/// ＋压暗区拖动逐路落账）。
+final class LongPressPresentation440Tests: XCTestCase {
+
+    override func setUpWithError() throws {
+        continueAfterFailure = true
+    }
+
+    private let needle = "按你说的顺序来"
+
+    // MARK: - 量测＋点空白收起（逐路试）
+
+    func testMeasureStackFramesThenOutsideTapDismisses() throws {
+        let app = launchDemoApp()
+        openSeededThread(in: app)
+        let target = try positionedTarget(in: app)
+        let before = target.frame
+        print("§440-MEASURE window=\(app.frame)")
+        print("§440-MEASURE targetTextFrame=\(before)")
+        target.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+        ).press(forDuration: 1.2)
+        XCTAssertTrue(
+            waitOverlay(in: app, timeout: 10),
+            "长按后浮排（药丸排）未出现"
+        )
+        dumpStackFrames(in: app, tag: "presented")
+        // 快照对位（§440 坐标原点回归全屏的判据）：
+        // 同文副本（原行＋快照，含 textView/static-
+        // Text 双份）的 minY 极差须 ≤6——快照 1.02
+        // 缩放只许差 2~3；若浮层坐标原点被压进安
+        // 全区，极差会是 62 量级、当场红
+        let copies = (
+            app.textViews.allElementsBoundByIndex
+                + app.staticTexts.allElementsBoundByIndex
+        ).filter { element in
+            let raw = (element.value as? String)
+                ?? element.label
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            return stripped.contains(needle)
+                && element.frame.height > 20
+        }
+        XCTAssertGreaterThanOrEqual(
+            copies.count, 2, "原行与快照副本应同在场"
+        )
+        if copies.count >= 2 {
+            let ys = copies.map { $0.frame.minY }
+            XCTAssertLessThanOrEqual(
+                (ys.max() ?? 0) - (ys.min() ?? 0), 6,
+                "快照与原消息纵向错位（极差 "
+                    + "\((ys.max() ?? 0) - (ys.min() ?? 0))）"
+            )
+        }
+        // 逐路点空白：顶带→底带→左侧中段，逐路落账
+        let probes: [(String, CGVector)] = [
+            ("tapTopStrip", CGVector(dx: 0.5, dy: 0.045)),
+            ("tapBottomStrip", CGVector(dx: 0.5, dy: 0.97)),
+            ("tapLeftEdge", CGVector(dx: 0.04, dy: 0.45)),
+        ]
+        for (name, offset) in probes {
+            if !overlayPresent(in: app) { break }
+            app.coordinate(
+                withNormalizedOffset: offset
+            ).tap()
+            Thread.sleep(forTimeInterval: 1.0)
+            print(
+                "§440-DISMISS \(name) gone="
+                    + "\(!overlayPresent(in: app))"
+            )
+        }
+        XCTAssertTrue(
+            !overlayPresent(in: app),
+            "三路点空白后浮排仍未收起（缺陷三复现）"
+        )
+    }
+
+    // MARK: - 拖动收起往返
+
+    func testDragDismissesOnDimAndSnapshot() throws {
+        let app = launchDemoApp()
+        openSeededThread(in: app)
+        // 一段：纯压暗区（左列中段，x=16 避开药丸与
+        // 卡的横向跨度）起手纵拖——滚动意图须收起。
+        // 注：首版起手点 (0.5,0.045) 落在状态栏带、
+        // 触点没到压暗层，测的是空气；二版 (0.5,0.30)
+        // 又落在药丸本体上。纯压暗点须三向避让
+        var target = try positionedTarget(in: app)
+        // 定位（探针二定案）：慢速拖（velocity
+        // .slow）步长与拖程 1:1、无动量乱窜（实测
+        // 拖 359 动 349）；普通拖在本面不跟手、
+        // collection swipe 一步 ~500 太粗。瞄带中
+        // 645 逐轮按偏差修正，目标带 [600, 690]：
+        // 过 600 才逼得出整摞上移、过 690 按点压
+        // 进输入栏区（实证：冲到 755 时长按落在
+        // 输入栏上、不呈浮排）
+        var rounds = 0
+        while (target.frame.maxY < 600
+            || target.frame.maxY > 690), rounds < 6 {
+            let delta = 645 - target.frame.maxY
+            target.coordinate(
+                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+            ).press(
+                forDuration: 0.05,
+                thenDragTo: app.coordinate(
+                    withNormalizedOffset: CGVector(
+                        dx: 0.5,
+                        dy: (target.frame.midY + delta)
+                            / app.frame.height
+                    )
+                ),
+                withVelocity: .slow,
+                thenHoldForDuration: 0.1
+            )
+            Thread.sleep(forTimeInterval: 1.2)
+            rounds += 1
+            guard let again = settledNeedle(in: app) else {
+                XCTFail("定位后 needle 元素丢失")
+                return
+            }
+            target = again
+        }
+        XCTAssertTrue(
+            target.frame.maxY >= 600
+                && target.frame.maxY <= 690,
+            "定位后靶子仍未进 [600,690] 带"
+                + "（实得 \(target.frame)）"
+        )
+        // 落定再按：合成拖动后列表滑行期里长按会被
+        // 滚动面吞掉（首跑实证：帧已到位、按了不呈）
+        Thread.sleep(forTimeInterval: 1.5)
+        if let settled = needleElement(in: app) {
+            target = settled
+        }
+        dumpStackFrames(in: app, tag: "bottom440-pre")
+        // 按点纵坐标钳进列表区（≤690）：元素中心可
+        // 能已贴输入栏，按元素中心会压在输入栏上
+        let pressY = min(
+            max(target.frame.midY, 200), 690
+        )
+        app.coordinate(
+            withNormalizedOffset: CGVector(
+                dx: target.frame.midX / app.frame.width,
+                dy: pressY / app.frame.height
+            )
+        ).press(forDuration: 1.2)
+        if !waitOverlay(in: app, timeout: 6) {
+            // 一次重试：先点角落散掉可能在场的系统
+            // 菜单、重取帧再按
+            dumpStackFrames(in: app, tag: "bottom440-mid")
+            app.coordinate(
+                withNormalizedOffset: CGVector(dx: 0.04, dy: 0.10)
+            ).tap()
+            Thread.sleep(forTimeInterval: 0.8)
+            if let again = needleElement(in: app) {
+                target = again
+            }
+            let retryY = min(
+                max(target.frame.midY, 200), 690
+            )
+            app.coordinate(
+                withNormalizedOffset: CGVector(
+                    dx: target.frame.midX / app.frame.width,
+                    dy: retryY / app.frame.height
+                )
+            ).press(forDuration: 1.2)
+        }
+        XCTAssertTrue(
+            waitOverlay(in: app, timeout: 10),
+            "贴底靶子长按后浮排未出现"
+        )
+        dumpStackFrames(in: app, tag: "bottom440")
+        let pills = app.buttons.matching(
+            NSPredicate(
+                format: "label BEGINSWITH %@", "反应："
+            )
+        ).allElementsBoundByIndex
+        guard let pill = pills.first else {
+            XCTFail("浮排已呈但药丸钮不在场")
+            return
+        }
+        XCTAssertGreaterThanOrEqual(
+            pill.frame.minY, 55,
+            "药丸顶进了状态栏带——视口仍是全屏口径"
+        )
+        // 卡条目＝浮排在场时其余按钮里纵向成列的一组
+        // （排除药丸/关闭/顶栏与输入区铬件，取 y 跨
+        // 度最大的一组近似整卡）
+        let others = app.buttons.allElementsBoundByIndex
+            .filter { button in
+                !button.label.hasPrefix("反应：")
+                    && button.label != "关闭"
+                    && button.frame.minY > pill.frame.maxY
+                    && button.frame.width > 150
+            }
+        guard let firstItem = others.min(by: {
+            $0.frame.minY < $1.frame.minY
+        }), let lastItem = others.max(by: {
+            $0.frame.maxY < $1.frame.maxY
+        }) else {
+            XCTFail("动作卡条目不在场")
+            return
+        }
+        print(
+            "§440-BOTTOM pill=\(pill.frame) "
+                + "cardItemsTop=\(firstItem.frame.minY) "
+                + "cardItemsBottom=\(lastItem.frame.maxY) "
+                + "window=\(app.frame)"
+        )
+        XCTAssertLessThanOrEqual(
+            abs(lastItem.frame.maxY - 834), 8,
+            "卡底不在安全区口径 834±8（实得 "
+                + "\(lastItem.frame.maxY)）——视口口径终判不合"
+        )
+        XCTAssertGreaterThan(
+            firstItem.frame.minY, pill.frame.maxY,
+            "卡不在药丸下方——整摞纵序坏了"
+        )
+        app.coordinate(
+            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.97)
+        ).tap()
+        Thread.sleep(forTimeInterval: 1.0)
+        XCTAssertTrue(
+            !overlayPresent(in: app), "贴底浮排点底带未收起"
+        )
+    }
+
+    // MARK: - 装配（与 ChatGestureNativeSurfaceTests 同路）
+
+    private func launchDemoApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-odDemoMode", "-chat.list.native", "YES",
+        ]
+        app.launch()
+        return app
+    }
+
+    private func openSeededThread(in app: XCUIApplication) {
+        XCTAssertTrue(
+            app.collectionViews.firstMatch
+                .waitForExistence(timeout: 15),
+            "原生面未在场"
+        )
+        let openButton = app.buttons["drawer.open"]
+        XCTAssertTrue(
+            openButton.waitForExistence(timeout: 15),
+            "抽屉入口未出现"
+        )
+        if openButton.isHittable { openButton.tap() }
+        let rows = app.buttons.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH %@",
+                "drawer.row.side.local."
+            )
+        )
+        var target: XCUIElement?
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline, target == nil {
+            for row in rows.allElementsBoundByIndex
+            where row.label.contains("服务器状态") {
+                target = row
+                break
+            }
+            if target == nil {
+                Thread.sleep(forTimeInterval: 0.4)
+            }
+        }
+        guard let found = target else {
+            XCTFail("抽屉里找不到演示种子会话行")
+            return
+        }
+        let rowID = found.identifier
+        var row = app.buttons[rowID]
+        var scrolls = 0
+        while row.exists, row.frame.minY > 620, scrolls < 10 {
+            if app.scrollViews.firstMatch.exists {
+                app.scrollViews.firstMatch.swipeUp()
+            } else {
+                app.swipeUp()
+            }
+            scrolls += 1
+            Thread.sleep(forTimeInterval: 0.4)
+            row = app.buttons[rowID]
+        }
+        row.tap()
+        XCTAssertTrue(
+            app.buttons["topbar.modelCapsule"]
+                .waitForExistence(timeout: 15),
+            "点种子行后顶栏胶囊未出现"
+        )
+    }
+
+    /// needle 元素直查（不带落区口径、不滚动）：
+    /// 贴底测把靶子顶出落区后靠它重取帧
+    private func needleElement(
+        in app: XCUIApplication
+    ) -> XCUIElement? {
+        let pool = app.textViews.allElementsBoundByIndex
+            + app.staticTexts.allElementsBoundByIndex
+        return pool.first { element in
+            let raw = (element.value as? String)
+                ?? element.label
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            return stripped.contains(needle)
+                && element.frame.height > 20
+        }
+    }
+
+    /// needle 落定取帧：滚动后元素查询要等层级
+    /// 快照刷新（探针实证 swipe 后即查得 nil），
+    /// 4 次 0.5s 重试
+    private func settledNeedle(
+        in app: XCUIApplication
+    ) -> XCUIElement? {
+        for _ in 0..<4 {
+            if let element = needleElement(in: app) {
+                return element
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        return needleElement(in: app)
+    }
+
+    /// 可反应用户消息定位：a11y value 剥整形字符
+    /// （U+2060／U+200B／U+FEFF，既有测同口径）
+    /// 后比对；完整落进聊天区（顶 120 至窗底
+    /// −80）才返回，贴顶下滑／出底上滑逐轮重查
+    private func positionedTarget(
+        in app: XCUIApplication
+    ) throws -> XCUIElement {
+        let list = app.collectionViews.firstMatch
+        let deadline = Date().addingTimeInterval(40)
+        var step = 0
+        while Date() < deadline {
+            let candidates = (
+                app.textViews.allElementsBoundByIndex
+                    + app.staticTexts.allElementsBoundByIndex
+            ).filter { element in
+                let raw = (element.value as? String)
+                    ?? element.label
+                let stripped = raw
+                    .replacingOccurrences(
+                        of: "\u{2060}", with: ""
+                    )
+                    .replacingOccurrences(
+                        of: "\u{200B}", with: ""
+                    )
+                    .replacingOccurrences(
+                        of: "\u{FEFF}", with: ""
+                    )
+                return stripped.contains(needle)
+                    && element.frame.height > 20
+            }
+            print(
+                "§440-POS step=\(step) candidates="
+                    + "\(candidates.map { $0.frame })"
+            )
+            if let inZone = candidates.first(where: {
+                $0.frame.minY >= 120
+                    && $0.frame.maxY
+                        <= app.frame.height - 80
+            }) {
+                return inZone
+            }
+            guard let tallest = candidates.max(by: {
+                $0.frame.height < $1.frame.height
+            }) else {
+                list.swipeDown()
+                Thread.sleep(forTimeInterval: 0.5)
+                step += 1
+                continue
+            }
+            if tallest.frame.minY < 120 {
+                list.swipeDown()
+            } else {
+                list.swipeUp()
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+            step += 1
+        }
+        XCTFail("可反应消息「\(needle)」未能定位进聊天区")
+        throw NSError(domain: "LongPress440", code: 1)
+    }
+
+    /// 浮排在场判据：药丸钮（反应：…）或压暗钮
+    /// （关闭）任一在场——系统菜单无此二者
+    private func overlayPresent(
+        in app: XCUIApplication
+    ) -> Bool {
+        app.buttons.matching(
+            NSPredicate(
+                format: "label BEGINSWITH %@", "反应："
+            )
+        ).firstMatch.exists
+            || app.buttons.matching(
+                NSPredicate(format: "label == %@", "关闭")
+            ).firstMatch.exists
+    }
+
+    private func waitOverlay(
+        in app: XCUIApplication, timeout: TimeInterval
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if overlayPresent(in: app) { return true }
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        return overlayPresent(in: app)
+    }
+
+    /// 全钮倾印＋同文帧倾印：药丸钮／压暗钮／卡条
+    /// 目的帧与位次靠全量落账对账（原行与快照复
+    /// 刻并存时逐个落账）
+    private func dumpStackFrames(
+        in app: XCUIApplication, tag: String
+    ) {
+        var lines: [String] = []
+        for button in app.buttons.allElementsBoundByIndex {
+            let line = "§440-MEASURE \(tag) anyButton "
+                + "label=\(button.label) frame=\(button.frame)"
+            print(line)
+            lines.append(line)
+        }
+        let copies = app.textViews.allElementsBoundByIndex
+            + app.staticTexts.allElementsBoundByIndex
+        for element in copies {
+            let raw = (element.value as? String)
+                ?? element.label
+            let stripped = raw
+                .replacingOccurrences(
+                    of: "\u{2060}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{200B}", with: ""
+                )
+                .replacingOccurrences(
+                    of: "\u{FEFF}", with: ""
+                )
+            if stripped.contains(needle) {
+                let line = "§440-MEASURE \(tag) textCopy "
+                    + "frame=\(element.frame)"
+                print(line)
+                lines.append(line)
+            }
+        }
+        // print 在 UI 测进程里抓不到，帧账走附件出仓
+        let attachment = XCTAttachment(
+            string: lines.joined(separator: "\n")
+        )
+        attachment.name = "440frames-\(tag)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
