@@ -1516,38 +1516,31 @@ struct ChatNativeRowHeightComposer {
 
     // MARK: - 文件牌族
 
-    /// FileChip 本体高（RichContentViews 几何）：
-    /// 卡＝纵内距 10×2＋max(图标盒 40, 名列高,
-    /// 菜单命中域 44)；名列＝名（.body semibold
-    /// ≤2 行，宽＝牌宽−左距 12−图标 40−间距 12
-    /// −菜单 44）＋spacingXS＋副行 caption 一行。
-    /// notice 反馈行对合成不可见（§329 残留 ⑴、
-    /// 溢出＜行间距、不入账）
+    /// FileChip 本体高（§452.2 微信式定宽卡）：
+    /// 卡宽 = min(252, 行宽)；高 = 纵内距 10×2＋
+    /// max(视觉位 50, 名列高)；名列 = 名（.body
+    /// semibold ≤2 行，宽 = 卡宽−内距 12×2−间距
+    /// 8−视觉位 40）＋spacingXS＋副行 caption 一
+    /// 行。卡面无菜单（长按承载），旧菜单 44 项退
+    /// 役。notice 反馈行对合成不可见（§329 残留
+    /// ⑴、溢出＜行间距、不入账）
     func fileChipHeight(
         path: String, width: CGFloat
     ) -> CGFloat {
         let name = (path as NSString).lastPathComponent
-        let synthetic = WorkspaceFileEntry(
-            name: name, path: path, isDirectory: false,
-            size: facetFileSize(path),
-            mtime: nil, mimeType: nil
-        )
-        let hasMenu = !FileActionPolicy.menuActions(
-            for: synthetic
-        ).isEmpty
-        let nameWidth = width
-            - OneDayMetrics.spacingSM - 40
-            - OneDayMetrics.spacingSM
-            - (hasMenu ? OneDayMetrics.minTapTarget : 0)
+        let cardWidth = min(FileCardMetrics.cardWidth, width)
+        let nameWidth = cardWidth
+            - FileCardMetrics.horizontalPadding * 2
+            - FileCardMetrics.columnSpacing
+            - FileCardMetrics.visualWidth
         let nameHeight = weightedHeight(
             name, .body, .semibold,
             width: nameWidth, lineLimit: 2
         )
         let columnHeight = nameHeight
             + OneDayMetrics.spacingXS + spec(.caption1)
-        return 20 + max(
-            40, columnHeight,
-            hasMenu ? OneDayMetrics.minTapTarget : 0
+        return FileCardMetrics.verticalPadding * 2 + max(
+            FileCardMetrics.visualHeight, columnHeight
         )
     }
 

@@ -156,24 +156,15 @@ struct FileIconBox: View {
     }
 
     var body: some View {
-        let style = DeliverableIconStyle.style(
-            forFileName: name,
-            isDirectory: isDirectory,
-            isExpanded: isExpanded
+        // §452.4：黏土 PNG 砖退役——程序绘制扁平图标
+        // 居中承载（尺寸契约 36/40/56 不变，图标高 =
+        // 边长 × 0.86，两侧留白与旧砖内图同量级）
+        FileTypeIconView(
+            fileName: name, isDirectory: isDirectory,
+            height: size * 0.86
         )
-        FileIconImageView(assetName: style.assetName)
-            .frame(width: size, height: size)
-            .background(Color.white)
-            .clipShape(
-                RoundedRectangle(cornerRadius: cornerRadius)
-            )
-            .accessibilityHidden(true)
-    }
-
-    /// 圆角按边长 0.25 推导：36→9（radiusTile）、
-    /// 40→10（radiusThumb 同值）、56→14，下限 radiusTile
-    private var cornerRadius: CGFloat {
-        max(OneDayMetrics.radiusTile, size * 0.25)
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 

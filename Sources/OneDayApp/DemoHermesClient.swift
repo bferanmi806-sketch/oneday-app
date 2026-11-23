@@ -937,6 +937,15 @@ struct DemoHermesClient: HermesClientProtocol {
         return Data()
     }
 
+    func fileDataWithProgress(
+        config: ServerConfig, path: String,
+        onProgress: @escaping @Sendable (_ received: Int64, _ expected: Int64) -> Void
+    ) async throws -> Data {
+        let data = try await fileData(config: config, path: path)
+        onProgress(Int64(data.count), Int64(data.count))
+        return data
+    }
+
     /// 演示缩略图：纯色块＋文件名（UIKit 渲染，不连网）
     private static func placeholderPNG(label: String) -> Data {
         #if canImport(UIKit)

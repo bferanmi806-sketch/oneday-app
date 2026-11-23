@@ -346,16 +346,21 @@ actor ThumbnailGate {
 /// （0.36.4 已立此规）
 struct FileTypeFace: View {
     let entry: WorkspaceFileEntry
+    /// 居中图标高（§452.7：资源库预览区 28；成品块
+    /// 占位等大面由宿主放大传入）
+    var iconHeight: CGFloat = 28
 
     var body: some View {
-        let style = DeliverableIconStyle.style(
-            forFileName: entry.name,
-            isDirectory: entry.isDirectory
-        )
+        // §452.4/452.7：白面＋居中扁平图标（Muse 资源
+        // 库同构：不可渲类在预览区正中放类型图标，
+        // 高 ≈ 预览区 1/4.4）；旧全幅黏土图退役
         ZStack {
             Rectangle().fill(Color.white)
-            FileIconImageView(assetName: style.assetName)
-                .aspectRatio(contentMode: .fit)
+            FileTypeIconView(
+                fileName: entry.name,
+                isDirectory: entry.isDirectory,
+                height: iconHeight
+            )
         }
         .accessibilityHidden(true)
     }
