@@ -1041,6 +1041,26 @@ final class ChatRootViewController: UIViewController,
     /// 永不重钉（真机 verdict 钉死：键盘起后记录
     /// 不到最新、须手拉）
     private var keyboardPinIntent = false
+    /// §438 收起侧对称意图：收起事务开始前（几何
+    /// 未动、键盘态几何下）捕获的在底事实——与升
+    /// 起侧 keyboardPinIntent 同式（§426），收起事
+    /// 务凭本意图在事务内按静息几何钉回；旧链收起
+    /// 即清意图、无专属回钉，落偏后无机制找回（用
+    /// 户视频合后 +149px 不归位实证）
+    private var keyboardHidePinIntent = false
+    /// §438 键盘事务窗记账：事务（升起/收起/帧变）
+    /// 自通知处理起、至动画 completion（或被新事
+    /// 务接管/用户拖动接管）止在途——窗内 inset 施
+    /// 工与钉底由事务块内同事务应用独占（见
+    /// animateLayout 的 §438 段），落定拍/布局拍只
+    /// 记账不施工（与滚动/抽屉冻结同式纪律）；
+    /// deadline 为 completion 丢失时的自愈上限
+    /// （与抽屉窗 deadline 同式判定）
+    private var keyboardTransactionInFlight = false
+    private var keyboardTransactionID = 0
+    private var keyboardTransactionDeadline: CFTimeInterval = 0
+    /// §438 落定拍键盘窗冻结记账（窗末唤醒拍认领）
+    private var settleDeferredDuringKeyboard = false
     /// §302.3 意图消费的几何稳定账：上一落定拍的
     /// contentSize——与本拍逐值同才算几何静止；消
     /// 费另须本拍钉前已在底（上一钉熬过整拍布局
@@ -1530,7 +1550,10 @@ final class ChatRootViewController: UIViewController,
         guard keyboardUp else { return }
         updateKeyboardTop(from: note)
         syncBottomConstant()
-        animateLayout(with: note, immediateIfZero: true)
+        animateLayout(
+            with: note, immediateIfZero: true,
+            pinIntent: keyboardPinIntent
+        )
         reportKeyboardFrame(from: note)
     }
 
@@ -1573,7 +1596,19 @@ final class ChatRootViewController: UIViewController,
             keyboardPinIntent = !userInteracting
                 && collectionView.bounds.height > 0
                 && currentDistance() <= Self.atBottomTolerance
+            keyboardHidePinIntent = false
         } else if !up {
+            // §438：收起侧对称捕获——清升起意图之
+            // 前，先在键盘态几何（未动）下记当刻在
+            // 底事实作收起事务的回钉意图；旧口径「收
+            // 起即消、布局拍自理」使合后落偏无人收
+            // 拾（定因见 kb-smooth-spec §438 二章）
+            if keyboardUp {
+                keyboardHidePinIntent = !userInteracting
+                    && collectionView.bounds.height > 0
+                    && currentDistance()
+                        <= Self.atBottomTolerance
+            }
             keyboardPinIntent = false
         }
         if up {
@@ -1599,7 +1634,11 @@ final class ChatRootViewController: UIViewController,
         // resolveAnchors 刷过）；updateDockMode 在
         // 常量模式内自带 syncBottomConstant
         updateDockMode()
-        animateLayout(with: note, immediateIfZero: false)
+        animateLayout(
+            with: note, immediateIfZero: false,
+            pinIntent: up ? keyboardPinIntent
+                : keyboardHidePinIntent
+        )
         reportKeyboardFrame(from: note)
         sampleGuideForTrace(event: up ? "kbShow" : "kbHide")
     }
@@ -1608,8 +1647,18 @@ final class ChatRootViewController: UIViewController,
     /// 通知）；immediateIfZero 时时长为 0 直接布
     /// 局——交互式逐帧跟随不许包进动画系统再迟
     /// 一拍（与 §194 animateLayout 同式）
+    /// §438：本函数即键盘事务的唯一推进口——事务
+    /// 窗开窗记账后，布局与列表几何（量测→inset 施
+    /// 工→凭意图钉底）在同一动画块内落写（通行范
+    /// 式：inset/offset 与键盘同一动画事务、UIKit
+    /// 插值与舱同程，选型出处见 kb-smooth-spec
+    /// §438 三章）；旧链几何归异步落定拍按模型终值
+    /// 一步落写＝内容单帧瞬移、舱独行（用户视频实
+    /// 证），§325.2 的逐帧到达假设对约束常量动画不
+    /// 成立、就此收口
     private func animateLayout(
-        with note: Notification, immediateIfZero: Bool
+        with note: Notification, immediateIfZero: Bool,
+        pinIntent: Bool = false
     ) {
         let userInfo = note.userInfo
         let duration = userInfo?[
@@ -1618,8 +1667,17 @@ final class ChatRootViewController: UIViewController,
         let curveRaw = userInfo?[
             UIResponder.keyboardAnimationCurveUserInfoKey
         ] as? UInt ?? 7
+        keyboardTransactionID += 1
+        let transactionID = keyboardTransactionID
+        keyboardTransactionInFlight = true
+        keyboardTransactionDeadline =
+            CACurrentMediaTime() + duration + 0.5
         if immediateIfZero, duration <= 0 {
             view.layoutIfNeeded()
+            applyKeyboardTransactionGeometry(
+                pinIntent: pinIntent
+            )
+            endKeyboardTransaction(transactionID)
             return
         }
         UIView.animate(
@@ -1628,7 +1686,45 @@ final class ChatRootViewController: UIViewController,
                 rawValue: curveRaw << 16
             )
         ) { [weak self] in
-            self?.view.layoutIfNeeded()
+            guard let self else { return }
+            view.layoutIfNeeded()
+            applyKeyboardTransactionGeometry(
+                pinIntent: pinIntent
+            )
+        } completion: { [weak self] _ in
+            self?.endKeyboardTransaction(transactionID)
+        }
+    }
+
+    /// §438 事务内几何应用（须在事务动画块内调
+    /// 用）：布局已落终点帧后同块量测→inset 施工
+    /// →凭事务意图钉底——三者在动画块内落写、呈
+    /// 现层与舱同曲线推进，末行恒贴舱呈现顶（不抢
+    /// 跑、不被盖）；落定拍其后收敛的目标与此同
+    /// 值，不再产生可见位移
+    private func applyKeyboardTransactionGeometry(
+        pinIntent: Bool
+    ) {
+        measureBottomSpace()
+        reconcileInsets()
+        if pinIntent, !userInteracting {
+            pinToBottom()
+        }
+    }
+
+    /// §438 事务窗收窗：被接管的旧事务 completion
+    /// 以 id 不符自弃；窗内被冻结的落定账在此唤醒
+    /// 一拍合并落写
+    private func endKeyboardTransaction(
+        _ transactionID: Int
+    ) {
+        guard transactionID == keyboardTransactionID,
+              keyboardTransactionInFlight
+        else { return }
+        keyboardTransactionInFlight = false
+        if settleDeferredDuringKeyboard {
+            settleDeferredDuringKeyboard = false
+            scheduleSettle()
         }
     }
 
@@ -2254,8 +2350,12 @@ final class ChatRootViewController: UIViewController,
         // 画期本拍逐帧到达、落定拍在帧间逐拍合并落
         // 写，跟随链不断（§302 对账改走落定拍）
         scheduleSettle()
+        // §438：键盘事务窗内钉底归事务块独占——布
+        // 局拍以事务中途几何直设 offset 会打断事务
+        // 插值（窗末落定拍收敛照旧）
         if (wasAtBottom || landingIntent || keyboardPinIntent)
-            && !userInteracting {
+            && !userInteracting
+            && !keyboardTransactionInFlight {
             pinToBottom()
             // §302.3：布局拍只钉不消费意图——末钉
             // 之后集合视图内部布局拍仍可能迟到回调
@@ -3482,6 +3582,26 @@ final class ChatRootViewController: UIViewController,
             report()
             return
         }
+        if keyboardTransactionInFlight {
+            if CACurrentMediaTime()
+                <= keyboardTransactionDeadline {
+                // §438：键盘事务窗冻结——窗内 inset
+                // 施工/钉底由事务块同事务应用独占，
+                // 本拍只记账＋report、不施工（与滚动/
+                // 抽屉冻结同式）；窗末 completion 唤
+                // 醒一拍合并落写。防异步拍以事务中途
+                // 的瞬态几何（派生顶 inset 瞬态读数
+                // 等）抢写、与事务动画打架（合后
+                // +149px 竞速族的封口）
+                settleDeferredDuringKeyboard = true
+                report()
+                return
+            }
+            // completion 丢失自愈（与抽屉 deadline
+            // 同式）：过期即收窗、本拍按全链施工
+            keyboardTransactionInFlight = false
+            settleDeferredDuringKeyboard = false
+        }
         // §366：抽屉窗末唤醒拍认领（本拍绕时间窗合
         // 并立即施工——冻结账已等满一窗、不许再攒）
         let drawerWakeBeat = settleDeferredDuringDrawer
@@ -3949,6 +4069,14 @@ final class ChatRootViewController: UIViewController,
         // §426（缺陷三）：键盘贴底意图同点消——
         // 用户在键盘事务中接管位置，机器不许再钉
         keyboardPinIntent = false
+        // §438：拖动接管同点收键盘事务窗与收起意
+        // 图——偏移动画已被手势接管，窗内冻结账由
+        // 滚动冻结链接手、停滚 flush 合并落写
+        keyboardHidePinIntent = false
+        if keyboardTransactionInFlight {
+            keyboardTransactionInFlight = false
+            settleDeferredDuringKeyboard = false
+        }
         landingSettleContentSize = nil
         // 台账 150：搜索落点同弃——读者的位置优先
         // 于机器落点（OB 的 drags 计数同口径）
