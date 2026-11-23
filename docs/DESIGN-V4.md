@@ -15641,3 +15641,48 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - **聚焦轮**（ProbePhone 50C1A6D5，5 套）：**51/51 全绿**（ReactionFloatingBarTests＋SwipeReplyPanBridgeTests＋HapticsMatrixTests＋ChatNativeHotfix330Tests＋MessageActionsTests），bundle `Test-OneDayApp-reaction-focus.xcresult`。
 - **全量轮**（发布集口径，名单自 rel05098 发布 bundle 以 xcresulttool 提取 97 套全限定名）：**818/818 全绿、0 失败 0 跳过**（基线 817＋本包净增 1＝新增中下段锚定钉测），bundle `Test-OneDayApp-reaction-menu.xcresult`；S371／S373 在集内、随总账全绿（总失败 0）。
 - **真机门（待用户 verdict，不代判）**：长文／短消息／流式行三场景长按呈面与 Muse 并排对位；重点一帧——近顶短消息药丸钉安全顶＋可见带顶渐隐、药丸贴预览不脱离；贴底消息药丸贴预览上方、卡居药丸上方成摞。
+## §387 G 组小项一包收（2026-11-23；分支 feat/g-items-bundle，基线 rel-05098 @3f9598f；总表 124 G-07／128 G-11／129 G-12／130 G-13／135 G-18／136 G-19／137 G-20，用户 2026-11-23 令全部解冻）
+
+**编号口径先行**：本包各条以总表条目本体为准。立项简报曾把七条的内容注脚写串（把第 73 条「设置路由信箱归并」等别条内容挂到 G-11 等编号下），开工实查以总表＋bigtech-gap-audit-20261118 原审计逐条对回，本节按总表真身记账；73 条不在本包（其状态以自身条目为准）。
+
+### §387.1 G-07（总表 124）：行内协商型构件兼作手势仲裁——落码关账（待组版＋真机门）
+
+- **现状实查**：审计点名的形态在现行代码仍在位——`View.swipeReplyExcluded()`（ChatView.swift）以背景 GeometryReader 在命名坐标空间「swipeToReply」经 `SwipeReplyExcludedFrameKey` 偏好键发布帧，`SwipeReplyModifier` 以 `@State excludedFrames`＋`onPreferenceChange` 在布局期收集，再喂 `SwipeReplyPanInstaller`——行内唯一的布局反哺点，落点两处：MarkdownText 代码块横滚 ScrollView 本体、表格整区。
+- **修法**（诊断报告修法 3 口径：排除区帧改由 cell 的 UIKit 层几何直算）：①新增惰性标记视图 `SwipeReplyExcludedMarkerView`＋`UIViewRepresentable` 桥 `SwipeReplyExcludedMarker`，修饰符改贴标记（帧＝被标记视图帧，语义逐字不变）；②`SwipeReplyPanInstallerView.computeExcludedFrames()` 在 `gestureRecognizerShouldBegin` 判定时刻上行定行根（cell 优先、无 cell 取宿主滚动视图下最高祖先）、遍历本行子树收集标记帧换算直算，判定仍走 Core `SwipeReplyMotion.isExcluded` 单源；③整套退役：PreferenceKey、命名坐标空间、修饰符 @State＋onPreferenceChange、Installer 的 excludedFrames 透传。布局期零状态写入、行内零协商型构件。
+- **钉测**：SwipeReplyPanBridgeTests 新增两件——`testExcludedFramesComputedFromProductionMarker`（生产修饰符装配：标记区 120×44 直算恰一帧同尺寸、无标记行零帧）＋`testExclusionStructurePin`（全 Sources 零 `SwipeReplyExcludedFrameKey`/`swipeToReply`、修饰符函数体含标记且无 GeometryReader、桥侧直算入口在位）；既有 `testDelegateArbitrationDeclarations` 的 shouldBegin 两分支改由标记视图安排（全覆盖标记→不许开始、摘除→放行）。定向轮（SwipeReplyPanBridge＋SwipeReplyMotion＋S371＋S373）20/20 全绿；注：shouldBegin 负分支的测试安排把标记直插 UIHostingController.view 引发一条 runtime warning（测试装配手法、非生产路径，生产经 Representable 贴附无此警）。
+- **回归**：发布集口径全量轮（97 套名单自 rel-05098 基线 bundle 提取对账）：主轮 96 套 801/801＋补跑 ReactionFloatingBarTests 18/18（转写漏套、补跑闭合），合计 **819/819 全绿、零失败零跳过**＝基线 817＋本包新钉测 2，逐数闭合；S371/S373 在定向轮与全量轮双绿。
+- **真机门**：代码块横滑归代码横滚不触发引用、表格区同、其余行面右滑引用照常触发——随组版清单验。
+
+### §387.2 G-11（总表 128）：会话创建双门——核查完成＋自测规格登记
+
+- **现状实查**：双门仍在且分工在码（OneDayCore/SideChatLink.swift:241 自陈：空历史走网关 `POST /api/sessions`（Bearer）、有历史走 Dashboard `POST /api/sessions/import`（cookie 通道））。标题唯一性收口 `_resolve_title_conflict` 只在 create/rename 路；import 的收编行为靠本地补丁 `hermes_state_portability.py::_import_session_row→_adopt_session_identity`（2026-11-18 上线、部署包已登记），上游 import 仍绕收口点——行为一致靠补丁、不靠上游，Hermes 升级必复核（G-10 清单）；长期正解＝收编语义提上游议题，随 G-10 登记不另开线。
+- **处置**：登记缺口＋自测规格成文 `g11-dual-door-selfcheck-spec-20261123.md`——伴生自检 probe 组新增 `probe-dual-door` 项（A 门建假标题会话→B 门同名 import 撞门→断言收编不回冲突错误且消息并入→清理；B 门凭据不可得整项 warn 不假绿），与既有 `_probe_session_item` 同框架同口径。落码归伴生/部署包线随版次；本包不动生产、不对生产造数据。
+
+### §387.3 G-12（总表 129）：伴生 SQL 直读——登记清单完成＋指纹规格登记
+
+- **现状实查**：全量双口径 grep（sqlite3.connect＋FROM sessions/messages）核 companion 现行源码，直读 state.db 共 **5 处查询、3 模块、全部只读 URI**：write_gate_bridge 锚点解析 3 处（sessions 候选集、messages T1、messages T3）、channels_bridge 会话来源计数 1 处、oneday_seg_delivery 交付哨兵水位尾随 1 处。逐点清单＋换 API 评估见 `g12-state-db-direct-read-registry-20261123.md`：R1/R2/R3/R5 无 API 等价（跨会话消息时刻相关性／全局消息水位）、R4 计数可换但低收益排后。排除项：device_sync 用自有 sync.db；审计旧记「oneday_seg_sessions 自铸 id 写库」现行已改走 `/api/sessions` API、自愈销账。
+- **处置**：登记清单成文（上表文件）＋schema 指纹校验规格登记（sessions/messages 列集指纹钉存随部署包与 Hermes 版本成对、自检加 `state-db-schema` 只读项、漂移逐列报警），落码归伴生/部署包线。App 侧桥客户端收敛属第 66 条 §383 线，本条只回指不重复施工。
+
+### §387.4 G-13（总表 130）：身份类运维工具化——维护命令落码＋合成自测（待入部署包）
+
+- **现状实查**：收编逻辑已沉淀在补丁 `_adopt_session_identity`（仅 import 触发面），独立维护入口不存在，与复核注记一致。
+- **处置**：提炼为独立维护命令 `session_identity_rekey.py`（工件在 `~/workspace/oneday-design-review/g13-session-identity-rekey/`，含 README 入包清单）：与补丁逐语句同构（sessions 本行四处＋parent 引用、十子表引用列、gateway_routing 内嵌、state_meta 改名/碰撞新胜/围栏跳过＋值改写）；dry-run 默认只读出影响面（逐工件计数＋meta 键分类）；--apply 先 sqlite backup 一致性备份、单事务执行、foreign_key_check 不净回滚、落 JSON 审计记录；失败关闭两条（新 id 已有活会话拒绝；meta 键内嵌旧 id 而围栏前缀未知拒绝 apply）。
+- **验证**：合成库自测三段全过（无前缀 apply exit 3 失败关闭／dry-run 计数与三类键分类逐项对／apply 后逐项回读与补丁语义一致、围栏键原样保留、备份与审计在位）。未入部署包、未对生产执行——入包与首用随部署包下一版次（README 已列清单）。
+
+### §387.5 G-18（总表 135）：三方版本兼容——核查完成＋口径定版（落码登记待排）
+
+- **核查结论**（审计「待核查」就此销账）：协商面**半在**——伴生 `/api/companion/info` 已发布 `companionVersion/apiLevel/minAppVersion`（front build_info），App 已解码并派生 `appUpdateRequired`（CompanionProbe：minAppVersion 格式正常且严格大于 App 版本才给结论）呈于设置版本组；但三处缺口：①Hermes 本体边无 compat 字段、/api/status 的版本只作展示（§360 版本与更新段）；②`apiLevel` 只解码不比较，代次跳变只能等下游解码失败；③现有判定只展示不设门，连接流不阻断；事后猜测文案仍在（OneDayCore/HermesError.swift:157「可能是服务端版本与 App 不匹配」）。
+- **定版口径**：兼容货币两件——minAppVersion（已有）＋apiLevel 区间（待补比较）；发布源单点＝伴生 info（Hermes 与伴生同部署同版次，Hermes 版本只展示、不另设门，免三处门互相打架——单一数据源口径）；判定点＝连接流探活后、业务面前：需升级 App／apiLevel 超出支持区间（高或低）→ 人话明示硬门；字段缺失（老伴生）→ 警告放行不锁死存量。与第 157 条分工：157 管功能级能力协商、本条管版本地板粗门，不重复。
+- **处置**：核查＋口径本包交付；落码登记（App 侧扩 CompanionStatus 派生＋连接流接线＋Core 单点声明 apiLevel 支持区间，量级 S）随上架线或独立小包排期，不在本包顺手改连接流。
+
+### §387.6 G-19＋G-20（总表 136＋137）：产品级监控——核查完成＋合并施工方案登记
+
+- **现状实查**：层错位未自愈——front `aggregate()` 只有模块进程态、自检只读组全为基础设施项；产品指标零聚合。原料在位：runs 终态（runs_idempotency.db status_json）、admissions 终态与 mutate 失败（state.db＋Hermes 日志）、悬置 run 可数。
+- **处置**：合并施工方案成文 `g19-g20-product-monitoring-plan-20261123.md`——伴生只读聚合三件（近 24h run 成功率含样本量、mutate/导入失败计数、待对账 run 数）→ 总览「产品面」一栏＋自检 `product-sli` 项；v1 阈值只亮灯不发通知（成功率 <95% warn/<90% fail、样本 ≥20 才判、待对账 >0 warn），看一周数再定通知。落点归伴生面板（数据源最近），与 G-12 指纹项同批不同条；落码归运维/伴生线随部署包版次。
+
+### §387.7 本包三态汇总
+
+- **落码**：G-07（App 代码＋钉测，待组版与真机门）、G-13（维护命令工件＋合成自测，待入部署包）。
+- **定案**：G-18（核查销「待核查」＋兼容口径定版，落码登记 S 待排）。
+- **登记缺口＋方案/规格**：G-11（双门自测规格）、G-12（直读清单＋指纹规格）、G-19/G-20（产品监控合并方案）。
+- 服务端各项均守部署包口径：只登记与成文，不动生产、不改伴生代码。
