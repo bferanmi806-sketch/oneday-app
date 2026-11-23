@@ -338,6 +338,11 @@ struct ChatRowActionSheetData {
     var onResend: (() -> Void)? = nil
     var onEditUnsent: (() -> Void)? = nil
     var onWithdrawUnsent: (() -> Void)? = nil
+    /// §451：已受理未执行条目的撤回（服务端 FIFO
+    /// 排队中、尚未开轮）——ChatView 侧按账本序位
+    /// 求值后注入；与发件箱撤回互斥（条目非此即
+    /// 彼），项位/图符/危险色与发件箱撤回同
+    var onWithdrawAccepted: (() -> Void)? = nil
     /// D3/D2（DESIGN §352）：已落定条目的编辑重发／
     /// 重新生成——门控谓词（ChatEntry.canEditSent/
     /// canRegenerateCandidate＋线程级条件）在
@@ -461,6 +466,17 @@ struct ChatRowActionSheetData {
                         .withdrawUnsent,
                     isDestructive: true,
                     action: onWithdrawUnsent
+                )
+            )
+        }
+        if let onWithdrawAccepted {
+            items.append(
+                ChatRowActionItem(
+                    kind: .withdrawUnsent, title: "撤回",
+                    systemImage: MessageActionSymbols
+                        .withdrawUnsent,
+                    isDestructive: true,
+                    action: onWithdrawAccepted
                 )
             )
         }

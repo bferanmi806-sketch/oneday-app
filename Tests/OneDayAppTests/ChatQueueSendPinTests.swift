@@ -11,21 +11,13 @@ import XCTest
 /// 文件头实证）：托管单测环境供不出 SwiftUI 无障碍
 /// 元素，send() 本体与右端钮点按在挂载环境不可达——
 /// 本套钉其消费面与模型面，行为话逐钉如下：
-/// 钉一（Q2＋Q7）：上一轮落定后，排队落位的两条
-/// （发送状态 .queued＋待发双写，与 send() 账本分
-/// 支落盘形态逐字同）被串行出口按先来后到逐条真
-/// 发——后一条被派发时前一条必已落定收尾（同会话
-/// 至多一轮在飞），两条的幂等键派发前后一字不变、
-/// 各只被自动派发一次、失败后原位落失败态（同 id
-/// 同序位、总数不变）。甲落失败态后的退避不挡乙
-/// 首投（§419 裁决 B：已落失败态归发件箱原位重
-/// 试轨、drain 跳过不挡队），且 drain 不代偿甲的
-/// 重试——静置窗内甲 attempts 恒 1、失败态原位
-/// 不动（甲的后续重试由 OutboxAutoRetry 在退避
-/// 满后经后续趟次原位管辖，不归本趟 drain）。
-/// 钉二（Q1 消费面＋Q5 账本半边）：上一轮账本未落
-/// 定（结果未知对账中）时，排队条目原地不动——不
-/// 被抢发、无自动尝试记账、排队身份不变。
+/// 钉一（§451 改写）：未受理失败堵泵、后条不
+/// 越过（严格保序，用户亲选）——取代 §419 的
+/// 串行派发＋裁决 B（已落失败态不挡队首投）。
+/// 钉二（§451 改写）：提交不被旧账本拦——提
+/// 交与落定解耦，旧轮对账中时新条目照常提交
+/// （服务端 FIFO 排班）；§419「账本未落定时
+/// 原地不动」作废。
 /// 钉三（Q4 落定形态）：排队条目原位编辑——正文
 /// 覆写、id／创建时间／排队状态／幂等键全不动
 /// （§414 路三同原语，排队态同样成立）。
@@ -214,9 +206,16 @@ final class ChatQueueSendPinTests: XCTestCase {
         return (thread, first.id, second.id)
     }
 
-    // MARK: - 钉一：落定后 FIFO 串行派发＋幂等键恒定
+    // MARK: - 钉一（§451 改写）：未受理失败堵泵，后条不越过
 
-    func testQueuedEntriesDispatchFIFOWithStableIDs()
+    /// §451 严格保序（用户 2026-11-24 亲选）取代
+    /// §419 钉一的串行派发＋裁决 B：甲未受理失败
+    /// 落 .failed 后泵停在甲上——乙永不被提交（无
+    /// 账本、待发身份与排队态一字不动），两条幂等
+    /// 键与序位恒定。离线桩下甲的失败落点在链接段
+    /// （prepareFailed，同为未受理失败、与提交段
+    /// 被拒同堵泵口径，见 SubmissionLane 注释）。
+    func testUnacceptedFailureBlocksLaterEntries()
         async throws
     {
         let container = try makeContainer()
@@ -226,44 +225,16 @@ final class ChatQueueSendPinTests: XCTestCase {
         )
         await mountRoot(container: container, appState: appState)
 
-        // 串行不变量：乙被派发的那一拍，甲必已落定
-        // （drain 逐条 await 本轮 sendTask 才动下一条）
-        var firstLandedBeforeSecondAttempt = false
-        let secondAttempted = await pollUntil(seconds: 15) {
-            let entries = (try? readEntries(
+        let landed = await pollUntil(seconds: 15) {
+            (try? readEntries(
                 in: container, threadID: scene.thread.id
-            )) ?? []
-            let firstFailed = entries.first {
-                $0.id == scene.firstID
-            }?.sendFailed == true
-            let secondAttempts = appState.outboxRetry
-                .record(for: scene.secondID)?.attempts ?? 0
-            if secondAttempts >= 1 {
-                firstLandedBeforeSecondAttempt = firstFailed
-                return true
-            }
-            return false
+            ))?.first { $0.id == scene.firstID }?.sendFailed
+                == true
         }
         XCTAssertTrue(
-            secondAttempted, "排队第二条未被串行出口派发"
+            landed, "首条未受理失败后未原位落失败态"
         )
-        XCTAssertTrue(
-            firstLandedBeforeSecondAttempt,
-            "第二条派发时第一条尚未落定——串行不变量被破"
-        )
-        let bothLanded = await pollUntil(seconds: 10) {
-            let entries = (try? readEntries(
-                in: container, threadID: scene.thread.id
-            )) ?? []
-            return entries.first {
-                $0.id == scene.firstID
-            }?.sendFailed == true && entries.first {
-                $0.id == scene.secondID
-            }?.sendFailed == true
-        }
-        XCTAssertTrue(
-            bothLanded, "排队条目派发后未原位落失败态"
-        )
+        await spinRunLoop(seconds: 2.5)
         let entries = try readEntries(
             in: container, threadID: scene.thread.id
         )
@@ -278,54 +249,35 @@ final class ChatQueueSendPinTests: XCTestCase {
             entries[3].clientMessageID, "queue-pin-msg-b",
             "派发改动了第二条的幂等键"
         )
-        XCTAssertEqual(
-            appState.outboxRetry.record(
-                for: scene.firstID
-            )?.attempts, 1, "第一条被重复派发"
+        // 乙从未被提交：无账本、待发＋排队态原样
+        XCTAssertNil(
+            appState.runLedger.entry(
+                forUserEntryID: scene.secondID
+            ),
+            "后条越过失败条被提交（竟有账本）"
         )
-        XCTAssertEqual(
-            appState.outboxRetry.record(
-                for: scene.secondID
-            )?.attempts, 1, "第二条被重复派发"
-        )
-        // 裁决 B 补钉：甲落失败态后其退避不挡乙首投
-        // 已由上文成立（乙 attempts＝1、且乙派发时甲
-        // 已落定）；此处再钉「甲的重试不归 drain」：
-        // 静置窗内 drain 即使再趟，甲的自动尝试账与
-        // 失败态原位必须恒定——甲归发件箱原位重试轨
-        // 按退避管辖，drain 只管从未投递的排队条目；
-        // 乙同窗内亦不得被重复派发，甲乙序位账不动
-        await spinRunLoop(seconds: 2.5)
-        let afterDwell = try readEntries(
-            in: container, threadID: scene.thread.id
-        )
-        XCTAssertEqual(afterDwell.count, 4)
-        XCTAssertEqual(afterDwell[2].id, scene.firstID)
-        XCTAssertEqual(afterDwell[3].id, scene.secondID)
-        XCTAssertTrue(
-            afterDwell[2].sendFailed,
-            "静置窗内第一条失败态被改动——已落失败态的重试不归 drain"
-        )
-        XCTAssertEqual(
-            afterDwell[2].clientMessageID, "queue-pin-msg-a"
-        )
-        XCTAssertEqual(
-            appState.outboxRetry.record(
-                for: scene.firstID
-            )?.attempts, 1,
-            "第一条在退避窗内被 drain 重派——其重试应由发件箱重试轨按退避原位管辖"
-        )
-        XCTAssertEqual(
-            appState.outboxRetry.record(
-                for: scene.secondID
-            )?.attempts, 1,
-            "第二条在静置窗内被重复派发"
+        XCTAssertTrue(entries[3].isPendingSend)
+        XCTAssertEqual(entries[3].sendState, .queued)
+        // 甲未受理：账本不留
+        XCTAssertNil(
+            appState.runLedger.entry(
+                forUserEntryID: scene.firstID
+            ),
+            "未受理失败条账本未清"
         )
     }
 
-    // MARK: - 钉二：账本未落定时排队条目原地不动
+    // MARK: - 钉二（§451 改写）：提交不被旧账本拦
 
-    func testQueuedEntryHeldWhileLedgerStale() async throws {
+    /// §451 提交与落定解耦：上一轮账本未落定（结
+    /// 果未知对账中）不再是提交的闸——甲照常被提
+    /// 交（服务端 FIFO 受理多轮、按序排班），离线
+    /// 桩下未受理失败落 .failed；乙被失败条堵住不
+    /// 越过（无账本、待发＋排队态原样）。§419 钉
+    /// 二「账本未落定时排队条目原地不动」自此作
+    /// 废：那是单轮互斥的前提，已被用户亲裁的发
+    /// 送机制换代取代（DESIGN §451）。
+    func testSubmissionNotGatedByStaleLedger() async throws {
         let container = try makeContainer()
         let scene = try seedQueueScene(in: container)
         let appState = try await makeConnectedAppState(
@@ -345,24 +297,30 @@ final class ChatQueueSendPinTests: XCTestCase {
         ))
         ledgerThreadIDs = [scene.thread.id]
         await mountRoot(container: container, appState: appState)
-        await spinRunLoop(seconds: 2.5)
 
-        XCTAssertNil(
-            appState.outboxRetry.record(for: scene.firstID),
-            "账本未落定时排队第一条被抢发"
+        let landed = await pollUntil(seconds: 15) {
+            (try? readEntries(
+                in: container, threadID: scene.thread.id
+            ))?.first { $0.id == scene.firstID }?.sendFailed
+                == true
+        }
+        XCTAssertTrue(
+            landed,
+            "旧账本在位时新条目未被提交（提交被账本门拦）"
         )
-        XCTAssertNil(
-            appState.outboxRetry.record(for: scene.secondID),
-            "账本未落定时排队第二条被抢发"
-        )
+        await spinRunLoop(seconds: 2.5)
         let entries = try readEntries(
             in: container, threadID: scene.thread.id
         )
         XCTAssertEqual(entries.count, 4)
-        XCTAssertTrue(entries[2].isPendingSend)
-        XCTAssertEqual(entries[2].sendState, .queued)
         XCTAssertTrue(entries[3].isPendingSend)
         XCTAssertEqual(entries[3].sendState, .queued)
+        XCTAssertNil(
+            appState.runLedger.entry(
+                forUserEntryID: scene.secondID
+            ),
+            "后条越过失败条被提交（竟有账本）"
+        )
     }
 
     // MARK: - 钉三：排队条目原位编辑保状态
