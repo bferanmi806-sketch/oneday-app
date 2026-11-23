@@ -69,7 +69,7 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 面管工具面；与命令授权（批 5）分工：那是命令
     /// 白名单、本面是工具可用集
     case toolsets
-    /// 委派路由（H8，DESIGN §390）：子智能体后端＋
+    /// 任务委派（H8，DESIGN §390；原名「委派路由」，§450 去黑话改名）：子智能体后端＋
     /// 模型路线＋档案路线——与工具集页同组并列
     case delegation
     case cron
@@ -77,7 +77,8 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 条目与目的地保留、去向改深链——名单正主是
     /// 全部对话一级面，App 层 activate 置 allCon-
     /// versationsRequested 直达，设置内不再有名单
-    /// 页（旧 ServerSessionsView 已删）
+    /// 页（旧 ServerSessionsView 已删）；§450 起目录
+    /// 条目整条移出（状态类重复门），本目的地保留备查
     case serverSessions
     case models
     case envVars
@@ -233,9 +234,9 @@ public enum SettingsCatalog {
         ),
         SettingsCatalogEntry(
             id: "profiles", group: .agent,
-            title: "配置档案",
+            title: "档案",
             summary: "决定人设与系统提示，保存在服务器",
-            keywords: ["配置", "档案", "人设", "系统提示", "profile", "soul"],
+            keywords: ["配置档案", "配置", "档案", "人设", "系统提示", "profile", "soul"],
             destination: .profiles
         ),
         SettingsCatalogEntry(
@@ -254,16 +255,16 @@ public enum SettingsCatalog {
         ),
         SettingsCatalogEntry(
             id: "toolsets", group: .agent,
-            title: "工具集",
+            title: "工具",
             summary: "手机会话能用的工具，可启停与细调",
-            keywords: ["工具", "启停", "服务商", "终端后端", "toolset", "toolsets"],
+            keywords: ["工具集", "工具", "启停", "服务商", "终端后端", "toolset", "toolsets"],
             destination: .toolsets
         ),
         SettingsCatalogEntry(
             id: "delegation", group: .agent,
-            title: "委派路由",
+            title: "任务委派",
             summary: "子任务走哪个后端、哪条模型路线、哪个档案",
-            keywords: ["委派", "子智能体", "后端", "路由", "delegation", "routing"],
+            keywords: ["委派路由", "委派", "子智能体", "后端", "路由", "delegation", "routing"],
             destination: .delegation
         ),
         SettingsCatalogEntry(
@@ -291,24 +292,28 @@ public enum SettingsCatalog {
         ),
         // 添加设备（配对一期，台账 153/160）：已登录
         // 侧出码面。台账 198 收敛 S13：连接引导属性，
-        // 自维护尾段迁服务器段、紧随当前服务器
+        // 自维护尾段迁服务器段、紧随当前服务器；§450
+        // 收纳：一次性引导不占根行——根页不再平铺，入
+        // 口收进「当前服务器」页内，本条目仅搜索可达
         SettingsCatalogEntry(
             id: "addDevice", group: .serverAndWorkspace,
             title: "添加设备",
             summary: "生成认领二维码，让新设备扫码连上这台服务器",
             keywords: ["添加设备", "扫码", "二维码", "配对", "新设备", "enroll", "pairing", "qr"],
-            destination: .addDevice, segment: .server
+            destination: .addDevice, showsInBrowse: false, segment: .server
         ),
-        // 平台用户配对（H5，台账 35，DESIGN §359）：
-        // 紧随添加设备——同属「准入」语义但管辖不同
-        // （设备入驻 vs 平台用户白名单），标题与副行
-        // 写明管辖对象防混
+        // 设备配对（原名「平台用户配对」，§450 去黑
+        // 话改名；H5，台账 35，DESIGN §359）：与添加
+        // 设备同属「准入」语义但管辖不同（设备入驻
+        // vs 平台用户白名单），副行写明管辖对象防混；
+        // §450 收纳：与添加设备同收进「当前服务器」
+        // 页内，本条目仅搜索可达
         SettingsCatalogEntry(
             id: "pairing", group: .serverAndWorkspace,
-            title: "平台用户配对",
+            title: "设备配对",
             summary: "批准在消息平台上申请和网关对话的新用户",
-            keywords: ["配对", "白名单", "批准", "用户", "pairing", "allowlist", "telegram", "whatsapp"],
-            destination: .pairingManagement, segment: .server
+            keywords: ["平台用户配对", "配对", "白名单", "批准", "用户", "pairing", "allowlist", "telegram", "whatsapp"],
+            destination: .pairingManagement, showsInBrowse: false, segment: .server
         ),
         SettingsCatalogEntry(
             id: "gateway", group: .serverAndWorkspace,
@@ -317,12 +322,14 @@ public enum SettingsCatalog {
             keywords: ["网关", "重启", "gateway"],
             destination: .gateway, segment: .server
         ),
+        // 日志（§450 降级）：查看/导出是工具不是设
+        // 置——移出根页浏览，仅搜索可达（功能不删）
         SettingsCatalogEntry(
             id: "logs", group: .serverAndWorkspace,
             title: "日志",
             summary: "服务端运行日志",
             keywords: ["运行日志", "log", "logs"],
-            destination: .logs, segment: .server
+            destination: .logs, showsInBrowse: false, segment: .server
         ),
         SettingsCatalogEntry(
             id: "usage", group: .serverAndWorkspace,
@@ -331,29 +338,30 @@ public enum SettingsCatalog {
             keywords: ["统计", "消耗", "token", "usage"],
             destination: .usage, segment: .server
         ),
-        // 连接自检（H13，台账 33，DESIGN §357）：服
-        // 务器段末行——连接语义归服务器段，与维护段
-        // 的体检（服务端深检）同组分工、页内互链
+        // 连接自检（H13，台账 33，DESIGN §357）：连
+        // 接语义归服务器段，与维护段的体检（服务端深
+        // 检）同组分工、页内互链；§450 降级：排障工
+        // 具非常驻设置，移出根页浏览、仅搜索可达
         SettingsCatalogEntry(
             id: "connectionSelfCheck", group: .serverAndWorkspace,
             title: "连接自检",
             summary: "逐项检查连接、服务状态与服务器能力",
             keywords: ["连接", "自检", "能力", "诊断", "探活", "capabilities", "self check", "health"],
-            destination: .connectionSelfCheck, segment: .server
+            destination: .connectionSelfCheck, showsInBrowse: false, segment: .server
         ),
         SettingsCatalogEntry(
             id: "mainSession", group: .serverAndWorkspace,
-            title: "主线会话",
+            title: "主线对话",
             summary: "主要对话、会话 ID",
-            keywords: ["主线", "当前会话", "main session"],
+            keywords: ["主线会话", "主线", "当前会话", "main session"],
             destination: .mainSession, segment: .sessions
         ),
-        SettingsCatalogEntry(
-            id: "serverSessions", group: .serverAndWorkspace,
-            title: "服务端会话",
-            summary: "服务端保存的会话，在全部对话中查看管理",
-            keywords: ["会话", "全部对话", "网页端", "session", "sessions"],
-            destination: .serverSessions        ),
+        // 服务端会话条目已退役（§450，设置 IA 先行包）：
+        // 目的地本体就是全部对话一级面（名单正主），设
+        // 置里的深链行属状态类重复门——按 2026-11-24
+        // 用户裁定整条移出（根页与搜索都不留）；目的
+        // 地枚举与 activate 深链保留备查（台账 199 沿革
+        // 见 SettingsDestination.serverSessions 注）
         // 状态详情（StatusView）：原「总览」条目已随
         // 枢纽/总览归位摘除（纲要 D5-1 总览撤页、D5-2
         // 入口提浅归正主）；总览的状态下钻页不随页丢
@@ -435,7 +443,7 @@ public enum SettingsCatalog {
             id: "connectors", group: .preferences,
             title: "连接器",
             summary: "外部服务与设备能力",
-            keywords: ["外部服务", "设备", "mcp", "connector"],
+            keywords: ["外部服务", "设备", "远程电脑", "mcp", "connector"],
             destination: .connectors
         ),
         SettingsCatalogEntry(

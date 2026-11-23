@@ -87,7 +87,7 @@ struct PairingManagementView: View {
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
         .scrollContentBackground(.hidden)
         .background(Palette.settingsBG)
-        .navigationTitle("平台用户配对")
+        .navigationTitle("设备配对")
         .navigationBarTitleDisplayMode(.large)
         .task {
             await store.load(

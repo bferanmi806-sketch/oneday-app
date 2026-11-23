@@ -122,7 +122,7 @@ struct CloudComputerDetailView: View {
         }
         .listStyle(.insetGrouped)
         .background(Palette.settingsBG)
-        .navigationTitle("云电脑")
+        .navigationTitle("远程电脑")
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(
             "断开这台电脑？",

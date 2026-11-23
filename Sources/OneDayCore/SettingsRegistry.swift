@@ -218,6 +218,17 @@ public struct SettingsRegistryResponse: Equatable, Sendable {
     }
 }
 
+public extension SettingsRegistryResponse {
+    /// 按全局键直查记录（§450，设置 IA 先行包 R4）：
+    /// config-backed 记录（如两条写入审批）的 sur-
+    /// face 是服务端面名口径、不经合并引擎的组面分
+    /// 发，消费方（审批规则页）按 key 取行呈现——缺
+    /// 记录返回 nil，消费方据此整行不出、不造假行
+    func record(forKey key: String) -> SettingsRegistryRecord? {
+        records.first { $0.key == key }
+    }
+}
+
 extension SettingsRegistryResponse: Decodable {
     private enum CodingKeys: String, CodingKey {
         case version, records

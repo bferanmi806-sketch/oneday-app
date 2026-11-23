@@ -72,7 +72,7 @@ struct DelegationRoutingView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(Palette.settingsBG)
-        .navigationTitle("委派路由")
+        .navigationTitle("任务委派")
         .navigationBarTitleDisplayMode(.inline)
         .task { await store.load(ops: ops) }
         .refreshable { await store.load(ops: ops) }
