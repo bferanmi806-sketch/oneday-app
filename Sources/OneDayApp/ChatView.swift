@@ -7719,19 +7719,14 @@ private struct ComposerBarLayout: Layout {
     }
 }
 
-/// 发送舱右端状态机（0.2.5，对照 Muse 输入区）：胶囊内
+    /// 发送舱右端状态机（0.2.5，对照 Muse 输入区）：胶囊内
     /// 的元素都是裸符号或单一小圆盘，不套圈不描边。
-    /// - 流式中：停止键（0.31.0 起走 requestRunStop 真取消）
-    /// - 有可发送内容（文字或附件）：发送箭头
+    /// §446（用户 2026-11-24 亲裁）单槽位按内容切换：
+    /// - 有可发送内容（文字或附件）：发送箭头（流式中
+    ///   点按走 §419 排队落位）
+    /// - 流式中且空输入：停止键（0.31.0 起走
+    ///   requestRunStop 真取消）
     /// - 空输入：裸麦克风符号占位（无圆盘底、无描边）
-    /// 0.25.0（动效专包）：三态判定收敛 Core
-    /// ComposerTrailingState（单测把守）；mic↔圆盘键的
-    /// 切换原为两视图硬切——改同槽 ZStack 交叉淡化：
-    /// 切换只发生在「空↔首字」「发送↔流式起止」的低
-    /// 频边沿（非逐键），swap 0.2 淡化在频率预算内；
-    /// 发送↔停止在圆盘键内部走 symbolEffect 形变（既
-    /// 有）、不经本淡化。Reduce Motion 时 resolved 归
-    /// 零、回硬切（瞬时）
     private var trailingState: ComposerTrailingState {
         ComposerTrailingState.resolve(
             isStreaming: isStreaming, canSend: canSend
@@ -7740,17 +7735,7 @@ private struct ComposerBarLayout: Layout {
 
     private var trailingControl: some View {
         ZStack {
-            if trailingState == .stopAndSend {
-                // 修复包二锁一（§419）：双钮形态——停
-                // 止降为左侧裸符号小钮、主键仍是发送
-                // 圆盘（点按走排队落位）；两钮同排、
-                // 随状态交叉淡化
-                HStack(spacing: 2) {
-                    stopMiniButton
-                    sendStopButton
-                }
-                .transition(.opacity)
-            } else if trailingState.isDiscKey {
+            if trailingState.isDiscKey {
                 sendStopButton
                     .transition(.opacity)
             } else {
@@ -7773,12 +7758,11 @@ private struct ComposerBarLayout: Layout {
     /// 自动降级。圆盘与字号口径沿旧两键（直径
     /// ComposerLayout.buttonHeight、停止 12/发送 13）
     private var sendStopButton: some View {
-        // 修复包二锁一（§419）：圆盘键语义由 trail-
-        // ingState 裁决，不再直读 isStreaming——.stop
-        // 态出停止；.send/.stopAndSend 态出发送（流式
-        // 中有字时点按走排队落位，停止另有左侧小
-        // 钮）；符号形变仍在本键内走 symbolEffect
-        // （0.3.0 口径不变）
+        // §446：圆盘键语义由 trailingState 裁决，
+        // 不再直读 isStreaming——.stop 态出停止；
+        // .send 态出发送（流式中有字时点按走 §419
+        // 排队落位）；符号形变仍在本键内走
+        // symbolEffect（0.3.0 口径不变）
         let isStopDisc = trailingState == .stop
         return Button {
             if isStopDisc {
@@ -7818,39 +7802,6 @@ private struct ComposerBarLayout: Layout {
         }
         .buttonStyle(.odPressable)
         .accessibilityLabel(isStopDisc ? "停止生成" : "发送")
-    }
-
-    /// 修复包二锁一（§419）：双钮形态的停止小钮——
-    /// 裸符号、无圆盘（与 mic 同呈现档），只在
-    /// .stopAndSend 态与发送圆盘同排出现；点按语义
-    /// 与圆盘停止键一致（requestRunStop 真取消当前
-    /// 轮；排队条目不清——停止只停当前轮口径不变）
-    private var stopMiniButton: some View {
-        Button {
-            requestRunStop()
-        } label: {
-            Image(systemName: "stop.fill")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Palette.ink)
-                .frame(
-                    width: ComposerLayout.buttonHeight,
-                    height: ComposerLayout.buttonHeight
-                )
-                // 第 83 条（命中域收口）：与 mic 同式——
-                // 字形不变、命中域外扩 44、负内边距抵
-                // 消外扩、布局仍按 30 走
-                .frame(
-                    width: OneDayMetrics.minTapTarget,
-                    height: OneDayMetrics.minTapTarget
-                )
-                .contentShape(Rectangle())
-                .padding(
-                    -(OneDayMetrics.minTapTarget
-                        - ComposerLayout.buttonHeight) / 2
-                )
-        }
-        .buttonStyle(.odPressable)
-        .accessibilityLabel("停止生成")
     }
 
     /// （旧发送/停止两键已合并为 sendStopButton 变形键，见上。）

@@ -2,42 +2,42 @@ import Foundation
 
 /// 发送舱右端状态机（0.25.0，交互与动效专包立）：
 /// 胶囊右端在三态间切换——空输入出裸麦克风占位、
-/// 有可发送内容出发送箭头、流式中出停止键。三态判
-/// 定原散在 ChatView.trailingControl 的条件里，本枚
-/// 举收敛为纯函数：视图只读它选形态与驱动切换动画
-/// （mic↔发送/停止的 opacity 交叉淡化以本枚举为动画
-/// 值），判定口径由单测把守。旧口径「流式优先于可
-/// 发送——流式中即使输入框已有字，右端也必须是停止
-/// 键」自修复包二锁一（§419）改判：流式中有字出双钮
-/// （发送主键＋停止小钮），右端不再由停止键独占。
+/// 有可发送内容出发送箭头、流式中出停止键。三态
+/// 判定原散在 ChatView.trailingControl 的条件里，
+/// 本枚举收敛为纯函数：视图只读它选形态与驱动切
+/// 换动画（mic↔发送/停止的 opacity 交叉淡化以本
+/// 枚举为动画值），判定口径由单测把守。判定序自
+/// §446（用户 2026-11-24 亲裁）定版为「内容优
+/// 先」：有可发送内容恒出发送（流式中点按走
+/// §419 排队落位），无内容时流式中出停止、空闲
+/// 出麦克风——单槽位按内容切换（对位 ChatGPT/
+/// Claude 单槽置换的通行形态）。§419 曾设双钮
+/// 态（发送＋停止小钮同排），真机
+/// 实证双钮总宽 62pt 溢出布局槽位 30pt、发送钮
+/// 被挤出屏幕（0.50.105 verdict），§446 退役。
 public enum ComposerTrailingState: Equatable, CaseIterable {
     /// 空输入：裸麦克风符号占位（语音未接入）
     case mic
     /// 有可发送内容（文字或附件）：发送箭头
     case send
-    /// 流式生成中：停止键
+    /// 流式生成中且无可发送内容：停止键
     case stop
-    /// 流式生成中且已有可发送内容：双钮态（修复包
-    /// 二锁一）——主键仍是发送箭头（点按走排队落
-    /// 位）、停止降为左侧裸符号小钮；流式中输入为
-    /// 空仍归 .stop 单键，不出双钮
-    case stopAndSend
 
-    /// 判定序：流式且可发送 → 双钮；流式不可发送
-    /// → 停止；非流式可发送 → 发送；否则占位（麦
-    /// 克风）
+    /// 判定序（§446）：可发送 → 发送；流式 →
+    /// 停止；否则占位（麦克风）。单槽位恒一钮，
+    /// 任何状态下布局宽都是 ComposerLayout
+    /// .buttonHeight，切换不引起输入栏宽度跳动
     public static func resolve(
         isStreaming: Bool, canSend: Bool
     ) -> ComposerTrailingState {
-        if isStreaming {
-            return canSend ? .stopAndSend : .stop
-        }
-        return canSend ? .send : .mic
+        if canSend { return .send }
+        if isStreaming { return .stop }
+        return .mic
     }
 
-    /// 是否为圆盘键形态（发送/停止/双钮的主键共用
-    /// 同一颗圆盘键，内部符号以 symbolEffect 形变
-    /// 切换；麦克风是裸符号、无圆盘）
+    /// 是否为圆盘键形态（发送/停止共用同一颗圆
+    /// 盘键，内部符号以 symbolEffect 形变切换；
+    /// 麦克风是裸符号、无圆盘）
     public var isDiscKey: Bool {
         self != .mic
     }
