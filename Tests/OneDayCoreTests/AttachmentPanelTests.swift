@@ -122,12 +122,16 @@ final class AttachmentPanelTests: XCTestCase {
     }
 
     func testAddSelectedTitle() {
+        // §461 文案：随目标图作「添加 N 个附件」；未
+        // 选回 nil（确认按钮不呈现）与旧行同源
         XCTAssertNil(AttachmentPanel.addSelectedTitle(count: 0))
         XCTAssertEqual(
-            AttachmentPanel.addSelectedTitle(count: 1), "添加 1 张"
+            AttachmentPanel.addSelectedTitle(count: 1),
+            "添加 1 个附件"
         )
         XCTAssertEqual(
-            AttachmentPanel.addSelectedTitle(count: 3), "添加 3 张"
+            AttachmentPanel.addSelectedTitle(count: 3),
+            "添加 3 个附件"
         )
     }
 
@@ -163,6 +167,9 @@ final class AttachmentPanelTests: XCTestCase {
         XCTAssertEqual(AttachmentPanel.Layout.cellSize, 118)
         XCTAssertEqual(AttachmentPanel.Layout.rowHeight, 52)
         XCTAssertEqual(AttachmentPanel.Layout.titleRowHeight, 22)
+        XCTAssertEqual(
+            AttachmentPanel.Layout.confirmButtonHeight, 56
+        )
     }
 
     func testFittedSheetHeightThreeStates() {
@@ -180,12 +187,12 @@ final class AttachmentPanelTests: XCTestCase {
         )
         XCTAssertEqual(libraryNoSelection, 305)
 
-        // 有库已选：305 ＋ 16 ＋ 52（确认行）＝ 373
+        // 有库已选：305 ＋ 16 ＋ 56（§461 确认按钮）＝ 377
         let libraryWithSelection = AttachmentPanel.fittedSheetHeight(
             showsLibrary: true,
             hasSelection: true
         )
-        XCTAssertEqual(libraryWithSelection, 373)
+        XCTAssertEqual(libraryWithSelection, 377)
     }
 
     func testFittedSheetHeightExcludesSafeArea() {

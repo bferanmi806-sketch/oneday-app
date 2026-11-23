@@ -119,12 +119,13 @@ public enum AttachmentPanel {
         stripOrder.filter { selected.contains($0) }
     }
 
-    /// 「添加 N 张」确认行文案：未选任何照片回 nil
-    /// （确认行不呈现、动作不可用同源）；有选时逐字
-    /// 点数
+    /// 确认按钮文案（§152 立、§461 改文案）：未选
+    /// 任何照片回 nil（确认按钮不呈现、动作不可用
+    /// 同源）；有选时逐字点数，文案随 §461 目标图
+    /// 作「添加 N 个附件」
     public static func addSelectedTitle(count: Int) -> String? {
         guard count > 0 else { return nil }
-        return "添加 \(count) 张"
+        return "添加 \(count) 个附件"
     }
 
     // MARK: - 视频接入命名
@@ -147,8 +148,11 @@ public enum AttachmentPanel {
     public enum Layout {
         /// 照片格边长（§152 定版：照 Muse 近方形大格）
         public static let cellSize: CGFloat = 118
-        /// 行高（确认行、动作行共用）
+        /// 行高（动作行用）
         public static let rowHeight: CGFloat = 52
+        /// 确认按钮高（§461：确认动作改底部整宽大
+        /// 按钮，独立于动作行高定版）
+        public static let confirmButtonHeight: CGFloat = 56
         /// 资源库标题行高（.headline 字体实测约值）
         public static let titleRowHeight: CGFloat = 22
     }
@@ -179,8 +183,9 @@ public enum AttachmentPanel {
             ? (Layout.titleRowHeight + 12 + Layout.cellSize) 
             : 0
         
-        // 确认行（有选时在场）
-        let confirmHeight: CGFloat = hasSelection ? Layout.rowHeight : 0
+        // 确认按钮（§461：有选时在场，底部整宽大按钮）
+        let confirmHeight: CGFloat = hasSelection
+            ? Layout.confirmButtonHeight : 0
         
         // 动作行：两行 + Divider(~1)
         let actionHeight: CGFloat = Layout.rowHeight * 2 + 1

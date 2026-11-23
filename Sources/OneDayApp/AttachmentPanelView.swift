@@ -41,6 +41,15 @@ import UIKit
 /// 留白）就此注销。§327 退役四件（custom detent
 /// resolver 桥、安全区反向补偿、指纹、§317 过渡
 /// 守卫）仍不得复活。
+/// §461（2026-11-24 用户对照 Muse 形态点定）：
+/// 确认动作换位——§152 的「添加 N 张」确认行退
+/// 役，同一动作（orderedSelection 批量入条）挪到
+/// 面板底部、改整宽大按钮「添加 N 个附件」，饱和
+/// 蓝底（Palette.primarySaturated）＋白字；呈现条
+/// 件与旧行同源（未选不呈现），高度跟随差由行高
+/// 52 改按钮高 56（D5 贴合档有库已选态 373→377）。
+/// 照片条、勾选标记、文件/视频动作行、标题行一
+/// 律不动。
 ///
 /// 授权纪律：照片条只同步读 PHPhotoLibrary 现态
 /// （系统授权铁律：已决定绝不重走请求、未决定也不
@@ -124,12 +133,12 @@ struct AttachmentPanelView: View {
             if showsLibrary {
                 librarySection
             }
+            actionRows
             if let confirmTitle = AttachmentPanel.addSelectedTitle(
                 count: selectedIDs.count
             ) {
-                confirmRow(title: confirmTitle)
+                confirmButton(title: confirmTitle)
             }
-            actionRows
         }
         .padding(OneDayMetrics.spacingM)
         // D5：系统 detent 贴合档下内容恰满（不再留大
@@ -158,8 +167,8 @@ struct AttachmentPanelView: View {
             selectedDetent = fittedDetent
         }
         .onChange(of: selectedIDs.isEmpty) { _, _ in
-            // D5：确认行增减时，仅当用户停在贴合档才跟随
-            // 新高度（±68pt 系统动画过渡）；已拉到 .large
+            // D5：确认按钮增减时，仅当用户停在贴合档才
+            // 跟随新高度（±72pt 系统动画过渡）；已拉到 .large
             // 不拽回；AX 档不自动跟随（回落 .medium 固定高）
             if !userSelectedLarge && !dynamicTypeSize.isAccessibilitySize {
                 selectedDetent = fittedDetent
@@ -272,12 +281,14 @@ struct AttachmentPanelView: View {
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
-    // MARK: - 确认行（§152 多选）
+    // MARK: - 确认按钮（§152 多选、§461 底部大按钮）
 
-    /// 「添加 N 张」确认行：照动作行形态（图标＋标
-    /// 题行、minHeight 同档），标题带实时已选计数；
-    /// 点之按条内呈现序批量入条（Core 收口）
-    private func confirmRow(title: String) -> some View {
+    /// 「添加 N 个附件」确认按钮（§461）：§152 确认
+    /// 行的同一动作挪到面板底部、改整宽大按钮——
+    /// 饱和蓝底（Palette.primarySaturated）＋白字，
+    /// 标题带实时已选计数；点之按条内呈现序批量入
+    /// 条（Core 收口，与旧行接线逐字相同）
+    private func confirmButton(title: String) -> some View {
         Button {
             onConfirmPhotos(
                 AttachmentPanel.orderedSelection(
@@ -285,18 +296,24 @@ struct AttachmentPanelView: View {
                 )
             )
         } label: {
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 20, weight: .regular))
-                    .foregroundStyle(Palette.primary)
-                    .frame(width: 28)
-                Text(title)
-                    .font(.body)
-                    .foregroundStyle(Palette.primary)
-                Spacer()
-            }
-            .frame(minHeight: AttachmentPanel.Layout.rowHeight)
-            .contentShape(Rectangle())
+            Text(title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(
+                    height: AttachmentPanel.Layout.confirmButtonHeight
+                )
+                .background(
+                    Palette.primarySaturated,
+                    in: RoundedRectangle(
+                        cornerRadius: OneDayMetrics.radiusPreview
+                    )
+                )
+                .contentShape(
+                    RoundedRectangle(
+                        cornerRadius: OneDayMetrics.radiusPreview
+                    )
+                )
         }
         .buttonStyle(.odPressable)
     }
