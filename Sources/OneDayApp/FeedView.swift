@@ -364,40 +364,37 @@ struct FeedView: View {
                 // 有类别文字——对 VO 隐藏免逐字念名
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
-                HStack(alignment: .top, spacing: OneDayMetrics.rowInnerGap) {
-                    Text(post.title)
-                        // §364（台账 23）：行题升内容行题
-                        // 例外角色 contentListTitle
-                        // （Title3 semibold）——§117.5 例
-                        // 外经用户 2026-11-22 裁定扩展至
-                        // 目标面，三面同例
-                        .font(.contentListTitle)
-                        .foregroundStyle(Palette.ink)
-                        // 0.43.0（A11Y-D3）：AX 档放宽
-                        .a11yLineLimit(2, ax: 4)
-                    // 未读蓝点已撤（§126）：动态取消一切
-                    // 未读提醒面；已读回写保留为静默账本
-                    Spacer(minLength: OneDayMetrics.spacingS)
-                    // 可点指示（2026-11-15 第 88 条，宪法
-                    // §9「可点必有指示」）：标题可点进详
-                    // 情此前与正文同貌无任何指示，补行尾
-                    // 弱色 chevron；VO 侧本有 .isButton＋
-                    // accessibilityAction、不受影响
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Palette.inkMuted)
-                        .accessibilityHidden(true)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
+                Button {
                     openPost(post)
+                } label: {
+                    HStack(alignment: .top, spacing: OneDayMetrics.rowInnerGap) {
+                        Text(post.title)
+                            // §364（台账 23）：行题升内容行题
+                            // 例外角色 contentListTitle
+                            // （Title3 semibold）——§117.5 例
+                            // 外经用户 2026-11-22 裁定扩展至
+                            // 目标面，三面同例
+                            .font(.contentListTitle)
+                            .foregroundStyle(Palette.ink)
+                            // 0.43.0（A11Y-D3）：AX 档放宽
+                            .a11yLineLimit(2, ax: 4)
+                        // 未读蓝点已撤（§126）：动态取消一切
+                        // 未读提醒面；已读回写保留为静默账本
+                        Spacer(minLength: OneDayMetrics.spacingS)
+                        // 可点指示（2026-11-15 第 88 条，宪法
+                        // §9「可点必有指示」）：标题可点进详
+                        // 情此前与正文同貌无任何指示，补行尾
+                        // 弱色 chevron；VO 侧本有 .isButton＋
+                        // accessibilityAction、不受影响
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Palette.inkMuted)
+                            .accessibilityHidden(true)
+                    }
+                    .contentShape(Rectangle())
                 }
-                .odPressFeedback()
+                .buttonStyle(.odPressable)
                 .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction {
-                    openPost(post)
-                }
                 if !post.body.isEmpty {
                     let rowBody = FeedBoard.rowBodyPresentation(
                         post.body

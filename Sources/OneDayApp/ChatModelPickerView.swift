@@ -185,30 +185,32 @@ struct ChatModelPickerView: View {
     @ViewBuilder
     private func groupHeader(_ display: DisplayGroup) -> some View {
         let collapsed = isGroupCollapsed(display)
-        let header = HStack(spacing: 6) {
-            Text(display.group.title)
-            Text("\(display.rows.count)")
-                .foregroundStyle(Palette.inkSecondary)
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.down")
-                .font(.caption2.weight(.semibold))
-                .rotationEffect(.degrees(collapsed ? -90 : 0))
-                .animation(
-                    MotionTokens.resolved(
-                        MotionTokens.sectionCollapse, reduceMotion: reduceMotion
-                    ),
-                    value: collapsed
-                )
+        // §379：段头迁原生 Button＋.odPressable
+        // （原点按手势＋自研按压修饰退役）
+        let header = Button {
+            toggleGroup(display)
+        } label: {
+            HStack(spacing: 6) {
+                Text(display.group.title)
+                Text("\(display.rows.count)")
+                    .foregroundStyle(Palette.inkSecondary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .rotationEffect(.degrees(collapsed ? -90 : 0))
+                    .animation(
+                        MotionTokens.resolved(
+                            MotionTokens.sectionCollapse, reduceMotion: reduceMotion
+                        ),
+                        value: collapsed
+                    )
+            }
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-        .contentShape(Rectangle())
-        .onTapGesture { toggleGroup(display) }
-        .odPressFeedback()
-        .accessibilityElement(children: .ignore)
+        .buttonStyle(.odPressable)
         .accessibilityLabel(display.group.title)
         .accessibilityValue(collapsed ? "已折叠" : "已展开")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { toggleGroup(display) }
         if let onHideGroup {
             if display.isBuiltinBucket {
                 header.contextMenu {

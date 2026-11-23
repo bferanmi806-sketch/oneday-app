@@ -610,7 +610,7 @@ struct DeliverablesView: View {
     ) -> some View {
         HStack(spacing: OneDayMetrics.spacingSM) {
             // §363（S4，真机矩阵定案）：主区改原生 Button
-            // ＋.odPressable——原「点按手势＋odPressFeedback」
+            // ＋.odPressable——原「点按手势＋自研按压修饰（§379 已整件退役）」
             // 的 DragGesture(0) 在 SwiftUI ScrollView 里落
             // 指即识别、抢走滚动序列，行面全死（§363 四格
             // 矩阵）；Button 反馈由系统供、与滚动及长按菜

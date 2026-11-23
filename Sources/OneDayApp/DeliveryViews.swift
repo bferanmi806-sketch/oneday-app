@@ -96,66 +96,70 @@ struct DeliveryImageView: View {
     private var displayImage: UIImage? { cover ?? thumb }
 
     var body: some View {
-        Group {
-            if !hasSnapshots
-                || (snapshotsSettled && displayImage == nil) {
-                // 无快照/快照全取不到：原图管线兜底
-                ServerRemoteImage(path: meta.path)
-            } else if let displayImage {
-                let sizingBase = meta.imagePixelSize
-                    ?? displayImage.size
-                let cardSize = ChatImageSizing.cardSize(
-                    for: sizingBase
-                )
-                let fittedSize = ChatImageSizing.fittedSize(
-                    for: displayImage.size,
-                    in: cardSize
-                )
-                ZStack {
-                    Image(uiImage: displayImage)
-                        .resizable()
-                        .frame(
-                            width: fittedSize.width,
-                            height: fittedSize.height
-                        )
-                }
-                .frame(
-                    width: cardSize.width,
-                    height: cardSize.height
-                )
-                .background(
-                    Palette.bubbleFill,
-                    in: RoundedRectangle(
-                        cornerRadius: OneDayMetrics.radiusCard
+        // §379：原「点按手势＋自研按压修饰」迁原生
+        // Button＋.odPressable（清点 #22 整件退役）；
+        // 无障碍语义改由真 Button 承载
+        Button {
+            onOpen()
+        } label: {
+            Group {
+                if !hasSnapshots
+                    || (snapshotsSettled && displayImage == nil) {
+                    // 无快照/快照全取不到：原图管线兜底
+                    ServerRemoteImage(path: meta.path)
+                } else if let displayImage {
+                    let sizingBase = meta.imagePixelSize
+                        ?? displayImage.size
+                    let cardSize = ChatImageSizing.cardSize(
+                        for: sizingBase
                     )
-                )
-                .clipShape(
+                    let fittedSize = ChatImageSizing.fittedSize(
+                        for: displayImage.size,
+                        in: cardSize
+                    )
+                    ZStack {
+                        Image(uiImage: displayImage)
+                            .resizable()
+                            .frame(
+                                width: fittedSize.width,
+                                height: fittedSize.height
+                            )
+                    }
+                    .frame(
+                        width: cardSize.width,
+                        height: cardSize.height
+                    )
+                    .background(
+                        Palette.bubbleFill,
+                        in: RoundedRectangle(
+                            cornerRadius: OneDayMetrics.radiusCard
+                        )
+                    )
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: OneDayMetrics.radiusCard
+                        )
+                    )
+                } else {
+                    // 快照在路上：§130 占位卡同高，不跳动
                     RoundedRectangle(
                         cornerRadius: OneDayMetrics.radiusCard
                     )
-                )
-            } else {
-                // 快照在路上：§130 占位卡同高，不跳动
-                RoundedRectangle(
-                    cornerRadius: OneDayMetrics.radiusCard
-                )
-                .fill(Palette.bubbleFill)
-                .frame(
-                    width: ChatImageSizing.placeholderCardSize.width,
-                    height: ChatImageSizing.placeholderCardSize.height
-                )
-                .overlay { ProgressView() }
+                    .fill(Palette.bubbleFill)
+                    .frame(
+                        width: ChatImageSizing.placeholderCardSize.width,
+                        height: ChatImageSizing.placeholderCardSize.height
+                    )
+                    .overlay { ProgressView() }
+                }
             }
         }
-        .onTapGesture { onOpen() }
-        .odPressFeedback()
+        .buttonStyle(.odPressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             A11yText.imageLabel(fileName: meta.name)
         )
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint(L10n.string("查看大图"))
-        .accessibilityAction { onOpen() }
         .task(id: meta.id) { await loadSnapshots() }
     }
 
