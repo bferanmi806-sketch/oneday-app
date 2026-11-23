@@ -41,7 +41,7 @@ final class ChatQueueSendPinTests: XCTestCase {
         }
     }
 
-    private var window: UIWindow?
+    private var window: DeviceWindow!
     private let swiftDataMount = SwiftDataTestMount()
     private weak var ledgerStore: RunLedgerStore?
     private var ledgerThreadIDs: [UUID] = []
