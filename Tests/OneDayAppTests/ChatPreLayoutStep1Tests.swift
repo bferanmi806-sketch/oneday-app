@@ -304,11 +304,12 @@ final class ChatPreLayoutStep1Tests: XCTestCase {
         )
         // 预定高：nativeEntryRow 就地量测闸
         // §409 步 A：nativeLiveRow 本体已删，段终点
-        // 锚改 kick 函数（步 C 删 kick 时再换锚）
+        // 锚改 kick 函数；步 C：kick 亦删，再换锚
+        // fileChipStackEstimate
         let entryRowSeg = try segment(
             chatView,
             from: "private func nativeEntryRow",
-            to: "private func kickStreamingBlockProducts"
+            to: "private func fileChipStackEstimate"
         )
         XCTAssertTrue(
             entryRowSeg.contains("urgentHeight = rowMeasureDesk.measureNow("),

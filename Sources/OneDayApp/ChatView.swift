@@ -2610,16 +2610,6 @@ struct ChatView: View {
             }
             feedAwayUnread()
         }
-        // §409 步 B：流式跟随（节流闸＋结算挂账）已
-        // 退役——生成期无逐字生长，跟随只剩条目数变
-        // 化口的通则（在底＋条目变→贴底，见上方
-        // onChange(sortedEntries.count)）；本口暂留
-        // 块催产一职，步 C 随链整口退役
-        .onChange(of: streamingText) { _, newText in
-            if let newText {
-                kickStreamingBlockProducts(for: newText)
-            }
-        }
         .onChange(of: sendPinToken) { _, _ in
             awayUnread.noteOwnSend(
                 entryIDs: currentThread?.sortedEntries.map(\.id) ?? []
@@ -3832,50 +3822,6 @@ struct ChatView: View {
             )
         }
     }
-
-    /// 块产物催产（StreamPublishGate 消费端切换
-    /// 的落点）：发布文本每变一拍，缺产物的文本
-    /// 块经产物服务异步补产（派生 id 入同一缓
-    /// 存）——闭合块内容冻结、补产一次后恒命中，
-    /// 每拍新增催产只剩尾块（单拍成本有界的执
-    /// 行侧）；只在新承载＋新路时工作，旧路不产。
-    /// §293（R2）：原生面恒走块级路径（不设 gen4
-    /// 关回落），其在场本身即催产资格。§374.9（步
-    /// 骤 6）：旧承载退役后原生面恒在场，原承载放
-    /// 行条件（(gen3＋gen4)∨原生）整删——本路恒开
-    private func kickStreamingBlockProducts(for text: String) {
-        let style = LayoutStyleContext(
-            sizeCategory: dynamicTypeSize.contentSizeCategory,
-            boldText: UIAccessibility.isBoldTextEnabled
-        )
-        let textWidth = UIScreen.main.bounds.width
-            - OneDayMetrics.bubblePaddingH * 2
-            - OneDayMetrics.bubbleSideInset
-        for block in StreamingBlockSegmenter.blocks(for: text)
-        where block.isTextual {
-            let key = StreamingBlockIdentity.productKey(
-                for: block, width: Double(textWidth),
-                style: style.coreKey
-            )
-            guard LayoutProductStore.cache.product(for: key)
-                == nil
-            else { continue }
-            let entryID = StreamingBlockIdentity.entryID(
-                for: block
-            )
-            let source = block.sourceText
-            Task {
-                _ = await LayoutProductService.shared.product(
-                    entryID: entryID, renderedText: source,
-                    isUser: false, width: textWidth, style: style
-                )
-            }
-        }
-    }
-
-
-
-
 
     /// 文件牌组估算高（§320）：托管行用户泡下方
     /// FileChip 卡组的占位高。几何与 FileChip 本
