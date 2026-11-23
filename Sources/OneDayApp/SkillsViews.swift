@@ -39,10 +39,7 @@ struct SkillsView: View {
                                     .foregroundStyle(Palette.inkSecondary)
                             }
                             Spacer(minLength: OneDayMetrics.spacingS)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                                .foregroundStyle(Palette.inkMuted)
-                                .accessibilityHidden(true)
+                            DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         }
                         .contentShape(Rectangle())
                     }
@@ -155,10 +152,7 @@ struct SkillsView: View {
                         }
                     }
                     Spacer(minLength: OneDayMetrics.spacingS)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                        .foregroundStyle(Palette.inkMuted)
-                        .accessibilityHidden(true)
+                    DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 }
                 .contentShape(Rectangle())
             }

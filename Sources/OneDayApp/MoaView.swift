@@ -176,9 +176,7 @@ struct MoaView: View {
                         .foregroundStyle(Palette.danger)
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(Palette.inkMuted)
+                DisclosureChevron(font: .caption)
             }
             Text("参考 \(preset.referenceModels.count) 个 · 汇总：\(preset.aggregator.model.isEmpty ? "未选" : preset.aggregator.model)")
                 .font(.footnote)
@@ -327,9 +325,7 @@ struct MoaPresetEditor: View {
                 Text(slot.wrappedValue.model.isEmpty ? "未选" : slot.wrappedValue.model)
                     .foregroundStyle(Palette.inkSecondary)
                     .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(Palette.inkMuted)
+                DisclosureChevron(.upDown, font: .caption2)
             }
         }
         TextField("服务商（如 custom、openrouter）", text: slot.provider)

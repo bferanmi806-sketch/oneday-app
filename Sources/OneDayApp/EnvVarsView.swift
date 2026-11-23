@@ -123,10 +123,7 @@ struct EnvVarsView: View {
                 // inkSecondary
                 .foregroundStyle(Palette.inkSecondary)
                 .lineLimit(1)
-            Image(systemName: "chevron.right")
-                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                .foregroundStyle(Palette.inkMuted)
-                .accessibilityHidden(true)
+            DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
         }
         .padding(.horizontal, OneDayMetrics.spacingM)
         .padding(.vertical, OneDayMetrics.spacingS)

@@ -855,10 +855,7 @@ struct FilesBrowserView: View {
                 ForEach(Array(crumbs.enumerated()), id: \.element.id) {
                     index, crumb in
                     if index > 0 {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10))
-                            .foregroundStyle(Palette.inkMuted)
-                            .accessibilityHidden(true)
+                        DisclosureChevron(font: .system(size: 10))
                     }
                     Button {
                         currentPath = crumb.path
@@ -1103,10 +1100,7 @@ struct FileBrowserRow: View {
                     .foregroundStyle(Palette.inkMuted)
                     .accessibilityLabel("受保护文件")
             } else {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: 13, weight: .regular))
             }
         }
         .padding(.horizontal, OneDayMetrics.spacingM)

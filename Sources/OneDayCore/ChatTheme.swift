@@ -61,6 +61,12 @@ public struct ChatTheme: Equatable, Identifiable, Sendable {
 public enum ChatThemes {
     public static let defaultID = "sangou"
 
+    // §431（2026-11-24，主题对位包）：七款非默认主题的
+    // bubbleLight 已按参照应用（Muse）外观页真机截图
+    // 工具采样逐值对齐（色板圆心采样，见 DESIGN §431
+    // 参照色表与差异表）；默认款三狗 C8E7FF 为定版锚
+    // 不动。bubbleDark／字色／accent／tint 无参照据、
+    // 全部不动（参照应用深色面无采样样本，不许编）。
     public static let all: [ChatTheme] = [
         ChatTheme(
             id: "sangou", displayName: "三狗",
@@ -83,7 +89,7 @@ public enum ChatThemes {
         ),
         ChatTheme(
             id: "iceBlue", displayName: "浅蓝",
-            bubbleLight: 0xD9EEFC, bubbleDark: 0x1D5FA8,
+            bubbleLight: 0xCBE5FE, bubbleDark: 0x1D5FA8,
             bubbleTextLight: 0x14324E, bubbleTextDark: 0xFFFFFF,
             // 2026-11-15（第 85 条收口复核追加）：旧值
             // 0x1F6FC4 压助手泡面 #EEEEF0 实算 4.39 同
@@ -96,7 +102,7 @@ public enum ChatThemes {
         ),
         ChatTheme(
             id: "obsidian", displayName: "曜黑",
-            bubbleLight: 0x23272B,
+            bubbleLight: 0x000000,
             // 台账 188 定版（2026-11-20）：旧值
             // 0x2C3138 对暗页底（#000000）实算仅
             // 1.60——台账既有留账「曜黑 bubbleDark
@@ -114,14 +120,14 @@ public enum ChatThemes {
         ),
         ChatTheme(
             id: "greige", displayName: "米灰",
-            bubbleLight: 0xE7DED2, bubbleDark: 0x6B5B45,
+            bubbleLight: 0xE4DAD1, bubbleDark: 0x6B5B45,
             bubbleTextLight: 0x46392A, bubbleTextDark: 0xFFF7EA,
             accentLight: 0x84643F, accentDark: 0xC9A87C,
             tintLight: 0xF4EEE5, tintDark: 0x262019
         ),
         ChatTheme(
             id: "skyBlue", displayName: "天蓝",
-            bubbleLight: 0xA9D6F8, bubbleDark: 0x1663AC,
+            bubbleLight: 0xB8DAFD, bubbleDark: 0x1663AC,
             bubbleTextLight: 0x103A5E, bubbleTextDark: 0xFFFFFF,
             // 0.41.0（浅档专项，§66.1 候选 (a)）：同色
             // 相加深一档 0x0B74BC→0x0A6BAE（对 tint-
@@ -131,21 +137,21 @@ public enum ChatThemes {
         ),
         ChatTheme(
             id: "lavender", displayName: "浅紫",
-            bubbleLight: 0xDCD2F5, bubbleDark: 0x5E4FA3,
+            bubbleLight: 0xDBC6F1, bubbleDark: 0x5E4FA3,
             bubbleTextLight: 0x3B2A63, bubbleTextDark: 0xFFFFFF,
             accentLight: 0x6440C8, accentDark: 0xA78BFA,
             tintLight: 0xF0EEFA, tintDark: 0x221F31
         ),
         ChatTheme(
             id: "pink", displayName: "粉",
-            bubbleLight: 0xFBD3E4, bubbleDark: 0x9E3565,
+            bubbleLight: 0xFDB9DE, bubbleDark: 0x9E3565,
             bubbleTextLight: 0x6E2147, bubbleTextDark: 0xFFFFFF,
             accentLight: 0xBC3A78, accentDark: 0xF28BBD,
             tintLight: 0xFDEDF4, tintDark: 0x2C1A22
         ),
         ChatTheme(
             id: "peach", displayName: "蜜桃",
-            bubbleLight: 0xFBE0C3, bubbleDark: 0x9E5A1C,
+            bubbleLight: 0xFFD7B5, bubbleDark: 0x9E5A1C,
             bubbleTextLight: 0x65350F, bubbleTextDark: 0xFFFFFF,
             // 0.41.0（浅档专项，§66.1 候选 (a)）：同色
             // 相加深一档 0xAC5A12→0xA55611（对 tint-
@@ -183,8 +189,8 @@ public enum ChatThemes {
 /// 188 的「饱和实填＋白字」浅档半边自本版退役。
 /// 逐款定值与实算对比由 ChatThemeTests 对比闸⑦
 /// （197 改判口径）钉住：泡字/泡全款 ≥4.5（浅
-/// 7.64–15.04／暗 4.87–6.72）、浅填款泡/页
-/// ∈[1.10,1.60]（1.16–1.50）、深泡款曜黑浅档
+/// 6.68–13.84／暗 4.87–6.72）、浅填款泡/页
+/// ∈[1.10,1.60]（1.27–1.55）、深泡款曜黑浅档
 /// 豁免带只守字闸、暗档泡/页 ≥2.9 维持（3.12–
 /// 4.32），2026-11-21 逐值实算。
 extension ChatTheme {

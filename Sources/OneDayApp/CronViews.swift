@@ -32,10 +32,7 @@ struct CronJobsView: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
             Spacer(minLength: OneDayMetrics.spacingS)
-            Image(systemName: "chevron.right")
-                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                .foregroundStyle(Palette.inkMuted)
-                .accessibilityHidden(true)
+            DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
         }
         .contentShape(Rectangle())
         .padding(.horizontal, OneDayMetrics.spacingM)
@@ -235,10 +232,7 @@ struct CronJobsView: View {
                 Text(job.enabled ? "启用" : "已暂停")
                     .font(.footnote)
                     .foregroundStyle(job.enabled ? Palette.successText : Palette.inkSecondary)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
             }
             .padding(.horizontal, OneDayMetrics.spacingM)
             .padding(.vertical, OneDayMetrics.spacingS)
@@ -540,10 +534,7 @@ struct CronJobDetailView: View {
                         .foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
             }
             .padding(.horizontal, OneDayMetrics.spacingM)
             .padding(.vertical, OneDayMetrics.spacingS)

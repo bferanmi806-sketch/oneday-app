@@ -124,10 +124,7 @@ struct IdentityDetailView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: FrameworkIcon.composerGlyphSize))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: FrameworkIcon.composerGlyphSize))
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())
@@ -148,10 +145,7 @@ struct IdentityDetailView: View {
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.ink)
                     Spacer(minLength: OneDayMetrics.spacingS)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: FrameworkIcon.composerGlyphSize))
-                        .foregroundStyle(Palette.inkMuted)
-                        .accessibilityHidden(true)
+                    DisclosureChevron(font: .system(size: FrameworkIcon.composerGlyphSize))
                 }
                 .frame(minHeight: OneDayMetrics.settingsRowHeight)
                 .contentShape(Rectangle())

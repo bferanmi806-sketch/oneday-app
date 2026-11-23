@@ -818,9 +818,7 @@ private struct NotificationDetailView: View {
                     .font(.rowSubtitle)
                     .foregroundStyle(Palette.ink)
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
+                DisclosureChevron(font: .system(size: FrameworkIcon.miniGlyphSize, weight: .regular))
             }
             .padding(OneDayMetrics.spacingSM)
             .frame(minHeight: OneDayMetrics.minTapTarget)

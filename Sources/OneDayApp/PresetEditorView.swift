@@ -183,9 +183,7 @@ struct PresetEditorView: View {
                     .font(.callout)
                     .foregroundStyle(Palette.primary)
                     .lineLimit(1)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.caption2)
-                    .foregroundStyle(Palette.inkSecondary)
+                DisclosureChevron(.upDown, font: .caption2)
             }
             .contentShape(Rectangle())
         }

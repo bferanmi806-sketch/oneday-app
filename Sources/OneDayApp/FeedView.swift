@@ -381,10 +381,7 @@ struct FeedView: View {
                         // 情此前与正文同貌无任何指示，补行尾
                         // 弱色 chevron；VO 侧本有 .isButton＋
                         // accessibilityAction、不受影响
-                        Image(systemName: "chevron.right")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Palette.inkMuted)
-                            .accessibilityHidden(true)
+                        DisclosureChevron(font: .caption2.weight(.semibold))
                     }
                     .contentShape(Rectangle())
                 }
@@ -1090,9 +1087,7 @@ struct FeedSourcesSheet: View {
                                         Text(type.label)
                                             .foregroundStyle(Palette.bodyInk)
                                         Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption2.weight(.semibold))
-                                            .foregroundStyle(Palette.inkSecondary)
+                                        DisclosureChevron(font: .caption2.weight(.semibold))
                                     }
                                 }
                                 .buttonStyle(.plain)

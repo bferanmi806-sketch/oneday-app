@@ -284,10 +284,7 @@ struct ConnectorsView: View {
                     }
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .footnote.weight(.semibold))
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())
@@ -473,9 +470,7 @@ struct ConnectorsView: View {
                     .lineLimit(1)
             }
             Spacer(minLength: OneDayMetrics.spacingS)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Palette.inkSecondary)
+            DisclosureChevron(font: .footnote.weight(.semibold))
         }
         .frame(minHeight: OneDayMetrics.settingsRowHeight)
         .contentShape(Rectangle())
@@ -515,10 +510,7 @@ struct ConnectorsView: View {
             }
             Spacer(minLength: OneDayMetrics.spacingS)
             if chevron {
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .footnote.weight(.semibold))
             }
         }
         .frame(minHeight: OneDayMetrics.settingsRowHeight)
@@ -613,10 +605,7 @@ struct ConnectorsView: View {
                     }
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .footnote.weight(.semibold))
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())
@@ -1164,10 +1153,7 @@ struct ConnectorsView: View {
                     .font(.rowTitleL)
                     .foregroundStyle(Palette.ink)
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .footnote.weight(.semibold))
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())

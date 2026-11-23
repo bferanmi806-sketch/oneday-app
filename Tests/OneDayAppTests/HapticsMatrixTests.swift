@@ -131,8 +131,14 @@ final class HapticsMatrixTests: XCTestCase {
         // （5→6），与 testSendActionHasLightImpact 的
         // ChatView 内计数同源（2→3）
         XCTAssertEqual(count(of: "Haptics.impact(.light)", in: all), 6)
+        // §431（2026-11-24）：外观页四组选择行新增
+        // 声明式 selection（主题／模式／语言／形象
+        // 大小），3→7；同包声明式 impact 首落点＝1
+        // （外观页形象大小 Menu 点开，见下断言）
         XCTAssertEqual(
-            count(of: ".sensoryFeedback(.selection", in: all), 3)
+            count(of: ".sensoryFeedback(.selection", in: all), 7)
+        XCTAssertEqual(
+            count(of: ".sensoryFeedback(.impact", in: all), 1)
         XCTAssertEqual(
             count(of: ".sensoryFeedback(.success", in: all), 3)
         // 封装外禁止直调生成器（Haptics.swift 本体已剔除）

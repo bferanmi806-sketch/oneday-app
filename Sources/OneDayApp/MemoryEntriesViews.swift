@@ -277,10 +277,7 @@ struct MemoryEntriesSection: View {
             if store.hasPendingOperation(entry) {
                 statusChip("待审批")
             }
-            Image(systemName: "chevron.right")
-                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
-                .foregroundStyle(Palette.inkMuted)
-                .accessibilityHidden(true)
+            DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
         }
         .padding(.horizontal, OneDayMetrics.spacingM)
         .padding(.vertical, OneDayMetrics.spacingS)

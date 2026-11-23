@@ -1499,10 +1499,7 @@ struct ContactsDetailView: View {
                                 }
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Palette.inkSecondary)
-                                .accessibilityHidden(true)
+                            DisclosureChevron(font: .footnote.weight(.semibold))
                         }
                         .frame(
                             minHeight: OneDayMetrics.settingsRowHeight
@@ -1928,10 +1925,7 @@ struct FilesDetailView: View {
                         .foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .footnote.weight(.semibold))
             }
             .frame(minHeight: OneDayMetrics.settingsRowHeight)
             .contentShape(Rectangle())
@@ -2225,14 +2219,7 @@ struct OpenTargetDetailView: View {
                             .foregroundStyle(
                                 Palette.inkSecondary
                             )
-                            Image(systemName: "chevron.right")
-                                .font(
-                                    .footnote.weight(.semibold)
-                                )
-                                .foregroundStyle(
-                                    Palette.inkSecondary
-                                )
-                                .accessibilityHidden(true)
+                            DisclosureChevron(font: .footnote.weight(.semibold))
                         }
                         .frame(
                             minHeight: OneDayMetrics

@@ -210,6 +210,43 @@ public struct StatusDot: View {
 }
 
 /// 内容行：图标槽 28 等宽一列、标题＋副题、右侧安静的等宽元信息。
+/// 行尾披露箭头共用件（§431，2026-11-24 主题对位包）：
+/// 参照应用设置行展开箭头的「半透明感」来自系统次级
+/// 色＋SF Symbol hierarchical 渲染——单层符号呈
+/// secondary、双层符号（上下双箭）次层自动更淡。全仓
+/// 行尾附件箭头一律走本件收口，不许再逐页手写
+/// Image＋灰阶前景；字号由调用点以 font 声明（各行
+/// 既有字阶不漂移）。装饰件、对读屏隐藏。
+public struct DisclosureChevron: View {
+    public enum Glyph {
+        case right
+        case upDown
+
+        var systemName: String {
+            switch self {
+            case .right: return "chevron.right"
+            case .upDown: return "chevron.up.chevron.down"
+            }
+        }
+    }
+
+    private let glyph: Glyph
+    private let font: Font
+
+    public init(_ glyph: Glyph = .right, font: Font) {
+        self.glyph = glyph
+        self.font = font
+    }
+
+    public var body: some View {
+        Image(systemName: glyph.systemName)
+            .font(font)
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+    }
+}
+
 public struct ContentRow: View {
     private let icon: String?
     private let title: String
@@ -891,10 +928,7 @@ public struct UnifiedRow: View {
                 StatusDot(color: statusColor)
             }
             if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: 13, weight: .regular))
             }
         }
         .padding(.horizontal, OneDayMetrics.spacingM)
