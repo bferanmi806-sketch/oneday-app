@@ -15345,3 +15345,40 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §380 文件预览双轨合一·现行树复核与残余收口（2026-11-23；分支 feat/file-preview-quicklook，基线 rel-05098 @3f9598f；待办总表第 70 条）
+
+**缘起与口径**：第 70 条本体已由 §271（2026-11-14，0.50.50 出货）执行——自研阅读轨（DocumentReaderView/SpreadsheetReaderView＋伴生转码呈现）整轨退役、主链收成 QuickLook 单轨；总表第 70 条未划线、2026-11-23 全域复核误标「无落码证据」，本节以现行树（rel-05098）全量普查复核 §271 后的真实形态，并收口其后新长出的两处绕门点。图片查看器（ImageViewerView/ZoomHostingController 一线）是已定版自研面、不在本条范围（任务书明示），只登记不碰。
+
+**普查表（现行树全入口，逐点点名）**：
+
+| # | 入口 | 现行走法 | 判定 |
+|---|---|---|---|
+| P1 | 聊天文件牌（FileChip/AssistantFileChip/BarePathFileCard → ChatView.openFile → FileOpenView 中间页） | 图片直达查看器；其余经 Core FileOpenRoute 单表 → 取字节落盘 → canPreview 资格门 → QuickLookHostView（共用 QuickLookPreview 承载）＋工具栏 readingActions（分享/下载/复制文字/导出 PDF） | 单轨 ✓ 不动 |
+| P2 | 文件页 FilesView（行点按 navigationDestination） | 图片直达查看器（集合翻页）；其余 FileOpenContent 中间页（与 P1 同壳同表） | 单轨 ✓ 不动 |
+| P3 | 资料库 DeliverablesView（openEntry 分流） | 图片直达查看器；其余（含视频）FileOpenContent 中间页 | 单轨 ✓ 不动 |
+| P4 | 文件打开页内嵌防御落点（FileOpenContent route=.imageViewer） | ImageViewerView 单图 | 查看器线（范围外） |
+| P5 | 盒文件 BoxFilesView → DataFilePreviewView（字节直读） | 图片→查看器；其余落临时文件**直呈 QuickLookPreview、不验资格**，QL 分支只有文件名栏＋「关闭」、无分享/保存兜底 | **双轨残余·收口（见下 R1）** |
+| P6 | 设备工具 file_preview（FilePresenceEngine.preview → DeviceFilePresenceBridge.presentPreview） | 沙箱文件 URL 命令式呈 QLPreviewController；urlForPreview 只验存在/非目录、**无资格门**（同文件 print 路有 canPrint 门、preview 独缺） | **双轨残余·收口（见下 R2）**；呈现桥本体为例外 E2 |
+| P7 | 设备工具 file_print | UIPrintInteractionController 系统打印面＋canPrint 门 | 系统面 ✓ 不动 |
+| P8 | 缩略图 FileThumbnailStore（QLThumbnailing＋originalLoader/renditionLoader 双路 loader） | 系统缩略图通道＋服务端变体 | 非预览（§271 已登记不动），例外 E5 |
+| P9 | 复制文字/导出 PDF（FileTextExtractor/DocumentReading 块模型/DocumentPDFExporter） | 打开页/QL 承载面/文件牌/资料库四处动作消费 | 动作非预览（§271 保留定案），例外 E6 |
+| P10 | 无预览三态（FileOpenRoute .infoOnly/.saveOnly/.locked） | QL 能力外（.other 降级说明行＋分享/下载）、压缩包保存、敏感锁定 | 设计内无预览态、非双轨，例外 E4 |
+
+**残余收口（本包落码）**：
+- R1（P5）：DataFilePreviewView 落盘后先验 ChatFilePreviewItem.canPreview——可预览才进 QL 承载；不可预览落「不支持预览」态（人话说明＋「分享/保存」兜底：已取字节写 FileShareItem 出 FileShareSheet，与主链 .failed(.unsupportedType)＋failureActions 的口径对齐），不再硬呈 QL 空白死页（§121 明令禁的失败形态）。壳本身保留（例外 E3）。
+- R2（P6）：FilePresenceEngine.preview 呈桥前补资格门（QLPreviewController.canPreview，与 print 的 canPrint 门同式同位），不过即抛 DeviceToolError.failed 人话（「这个文件手机预览不了：<路径>」），不硬呈空白页。呈现桥本体不动。
+
+**例外点名（保留，逐点理由）**：
+- E1 图片→ImageViewerView 自研查看器：已定版自研面，任务书明示不在本条范围。
+- E2 DeviceFilePresenceBridge 的命令式 QLPreviewController 呈现：设备工具执行器无 SwiftUI 宿主、且需 DidDismiss→continuation 的完成语义，无法共用 QuickLookPreview（UIViewControllerRepresentable）；与主链同为 QLPreviewController 原生本体，非渲染双轨。
+- E3 DataFilePreviewView 壳：盒文件字节源是电脑桥 loadData 闭包、非服务器文件链（FileOpenContent 恒走 Hermes 服务端 fileData 取字节、无注入口），无法直迁中间页；壳内 QL 承载已共用 QuickLookPreview 组件，本包补齐资格门＋兜底后行为口径与主链一致。
+- E4 无预览三态：QL 能力外与敏感策略的设计内落点，非双轨。
+- E5 缩略图双路 loader：缩略图非预览，§271 登记不动。
+- E6 复制文字/导出 PDF：动作非预览，§271 保留定案；DocumentReading 块模型现唯一消费方即导出 PDF。
+
+**行为面对齐核对**：P1–P3 的打开/分享/下载/复制文字/导出 PDF/删除/置顶/改名动作集走 FileActionPolicy 单源、本包零触碰；R1 新增的只是盒文件 QL 不可预览时的兜底出口（分享/保存＋关闭），原有「关闭」与图片路不变；R2 只在原本必现空白页的入参上改报人话错误，工具回执形态（viewed/path/humanSummary）不变。
+
+**结构钉测（新套 FilePreviewSingleTrackStructureTests）**：①退役符号禁词普查（DocumentReaderView/SpreadsheetReaderView/BridgeSpreadsheet/opensInReader/isSpreadsheet 在 App/Core 生产代码行零残留）；②QLPreviewController 构造点普查只许两处文件（RichContentViews.swift＝QuickLookPreview 共用组件、DeviceEverydayExecutors.swift＝例外 E2 呈现桥）；③盒文件资格门与分享兜底在场（BoxFilesView 切片断言 canPreview＋FileShareSheet）；④设备工具 preview 资格门在场（DeviceEverydayExecutors 切片断言 QLPreviewController.canPreview）。
+
+**回归记账**：（定稿回填）
