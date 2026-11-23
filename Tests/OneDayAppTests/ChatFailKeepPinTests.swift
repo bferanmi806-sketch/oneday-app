@@ -227,6 +227,12 @@ final class ChatFailKeepPinTests: XCTestCase {
     /// key 重演循环（600s 截止），账本恒在位；此间
     /// drain 不许动已落位的待发条目——无自动尝试
     /// 记账、待发身份与序位一字不动
+    /// §451 注记：提交已与账本解耦，「账本门」口
+    /// 径作废（新条目照常提交、服务端 FIFO 排
+    /// 班，见 ChatQueueSendPinTests 钉二改写）；
+    /// 本钉两断言在新机制下仅剩存储面意义（首投
+    /// 不记自动尝试＋未受理失败保待发标记），不
+    /// 再证明「未被派发」——派发与否以钉二为准
     func testPendingEntryHeldWhileLedgerStale() async throws {
         let container = try makeContainer()
         let (thread, pendingID) = try seedPendingScene(
@@ -285,14 +291,12 @@ final class ChatFailKeepPinTests: XCTestCase {
         )
         await mountRoot(container: container, appState: appState)
 
-        let attempted = await pollUntil(seconds: 10) {
-            (appState.outboxRetry.record(for: pendingID)?
-                .attempts ?? 0) >= 1
-        }
-        XCTAssertTrue(
-            attempted, "账本落定后发件箱未派发待发条目"
-        )
-        let landedFailed = await pollUntil(seconds: 10) {
+        // §451 记账口径：提交泵首投不记自动尝试
+        // （OutboxAutoRetryPolicy 本义「首发不算
+        // 自动重试」，§419 drain 经重发口记账的旧
+        // 探针自此失效）——派发探针改看失败落点
+        // 本身：派发真跑到未受理失败、原位落失败态
+        let landedFailed = await pollUntil(seconds: 15) {
             (try? readEntries(
                 in: container, threadID: thread.id
             ))?.first { $0.id == pendingID }?.sendFailed
@@ -300,7 +304,7 @@ final class ChatFailKeepPinTests: XCTestCase {
         }
         XCTAssertTrue(
             landedFailed,
-            "待发条目派发后未在原位落失败态（派发未真跑）"
+            "账本落定后发件箱未派发待发条目（派发未真跑到失败落点）"
         )
         let entries = try readEntries(
             in: container, threadID: thread.id
