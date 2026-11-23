@@ -355,7 +355,7 @@ extension HermesError {
              .speechProviderUnavailable, .reactionTargetGone,
              .modelNotUpstream,
              .runBillingExhausted, .runServiceUnavailable,
-             .runTimedOut:
+             .runTimedOut, .pushEndpointNotReady:
             return .server
         case .invalidServerAddress, .cancelled, .demoLimitReached,
              .runFailedGeneric:
