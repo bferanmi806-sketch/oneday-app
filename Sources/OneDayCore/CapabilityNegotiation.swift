@@ -104,6 +104,19 @@ public enum CapabilityNegotiation {
             : .unavailable
     }
 
+    /// #21 设置注册表（AI 自主设置权一期，DESIGN
+    /// §437）：features.settings_registry 布尔旗标——
+    /// 亮＝设置面按注册表渲染、假＝服务端未发布此能
+    /// 力（回落内置目录，非未知）；能力面没取到/旗标
+    /// 缺失＝unknown，消费方同按回落处理（行为不变）
+    public static func settingsRegistryAvailability(
+        _ capabilities: CapabilitiesResponse?
+    ) -> CapabilityAvailability {
+        guard let flag = capabilities?.featureFlag("settings_registry")
+        else { return .unknown }
+        return flag ? .available : .unavailable
+    }
+
     // MARK: - 整表合成
 
     /// 本账四项的整表结论（注册表序）

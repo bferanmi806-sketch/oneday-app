@@ -77,6 +77,7 @@ struct DemoHermesClient: HermesClientProtocol {
     }
 
     func capabilities(config: ServerConfig, apiKey: String) async throws -> CapabilitiesResponse { throw HermesError.demoLimitReached }
+    func settingsRegistry(config: ServerConfig, apiKey: String) async throws -> SettingsRegistryResponse { throw HermesError.demoLimitReached }
     func healthDetailed(config: ServerConfig, apiKey: String) async throws -> HealthDetailedResponse { throw HermesError.demoLimitReached }
 
     /// 演示上游候选（与网关别名 hermes-agent 分开：选择器里

@@ -43,6 +43,13 @@ protocol HermesClientProtocol: Sendable {
     func capabilities(
         config: ServerConfig, apiKey: String
     ) async throws -> CapabilitiesResponse
+    /// GET /v1/settings/registry（Bearer）：设置注册
+    /// 表下发（AI 自主设置权一期，DESIGN §437）——
+    /// 只读端点、无写面；能力位 features.settings_
+    /// registry 亮时才调，拉不到由调用方回落内置目录
+    func settingsRegistry(
+        config: ServerConfig, apiKey: String
+    ) async throws -> SettingsRegistryResponse
     /// GET /health/detailed（Bearer）：深度健康——
     /// readiness 逐项检查＋网关/平台/今日指标
     func healthDetailed(
@@ -1235,6 +1242,16 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         try await bearerGetJSON(
             config: config, apiKey: apiKey, path: "/v1/capabilities",
             endpoint: L10n.string("能力接口")
+        )
+    }
+
+    func settingsRegistry(
+        config: ServerConfig, apiKey: String
+    ) async throws -> SettingsRegistryResponse {
+        try await bearerGetJSON(
+            config: config, apiKey: apiKey,
+            path: "/v1/settings/registry",
+            endpoint: L10n.string("设置注册表接口")
         )
     }
 

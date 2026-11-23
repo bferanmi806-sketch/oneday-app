@@ -82,6 +82,10 @@ struct SettingsView: View {
     @State private var status: ServerStatus?
     @State private var showDisconnectConfirm = false
     @State private var notice: String?
+    /// 设置注册表（§437）：能力位亮且拉到才有值；nil
+    /// ＝回落内置目录（与注册表上线前逐字一致）——注
+    /// 册表是增益不是依赖，失败对用户零感知
+    @State private var settingsRegistry: SettingsRegistryResponse?
 
     private var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -167,6 +171,7 @@ struct SettingsView: View {
             }
             .task {
                 await loadSummaries()
+                await loadSettingsRegistry()
                 // 伴生探测（DESIGN §110）：打开设置时
                 // 节流补探一次——RootView 的登录/前台触
                 // 发是主路，本处保证用户直奔设置时版本
@@ -396,8 +401,12 @@ struct SettingsView: View {
     /// 本组与模型与服务商／定时任务并列直达
     private var agentSection: some View {
         Section {
-            ForEach(SettingsCatalog.browseEntries(in: .agent)) { entry in
-                catalogNavRow(entry)
+            ForEach(
+                SettingsCatalog.effectiveBrowseRows(
+                    in: .agent, registry: settingsRegistry
+                )
+            ) { row in
+                catalogRow(row)
             }
         } header: {
             sectionHeader("智能体")
@@ -417,12 +426,14 @@ struct SettingsView: View {
     /// 收维护段末，确认框与执行口径不变）
     private var serverAndWorkspaceSection: some View {
         ForEach(
-            SettingsCatalog.browseSegments(in: .serverAndWorkspace),
+            SettingsCatalog.effectiveBrowseSegments(
+                in: .serverAndWorkspace, registry: settingsRegistry
+            ),
             id: \.segment
         ) { group in
             Section {
-                ForEach(group.entries) { entry in
-                    browseRow(for: entry)
+                ForEach(group.rows) { row in
+                    browseRow(row)
                 }
                 if group.segment == .maintenance {
                     disconnectRow
@@ -432,6 +443,30 @@ struct SettingsView: View {
             }
             .listRowBackground(Palette.surface)
             .listRowInsets(OneDayMetrics.settingsRowInsets)
+        }
+    }
+
+    /// 有效行分发（§437）：目的地行走既有目录行构建
+    /// （行为不变）、注册表值行走五型通用渲染
+    @ViewBuilder
+    private func catalogRow(_ row: SettingsRowModel) -> some View {
+        switch row {
+        case .destination(let entry):
+            catalogNavRow(entry)
+        case .value(let record):
+            SettingsRegistryRowView(record: record)
+        }
+    }
+
+    /// 有效行分发（服务与工作区分段版，§437）：目的
+    /// 地行走 browseRow(for:) 特型分流、值行同上
+    @ViewBuilder
+    private func browseRow(_ row: SettingsRowModel) -> some View {
+        switch row {
+        case .destination(let entry):
+            browseRow(for: entry)
+        case .value(let record):
+            SettingsRegistryRowView(record: record)
         }
     }
 
@@ -567,8 +602,14 @@ struct SettingsView: View {
     /// 器组同行同口径）
     private var preferencesSection: some View {
         Section {
-            ForEach(SettingsCatalog.browseEntries(in: .preferences)) { entry in
-                if entry.destination == .voice, let voiceAvailabilityWord {
+            ForEach(
+                SettingsCatalog.effectiveBrowseRows(
+                    in: .preferences, registry: settingsRegistry
+                )
+            ) { row in
+                if let entry = row.destinationEntry,
+                   entry.destination == .voice,
+                   let voiceAvailabilityWord {
                     statusNavRow(
                         icon: iconName(for: entry),
                         title: L10n.string(entry.title),
@@ -576,7 +617,7 @@ struct SettingsView: View {
                         route: .voice
                     )
                 } else {
-                    catalogNavRow(entry)
+                    catalogRow(row)
                 }
             }
         } header: {
@@ -599,8 +640,12 @@ struct SettingsView: View {
     /// 见 §164.2 对账）
     private var supportSection: some View {
         Section {
-            ForEach(SettingsCatalog.browseEntries(in: .support)) { entry in
-                catalogNavRow(entry)
+            ForEach(
+                SettingsCatalog.effectiveBrowseRows(
+                    in: .support, registry: settingsRegistry
+                )
+            ) { row in
+                catalogRow(row)
             }
         } header: {
             sectionHeader("支持")
@@ -632,7 +677,9 @@ struct SettingsView: View {
     /// 动作（原型同款）。搜索索引与浏览清单同源
     /// （SettingsCatalog），不另维护第二份
     private var searchSection: some View {
-        let hits = SettingsCatalog.search(searchText)
+        let hits = SettingsCatalog.effectiveSearch(
+            searchText, registry: settingsRegistry
+        )
         return Section {
             if hits.isEmpty {
                 VStack(spacing: OneDayMetrics.spacingS) {
@@ -655,8 +702,13 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, OneDayMetrics.spacingM)
             } else {
-                ForEach(hits) { entry in
-                    searchRow(entry)
+                ForEach(hits) { row in
+                    switch row {
+                    case .destination(let entry):
+                        searchRow(entry)
+                    case .value(let record):
+                        SettingsRegistryRowView(record: record)
+                    }
                 }
             }
         } header: {
@@ -973,6 +1025,23 @@ struct SettingsView: View {
            let loaded = try? await appState.client.status(config: config) {
             status = loaded
         }
+    }
+
+    /// 设置注册表拉取（§437）：能力位不亮／拉不到／
+    /// 解不开一律保持 nil 回落内置目录——注册表是增
+    /// 益不是依赖，失败零感知（判定走能力协商单源）
+    private func loadSettingsRegistry() async {
+        guard let config = appState.config,
+              let apiKey = appState.apiKey,
+              let capabilities = try? await appState.client
+                .capabilities(config: config, apiKey: apiKey),
+              CapabilityNegotiation.settingsRegistryAvailability(
+                  capabilities
+              ) == .available,
+              let registry = try? await appState.client
+                .settingsRegistry(config: config, apiKey: apiKey)
+        else { return }
+        settingsRegistry = registry
     }
 
     // （根页重启执行副本 restartGateway() 已于台账
