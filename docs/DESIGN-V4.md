@@ -15345,3 +15345,33 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §381 点子/目标两店多面私建收口复核（2026-11-23；分支 feat/ideas-goals-store-single，基线 rel-05098 @3f9598f；总表第 75 条）
+
+**§381.1 普查（草案段，施工前实查）**
+
+第 75 条（2026-11-14 枢纽三店包顺藤查出）：IdeasStore/GoalsStore 与 Kanban/Monitors/Ledger 同病——同店多面各建一份、互不相通，照第 68 条（§259 三店合一）先例收成 AppState 共享单例。本次开工普查（rel-05098 树，生产源码 Sources/{OneDayApp,OneDayCore,OneDayDesign} 全域，构造形态＋持有形态双口径）：
+
+| 项 | IdeasStore | GoalsStore |
+|---|---|---|
+| 定义点 | IdeasStore.swift:22 一份 | GoalsStore.swift:15 一份 |
+| 生产构造点 | **仅 1 处**：AppState.swift:465，位于 sharedIdeasStore() 懒建单例内 | **仅 1 处**：AppState.swift:472，位于 sharedGoalsStore() 懒建单例内 |
+| 单例形态 | private var ideasStoreInstance＋懒建访问器，与 §259 三店逐字同构（AppState.swift:458–467 注记在册） | private var goalsStoreInstance＋懒建访问器，同左（AppState.swift:458–474） |
+| 消费面（计算属性直取共享单例） | IdeasView.store、FeedView.ideasStore、GoalDetailView.ideasStore（3 面） | GoalsView.store、FeedView.goalsStore（2 面） |
+| 透传子视图（let store 入参） | IdeaDetailView、IdeaCreateView（2 件） | GoalDetailView、GoalEditView、GoalCreateView、GoalDelegateView、GoalRowView、GoalBriefingsView、GoalBriefingLetterView（7 件）——全部实例化点实参逐一回溯，均源自上行计算属性，无一自建 |
+| 其他私建形态 | @StateObject/@ObservedObject 店型私建 0；#Preview 构造 0；typealias/子类/静态 shared/environmentObject 注入 0 | 同左 |
+
+与第 68 条三店对照：收口前 Kanban 5 份/Monitors 3 份/Ledger 2 份 → §259 收成 AppState 单例；两店收口后形态与之完全一致（同文件、同懒建形态、两店 load 均有在飞守卫、多面同呼安全）。
+
+**历史对账**：第 75 条登记时（2026-11-14）两店为四面 5 处 @State 私建；其实质收口已由 **§339 条 4（台账 199 全 App 收敛，2026-11-21，随 0.50.81 出货）** 按 §259 先例完成——「四面 5 处 @State 私建全删、改计算属性消费共享单例」，总表第 75 条未及划账、且此后**无任何钉测引用两访问器**（Tests 全域 grep sharedIdeasStore/sharedGoalsStore 零命中），单源形态无回归把守。本包余事据此定为：①普查定案（本节）②新增结构钉测把守单源形态（构造点单源＋访问器形态＋消费面口径）③第 75 条关账记账。**生产代码零改动**——呈现口径与行为语义本就未变，不为凑 diff 动代码。
+
+测试侧构造 16 处/5 文件（CacheFreshnessGateC1Tests 2、IdeasDeleteConfirmTests 3、GoalsTailAppTests 6、MutationOptimisticTests 5）：单测隔离实例（client 可注入），非 App 面私建，与三店先例同口径，不在收口范围。
+
+（回归数与关账结论见 §381.2，跑完回填。）
+
+**§381.2 定稿记账（回归与关账）**
+
+- 落码：新增结构钉测 Tests/OneDayAppTests/StoresSingleSourceStructureTests.swift（3 项）——①构造点单源（生产源码代码行普查：IdeasStore/GoalsStore 裸构造各恰 1 处且只在 AppState.swift，其余文件零命中；文件数下限防空过）②AppState 单例形态在场（两实例槽＋两 shared 访问器）③消费面口径（IdeasView/GoalsView/FeedView/GoalDetailView 经 shared 访问器取店）。**生产代码零改动**，总 diff＝DESIGN 本节＋新钉测 1 文件。
+- 回归（ProbePhone 50C1A6D5-96A6-408F-82E1-FCEB1A42C419，发布集口径）：名单＝Test-OneDayApp-rel05098 bundle 以 xcresulttool 提取全限定名 97 套 817 项＋新套 StoresSingleSourceStructureTests 3 项，预期 98 套 820 项 → 实跑 **820/820 全绿、0 红、0 跳过**（run Test-OneDayApp-stores-single，xcresulttool 本体逐套对账一致），新红零。聚焦轮先行 69/69（新钉测 3＋IdeasDeleteConfirm/GoalsTailApp/CacheFreshnessGateC1/MutationOptimistic/FeedIdeasParity/StoreLoadState/GoalsTail＋S371/S373）；S371/S373 在发布集内同绿，chatScaffold 根链零触碰（本包未动 ChatView）。
+- 关账：第 75 条关账——私建点数＝**0**（生产构造点仅 AppState 单例内 2 处），收口形态与第 68 条三店先例一致；实质收口归 §339 条 4（0.50.81 已出货），本包补齐普查定案与钉测把守，总表第 75 条自此可划。真机门：无新增——两店数据一致性已在 §339 真机门④（点子/目标/动态三格与目标详情数据一致）挂账，随存量清单 verdict。
+- 未组版未打包（按任务书，随后续版并入；并入时发布集名单加 StoresSingleSourceStructureTests 3 项）。
