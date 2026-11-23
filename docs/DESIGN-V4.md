@@ -16242,3 +16242,15 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
   goals 左圆右线、files 纸张与托盘后沿在顶部——五枚皆正。
 - 验收口径（改判后）：结构钉＋朝向特征钉（宽容差）＋定向套绿（§405.3）；发布集全量随 0.50.101
   组版对账；朝向终验＝用户真机冷启截图 verdict，不由任何量测关账。
+
+## §406 版本 0.50.101/229 组版记账（2026-11-23；基线 rel-05100 @681fe54）
+
+- 合入链（逐条单独成笔）：41f976c §405 底栏资产官方导出翻正（源 feat/tabbar-assets-flipfix @a87dbec）→ 70f531f §401 冒烟门重做（源 feat/smoke-gate-rework @3d397a7）→ 25b5805 tray 修正（见下）→ a1832c9 版本笔（0.50.101/229：Project.swift 四处版本值＋tuist generate 刷新 Derived，generate 后未还原 Derived、Derived plist 回读 0.50.101/229 ✓）→ b03740f 引号修正笔（见下）→ 本提交（本节）。
+- DESIGN 冲突处置：冒烟门分支基于 rel-05099 树、在文末占 §401；本树 §401 未被占用（§400/§403/§404/§405 在位、§401/§402 无顶级节），§401 原号保留、不顺延。冲突 1 处（文末同锚点）、并集解，两节正文零删改，并按 §404 先例把尾部节序按节号排齐为 §400→§401→§403→§404→§405；§401 节内「合并时统一重排」注记至此销账（结论：原号保留＋已排齐）。代码冲突：无（两包文件面不交叠）。
+- **tray 修正记账（主线亲核发现、合入前修正）**：§405 flipfix 把 tab.files 资产导成了 **tray.full**（满托盘、上带纸张），与原定符号 **tray**（空托盘；TabBarSymbols files 对 normal/selected 均为 "tray"，§403/0.50.99 口径）不符、形状已变。组版线用已装 SF Symbols.app 7.2 按生成器脚本记录的同一官方流程重导（列表视图＋细体 Light＋精确名 tray＋编辑→「将图像拷贝为…」SVG／点大小 24／符号缩放 中），替换 tab.files.svg 并入 staging；生成器 spec（tray.full→tray、viewBox 23.2313×16.2656→**27.7955×19.5188**）与结构钉 viewBox 期望同步改，生成器五枚装配校验全过、其余四枚重装零 diff。朝向结构读验：新 tray 路径无纸张横线、开口rim 在上半部（y≈8.72/19.5188）且中央凹口向下切入至 y≈12.56、实底在下（y 16.0–19.5 为托盘前面）——凹口在顶、朝向正；且结构钉 testTabAssetOrientationFeatures 以活符号 tray（24pt light）为参照比对通过（定向轮实证）。
+- 引号事故记账（如实）：组版线 sed 改生成器 spec 与结构钉第 72 行时吞掉字符串引号——生成器行在跑生成器前已修复；结构钉行致发布集首轮**构建红**（exit 65，TabBarTemplateAssetStructureTests.swift:72 cannot find 'tab' in scope、未跑任何用例），b03740f 修复后先定向跑结构钉＋符号表＋冒烟 AppTests 两套共 4 套全绿，再重跑发布集。
+- 发布集：名单＝rel05100 bundle 提取 127 套全限定名＋冒烟 AppTests 两套＝**129 套**，实跑 **1021/1021 全绿、0 红、0 跳过**（bundle Test-OneDayApp-rel05101，xcresulttool 逐套对账：126 套计数零差异，增量仅三处预期内——TabBarTemplateAssetStructureTests 3→4（§405 朝向特征钉）、SmokeGateMigrationTests +4、SmokeGateLongListScrollTests +1）。
+- 生命周期门（§395）：版本对 0.50.100→0.50.101（journey-run-101.sh，留档 journey-result-101.txt 为单跑干净轮）——S1 装 0.50.100 标记写入、S3 升级 0.50.101 标记保留、S2 同版重装标记保留、S4 降级回 0.50.100 标记保留、S5 卸载后容器消失＋新装回初始态，**五段全过**、各段启动 ALIVE。
+- 冒烟门 UITests 轮（SmokeGateUITests 7 例）：**6 过 1 红**。唯一红 testSmokeA4FilesGridFirstFrame（断言点 SmokeGateUITests.swift:575「网格首帧应渲染出种子文件卡」）＝§401.4 **缺口一登记形态**（演示态文件库走桥读面无 demo 分支、首帧无文件卡），非新形态红；缺口二（箭头例落底）本轮**未复现**（testSmokeBackToBottomArrowEndToEnd 绿，缺口登记仍按 §401.4 处置不销）；缺口三（rowmeasure 间歇崩溃）本轮未见。
+- IPA：OneDay-0.50.101.ipa，**15,814,056 字节，md5 4837237f28f4507c927a7200256fbcc9**；本体 unzip 验三值 **0.50.101／229／site.didichou.oneday** ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
+- 真机门（用户，未过不关账）：§382/§403 冷启底栏——不点底栏先截图逐格量填充率 ≤0.35、图标朝向正（本版新增目验点：文件格应为空托盘轮廓、凹口在顶，非满托盘带纸张形）、点一轮后复截同形、深色一帧、与 Muse 并排。
