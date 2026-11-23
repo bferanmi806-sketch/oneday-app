@@ -15368,3 +15368,9 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 测试/注释侧：LibraryListSnapshotTests.swift:278 的 `.odPressFeedback()` 是 §363「本面不许出现」的缺席断言（XCTAssertFalse），非使用点、保留；DeliverablesView.swift:613 注释的历史提及改写去令牌（生产源码零令牌以此达成）。判不准点：无——#9 的嵌套问题有 §363 在案先例同式可循，不属判不准；#4 的 enabled 旗以条件包 Button 等价承载，不属业务状态承载（旗只决定行有无出口、与原注释口径一致）。
 
 ### §379.2 迁移与回归记账（待回填）
+
+落码（提交 cfa10c4＋修复 5a47afc）：10/10 点全迁 Button＋.buttonStyle(.odPressable)，Components.swift 整件删除 −55 行（修饰本体＋View 扩展＋doc）；生产源码（App/Core/Design 三目录）代码行三令牌零残留——PressFeedbackModifier／odPressFeedback／DragGesture(minimumDistance: 0)，新增 ChatPressFeedbackRetireStructureTests 2 项永久把守（含迁移目标 PressableButtonStyle 在场断言）。无障碍口径逐点守恒：图片点（#1/#3/#5/#6/#7/#8）留 accessibilityElement(children:.ignore)＋显式 label/hint、删手工 .isButton traits 与重复 accessibilityAction（动作改由 Button 本体承载，同 §363「合并按钮语义改由真 Button 承载」）；#2 留 label/value、#10 留 children:.combine。#4 以 Group 条件形承载（some View 双 return 类型不一致的编译口径，语义不变）。diff 总规模：9 文件 +396/−336（DESIGN 与新测试在内；生产源码 7 文件净 −174 行）。
+
+过程两笔（均当轮修复、留痕）：①AssistantMediaImage 的 accessibilityAction 为单行式、首轮切片多吞 if 块关闭括号，构建当场拦截（RichContentViews.swift:1353 Expected '}'），补回后过；②traceEchoRow 首版双 return 触发 OpaqueTypeInference，改 Group 条件形后过。首轮另有一跑因新 worktree 未 tuist generate 无 workspace 而 exit 66（与代码无关，generate 后重跑）。
+
+回归（ProbePhone，发布集口径）：rel05098 发布集 97 套 817 项＋新结构套 1 套 2 项＝预期 98 套 819 项 → 实跑 **819/819 全绿、0 红、0 跳过**（bundle Test-OneDayApp-pressbtn，xcresulttool 逐项对账：passedTests 819／failedTests 0／skippedTests 0）。受影响面点名套件同在发布集内全绿：ChatRootChainStructureS371Tests、ChatDepthStructureS373Tests（chatScaffold 根链零触碰）、ChatNativeHotfix330Tests、ChatSettleScopeS5Tests、LibraryListSnapshotTests（§363 缺席断言仍成立）、RichContentTests、ReactionFloatingBarTests、ChatSwapStep6StructureTests。**新红零**。未组版未打包，随后续版并入；真机门（随并入版）：聊天内图片点开查看器、回告卡整卡开枢纽＋✕ 标已读、回响行点达、动态标题点进详情、模型段头折叠、登记图点开——点按落点与按压反馈逐点与旧版同感即关账。
