@@ -127,6 +127,30 @@ final class SessionHistoryBackfiller {
     /// 回补一轮。调用方负责触发时机与防重入（同一
     /// 线程同时只许一轮）；本函数只管拉与落
     @discardableResult
+    /// 选择框播种收尾（§441）：候选行已落本地线
+    /// 程且其后无 user 条目才入覆盖层——服务端是
+    /// 唯一真源，本机只持瞬态呈现；线程尾位已变
+    /// （本地更新）则不播种，失效侧安全
+    private func finalizeOptionsSeed(
+        thread: ChatThread,
+        candidate: (serverRowID: Int, options: MessageOptions)?
+    ) {
+        guard let candidate else { return }
+        let entries = thread.sortedEntries
+        guard let index = entries.firstIndex(where: {
+            $0.serverRowID == candidate.serverRowID
+        }), !entries[(index + 1)...].contains(where: {
+            $0.role == "user"
+        }) else { return }
+        appState.optionsOverlay.seed(
+            threadID: thread.id,
+            card: .init(
+                serverRowID: candidate.serverRowID,
+                options: candidate.options
+            )
+        )
+    }
+
     func backfill(
         thread: ChatThread, context: ModelContext
     ) async -> HistoryPullOutcome {
@@ -156,9 +180,15 @@ final class SessionHistoryBackfiller {
         // 一页（或全量降级的一整批）的落盘单点：对账
         // →指纹去重→落新项，分页与降级共用、不许两
         // 份实现漂移
+        // §441：选择框播种候选——逐页按尾位规则
+        // 更新（后页更新、末页为准）；收尾时再对
+        // 本地线程尾位复核才入覆盖层
+        var seedCandidate: (serverRowID: Int, options: MessageOptions)?
         func ingest(_ page: [SessionMessage]) {
             let ordered = SessionHistoryPagePlanner
                 .chronological(page)
+            seedCandidate = OptionsCardLogic
+                .seedCandidate(in: ordered)
             let items = SessionHistoryImport.richItems(
                 from: ordered
             )
@@ -216,6 +246,7 @@ final class SessionHistoryBackfiller {
                 thread.historyUnsynced = true
                 thread.historyLoadedCount = thread.entries.count
                 try? context.save()
+                finalizeOptionsSeed(thread: thread, candidate: seedCandidate)
                 return processed > 0 ? .partial : .failed
             }
             ingest(page)
@@ -224,6 +255,7 @@ final class SessionHistoryBackfiller {
             ) else { break }
             offset = next
         }
+        finalizeOptionsSeed(thread: thread, candidate: seedCandidate)
         // 拉齐判据：分页已尽，且处理量对齐已知总数
         // （总数未知时以拉尽为准）。未对齐多因拉取
         // 期间会话又长了——保持未同步、下轮再对账

@@ -1085,6 +1085,68 @@ public struct ReactionUpdate: Decodable, Sendable {
 /// 实测样本：{"session_id": "…", "profile": "default",
 /// "messages": [{"id": 1, "role": "user", "content": "…",
 /// "timestamp": 1762…, …}]}
+/// 选择框载荷（总表 203／DESIGN §441）：服务端终态
+/// attach 写在 assistant 行 display_metadata 的
+/// options 键、两面投影同形下发——{v, options:
+/// [{label, send_text}], at}。解码宽容：坏项逐项
+/// 丢弃、全坏判空（SessionMessage 侧据此判 nil），
+/// 一条坏载荷不许打死整页解码
+public struct MessageOptions: Decodable, Sendable, Equatable {
+    public let options: [MessageOption]
+    public let v: Int?
+    public let at: Double?
+
+    public init(options: [MessageOption], v: Int? = nil, at: Double? = nil) {
+        self.options = options
+        self.v = v
+        self.at = at
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case options, v, at
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let raw = try container.decodeIfPresent(
+            [MessageOption].self, forKey: .options
+        ) ?? []
+        options = raw.filter { !$0.label.isEmpty }
+        v = try container.decodeIfPresent(Int.self, forKey: .v)
+        at = try container.decodeIfPresent(Double.self, forKey: .at)
+    }
+}
+
+/// 选择框单项（§441）：label 是按钮上的人话，
+/// sendText 是点选时实际发出的文本（服务端校验
+/// 单源保证非空、缺省＝label；客户端解码同口径
+/// 兜底）
+public struct MessageOption: Decodable, Sendable, Equatable {
+    public let label: String
+    public let sendText: String
+
+    public init(label: String, sendText: String) {
+        self.label = label
+        self.sendText = sendText
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case label
+        case sendText = "send_text"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        label = (try container.decodeIfPresent(
+            String.self, forKey: .label
+        ) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawSend = (try container.decodeIfPresent(
+            String.self, forKey: .sendText
+        ) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        sendText = rawSend.isEmpty ? label : rawSend
+    }
+}
+
 public struct SessionMessage: Decodable, Sendable, Identifiable {
     public let id: Double
     public let role: String
@@ -1113,6 +1175,10 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
     /// 消息反应全集（台账 187 起解码；网关与面板两
     /// 个 messages 投影面同形下发，缺键＝无反应）
     public let reactions: [MessageReaction]
+    /// 选择框载荷（总表 203／§441）：仅 assistant
+    /// 行可带；解码全坏或空项判 nil（见 Message-
+    /// Options 宽容口径）
+    public let options: MessageOptions?
 
     enum CodingKeys: String, CodingKey {
         case id, role, content, timestamp
@@ -1124,6 +1190,7 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         case reasoning
         case displayKind = "display_kind"
         case reactions
+        case options
     }
 
     public init(from decoder: Decoder) throws {
@@ -1153,6 +1220,11 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         reactions = try container.decodeIfPresent(
             [MessageReaction].self, forKey: .reactions
         ) ?? []
+        let rawOptions = (try? container.decodeIfPresent(
+            MessageOptions.self, forKey: .options
+        )) ?? nil
+        options = (rawOptions?.options.isEmpty == false)
+            ? rawOptions : nil
     }
 
     /// 测试与拼装用直构（解码路径外）
@@ -1163,7 +1235,8 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         toolCallLabels: [String: [SessionToolCallLabel]] = [:],
         reasoningContent: String? = nil, reasoning: String? = nil,
         displayKind: String? = nil,
-        reactions: [MessageReaction] = []
+        reactions: [MessageReaction] = [],
+        options: MessageOptions? = nil
     ) {
         self.id = id
         self.role = role
@@ -1177,6 +1250,7 @@ public struct SessionMessage: Decodable, Sendable, Identifiable {
         self.reasoning = reasoning
         self.displayKind = displayKind
         self.reactions = reactions
+        self.options = options
     }
 
     public var date: Date? {

@@ -399,6 +399,12 @@ final class AppState {
     /// AgentHubView 注入 store.onApprovalChanged
     private var hubStoreInstance: AgentHubStore?
 
+    /// 选择框瞬态覆盖层（总表 203／§441）：AppState
+    /// 持有单例——聊天面（呈现/点选）与历史回补器
+    /// （播种）共达；真源在服务端消息行，本层只持
+    /// 呈现态，突变随条目/线程变更的重建趟消费
+    let optionsOverlay = OptionsCardOverlay()
+
     func sharedHubStore() -> AgentHubStore {
         if let hubStoreInstance { return hubStoreInstance }
         let store = AgentHubStore(

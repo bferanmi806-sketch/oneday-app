@@ -72,6 +72,13 @@ public struct CapabilitiesResponse: Decodable, Sendable {
     /// 消息级幂等子旗标（部署包 #14，总表 157）：runs_
     /// idempotency 对象内的 client_message_id；对象或子
     /// 旗标缺失回 nil（未广告），判定归 CapabilityNegotiation
+    /// 选择框能力位（部署包 #22，总表 203）：features
+    /// 布尔旗标 options_card；缺失回 nil（未广告），
+    /// 判定归 CapabilityNegotiation
+    public var optionsCardSupported: Bool? {
+        featureFlag("options_card")
+    }
+
     public var clientMessageIdSupported: Bool? {
         if case .object(let body)? = features["runs_idempotency"],
            case .bool(let value)? = body["client_message_id"] {

@@ -2788,6 +2788,9 @@ struct ChatView: View {
                             entry,
                             dividerText: plan.dividers[entry.id],
                             sources: plan.sources[entry.id] ?? [],
+                            optionsCard: optionsCardHeightInput(
+                                for: entry, in: thread
+                            ),
                             composer: composer,
                             styleKey: styleKey
                         )
@@ -3040,6 +3043,7 @@ struct ChatView: View {
     private func nativeEntryRow(
         _ entry: ChatEntry, dividerText: String?,
         sources: [MessageSource],
+        optionsCard: OptionsCardHeightInput? = nil,
         composer: ChatNativeRowHeightComposer,
         styleKey: String
     ) -> ChatNativeRow {
@@ -3076,7 +3080,8 @@ struct ChatView: View {
         // 兜底高，回填后经发布代次以确定高重喂
         let memoKey = composer.entryMemoKey(
             baseRevision: baseRevision, entry: entry,
-            buildProducts: buildProducts
+            buildProducts: buildProducts,
+            optionsCard: optionsCard
         )
         let resolved = rowMeasureDesk.resolve(
             memoKey: memoKey, rowKey: key,
@@ -3090,6 +3095,7 @@ struct ChatView: View {
                     dividerText: dividerText,
                     showsUnreadDivider: showsUnread,
                     sources: sources,
+                    optionsCard: optionsCard,
                     memoKey: memoKey, rowKey: key
                 )
             )
@@ -3133,6 +3139,7 @@ struct ChatView: View {
                 for: entry, dividerText: dividerText,
                 showsUnreadDivider: showsUnread,
                 sources: sources,
+                optionsCard: optionsCard,
                 product: product
             ) {
             feedHeight = precomputed
@@ -5753,6 +5760,12 @@ struct ChatView: View {
                     // 菜单挂载面之一
                     .modifier(messageMenu(for: entry))
                 }
+                // §441：选择框挂气泡下方随行滚动（与
+                // 审批卡的输入栏上方固定面分工不同）；
+                // 无卡/非尾位/演示态恒不出（状态派生
+                // 见 optionsCardState），行高由合成器
+                // optionsCardSlot 同值预留
+                optionsCard(for: entry)
             }
             // §265（S3）：整行菜单自此不在行根挂载（已
             // 下移到气泡背景层与各铬件面，见上）
@@ -5767,6 +5780,95 @@ struct ChatView: View {
             }
             .modifier(swipeReply(for: entry))
         }
+    }
+
+    /// 选择框状态派生（§441）：覆盖层卡与本条目
+    /// 钉桩对上才有资格，再按线程尾位/在飞/演示
+    /// 态过 Core 纯派生（OptionsCardLogic）
+    private func optionsCardState(
+        for entry: ChatEntry, in thread: ChatThread
+    ) -> OptionsCardState {
+        guard let card = appState.optionsOverlay
+                .card(for: thread.id),
+              entry.serverRowID == card.serverRowID
+        else { return .hidden }
+        let entries = thread.sortedEntries
+        let isTail = entries.last(where: {
+            $0.role == "assistant" && $0.toolCard == nil
+        })?.id == entry.id
+        let hasUserAfter: Bool = {
+            guard let index = entries.firstIndex(
+                where: { $0.id == entry.id }
+            ) else { return false }
+            return entries[(index + 1)...].contains {
+                $0.role == "user"
+            }
+        }()
+        return OptionsCardLogic.state(
+            card: card,
+            isTailAssistant: isTail,
+            hasUserAfter: hasUserAfter,
+            runInFlight: isStreaming || isDrivingRun,
+            isDemo: appState.isDemo
+        )
+    }
+
+    /// 选择框行高输入（§441）：状态非 hidden 才成
+    /// facet（行高合成器 optionsCardSlot 消费）
+    private func optionsCardHeightInput(
+        for entry: ChatEntry, in thread: ChatThread
+    ) -> OptionsCardHeightInput? {
+        let state = optionsCardState(for: entry, in: thread)
+        guard state != .hidden,
+              let card = appState.optionsOverlay
+                .card(for: thread.id)
+        else { return nil }
+        return OptionsCardHeightInput(
+            state: state,
+            optionCount: card.options.options.count
+        )
+    }
+
+    /// 选择框呈现（§441）：状态 hidden 恒不出行
+    @ViewBuilder
+    private func optionsCard(for entry: ChatEntry) -> some View {
+        if let thread = currentThread {
+            let state = optionsCardState(
+                for: entry, in: thread
+            )
+            if state != .hidden,
+               let card = appState.optionsOverlay
+                .card(for: thread.id) {
+                OptionsCardView(
+                    state: state,
+                    options: card.options.options,
+                    onSelect: { option in
+                        sendOption(option, in: thread)
+                    }
+                )
+            }
+        }
+    }
+
+    /// 点选即发（§441）：点任一项＝把该项 sendText
+    /// 经既有发送链发出（与键盘发送同路、含 §419
+    /// drain 排队）；编辑态/引用/附件在席时忽略点
+    /// 选（卡保持 live），不许借道改掉用户正在编
+    /// 的发送。点选即消费：先记已选（卡收起为回
+    /// 执行），发送失败走 §414 发件箱原位重试、
+    /// 卡不复活防双发
+    private func sendOption(
+        _ option: MessageOption, in thread: ChatThread
+    ) {
+        guard unsentEditTargetID == nil, attachments.isEmpty,
+              pendingQuote == nil, pendingFeedQuote == nil,
+              pendingSourceQuote == nil
+        else { return }
+        appState.optionsOverlay.markSelected(
+            threadID: thread.id, label: option.label
+        )
+        input = option.sendText
+        send()
     }
 
     /// 反应 pill（台账 187）：镜像非空才在场——构
@@ -12118,6 +12220,24 @@ private struct ComposerBarLayout: Layout {
             // 钉桩（多行拼接成文恒 nil、不钉错行——
             // 见 SettledRunTurn.assistantRowID 口径）
             assistantEntry.serverRowID = settled.assistantRowID
+            // §441：多行拼接成文时 assistantRowID 恒
+            // nil——本条目即段内拼接体、其末行正是
+            // 选择框 attach 的落点行，改钉 options-
+            // RowID 使卡有行可挂（寻址语义＝段末行）
+            if assistantEntry.serverRowID == nil,
+               let optionsRowID = settled.optionsRowID {
+                assistantEntry.serverRowID = optionsRowID
+            }
+            if let options = settled.options,
+               let optionsRowID = settled.optionsRowID {
+                appState.optionsOverlay.seed(
+                    threadID: thread.id,
+                    card: .init(
+                        serverRowID: optionsRowID,
+                        options: options
+                    )
+                )
+            }
             assistantEntry.createdAt = endDate
                 .addingTimeInterval(
                     Double(settled.toolCards.count) * 0.001

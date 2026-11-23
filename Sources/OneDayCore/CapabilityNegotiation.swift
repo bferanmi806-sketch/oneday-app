@@ -104,6 +104,18 @@ public enum CapabilityNegotiation {
             : .unavailable
     }
 
+    /// #22 选择框（部署包 1.12.0 占位，总表 203）：
+    /// features.options_card 布尔旗标；能力面已取到
+    /// 而旗标缺失/为假＝服务端未发布此能力（非未知）
+    public static func optionsCardAvailability(
+        _ capabilities: CapabilitiesResponse?
+    ) -> CapabilityAvailability {
+        guard let capabilities else { return .unknown }
+        return capabilities.optionsCardSupported == true
+            ? .available
+            : .unavailable
+    }
+
     // MARK: - 整表合成
 
     /// 本账四项的整表结论（注册表序）
@@ -127,6 +139,11 @@ public enum CapabilityNegotiation {
                 id: "runIdempotency", title: "任务幂等",
                 availability: runIdempotencyAvailability(capabilities),
                 absenceText: "断网重发可能重复执行同一轮，出现双份回复"
+            ),
+            NegotiatedCapability(
+                id: "optionsCard", title: "选择框",
+                availability: optionsCardAvailability(capabilities),
+                absenceText: "提问轮不带可点选选项，只能打字作答"
             ),
             NegotiatedCapability(
                 id: "clientMessageId", title: "消息级幂等",

@@ -161,7 +161,7 @@ final class CapabilityNegotiationTests: XCTestCase {
         XCTAssertEqual(
             verdicts.map(\.id),
             ["enrollment", "reactionsWrite", "runIdempotency",
-             "clientMessageId"]
+             "optionsCard", "clientMessageId"]
         )
         let enrollment = CapabilityNegotiation.verdict(
             id: "enrollment", in: verdicts
@@ -175,6 +175,16 @@ final class CapabilityNegotiationTests: XCTestCase {
         )
         XCTAssertEqual(reactions?.availability, .available)
         XCTAssertNil(reactions?.absenceText)
+        // §441：选择框行——样本 features 无 options_
+        // card 旗标＝未发布（unavailable＋缺席文案）
+        let optionsCard = CapabilityNegotiation.verdict(
+            id: "optionsCard", in: verdicts
+        )
+        XCTAssertEqual(optionsCard?.availability, .unavailable)
+        XCTAssertEqual(
+            optionsCard?.absenceText,
+            "提问轮不带可点选选项，只能打字作答"
+        )
         let clientMessageId = CapabilityNegotiation.verdict(
             id: "clientMessageId", in: verdicts
         )
