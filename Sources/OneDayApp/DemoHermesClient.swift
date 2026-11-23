@@ -908,6 +908,13 @@ struct DemoHermesClient: HermesClientProtocol {
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws -> ManagedFileUploadReceipt { throw HermesError.demoLimitReached }
 
+    // §410：原始字节版同口径（演示不落真实数据）
+    func uploadAttachment(
+        config: ServerConfig, path: String, fileName: String,
+        data: Data,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> ManagedFileUploadReceipt { throw HermesError.demoLimitReached }
+
     func makeDirectory(config: ServerConfig, path: String) async throws { throw HermesError.demoLimitReached }
 
     func fileData(config: ServerConfig, path: String) async throws -> Data {
