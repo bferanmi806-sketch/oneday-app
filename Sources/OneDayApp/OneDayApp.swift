@@ -168,6 +168,12 @@ enum ChatModelContainerBootstrapFactory {
 @main
 struct OneDayApp: App {
     @State private var appState: AppState
+    /// 推送登记回调承接（总表 138，DESIGN §397）：
+    /// APNs 令牌/失败回调只经此 adaptor 进 PushRegis-
+    /// trationCenter（nonisolated 转 Sendable 值），
+    /// 不进视图层
+    @UIApplicationDelegateAdaptor(PushAppDelegate.self)
+    private var pushAppDelegate
     @State private var storeFallbackNoticeDismissed = false
     private let modelBootstrap: ChatModelContainerBootstrap
     /// 语言覆盖档（§145）：设置页外观·语言 Picker
@@ -180,6 +186,10 @@ struct OneDayApp: App {
     private var appLanguageRaw = AppLanguagePreference.system.rawValue
 
     init() {
+        // 通知中心委托安装（总表 138，DESIGN §397）：
+        // 必须赶在任何本地通知到达前——前台呈现与点按
+        // 落点都经它；装晚了首个前台通知会被系统静默
+        NotificationCenterDelegate.install()
         // 0.33.1：退役桥钥残项清理——0.32.1 写进 Keychain
         // 的五条 bridge.key.* 分项钥在启动时删净（清单与
         // 删除面见 RetiredBridgeKeyCleanup，只删这组键、
@@ -375,6 +385,7 @@ struct RootView: View {
                     // 身份名刷新（身份反映修复）：同拍，
                     // 服务器改名回前台即反映＋覆盖对账
                     await appState.refreshIdentityName()
+                    await appState.pushRegistration.synchronize(appState: appState)
                 }
             } else if newPhase == .background {
                 appState.deviceSession.deactivate()
@@ -400,6 +411,7 @@ struct RootView: View {
                     await appState.syncAgentAvatarFromBridge()
                     // 身份名刷新（身份反映修复）：同拍
                     await appState.refreshIdentityName()
+                    await appState.pushRegistration.synchronize(appState: appState)
                 }
             } else {
                 appState.deviceSession.deactivate()
@@ -426,6 +438,7 @@ struct RootView: View {
             await appState.syncAgentAvatarFromBridge()
             // 身份名刷新（身份反映修复）：冷启同拍
             await appState.refreshIdentityName()
+            await appState.pushRegistration.synchronize(appState: appState)
             // 演示样本播种：内存库为空时种一轮拟真对话（仅演示模式）
             if DemoMode.current.isDemo {
                 DemoSeeder.seedIfNeeded(context: modelContext)

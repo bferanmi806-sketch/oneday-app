@@ -357,6 +357,10 @@ final class AppState {
     let runLedger: RunLedgerStore
     /// 发件箱自动重试记账（台账 154，DESIGN §336）
     let outboxRetry: OutboxRetryStore
+    /// 推送登记（总表 138，DESIGN §397）：远程推送的
+    /// App 侧准备面——登记状态机＋令牌快照＋就绪报告；
+    /// RootView 三处与伴生探测同拍 synchronize
+    let pushRegistration = PushRegistrationStore()
     /// 设备会话控制器（0.34.0，本机连接器批一）：前
     /// 台＋已连接时向 device-bridge 注册会话、领智能
     /// 体的设备工具调用现读现回；生命周期由 RootView

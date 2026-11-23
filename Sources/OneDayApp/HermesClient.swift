@@ -488,6 +488,14 @@ protocol HermesClientProtocol: Sendable {
     func claimEnrollment(
         config: ServerConfig, code: String
     ) async throws -> EnrollmentClaim
+    /// POST /v1/push/tokens（Bearer）：登记/刷新本机
+    /// APNs 令牌（总表 138，批 4b §4.1 草案契约）——
+    /// 服务端未装机时回 404（pushEndpointNotReady），
+    /// 调用方如实分型，不许冒充已登记
+    func registerPushToken(
+        config: ServerConfig, apiKey: String,
+        body: PushTokenRegistrationBody
+    ) async throws -> PushTokenRegisteredResponse
 
     // MARK: 命令授权（批 5，DESIGN §355；网关 Bearer 面）
 
@@ -2632,6 +2640,47 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(
                 endpoint: L10n.string("认领")
+            )
+        }
+    }
+
+    // MARK: - 推送登记（总表 138，DESIGN §397）
+
+    func registerPushToken(
+        config: ServerConfig, apiKey: String,
+        body: PushTokenRegistrationBody
+    ) async throws -> PushTokenRegisteredResponse {
+        var request = URLRequest(
+            url: config.endpoint("/v1/push/tokens")
+        )
+        request.httpMethod = "POST"
+        request.setValue(
+            "Bearer \(apiKey)", forHTTPHeaderField: "Authorization"
+        )
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        request.httpBody = try encoder.encode(body)
+        let (data, http) = try await dataRequest(request)
+        guard http.statusCode == 200 else {
+            if http.statusCode == 404 {
+                throw HermesError.pushEndpointNotReady
+            }
+            if http.statusCode == 401 || http.statusCode == 403 {
+                throw HermesError.apiKeyRejected
+            }
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("推送登记"),
+                status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                PushTokenRegisteredResponse.self, from: data
+            )
+        } catch {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("推送登记")
             )
         }
     }

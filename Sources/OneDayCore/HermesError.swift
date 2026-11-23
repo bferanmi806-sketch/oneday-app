@@ -63,6 +63,10 @@ public enum HermesError: Error, Sendable {
     /// 出码超限（配对一期，网关 429 enrollment_too_
     /// many_pending）：未被认领的码已达上限（3 个）
     case enrollmentTooManyPending
+    /// 推送登记端点未开通（总表 138，DESIGN §397）：网关
+    /// 404——部署包批 4b 的登记端点还没装机；与一般 404
+    /// 分开，登记状态机据此记 serverNotReady 如实呈现
+    case pushEndpointNotReady
     /// 反应目标行已不在（台账 187，网关 404 message_
     /// not_found）：会话谱系里已无此行（多为该消息已
     /// 被删/会话已重建）——与裸 404 分开：客户端据此
@@ -181,6 +185,11 @@ public enum HermesError: Error, Sendable {
         case .enrollmentTooManyPending:
             return L10n.string(
                 "等着被认领的码已经满了。等几分钟让旧码过期，或者先用掉一个再生成。",
+                locale: locale
+            )
+        case .pushEndpointNotReady:
+            return L10n.string(
+                "这台服务器还没开通推送登记。",
                 locale: locale
             )
         case .reactionTargetGone:
