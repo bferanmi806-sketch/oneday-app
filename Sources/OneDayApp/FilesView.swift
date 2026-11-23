@@ -71,6 +71,10 @@ struct FileSearchField: View {
     @Binding var query: String
     /// 占位文案（默认文件名搜索；段内搜索传自家词）
     var placeholder: String = "搜索文件名"
+    /// 出现即聚焦（§452.9：资源库搜索钮点开键盘同
+    /// 步升起）；常驻型调用点不传、保持旧行为
+    var autoFocus: Bool = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: OneDayMetrics.spacingS) {
@@ -79,6 +83,7 @@ struct FileSearchField: View {
                 .foregroundStyle(Palette.inkMuted)
                 .accessibilityHidden(true)
             TextField(placeholder, text: $query)
+                .focused($focused)
                 .textFieldStyle(.plain)
                 .font(.callout)
                 // 搜索词是文件名/关键词：关自动首字母
@@ -99,6 +104,9 @@ struct FileSearchField: View {
         .padding(.horizontal, OneDayMetrics.spacingM)
         .padding(.vertical, OneDayMetrics.spacingS)
         .background(Palette.fieldFill, in: RoundedRectangle(cornerRadius: OneDayMetrics.radiusThumb))
+        .onAppear {
+            if autoFocus { focused = true }
+        }
     }
 }
 
