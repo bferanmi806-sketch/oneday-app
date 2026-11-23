@@ -80,10 +80,21 @@ public enum MarkdownTableAlignment: Equatable {
 public enum MarkdownParser {
     /// §167（2026-11-11）：入口先过解析记忆——同文再
     /// 算即查表（MarkdownParseMemo），纯函数同文同
-    /// 果、输出逐字不变；未命中才走 parseUncached
+    /// 果、输出逐字不变；未命中才真解析
+    /// §417（2026-11-23）：解析核换底——默认走
+    /// swift-markdown 降解层（MarkdownTreeParsing），
+    /// MarkdownEngine 置回滚位时走旧状态机
+    /// （parseUncached）；签名与备忘入口不变，消费
+    /// 面零改动（施工图 swap-md-image-prep-20261123
+    /// 第一部 Path B）
     public static func parse(_ content: String) -> [MarkdownBlock] {
-        MarkdownParseMemos.blocks.value(for: content) {
-            parseUncached(content).map(\.block)
+        if MarkdownEngine.usesLegacyParser {
+            return MarkdownParseMemos.blocks.value(for: content) {
+                parseUncached(content).map(\.block)
+            }
+        }
+        return MarkdownParseMemos.blocks.value(for: content) {
+            MarkdownTreeParsing.blocks(from: content)
         }
     }
 
@@ -92,12 +103,23 @@ public enum MarkdownParser {
     /// 不走解析备忘——消费方 StreamingBlockSegmenter
     /// 自带备忘与追加链；输出与 parse 逐块恒等（差
     /// 分钉测把守）
+    /// §417 孤岛注记：本入口不随 §417 换核——唯一消
+    /// 费方 StreamingBlockProduct 在 S2 退役清单内，
+    /// 为将死之路不写新核适配（swift-markdown 的
+    /// SourceRange 本可重建行号）；其退役落地后，
+    /// 本入口与 parseUncached、MarkdownEngine 开关
+    /// 一并删除
     public static func parseWithRanges(
         _ content: String
     ) -> [(block: MarkdownBlock, startLine: Int)] {
         parseUncached(content)
     }
 
+    /// 旧状态机解析器本体（§417 起降为回滚位＋
+    /// parseWithRanges 孤岛实现）：默认路已由
+    /// MarkdownTreeParsing 取代，本体仅 Markdown-
+    /// Engine 回滚位与孤岛入口消费；删除条件见
+    /// MarkdownEngine（与开关同批）
     private static func parseUncached(
         _ content: String
     ) -> [(block: MarkdownBlock, startLine: Int)] {
@@ -483,6 +505,12 @@ public enum MarkdownParser {
 /// 系统解析。降级口径：未闭合的 ~~ 不成段、按字面留
 /// 在普通段内（与系统对未闭合 ** 的处理一致）；行内
 /// 代码段内的 ~~ 不触发（先认代码段再认 ~~）。
+/// §417 去留注记（差分实证后修订）：本分段层不退
+/// 役——cmark-gfm 的删除线在「被删段含粗斜体」时
+/// 不成节点，新核 runs 路仍先经本分段切开再走树
+///（MarkdownTreeParsing.inlineRuns），口径与旧路
+/// 同一步；同时它也是回滚位旧行内路的分段件。待
+/// 上游删除线节点全形稳定后，再议整层退役。
 public enum MarkdownInline {
     public struct Segment: Equatable {
         public var text: String
