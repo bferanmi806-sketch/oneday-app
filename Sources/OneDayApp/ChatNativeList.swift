@@ -2218,7 +2218,7 @@ final class ChatRootViewController: UIViewController,
         // （旋转/壳层帧变）后在底者钉底、不在底者不
         // 动——与 gen3 layoutContent 的位置保全同式
         let wasAtBottom = collectionView.bounds.height > 0
-            && currentDistance() <= 0.5
+            && currentDistance() <= Self.atBottomTolerance
         collectionView.frame = view.bounds
         collectionView.layoutIfNeeded()
         refreshVisibleWindow()
@@ -3557,8 +3557,8 @@ final class ChatRootViewController: UIViewController,
             // 底承接（探针实测终距恰＝净增长）；
             // 占位离席后判据照旧，在席期间本拍
             // 钉底照常执行
-            if prePinDistance <= 0.5
-                && currentDistance() <= 0.5
+            if prePinDistance <= Self.atBottomTolerance
+                && currentDistance() <= Self.atBottomTolerance
                 && landingSettleContentSize == csNow
                 && !rows.contains(
                     where: { $0.key == "live-placeholder" }
@@ -3736,6 +3736,20 @@ final class ChatRootViewController: UIViewController,
     private var effectiveBottomInset: CGFloat {
         effectiveBottomSpace + bottomMargin
     }
+    /// 在底判定容差（修复包二 §3，键盘阈值收敛）：
+    /// 距底读数 <= 本值即判「在底」。原为三处判定
+    /// 点各自硬编码 0.5pt——比读数噪声底还窄（con-
+    /// tentSize 量化＋回弹余量为数 pt 级），48pt 定
+    /// 档依据：显著大于噪声底、约一个点达目标量级
+    /// （44pt）＋一行短消息高、= 2 × 行距单律 24pt、
+    /// 约一屏高 7% 不误判看历史。判定点（布局拍
+    /// wasAtBottom／落定拍 landingIntent 消费判据／
+    /// captureAnchor 钉底判据）只许引本常量；改值
+    /// 须与 Q9 钉测（47pt 必抬／96pt 必不抬）同批
+    /// 改。本常量只定「在底事实」的宽度，不涉意图
+    /// 的置位与消费时机。
+    static let atBottomTolerance: CGFloat = 48
+
 
     /// 距底读数：以 effectiveBottomInset（实测派
     /// 生）为标尺（与 gen3 §263 同式，不读 adjusted
@@ -4034,7 +4048,7 @@ final class ChatRootViewController: UIViewController,
 
     func captureAnchor() -> ChatListAnchor? {
         guard !rows.isEmpty else { return nil }
-        if currentDistance() <= 0.5 {
+        if currentDistance() <= Self.atBottomTolerance {
             return .bottom
         }
         let visibleTop = collectionView.contentOffset.y

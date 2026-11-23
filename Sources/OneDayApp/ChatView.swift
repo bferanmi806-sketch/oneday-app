@@ -7634,7 +7634,17 @@ private struct ComposerBarLayout: Layout {
 
     private var trailingControl: some View {
         ZStack {
-            if trailingState.isDiscKey {
+            if trailingState == .stopAndSend {
+                // 修复包二锁一（§419）：双钮形态——停
+                // 止降为左侧裸符号小钮、主键仍是发送
+                // 圆盘（点按走排队落位）；两钮同排、
+                // 随状态交叉淡化
+                HStack(spacing: 2) {
+                    stopMiniButton
+                    sendStopButton
+                }
+                .transition(.opacity)
+            } else if trailingState.isDiscKey {
                 sendStopButton
                     .transition(.opacity)
             } else {
@@ -7657,8 +7667,15 @@ private struct ComposerBarLayout: Layout {
     /// 自动降级。圆盘与字号口径沿旧两键（直径
     /// ComposerLayout.buttonHeight、停止 12/发送 13）
     private var sendStopButton: some View {
-        Button {
-            if isStreaming {
+        // 修复包二锁一（§419）：圆盘键语义由 trail-
+        // ingState 裁决，不再直读 isStreaming——.stop
+        // 态出停止；.send/.stopAndSend 态出发送（流式
+        // 中有字时点按走排队落位，停止另有左侧小
+        // 钮）；符号形变仍在本键内走 symbolEffect
+        // （0.3.0 口径不变）
+        let isStopDisc = trailingState == .stop
+        return Button {
+            if isStopDisc {
                 // 0.31.0：停止＝runs 真取消（requestRun-
                 // Stop 发服务端 stop），不再是旧通道的
                 // 本地断流假取消
@@ -7667,8 +7684,8 @@ private struct ComposerBarLayout: Layout {
                 send()
             }
         } label: {
-            Image(systemName: isStreaming ? "stop.fill" : "arrow.up")
-                .font(.system(size: isStreaming ? 12 : 13, weight: .bold))
+            Image(systemName: isStopDisc ? "stop.fill" : "arrow.up")
+                .font(.system(size: isStopDisc ? 12 : 13, weight: .bold))
                 // 0.6.1：发送钮改 OpenMuse 原貌——浅蓝圆
                 // primaryPale＋深墨箭头 onPrimary（chat.tsx:
                 // 985/996），取代旧深蓝圆＋白箭头
@@ -7694,7 +7711,40 @@ private struct ComposerBarLayout: Layout {
                 )
         }
         .buttonStyle(.odPressable)
-        .accessibilityLabel(isStreaming ? "停止生成" : "发送")
+        .accessibilityLabel(isStopDisc ? "停止生成" : "发送")
+    }
+
+    /// 修复包二锁一（§419）：双钮形态的停止小钮——
+    /// 裸符号、无圆盘（与 mic 同呈现档），只在
+    /// .stopAndSend 态与发送圆盘同排出现；点按语义
+    /// 与圆盘停止键一致（requestRunStop 真取消当前
+    /// 轮；排队条目不清——停止只停当前轮口径不变）
+    private var stopMiniButton: some View {
+        Button {
+            requestRunStop()
+        } label: {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(Palette.ink)
+                .frame(
+                    width: ComposerLayout.buttonHeight,
+                    height: ComposerLayout.buttonHeight
+                )
+                // 第 83 条（命中域收口）：与 mic 同式——
+                // 字形不变、命中域外扩 44、负内边距抵
+                // 消外扩、布局仍按 30 走
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+                .padding(
+                    -(OneDayMetrics.minTapTarget
+                        - ComposerLayout.buttonHeight) / 2
+                )
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel("停止生成")
     }
 
     /// （旧发送/停止两键已合并为 sendStopButton 变形键，见上。）
@@ -9569,7 +9619,13 @@ private struct ComposerBarLayout: Layout {
         // 损）；落盘构造与上下文拼装共用本值
         let combinedSourceQuote = sourceQuote
             ?? feedQuote.map(SourceQuote.feed)
-        guard !isStreaming, !text.isEmpty || !pending.isEmpty else { return }
+        // 修复包二锁二（§419）：守卫只把内容总闸——
+        // !isStreaming 摘除：流式中发送同路走下方构
+        // 造段，账本在席（在飞轮）时由 §414 账本分
+        // 支落位待发、轮终 drain 串行派发；「同会话
+        // 至多一轮在飞」改由出口 drain 守卫把守，
+        // 入口不再禁止
+        guard !text.isEmpty || !pending.isEmpty else { return }
         // D3（DESIGN §352）：编辑态在武装时发送分
         // 流——target 之后还有已落定轮次（rounds-
         // After>0）先弹破坏性确认：稿快照暂存、发
@@ -9742,10 +9798,22 @@ private struct ComposerBarLayout: Layout {
         // 0.31.0「同会话同时至多一轮在飞」的互斥不
         // 变——改的是投递面（落位排队），不是取消
         // 互斥
+        // 修复包二（§419）：流式在飞期主动发送同路
+        // 落位——发送守卫摘除 !isStreaming 后，生成
+        // 中发送时账本即在飞轮本体，落位形态与派
+        // 发链与本节同一套，触发面自此覆盖流式主
+        // 动发送
         if appState.runLedger.entry(forThreadID: thread.id)
             != nil {
             newEntry.markPendingSend(in: modelContext)
-            showNotice("上一条还在确认结果，这条已先记下，确认完会自动发送。")
+            // 修复包二（§419）：触发面扩到流式主动发
+            // 送后，流式在飞期落位静默——排队条目上
+            // 屏（时钟＋浅色）即反馈，不叠提示；非流
+            // 式滞留（切后台/杀进程遗留/对账未完）维
+            // 持 §414 提示口径
+            if !isStreaming {
+                showNotice("上一条还在确认结果，这条已先记下，确认完会自动发送。")
+            }
             Task { await resumeRunIfNeeded() }
             return
         }
@@ -10328,6 +10396,13 @@ private struct ComposerBarLayout: Layout {
                     sendTask = nil
                     return
                 }
+                // §419 收尾定因（开放项①）：链接段落
+                // 败与 launchTurn 同段同处置——原位落
+                // 失败态（P1 口径）；旧「只报横幅、条
+                // 目原样留待发」使 .queued 恒 .autoNow，
+                // drain 无界重派队首（实测单条 1637
+                // 次）且后续条目永不派发
+                markTurnFailed(entry: entry)
                 errorMessage = "还是没能连上，消息仍保存在本机："
                     + ((error as? HermesError)?.userMessage
                         ?? "服务端会话建立失败")
@@ -10593,9 +10668,11 @@ private struct ComposerBarLayout: Layout {
     /// drain 主循环：逐轮重扫当前线程发件箱（条目
     /// 会在重发中被复制/落定/删除，恒以最新名单为
     /// 准），按创建时间 FIFO 取首个可自动项派发、
-    /// await 其发送任务收尾后再扫下一轮；退避未满
-    /// 的队头挡住后续（保序），次数耗尽/人工接管
-    /// 的跳过不挡队。单趟派发上限 10 次防极端名单
+    /// await 其发送任务收尾后再扫下一轮；已落失
+    /// 败态且有自动尝试记账的退避条目跳过不挡队
+    /// （归发件箱原位重试轨，§419 裁决 B），从未
+    /// 投递条目永不跳；次数耗尽/人工接管的同样跳
+    /// 过不挡队。单趟派发上限 10 次防极端名单
     /// 空转。自动尝试全程静默：不新拉失败横幅（失
     /// 败呈现留气泡旁红叹号与未发送行），尝试前已
     /// 在的横幅不碰
@@ -10624,11 +10701,12 @@ private struct ComposerBarLayout: Layout {
             }
             var dispatched = false
             for candidate in candidates {
+                let record = appState.outboxRetry.record(
+                    for: candidate.id
+                )
                 let decision = OutboxAutoRetryPolicy.decision(
                     state: candidate.sendState,
-                    record: appState.outboxRetry.record(
-                        for: candidate.id
-                    ),
+                    record: record,
                     now: Date()
                 )
                 switch decision {
@@ -10649,7 +10727,27 @@ private struct ComposerBarLayout: Layout {
                     }
                     clearDeliveredOutboxRecords(in: thread)
                 case .backoff:
-                    // 队头退避未满：保序收趟，不跃队
+                    // §419 裁决 B（2026-11-23 主线裁）：
+                    // 已落失败态且已有自动尝试记账的条
+                    // 目归发件箱原位重试轨——其重试由
+                    // OutboxAutoRetry 在退避满后经后续
+                    // 趟次原位发生，drain 本趟跳过、不
+                    // 挡后续条目首投。队头退避挡整队＝
+                    // 头阻塞，与发件箱逐条独立重试的通
+                    // 行做法相悖；§414 期「队头退避保
+                    // 序不跃队」口径仅限 drain 路径就
+                    // 此 supersede（发件箱轨内部退避不
+                    // 变，两路按「是否曾投递」分界互
+                    // 斥，见 §414/S-2 接缝）。
+                    // 双守卫：只跳 attempts ≥ 1 的已投
+                    // 递失败条目；从未投递的 .queued 条
+                    // 目策略恒 .autoNow、结构上到不了
+                    // 本臂，万一到达（策略改判等异变）
+                    // 保守收趟——永不跳过未投递条目。
+                    if candidate.sendState == .failed,
+                       (record?.attempts ?? 0) >= 1 {
+                        continue
+                    }
                     return
                 case .manualOnly, .notInQueue,
                      .ownedByRunLedger:
