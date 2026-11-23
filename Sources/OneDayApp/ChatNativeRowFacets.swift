@@ -35,13 +35,32 @@ struct ChatEntryHeightSnapshot {
     /// 知、无异步翻转，同 toolCard/remoteImagePaths
     /// 的 facet 纪律）
     let reactions: [MessageReaction]
+    /// §432：AI 反应开关的快照值（主线程快照时点
+    /// 读 Core 特性键，与呈现层 @AppStorage 同源同
+    /// 值）——预留判定只认快照不活读（facet 纪
+    /// 律）；合成器经 hasReactionChrome 消费
+    let aiSelfReactionsEnabled: Bool
+
+    /// 反应铬件在场（§432）：pill（own 段）或角标
+    /// （agent 段且开关开）任一在场——判定单源在
+    /// Core AISelfReactionDecision，呈现层同判
+    var hasReactionChrome: Bool {
+        AISelfReactionDecision.hasVisibleChrome(
+            reactions: reactions,
+            featureEnabled: aiSelfReactionsEnabled
+        )
+    }
     /// D4（§349）：本条所属轮的聚合来源（呈现层派
     /// 生、拼装时注入）——非条目本体字段：来源的数
     /// 据源是同轮工具条目的卡（工具行原文单源），
     /// 快照只携派生结果供合成器定高
     let sources: [MessageSource]
 
-    init(_ entry: ChatEntry, sources: [MessageSource] = []) {
+    init(
+        _ entry: ChatEntry, sources: [MessageSource] = [],
+        aiSelfReactionsEnabled: Bool
+            = ChatReactionsAISelfFeature.isEnabled()
+    ) {
         id = entry.id
         role = entry.role
         content = entry.content
@@ -61,6 +80,7 @@ struct ChatEntryHeightSnapshot {
         traceKey = entry.traceKey
         traceEcho = entry.traceEcho
         reactions = entry.reactions
+        self.aiSelfReactionsEnabled = aiSelfReactionsEnabled
         self.sources = sources
     }
 }

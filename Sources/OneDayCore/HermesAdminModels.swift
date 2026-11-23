@@ -1022,6 +1022,9 @@ public struct MessageReaction: Codable, Sendable, Equatable {
 
     /// 本机用户的反应（author 分型单点，不许散写字面量比对）
     public var isOwn: Bool { author == "user" }
+
+    /// 助手的反应（author 分型单点，同 isOwn 口径）
+    public var isAgent: Bool { author == "agent" }
 }
 
 /// 反应口径收敛（台账 187）：动作面反应排的固定集与
@@ -1038,6 +1041,21 @@ public enum MessageReactions {
         in reactions: [MessageReaction]
     ) -> String? {
         reactions.first { $0.isOwn }?.emoji
+    }
+
+    /// 助手的现反应（至多一个，Tapback 语义服务端强制）
+    public static func agentEmoji(
+        in reactions: [MessageReaction]
+    ) -> String? {
+        reactions.first { $0.isAgent }?.emoji
+    }
+
+    /// 自己的全部反应段（§432 分工：pill 只承 own
+    /// 段，agent 段走气泡角标，两面不合并）
+    public static func ownReactions(
+        in reactions: [MessageReaction]
+    ) -> [MessageReaction] {
+        reactions.filter(\.isOwn)
     }
 
     /// 乐观镜像组装：以 emoji 替换自己的那条（nil＝

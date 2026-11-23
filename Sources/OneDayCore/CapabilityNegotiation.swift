@@ -104,6 +104,19 @@ public enum CapabilityNegotiation {
             : .unavailable
     }
 
+    /// #19 AI 自反应（部署包 1.8.0，DESIGN §432）：
+    /// features.self_reactions 布尔旗标；能力面已
+    /// 取到而旗标缺失/为假＝服务端未发布此能力
+    /// （非未知），与 #14 同口径
+    public static func selfReactionsAvailability(
+        _ capabilities: CapabilitiesResponse?
+    ) -> CapabilityAvailability {
+        guard let capabilities else { return .unknown }
+        return capabilities.selfReactionsSupported == true
+            ? .available
+            : .unavailable
+    }
+
     // MARK: - 整表合成
 
     /// 本账四项的整表结论（注册表序）
