@@ -15345,3 +15345,26 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §379 PressFeedbackModifier 组件治理：整件退役、全仓迁 Button 形态（2026-11-23；分支 feat/pressfeedback-retire，基线 rel-05098 @3f9598f）
+
+清点表 #22 判「换」执行节。定义点 1（OneDayDesign/Components.swift 的 PressFeedbackModifier＋View.odPressFeedback 扩展）整件删除；使用点 10 逐点迁平台 Button＋.buttonStyle(.odPressable)（§363 已在资源库面完成同式迁移并真机验证，本节为同式收尾）。反馈参数逐值对齐（照录现行值、不自创）：被删修饰与 PressableButtonStyle 本就逐值同参——按下 opacity 0.55／scale 0.985／动画 MotionTokens.press 经 resolved 出口（Reduce Motion 瞬时切换），迁后由 ButtonStyle 的 configuration.isPressed 承载，数值零改动。旧修饰的按下感知（DragGesture(minimumDistance: 0) simultaneous、位移 <10pt 判按下）随手势整件退役，由 Button 平台点按仲裁接替（§363 定案：该 0 距离手势在 SwiftUI ScrollView 仲裁里抢整条触摸序列、杀滚动；List/UIKit 宿主虽不犯此病，统一形态后全仓不再有此 hazard）。
+
+### §379.1 普查表（先普查后动手；全仓 grep PressFeedback／odPressFeedback／DragGesture(minimumDistance: 0) 闭口——后者在全仓仅修饰本体一处）
+
+| # | 使用点 | 宿主/现形态 | 处置 |
+|---|---|---|---|
+| 1 | DeliveryViews.swift AssistantDeliveryItem 图片卡（.onTapGesture{onOpen}＋反馈＋手工 .isButton/accessibilityAction） | 聊天行内托管面 | 迁 Button：动作 onOpen、label＝卡体；无障碍改由真 Button 承载（留 label/hint、删手工 traits/action，同 §363 口径） |
+| 2 | ChatModelPickerView.swift groupHeader（HStack＋onTapGesture{toggleGroup}＋反馈＋手工无障碍；外层条件 contextMenu） | List 段头 | 迁 Button：header 本体改 Button（label＝原 HStack），contextMenu 分支原样挂 Button 外层；留 accessibilityLabel/Value，删手工 traits/action |
+| 3 | RichContentViews.swift AssistantMediaImage（ServerRemoteImage＋onTapGesture＋反馈＋手工无障碍） | 聊天行内托管面 | 迁 Button：label＝ServerRemoteImage；留 label/hint，删手工 traits/action |
+| 4 | ChatView.swift traceEchoRow（整行 onTapGesture＋.odPressFeedback(openableSessionID != nil)，enabled 旗语义＝无目标行无动作无反馈） | native 列表行 | 条件迁 Button：openableSessionID 非空才包 Button（动作 openEchoSession），为空保持纯展示行——「无动作的行连反馈也不许给」原语义逐字保留 |
+| 5 | ChatView.swift 用户侧 remoteImagePaths 图（ServerRemoteImage＋ZoomSourceAnchor overlay＋onTapGesture＋反馈＋手工无障碍） | native 列表行内 | 迁 Button：label＝图＋锚点 overlay（overlay 随 label 入内、allowsHitTesting(false) 不变）；留 label/hint，删手工 traits/action |
+| 6 | ChatView.swift 助手侧 remoteImagePaths 图（同 #5 形态） | native 列表行内 | 同 #5 |
+| 7 | ChatView.swift wholePathRef 图（同 #5 形态） | native 列表行内 | 同 #5 |
+| 8 | ChatView.swift localImageCard（ZStack 卡＋ZoomSourceAnchor overlay＋onTapGesture＋反馈＋手工无障碍） | native 列表行内 | 迁 Button：label＝卡体＋锚点 overlay；留 label/hint，删手工 traits/action |
+| 9 | ChatView.swift reportCard（整卡 onTapGesture{showHub=true}＋反馈；卡内含既有真 Button「✕标为已读」——Button 嵌 Button 不成立） | native 列表行 | 按 §363 文件卡先例同式解：整卡迁 Button（动作 showHub），✕ 改同位覆盖层兄弟件（距顶/距尾与原布局盒逐值同位），原 ✕ 布局盒留 44×44 占位保文本列宽。已知差（§363 同款、在案）：按压缩放只作用卡体、✕ 不随动 |
+| 10 | FeedView.swift postRow 标题行（HStack＋contentShape＋onTapGesture{openPost}＋反馈＋手工无障碍；仅标题区可点、正文区不可点） | List 行内局部 | 迁 Button：仅标题 HStack 包 Button（label＝原 HStack），正文区形态不动；删手工 traits/action，accessibilityElement(children:.combine) 留 |
+
+测试/注释侧：LibraryListSnapshotTests.swift:278 的 `.odPressFeedback()` 是 §363「本面不许出现」的缺席断言（XCTAssertFalse），非使用点、保留；DeliverablesView.swift:613 注释的历史提及改写去令牌（生产源码零令牌以此达成）。判不准点：无——#9 的嵌套问题有 §363 在案先例同式可循，不属判不准；#4 的 enabled 旗以条件包 Button 等价承载，不属业务状态承载（旗只决定行有无出口、与原注释口径一致）。
+
+### §379.2 迁移与回归记账（待回填）
