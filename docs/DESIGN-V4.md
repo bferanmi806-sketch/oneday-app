@@ -15345,3 +15345,54 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §396 总表 139/151 裁定包：表格 Grid 封顶折行落码＋草稿持久化定案（2026-11-23；分支 feat/grid-draft-rulings，基线 rel-05098 @3f9598f；用户 2026-11-23 令全部解冻、全推进，包内决策按大厂成熟做法自拍）
+
+### §396.1 第 139 条：代码块 Grid（表格 Grid）呈现改法裁定
+
+**现状实查**：呈现＝MarkdownText.tableGridView（ScrollView(.horizontal)＋Grid，单元格 .frame(maxWidth: Core maxColumnWidth＝168)＋fixedSize(horizontal: false)）；§329 续修校准拟合实证（crash-fix-structural-20261118 §二.2）——此组合下 frame(maxWidth:) 不压缩列宽：备注列按自然宽 270 整行不折、整表高与「全行单行」模型逐值一致。行高合成器（ChatNativeRowHeight.tableHeight 的 Grid 支）已按自然宽单行模型对齐呈现，故无行高错位；未达成的是 §271/§149 呈现意图本身（列宽封顶＋单元格折行）。解析层口径干净：parseTable 要求分隔行列数＝表头列数、normalizeRow 把数据行钳制到表头列数——列数单义、alignments 与列一一对应，列宽计算无歧义输入。
+
+**外部成熟做法对位（全件清单）**：
+
+| 件 | 成熟做法 | 分级 | 出处 |
+|---|---|---|---|
+| Grid 列宽机制 | SwiftUI Grid 无列宽设定 API，列宽＝该列最宽单元格的理想宽；格上 frame(maxWidth:) 不是列宽约束（与在仓拟合实证互证） | 官方文档级＋在仓实证 | Apple Developer Documentation（Grid）；§329 校准实证 |
+| 聊天表格横滚 | ChatGPT/Claude 等聊天产品表格整块横滚、单元格基本不折行 | 现象推断（无官方文档） | 产品现象 |
+| 窄屏宽表降级 | 响应式表格在窄视口降级堆叠/列表呈现 | 公开文档级 | 响应式表格通行实践；自家 >4 列降级列表（§271）已是此路 |
+| 列宽先量后排 | 表格布局先量内容自然宽、再定列宽（HTML 表格布局/CSS track sizing 同构） | 公开文档级 | CSS 表格/Grid 布局模型 |
+
+**裁定：取 (B) 真封顶折行，否 (A)(C)**：
+- (A) 追认自然宽＋横滚（与 ChatGPT 现象同向）：§271 意图系用户已拍板口径（第 72 条），其动因投诉「3 列长文表也要横拖才看得全」未解——放弃已拍板口径须用户亲裁，本包不自行动摇。
+- (C) 长文表也降级列表：形态代价大（行列对齐阅读丢失）、且与 §271 既定分工（降级只管 >4 列）正面冲突——否决。
+- (B) 列宽由代码按同一量测拼装算定（逐列自然宽封顶 168、以显式宽喂 Grid），呈现与量测共用一个列宽单源：「先量后排」是表格布局通行机制（非自创无出处）、量测台已有同源拼装可复用，代价有界（新共享助手一件＋呈现一处＋合成器 Grid 支一处）。
+
+**落码**：
+1. 新文件 Sources/OneDayApp/MarkdownTableGridLayout.swift：单元格拼装（自合成器 tableCellAttributed 整段迁入、自此单源；字体口径逐字同源——正文 InlineTextFonts.baseFont(.callout)、strong 段 preferredFont 叠 bold trait）；列宽计算＝逐列取表头＋数据行自然宽最大值后按 Core maxColumnWidth 封顶，自然宽走 ChatNativeTextMeasure.naturalWidth（与量测同台）、NSCache 备忘（键＝字阶类别＋粗体旗＋原文）。
+2. MarkdownText.tableGridView：环境取 dynamicTypeSize.contentSizeCategory＋legibilityWeight（与 ChatView 喂合成器的环境口径逐字同源），两处单元格 .frame(maxWidth:) 改 .frame(width: 列宽)。
+3. 合成器：tableCellAttributed 改为向共享助手转发；tableHeight 的 Grid 支由自然宽单行模型改封顶折行模型——逐行取各格在列宽下的 swiftTextHeight 最大值（量测高走既有 tableCellTextHeight、行高换算走既有 swiftTextHeight，与降级列表支同式），行间账（GroupDivider 一行＋spacingXS×(行数+1)）不变。
+4. Core 零改动：MarkdownTablePresentation 的 maxColumnWidth/mode 口径不变（其注记由「意图」变「实况」）。
+
+**钉测**：MarkdownTableGridLayoutTests 4 件（短列保自然宽／长列封顶／逐列独立／拼装 strong 字体映射）；ChatNativeRowHeightFittingTests 加「表格Grid长格封顶折行」拟合例（长备注格自然宽远超 168＋空缺格行，拟合高与合成高 ±1 对账、回喂不动点）。
+
+### §396.2 第 151 条：草稿内存化裁定
+
+**现状实查**：草稿经 SideChatStore.drafts 落 UserDefaults（键 sideChats.drafts、按线程寻址、写入即落盘、空串即清键）——基础止血包 P3 按用户实报「切会话回来已输入文字丢失」修的保活口径；发件箱半边已随 154 落地（§336），本条只剩草稿半边与现行实现的口径冲突（pkg-outbox-154-delivery-20261121 §4 三选项在案）。
+
+**外部成熟做法对位**：
+
+| 件 | 成熟做法 | 分级 | 出处 |
+|---|---|---|---|
+| 草稿存续 | Telegram：草稿退出 App 即保存、跨设备同步、发送即清——持久化是明文产品规格 | 官方原文级 | telegram.org/blog/drafts；core.telegram.org/api/drafts |
+| 草稿存续 | WhatsApp/iMessage/微信：草稿按会话持久、跨重启存续 | 现象推断 | 产品现象 |
+| 草稿纯内存 | OpenBot：草稿只存内存、关 App 即空 | 公开文档级（自家研读档） | openbot-mobile-study-20261119 |
+
+**裁定：取 2026-11-21 交付报告 §4 选项 (A)——维持持久草稿、151 草稿半边作废改记**。理由：①主流成熟产品一致持久化、Telegram 更以官方规格明文定之，OpenBot 内存草稿是少数派自家取舍、无出处优势（按「无原生照抄成熟项目现成实现」口径不抄少数派）；②改回内存＝用户已实报并验收的丢字缺陷复发，属倒退；③过期折中 (C) 主流亦无此做法（Telegram/iMessage 均不过期）、徒增新施工——不取。151 整条据此关账：发件箱半边已落（§336）、草稿半边定案不学。
+
+**落码（定案＋钉测）**：SideChatStore 加可注入 UserDefaults 的指定初始化器（init(defaults:)，生产 convenience init(persisted:) 口径逐字不变）；SideChatStoreDraftPersistenceTests 4 件把守——写入后新实例读回一致（跨重启语义）、空串清键、逐线程独立、演示模式不落盘。
+
+### §396.3 回归（回填）
+
+- 聚焦轮（Test-OneDayApp-griddraft-focused，ProbePhone）：8 套 **47/47 全绿、0 红、0 跳过**——ChatNativeRowHeightFittingTests 10（新「表格Grid长格封顶折行」例在 testMarkdownFacetsFitComposer 内：长备注格封顶折行后拟合高与合成高 ±1 对账、以采用高回喂再拟合不动点成立；空缺格行同绿）、MarkdownTableGridLayoutTests 4/4、SideChatStoreDraftPersistenceTests 4/4、S371 1/1、S373 2/2、FeedDiscussQuoteAppTests 6/6、SourceQuoteAppTests 5/5（SideChatStore 存量消费面不退）、TextPipelineRunLayerTests 15/15（Core 表格口径未动复核）。
+- 全量轮（Test-OneDayApp-griddraft-full）：发布集 97 套 817 项（名单自 rel05098 bundle 以 xcresulttool 提取全限定名）＋新 2 套 8 项＝99 套，实跑 **825/825 全绿、0 红、0 跳过**，bundle 逐套对账一致、新红零。
+- 过程记账：聚焦首发车因备忘盒初版用静态 NSCache 触 Swift 6 并发检查编译红（与功能改动无关），按仓内 InlineTextFonts.SpecCacheBox 锁盒式（NSLock＋@unchecked Sendable）修复后复跑全绿。
+- 真机门（留组版后 verdict）：含长备注列的表格——列宽封顶、格内折行、整表横滑只剩多列总宽超气泡宽的余量；草稿切会话/杀 App 重开仍在（P3 保活口径复验）。

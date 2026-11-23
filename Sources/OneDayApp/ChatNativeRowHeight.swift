@@ -1382,25 +1382,51 @@ struct ChatNativeRowHeightComposer {
                 header: header, rows: rows, width: width
             )
         }
-        // Grid（§329 续修校准实证）：横滚 Scroll-
-        // View＋Grid 组合下，格上的 frame(max-
-        // ColumnWidth) 不压缩列宽——列宽按各格自
-        // 然宽取列最大值、每格恒单行（拟合直测：
-        // 备注列自然宽 270 整行不折、整表高与
-        // 「全行单行」模型逐值一致）。行高＝
-        // SwiftUI .callout 单行实高（表头 bold
-        // 同值）；行间 verticalSpacing spacingXS；
-        // 表头行与数据行之间 GroupDivider 一行。
-        // 注：§149「封顶折行」设计意图在此组合下
-        // 未达成、属呈现层既有行为，本式只对齐
-        // 量测、呈现改判归主线
-        let rowLineHeight = swiftLineHeight(
-            plainFont(.callout)
-        )
+        // Grid（§396 封顶折行模型）：列宽与呈现
+        // 单源（MarkdownTableGridLayout.column-
+        // Widths——逐列自然宽按 Core maxColumn-
+        // Width 封顶、呈现以显式宽喂格折行）；逐
+        // 行取各格在列宽下的实高最大值，格高走
+        // 与降级列表支同一公式（量测高 tableCell-
+        // TextHeight＋SwiftUI 行高换算 swiftText-
+        // Height）；行间账（GroupDivider 一行＋
+        // verticalSpacing spacingXS）不变。§329
+        // 的自然宽单行模型自此退役（彼时呈现未
+        // 折行、量测对齐呈现；本节呈现改折行、
+        // 量测随改回封顶模型）
+        let columnWidths = MarkdownTableGridLayout
+            .columnWidths(
+                header: header, rows: rows,
+                category: sizeCategory,
+                boldText: boldText
+            )
         let dividerHeight = 1 / max(displayScale, 1)
         let gridRows = rows.count + 2
-        return rowLineHeight * CGFloat(rows.count + 1)
-            + dividerHeight
+        func gridRowHeight(
+            _ row: [String]
+        ) -> CGFloat {
+            var height: CGFloat = 0
+            for (column, cell) in row.enumerated()
+            where column < columnWidths.count {
+                let measured = tableCellTextHeight(
+                    cell, width: columnWidths[column]
+                )
+                height = max(
+                    height,
+                    swiftTextHeight(
+                        measured: measured,
+                        stepStyle: .callout,
+                        firstLineFont: plainFont(.callout)
+                    )
+                )
+            }
+            return height
+        }
+        var total = gridRowHeight(header)
+        for row in rows {
+            total += gridRowHeight(row)
+        }
+        return total + dividerHeight
             + OneDayMetrics.spacingXS
                 * CGFloat(gridRows - 1)
     }
@@ -1458,64 +1484,17 @@ struct ChatNativeRowHeightComposer {
         return total
     }
 
-    /// 表格格文本拼装（与 MarkdownText.inline 同
-    /// 路：系统行内解析＋strong 段映射 strongFont
-    /// ——格内字阶 .callout、strong＝.callout bold；
-    /// 删除线段不影响高、不拼）
+    /// 表格格文本拼装（§396 起单源在 Markdown-
+    /// TableGridLayout.cellAttributed——呈现列宽
+    /// 与量测共用同一拼装；本口只按本合成器的环
+    /// 境口径转发）
     private func tableCellAttributed(
         _ cell: String
     ) -> NSAttributedString {
-        let base = plainFont(.callout)
-        let bold = weightedFont(.callout, .bold)
-        let result = NSMutableAttributedString()
-        for segment in MarkdownInline.segments(cell) {
-            guard let parsed = try? AttributedString(
-                markdown: segment.text,
-                options: AttributedString
-                    .MarkdownParsingOptions(
-                        interpretedSyntax:
-                            .inlineOnlyPreservingWhitespace
-                    )
-            ) else {
-                result.append(NSAttributedString(
-                    string: segment.text,
-                    attributes: [.font: base]
-                ))
-                continue
-            }
-            // 系统解析产物逐 run 按 intent 重映射
-            // 到 UIKit 字体（strong→bold、其余
-            // base），与视图 inlineAttributed 的
-            // 映射同口径；run 无 intent 即正文段
-            var converted = NSMutableAttributedString()
-            for run in parsed.runs {
-                let isStrong = run
-                    .inlinePresentationIntent?
-                    .contains(.stronglyEmphasized)
-                    ?? false
-                converted.append(NSAttributedString(
-                    string: String(
-                        parsed[run.range].characters
-                    ),
-                    attributes: [
-                        .font: isStrong ? bold : base,
-                    ]
-                ))
-            }
-            if converted.length == 0 {
-                converted = NSMutableAttributedString(
-                    string: segment.text,
-                    attributes: [.font: base]
-                )
-            }
-            result.append(converted)
-        }
-        if result.length == 0 {
-            return NSAttributedString(
-                string: cell, attributes: [.font: base]
-            )
-        }
-        return result
+        MarkdownTableGridLayout.cellAttributed(
+            cell, category: sizeCategory,
+            boldText: boldText
+        )
     }
 
     private func tableCellTextHeight(
