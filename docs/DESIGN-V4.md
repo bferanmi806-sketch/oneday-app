@@ -16274,3 +16274,13 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 
 ### §407.4 真机门（未过不关账）
 发送全程帧验：刚发消息上屏不跳行、失败/待发标记点达可重发、生成中占位行恒高不抖、落定整条换入不错行；交付文件卡封面区图到只换图不换高。实验室绿不代真机 verdict。
+
+## §408 版本 0.50.102/230 组版记账（2026-11-23；基线 rel-05101 @86bb4a8）
+
+- 合入链（逐条单独成笔）：6eed4f1 §407 预排版步骤 1 合入（源 feat/prelayout-step1 @a4935ad）→ 5362996 版本笔（0.50.102/230：Project.swift 四处版本值＋tuist generate 刷新 Derived，generate 后未还原 Derived、Derived plist 回读 0.50.102/230 ✓）→ 本提交（本节）。
+- DESIGN 冲突处置：冲突 1 处（文末同锚点：本树 §405/§406 与分支 §407 双追加），并集解——删冲突标记、三节正文零删改，尾部节序排齐为 §404→§405→§406→§407。代码冲突：无。
+- 发布集：名单＝rel05101 bundle（Test-OneDayApp-rel05101）xcresulttool 提取 129 套全限定名＋新增 OneDayAppTests/ChatPreLayoutStep1Tests＝130 套，实跑 1026/1026 全绿、0 红、0 跳过（bundle Test-OneDayApp-rel05102，xcresulttool 逐套对账：129 套计数零差异，唯一增量＝ChatPreLayoutStep1Tests +5）。
+- §407 钉测实物核对（如实记账）：分支实物为 ChatPreLayoutStep1Tests 1 类 5 例（旧码 3 红→落码 5/5 绿，见 a4935ad 提交说明）；S1 交卷自述的 5 类 17 例、定向 175 项全绿与实物不符（其提交说明自记定向回归 22 套 101 项、14 红与 rel-05100 基线逐名相同＝既有红集、非本包回归），本版以分支实物＋发布集全量对账为准，发布集口径内零红。
+- 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
+- IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
+- 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
