@@ -30,6 +30,7 @@ private final class ThumbImageBox: @unchecked Sendable {
 }
 
 @MainActor
+/// §416 新鲜度普查豁免：本地缩略图缓存件，无远端新鲜度问题（判定表见 DESIGN §416）
 final class FileThumbnailStore {
     static let shared = FileThumbnailStore()
 

@@ -42,6 +42,7 @@ final class WebhooksStore {
         return nil
     }
 
+/// §416 新鲜度普查豁免：config 编辑面（ops 注入）——读待编辑现值、写后回读对账（判定表见 DESIGN §416）
     func load(ops: WebhooksOperations) async {
         if case .ready = state {
             // 已有真值时刷新不闪空

@@ -19,6 +19,7 @@ struct PairingOperations {
 /// 副题位）。与 HealthSummaryStore 同式
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：待批数本地摘要落盘，无远端新鲜度问题（判定表见 DESIGN §416）
 final class PairingSummaryStore {
     static let shared = PairingSummaryStore()
 
@@ -89,6 +90,7 @@ final class PairingStore {
 
     // MARK: - 读
 
+/// §416 新鲜度普查豁免：待批时效敏感——TTL 跳过会藏新配对请求，进面现读（判定表见 DESIGN §416）
     /// 拉两列清单。已有清单时刷新不闪空（保留旧清
     /// 单直到新回包落地）；刷新失败只留页首人话、
     /// 不丢已读到的清单

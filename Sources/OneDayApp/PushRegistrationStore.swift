@@ -125,6 +125,7 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate {
 /// requestAuthorization 都不许出现（结构钉测把守）。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：推送注册生命周期事件驱动，无读触发拉取（判定表见 DESIGN §416）
 final class PushRegistrationStore {
     private(set) var phase: PushRegistrationPhase = .idle
     private(set) var permission: DevicePermissionState = .notDetermined

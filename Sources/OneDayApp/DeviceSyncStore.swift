@@ -7,6 +7,8 @@ import OneDayCore
 /// 鲜度行）。0.36.18 起不再有同步开关与说明已读标
 /// 记可存——授权即自动同步，旧键留在 defaults 里
 /// 不读不管（无副本数据、不必清理）
+/// §416 新鲜度普查豁免：本地同步回执落盘（UserDefaults），
+/// 无远端新鲜度问题（判定表见 DESIGN §416）
 extension DevicePreferences {
     private static var defaults: UserDefaults { .standard }
 

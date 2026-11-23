@@ -25,6 +25,7 @@ final class ConnectionsStore {
         connections.filter(\.isCloudComputer)
     }
 
+/// §416 新鲜度普查豁免：探测复合面一环（进页/下拉同序，含本地/设备探测），门不介入（判定表见 DESIGN §416）
     func load(appState: AppState) async {
         guard !isLoading, let config = appState.config else { return }
         isLoading = true

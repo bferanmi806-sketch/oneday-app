@@ -37,6 +37,7 @@ final class GrantsLedgerStore {
     private(set) var note: String?
     private(set) var noteIsProblem = false
 
+/// §416 新鲜度普查豁免：设置子页清单，写动作回读对账、进面现读（判定表见 DESIGN §416）
     /// 拉统一清单。未连接/无凭据 → .unavailable（不冒充
     /// 空清单）；503 投影不可用给专属人话；其余失败走
     /// HermesError 人话。已有清单时刷新不闪空（保留旧

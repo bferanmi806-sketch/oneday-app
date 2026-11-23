@@ -69,8 +69,8 @@ struct MemoryView: View {
         }
         .task {
             await load()
-            await memoriesStore.load(appState: appState)
-            await learningStore.load(appState: appState)
+            await memoriesStore.loadIfNeeded(appState: appState)
+            await learningStore.loadIfNeeded(appState: appState)
         }
         .confirmationDialog(
             "重置记忆？",

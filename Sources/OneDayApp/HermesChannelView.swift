@@ -236,6 +236,7 @@ struct HermesChannelView: View {
 /// 呈现
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：取数经 SessionLedger 可见段（门已覆盖），本店只接线（判定表见 DESIGN §416）
 final class HermesChannelStore {
     var isLoading = false
     var loadError: String?

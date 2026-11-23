@@ -8,6 +8,7 @@ import OneDayCore
 /// SideChatStore 同模式；演示模式纯内存不落盘）。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：本地运行台账落盘店，无远端新鲜度问题（判定表见 DESIGN §416）
 final class RunLedgerStore {
     private(set) var entries: [RunLedgerEntry] = []
 

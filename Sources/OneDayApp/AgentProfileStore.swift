@@ -24,6 +24,7 @@ import UIKit
 ///   的值置待推标记，首次连通刷新时写穿服务端。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：名字/头像本地缓存＋serverUpdatedAt 自有时刻口径，非名单面（判定表见 DESIGN §416）
 final class AgentProfileStore {
     private enum Keys {
         static let nameCache = "identity.nameCache"

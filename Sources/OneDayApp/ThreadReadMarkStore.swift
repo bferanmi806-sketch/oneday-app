@@ -11,6 +11,7 @@ import OneDayCore
 /// 当前末条。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：本地已读标记落盘店，无远端新鲜度问题（判定表见 DESIGN §416）
 final class ThreadReadMarkStore {
     private struct Mark: Codable {
         var entryID: String?

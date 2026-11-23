@@ -47,6 +47,7 @@ final class SelfCheckSummaryStore {
 /// 写请求；整轮结论落留痕供设置行副题读
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：自检面——显式触发汇总，无读触发全量拉取（判定表见 DESIGN §416）
 final class ConnectionSelfCheckStore {
     private(set) var report: SelfCheckReport?
     private(set) var isRunning = false

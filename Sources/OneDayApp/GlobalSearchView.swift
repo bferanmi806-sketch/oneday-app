@@ -107,7 +107,7 @@ struct GlobalSearchView: View {
         .task {
             await cronStore.loadIfNeeded()
             if libraryStore.deliverables == nil {
-                _ = await libraryStore.refresh(
+                _ = await libraryStore.refreshIfNeeded(
                     currentConfigKey: appState.config?.baseString
                 ) {
                     guard let config = appState.config else {

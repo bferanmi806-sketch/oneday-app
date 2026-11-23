@@ -708,6 +708,7 @@ final class AllConversationsStore {
     /// prune 预演回的将删条数（确认弹窗文案用）
     var pruneDryRunCount: Int?
 
+/// §416 新鲜度普查豁免：全量重拉是显式动作口，经 SessionLedger 强制路，不经读触发门（判定表见 DESIGN §416）
     /// 名单全量重拉（触发账本 refresh；任一段拉取
     /// 失败转人话错误——可见段已落位不回滚，与旧
     /// load 的失败形态一致）

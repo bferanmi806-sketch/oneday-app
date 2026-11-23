@@ -22,6 +22,7 @@ struct SideChatScrollAnchor: Codable, Equatable {
 /// ThreadID 不并入账本）
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：本地旁聊状态店（SwiftData），无远端新鲜度问题（判定表见 DESIGN §416）
 final class SideChatStore {
     /// 主线固定标题（不被首条消息派生覆盖，M3 口径；
     /// 0.18.0 命名统一：旧称「主聊」就此退役，全仓

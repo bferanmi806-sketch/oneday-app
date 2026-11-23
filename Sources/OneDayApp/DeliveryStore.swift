@@ -16,6 +16,7 @@ import OneDayCore
 /// miss，下次可再试。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：按文件逐项懒取元数据，非名单全量拉取（判定表见 DESIGN §416）
 final class DeliveryStore {
     static let shared = DeliveryStore()
 

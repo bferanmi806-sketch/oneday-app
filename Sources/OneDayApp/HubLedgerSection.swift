@@ -87,8 +87,8 @@ struct HubLedgerSection: View {
         }
         .task {
             await store.load(appState: appState)
-            await kanbanStore.load(appState: appState)
-            await monitorsStore.load(appState: appState)
+            await kanbanStore.loadIfNeeded(appState: appState)
+            await monitorsStore.loadIfNeeded(appState: appState)
             consumeFocusFields()
             await store.runVisibleLoop(appState: appState)
         }
