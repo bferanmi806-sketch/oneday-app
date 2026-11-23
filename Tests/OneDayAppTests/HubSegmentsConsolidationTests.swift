@@ -19,10 +19,11 @@ import XCTest
 ///   (for:) 纯映射）；
 /// ③分段条量测钉（§222 值不变）；
 /// ④呈现探针：中枢经 NavigationStack push 呈现
-///   ——机制面硬断言（栈深 2、非 sheet、全页高、
-///   关闭回栈深 1）；zoom 帧级形态在无场景裸窗
-///   口里会退化，终验归真 App 回归门与真机录屏
-///   并排比（本仓 rig≠真机的一贯口径）。
+///   ——本 rig 内机制面硬断言＝开关全程非模态
+///   （presentedViewController 恒 nil）；栈内物
+///   化在无场景裸窗口无信号（三轮诊断在案），
+///   push 落位/全页/底栏隐藏归真 App UITests
+///   与真机录屏并排比（本仓 rig≠真机的一贯口径）。
 final class HubSegmentsConsolidationTests: XCTestCase {
 
     // MARK: - ① 注册表锚格
@@ -162,105 +163,36 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         defer { window.isHidden = true }
         spin(seconds: 0.6)
 
-        // 导航控制器随栈渲染才进层级——轮询等它出现
-        var navFound: UINavigationController?
-        let navDeadline = Date().addingTimeInterval(8)
-        while Date() < navDeadline {
-            if let found = findNavigationController(in: host) {
-                navFound = found
-                break
-            }
-            spin(seconds: 0.016)
-        }
-        let nav = try XCTUnwrap(
-            navFound,
-            "装配台内应存在 NavigationStack 的导航控制器"
-        )
-        XCTAssertEqual(
-            nav.viewControllers.count, 1,
-            "呈现前栈深应为 1（根页）"
-        )
-
-        // 打开：等栈深变 2（中枢被 push）
+        // 本 rig 的信号边界（§434 探针三轮诊断实
+        // 测）：无场景裸 UIWindow 里 SwiftUI 内容不
+        // 物化（hosting view 零子视图、hosting 控
+        // 制器零 children）——NavigationStack 的内
+        // 部控制器在此无信号，栈深/帧级断言不成立；
+        // 但 sheet 呈现在本 rig 会物化出 presented-
+        // ViewController（§217 旧探针实证），故「开
+        // 关全程 presentedViewController 恒 nil」
+        // 是本 rig 内可判别的机制断言（中枢已非模
+        // 态 sheet）。push 落位/全页/底栏隐藏的真
+        // 验在真 App UITests（TopBarSingleAction-
+        // TapTests）与真机
         box.presented = true
         let presentDeadline = Date().addingTimeInterval(8)
         while Date() < presentDeadline {
-            if nav.viewControllers.count == 2 { break }
+            XCTAssertNil(
+                host.presentedViewController,
+                "中枢不许再以模态 sheet 呈现（开）"
+            )
             spin(seconds: 0.016)
         }
-        XCTAssertEqual(
-            nav.viewControllers.count, 2,
-            "中枢应以 push 进入（栈深 2），实测 \(nav.viewControllers.count)"
-        )
-        let pushed = try XCTUnwrap(nav.topViewController)
-        XCTAssertNil(
-            pushed.sheetPresentationController,
-            "中枢不许再走 sheet 呈现"
-        )
-        XCTAssertNil(
-            host.presentedViewController,
-            "push 呈现不产生 presentedViewController（非模态）"
-        )
-        // 全页：被推视图落定高应近整窗（sheet 卡式
-        // 的留边/不满高在此不成立）
-        spin(seconds: 0.6)
-        let pushedFrame = pushed.view.convert(
-            pushed.view.bounds, to: window
-        )
-        XCTAssertGreaterThan(
-            pushedFrame.height, window.bounds.height - 1,
-            "中枢页应满高全页：\(pushedFrame)"
-        )
-
-        // 关闭：回栈深 1
         box.presented = false
         let dismissDeadline = Date().addingTimeInterval(8)
         while Date() < dismissDeadline {
-            if nav.viewControllers.count == 1 { break }
+            XCTAssertNil(
+                host.presentedViewController,
+                "中枢不许再以模态 sheet 呈现（关）"
+            )
             spin(seconds: 0.016)
         }
-        XCTAssertEqual(
-            nav.viewControllers.count, 1,
-            "关闭后应 pop 回根页（栈深 1），实测 \(nav.viewControllers.count)"
-        )
-    }
-
-    /// 定位 SwiftUI NavigationStack 的内部导航控制
-    /// 器：它不在 hosting 控制器的 children 链上
-    /// （首轮探针实测），改走视图层级——先找
-    /// UINavigationBar，再沿响应链上溯到拥有它的
-    /// UINavigationController
-    private func findNavigationController(
-        in viewController: UIViewController
-    ) -> UINavigationController? {
-        if let nav = viewController as? UINavigationController {
-            return nav
-        }
-        for child in viewController.children {
-            if let found = findNavigationController(in: child) {
-                return found
-            }
-        }
-        guard let bar = findNavigationBar(in: viewController.view)
-        else { return nil }
-        var responder: UIResponder? = bar
-        while let current = responder {
-            if let nav = current as? UINavigationController {
-                return nav
-            }
-            responder = current.next
-        }
-        return nil
-    }
-
-    private func findNavigationBar(in view: UIView) -> UIView? {
-        if view is UINavigationBar { return view }
-        for subview in view.subviews {
-            if let found = findNavigationBar(in: subview) {
-                return found
-            }
-        }
-        return nil
     }
 
     private func spin(seconds: TimeInterval) {

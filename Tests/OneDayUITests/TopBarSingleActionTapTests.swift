@@ -146,13 +146,15 @@ final class TopBarSingleActionTapTests: XCTestCase {
     /// 的形态逐项验（定案见 hub-tap-misfire-hunt-
     /// self-20261113 与 hub-layout-overflow 报告）：
     /// - 点头像开枢纽：页头 ✕ 与分享钮完整在屏内；
-    /// - 枢纽内无模型单行入口（结构归位包撤除，
-    ///   纲要 D4-2：模型切换正主＝聊天页胶囊）；
+    /// - §434 后枢纽身份头下有「选择模型」入口
+    ///   （用户 2026-11-24 亲点恢复，复用聊天页同
+    ///   一选择器；旧「无模型入口」口径作废）；
     /// - 枢纽内不存在目录行（抽查目录深处三 id）；
-    /// - 四段逐段可达、每次切段后页头仍在屏内；末
-    ///   段（身份）内容区可滚到底且页头不失（§217
-    ///   收段后段集＝活动/定时/浏览器/身份，任务/
-    ///   审核/监测已并入活动）。
+    /// - 段集由注册表动态渲染（§434）：必达＝工作/
+    ///   身份（锚格）；审核/电脑/邮箱随能力回读长
+    ///   格，演示装配里缺席不算违规、在场则须可达
+    ///   且切段后页头不失；末段（身份）内容区可滚
+    ///   到底且页头不失。
     func testHubLayoutWithFullCatalog() throws {
         var lines: [String] = []
         var violations: [String] = []
@@ -227,15 +229,22 @@ final class TopBarSingleActionTapTests: XCTestCase {
             lines.append("shareKin=\(labels)")
         }
 
-        // 模型单行入口已撤（结构归位包，纲要
-        // D4-2）：枢纽回归只读档案面，入口不许在屏内
-        // 出现；模型切换的在屏验证归聊天页胶囊面
+        // §434 模型入口（用户 2026-11-24 亲点）：
+        // 身份头下、分段条上应有「选择模型」入口，
+        // 点开是与聊天页胶囊同一套选择器；旧「枢纽
+        // 内无模型入口」断言（结构归位包口径）作废
         let entry = app.buttons.matching(
-            NSPredicate(format: "label BEGINSWITH '会话模型：'")
+            NSPredicate(format: "label BEGINSWITH '选择模型'")
         ).firstMatch
-        if entry.exists {
-            violations.append("枢纽内出现已撤的模型单行入口")
+        if entry.waitForExistence(timeout: 5), entry.isHittable {
+            lines.append("modelEntry=\\(fmt(entry.frame))")
+        } else {
+            violations.append("枢纽内缺 §434 选择模型入口")
         }
+        // §434 push 全页：底栏应被推页盖住/隐藏
+        // （软留痕：环境差异大，只记不断言）
+        lines.append("tabBarExistsWhileHubOpen="
+            + "\(app.tabBars.firstMatch.exists)")
 
         // 枢纽内不存在目录行：三 id 只可能以目录行
         // 形态出现在枢纽里（非当前模型、选择面未开）
@@ -250,8 +259,10 @@ final class TopBarSingleActionTapTests: XCTestCase {
         }
 
 
-        // 四段逐段可达＋切段后页头不失（§217 收段口径）
-        for name in ["活动", "定时", "浏览器", "身份"] {
+        // §434 注册表段集：锚格（工作/身份）必达；
+        // 能力格（审核/电脑/邮箱）随真回读长格——
+        // 演示装配缺席不违规，在场则须可达且页头不失
+        for name in ["工作", "身份"] {
             let seg = segmentButton(app, name)
             if seg.waitForExistence(timeout: 4), seg.isHittable {
                 seg.tap()
@@ -260,8 +271,29 @@ final class TopBarSingleActionTapTests: XCTestCase {
                     violations.append("切到「\(name)」段后页头 ✕ 不在屏内")
                 }
             } else {
-                violations.append("分段「\(name)」不可达")
+                violations.append("锚格分段「\(name)」不可达")
             }
+        }
+        var optionalPresent: [String] = []
+        for name in ["审核", "电脑", "邮箱"] {
+            let seg = segmentButton(app, name)
+            if seg.waitForExistence(timeout: 2), seg.isHittable {
+                optionalPresent.append(name)
+                seg.tap()
+                Thread.sleep(forTimeInterval: 0.4)
+                if hubCloseButton(app) == nil {
+                    violations.append("切到「\(name)」段后页头 ✕ 不在屏内")
+                }
+            }
+        }
+        lines.append("optionalSegmentsPresent="
+            + optionalPresent.joined(separator: ","))
+        // 回身份段做末段滚动验收（与旧口径同落点）
+        let identitySeg = segmentButton(app, "身份")
+        if identitySeg.waitForExistence(timeout: 4),
+           identitySeg.isHittable {
+            identitySeg.tap()
+            Thread.sleep(forTimeInterval: 0.4)
         }
 
         // 末段（身份）内容区滚到底：探针文本（分段
