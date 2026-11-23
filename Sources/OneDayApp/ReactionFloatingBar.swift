@@ -300,14 +300,18 @@ struct ReactionActionCardView: View {
     }
 }
 
-/// 浮排布局产物（DESIGN §346）：药丸原点／动作卡
-/// 原点与尺寸／快照可见带（全局坐标）＋两端裁切
-/// 标记（视图层据此挂渐隐 mask）
+/// 浮排布局产物（DESIGN §346／§440）：药丸原点／
+/// 动作卡原点与尺寸／快照可见带（帧全局坐标、定
+/// 义呈现哪段内容）／快照落位顶（屏幕坐标、定义
+/// 画在哪——整摞平移与顶锚时与可见带原位不同，
+/// §440 分开两量）＋两端裁切标记（视图层据此挂
+/// 渐隐 mask）
 struct ReactionBarLayout: Equatable {
     var barOrigin: CGPoint
     var cardOrigin: CGPoint
     var cardSize: CGSize
     var snapshotVisibleRect: CGRect
+    var snapshotPlacementY: CGFloat
     var clipsTop: Bool
     var clipsBottom: Bool
 }
@@ -318,14 +322,15 @@ struct ReactionBarLayout: Equatable {
 ///   方；横向按气泡对齐后夹进屏幕 8pt 安全边。
 ///   本函数逐值保留作回归锚（短消息在安全区内时
 ///   与 layout 的纵向结果一致）
-/// - layout（§346 立、§386 改纵向求解）：入参
-///   补安全区视口矩形，一次算齐药丸/动作卡/快
-///   照带，三层互不重叠且完整落在安全区内。纵
-///   向改顺序求解：药丸先独立锚定预览（上方贴
-///   合／钉安全顶二态、不被卡否决），动作卡后
-///   从属求解（贴消息下方→钉安全底→药丸上方成
-///   摞→退化硬钳）；§346 的联合求解与「卡恒在
-///   药丸下方」不变量自 §386 起退役
+/// - layout（§346 立、§386 改纵向求解、§440
+///   再改判）：入参补安全区视口矩形，一次算齐
+///   药丸/动作卡/快照带。§440 契约＝整摞锚定＋
+///   预览完整呈现：快照带只被视口裁（§346/§386
+///   「减层占位取最长段」是预览截断源头、退役），
+///   药丸恒贴带上、卡恒贴带下，整摞刚体平移进
+///   视口；整摞高过视口时药丸钉顶、卡钉底、带
+///   取顶锚（自帧顶向下、底端裁切）。§386 的药
+///   丸独立锚定＋卡从属求解（C1–C4）随之退役
 enum ReactionBarPlacement {
     /// 层间与对消息的统一间距（现行 8pt 口径）
     static let gap: CGFloat = 8
@@ -366,7 +371,7 @@ enum ReactionBarPlacement {
         let safeBottom = viewport.maxY
 
         // 横向：药丸按气泡对齐、卡左对齐消息左缘，
-        // 各自夹进视口左右 8pt
+        // 各自夹进视口左右 8pt（§386 口径不变）
         var barX = alignsTrailing
             ? sourceFrame.maxX - barW
             : sourceFrame.minX
@@ -386,101 +391,69 @@ enum ReactionBarPlacement {
             )
         )
 
-        // 药丸纵位（DESIGN §386：独立锚定预览、先
-        // 行定死）：上方贴合（帧顶 − gap − 药丸
-        // 高，与第一步口径同值）；上方不足（预览
-        // 顶出屏或贴顶）钉安全区顶部。药丸不读卡
-        // 尺寸、不被卡落位否决——§346 联合求解下
-        // 贴顶短消息药丸落消息下方、中下段消息药
-        // 丸被钉屏顶脱离预览，两偏差本包收掉
-        let yAbove = sourceFrame.minY - gap - barH
-        let finalBarY = yAbove >= safeTop
-            ? yAbove
-            : safeTop + gap
-        let pillBottom = finalBarY + barH
+        // 快照切片：帧∩视口——只被视口裁，不再被
+        // 药丸/卡占位段切分（§440 改判本体）
+        let sliceTop = max(sourceFrame.minY, safeTop)
+        let sliceBottom = min(sourceFrame.maxY, safeBottom)
+        let sliceHeight = max(0, sliceBottom - sliceTop)
 
-        // 动作卡纵位（从属求解、恒不与药丸重
-        // 叠）：C1 贴消息下方 → C2 钉安全区底部
-        // 上方 → C3 药丸上方成摞（贴底消息：下方
-        // 与钉底都被药丸占位否决时卡退到药丸上
-        // 方、预览带不让位）→ C4 退化硬钳（视口
-        // 高不足药丸＋卡＋间距、横屏＋多项数才
-        // 达：沿 §346 兜底，两层夹回视口、贴合
-        // 让位入屏）
-        let yBelow = sourceFrame.maxY + gap
-        /// 卡钉安全区底部上方
-        let cardPinBottom = safeBottom - gap - cardH
-        var cardY: CGFloat?
-        if yBelow + cardH <= safeBottom - gap,
-           yBelow >= pillBottom + gap {
-            cardY = yBelow
-        } else if cardPinBottom >= pillBottom + gap {
-            cardY = cardPinBottom
-        } else if finalBarY - gap - cardH >= safeTop {
-            cardY = finalBarY - gap - cardH
-        }
-        let finalCardY = cardY ?? min(
-            max(cardPinBottom, pillBottom + gap),
-            max(safeTop, safeBottom - cardH)
-        )
-
-        // 快照可见带：帧∩视口的纵向跨度去掉药丸/
-        // 卡的占位段（各向外扩 gap），取最长段——
-        // 长文时即药丸与卡之间，溢出两端裁切
-        let lo = max(sourceFrame.minY, safeTop)
-        let hi = min(sourceFrame.maxY, safeBottom)
-        var segments: [(CGFloat, CGFloat)] =
-            hi > lo ? [(lo, hi)] : []
-        for span in [
-            (finalBarY - gap, finalBarY + barH + gap),
-            (finalCardY - gap, finalCardY + cardH + gap),
-        ] {
-            segments = segments.flatMap { seg in
-                if span.1 <= seg.0 || span.0 >= seg.1 {
-                    return [seg]
-                }
-                var out: [(CGFloat, CGFloat)] = []
-                if span.0 > seg.0 {
-                    out.append((seg.0, span.0))
-                }
-                if span.1 < seg.1 {
-                    out.append((span.1, seg.1))
-                }
-                return out
+        var barY: CGFloat
+        var cardY: CGFloat
+        var placementY: CGFloat
+        var visibleHeight = sliceHeight
+        if sliceHeight <= 0 {
+            // 帧整出视口（极端贴边行）：快照不出
+            // （高 0），药丸钉顶、卡钉底兜底
+            barY = safeTop
+            cardY = safeBottom - cardH
+            placementY = sliceTop
+        } else if barH + gap + sliceHeight + gap + cardH
+            <= viewport.height {
+            // 整摞装得下：刚体平移进视口（先保顶
+            // 再保底，装得下时两保不冲突——平移后
+            // 另一端自动在界内）
+            var dy: CGFloat = 0
+            let barY0 = sliceTop - gap - barH
+            if barY0 < safeTop {
+                dy = safeTop - barY0
             }
-        }
-        let best = segments.max {
-            ($0.1 - $0.0) < ($1.1 - $1.0)
-        }
-        let visible: CGRect
-        if let best {
-            visible = CGRect(
-                x: sourceFrame.minX,
-                y: best.0,
-                width: sourceFrame.width,
-                height: best.1 - best.0
-            )
+            let cardY0 = sliceBottom + gap
+            if cardY0 + dy + cardH > safeBottom {
+                dy = safeBottom - cardH - cardY0
+            }
+            barY = barY0 + dy
+            cardY = cardY0 + dy
+            placementY = sliceTop + dy
         } else {
-            // 帧在视口内已无净空段（极端贴边行）：
-            // 快照全钳（高 0），药丸与卡功能不受影响
-            visible = CGRect(
-                x: sourceFrame.minX,
-                y: min(
-                    max(sourceFrame.minY, safeTop),
-                    safeBottom
-                ),
-                width: sourceFrame.width,
-                height: 0
+            // 整摞高过视口：药丸钉视口顶、卡钉视
+            // 口底，切片取顶锚带（自帧可见顶向下
+            // 取满带高、底端裁切渐隐）
+            barY = safeTop
+            cardY = safeBottom - cardH
+            placementY = barY + barH + gap
+            visibleHeight = max(
+                0,
+                min(
+                    sliceHeight,
+                    cardY - gap - placementY
+                )
             )
         }
+        let visible = CGRect(
+            x: sourceFrame.minX,
+            y: sliceTop,
+            width: sourceFrame.width,
+            height: visibleHeight
+        )
         return ReactionBarLayout(
-            barOrigin: CGPoint(x: barX, y: finalBarY),
-            cardOrigin: CGPoint(x: cardX, y: finalCardY),
+            barOrigin: CGPoint(x: barX, y: barY),
+            cardOrigin: CGPoint(x: cardX, y: cardY),
             cardSize: cardSize,
             snapshotVisibleRect: visible,
-            clipsTop: visible.minY
+            snapshotPlacementY: placementY,
+            clipsTop: sliceTop
                 > sourceFrame.minY + 0.5,
-            clipsBottom: visible.maxY
+            clipsBottom: sliceTop + visibleHeight
                 < sourceFrame.maxY - 0.5
         )
     }

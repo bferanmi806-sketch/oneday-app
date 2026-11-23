@@ -16731,3 +16731,16 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 冒烟轮（bundle Test-Smoke-rel05105.xcresult）：6 套 20 测全绿（Reliability 5＋S373 结构 2＋S371 结构 1＋长列表滚动 1＋迁移 4＋UI 冒烟 7）；过程注记：本轮被重复 kick 两次（断线后等待器与首跑交叠），两跑 exit 均 0、第二跑 bundle 封口实数如上。
 - IPA：Release 构建 exit 0；~/build/OneDay-0.50.105.ipa，16,612,208 字节，md5 2ad5bbc5e725d6a196cf72adb1a7dc2e；本体三值亲验 0.50.105／233／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 需求总表已加 0.50.105 版本行＋四缺陷真机复验清单（变色／完成卡／键盘贴底／三点，各一句验收动作）；四缺陷划线等用户真机 verdict。分支 rel-05105 未 push、未打 tag（主线处置）。
+
+## §440 长按呈现三缺陷最小修（2026-11-24，用户真机亲报；分支 feat/longpress-fix，基线 rel-05105）
+
+- 缺陷（用户 01:27 截图＋01:30 追加）：①长按预览只剩一截被截断；②反应条与动作卡离消息远、锚定漂移；③进入选择态后点空白/滚动不能取消。参照 Muse：消息原地整条呈现、条贴上方、菜单贴下方、点外即散。
+- 定因：①②同源——ReactionBarPlacement.layout 旧契约「可见带＝帧减药丸/卡占位段后取最长段」自带截断（既有单测把 60pt 消息只剩 37pt、屏内 340pt 只剩 92pt 钉为正确）；卡从属求解 C2/C3 使卡脱离消息（贴底消息卡退到药丸上方成摞）。②附带定因：overlay 旧写法以 GeometryReader 的 safeAreaInsets 内缩求视口，而根 .ignoresSafeArea() 把 insets 归零——视口实拿全屏（用户真机截图两锚逐值吻合：卡高 188 几何下 bar 96、card 666 均为全屏口径解）。③压暗层与快照承接层只有点按手势、无拖动收起路（UI 实测：压暗区拖动不散）。
+- 修法（只治呈现：不扩菜单功能、不新造机制、不动反应数据面）：
+  1. layout 重写为整摞契约：快照切片＝帧∩视口（只被视口裁、不再被占位切分）；药丸恒贴切片上方、卡恒贴切片下方（gap 8）；整摞装得下→刚体平移进视口（先保顶后保底）；装不下→药丸钉视口顶、卡钉视口底、切片取顶锚带（自帧可见顶向下取满带高、底端裁切渐隐）；帧整出视口退化兜底。ReactionBarLayout 新增 snapshotPlacementY（呈现段与落位分开两量：前者定义呈现哪段内容、后者定义画在哪），视图三处落位（快照容器/无裁切气泡/透明承接层）改用之。
+  2. 视口口径：根 ignoresSafeArea 保留（保全屏坐标原点——摘掉它整摞会被压进安全区、快照与原消息错位 62pt，UI 帧账实锤，此路作废）；insets 改 key window 实读单源（ChatView.keyWindowSafeAreaInsets，取路同 DeviceTopmostPresenter），viewport＝全屏帧按真 insets 内缩。
+  3. 收起：压暗层与快照透明承接层各加 simultaneousGesture DragGesture(minimumDistance: 12) onChanged 收起，与既有点按收起并存；药丸/卡自身命中区不挂。
+- 验收（模拟器口径，真机门留用户）：单测 ReactionFloatingBarTests 20/20（旧钉六测按新契约改判＋不变量按整摞契约重写＋新增用户几何测：402×874 安全区视口、7 项卡、506 高消息——整摞 890 高过视口 781 时顶锚带 397，为物理上限、明示与「完整呈现」的差）；UI §440 三测全绿——量测测（含快照对位断言：同文副本 minY 极差 ≤6、压回原消息）、拖动测（压暗＋快照两路拖动收起）、贴底测（卡末项底 834±8，视口安全区口径终判落定；药丸不进状态栏带、整摞纵序、点底带收起）。兄弟套件 ChatGestureNativeSurfaceTests 回归 6 测 0 红（4 过＋2 既有跳过；含同面浮排测 testLongPressOnTextShowsFloatingBarThenSelectEntersSelection）。
+- 种子夹具：DemoMode 主会话种子补合成 serverRowID（1000+index）随本线留用——无此夹具演示态 canReact 恒假、浮排在 UI 测里根本呈不出来（既有「浮排」UI 测实际测的是系统菜单）；补行号使演示形状与生产一致，兄弟套件回归无落点。
+- 苹果设计观自审（2026-11-24 用户令 UI 总纲）：系统件面——药丸/卡仍为自绘件（Palette.surface 实色填充＋Capsule/RR24 连续圆角＋pageBG 描边＋黑 0.16 阴影），未用系统 Material 毛玻璃与原生 Menu/contextMenu 语义，此为自研浮排先天账、本线最小修不动，换原生承载在 Exyte 二期 W6；数值面——卡行高 44（HIG 触达下限）、卡宽 62.5% 视口、卡高 44/项＋12、药丸宽 372 均有 Muse 量测单测钉（testCardMetricsAgainstMuseMeasure 等），整摞 gap 8/视口边距 8 沿 layout 既有常量；几何面——新契约即对 Muse 呈现形态的对位（预览完整、条卡贴消息、点外即散含拖动）。真机门（拿不出、明示）：快照 1.02 缩放＋阴影与压暗纯黑 0.32 无参照出处、须用户真机与 Muse 并排比对判去留；顶带（状态栏带）点按在模拟器不散、与系统菜单同象，定性留真机；深色模式与大字号档未验。
+- 与 Exyte 二期 W6 的关系：本线只治呈现几何与收起手势（layout 契约＋视口口径＋overlay 两手势）；W6 换承载时本契约（整摞锚定＋顶锚带＋落位分量＋安全区视口）可直接作其布局验收口径，浮排视图本体随 W6 退役。
