@@ -318,10 +318,14 @@ struct ReactionBarLayout: Equatable {
 ///   方；横向按气泡对齐后夹进屏幕 8pt 安全边。
 ///   本函数逐值保留作回归锚（短消息在安全区内时
 ///   与 layout 的纵向结果一致）
-/// - layout（§346）：入参补安全区视口矩形，一次
-///   算齐药丸/动作卡/快照带，三层互不重叠且完整
-///   落在安全区内（候选序：药丸上方→下方成摞→
-///   钉顶，逐候选校验不变量、首个成立者胜出）
+/// - layout（§346 立、§386 改纵向求解）：入参
+///   补安全区视口矩形，一次算齐药丸/动作卡/快
+///   照带，三层互不重叠且完整落在安全区内。纵
+///   向改顺序求解：药丸先独立锚定预览（上方贴
+///   合／钉安全顶二态、不被卡否决），动作卡后
+///   从属求解（贴消息下方→钉安全底→药丸上方成
+///   摞→退化硬钳）；§346 的联合求解与「卡恒在
+///   药丸下方」不变量自 §386 起退役
 enum ReactionBarPlacement {
     /// 层间与对消息的统一间距（现行 8pt 口径）
     static let gap: CGFloat = 8
@@ -382,76 +386,43 @@ enum ReactionBarPlacement {
             )
         )
 
+        // 药丸纵位（DESIGN §386：独立锚定预览、先
+        // 行定死）：上方贴合（帧顶 − gap − 药丸
+        // 高，与第一步口径同值）；上方不足（预览
+        // 顶出屏或贴顶）钉安全区顶部。药丸不读卡
+        // 尺寸、不被卡落位否决——§346 联合求解下
+        // 贴顶短消息药丸落消息下方、中下段消息药
+        // 丸被钉屏顶脱离预览，两偏差本包收掉
         let yAbove = sourceFrame.minY - gap - barH
+        let finalBarY = yAbove >= safeTop
+            ? yAbove
+            : safeTop + gap
+        let pillBottom = finalBarY + barH
+
+        // 动作卡纵位（从属求解、恒不与药丸重
+        // 叠）：C1 贴消息下方 → C2 钉安全区底部
+        // 上方 → C3 药丸上方成摞（贴底消息：下方
+        // 与钉底都被药丸占位否决时卡退到药丸上
+        // 方、预览带不让位）→ C4 退化硬钳（视口
+        // 高不足药丸＋卡＋间距、横屏＋多项数才
+        // 达：沿 §346 兜底，两层夹回视口、贴合
+        // 让位入屏）
         let yBelow = sourceFrame.maxY + gap
-        /// 卡贴消息下方（放得下才有值）
-        let cardBelowFrame: CGFloat? =
-            yBelow + cardH <= safeBottom - gap ? yBelow : nil
         /// 卡钉安全区底部上方
         let cardPinBottom = safeBottom - gap - cardH
-
-        /// 不变量校验：药丸完整入视口、卡完整入视
-        /// 口、卡在药丸下方且留 gap
-        func valid(barY: CGFloat, cardY: CGFloat) -> Bool {
-            barY >= safeTop
-                && barY + barH <= safeBottom
-                && cardY >= barY + barH + gap
-                && cardY + cardH <= safeBottom
-        }
-
-        var barY: CGFloat?
         var cardY: CGFloat?
-        // 候选 A：药丸在消息上方（首选、现口径）；
-        // 卡随消息下方、放不下钉底
-        if yAbove >= safeTop {
-            for candidate in [
-                cardBelowFrame, cardPinBottom,
-            ].compactMap({ $0 }) {
-                if valid(barY: yAbove, cardY: candidate) {
-                    barY = yAbove
-                    cardY = candidate
-                    break
-                }
-            }
+        if yBelow + cardH <= safeBottom - gap,
+           yBelow >= pillBottom + gap {
+            cardY = yBelow
+        } else if cardPinBottom >= pillBottom + gap {
+            cardY = cardPinBottom
+        } else if finalBarY - gap - cardH >= safeTop {
+            cardY = finalBarY - gap - cardH
         }
-        // 候选 B：上方放不下→药丸置消息下方、卡顺
-        // 次排其下（短消息贴顶形态，与第一步下方
-        // 口径同位）
-        if barY == nil, yBelow + barH <= safeBottom - gap {
-            let candidate = yBelow + barH + gap
-            if valid(barY: yBelow, cardY: candidate) {
-                barY = yBelow
-                cardY = candidate
-            }
-        }
-        // 候选 C：长文/挤压→药丸钉安全区顶部；卡随
-        // 消息下方→让位消息上方→钉底序试
-        if barY == nil {
-            let pinTop = safeTop + gap
-            let cardAboveFrame =
-                sourceFrame.minY - gap - cardH
-            for candidate in [
-                cardBelowFrame, cardAboveFrame, cardPinBottom,
-            ].compactMap({ $0 }) {
-                if valid(barY: pinTop, cardY: candidate) {
-                    barY = pinTop
-                    cardY = candidate
-                    break
-                }
-            }
-            if barY == nil {
-                // 兜底硬钳（卡高异常时才达此）：钉顶
-                // ＋钉底、各自夹回视口——不变量优先
-                // 于贴合
-                barY = pinTop
-                cardY = min(
-                    max(cardPinBottom, pinTop + barH + gap),
-                    max(safeTop, safeBottom - cardH)
-                )
-            }
-        }
-        let finalBarY = barY ?? safeTop
-        let finalCardY = cardY ?? cardPinBottom
+        let finalCardY = cardY ?? min(
+            max(cardPinBottom, pillBottom + gap),
+            max(safeTop, safeBottom - cardH)
+        )
 
         // 快照可见带：帧∩视口的纵向跨度去掉药丸/
         // 卡的占位段（各向外扩 gap），取最长段——
