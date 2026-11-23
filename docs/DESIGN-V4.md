@@ -16348,3 +16348,15 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - TSan 轮（RUN 22:59:32，日志归档 ~/build/rowmeasure419-tsan-20261123.log）：夹具＋LayoutProductPoolTests＋ChatNativeMeasureDeskTests 三套全 passed；生产量测路径（量测台／分发／池／合成器／Desk 工单执行）零 race 报告；2 条 Swift access race 均在 ChatNativeMeasureDeskTests 测试脚手架（LockedCounter 计数器、runPass 助手——raced 内存为测试本地变量、栈内生产帧仅回调测试闭包），既存、非包 1 表面，立账待包 2/3 或测试卫生单处置；该轮因 TSan issue 计 exit 65（suites 本身全绿）。
 - 回归第一轮（13 套 ChatNative／PreLayout／量测相关，RUN 23:09:57）：本树红 15 例（FollowSource 1、ListAssembly 5、R2 4、R3 3、R4 1、ProductionChain 1；105 failures／42 unexpected）；与 pristine 基线同集对账轮（RUN 23:17:19，bundle Test-OneDayApp-rowmeasure419-baseline）逐项比对——红名单完全一致（基线同为 105／42，Executed 73＝本树 75 减夹具 2 例），零新增回归；15 红为基线既存（装配套族在本通道整批红、与在册老红名单口径不符，留主线知悉）。整包关账口径（同树连绿两轮）依图等包 3 后统一关，本包只记第一轮。
 - 不碰：行高公式、量测池本体、备忘键、resolve／工单纪律（包 2/3）；与排队包线文件零交集（两线进度卡互证）。
+
+## §424 量测台崩溃修复包 2「resolve 纯读化」（2026-11-23；分支 feat/rowmeasure-pureread，基线包 1 tip feat/rowmeasure-confine @f78307e；施工图 rowmeasure-crash-spec-20261123.md 包 2）
+
+- 编号：原拟 §422，主线裁定 §422 已被 0.50.104 组版记账占用、§423 预留 Exyte 二期线、本包入档改 §424；代码与夹具类名（RowMeasurePureRead422Tests、ChatNativeMeasureDesk 内 §422 注记）的 §422 字样指夹具/施工代号、保留不动（包 1 §419→§420 同例）。
+- 定因（图内实锤）：ChatNativeMeasureDesk.resolve() 在 body 求值期（ChatView.nativeRows 趟内）命中分支当场写 jobsByRowKey[rowKey] = nil，Dictionary.subscript.setter 内同步析构工单、闭包析构链 swift_release 撞已释放内存 @0x18——0.50.102 崩②（204455.ips）触发点；同分支另同步写 memoKeyByRowKey 置 nil 与 lastKnownByRow 回写。
+- 落码（2 提交）：50c8ff4 取证先行＝夹具 RowMeasurePureRead422Tests（6 例：命中清账后移／lastKnown 回写后移双主证＋落写终态＋清账键守卫＋同趟 resolve 序＋48 行×3 轮批量命中压测）；0ee14e6 纯读化＝resolve 命中分支删当场三写、改登记 pendingSettlements（rowKey／命中 memoKey／命中高），flushCollected 开头新增 applyPendingSettlements() 统一执行——lastKnown 无条件回写（同值只移时机）、双留账清账按命中键守卫（同行其后收集的新修订工单键不符不误清）。resolve 自此求值期零字典写入、零工单析构；工单析构只发生在求值期之外（趟末落写／finish／measureNow）。
+- 口径判读（记明）：图包 2 的后移对象＝命中清账＋lastKnown 回写；noteResolveOrder 的行序账记账（Set/Array、非字典、不析构工单）保持同步——行序账／方向感知投单在图「不碰」之列、语义逐值不变。resolve 全部调用点（ChatView :2841/:2912/:2959/:3103）均在 nativeRows 趟内、flushCollected（:3037）为唯一趟末落写点，逐点核对。
+- 先红后绿：旧码 RUN 23:29:59（bundle Test-OneDayApp-rowmeasure422-red）Executed 6、红 2——双主证逐字命中（回写后移：92.0≠120.0；清账后移：nil≠Optional(88.0)），余 4 例语义保全 pin 旧码即绿；落码后 RUN 23:41:44（bundle Test-OneDayApp-rowmeasure422-green）6/6 全绿、exit 0。
+- TSan 轮（RUN 23:55:02，日志归档 ~/build/rowmeasure422-tsan-20261123.log）：本夹具＋ChatNativeMeasureDeskTests＋包 1 夹具三套 Executed 17、Passed 15；TSan 报告恰 2 条、与包 1 基线逐条同位（DeskTests 测试脚手架 LockedCounter 计数器、runPass 助手，既存账、非本包表面）；生产量测路径零 race、本包新夹具零 race 无新增——TSan 判定通过（该轮 exit 65 为 TSan issue 计红，与包 1 同形态）。
+- ASan 轮（RUN 2026-11-24 00:04:16，bundle Test-OneDayApp-rowmeasure422-asan）：本夹具 6/6 全绿、exit 0、零 AddressSanitizer 报告（批量命中压测在 ASan 下干净）。
+- 回归（与包 1 同 13 套同口径，RUN 23:59:30，bundle Test-OneDayApp-rowmeasure422-regress）：Executed 75、Passed 60、红 15——与 pristine 基线对账轮（RUN 23:17:19，bundle Test-OneDayApp-rowmeasure419-baseline）的红名单逐名完全一致（差集双向为空），零新增回归；15 红为基线既存（同 §420 记账）。
+- 风险/不碰：清账后移一趟的 lastKnown 沿用旧值一趟（图 §六已认、高度-only 修正路径不变）；不碰发布合并 40ms 窗、行序账／方向感知投单口径、collect/finish/measureNow 本体、工单单执行者纪律（包 3）；整包关账口径（同树连绿两轮＋窗口内无新增同族 .ips）依图等包 3 后统一关，本包各轮结果已记本节。
