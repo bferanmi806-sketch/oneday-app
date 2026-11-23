@@ -245,20 +245,16 @@ struct FeedView: View {
         } else if store.posts.isEmpty {
             switch store.emptyKind {
             case .neverProduced:
-                ContentUnavailableView(
+                ODEmptyState(
                     "动态刚上线",
                     systemImage: "doc.text",
-                    description: Text(
-                        "写下你感兴趣什么，我每天替你去看；第一轮明早 8:30 到。站内的新点子、新简报也会汇编到这里。"
-                    )
+                    description: "写下你感兴趣什么，我每天替你去看；第一轮明早 8:30 到。站内的新点子、新简报也会汇编到这里。"
                 )
             case .quiet:
-                ContentUnavailableView(
+                ODEmptyState(
                     "近来没有新动态",
                     systemImage: "moon.zzz",
-                    description: Text(
-                        "今天没有值得一提的新发现；有动静时这里会先更新。"
-                    )
+                    description: "今天没有值得一提的新发现；有动静时这里会先更新。"
                 )
             }
         } else {

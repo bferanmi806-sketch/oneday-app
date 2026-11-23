@@ -97,6 +97,41 @@ struct AppearanceView: View {
     /// 省开，关＝长按回系统菜单「添加反应」子菜单
     @AppStorage(ChatReactionsFloatingBarFeature.defaultsKey)
     private var floatingBarEnabled = true
+    /// 气泡样式（台账 179，OB-I1）：键 chatBubbleStyle
+    /// （Core AppearanceStorageKeys 单源），本页写、
+    /// Palette 圆角读口现读；缺省定版 standard
+    @AppStorage(AppearanceStorageKeys.chatBubbleStyle)
+    private var bubbleStyleRaw = ChatBubbleStyle.standard.rawValue
+    /// 聊天背景（台账 179）：键 chatBackground，本页
+    /// 写、Palette.chatBackground 现读；缺省定版
+    /// standard（与 chatSurface 同值）
+    @AppStorage(AppearanceStorageKeys.chatBackground)
+    private var chatBackgroundRaw =
+        ChatBackgroundStyle.standard.rawValue
+
+    private var bubbleStyle: ChatBubbleStyle {
+        ChatBubbleStyle(rawValue: bubbleStyleRaw) ?? .standard
+    }
+
+    private var backgroundStyle: ChatBackgroundStyle {
+        ChatBackgroundStyle(rawValue: chatBackgroundRaw)
+            ?? .standard
+    }
+
+    private var bubbleStyleBinding: Binding<ChatBubbleStyle> {
+        Binding(
+            get: { bubbleStyle },
+            set: { bubbleStyleRaw = $0.rawValue }
+        )
+    }
+
+    private var backgroundStyleBinding:
+        Binding<ChatBackgroundStyle> {
+        Binding(
+            get: { backgroundStyle },
+            set: { chatBackgroundRaw = $0.rawValue }
+        )
+    }
 
     private var languagePreference: AppLanguagePreference {
         AppLanguagePreference(rawValue: appLanguageRaw) ?? .system
@@ -135,6 +170,7 @@ struct AppearanceView: View {
         List {
             previewSection
             themeSection
+            personalizationSection
             avatarSection
             modeSection
             replyPresentationSection
@@ -330,6 +366,37 @@ struct AppearanceView: View {
         .accessibilityLabel(
             item.displayName + (selected ? "，已选" : "")
         )
+    }
+
+    // MARK: - 聊天个性化（台账 179，OB-I1；§391）
+
+    /// 可选开关、默认定版：气泡样式与聊天背景两项，
+    /// 不动任何默认值——没改过的用户呈现与定版逐值
+    /// 相同；智能体专属 backdrop 未在本区（缺口见 §391）
+    private var personalizationSection: some View {
+        Section {
+            Picker("气泡样式", selection: bubbleStyleBinding) {
+                ForEach(
+                    ChatBubbleStyle.allCases, id: \.self
+                ) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+            Picker("聊天背景", selection: backgroundStyleBinding) {
+                ForEach(
+                    ChatBackgroundStyle.allCases, id: \.self
+                ) { style in
+                    Text(style.displayName).tag(style)
+                }
+            }
+        } header: {
+            appearanceHeader("聊天个性化")
+        } footer: {
+            Text("默认即自家定版（气泡「定版」＋背景「默认」）；改选只影响聊天页呈现，随时可改回。")
+                .font(.rowSubtitle)
+                .foregroundStyle(Palette.inkSecondary)
+        }
+        .listRowBackground(Palette.surface)
     }
 
     // MARK: - ③ 虚拟形象大小

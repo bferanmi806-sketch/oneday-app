@@ -61,7 +61,15 @@ struct ImageViewerView: View {
     /// 复制/分享）作用于当前页已加载的图
     @State private var loadedImages: [String: UIImage] = [:]
     @State private var shareItem: FileShareItem?
-    @State private var notice: String?
+    /// 提示分型（OB-I3，DESIGN §391）：成功/状态类沿
+    /// 旧制 2.5 秒自清；失败类（动作没成、含权限缺失）
+    /// 常驻、点按关闭——需要人知道的失败不自动消失
+    @State private var notice: ViewerNotice?
+
+    private struct ViewerNotice: Equatable {
+        let text: String
+        let isFailure: Bool
+    }
     /// 下拉关闭的跟手位移（0.36.4 追加验收项，用户
     /// 点名「下拉返回不了」）：未放大时纵拖写入、整
     /// 面跟随＋渐隐，过阈值松手 dismiss、未过弹簧
@@ -331,10 +339,12 @@ struct ImageViewerView: View {
         }
     }
 
-    private func noticeOverlay(_ text: String) -> some View {
+    private func noticeOverlay(
+        _ notice: ViewerNotice
+    ) -> some View {
         VStack {
             Spacer()
-            Text(text)
+            Text(notice.text)
                 .font(.footnote)
                 .foregroundStyle(Palette.ink)
                 .padding(.horizontal, OneDayMetrics.spacingM)
@@ -342,10 +352,16 @@ struct ImageViewerView: View {
                 .glassEffect(.regular, in: Capsule())
                 .padding(.bottom, OneDayMetrics.spacingXXL)
         }
-        .allowsHitTesting(false)
-        .task(id: text) {
+        // 失败类常驻可点关；成功/状态类不挡操作、2.5
+        // 秒自清（旧制）
+        .allowsHitTesting(notice.isFailure)
+        .onTapGesture {
+            if notice.isFailure { self.notice = nil }
+        }
+        .task(id: notice.text) {
+            guard !notice.isFailure else { return }
             try? await Task.sleep(for: .seconds(2.5))
-            if notice == text { notice = nil }
+            if self.notice == notice { self.notice = nil }
         }
     }
 
@@ -362,14 +378,19 @@ struct ImageViewerView: View {
 
     private func saveCurrent() async {
         guard let image = currentImage else {
-            notice = "图片还没加载完，请稍后再试。"
+            notice = ViewerNotice(
+                text: "图片还没加载完，请稍后再试。", isFailure: true
+            )
             return
         }
         let status = await PHPhotoLibrary.requestAuthorization(
             for: .addOnly
         )
         guard status == .authorized || status == .limited else {
-            notice = "没有相册保存权限，请在系统设置里允许后再试。"
+            notice = ViewerNotice(
+                text: "没有相册保存权限，请在系统设置里允许后再试。",
+                isFailure: true
+            )
             Haptics.error()
             return
         }
@@ -379,28 +400,38 @@ struct ImageViewerView: View {
                     from: image
                 )
             }
-            notice = "已保存到相册。"
+            notice = ViewerNotice(
+                text: "已保存到相册。", isFailure: false
+            )
             Haptics.success()
         } catch {
-            notice = "保存失败，请稍后再试。"
+            notice = ViewerNotice(
+                text: "保存失败，请稍后再试。", isFailure: true
+            )
             Haptics.error()
         }
     }
 
     private func copyCurrent() {
         guard let image = currentImage else {
-            notice = "图片还没加载完，请稍后再试。"
+            notice = ViewerNotice(
+                text: "图片还没加载完，请稍后再试。", isFailure: true
+            )
             return
         }
         UIPasteboard.general.image = image
-        notice = "已复制。"
+        notice = ViewerNotice(
+            text: "已复制。", isFailure: false
+        )
         Haptics.success()
     }
 
     private func shareCurrent() {
         guard let image = currentImage,
               let data = image.pngData() else {
-            notice = "图片还没加载完，请稍后再试。"
+            notice = ViewerNotice(
+                text: "图片还没加载完，请稍后再试。", isFailure: true
+            )
             return
         }
         // 分享临时文件名：远端图沿原文件名（分享单
@@ -415,7 +446,9 @@ struct ImageViewerView: View {
         if let item = try? FileShareItem.write(data: data, name: name) {
             shareItem = item
         } else {
-            notice = "分享准备失败，请稍后再试。"
+            notice = ViewerNotice(
+                text: "分享准备失败，请稍后再试。", isFailure: true
+            )
             Haptics.error()
         }
     }

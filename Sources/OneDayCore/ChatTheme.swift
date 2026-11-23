@@ -252,6 +252,11 @@ public enum AppearanceStorageKeys {
     public static let appearanceMode = "appearanceMode"
     public static let chatTheme = "chatTheme"
     public static let avatarSize = "avatarSize"
+    // 台账 179（OB-I1，DESIGN §391）：聊天个性化两键
+    // ——气泡样式与聊天背景；未设/脏值一律回定版
+    // （standard），无此键的老用户呈现零变化
+    public static let chatBubbleStyle = "chatBubbleStyle"
+    public static let chatBackground = "chatBackground"
     // 台账 188 定版（2026-11-20）：184 的气泡浓淡
     // 键 chatBubbleFillStyle 随两式机制整套退役、
     // 键名常量一并删除——设备上可能残留的存量值
@@ -289,6 +294,46 @@ public enum AppearancePreferences {
     ) {
         defaults.set(
             tier.rawValue, forKey: AppearanceStorageKeys.avatarSize
+        )
+    }
+
+    /// 气泡样式（台账 179）：未设/脏值回定版 standard
+    public static func bubbleStyle(
+        in defaults: UserDefaults = .standard
+    ) -> ChatBubbleStyle {
+        let raw = defaults.string(
+            forKey: AppearanceStorageKeys.chatBubbleStyle
+        )
+        return ChatBubbleStyle(rawValue: raw ?? "") ?? .standard
+    }
+
+    public static func setBubbleStyle(
+        _ style: ChatBubbleStyle,
+        in defaults: UserDefaults = .standard
+    ) {
+        defaults.set(
+            style.rawValue,
+            forKey: AppearanceStorageKeys.chatBubbleStyle
+        )
+    }
+
+    /// 聊天背景（台账 179）：未设/脏值回定版 standard
+    public static func backgroundStyle(
+        in defaults: UserDefaults = .standard
+    ) -> ChatBackgroundStyle {
+        let raw = defaults.string(
+            forKey: AppearanceStorageKeys.chatBackground
+        )
+        return ChatBackgroundStyle(rawValue: raw ?? "") ?? .standard
+    }
+
+    public static func setBackgroundStyle(
+        _ style: ChatBackgroundStyle,
+        in defaults: UserDefaults = .standard
+    ) {
+        defaults.set(
+            style.rawValue,
+            forKey: AppearanceStorageKeys.chatBackground
         )
     }
 }

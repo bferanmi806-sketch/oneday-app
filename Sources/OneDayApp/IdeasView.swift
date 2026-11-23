@@ -198,20 +198,16 @@ struct IdeasView: View {
         if !store.hasVisibleIdeas {
             switch store.emptyKind {
             case .neverProduced:
-                ContentUnavailableView(
+                ODEmptyState(
                     "还没有点子",
                     systemImage: "lightbulb",
-                    description: Text(
-                        "每天早上我会想一轮，你也可以点右上角＋先记一个"
-                    )
+                    description: "每天早上我会想一轮，你也可以点右上角＋先记一个"
                 )
             case .cleared:
-                ContentUnavailableView(
+                ODEmptyState(
                     "这一轮的点子都处理完了",
                     systemImage: "checkmark.circle",
-                    description: Text(
-                        "明早会再想一轮；也可以点右上角＋自己记一个"
-                    )
+                    description: "明早会再想一轮；也可以点右上角＋自己记一个"
                 )
             }
         } else {

@@ -8,8 +8,27 @@ import UIKit
 /// （版本源第五处自此收敛为本常量，grep 校验照旧
 /// 命中版本号字面）
 enum OneDayVersionLabel {
-    static let full = "OneDay v0.50.78 (206)"
-    static let hero = "v0.50.78 (206)"
+    /// 现读 Bundle 真值（台账 175/§391 纠偏：旧字面量
+    /// 停在 v0.50.78、与发货版本脱节——版本显示自此只
+    /// 认包内 CFBundle 值，读不到才回落字面量兜底）
+    private static var bundleVersion: (String, String)? {
+        guard let info = Bundle.main.infoDictionary,
+              let short = info["CFBundleShortVersionString"]
+                as? String,
+              let build = info["CFBundleVersion"] as? String
+        else { return nil }
+        return (short, build)
+    }
+
+    static var full: String {
+        bundleVersion.map { "OneDay v\($0.0) (\($0.1))" }
+            ?? "OneDay v0.50.78 (206)"
+    }
+
+    static var hero: String {
+        bundleVersion.map { "v\($0.0) (\($0.1))" }
+            ?? "v0.50.78 (206)"
+    }
 }
 
 /// App 图标位图（§188）：经 Info.plist 的 CFBundleIcons
@@ -206,6 +225,7 @@ struct AboutView: View {
         List {
             heroSection
             serviceSection
+            releaseNotesSection
             legalSection
             openSourceSection
             labSection
@@ -236,6 +256,48 @@ struct AboutView: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, OneDayMetrics.spacingSM)
             .accessibilityElement(children: .combine)
+        }
+        .listRowBackground(Palette.surface)
+        .listRowInsets(OneDayMetrics.settingsRowInsets)
+    }
+
+    /// 当前安装版本（更新说明段的对账锚：只认包内真值）
+    private static var appVersion: String {
+        Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String ?? ""
+    }
+
+    /// 更新说明段（台账 175，OB-U3 App 侧；§391）：
+    /// 当前版本在首（带「当前版本」标）、此前版本随后；
+    /// 内容走 Core ReleaseNotes 随包表（只记已发货版
+    /// 本），当前版本不在表中时整表呈现、不冒充
+    private var releaseNotesSection: some View {
+        Section {
+            ForEach(
+                ReleaseNotes.entries(currentVersion: Self.appVersion)
+            ) { entry in
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingXS
+                ) {
+                    Text(
+                        entry.version == Self.appVersion
+                            ? "v\(entry.version)（当前版本）"
+                            : "v\(entry.version)"
+                    )
+                    .font(.rowTitleL)
+                    .foregroundStyle(Palette.ink)
+                    ForEach(entry.highlights, id: \.self) { line in
+                        Text("· \(line)")
+                            .font(.rowSubtitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                }
+                .padding(.vertical, OneDayMetrics.spacingMicro)
+            }
+        } header: {
+            supportHeader("更新说明")
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)

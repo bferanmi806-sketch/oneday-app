@@ -511,9 +511,10 @@ struct DeliverablesView: View {
     private func emptyState(
         title: String, symbol: String, message: String
     ) -> some View {
-        ContentUnavailableView(
-            title, systemImage: symbol,
-            description: Text(message)
+        // 空态编排（台账 177，§391）：走共用编排件
+        // （分阶段入场＋减动效降级），两调用点同受益
+        ODEmptyState(
+            title, systemImage: symbol, description: message
         )
     }
 

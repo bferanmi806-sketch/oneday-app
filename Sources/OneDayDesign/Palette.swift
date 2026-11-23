@@ -124,6 +124,32 @@ public enum Palette {
     public static let chatSurface = appleColor(
         light: 0xFCFCFC, dark: .systemBackground
     )
+    /// 聊天页背景（台账 179，OB-I1，DESIGN §391）：只供
+    /// 聊天页背景层现读——默认档与 chatSurface 逐值相
+    /// 同；雾灰/石板为冷中性灰阶（浅/暗成对）。抽屉、
+    /// 接缝等共用 chatSurface 的面不读本口、恒守定版
+    public static var chatBackground: Color {
+        switch AppearancePreferences.backgroundStyle() {
+        case .standard:
+            return chatSurface
+        case .mist:
+            return appleColor(
+                light: 0xF0F0F2,
+                dark: UIColor(
+                    red: 0x11 / 255.0, green: 0x11 / 255.0,
+                    blue: 0x13 / 255.0, alpha: 1
+                )
+            )
+        case .slate:
+            return appleColor(
+                light: 0xE6E6EA,
+                dark: UIColor(
+                    red: 0x1A / 255.0, green: 0x1A / 255.0,
+                    blue: 0x1E / 255.0, alpha: 1
+                )
+            )
+        }
+    }
     /// 抽屉接缝中间层底（§351）：深色开态卡面横向
     /// 内缩露出的中间带读本色——深 #191919 出处＝
     /// 2026-11-22 用户 Muse 真机视频定格量测
@@ -691,13 +717,24 @@ public enum OneDayMetrics {
     public static let buttonCorner: CGFloat = 24
     /// 消息气泡（0.6.1：与 OpenMuse 气泡圆角 22 同值，
     /// chat.tsx:590，出处自本版换为它的令牌）
-    public static let bubbleCorner: CGFloat = 22
+    /// 台账 179（OB-I1，DESIGN §391）：改现读个性化档
+    /// ——未设（定版 standard）时逐值回 22、与旧常量恒
+    /// 等；用户在外观页改选后新求值即新值（读口与
+    /// currentChatTheme 同制：现读 UserDefaults）
+    public static var bubbleCorner: CGFloat {
+        AppearancePreferences.bubbleStyle().bubbleCorner
+    }
     /// 助手消息气泡（0.6.1：改同 22——OpenMuse 双泡同
-    /// 圆角，旧「助手略收 18」口径让位）
-    public static let assistantBubbleCorner: CGFloat = 22
+    /// 圆角，旧「助手略收 18」口径让位）；§391 同上现读
+    public static var assistantBubbleCorner: CGFloat {
+        AppearancePreferences.bubbleStyle()
+            .assistantBubbleCorner
+    }
     /// 气泡尾角（0.6.1 新增：OpenMuse 靠己侧底角收 7，
-    /// chat.tsx:591-592）
-    public static let bubbleTailCorner: CGFloat = 7
+    /// chat.tsx:591-592）；§391 同上现读
+    public static var bubbleTailCorner: CGFloat {
+        AppearancePreferences.bubbleStyle().bubbleTailCorner
+    }
     /// 输入区胶囊（多行态圆角矩形的圆角，单行态走 Capsule）
     public static let composerCorner: CGFloat = 24
     /// 代码块（正文区内的内容面）

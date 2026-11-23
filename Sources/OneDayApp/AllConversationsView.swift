@@ -69,6 +69,9 @@ struct AllConversationsView: View {
     /// 「维护」置位、导航栈推入 Conversation-
     /// MaintenanceView
     @State private var showMaintenance = false
+    /// 全局搜索（台账 176，§391）：本页工具栏入口，
+    /// sheet 内自带 NavigationStack
+    @State private var showGlobalSearch = false
     /// 频道段 Hermes 行的频道页呈现（本页内 full-
     /// ScreenCover，与抽屉入口同目的地同组件）
     @State private var showHermesChannel = false
@@ -190,6 +193,15 @@ struct AllConversationsView: View {
                     Button("维护") { showMaintenance = true }
                         .disabled(isSearching)
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showGlobalSearch = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("全局搜索")
+                    .disabled(isSearching)
+                }
             }
             .searchable(
                 text: $searchText,
@@ -200,6 +212,14 @@ struct AllConversationsView: View {
             // 行／批量管理／清理／迁移留痕，见
             // ConversationMaintenanceView）；原挂底
             // 批量栏随层下沉、本页不再有编辑态
+            .sheet(isPresented: $showGlobalSearch) {
+                NavigationStack {
+                    GlobalSearchView(
+                        onOpenSearchHit: onOpenSearchHit,
+                        onCloseHost: onClose
+                    )
+                }
+            }
             .navigationDestination(isPresented: $showMaintenance) {
                 ConversationMaintenanceView(
                     store: store,
