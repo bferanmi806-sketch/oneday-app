@@ -61,6 +61,12 @@ struct ConnectionSelfCheckView: View {
                 EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
             )
 
+            if target == nil {
+                Section("当前连接") {
+                    liveConnectionRow
+                }
+            }
+
             if let report = store.report {
                 Section {
                     HStack {
@@ -129,6 +135,48 @@ struct ConnectionSelfCheckView: View {
         }
         .refreshable {
             await runNow(target: target)
+        }
+    }
+
+    /// 当前连接实时行（总表 156，DESIGN §394）：读
+    /// AppState 上的连接状态快照（OverviewBridgeStore
+    /// 探活链喂入）——阶段＋第几次尝试＋人话原因，与自
+    /// 检报告分工：报告是按需全量实测、本行是常驻探活
+    /// 的现况。深链探候选连接（target 非 nil）时整节
+    /// 不显，免与候选结论混淆
+    private var liveConnectionRow: some View {
+        let status = appState.connectionStatus
+        return HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
+            Circle()
+                .fill(liveDotColor(for: status.phase))
+                .frame(width: 9, height: 9)
+                .padding(.top, 6)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status.phaseWord)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink)
+                if let detail = status.detailText {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            [status.phaseWord, status.detailText]
+                .compactMap { $0 }
+                .joined(separator: "，")
+        )
+    }
+
+    private func liveDotColor(for phase: ConnectionPhase) -> Color {
+        switch phase {
+        case .online: return Palette.success
+        case .retrying, .offline: return Palette.warning
+        case .probing, .notConnected: return Palette.inkMuted
         }
     }
 

@@ -48,6 +48,11 @@ final class AppState {
 
     private(set) var phase: Phase = .needsConnection
     private(set) var config: ServerConfig?
+    /// 连接状态快照（总表 156，DESIGN §394）：阶段＋尝
+    /// 试次数＋人话原因的单源持有点——OverviewBridge-
+    /// Store 探活链唯一喂入、自检面等呈现层只读；判定
+    /// 口径在 Core ConnectionStatus
+    var connectionStatus = ConnectionStatus()
     /// 对话模型 id：探活第三步从 /v1/models 取第一个，缺失时回退实测值
     private(set) var modelID: String = "hermes-agent"
     // MARK: - §153 本会话模型（顶栏包 B1/B2/B4）

@@ -69,6 +69,17 @@ public struct CapabilitiesResponse: Decodable, Sendable {
         return nil
     }
 
+    /// 消息级幂等子旗标（部署包 #14，总表 157）：runs_
+    /// idempotency 对象内的 client_message_id；对象或子
+    /// 旗标缺失回 nil（未广告），判定归 CapabilityNegotiation
+    public var clientMessageIdSupported: Bool? {
+        if case .object(let body)? = features["runs_idempotency"],
+           case .bool(let value)? = body["client_message_id"] {
+            return value
+        }
+        return nil
+    }
+
     /// 关键端点完整性（施工图 §1.5：缺失才上屏告警）
     public var missingKeyEndpoints: [String] {
         Self.keyEndpoints.filter { endpoints[$0] == nil }
@@ -871,17 +882,19 @@ public enum SelfCheckReportBuilder {
 
         switch enrollment {
         case .success(let probe):
-            switch probe.status {
-            case 405:
+            // 判定单源在 CapabilityNegotiation（总表
+            // 157，§394），本行呈现文案不动
+            switch CapabilityNegotiation.enrollmentAvailability(probe) {
+            case .available:
                 rows.append(SelfCheckRow(
                     id: "extEnrollment", title: "设备认领", status: .ok
                 ))
-            case 404:
+            case .unavailable:
                 rows.append(SelfCheckRow(
                     id: "extEnrollment", title: "设备认领", status: .off,
                     reason: "服务器未开放"
                 ))
-            default:
+            case .unknown:
                 rows.append(SelfCheckRow(
                     id: "extEnrollment", title: "设备认领",
                     status: .unprobed,
@@ -902,23 +915,21 @@ public enum SelfCheckReportBuilder {
         if let reactions {
             switch reactions {
             case .success(let probe):
-                switch probe.status {
-                case 405, 200:
+                // 判定单源在 CapabilityNegotiation（总
+                // 表 157，§394）：405/200 与 404 带
+                // message_not_found 错误码（路由在位、目
+                // 标消息不存在的实证）同判在位
+                switch CapabilityNegotiation.reactionsAvailability(probe) {
+                case .available:
                     rows.append(SelfCheckRow(
                         id: "extReactions", title: "消息反应", status: .ok
                     ))
-                case 404 where probe.errorCode == "message_not_found":
-                    // 路由在位、被探的那条消息不存在——
-                    // 是「在位」的实证，不是缺失
-                    rows.append(SelfCheckRow(
-                        id: "extReactions", title: "消息反应", status: .ok
-                    ))
-                case 404:
+                case .unavailable:
                     rows.append(SelfCheckRow(
                         id: "extReactions", title: "消息反应", status: .off,
                         reason: "服务器未开放"
                     ))
-                default:
+                case .unknown:
                     rows.append(SelfCheckRow(
                         id: "extReactions", title: "消息反应",
                         status: .unprobed,
