@@ -6004,12 +6004,13 @@ struct ChatView: View {
     private func localImageRow(
         _ datas: [Data], entry: ChatEntry
     ) -> some View {
-        // §199：解码改走 LocalImageDecodeCache（同
-        // 条目同图序只解一次、命中直取）；解码失败
-        // 单张不出卡的旧口径不变（坏图不入缓存）
+        // §199：解码改走本地图解码口（§418 起为
+        // LocalImageStore：同条目同图序只解一次、命
+        // 中直取）；解码失败单张不出卡的旧口径不变
+        // （坏图不入缓存）
         let pairs: [(data: Data, image: UIImage)] =
             datas.enumerated().compactMap { index, data in
-                guard let image = LocalImageDecodeCache.shared
+                guard let image = LocalImageStore.shared
                     .image(
                         entryID: entry.id, index: index,
                         data: data
