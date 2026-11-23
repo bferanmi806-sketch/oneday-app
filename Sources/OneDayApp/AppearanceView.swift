@@ -109,6 +109,13 @@ struct AppearanceView: View {
     private var chatBackgroundRaw =
         ChatBackgroundStyle.standard.rawValue
 
+    /// §431 触感落点计数（形象大小 Menu 点开）：标签
+    /// 点按一次 +1、经声明式 impact .light 施加；本页
+    /// 其余四点（主题／模式／语言／形象大小选择）走
+    /// selection＋值变化触发，见 Haptics.swift 头部
+    /// §431 修宪与各分区尾修饰
+    @State private var avatarMenuTapCount = 0
+
     private var bubbleStyle: ChatBubbleStyle {
         ChatBubbleStyle(rawValue: bubbleStyleRaw) ?? .standard
     }
@@ -311,6 +318,7 @@ struct AppearanceView: View {
             appearanceHeader("聊天主题")
         }
         .listRowBackground(Palette.surface)
+        .sensoryFeedback(.selection, trigger: chatThemeID)
     }
 
     /// 色板一格（44pt 圆）：默认款以三狗头像图为样、
@@ -435,19 +443,21 @@ struct AppearanceView: View {
                     Text(tier.displayName)
                         .font(.rowTitleL)
                         .foregroundStyle(Palette.inkSecondary)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
-                        .foregroundStyle(Palette.inkMuted)
-                        .accessibilityHidden(true)
+                    DisclosureChevron(.upDown, font: .system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                 }
                 .frame(minHeight: OneDayMetrics.settingsRowHeight)
                 .contentShape(Rectangle())
+                .simultaneousGesture(
+                    TapGesture().onEnded { avatarMenuTapCount += 1 }
+                )
             }
         } header: {
             appearanceHeader("虚拟形象大小")
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
+        .sensoryFeedback(.selection, trigger: avatarSizeRaw)
+        .sensoryFeedback(.impact(weight: .light), trigger: avatarMenuTapCount)
     }
 
     // MARK: - ④ 模式
@@ -493,6 +503,7 @@ struct AppearanceView: View {
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
+        .sensoryFeedback(.selection, trigger: appearanceModeRaw)
     }
 
     // MARK: - ⑤ 回复呈现（第 104 条）
@@ -584,6 +595,7 @@ struct AppearanceView: View {
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
+        .sensoryFeedback(.selection, trigger: appLanguageRaw)
     }
 
     // MARK: - 工具

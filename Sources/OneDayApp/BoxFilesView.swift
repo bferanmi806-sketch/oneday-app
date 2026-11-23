@@ -91,10 +91,7 @@ struct BoxFilesView: View {
                     ForEach(Array(crumbs.enumerated()), id: \.element.id) {
                         index, crumb in
                         if index > 0 {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10))
-                                .foregroundStyle(Palette.inkMuted)
-                                .accessibilityHidden(true)
+                            DisclosureChevron(font: .system(size: 10))
                         }
                         Button {
                             currentPath = crumb.path

@@ -16610,3 +16610,61 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 验证：发布集 143 套 1075 项（0.50.103 的 1044 −37 退役/瘦身 ＋68 新增、逐套对账闭合），1071 过、4 红——3 红与 0.50.103 发布 bundle 逐字同红（DrawerContainerControllerTests scene-gate 两例＋SwipeReplyPanBridgeTests 一例，UIHostingController 子视图告警型、本通道基线），1 红为 §417 已裁决性能门；ChatFailKeepPinTests 7/7 绿（drain 门过、失败包留在本版）。冒烟轮 15/15 绿，含 testSmokeA4FilesGridFirstFrame 转绿（§401.4 演示缺口一销账）。Release 构建成功，IPA 本体亲验 0.50.104／232／site.didichou.oneday，16,616,719 字节，md5 2a399697a4e9904371c011a81828d36a，三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）。
 
 真机门（随版清单）：断网四行为重验（浅色泡＋时钟＋「等待发送…」→恢复自动续发→失败红感叹号原位重发）、排队五项、落定三项与朗读三项（0.50.103 存量未判项）、#13 选区四件/表格一帧/代码块/长文档/浅深双色、#23 图卡与查看器链、量测崩溃窗口观察。
+
+## §431 主题对位包（2026-11-24，用户真机 verdict 三点）
+
+缘起：用户对照参照应用（Muse）真机 verdict——①他在参照应用用第 4 个主题、感觉 OneDay 对应主题颜色不一样；②参照设置行右侧展开小箭头带透明感（半透明灰）；③点主题色板、点小箭头展开都有轻微触感。基线 rel-05104，分支 feat/theme-align。
+
+### 参照采样（工具采样、非肉眼）
+
+源图：用户真机截图（外观页 1206×2622、聊天页），PIL 对色板圆心逐点采样。色板七圆（直径 ≈108px、圆心同高一线）自左起：
+
+| 序位（色圆序） | 采样值 | 备注 |
+|---|---|---|
+| 1 | #CBE5FE | 外观页预览 mock 气泡同值 |
+| 2 | #000000 | 纯黑 |
+| 3 | #E4DAD1 | 米色 |
+| 4 | #B8DAFD | 与用户在参照应用的实际用户气泡色（聊天页采样）逐值相等 |
+| 5 | #DBC6F1 | |
+| 6 | #FDB9DE | |
+| 7 | #FFD7B5 | 大半出画、仅可见斜片质心采样（弱证据） |
+
+交叉实证：AI 泡 #E9EAEC 两应用同值（不动）；展开 chevron 字形渲染 #87878A（≈系统 secondaryLabel 合成值）；返回 chevron #0A0A0B、勾 #1E1E1E 均为实心。
+
+「第 4 个」计数歧义登记：含头像位计数则第 4 位＝米色位（OneDay greige 位）；按色圆计数并以在用气泡色实证则第 4 个＝天蓝位（OneDay skyBlue 位）。处置：全色板逐位对齐、两候选位同在对齐表内，歧义不影响落值，用户真机点开外观页自验。
+
+### 差异表与落码（ChatTheme.swift，主题序位与色圆同序）
+
+| OneDay 主题 | 改前 bubbleLight | 改后（＝采样值） |
+|---|---|---|
+| iceBlue 浅蓝 | 0xD9EEFC | 0xCBE5FE |
+| obsidian 曜黑 | 0x23272B | 0x000000 |
+| greige 米灰 | 0xE7DED2 | 0xE4DAD1 |
+| skyBlue 天蓝 | 0xA9D6F8 | 0xB8DAFD |
+| lavender 浅紫 | 0xDCD2F5 | 0xDBC6F1 |
+| pink 粉 | 0xFBD3E4 | 0xFDB9DE |
+| peach 蜜桃 | 0xFBE0C3 | 0xFFD7B5 |
+
+默认款 sangou 0xC8E7FF 为定版锚、不动（参照头像位无色值可对）。不动项与无据声明：bubbleDark 全部、字色、accent、tint 一律不动——参照应用深色面在用户素材中无样本（既有暗色截图均为 OneDay 自家面），深色变体无据、不编；曜黑 accentLight 0x23272B 是强调色非气泡填充、不在本包范围。对比闸实算复核：新值浅填泡/页（#FCFCFC）依次 1.27／20.47（曜黑豁免带）／1.34／1.41／1.53／1.55／1.31，浅填款全落闸⑦带 [1.10, 1.60]；字/泡全款 6.68–13.84（≥4.5）。
+
+### 箭头收口（DisclosureChevron）
+
+OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderingMode(.hierarchical)＋.foregroundStyle(.secondary)（系统次级色层级渲染，即参照 #87878A 的来源口径），字号由调用点以 font 声明、各行既有字阶不漂移。全仓行尾附件箭头 45 处收口（chevron.right 41＋chevron.up.chevron.down 4，含 UnifiedRow 本体一处），颜色由 inkMuted／inkSecondary 两路统一为 .secondary；原无 accessibilityHidden 的 13 处随共用件统一隐藏（装饰件口径）。不收登记：ChatView 强调色链接箭头 1 处（Palette.primary、链接语义，改灰破坏语义）；chevron.up／down 状态指示类（展开态字形、模型胶囊、回到底部等，非披露附件）；ConnectView 返回 chevron.left（实心、与参照返回箭头同为实心）不动。
+
+### 触感（§431 修宪，Haptics.swift 头部同步登记）
+
+《动效宪法》防腻清单「行点击／系统 Picker 一律无触感」经用户本次 verdict 对下列落点改判（清单其余条目不变）：外观页五点全走平台 .sensoryFeedback 声明式、无自造振动——主题色板点选 selection（trigger chatThemeID）、模式勾选行 selection（appearanceModeRaw）、语言勾选行 selection（appLanguageRaw）、虚拟形象大小选择 selection（avatarSizeRaw）、虚拟形象大小 Menu 行点开 impact .light（trigger 点按计数）。HapticsMatrixTests 计数同步：.sensoryFeedback(.selection 3→7、新增 .sensoryFeedback(.impact 钉＝1。不接登记：聊天个性化两 Picker（气泡样式／聊天背景，系统菜单 Picker、防腻清单明列且用户未点名）；回复呈现三 Toggle（系统开关自带）；MoaView／PresetEditorView／AuxModelsView 的 Menu 行（chevron 渲染已收口，触感不接——编辑/枢纽面、值经菜单与文本混排、无单一选择触发点，留后续同类包）。
+
+### 钉测与回归
+
+- ChatThemeTests 新增 testThemeBubbleLightMatchesReferenceSamples431（八款逐值对采样表钉）；既有对比闸⑦实算复核全过。
+- 新增 ThemeAlign431Tests（源码钉）：共用件渲染口径、字面量直写残留计数（chevron.right＝1／up.chevron.down＝0／DisclosureChevron 落点＝45）、外观页五触点在位。
+- 回归一轮（ProbePhone）：ChatThemeTests＋ThemeAlign431Tests＋HapticsMatrixTests＋SettingsRouteInboxStructureTests＋DrawerMuseMetricsTests 共 34 项，33 过、1 红——红为本包自钉针（.sensoryFeedback(.impact 计数）与外观页落码换行形态不合，属钉测口径问题、非功能红；落码改为单行后复跑 HapticsMatrixTests 4/4＋ThemeAlign431Tests 3/3 全绿。五套在 rel-05104 发布集内原为绿，本包零新增基线红。
+
+### 真机门（归用户 verdict）
+
+1. 外观页逐款与参照应用对照色感，重点天蓝位（色圆第 4）与米灰位（头像位计数第 4）；
+2. 形象大小行箭头透明感与参照对照（hierarchical＋secondary 呈现）；
+3. 点色板／模式／语言／形象大小选择时轻触感有无与强度观感，及点开形象大小 Menu 的点按触感；
+4. 语言切换（整树重建）时触感是否正常送达；
+5. 深色模式七款气泡观感对照（本包值未动、仅提示）。

@@ -349,9 +349,7 @@ struct GoalDetailView: View {
                                 .foregroundStyle(Palette.bodyInk)
                                 .multilineTextAlignment(.leading)
                             Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Palette.inkMuted)
+                            DisclosureChevron(font: .footnote.weight(.semibold))
                         }
                         // GD-3：列表行只给首句摘要
                         // （≤40 字，纯函数口径），全文
@@ -498,9 +496,7 @@ struct GoalDetailView: View {
                                 .font(.body)
                                 .foregroundStyle(Palette.bodyInk)
                             Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Palette.inkMuted)
+                            DisclosureChevron(font: .system(size: 13, weight: .regular))
                         }
                         .contentShape(Rectangle())
                         .padding(.horizontal, OneDayMetrics.spacingM)
@@ -636,9 +632,7 @@ struct GoalDetailView: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Palette.inkMuted)
+            DisclosureChevron(font: .footnote.weight(.semibold))
         }
         .contentShape(Rectangle())
         .padding(.horizontal, OneDayMetrics.spacingM)

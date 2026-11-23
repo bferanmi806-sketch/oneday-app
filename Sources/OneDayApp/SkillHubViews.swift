@@ -196,10 +196,7 @@ struct SkillHubView: View {
                         .foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: 13, weight: .regular))
             }
             .contentShape(Rectangle())
         }

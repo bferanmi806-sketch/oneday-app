@@ -114,9 +114,7 @@ struct GoalBriefingsView: View {
                                 maxWidth: .infinity,
                                 alignment: .leading
                             )
-                            Image(systemName: "chevron.right")
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(Palette.inkMuted)
+                            DisclosureChevron(font: .footnote.weight(.semibold))
                         }
                         .padding(.vertical, OneDayMetrics.spacingSM)
                         .contentShape(Rectangle())

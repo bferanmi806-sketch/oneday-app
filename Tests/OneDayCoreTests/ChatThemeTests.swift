@@ -362,6 +362,33 @@ extension ChatThemeTests {
         }
     }
 
+
+    /// §431（2026-11-24 主题对位包）：八款 bubbleLight
+    /// 与参照应用（Muse）外观页色板工具采样逐值对钉
+    /// （采样表见 DESIGN §431）；默认款三狗为定版锚、
+    /// 与采样表无关、值不许漂移，此处并钉全表防逐
+    /// 款漂移。深档 bubbleDark 无参照样本、不在本钉
+    /// 范围（§431 明示无据不动）
+    func testThemeBubbleLightMatchesReferenceSamples431() {
+        let expected: [String: UInt32] = [
+            "sangou": 0xC8E7FF,
+            "iceBlue": 0xCBE5FE,
+            "obsidian": 0x000000,
+            "greige": 0xE4DAD1,
+            "skyBlue": 0xB8DAFD,
+            "lavender": 0xDBC6F1,
+            "pink": 0xFDB9DE,
+            "peach": 0xFFD7B5,
+        ]
+        XCTAssertEqual(Set(ChatThemes.all.map(\.id)), Set(expected.keys))
+        for theme in ChatThemes.all {
+            XCTAssertEqual(
+                theme.bubbleLight, expected[theme.id],
+                "\(theme.id) bubbleLight 与 §431 采样表不符"
+            )
+        }
+    }
+
     // 184 的浓淡偏好测试（testBubbleFillStyle-
     // Preference）已随 188 删机制退役：键与读口
     // 均不存在、无偏好可测

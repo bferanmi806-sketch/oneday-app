@@ -777,10 +777,7 @@ struct DrawerView: View {
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: FrameworkIcon.composerGlyphSize))
-                    .foregroundStyle(Palette.inkMuted)
-                    .accessibilityHidden(true)
+                DisclosureChevron(font: .system(size: FrameworkIcon.composerGlyphSize))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(minHeight: OneDayMetrics.drawerNavRowHeight)
@@ -908,9 +905,7 @@ struct DrawerView: View {
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 if accessory.chevron {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Palette.inkMuted)
+                    DisclosureChevron(font: .caption2.weight(.semibold))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

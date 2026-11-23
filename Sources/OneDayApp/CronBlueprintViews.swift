@@ -161,9 +161,7 @@ struct CronBlueprintPickerView: View {
                 }
             }
             Spacer(minLength: OneDayMetrics.spacingS)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Palette.inkSecondary)
+            DisclosureChevron(font: .footnote.weight(.semibold))
         }
         .frame(minHeight: OneDayMetrics.rowHeight)
         .contentShape(Rectangle())
