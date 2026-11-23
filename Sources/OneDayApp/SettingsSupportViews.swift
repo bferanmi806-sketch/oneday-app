@@ -663,6 +663,39 @@ struct AboutView: View {
                 .frame(minHeight: OneDayMetrics.settingsRowHeight)
                 .contentShape(Rectangle())
             }
+#if ONEDAY_TABBAR_DIAG
+            // §382 底栏图标诊断入口（诊断分支专用行，
+            // 出货线编译剔除）：直达诊断页回读四点快
+            // 照与参考定标，分享由用户手动触发
+            NavigationLink {
+                TabBarDiagView()
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    Image(systemName: "rectangle.bottomthird.inset.filled")
+                        .font(.system(
+                            size: FrameworkIcon.settingsGlyphSize,
+                            weight: .regular
+                        ))
+                        .foregroundStyle(Palette.ink)
+                        .frame(width: OneDayMetrics.iconSlot, alignment: .center)
+                        .accessibilityHidden(true)
+                    VStack(
+                        alignment: .leading,
+                        spacing: OneDayMetrics.spacingMicro
+                    ) {
+                        Text("底栏诊断（§382）")
+                            .font(.rowTitleL)
+                            .foregroundStyle(Palette.ink)
+                        Text("冷启底栏图标四点快照与定标，仅供排障。")
+                            .font(.rowSubtitle)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                }
+                .frame(minHeight: OneDayMetrics.settingsRowHeight)
+                .contentShape(Rectangle())
+            }
+#endif
         } header: {
             supportHeader("内部实验")
         } footer: {

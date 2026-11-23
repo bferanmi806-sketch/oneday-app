@@ -524,7 +524,21 @@ struct ContentView: View {
     /// 内容根、栏件回系统默认中性着色（见 tabView 内
     /// 0.32.0 注）；「tint 不改灰」的理由仍成立，故采
     /// 收窄作用域而非改色
+    /// §382 诊断分支挂点：诊断构建在 label 背景挂环
+    /// 境探针回读渲染点环境；出货形态（开关关）与原
+    /// tabLabel 一字不差、直接走 tabLabelBody
     private func tabLabel(_ pair: TabSymbolPair) -> some View {
+#if ONEDAY_TABBAR_DIAG
+        tabLabelBody(pair)
+            .background {
+                TabBarDiagEnvProbe(tabID: pair.id)
+            }
+#else
+        tabLabelBody(pair)
+#endif
+    }
+
+    private func tabLabelBody(_ pair: TabSymbolPair) -> some View {
         Label {
             Text(pair.title)
         } icon: {

@@ -8,7 +8,7 @@ let project = Project(
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",
         "TARGETED_DEVICE_FAMILY": "1",
-        "MARKETING_VERSION": "0.50.99",
+        "MARKETING_VERSION": "0.50.99-diag",
         "CURRENT_PROJECT_VERSION": "227",
     ]),
     targets: [
@@ -43,7 +43,7 @@ let project = Project(
                 // 版本号直写 Info.plist（沿礼记 v4.4 实证口径）：Tuist 默认
                 // 模板不把工程设置的 MARKETING_VERSION 展开进 plist，
                 // 只写字面量才进包。
-                "CFBundleShortVersionString": "0.50.99",
+                "CFBundleShortVersionString": "0.50.99-diag",
                 "CFBundleVersion": "227",                "ITSAppUsesNonExemptEncryption": false,
                 // 实时活动（总表 163，DESIGN §385.3）：
                 // App 内发起的聊天运行进行态上锁屏/灵
@@ -131,7 +131,15 @@ let project = Project(
                 .target(name: "OneDayCore"),
                 .target(name: "OneDayDesign"),
                 .target(name: "OneDayWidgets"),
-            ]
+            ],
+            // §382 诊断分支专用编译开关：走 OTHER_SWIFT_
+            // FLAGS 的 -D，不动 SWIFT_ACTIVE_COMPILATION_
+            // CONDITIONS 的 DEBUG 语义；出货线无此行
+            settings: .settings(base: [
+                "OTHER_SWIFT_FLAGS": [
+                    "$(inherited)", "-D", "ONEDAY_TABBAR_DIAG",
+                ],
+            ])
         ),
         .target(
             // 实时活动呈现扩展（总表 163，DESIGN
