@@ -15345,3 +15345,21 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §395 总表 133/134 合包：回装成文（G-16）＋生命周期旅程验收常设门（G-17）（2026-11-23；分支 feat/lifecycle-journey，基线 rel-05098 @3f9598f；零代码改动、零组版）
+
+### §395.1 回装成文——已成文
+
+- 成文稿：`~/workspace/oneday-design-review/reinstall-rollback-guide-20261123.md`。功能开关半边为现行惯例（§374.4/§374.7/§374.8 开关包裹）在案，本节只补回装半边。
+- 库存实查（2026-11-23）：本地 `~/workspace/oneday-releases/` 21 个 IPA（0.50.78/206 → 0.50.98/226 连续）；Mac `~/build/` 0.50.95–98；NAS MacFast Downloads 0.50.94–98。取包验 md5（对总表发版账）为成文第一步。
+- 数据分层逐项源码实查（rel-05098）：会话/消息正本在服务端（Hermes state.db 只读实查 975 会话/4383 消息，服务器内存 56%）；凭据＋主线身份键在钥匙串（KeychainStore/CredentialKey/IdentityKey，service＝site.didichou.oneday）；本地聊天缓存＝SwiftData（ChatSchemaV2＋ChatMigrationPlan）；本地独有无服务端正本两件＝已读水位（ThreadReadMarkStore）、文件置顶（FilePinStore），均 UserDefaults JSON。
+- 回装口径定版：覆盖安装（不先删）＝无损回退路；删除重装只丢上述两件本地小项＋设置，正本与凭据不丢（钥匙串跨删除保留与否归 §395.2 真机门 S7）。
+- 本地库跨版本：打开次序＝迁移前备份→带迁移链打开→失败降级内存库＋明示＋原文件保留（OneDayApp.swift ChatModelContainerBootstrap，§332）；回装优先相邻上一版。伴生 minAppVersion 仅展示不设门（CompanionProbe.appUpdateRequired 源码实查）。
+
+### §395.2 旅程验收——常设门定版＋首次执行
+
+- 旅程清单与门口径定版：`~/workspace/oneday-design-review/lifecycle-journey-acceptance-20261123.md`。S1 首装/S2 同版重装/S3 升级/S4 降级/S5 删除重装＝每版出货前模拟器常设门（ProbePhone，版本对＝上一版→本版）；S6 换机/S7 恢复（含钥匙串保留）＝真机门、随真实事件回填不代验。判红口径：S1–S5 任一段启动死亡或 S3 降级留痕＝当版门红、组版报告必须点名；S4 降级留痕单独登记不阻断。
+- 首次执行（2026-11-23，版本对 0.50.97→0.50.98，Debug 模拟器构建对，脚本 Mac `~/build/journey-run.sh`、原始账 `~/build/journey-result.txt`、截图 `~/build/journey-shots/`）：S1 通过（启动存活、容器与 default.store 生成）；S3 通过（覆盖升级启动存活、标记保留）；S2 通过；S4 通过（降级覆盖启动存活、标记保留）；S5 通过（卸载容器实查消失、重装回初始态、启动存活）。五段启动均以 host pid 7 秒存活实查。
+- 记账注记：模拟器覆盖安装后容器路径 UUID 每装必变（容器重注册伪影），内容连续性以标记文件实存为据；首启面像素核对未做（截图存档），列下轮补项。
+- 缺口登记（只登记＋方案、本包不改码）：G-a ChatDiagTrace 留痕在模拟器无可靠回读通道（plist 未落盘＋sim 日志归档近空，实查）——门判据改以启动存活＋数据连续＋store 在为准，留痕回读移真机诊断面；可选小改（留痕加文件落点）登记待排。G-b 钥匙串跨删除保留归 S7 真机门。G-c Debug 构建对与出货 Release 的口径差注记在案。
+- 服务端对账合规：动手前查内存 56%（<80%），全程只读（state.db 容器内 mode=ro 查询），生产零改动。
