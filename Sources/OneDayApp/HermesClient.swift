@@ -179,6 +179,17 @@ protocol HermesClientProtocol: Sendable {
     func triggerCronJob(config: ServerConfig, id: String) async throws
     /// GET /api/cron/jobs/{id}/runs?limit=（{"runs": [会话同构行]}）
     func cronRuns(config: ServerConfig, id: String, limit: Int) async throws -> [ServerSession]
+    /// GET /api/cron/blueprints（§388 H6；服务端单源目录，
+    /// 内置＋插件蓝图，条目即表单模式）
+    func cronBlueprints(config: ServerConfig) async throws -> [CronBlueprint]
+    /// POST /api/cron/blueprints/instantiate {blueprint, values}
+    /// （填空建任务；422 为字段级校验错，原文透传给表单）
+    func instantiateBlueprint(
+        config: ServerConfig, blueprint: String, values: [String: JSONValue]
+    ) async throws
+    /// GET /api/cron/delivery-targets（§388 H6；local 打头＋
+    /// 已接网关平台，未设主频道者如实带 home_target_set=false）
+    func cronDeliveryTargets(config: ServerConfig) async throws -> [CronDeliveryTarget]
 
     /// GET /api/sessions?limit=
     func serverSessions(config: ServerConfig, limit: Int) async throws -> SessionsPage
@@ -364,6 +375,14 @@ protocol HermesClientProtocol: Sendable {
     func testMCPServer(
         config: ServerConfig, name: String
     ) async throws -> MCPTestResult
+    /// GET /api/mcp/catalog（§388 H7；Nous 批准目录＋本
+    /// profile 的 installed/enabled 标注与诊断行）
+    func mcpCatalog(config: ServerConfig) async throws -> MCPCatalogResponse
+    /// POST /api/mcp/catalog/install {name, env, enable}
+    /// （回执只当受理信号，落定靠回读目录对账）
+    func installMCPCatalogEntry(
+        config: ServerConfig, name: String, env: [String: String], enable: Bool
+    ) async throws -> MCPInstallReceipt
 
     /// GET /api/config 全量（动态 JSON，原样保留未知字段）
     func rawConfig(config: ServerConfig) async throws -> [String: JSONValue]
@@ -1588,6 +1607,37 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         return response.runs
     }
 
+    // MARK: - 定时蓝图与投递目标（§388 H6）
+
+    func cronBlueprints(config: ServerConfig) async throws -> [CronBlueprint] {
+        let response: CronBlueprintsResponse = try await getJSON(
+            config: config, path: "/api/cron/blueprints",
+            endpoint: L10n.string("定时任务模板")
+        )
+        return response.blueprints
+    }
+
+    func instantiateBlueprint(
+        config: ServerConfig, blueprint: String, values: [String: JSONValue]
+    ) async throws {
+        try await sendJSON(
+            config: config, path: "/api/cron/blueprints/instantiate",
+            method: "POST", endpoint: L10n.string("定时任务模板创建"),
+            body: [
+                "blueprint": .string(blueprint),
+                "values": .object(values),
+            ]
+        )
+    }
+
+    func cronDeliveryTargets(config: ServerConfig) async throws -> [CronDeliveryTarget] {
+        let response: CronDeliveryTargetsResponse = try await getJSON(
+            config: config, path: "/api/cron/delivery-targets",
+            endpoint: L10n.string("定时任务投递目标")
+        )
+        return response.targets
+    }
+
     // MARK: - 服务端会话
 
     func serverSessions(config: ServerConfig, limit: Int) async throws -> SessionsPage {
@@ -2199,6 +2249,29 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         try await sendJSONDecoding(
             config: config, path: mcpPath(name: name, suffix: "/test"),
             method: "POST", endpoint: L10n.string("MCP 测试"), body: [:]
+        )
+    }
+
+    // MARK: - MCP 目录（§388 H7）
+
+    func mcpCatalog(config: ServerConfig) async throws -> MCPCatalogResponse {
+        try await getJSON(
+            config: config, path: "/api/mcp/catalog",
+            endpoint: L10n.string("MCP 目录")
+        )
+    }
+
+    func installMCPCatalogEntry(
+        config: ServerConfig, name: String, env: [String: String], enable: Bool
+    ) async throws -> MCPInstallReceipt {
+        try await sendJSONDecoding(
+            config: config, path: "/api/mcp/catalog/install",
+            method: "POST", endpoint: L10n.string("MCP 目录安装"),
+            body: [
+                "name": .string(name),
+                "env": .object(env.mapValues { JSONValue.string($0) }),
+                "enable": .bool(enable),
+            ]
         )
     }
 

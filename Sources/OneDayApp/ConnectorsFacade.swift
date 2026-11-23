@@ -35,6 +35,68 @@ final class ConnectorsFacade {
     private(set) var toggling: Set<String> = []
     private(set) var testing: Set<String> = []
     private(set) var testResults: [String: MCPTestResult] = [:]
+    // MARK: - MCP 目录（§388 H7，服务端单源）
+
+    private(set) var catalogEntries: [MCPCatalogEntry] = []
+    private(set) var catalogDiagnostics: [MCPCatalogDiagnostic] = []
+    private(set) var catalogError: String?
+    private(set) var isLoadingCatalog = false
+    private(set) var installingCatalog: Set<String> = []
+    var catalogNotice: String?
+
+    func loadCatalog(appState: AppState) async {
+        guard !isLoadingCatalog else { return }
+        isLoadingCatalog = true
+        defer { isLoadingCatalog = false }
+        do {
+            let response = try await appState.performAdmin { client, config in
+                try await client.mcpCatalog(config: config)
+            }
+            catalogEntries = response.entries
+            catalogDiagnostics = response.diagnostics
+            catalogError = nil
+        } catch {
+            catalogError = (error as? HermesError)?.userMessage
+                ?? "MCP 目录没读出来，可能是网络或服务暂时没响应"
+        }
+    }
+
+    /// 安装：回执只当受理信号——同步条目回读目录见
+    /// installed 才算落定、并顺带刷新已连接名单；后台
+    /// 条目（git 自举）只报「已开始」，不假装已装好
+    /// （skillHubInstall 回读对账先例同口径）
+    func installCatalogEntry(
+        _ entry: MCPCatalogEntry, env: [String: String],
+        enable: Bool, appState: AppState
+    ) async {
+        installingCatalog.insert(entry.name)
+        defer { installingCatalog.remove(entry.name) }
+        do {
+            let receipt = try await appState.performAdmin { client, config in
+                try await client.installMCPCatalogEntry(
+                    config: config, name: entry.name, env: env, enable: enable
+                )
+            }
+            await loadCatalog(appState: appState)
+            if receipt.background {
+                catalogNotice =
+                    "「\(entry.name)」已开始在后台安装，装完会在目录里标为已安装。"
+            } else if catalogEntries.first(
+                where: { $0.name == entry.name }
+            )?.installed == true {
+                catalogNotice = "「\(entry.name)」已安装。"
+                await loadServers(appState: appState)
+            } else {
+                catalogNotice =
+                    "「\(entry.name)」已受理，但回读暂未见装好，稍后下拉刷新目录确认。"
+            }
+        } catch {
+            catalogNotice = (error as? HermesError)?.userMessage
+                ?? "安装失败，请稍后再试。"
+        }
+    }
+
+
 
     // MARK: - 本机服务探活（0.29.0）
 

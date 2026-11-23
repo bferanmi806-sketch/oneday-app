@@ -364,6 +364,9 @@ struct DemoHermesClient: HermesClientProtocol {
     func triggerCronJob(config: ServerConfig, id: String) async throws { throw HermesError.demoLimitReached }
 
     func cronRuns(config: ServerConfig, id: String, limit: Int) async throws -> [ServerSession] { throw HermesError.demoLimitReached }
+    func cronBlueprints(config: ServerConfig) async throws -> [CronBlueprint] { throw HermesError.demoLimitReached }
+    func instantiateBlueprint(config: ServerConfig, blueprint: String, values: [String: JSONValue]) async throws { throw HermesError.demoLimitReached }
+    func cronDeliveryTargets(config: ServerConfig) async throws -> [CronDeliveryTarget] { throw HermesError.demoLimitReached }
 
     // MARK: - 服务端会话
 
@@ -655,6 +658,8 @@ struct DemoHermesClient: HermesClientProtocol {
     // 生产实样——插件预置；外加一条手动配置示例）
 
     func mcpServers(config: ServerConfig) async throws -> [MCPServerItem] { throw HermesError.demoLimitReached }
+    func mcpCatalog(config: ServerConfig) async throws -> MCPCatalogResponse { throw HermesError.demoLimitReached }
+    func installMCPCatalogEntry(config: ServerConfig, name: String, env: [String: String], enable: Bool) async throws -> MCPInstallReceipt { throw HermesError.demoLimitReached }
 
     func setMCPServerEnabled(
         config: ServerConfig, name: String, enabled: Bool

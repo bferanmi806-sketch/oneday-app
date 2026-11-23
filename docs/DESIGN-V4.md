@@ -15345,3 +15345,68 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §388 H6 定时任务模板化＋H7 MCP 目录（2026-11-23；总表 166/167，用户「全部解冻」第二波；基线 rel-05098 @3f9598f，分支 feat/h6-cron-templates-h7-mcp-catalog）
+
+### §388.1 现状对账表（服务端为准：部署包 CAPABILITIES.md＋在役容器 v0.23.0 源码实查＋上游 openapi 规格三方对齐）
+
+H6 定时（web_routers/cron.py，同文件 jobs 组已在役、App 已全量接出 CRUD/启停/触发/运行记录）：
+
+| 项 | 服务端形态 | 在役证据 | App 现状 | 本包处置 |
+|---|---|---|---|---|
+| 蓝图目录 | GET /api/cron/blueprints → {"blueprints":[条目]}，条目＝表单模式（key/title/description/category/tags/fields[]/source/plugin/schedule/scheduleHuman/command/appUrl）；内置 16 张（morning-brief 等）＋插件蓝图 | 部署源码 cron.py:929 在位、blueprint_catalog.py CATALOG 实查 16 键 | 无模型、无入口，建任务只能手填表达式 | **落码**：Core 模型＋客户端＋模板挑选/填空面 |
+| 蓝图实例化 | POST /api/cron/blueprints/instantiate {blueprint, values} → 创建任务回执；填空校验失败 422 字段级报错 | 部署源码 cron.py:948 在位、fill_blueprint 校验链实查 | 无 | **落码**：填空表按 fields 类型渲染（time/enum/text/weekdays），提交后 CronStore 刷新回读见新任务才算成 |
+| 投递目标 | GET /api/cron/delivery-targets → {"targets":[{id,name,home_target_set,home_env_var}]}，local 打头＋已接网关平台（未设主频道者 home_target_set=false 仍列出） | 部署源码 cron.py:754＋scheduler_delivery.py:527 实查 | CronJobFormView 建任务 deliver 恒传 nil、编辑不带 deliver——投递目标不可选 | **落码**：表单加投递目标选择（默认＝不指定沿服务端默认；平台未设主频道如实标注），建/编均透传 |
+| fire | POST /api/cron/fire 是 NAS→agent 的 Chronos 托管触发 webhook，NAS 签发 JWT 门控、非面板会话面 | openapi 规格原文实查 | App 侧「立即执行」已由 /trigger 承担 | **不接**（口径登记）：非 App 面，接了即假入口 |
+| jobs CRUD/启停/触发/runs | 全在役 | 0.50.81 一线已通、CronStore 单源（台账 198） | 已全量接出 | 不动 |
+
+H7 MCP（web_routers/mcp.py；App 已接 GET /api/mcp/servers＋PUT enabled＋POST test，落在连接器面 P10）：
+
+| 项 | 服务端形态 | 在役证据 | App 现状 | 本包处置 |
+|---|---|---|---|---|
+| 目录浏览 | GET /api/mcp/catalog → {"entries":[条目], "diagnostics":[…]}，条目含 name/description/transport/auth_type/required_env[{name,prompt,required}]/command/args/url/install_*/needs_install/installed/enabled | 部署源码 mcp.py:439＋_catalog_entry_json:398 实查 | 无模型、无入口，加能力只能手填配置 | **落码**：Core 模型＋客户端＋目录面（浏览/详情/信任信息全展示） |
+| 目录安装 | POST /api/mcp/catalog/install {name, env, enable, profile?} → {"ok":true,"name","background":bool}；env 只许条目声明过的键（未声明 400）；git 自举条目后台装、回执 background=true | 部署源码 mcp.py:471 实查 | 无 | **落码**：详情内安装（声明 env 填空、密钥 SecureField），落定靠回读目录 installed 标记＋已连接名单对账，不认回执即成功（skillHubInstall 先例同口径） |
+| 已配置目录＋状态 | GET /api/mcp/servers | 在役、App 已接（连接器面） | 已有面（启停/测试俱全） | 不另造面；目录面与之同在连接器面、入口互链不重复 |
+| 手填增删改 | POST/PUT /api/mcp/servers、DELETE /{name} 服务端有写口径 | 部署源码 mcp.py:110/160/183 实查 | App 未接 | **缺口登记**（不在 167 题面）：服务端有口径、App 未接，后续包再议，本包不假写 |
+
+数据口径：蓝图/目录/投递目标全是服务端单源，App 只读拉取不落本地副本（单一数据源）；模板实例化与安装均为真写接口＋回读对账（僵尸功能禁令）。
+
+### §388.2 入口四问自查
+
+- H6：入口＝定时任务页（CronJobsView）工具栏「模板」钮＋空态按钮，进 CronBlueprintPickerView；空白新建仍走原「＋」。无重复面（蓝图填空面唯一）。
+- H7：入口＝连接器面「可连接」段内「MCP 目录」行，进 MCPCatalogView；已连接 MCP 仍在连接器面原位。无重复面（目录面唯一）。
+- 令牌/公用件：分组/行/错误行全用既有 odGroup/FieldRow/InlineError 与 Palette/OneDayMetrics，不直写数值。
+- 深色/大字号：填空面控件全系统件（DatePicker/Picker/TextField），目录行走连接器面既有行件。
+
+### §388.3 落码清单
+
+H6（定时模板化）：
+- Core 模型（HermesAdminModels.swift）：CronBlueprint/CronBlueprintField（含 defaultText 摊平）/CronBlueprintsResponse、CronBlueprintFill.values 组装（必填缺失整单拦下、可选空值不带）、CronDeliveryTarget/CronDeliveryTargetsResponse（home_target_set=false 的 availabilityNote 如实标注）。
+- 客户端（HermesClient 协议＋实现＋Demo/四双替桩）：cronBlueprints / instantiateBlueprint / cronDeliveryTargets 三方法。
+- 挑选面 CronBlueprintPickerView（CronBlueprintViews.swift 新文件）：服务端原序按 category 分组、行含计划人话＋描述；填空面 CronBlueprintFormView 按 fields 类型渲染（time＝DatePicker 时分、enum/weekdays＝菜单 Picker、text＝文本域），槽名给中文名（未知回落服务端标签）、help/可不填如实标注；提交走 Core 组装、422 等失败显人话层文案（服务端原文不直通 UI，全 App 既有口径）；成功回调 CronStore.refresh 回读名单见新任务。
+- CronJobsView：工具栏加「模板」钮（与「＋」空白新建并列），sheet 挂挑选面。
+- CronJobFormView：加投递目标选择（默认＝不指定沿服务端默认；平台未设主频道标注「未设主频道」），新建透传 deliver、编辑改了才带；投递名单拉不到时降级为仅默认档、不拦表单。
+
+H7（MCP 目录）：
+- Core 模型（ManagementModels.swift）：MCPCatalogEntry（信任字段全建模：command/args/url/install_url/bootstrap/post_install）/MCPCatalogEnvSpec（looksSecret 按名判——目录 JSON 不带 secret 标记）/MCPCatalogDiagnostic/MCPCatalogResponse/MCPInstallReceipt。
+- 客户端：mcpCatalog / installMCPCatalogEntry 两方法（协议＋实现＋桩齐）。
+- ConnectorsFacade：目录状态单源（catalogEntries/Diagnostics/Error/installingCatalog/catalogNotice）＋loadCatalog＋installCatalogEntry（回执只当受理：同步条目回读 installed 才落定并刷新已连接名单，后台自举只报已开始，回读未见如实说未见）。
+- MCPCatalogView（MCPCatalogViews.swift 新文件）：可安装/已安装两段＋目录诊断段；详情面摊状态/传输/鉴权＋「将要运行」信任段（命令/地址/自举来源/自举步骤全量、等宽可选中）＋post_install 原文；未装条目给安装区（声明 env 填空、密钥类 SecureField、必填校验、安装后启用开关）；已装条目只指路回连接器「已连接」管理，不重复造面。
+- ConnectorsView：「可连接」段尾加「MCP 目录」入口段（NavigationLink 进目录面，恰一处）。
+
+### §388.4 缺口登记（本包不做，口径在案）
+
+- cron fire（POST /api/cron/fire）：NAS JWT 门控的托管触发 webhook，非 App 面，不接；App 立即执行由 /trigger 承担。
+- MCP 手填增删改（POST/PUT /api/mcp/servers、DELETE /{name}）：服务端有写口径、App 未接，不在 167 题面，后续包再议；本包不假写。
+- 蓝图枚举槽 strict=false 的自定义值输入（如 deliver 填目录外平台名）：本包只给服务端下发 options 的菜单选择，未做自由填；deliver 槽 options 已由服务端按真实网关改写，够用，自由填留后续。
+- CronJobFormView 编辑态清空 deliver 回默认：服务端清空语义未定，只许改到具体目标，不假装能清空。
+
+### §388.5 真机门（用户，未过不关账）
+
+- H6：定时任务页点「模板」→ 模板名单拉得出（16 张内置在列）→ 选 morning-brief 改时间/投递 → 创建 → 名单回读见新任务且计划/投递如所填；空白新建表单投递目标可选、选平台后建任务详情里投递如所选；投递名单拉不到时表单仍可建任务。
+- H7：连接器「可连接」段进 MCP 目录 → 名单与已装标注与服务端一致 → 任选一未装条目看详情（命令/地址摊得全）→ 填声明参数安装 → 同步条目回读标已安装且「已连接」段出现该服务；后台自举条目安装后提示为「后台安装中」口径、不假装已装好。
+
+### §388.6 回归记账
+
+- 发布集口径（自 rel05098 bundle 提取 97 套 817 件全限定名）＋本包新 2 套 10 件（OneDayCoreTests/CronBlueprintCatalogTests 6、OneDayAppTests/H6H7StructureTests 4）＝**99 套 827 件全绿、新红零**（bundle Test-OneDayApp-h6h7.xcresult，xcresulttool 对账 total 827 / failed 0）；S371/S373 在基底内同绿。
+- 服务端零改动、未对生产发任何写请求（对账全程只读：部署包注册表＋容器源码＋openapi 规格）；安装/实例化的真写只在用户真机点按时发生。

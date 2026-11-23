@@ -219,6 +219,19 @@ struct FailingHermesClient: HermesClientProtocol {
     func cronRuns(config: ServerConfig, id: String, limit: Int) async throws -> [ServerSession] {
         throw HermesError.unreachable("离线桩")
     }
+    func cronBlueprints(config: ServerConfig) async throws -> [CronBlueprint] {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func instantiateBlueprint(
+        config: ServerConfig, blueprint: String, values: [String: JSONValue]
+    ) async throws {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func cronDeliveryTargets(config: ServerConfig) async throws -> [CronDeliveryTarget] {
+        throw HermesError.unreachable("离线桩")
+    }
 
     func serverSessions(config: ServerConfig, limit: Int) async throws -> SessionsPage {
         throw HermesError.unreachable("离线桩")
@@ -374,6 +387,15 @@ struct FailingHermesClient: HermesClientProtocol {
     }
 
     func mcpServers(config: ServerConfig) async throws -> [MCPServerItem] {
+        throw HermesError.unreachable("离线桩")
+    }
+    func mcpCatalog(config: ServerConfig) async throws -> MCPCatalogResponse {
+        throw HermesError.unreachable("离线桩")
+    }
+
+    func installMCPCatalogEntry(
+        config: ServerConfig, name: String, env: [String: String], enable: Bool
+    ) async throws -> MCPInstallReceipt {
         throw HermesError.unreachable("离线桩")
     }
 
