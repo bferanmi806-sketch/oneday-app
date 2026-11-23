@@ -92,6 +92,15 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
     public let rootURL: URL
     private let fileManager: FileManager
 
+    /// §410：在飞 stage 登记（stageAsync/stageDetached 的
+    /// 写盘在后台任务里跑）——loadPayloads/transfer/remove
+    /// 动同一条目目录前先等在飞写落定，防读到半写目录或
+    /// 与原子换入相撞（旧同步 stage 无此问题：调用线程即
+    /// 写者、返回时已落定）。按条目计数，同条目多次 stage
+    /// 全部落定才放行
+    private let stageFlightCondition = NSCondition()
+    private var stageFlightCounts: [UUID: Int] = [:]
+
     public init(rootURL: URL, fileManager: FileManager = .default) {
         self.rootURL = rootURL
         self.fileManager = fileManager
@@ -181,6 +190,73 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
         return records
     }
 
+    /// §410：stage 的离主线程版——写盘整段走独立任务，
+    /// 调用方（发送链主 actor）只等结果不付字节成本；
+    /// 语义与 stage 逐项一致（原子换入、manifest 最后写）
+    @discardableResult
+    public func stageAsync(
+        entryID: UUID, payloads: [StagedSendPayload]
+    ) async throws -> [StagedSendAttachment] {
+        beginStageFlight(entryID)
+        return try await Task.detached(priority: .userInitiated) {
+            // §410 接管修：在飞销账落写任务内——挂外层
+            // defer 时调用方取消会先于写完销账、读侧提
+            // 前放行；与 stageDetached 同式，写落定才销
+            defer { self.endStageFlight(entryID) }
+            return try self.stage(
+                entryID: entryID, payloads: payloads
+            )
+        }.value
+    }
+
+    /// §410：即发即走版（发送链落点用）：写失败不拦发送
+    /// （与旧 `try? stage` 同口径）；完成由在飞登记兜底，
+    /// 读侧 loadPayloads/transfer/remove 会等它落定再动
+    public func stageDetached(
+        entryID: UUID, payloads: [StagedSendPayload]
+    ) {
+        beginStageFlight(entryID)
+        Task.detached(priority: .userInitiated) {
+            defer { self.endStageFlight(entryID) }
+            try? self.stage(entryID: entryID, payloads: payloads)
+        }
+    }
+
+    /// 该条目是否有 stage 正在后台写（§410 钉测/诊断用）
+    public func stageInFlight(entryID: UUID) -> Bool {
+        stageFlightCondition.lock()
+        defer { stageFlightCondition.unlock() }
+        return (stageFlightCounts[entryID] ?? 0) > 0
+    }
+
+    private func beginStageFlight(_ entryID: UUID) {
+        stageFlightCondition.lock()
+        stageFlightCounts[entryID, default: 0] += 1
+        stageFlightCondition.unlock()
+    }
+
+    private func endStageFlight(_ entryID: UUID) {
+        stageFlightCondition.lock()
+        let remaining = (stageFlightCounts[entryID] ?? 1) - 1
+        if remaining > 0 {
+            stageFlightCounts[entryID] = remaining
+        } else {
+            stageFlightCounts.removeValue(forKey: entryID)
+        }
+        stageFlightCondition.broadcast()
+        stageFlightCondition.unlock()
+    }
+
+    /// 读/移/删条目目录前等在飞 stage 落定（无人在飞时
+    /// 立即返回）；只等同条目，不挡其他条目的读写
+    private func waitForStageFlight(_ entryID: UUID) {
+        stageFlightCondition.lock()
+        while (stageFlightCounts[entryID] ?? 0) > 0 {
+            stageFlightCondition.wait()
+        }
+        stageFlightCondition.unlock()
+    }
+
     public func manifest(
         entryID: UUID
     ) throws -> [StagedSendAttachment] {
@@ -199,6 +275,7 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
     public func loadPayloads(
         entryID: UUID
     ) throws -> [StagedSendPayload] {
+        waitForStageFlight(entryID)
         let records = try manifest(entryID: entryID)
         let directory = entryDirectory(entryID)
         return try records.map { record in
@@ -226,6 +303,7 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
         from sourceID: UUID, to destinationID: UUID
     ) throws {
         guard sourceID != destinationID else { return }
+        waitForStageFlight(sourceID)
         let source = entryDirectory(sourceID)
         guard fileManager.fileExists(atPath: source.path) else {
             return
@@ -241,6 +319,7 @@ public final class StagedSendAttachmentStore: @unchecked Sendable {
     }
 
     public func remove(entryID: UUID) throws {
+        waitForStageFlight(entryID)
         let directory = entryDirectory(entryID)
         if fileManager.fileExists(atPath: directory.path) {
             try fileManager.removeItem(at: directory)

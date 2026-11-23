@@ -16284,3 +16284,27 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
+
+## §410 发文件卡 IO 包：四段主线程重活下放（2026-11-23；分支 feat/file-send-io，基线 rel-05102 @64f2b56；取证 file-send-lag-whitescreen-forensics-20261123.md §1.1/1.2/1.3/1.5；中途接管——前任分身未提交半成品，接管审计 file-send-io-takeover-audit-20261123.md；§409 在 S2 分支，合并时主线按序拼接）
+
+### §410.1 落点四段
+1. **选择段**：ChatView.loadPickedFiles 三分——同步本体 loadPickedFilesSync（nonisolated static 纯函数）＋loadPickedFilesDetached（Task.detached、钉测与生产共用入口）＋UI 包装回主线入条/汇总提示。名单（oversized/unreadable/transcoded/undecodable）、文案、诊断记录、入条顺序与旧链逐字一致；行为差异一处（记账）：入条时机由逐个读完逐个入改整批读完统一入。
+2. **暂存段**：StagedSendAttachmentStore 新增 stageAsync/stageDetached＋在飞登记（NSCondition 按条目计数）；loadPayloads/transfer/remove 动条目目录前等在飞落定。ChatView 三处调用点（send 落条目、§237 补传落盘、编辑重发）由 try? stage 改 stageDetached——「写失败不拦发送」口径与旧 try? 一致；stage 本体（临时目录写全＋manifest 最后写＋换入）未动，进程中途被杀语义不变。prune(keeping:) 经查与在飞 stage 无实质竞态（在飞条目必在 validIDs 内、临时目录名不被 UUID 解析命中），不改。
+3. **上传段**：发送链调用点改递原始字节（fileName＋data），主 actor 不再构 dataURL。HermesClient 新增原始字节版 uploadAttachment：UploadBodyFile 流式拼装——先以占位串经 JSONEncoder 编信封（path 转义与旧链同口径），再分片 base64 写临时文件（片长 57×1024＝58368、3 的倍数，非末片无填充、与整份编码逐字一致），upload task 以 fromFile 直发；会话配置/进度 delegate/取消归一/onTransportSuccess/回执解码与 §237 进度版逐项一致。dataURL 旧两版（无进度/进度）的 JSON 体编码附带移 detached（新编码器、同默认配置）。协议层新方法入 HermesClientProtocol，协议扩展默认实现供测试替身，DemoHermesClient 显式同口径抛 demoLimitReached。代价：临时文件落盘 ≈1.37× 文件大小，defer 删除。
+4. **缩略图段**：FileThumbnailStore 四个同步点全下主线——loadFromDisk 解码、downsampledImage 降采样、saveToDisk 的 PNG 编码＋写盘、quickLookThumbnail 的建目录＋整份写临时文件（接管补漏：取证 §1.5 第四点，前任漏改）；产物跨任务装箱 ThumbImageBox 照 RemoteImagePipeline.DecodedImageBox 同式；ThumbnailGate 并发闸位置不变。
+
+### §410.2 接管修复四件＋夹具一字节（详见审计档）
+- 段4 补漏（上条 quickLookThumbnail）；stageAsync 在飞销账改落 detached 写任务内（原挂外层 defer，调用方取消时会先于写完销账、读侧提前放行）；UploadBodyFile 占位串改每次调用 UUID 化（固定串若恰出现在 path 内会命中错位、静默写坏请求体）；两处 nonisolated 编译修复——downsampledImage 与 loadPickedFilesSync 均因宿主 actor 隔离无法从独立任务调用，**前任版本从未编译通过**（首跑实证 FileThumbnailStore.swift:180 error、全日志唯一处），纯函数标 nonisolated 为正解。
+- 钉测 GBK 夹具修正一字节：「试」GBK 为 CA D4，前任夹具误写 CA C7（＝「是」），产品转码无误、夹具与期望对不上（实跑解码出「中文测是」抓出）。
+
+### §410.3 验收（实验室，模拟器 ProbePhone；真机门未过不关账）
+- 钉测 FileSendIOThreadAttributionTests **4/4 全绿**（5ms 节拍器 maxGap 上限 200ms；四段从 MainActor 调生产入口＋大载荷，含 GBK 转码名单对账、stageDetached 读侧等落定读完整载荷、组包体 JSON 回读与旧链 dataURL 逐字一致断言）。
+- 阶梯同口径对账（5ms 节拍器 maxGap＋phys_footprint 瞬时增量；基线套 FileSendIOLadderBaselineTests 在 oneday-fileio-base 树同基线 @64f2b56 实测，LADDER-BASE/NEW 各 14 行全到）：
+  - 组包段瞬时内存：1MB 3.7→1.1MB、10MB 36.8→10.0MB、50MB 183.4→50.1MB、100MB **366.9→100.1MB**（≈3.7×→≈1.0×，与 §1.3 设计口径合）；maxGap 100MB 268→6ms、50MB 140→6ms、10MB 33→9ms。
+  - 缩略图段（28.2MB 噪声 PNG、解码＋编码）：maxGap 90/91→**6/7ms**；wall 不变（~100ms，活量不变、只离主线）。
+  - 暂存段 maxGap：100MB 32→6ms、50MB 19→6ms。
+  - 选择段 maxGap：100MB 51→20ms、50MB 25→11ms（.bin 口径，读盘为主；文本转码成本由钉测 GBK 例覆盖）。
+- 定向回归合并跑（钉测＋阶梯＋BasicsFixBatchTests＋FileSendAssemblyTests＋FileIntakeTests）：xcresult 权威计数 43 例、42 过、1 红——红即 GBK 夹具，修后钉测单套重跑 4/4 全绿（Test-FileIOPin.xcresult）；基线套单跑 exit 0。
+- 通道记账：本包 run 两度被其他线 kick 抢道杀跑（18:11 run 日志尾 ** BUILD INTERRUPTED ** 实证），最终以「双树合并一踢＋错峰等待器」于 18:21 完成双树对账、18:31 完成钉测重跑；kick 纪律（单一脚本双读判闲、忙即退）全程未破。
+- **真机门（未过不关账）**：50/100MB 文件发送全程界面不冻、发送键即时响应；文件多的会话与文件页滚动无缩略图分片卡顿；断网/杀进程后暂存补传与 §237 旧口径一致。实验室绿不代真机 verdict。
+- 范围外记账：ProfilesView 档案包安装、FileOpenView 改名链走 uploadFile＋调用方 makeDataURL，非本包四段（发送链）范围，其 JSON 体编码已随段3 附带项 detached 化受益，dataURL 构造残留记后续包候选。取证 §1.4（文件牌上传后入行跳高）与 §1.6（落定翻形态）属呈现/S1 口径，不在本包。

@@ -21,6 +21,14 @@ import UIKit
 ///   图片缩略生成后同键播种 RemoteImagePipeline，
 ///   供查看器首帧种子（点开即显的来源）；
 /// - 并发闸 2：滚动时不让缩略生成把带宽与解码打满。
+/// §410：缩略图解码产物跨任务装箱（UIImage 非
+/// Sendable，照 RemoteImagePipeline.DecodedImageBox
+/// 同式：单写单读、无并发触碰）
+private final class ThumbImageBox: @unchecked Sendable {
+    let image: UIImage
+    init(_ image: UIImage) { self.image = image }
+}
+
 @MainActor
 final class FileThumbnailStore {
     static let shared = FileThumbnailStore()
@@ -100,7 +108,7 @@ final class FileThumbnailStore {
         if let cached = memoryCache.object(forKey: key as NSString) {
             return cached
         }
-        if let disk = loadFromDisk(key: key) {
+        if let disk = await loadFromDisk(key: key) {
             memoryCache.setObject(disk, forKey: key as NSString)
             return disk
         }
@@ -112,7 +120,7 @@ final class FileThumbnailStore {
         await gate.release()
         if let image {
             memoryCache.setObject(image, forKey: key as NSString)
-            saveToDisk(image, key: key)
+            await saveToDisk(image, key: key)
             // 播种管线：影音格/文件行点开查看器时，
             // 这张 360 就是首帧种子（§144）
             if entry.mediaKind == .image {
@@ -134,12 +142,12 @@ final class FileThumbnailStore {
             // 变体优先（360 档 JPEG），回落原图降采样
             if let renditionLoader,
                let data = await renditionLoader("image"),
-               let image = Self.downsampledImage(
+               let image = await Self.downsampledImageOffMain(
                    data: data, pixelSize: targetPixelSize) {
                 return image
             }
             guard let data = await loader() else { return nil }
-            return Self.downsampledImage(
+            return await Self.downsampledImageOffMain(
                 data: data, pixelSize: targetPixelSize
             )
         }
@@ -148,7 +156,7 @@ final class FileThumbnailStore {
             // 方呈现），整段下载抽帧不做（旧口径保留）
             if let renditionLoader,
                let data = await renditionLoader("poster") {
-                return Self.downsampledImage(
+                return await Self.downsampledImageOffMain(
                     data: data, pixelSize: targetPixelSize
                 )
             }
@@ -161,8 +169,25 @@ final class FileThumbnailStore {
         )
     }
 
+    /// §410：降采样解码的离主线程入口——同步本体虽是
+    /// static，从 @MainActor 上下文直调仍在主线执行；
+    /// 独立任务里跑、装箱回主线。并发闸在调用侧
+    /// （thumbnail 的 ThumbnailGate）不变
+    private static func downsampledImageOffMain(
+        data: Data, pixelSize: CGFloat
+    ) async -> UIImage? {
+        let box = await Task.detached(priority: .userInitiated) {
+            downsampledImage(data: data, pixelSize: pixelSize)
+                .map(ThumbImageBox.init)
+        }.value
+        return box?.image
+    }
+
     /// ImageIO 降采样：只解到目标像素量级，不整图入内存
-    private static func downsampledImage(
+    /// §410 接管修：nonisolated——纯参数函数（ImageIO
+    /// 线程安全），类 @MainActor 隔离会让独立任务里的
+    /// 调用无法过编译（前任版本即卡在此处未编译）
+    private nonisolated static func downsampledImage(
         data: Data, pixelSize: CGFloat
     ) -> UIImage? {
         let sourceOptions: [CFString: Any] = [
@@ -184,6 +209,10 @@ final class FileThumbnailStore {
     }
 
     /// QL 首面：缩略提供者认扩展名，临时文件必须保原名
+    /// §410 接管补漏：建目录＋整份字节写临时文件下主
+    /// 线程（取证 §1.5 第四个同步点）——旧链在
+    /// @MainActor 上同步写全量字节；现独立任务写完
+    /// 再回主线发 QL 请求，写失败回 nil 与旧口径一致
     private static func quickLookThumbnail(
         data: Data, entry: WorkspaceFileEntry,
         targetPixelSize: CGFloat
@@ -194,14 +223,21 @@ final class FileThumbnailStore {
                 isDirectory: true
             )
         let fileURL = directory.appendingPathComponent(entry.name)
-        do {
-            try FileManager.default.createDirectory(
-                at: directory, withIntermediateDirectories: true
-            )
-            try data.write(to: fileURL)
-        } catch {
-            return nil
-        }
+        let written = await Task.detached(
+            priority: .userInitiated
+        ) {
+            do {
+                try FileManager.default.createDirectory(
+                    at: directory,
+                    withIntermediateDirectories: true
+                )
+                try data.write(to: fileURL)
+                return true
+            } catch {
+                return false
+            }
+        }.value
+        guard written else { return nil }
         defer {
             try? FileManager.default.removeItem(at: directory)
         }
@@ -256,20 +292,35 @@ final class FileThumbnailStore {
         return directory
     }
 
-    private func loadFromDisk(key: String) -> UIImage? {
+    /// §410：磁盘命中解码下主线程——UIImage(contentsOfFile:)
+    /// 同步解码整图，旧链在 @MainActor 上直付；现独立任务
+    /// 解码、装箱回主线（同 RemoteImagePipeline 的离主解
+    /// 码待遇）。落点 URL 仍在主线算（目录确保是便宜元数据）
+    private func loadFromDisk(key: String) async -> UIImage? {
         guard let url = diskDirectory?
-            .appendingPathComponent("\(key).png"),
-              FileManager.default.fileExists(atPath: url.path)
+            .appendingPathComponent("\(key).png")
         else { return nil }
-        return UIImage(contentsOfFile: url.path)
+        let box = await Task.detached(priority: .userInitiated) {
+            () -> ThumbImageBox? in
+            guard FileManager.default.fileExists(atPath: url.path)
+            else { return nil }
+            return UIImage(contentsOfFile: url.path)
+                .map(ThumbImageBox.init)
+        }.value
+        return box?.image
     }
 
-    private func saveToDisk(_ image: UIImage, key: String) {
+    /// §410：PNG 编码＋写盘下主线程（编码是整图字节活，
+    /// 与解码同待遇）；落点 URL 仍在主线算
+    private func saveToDisk(_ image: UIImage, key: String) async {
         guard let url = diskDirectory?
-            .appendingPathComponent("\(key).png"),
-              let data = image.pngData()
+            .appendingPathComponent("\(key).png")
         else { return }
-        try? data.write(to: url)
+        let box = ThumbImageBox(image)
+        await Task.detached(priority: .utility) {
+            guard let data = box.image.pngData() else { return }
+            try? data.write(to: url)
+        }.value
     }
 }
 

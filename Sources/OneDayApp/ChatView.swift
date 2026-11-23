@@ -3476,7 +3476,7 @@ struct ChatView: View {
         try? modelContext.save()
         newEntry.markSendState(.queued, in: modelContext)
         if !filePayloads.isEmpty {
-            try? stagedSendStore.stage(
+            stagedSendStore.stageDetached(
                 entryID: newEntry.id,
                 payloads: filePayloads.map {
                     StagedSendPayload(
@@ -8466,6 +8466,60 @@ private struct ComposerBarLayout: Layout {
         }
     }
 
+    /// 选文件回调（§410 改异步）：读盘＋转码整段下主
+    /// 线程——旧链在选择器回调里同步直读，点「确定」即
+    /// 冻界面到读完为止；现后台读完再回主线入条与汇总
+    /// 提示，名单/文案/入条顺序与旧链逐字一致
+    private func loadPickedFiles(urls: [URL]) {
+        guard !urls.isEmpty else {
+            showNotice(
+                "没有选到文件，未加入待发列表。", tier: .extended
+            )
+            return
+        }
+        Task {
+            let outcome = await Self.loadPickedFilesDetached(
+                urls: urls
+            )
+            for file in outcome.accepted {
+                attachments.append(
+                    PendingAttachment(
+                        kind: .file(name: file.name, data: file.data)
+                    )
+                )
+            }
+            if !outcome.unreadable.isEmpty {
+                ChatDiagTrace.record(
+                    "选文件读取失败 \(outcome.unreadable.count) 个："
+                        + outcome.unreadable.joined(separator: "、")
+                )
+            }
+            let summaries = [
+                FileIntake.rejectionNotice(
+                    oversized: outcome.oversized,
+                    unreadable: outcome.unreadable
+                ),
+                FileIntake.transcodeNotice(
+                    transcoded: outcome.transcoded,
+                    undecodable: outcome.undecodable
+                ),
+            ].compactMap { $0 }
+            if !summaries.isEmpty {
+                showNotice(summaries.joined(), tier: .persistent)
+            }
+        }
+    }
+
+    /// §410：选文件读盘段的离主线程入口（钉测与生产共
+    /// 用）：独立任务里跑同步本体，主线只收汇总产物
+    static func loadPickedFilesDetached(
+        urls: [URL]
+    ) async -> PickedFilesLoadOutcome {
+        await Task.detached(priority: .userInitiated) {
+            Self.loadPickedFilesSync(urls: urls)
+        }.value
+    }
+
     /// 文件接入（0.36.31 件二＋件三重写）：入参自
     /// DocumentPickerView（asCopy 副本 URL，落在
     /// App 容器内——旧 .fileImporter 路的安全作用
@@ -8479,17 +8533,15 @@ private struct ComposerBarLayout: Layout {
     /// 20261111：解码后上限 100MiB）。出口有声口
     /// 径（P-18）保留：空数组明示、读失败点名汇总
     /// 并落诊断面
-    private func loadPickedFiles(urls: [URL]) {
-        guard !urls.isEmpty else {
-            showNotice(
-                "没有选到文件，未加入待发列表。", tier: .extended
-            )
-            return
-        }
-        var oversized: [String] = []
-        var unreadable: [String] = []
-        var transcodedNames: [String] = []
-        var undecodableNames: [String] = []
+    /// §410：本函数是同步本体，只在后台任务里跑
+    /// （loadPickedFilesDetached），主线不直调
+    /// §410 接管修：nonisolated——纯函数（读盘＋
+    /// FileIntake＋组汇总产物），ChatView 的 actor
+    /// 隔离会让独立任务里的调用无法过编译
+    nonisolated static func loadPickedFilesSync(
+        urls: [URL]
+    ) -> PickedFilesLoadOutcome {
+        var outcome = PickedFilesLoadOutcome()
         for url in urls {
             let name = url.lastPathComponent
             let declaredSize = (try? url.resourceValues(
@@ -8497,11 +8549,11 @@ private struct ComposerBarLayout: Layout {
             ))?.fileSize
             if FileIntake.sizeVerdict(declaredSize: declaredSize)
                 == .tooLarge {
-                oversized.append(name)
+                outcome.oversized.append(name)
                 continue
             }
             guard let data = try? Data(contentsOf: url) else {
-                unreadable.append(name)
+                outcome.unreadable.append(name)
                 continue
             }
             // 编码归一（0.46.1 扩围 C）：文本类旧编码
@@ -8517,40 +8569,21 @@ private struct ComposerBarLayout: Layout {
             // 载荷（GBK→UTF-8 中文每字 2B 变 3B 会变大）
             guard !FileIntake.isOversized(byteCount: upload.data.count)
             else {
-                oversized.append(name)
+                outcome.oversized.append(name)
                 continue
             }
             // 转码账只记真入条的：被大小闸拒掉的文件
             // 不进转码提示名单，免得两份名单对不上
             switch upload.outcome {
-            case .transcoded: transcodedNames.append(name)
-            case .undecodable: undecodableNames.append(name)
+            case .transcoded: outcome.transcoded.append(name)
+            case .undecodable: outcome.undecodable.append(name)
             case .unchanged: break
             }
-            attachments.append(
-                PendingAttachment(
-                    kind: .file(name: name, data: upload.data)
-                )
+            outcome.accepted.append(
+                PickedFilePayload(name: name, data: upload.data)
             )
         }
-        if !unreadable.isEmpty {
-            ChatDiagTrace.record(
-                "选文件读取失败 \(unreadable.count) 个："
-                    + unreadable.joined(separator: "、")
-            )
-        }
-        let summaries = [
-            FileIntake.rejectionNotice(
-                oversized: oversized, unreadable: unreadable
-            ),
-            FileIntake.transcodeNotice(
-                transcoded: transcodedNames,
-                undecodable: undecodableNames
-            ),
-        ].compactMap { $0 }
-        if !summaries.isEmpty {
-            showNotice(summaries.joined(), tier: .persistent)
-        }
+        return outcome
     }
 
     // （会话抽屉本体已于 0.4.5 迁至 DrawerView.swift、
@@ -10005,9 +10038,13 @@ private struct ComposerBarLayout: Layout {
         // 目 id 能把文件名与字节原样重建，重发不许退
         // 化成纯文本；暂存写失败不拦发送（同次运行仍
         // 有内存格兜底），上传全成后在 launchTurn 清
+        // §410：暂存写盘改后台（stageDetached）——点
+        // 发送不再同步付全量字节写盘；读侧由店内在飞
+        // 登记等落定，被杀语义不变（原子换入、manifest
+        // 最后写，中途被杀只留无 manifest 临时目录）
         newEntry.markSendState(.queued, in: modelContext)
         if !filePayloads.isEmpty {
-            try? stagedSendStore.stage(
+            stagedSendStore.stageDetached(
                 entryID: newEntry.id,
                 payloads: filePayloads.map {
                     StagedSendPayload(name: $0.name, data: $0.data)
@@ -10327,7 +10364,7 @@ private struct ComposerBarLayout: Layout {
             failedFilePayloads[entry.id] = filePayloads
             // §237 P1：载荷同步落盘暂存——进程重启后
             // 内存格不在，凭条目 id 仍能重建补传
-            try? stagedSendStore.stage(
+            stagedSendStore.stageDetached(
                 entryID: entry.id,
                 payloads: filePayloads.map {
                     StagedSendPayload(name: $0.name, data: $0.data)
@@ -10940,15 +10977,17 @@ private struct ComposerBarLayout: Layout {
             do {
                 receipt = try await appState.performAdmin {
                     client, cfg in
+                    // §410：只递原始字节——data_url 与请
+                    // 求体组包在客户端内后台完成（流式写
+                    // 临时文件），主 actor 不再同步付
+                    // base64＋JSON 体的成形成本与内存峰值
                     try await client.uploadAttachment(
                         config: cfg,
                         path: FileSendAssembly.uploadPath(
                             fileName: payload.name
                         ),
-                        dataURL: FileSendAssembly.dataURL(
-                            fileName: payload.name,
-                            data: payload.data
-                        ),
+                        fileName: payload.name,
+                        data: payload.data,
                         onProgress: { fileFraction in
                             let aggregate = tracker
                                 .updateCurrentFile(
@@ -12934,6 +12973,23 @@ private struct SelectableTextSheet: View {
 
 /// 待发附件（0.2.1）：图片已统一转 JPEG（见 appendImage）；
 /// 文件只存名与数据——直发未开放，发送时如实提示（见 send()）
+/// §410：选文件接入的汇总产物——后台读盘段
+/// （ChatView.loadPickedFilesSync）与主线入条段之间
+/// 传递；名单与 FileIntake 汇总函数一一对应
+struct PickedFilesLoadOutcome: Sendable {
+    var accepted: [PickedFilePayload] = []
+    var oversized: [String] = []
+    var unreadable: [String] = []
+    var transcoded: [String] = []
+    var undecodable: [String] = []
+}
+
+/// §410：单个已接入文件的上传载荷（转码后字节）
+struct PickedFilePayload: Sendable {
+    let name: String
+    let data: Data
+}
+
 private struct PendingAttachment: Identifiable {
     let id = UUID()
 

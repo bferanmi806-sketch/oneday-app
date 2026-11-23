@@ -777,6 +777,16 @@ protocol HermesClientProtocol: Sendable {
         config: ServerConfig, path: String, dataURL: String,
         onProgress: @escaping @Sendable (Double) -> Void
     ) async throws -> ManagedFileUploadReceipt
+    /// §410：原始字节版——data_url 与请求体组包在客
+    /// 户端内后台完成（流式写临时文件），调用方（主
+    /// actor 发送链）不再付 base64＋JSON 体的同步成
+    /// 形成本与 ≈2.7× 瞬时内存。语义与 dataURL 版一
+    /// 致（同端点/同请求体/同进度口径）
+    func uploadAttachment(
+        config: ServerConfig, path: String, fileName: String,
+        data: Data,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> ManagedFileUploadReceipt
     /// POST /api/files/mkdir {path}（openapi
     /// ManagedDirectoryCreate，同上口径，回读确认）
     func makeDirectory(config: ServerConfig, path: String) async throws
@@ -824,6 +834,95 @@ protocol HermesClientProtocol: Sendable {
 /// URLSession 实现。会话 cookie 走 .shared 存储：登录一次，
 /// 后续 /api/* 自动带上；进程重启后 cookie 仍在（系统持久化），
 /// 过期则由 AppState 的自动重登兜底。
+extension HermesClientProtocol {
+    /// §410 默认实现（测试替身/演示客户端用）：拼
+    /// data_url 后转调既有 dataURL 版，行为与旧链一
+    /// 致；真实客户端覆盖为后台流式组包版
+    func uploadAttachment(
+        config: ServerConfig, path: String, fileName: String,
+        data: Data,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> ManagedFileUploadReceipt {
+        try await uploadAttachment(
+            config: config, path: path,
+            dataURL: FileSendAssembly.dataURL(
+                fileName: fileName, data: data
+            ),
+            onProgress: onProgress
+        )
+    }
+}
+
+/// §410：/api/files/upload 请求体的流式拼装器（纯
+/// Foundation、无网络）：先以占位串编码信封——path
+/// 的 JSON 转义仍由 JSONEncoder 负责、与旧链同口
+/// 径；再把占位段替换为 data: 头＋分片 base64 写
+/// 出。源 Data 只被分片读，不整份转串、不整份成
+/// JSON 体，组包段瞬时内存从 ≈2.7× 文件大小降到
+/// 分片量级（64KB）
+enum UploadBodyFile {
+    static func make(
+        path: String, fileName: String, data: Data
+    ) throws -> URL {
+        // 占位段：纯 ASCII、JSONEncoder 不转义，信封
+        // 编码后按字节定位替换；§410 接管修：每次调
+        // 用 UUID 化——固定串若恰出现在 path 内会命
+        // 中错位、静默写坏请求体，UUID 化整类消除
+        let placeholder = "ODUPLOAD-\(UUID().uuidString)"
+        let header = "data:"
+            + FileBrowserLogic.mimeType(forFileName: fileName)
+            + ";base64,"
+        let envelope = try JSONEncoder().encode([
+            "path": JSONValue.string(path),
+            "data_url": JSONValue.string(header + placeholder),
+            "overwrite": JSONValue.bool(true),
+        ])
+        let marker = Data(placeholder.utf8)
+        guard let markerRange = envelope.range(of: marker)
+        else {
+            throw HermesError.decodingFailed(
+                endpoint: L10n.string("文件上传")
+            )
+        }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "od-upload-\(UUID().uuidString).json"
+            )
+        FileManager.default.createFile(
+            atPath: url.path, contents: nil
+        )
+        let handle = try FileHandle(forWritingTo: url)
+        do {
+            try handle.write(
+                contentsOf: envelope[..<markerRange.lowerBound]
+            )
+            // 分片 base64：片长取 3 的倍数，非末片编码
+            // 无填充、与整份编码逐字一致；末片填充由
+            // base64EncodedData 按标准补齐
+            let chunkSize = 57 * 1_024
+            var offset = 0
+            while offset < data.count {
+                let end = min(offset + chunkSize, data.count)
+                try handle.write(
+                    contentsOf: data
+                        .subdata(in: offset..<end)
+                        .base64EncodedData()
+                )
+                offset = end
+            }
+            try handle.write(
+                contentsOf: envelope[markerRange.upperBound...]
+            )
+            try handle.close()
+        } catch {
+            try? handle.close()
+            try? FileManager.default.removeItem(at: url)
+            throw error
+        }
+        return url
+    }
+}
+
 final class HermesClient: HermesClientProtocol, @unchecked Sendable {
     /// 短请求会话（探活/提交/状态/会话面等普通请求）
     private let session: URLSession
@@ -3511,11 +3610,11 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         request.setValue(
             "application/json", forHTTPHeaderField: "Content-Type"
         )
-        request.httpBody = try encoder.encode([
-            "path": JSONValue.string(path),
-            "data_url": JSONValue.string(dataURL),
-            "overwrite": JSONValue.bool(true),
-        ])
+        // §410：JSON 体编码下主线程——旧链在调用方
+        // actor 上下文同步成形整份体
+        request.httpBody = try await Self.encodeUploadBodyDetached(
+            path: path, dataURL: dataURL
+        )
         let (data, http) = try await dataRequest(request)
         guard (200...299).contains(http.statusCode) else {
             throw HermesError.unexpectedStatus(
@@ -3555,11 +3654,10 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         )
         let body: Data
         do {
-            body = try encoder.encode([
-                "path": JSONValue.string(path),
-                "data_url": JSONValue.string(dataURL),
-                "overwrite": JSONValue.bool(true),
-            ])
+            // §410：同上，编码移独立任务
+            body = try await Self.encodeUploadBodyDetached(
+                path: path, dataURL: dataURL
+            )
         } catch {
             throw HermesError.decodingFailed(
                 endpoint: L10n.string("文件上传")
@@ -3610,6 +3708,105 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         } catch {
             throw HermesError.decodingFailed(endpoint: L10n.string("文件上传"))
         }
+    }
+
+    /// §410 实现：请求体在后台流式拼装成临时文件再
+    /// 由 upload task 直发——base64 不再整份成串、
+    /// JSON 体不再整份成 Data，峰值内存从 ≈3.7× 文
+    /// 件大小降到 ≈1×（源字节本身）＋分片缓冲；进
+    /// 度/取消/错误口径与 dataURL 版逐项一致（同
+    /// delegate 会话、同端点、同回执解码）
+    func uploadAttachment(
+        config: ServerConfig, path: String, fileName: String,
+        data: Data,
+        onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> ManagedFileUploadReceipt {
+        let bodyFile = try await Self.makeUploadBodyFile(
+            path: path, fileName: fileName, data: data
+        )
+        defer {
+            try? FileManager.default.removeItem(at: bodyFile)
+        }
+        var request = URLRequest(
+            url: config.endpoint("/api/files/upload")
+        )
+        request.httpMethod = "POST"
+        request.timeoutInterval = 180
+        request.setValue(
+            "application/json", forHTTPHeaderField: "Content-Type"
+        )
+        let delegate = UploadProgressDelegate(onProgress: onProgress)
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieStorage = .shared
+        configuration.httpShouldSetCookies = true
+        configuration.httpCookieAcceptPolicy = .always
+        configuration.timeoutIntervalForRequest = 180
+        configuration.waitsForConnectivity = true
+        let uploadSession = URLSession(
+            configuration: configuration,
+            delegate: delegate, delegateQueue: nil
+        )
+        defer { uploadSession.finishTasksAndInvalidate() }
+        let responseData: Data
+        let http: HTTPURLResponse
+        do {
+            let (rawData, response) = try await uploadSession.upload(
+                for: request, fromFile: bodyFile
+            )
+            guard let httpResponse = response as? HTTPURLResponse
+            else {
+                throw HermesError.unreachable(L10n.string("无响应"))
+            }
+            responseData = rawData
+            http = httpResponse
+        } catch let error as HermesError {
+            throw error
+        } catch let urlError as URLError
+            where urlError.code == .cancelled {
+            throw CancellationError()
+        } catch {
+            throw mapNetworkError(error)
+        }
+        onTransportSuccess?()
+        guard (200...299).contains(http.statusCode) else {
+            throw HermesError.unexpectedStatus(
+                endpoint: L10n.string("文件上传"), status: http.statusCode
+            )
+        }
+        do {
+            return try decoder.decode(
+                ManagedFileUploadReceipt.self, from: responseData
+            )
+        } catch {
+            throw HermesError.decodingFailed(endpoint: L10n.string("文件上传"))
+        }
+    }
+
+    /// §410：请求体拼装的离主线程入口（钉测与生产共
+    /// 用）：独立任务里流式写体，主线只等文件落点
+    static func makeUploadBodyFile(
+        path: String, fileName: String, data: Data
+    ) async throws -> URL {
+        try await Task.detached(priority: .userInitiated) {
+            try UploadBodyFile.make(
+                path: path, fileName: fileName, data: data
+            )
+        }.value
+    }
+
+    /// §410：dataURL 版的 JSON 体离主线程编码——独立
+    /// 任务里以新编码器（与共享 encoder 同为默认配
+    /// 置）成形，不与共享实例跨线并发
+    private static func encodeUploadBodyDetached(
+        path: String, dataURL: String
+    ) async throws -> Data {
+        try await Task.detached(priority: .userInitiated) {
+            try JSONEncoder().encode([
+                "path": JSONValue.string(path),
+                "data_url": JSONValue.string(dataURL),
+                "overwrite": JSONValue.bool(true),
+            ])
+        }.value
     }
 
     func makeDirectory(config: ServerConfig, path: String) async throws {
