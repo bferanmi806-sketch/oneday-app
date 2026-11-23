@@ -12101,15 +12101,14 @@ private struct ComposerBarLayout: Layout {
         if phase == .finished {
             if settled.finalText?.isEmpty == false {
                 Haptics.success()
-                // H2-a 自动朗读（设置开关默认关）：只
-                // 读用户在场看完的本轮——恢复/后台落
-                // 定沿 §140 静默口径不出声；开关关、
-                // 未开通、正在听别条时播放器内部自拒
-                if watchedTurn, let landedAssistantEntry,
-                   UserDefaults.standard.bool(
-                       forKey: VoiceSpeechPreferences.autoReadKey
-                   ) {
-                    SpeechPlayer.shared.autoRead(
+                // §411 自动朗读：只读用户在场看完的
+                // 本轮——恢复/后台落定沿 §140 静默口
+                // 径不出声；开关判读（默认关）收在播
+                // 放器 autoReadIfEnabled 内，落定点不
+                // 再读偏好；未开通、正在听别条时播放
+                // 器内部自拒
+                if watchedTurn, let landedAssistantEntry {
+                    SpeechPlayer.shared.autoReadIfEnabled(
                         entryID: landedAssistantEntry.id,
                         content: landedAssistantEntry.content,
                         appState: appState

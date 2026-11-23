@@ -350,6 +350,76 @@ final class SpeechPlayerTests: XCTestCase {
         )
         XCTAssertEqual(stub.speakCalls.count, 1)
     }
+
+    /// §411 钉测：开关关（默认）时落定自动朗读入口
+    /// 静默——不发请求、不动状态机；键无存值即默认
+    /// 关（判读口读回为关）
+    func testAutoReadIfEnabledOffByDefaultStaysSilent() async {
+        let stub = Stub()
+        let player = makePlayer(stub: stub)
+        UserDefaults.standard.removeObject(
+            forKey: VoiceSpeechPreferences.autoReadKey
+        )
+        XCTAssertFalse(VoiceSpeechPreferences.autoReadEnabled)
+        player.autoReadIfEnabled(
+            entryID: entryA, content: "甲",
+            appState: makeAppState()
+        )
+        XCTAssertEqual(player.machine.state, .idle)
+        XCTAssertTrue(stub.speakCalls.isEmpty)
+    }
+
+    /// §411 钉测：开关判读只认 v2 键——v1 存量开启
+    /// 态不许把默认关顶开（存量设备升级即回默认关；
+    /// 设置面拨开后写 v2 才算数）
+    func testAutoReadIgnoresLegacyV1Key() {
+        UserDefaults.standard.set(
+            true, forKey: "voice.autoReadReplies.v1"
+        )
+        UserDefaults.standard.removeObject(
+            forKey: VoiceSpeechPreferences.autoReadKey
+        )
+        defer {
+            UserDefaults.standard.removeObject(
+                forKey: "voice.autoReadReplies.v1"
+            )
+        }
+        XCTAssertFalse(VoiceSpeechPreferences.autoReadEnabled)
+    }
+
+    /// §411 钉测：开关开后落定自动朗读恢复（起播到
+    /// 播放态）；写入后经同一判读口读回为开（持久化
+    /// 读回）；关回去再调即静默（现值现读、不缓存）
+    func testAutoReadIfEnabledOnRestoresAutoRead() async {
+        let stub = Stub()
+        let player = makePlayer(stub: stub)
+        let appState = makeAppState()
+        UserDefaults.standard.set(
+            true, forKey: VoiceSpeechPreferences.autoReadKey
+        )
+        defer {
+            UserDefaults.standard.removeObject(
+                forKey: VoiceSpeechPreferences.autoReadKey
+            )
+        }
+        XCTAssertTrue(VoiceSpeechPreferences.autoReadEnabled)
+        player.autoReadIfEnabled(
+            entryID: entryA, content: "甲", appState: appState
+        )
+        await waitForState(player, .playing(entryID: entryA))
+        XCTAssertEqual(stub.speakCalls, ["甲"])
+
+        UserDefaults.standard.set(
+            false, forKey: VoiceSpeechPreferences.autoReadKey
+        )
+        XCTAssertFalse(VoiceSpeechPreferences.autoReadEnabled)
+        player.stop()
+        player.autoReadIfEnabled(
+            entryID: entryB, content: "乙", appState: appState
+        )
+        XCTAssertEqual(player.machine.state, .idle)
+        XCTAssertEqual(stub.speakCalls.count, 1)
+    }
 }
 
 /// 假引擎的一致性同样隔离在主 actor（与生产引擎同口径）
