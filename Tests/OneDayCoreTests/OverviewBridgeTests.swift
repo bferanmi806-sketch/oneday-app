@@ -152,6 +152,64 @@ final class OverviewBridgeTests: XCTestCase {
         )
     }
 
+    // MARK: - §426（缺陷二）运行终态前台消账
+
+    func testRunCompletionResolvesForegroundSessionOnly() {
+        let items = [
+            receipt("run-1", refId: "sess-open",
+                    kind: "task_completed"),
+            receipt("run-2", refId: "sess-other",
+                    kind: "task_completed"),
+            receipt("run-3", refId: "sess-open",
+                    kind: "run_failed"),
+        ]
+        XCTAssertEqual(
+            RunCompletionResolution.receiptsToResolve(
+                notifications: items,
+                foregroundServerSessionID: "sess-open"
+            ),
+            ["run-1", "run-3"]
+        )
+    }
+
+    func testRunCompletionSkipsReadNonTerminalAndMissingRef() {
+        let items = [
+            receipt("run-1", refId: "sess-open", read: true,
+                    kind: "task_completed"),
+            receipt("run-2", refId: "sess-open",
+                    kind: "monitor_change"),
+            receipt("run-3", refId: nil,
+                    kind: "task_completed"),
+            receipt("run-4", refId: "sess-open",
+                    kind: "write_gate_decision"),
+        ]
+        XCTAssertTrue(
+            RunCompletionResolution.receiptsToResolve(
+                notifications: items,
+                foregroundServerSessionID: "sess-open"
+            ).isEmpty
+        )
+    }
+
+    func testRunCompletionNilOrEmptyForegroundResolvesNothing() {
+        let items = [
+            receipt("run-1", refId: "sess-open",
+                    kind: "task_completed"),
+        ]
+        XCTAssertTrue(
+            RunCompletionResolution.receiptsToResolve(
+                notifications: items,
+                foregroundServerSessionID: nil
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            RunCompletionResolution.receiptsToResolve(
+                notifications: items,
+                foregroundServerSessionID: ""
+            ).isEmpty
+        )
+    }
+
     func testReadResponseDecodesContractFixture() throws {
         let response = try decoder.decode(
             OverviewReadResponse.self, from: Data(#"{"ok": true}"#.utf8)

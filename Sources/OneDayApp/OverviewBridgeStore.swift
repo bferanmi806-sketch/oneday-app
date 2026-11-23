@@ -282,7 +282,10 @@ final class OverviewBridgeStore {
         }
     }
 
-    func loadNotifications(appState: AppState) async {
+    func loadNotifications(
+        appState: AppState,
+        foregroundServerSessionID: String? = nil
+    ) async {
         notificationsFailed = false
         demoMode = appState.isDemo
         guard let config = appState.config else {
@@ -315,6 +318,20 @@ final class OverviewBridgeStore {
             for id in ApprovalResolution.receiptsToResolve(
                 notifications: notifications,
                 selfDecidedIDs: appState.selfDecidedApprovalIDs
+            ) {
+                await markRead(appState: appState, id: id)
+            }
+            // §426（缺陷二）：当前正打开会话的运行
+            // 终态同式消账——终态已在聊天里当面呈
+            // 现，同会话的完成/失败通知不再弹卡、
+            // 不占角标，记录仍留在通知中心。判定在
+            // Core（RunCompletionResolution），只认
+            // refId 与前台会话 id 的结构对位；调用
+            // 方（ChatView）不在场时不传 id、本段恒
+            // 空转
+            for id in RunCompletionResolution.receiptsToResolve(
+                notifications: notifications,
+                foregroundServerSessionID: foregroundServerSessionID
             ) {
                 await markRead(appState: appState, id: id)
             }

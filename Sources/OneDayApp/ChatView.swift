@@ -873,7 +873,15 @@ struct ChatView: View {
         // 同一份通知状态，不另开轮询
         .task(id: overviewStore?.snapshot?.generatedAt) {
             if let overviewStore {
-                await overviewStore.loadNotifications(appState: appState)
+                // §426（缺陷二）：本页正打开的会话作
+                // 为前台会话传给消账判定——本会话的
+                // 运行终态已在聊天里当面呈现，其通
+                // 知不再弹卡/占角标（记录保留）
+                await overviewStore.loadNotifications(
+                    appState: appState,
+                    foregroundServerSessionID:
+                        currentThread?.serverSessionID
+                )
             }
         }
         .task {
@@ -3795,6 +3803,69 @@ struct ChatView: View {
         )
     }
 
+    /// §426（缺陷一）发送呈现读数单源：气泡浅色
+    /// 与气泡旁标记的取值只许在此算——谓词（条目
+    /// isUnconfirmedSend/sendFailed）是事实、读数
+    /// 是呈现，两层分开钉：呈现层钉测读本函数输
+    /// 出（opacity/标记种类），不许只测状态字段
+    enum SendStateMarkKind: Equatable {
+        /// 红叹号（点按原位重发）
+        case failure
+        /// 时钟（未确认送达）
+        case clock
+        /// 无标记（已确认送达）
+        case none
+    }
+
+    /// 标记种类：失败优先（与 sendStateMark 旧分
+    /// 支同序），未确认次之，已确认无标记
+    static func sendStateMarkKind(
+        sendFailed: Bool, isUnconfirmedSend: Bool
+    ) -> SendStateMarkKind {
+        if sendFailed { return .failure }
+        if isUnconfirmedSend { return .clock }
+        return .none
+    }
+
+    /// 用户泡体透明度：未确认 0.45、已确认 1
+    /// （§414 规格 5.3 的读数本体）
+    static func userBubbleOpacity(
+        isUnconfirmedSend: Bool
+    ) -> Double {
+        isUnconfirmedSend ? 0.45 : 1
+    }
+
+    /// §426（缺陷四）占位行视觉形态：已受理（生
+    /// 成相/已确立的结果未知相）＝纯三点动态、无
+    /// 文字（iMessage 输入指示器形态）；未受理
+    /// （含上传段）＝状态文字在席、三点不在席。
+    /// 与 placeholderStatusText 同判定源：三点只
+    /// 许出现在 .submitAccepted 之后，「等待发
+    /// 送…」是未送达状态的事实文案、非装饰，保
+    /// 留文字（0.50.103 断网 P0 verdict 绑定）
+    enum PlaceholderVisual: Equatable {
+        case typingDots
+        case statusText
+    }
+
+    /// 占位行视觉形态判定（纯函数、钉测逐相把
+    /// 守，并与文案单源做全组合一致性对账：三点
+    /// 恰对应文案的已受理四文案）
+    static func placeholderVisual(
+        phase: RunTurnPhase,
+        runIDEstablished: Bool,
+        tailSendState: ChatSendState?,
+        isUploading: Bool
+    ) -> PlaceholderVisual {
+        if isUploading { return .statusText }
+        if case .generating = phase { return .typingDots }
+        if !runIDEstablished { return .statusText }
+        if phase == .unknown || phase == .reconciling {
+            return .typingDots
+        }
+        return .statusText
+    }
+
     /// 占位行状态文案单源（§407 立制；§414 增补
     /// 按断网规格 5.1 改判）：判定源＝runMachine
     /// 相位＋本轮 run 确立与否＋尾条发送状态，优
@@ -3878,19 +3949,48 @@ struct ChatView: View {
         )
     }
 
+    /// §426（缺陷四）：占位行视觉形态的实例取数
+    /// 口——与 livePlaceholderStatusText 同源同读
+    /// （账本＋尾条状态＋相位＋上传态），判定全在
+    /// placeholderVisual 单源
+    private func livePlaceholderVisual() -> PlaceholderVisual {
+        let ledger = (activeRunThreadID ?? currentThread?.id)
+            .flatMap {
+                appState.runLedger.entry(forThreadID: $0)
+            }
+        let tailSendState = ledger.flatMap { entry in
+            currentThread?.entries.first(
+                where: { $0.id.uuidString == entry.userEntryID }
+            )?.sendState
+        }
+        return Self.placeholderVisual(
+            phase: runMachine.phase,
+            runIDEstablished: ledger?.runID != nil,
+            tailSendState: tailSendState,
+            isUploading: isUploadingFiles
+        )
+    }
+
     /// 占位行视图（§407）：助手侧状态泡——等待
     /// 点＋一行状态文案，与流式等待泡同形态同几
     /// 何（内容纵内距 spacingXS、气泡纵内距
     /// bubblePaddingV，与合成器
     /// livePlaceholderHeight 逐项同值）
+    /// §426（缺陷四）：分相显隐——已受理只显三
+    /// 点（无文字）、未受理只显文字（无三点），
+    /// 分工见 placeholderVisual；行恒高口径不变
+    /// （合成器常量不读内容形态）
     private func livePlaceholderContent() -> some View {
         assistantBubble {
             HStack(spacing: OneDayMetrics.spacingS) {
-                TypingDots()
-                Text(livePlaceholderStatusText())
-                    .font(.callout)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
+                if livePlaceholderVisual() == .typingDots {
+                    TypingDots()
+                } else {
+                    Text(livePlaceholderStatusText())
+                        .font(.callout)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                }
             }
             .padding(.vertical, OneDayMetrics.spacingXS)
             .accessibilityElement(children: .combine)
@@ -5041,7 +5141,11 @@ struct ChatView: View {
     private func sendStateMark(
         for entry: ChatEntry
     ) -> some View {
-        if entry.sendFailed {
+        let markKind = Self.sendStateMarkKind(
+            sendFailed: entry.sendFailed,
+            isUnconfirmedSend: entry.isUnconfirmedSend
+        )
+        if markKind == .failure {
             Button {
                 resendFailedEntry(entry)
             } label: {
@@ -5058,7 +5162,7 @@ struct ChatView: View {
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel("发送失败，点按重新发送")
-        } else if entry.isUnconfirmedSend {
+        } else if markKind == .clock {
             Button {
                 resendPending(entry)
             } label: {
@@ -5258,8 +5362,10 @@ struct ChatView: View {
                             // 高合成器不感知颜色，翻转前后
                             // 行高逐值不变（§407 钉测把守）
                             .opacity(
-                                entry.isUnconfirmedSend
-                                    ? 0.45 : 1
+                                Self.userBubbleOpacity(
+                                    isUnconfirmedSend:
+                                        entry.isUnconfirmedSend
+                                )
                             )
                             .animation(
                                 .easeInOut(duration: 0.2),
@@ -11235,6 +11341,12 @@ private struct ComposerBarLayout: Layout {
                     appState.runLedger.upsert(ledgerEntry)
                 }
                 runMachine.apply(.submitAccepted)
+                if !demoMode {
+                    markAcceptedEntryDelivered(
+                        thread: thread,
+                        userEntryID: userEntry.id.uuidString
+                    )
+                }
                 submitError = nil
                 break
             } catch let error as HermesError {
@@ -11538,6 +11650,12 @@ private struct ComposerBarLayout: Layout {
                         appState.runLedger.upsert(entry)
                     }
                     runMachine.apply(.submitAccepted)
+                    if !demoMode {
+                        markAcceptedEntryDelivered(
+                            thread: thread,
+                            userEntryID: entry.userEntryID
+                        )
+                    }
                 } catch {
                     if Date() > deadline { break }
                     try? await Task.sleep(for: .seconds(3))
@@ -11880,6 +11998,30 @@ private struct ComposerBarLayout: Layout {
         applySettledTurn(
             thread: thread, entry: entry, settled: settled
         )
+    }
+
+    /// §426（缺陷一）：提交受理同点把本轮用户条
+    /// 目标记送达——服务器确认收到＝发送成功，气
+    /// 泡即刻回全色、时钟离席，不等整轮落定。旧
+    /// 链 delivered 唯一写点在 applySettledTurn
+    /// （落定），受理后整段生成期条目恒挂未确认
+    /// 态（用户真机截图钉死）。三受理点（首提/
+    /// 对账重演/恢复确立）与占位文案相位门共用
+    /// .submitAccepted 同一信号、不新造第二信
+    /// 号；落定点的既有写点保留作兜底（幂等同
+    /// 值）。已送达/无状态条目不动（remainsIn-
+    /// Queue 守卫），失败态条目在重发受理时经此
+    /// 清失败标记（markSendState 的 delivered
+    /// 语义自带）
+    private func markAcceptedEntryDelivered(
+        thread: ChatThread, userEntryID: String
+    ) {
+        guard let userEntry = thread.entries.first(
+                  where: { $0.id.uuidString == userEntryID }
+              ),
+              userEntry.sendState?.remainsInQueue == true
+        else { return }
+        userEntry.markSendState(.delivered, in: modelContext)
     }
 
     /// 落定入账：整段替换本轮半截条目（工具卡＋带思
@@ -12262,6 +12404,14 @@ private struct ComposerBarLayout: Layout {
         runMachine = RunTurnStateMachine()
         if entry.runID != nil {
             runMachine.apply(.submitAccepted)
+            // §426（缺陷一）：runID 在上一进程生命
+            // 周期已确立＝服务器早已确认收到——恢
+            // 复同点补记送达，不许条目在本进程里继
+            // 续挂未确认态
+            markAcceptedEntryDelivered(
+                thread: thread,
+                userEntryID: entry.userEntryID
+            )
             runMachine.apply(.streamLost)
         } else {
             runMachine.apply(.submitAmbiguous)
@@ -12957,29 +13107,54 @@ private struct CameraPicker: UIViewControllerRepresentable {
     }
 }
 
-/// 三点指示：未出字时的等待信号（安静的弱色圆点错峰，
-/// Reduce Motion 时静止）。0.2.5 起随助手消息一同入泡。
-private struct TypingDots: View {
+/// 三点指示：已受理未出字时的等待信号（iMessage
+/// 输入指示器形态，§426 缺陷四按参照口径落数：
+/// 点径 8、点距 4、周期 1.4s、错峰 0.22s、透明
+/// 度 0.3↔1.0 正弦脉动；Reduce Motion 时静止）。
+/// 0.2.5 起随助手消息一同入泡。相位函数为钉测
+/// 读口（测动画状态、不测像素）
+struct TypingDots: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    static let dotDiameter: CGFloat = 8
+    static let dotSpacing: CGFloat = 4
+    static let cycleDuration: Double = 1.4
+    static let stagger: Double = 0.22
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 0.05)) { context in
             let t = context.date.timeIntervalSinceReferenceDate
-            HStack(spacing: OneDayMetrics.iconTextGap) {
+            HStack(spacing: Self.dotSpacing) {
                 ForEach(0..<3, id: \.self) { index in
                     Circle()
                         .fill(Palette.inkMuted)
-                        .frame(width: 6, height: 6)
-                        .opacity(opacity(at: t, index: index))
+                        .frame(
+                            width: Self.dotDiameter,
+                            height: Self.dotDiameter
+                        )
+                        .opacity(
+                            Self.opacity(
+                                at: t, index: index,
+                                reduceMotion: reduceMotion
+                            )
+                        )
                 }
             }
         }
         .accessibilityLabel("正在生成")
     }
 
-    private func opacity(at t: TimeInterval, index: Int) -> Double {
+    /// 逐点透明度：正弦波错峰——第 i 点相位滞后
+    /// i×stagger 秒，波形平方收峰（亮段短、暗段
+    /// 长，与参照指示器的呼吸感同族）
+    static func opacity(
+        at t: TimeInterval, index: Int, reduceMotion: Bool
+    ) -> Double {
         if reduceMotion { return 0.6 }
-        let wave = sin(t * 3.2 - Double(index) * 0.7)
+        let speed = 2 * Double.pi / cycleDuration
+        let wave = sin(
+            t * speed - Double(index) * stagger * speed
+        )
         return 0.3 + 0.7 * max(0, wave) * max(0, wave)
     }
 }
