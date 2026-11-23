@@ -3,7 +3,7 @@ import SwiftUI
 import XCTest
 @testable import OneDayApp
 
-/// 反应浮排验收（DESIGN §343／§346）：开关口径
+/// 反应浮排验收（DESIGN §343／§346／§386）：开关口径
 /// （缺省开/显式关回子菜单形态）、长按路由、呈现
 /// 状态机（§346 三层同呈语义）、会话投递单点
 /// （错序不双投）、浮排定位（第一步旧函数回归锚
@@ -369,9 +369,11 @@ final class ReactionFloatingBarTests: XCTestCase {
         XCTAssertTrue(layout.clipsBottom)
     }
 
-    /// 贴顶短消息：上方放不下→药丸置消息下方（与
-    /// 第一步下方口径同值）、卡顺次其下、快照全帧
-    func testLayoutNearTopShortGoesBelow() {
+    /// 贴顶短消息（§386 改判）：上方贴合放不下→药
+    /// 丸钉安全区顶部、独立浮在预览上方；卡贴消息
+    /// 下方；快照带自药丸下方起、顶段裁切渐隐（旧
+    /// §346 联合求解此几何把药丸置于消息下方）
+    func testLayoutNearTopShortPinsBarAbove() {
         let frame = CGRect(
             x: 52, y: 100, width: 240, height: 60
         )
@@ -382,19 +384,25 @@ final class ReactionFloatingBarTests: XCTestCase {
             itemCount: 5
         )
         XCTAssertEqual(
-            layout.barOrigin, CGPoint(x: 22, y: 168)
+            layout.barOrigin, CGPoint(x: 22, y: 67)
         )
         XCTAssertEqual(
-            layout.cardOrigin, CGPoint(x: 52, y: 224)
+            layout.cardOrigin, CGPoint(x: 52, y: 168)
         )
-        XCTAssertEqual(layout.snapshotVisibleRect, frame)
-        XCTAssertFalse(layout.clipsTop)
+        XCTAssertEqual(
+            layout.snapshotVisibleRect,
+            CGRect(x: 52, y: 123, width: 240, height: 37)
+        )
+        XCTAssertTrue(layout.clipsTop)
         XCTAssertFalse(layout.clipsBottom)
     }
 
-    /// 贴底消息：上方容不下卡→药丸钉顶、卡让位到
-    /// 消息上方，三层仍隔离、快照全帧
-    func testLayoutBottomMessageCardAboveFrame() {
+    /// 贴底消息（§386 改判）：药丸恒贴预览上方
+    /// （644＝帧顶−8−48、不再被卡拖到屏顶）；卡下
+    /// 方与钉底都被药丸占位否决→退到药丸上方成摞
+    /// （448），三层仍隔离、快照全帧（旧 §346 此
+    /// 几何药丸钉屏顶 67、卡 504 居其下）
+    func testLayoutBottomMessageBarAnchoredCardAbove() {
         let frame = CGRect(
             x: 52, y: 700, width: 240, height: 130
         )
@@ -405,10 +413,35 @@ final class ReactionFloatingBarTests: XCTestCase {
             itemCount: 4
         )
         XCTAssertEqual(
-            layout.barOrigin, CGPoint(x: 22, y: 67)
+            layout.barOrigin, CGPoint(x: 22, y: 644)
         )
         XCTAssertEqual(
-            layout.cardOrigin, CGPoint(x: 52, y: 504)
+            layout.cardOrigin, CGPoint(x: 52, y: 448)
+        )
+        XCTAssertEqual(layout.snapshotVisibleRect, frame)
+        XCTAssertFalse(layout.clipsTop)
+        XCTAssertFalse(layout.clipsBottom)
+    }
+
+    /// 中下段消息（§386 新增钉）：药丸贴预览上方
+    /// （564）、卡退药丸上方成摞（324）、快照全
+    /// 帧——旧 §346 联合求解此几何药丸被钉屏顶 67
+    /// 与预览脱离，本测防复活
+    func testLayoutLowerMessageBarAnchoredAbove() {
+        let frame = CGRect(
+            x: 52, y: 620, width: 240, height: 60
+        )
+        let layout = ReactionBarPlacement.layout(
+            sourceFrame: frame,
+            alignsTrailing: false,
+            viewport: testViewport,
+            itemCount: 5
+        )
+        XCTAssertEqual(
+            layout.barOrigin, CGPoint(x: 22, y: 564)
+        )
+        XCTAssertEqual(
+            layout.cardOrigin, CGPoint(x: 52, y: 324)
         )
         XCTAssertEqual(layout.snapshotVisibleRect, frame)
         XCTAssertFalse(layout.clipsTop)
@@ -442,9 +475,10 @@ final class ReactionFloatingBarTests: XCTestCase {
         XCTAssertTrue(layout.clipsBottom)
     }
 
-    /// 不变量帧矩阵：任意帧/对齐/项数下——药丸与
-    /// 卡完整落在视口内、卡恒在药丸下方留 gap、可
-    /// 见带与两层纵向隔离（留 gap）
+    /// 不变量帧矩阵（§386 改写）：任意帧/对齐/项
+    /// 数下——药丸与卡完整落在视口内、两层不重叠
+    /// 留 gap（上下序不限）、可见带恒悬于药丸下方
+    /// （带顶 ≥ 药丸底＋gap）且与卡纵向隔离
     func testLayoutInvariantsAcrossFrames() {
         let frames: [CGRect] = [
             CGRect(x: 52, y: 400, width: 240, height: 60),
@@ -485,8 +519,11 @@ final class ReactionFloatingBarTests: XCTestCase {
                     XCTAssertTrue(
                         testViewport.contains(card), ctx
                     )
-                    XCTAssertGreaterThanOrEqual(
-                        card.minY, bar.maxY + 8 - 0.5, ctx
+                    XCTAssertTrue(
+                        card.minY >= bar.maxY + 8 - 0.5
+                            || card.maxY
+                                <= bar.minY - 8 + 0.5,
+                        ctx
                     )
                     let vis = layout.snapshotVisibleRect
                     XCTAssertEqual(vis.minX, frame.minX, ctx)
@@ -498,9 +535,10 @@ final class ReactionFloatingBarTests: XCTestCase {
                         vis.maxY, testViewport.maxY + 0.5, ctx
                     )
                     if vis.height > 0 {
-                        XCTAssertTrue(
-                            vis.maxY <= bar.minY - 8 + 0.5
-                                || vis.minY >= bar.maxY + 8 - 0.5,
+                        // §386：带恒悬于药丸下方（药丸
+                        // 独立浮在预览上方的不变量本体）
+                        XCTAssertGreaterThanOrEqual(
+                            vis.minY, bar.maxY + 8 - 0.5,
                             ctx
                         )
                         XCTAssertTrue(
