@@ -155,6 +155,9 @@ final class OverviewBridgeStore {
             snapshot = nil
             hermesChannelUp = nil
             liveness = ConnectionLiveness()
+            updateConnectionStatus(in: appState) {
+                $0.markNotConnected(at: Date())
+            }
             return
         }
         if appState.isDemo {
@@ -166,6 +169,9 @@ final class OverviewBridgeStore {
             )
             liveness.recordSuccess()
             hermesChannelUp = true
+            updateConnectionStatus(in: appState) {
+                $0.probeSucceeded(at: Date())
+            }
             return
         }
         isRefreshing = true
@@ -192,6 +198,9 @@ final class OverviewBridgeStore {
         appState: AppState, config: ServerConfig
     ) async {
         var failuresThisRound = 0
+        updateConnectionStatus(in: appState) {
+            $0.beginProbe(at: Date())
+        }
         while true {
             do {
                 let health = try await appState.client.health(
@@ -206,11 +215,23 @@ final class OverviewBridgeStore {
                 }
                 liveness.recordSuccess()
                 hermesChannelUp = true
+                updateConnectionStatus(in: appState) {
+                    $0.probeSucceeded(at: Date())
+                }
                 return
             } catch {
                 if Task.isCancelled { return }
                 failuresThisRound += 1
                 let verdict = liveness.recordFailure()
+                updateConnectionStatus(in: appState) {
+                    $0.probeFailed(
+                        attempt: failuresThisRound,
+                        reason: ConnectionSelfCheckStore.classify(error)
+                            .reasonText,
+                        settledOffline: verdict == false,
+                        at: Date()
+                    )
+                }
                 if verdict == false {
                     hermesChannelUp = false
                     return
@@ -231,15 +252,32 @@ final class OverviewBridgeStore {
         }
     }
 
+    /// 连接状态快照发布（总表 156，DESIGN §394）：探
+    /// 活链是唯一喂入方，判定口径在 Core Connection-
+    /// Status；值未变不回写，防 @Observable 无谓重渲
+    private func updateConnectionStatus(
+        in appState: AppState,
+        _ mutate: (inout ConnectionStatus) -> Void
+    ) {
+        var next = appState.connectionStatus
+        mutate(&next)
+        if next != appState.connectionStatus {
+            appState.connectionStatus = next
+        }
+    }
+
     /// 业务成功回写（0.36.20，§86.2）：Hermes 通道上任
     /// 一真实业务收到响应即算通道活证——计数清零、状
     /// 态立即回「在线」，不等下一轮探活（治审计 R4：
     /// 聊天明明刚收发成功、胶囊还挂着旧探活失败的
     /// 「联系不上」最长约 30 秒）
-    func noteBusinessSuccess() {
+    func noteBusinessSuccess(appState: AppState) {
         liveness.recordSuccess()
         if hermesChannelUp != true {
             hermesChannelUp = true
+        }
+        updateConnectionStatus(in: appState) {
+            $0.probeSucceeded(at: Date())
         }
     }
 

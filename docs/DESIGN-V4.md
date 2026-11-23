@@ -15345,3 +15345,37 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §394 协议三件套：155 短时票据＋156 连接状态一等公民＋157 能力广告与协议协商（2026-11-23；分支 feat/protocol-trio，基线 rel-05098 @3f9598f；用户 2026-11-23 令全部解冻、全推进，第二波补位线）
+
+**编号口径先行**：三条内容以总表条目本体＋2026-11-23 复核注记为准（155/156/157 复核均记「未开工、无落码证据」——其中 157 的「无落码证据」经本包实查修正：能力发现的解码与自检展示已在 §357 落地，缺的是协商判定单源与功能面消费，见 §394.3）。157 与 G-18（总表 135）的分工按 §387.5 定版：G-18 管版本地板粗门（发布单点＝伴生 info、连接流硬门、落码登记待排），157 管功能级能力协商，本包不重复造版本口径。节号说明：§383 已被桥面线与幂等线双占、§387 为 G 组包，本包用 §394，组版时主线统一重排。
+
+### §394.1 155 短时票据（轻量版）：登记缺口＋部署包形态方案（不动生产、App 不落码）
+
+- **现状实查（服务端只读对账，2026-11-23，内存 56% 红线内）**：网关 api_server.py 只有两条 enrollment 路由（POST /v1/enrollment/codes 出码、POST /v1/enrollment/claim 认领），无 devices/ticket 任何路由；claim 回执是**主钥本体**（配对一期交付 T4 实测与现行 env 比对一致）——每台入驻设备最终持有长期主钥，与本条「登录钥只用来换短时票据」正相反；存储 device-enrollment.json 键只有 codes/failed_attempts/instance_id（实读键集，codes 现存 1 条待领），**无设备登记、无票据记录、无撤销面**；网关鉴权只认 API_SERVER_KEY 一把，票据无从校验。
+- **App 实查**：认领回填既有连接表单走四步流水线、主钥落 Keychain 单钥通道（一期形态）；全仓 grep ticket/票据零命中，无票据概念、无设备身份、无到期分型。
+- **处置（登记缺口＋方案成文）**：缺口四件——G1 claim 回主钥非票据、G2 网关鉴权不认票据、G3 无设备列表/撤销端点、G4 App 无票据持有层（待 G1–G3）。部署包形态方案成文 `~/workspace/oneday-design-review/155-short-ticket-spec-20261123.md`：票据模型（256-bit 随机、只存哈希、按设备签发、有效期建议值待主线裁）、端点规格（claim 改回执发票据、POST /v1/tickets/exchange 主钥换票、GET /v1/devices、POST /v1/devices/{id}/revoke；全落 /v1/ 网关面零 nginx 改动）、最小权限分层（票据不可出码/换票/撤他设备）、鉴权接入（主钥失败回落票据校验、存储损坏失败关闭）、CAPABILITIES 新增行（暂编号 #15）探针规格（路由级＋写型全链）、App 改造点清单四件。**本包 App 零落码的理由**：票据的签发/校验/撤销全在服务端，服务端不存在时先行落码只能调不存在的端点，撞僵尸功能禁令；入包与应用随 hermes-deploy 下一版次，App 接入另包。
+
+### §394.2 156 连接状态一等公民：落码（Core 状态机＋探活链喂入＋自检面呈现）＋两件核查定案
+
+- **现状实查**：已有件——Core ConnectionLiveness（迟滞判定）＋RetryBackoff（退避口径）纯策略（§86）；OverviewBridgeStore 前台 30 秒轮询探活＋轮内快速重探；ChatView 顶簇消费 OverviewStatusLine 短词三态（在线/待审批/联系不上，用户点名定版）；ServiceHealth 词表（设置/连接器面）；ConnectView 登录四步流水线（仅连接时）；ConnectionSelfCheckStore 自检面（按需全量实测）。**真缺口三件**：①连接阶段无模型——探活进行中/重探中在任何面上都看不见；②第几次重试只活在各调用点内部（probeChannel 的 failuresThisRound 是局部变量、ChatView 提交退避各自计数），不汇聚、不外显；③失败的人话原因在 probeChannel 的 catch 里被吞（catch 无绑定、只记成败），顶簇离线时只有裸「联系不上」。
+- **核查定案两件**（条目后半句）：①**后台不重试成立**——连接探活轮询以 `.task(id: scenePhase)` 驱动（ContentView），退后台任务取消即停、probeChannel 取消不记账（不当失败）；ChatView 提交退避是用户动作驱动、非后台循环，不在本条口径内。②**回前台先探活成立**——scenePhase 回.active 时 task 重启、poll 立即先跑一轮 refresh 才进 30 秒节律；另 RootView 回前台伴生再探（§110 节流口径）与网络路径变化即刻重探（§86.4）同向。两件均现状属实、本包不改，以本节登记为定案。
+- **落码**：①Core 新增 `ConnectionStatus`（ConnectionStatus.swift）：阶段枚举（notConnected/probing/online/retrying/offline）＋尝试计数＋人话原因的单源状态机——只记账不另立阈值（定版离线只认 ConnectionLiveness 经喂入方给出的 settledOffline 结论）；phaseWord/detailText 呈现派生（「重连中（第 2 次尝试，连不上服务器）」式完整句）Core 内单源生成。②AppState 新增 `connectionStatus` 持有点（单源持有）。③OverviewBridgeStore 探活链唯一喂入：refresh 未连接分支 markNotConnected、probeChannel 开始 beginProbe、失败 probeFailed（attempt＝轮内计数、reason＝ConnectionSelfCheckStore.classify 同源映射的 SelfCheckFailure 人话、settledOffline＝迟滞结论）、成功/演示态/noteBusinessSuccess 业务成功 probeSucceeded（noteBusinessSuccess 增 appState 入参、ContentView 调用点同步）；值未变不回写防无谓重渲。④呈现落连接自检面「当前连接」节（ConnectionSelfCheckView，仅当前连接模式、深链探候选时不显）：状态点＋阶段词＋细目行，与自检报告分工（报告＝按需全量实测、本行＝常驻探活现况）。顶簇短词口径**不动**（OverviewStatusLine 定版：胶囊只放短词、长句必截断，§394 不回长句）。
+- **钉测**：ConnectionStatusTests 9 法（初始态/探活成功/未定版重探的尝试与原因/定版离线的原因＋次数合成/离线恢复/稳态轮询不闪阶段/在线单失进重探/退出连接态重置/尝试下限钳制）；回归见 §394.4。
+- **真机门**：断网（开飞行模式）后进设置·连接自检——「当前连接」节应依次显重连中（第 N 次尝试＋原因）→联系不上（原因＋共几次尝试）；恢复网络回前台应翻已连接。随组版清单验。
+
+### §394.3 157 能力广告＋协议协商：落码（协商判定单源＋自检合成收敛）＋版本面分工定案
+
+- **现状实查**：广告面**已在**——网关 GET /v1/capabilities 现网实测 features 27 项（2026-11-23 服务器本机只读回读：runs_idempotency＝{supported:true, durable:true, retention_seconds:86400}，**无 client_message_id 子旗标**，与部署包 #14「1.5.0 已入包待应用」互证）；伴生 /api/companion/info 已发布 companionVersion/apiLevel/minAppVersion（front build_info）。App 已有——CapabilitiesResponse 宽容解码＋CapabilityFeatureCatalog 展示目录（§357）、HermesClient.routeProbe 只读探针、自检面四组呈现（连接/服务状态/服务器能力/扩展能力）。**真缺口两件**：①协商判定无单源——扩展能力的在位判定写在 SelfCheckReportBuilder.extensionGroup 的呈现合成里（与 CAPABILITIES 注册表口径手工同构＝双口径，注册表改口径时自检面不会跟）；②功能面零消费——能力结论只供自检展示，功能面（如工具集写口）仍先试后错式报错，无「按能力降级」的判定可读。
+- **分工定案**（与 G-18 不重复）：版本地板（minAppVersion 已有＋apiLevel 区间待补比较＋连接流硬门）归 G-18 §387.5 登记待排，本包不碰连接流；本包只落功能级协商判定单源。
+- **落码**：①Core 新增 `CapabilityNegotiation`（CapabilityNegotiation.swift）：逐项对 CAPABILITIES.md 注册表的判定单源——#1 认领（探针 405 在位/404 不在位）、#2 反应写入（405/200 在位、404+message_not_found 同判在位、404 其余不在位）、#4 任务幂等（features 对象型 supported 旗标）、#14 消息级幂等（runs_idempotency 对象内 client_message_id 子旗标：能力面已取到而子旗标缺失＝unavailable 而非 unknown——现网即此态，与 #14 待应用互证）；三态 available/unavailable/unknown，没证据一律 unknown 不假判；unavailable 附注册表「缺失时预期表现」提炼的人话（absenceText）供功能面降级呈现取用。不入账项及理由：#3 反应投影只有行为探针可知、#9 rewind 无只读探针、#6/#7/#8 属伴生面 ServiceHealth 域、#10/#12 是数据面 fetch（自检 builder 保留其细目判定）——均不假判。②CapabilitiesResponse 增 `clientMessageIdSupported` 子旗标取值（与 runsIdempotencySupported 同式）。③SelfCheckReportBuilder.extensionGroup 的认领/反应两行判定改消费 CapabilityNegotiation 单源原语（呈现文案与行状态映射逐字不动——等值由 CapabilitySelfCheckTests 既有钉测全集把守）。
+- **钉测**：CapabilityNegotiationTests 6 法（认领探针矩阵/反应探针矩阵含 message_not_found 分流/任务幂等旗标/消息级幂等子旗标三态含现网形态/整表形状与 absenceText 纪律/无证据全 unknown）；回归见 §394.4。
+- **登记待排（功能面消费）**：协商账已成单源，后续功能面按注册表逐面接消费（第一候选＝工具集写口：PUT 路由探针不在位时页面只读、启停入口不出，对 #13 契约；次候选＝反应入口与发件箱孤儿提示按 #2/#14 结论分档）——逐面另包，本包不顺手改功能面行为。
+
+### §394.4 本包三态汇总与回归
+
+- **落码**：156（Core ConnectionStatus 状态机＋AppState 持有＋OverviewBridgeStore 喂入＋自检面呈现行）、157（Core CapabilityNegotiation 判定单源＋CapabilitiesResponse 子旗标＋自检合成两行收敛）。
+- **定案**：156 后半句（后台不重试、回前台先探活——现状属实登记）、157 版本面分工（归 G-18 §387.5，不重复）。
+- **登记缺口＋方案**：155（缺口四件＋部署包形态方案成文 155-short-ticket-spec-20261123.md，入包随 hermes-deploy 下一版次）、157 功能面消费逐面待排。
+- **回归**：定向轮 9 套（本包新钉测 ConnectionStatusTests 9 法＋CapabilityNegotiationTests 6 法，及 CapabilitySelfCheckTests/ConnectionStabilityTests/OverviewBridgeTests/ConnectionSelfCheckStoreTests/ToolsetsStoreTests/S371/S373）86/86 全绿；发布集全量轮（rel05098 基底 97 套 817 项＋本包新 2 套 15 项＝99 套）**832/832 全绿、0 失败、0 跳过**（bundle Test-OneDayApp-protocol，xcresulttool 总数对账逐数闭合），S371/S373 两轮双绿，新红零。
+- **真机门汇总**：156 断网/恢复两段（§394.2）；157 无新增真机点（自检面扩展能力两行呈现与既往逐字同）；155 无（未落码）。
