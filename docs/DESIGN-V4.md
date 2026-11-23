@@ -16610,3 +16610,9 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 验证：发布集 143 套 1075 项（0.50.103 的 1044 −37 退役/瘦身 ＋68 新增、逐套对账闭合），1071 过、4 红——3 红与 0.50.103 发布 bundle 逐字同红（DrawerContainerControllerTests scene-gate 两例＋SwipeReplyPanBridgeTests 一例，UIHostingController 子视图告警型、本通道基线），1 红为 §417 已裁决性能门；ChatFailKeepPinTests 7/7 绿（drain 门过、失败包留在本版）。冒烟轮 15/15 绿，含 testSmokeA4FilesGridFirstFrame 转绿（§401.4 演示缺口一销账）。Release 构建成功，IPA 本体亲验 0.50.104／232／site.didichou.oneday，16,616,719 字节，md5 2a399697a4e9904371c011a81828d36a，三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）。
 
 真机门（随版清单）：断网四行为重验（浅色泡＋时钟＋「等待发送…」→恢复自动续发→失败红感叹号原位重发）、排队五项、落定三项与朗读三项（0.50.103 存量未判项）、#13 选区四件/表格一帧/代码块/长文档/浅深双色、#23 图卡与查看器链、量测崩溃窗口观察。
+## §434 聊天页页头改版＋中枢五格整页重构（2026-11-24；分支 feat/header-zoom，基线 rel-05104）
+
+- 一期清点与对位表正本：oneday-design-review/header-zoom-spec-20261124.md（主线工作区）。含：顶栏 ⊙ 菜单清点（内仅「在对话中查找」一项、系独一份入口）、页头量测对位（参照头像 67pt 居中＋名/状态身份胶囊与头像重叠 ≈8pt）、zoom 转场接法（宿主包 NavigationStack＋ZoomTransitionPolicy 裁决、sheet 呈现退役）、中枢五格（身份/工作/审核/电脑/邮箱）逐格真数据源核查、电脑格 Simular Box 通道证据链、任务行解剖对位与结构差清单。
+- 总纲：中枢整页照参照视觉语言重排，不在现行列表上修补；**分格不许写死**——新建 HubSegmentRegistry，按 GET /v1/capabilities 回读＋本地通道状态（电脑格 Box 在位）渲染，有真能力才长格、没有就不长，日后新能力由 AI 加格、不用发新版 App。本注册表与 §435 自主设置权课题同源，§435 落档时两节互引对接。
+- 邮箱格：描述符已登记；Muse Mail 仅有平台 CLI、无 App 可消费端点，暂不长格；长格条件＝服务端只读邮件面建成并广告 mail 能力位（后续独立件）。
+- 二期落码：用户 2026-11-24 01:05 授权一期交卷后同线自拍续行（「反正你自己按照大厂的做」），目标并入 0.50.106、赶不上顺延 107、不砍件；落码记账待二期交卷后补本节。
