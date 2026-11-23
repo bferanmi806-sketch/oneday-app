@@ -40,23 +40,30 @@ public enum LibrarySort: String, CaseIterable, Sendable {
     case lastOpened
     case lastModified
     case title
+    /// 大小档（§452 资源库定版②补：排序菜单含名称/大小；
+    /// 大到小、未知大小沉底，平局回标题序保稳定）
+    case size
 
     public var label: String {
         switch self {
         case .lastOpened: return "上次打开"
         case .lastModified: return "上次修改"
         case .title: return "标题"
+        case .size: return "大小"
         }
     }
 
     /// 落盘原值解析（同 LibraryDisplayMode.resolved
-    /// 口径）：未知/空/缺失回落默认档「上次打开」
+    /// 口径）：未知/空/缺失回落默认档。§452 资源库定
+    /// 版②「排列最近在前」：默认档改「上次修改」（新
+    /// 产生的文件天然在前；旧注「默认上次打开」就此
+    /// 修订，已落盘的显式选择不受影响）
     public static func resolved(
         rawValue: String?
     ) -> LibrarySort {
         guard let rawValue,
               let option = Self(rawValue: rawValue)
-        else { return .lastOpened }
+        else { return .lastModified }
         return option
     }
 }
@@ -113,6 +120,22 @@ public enum LibraryOrdering {
                 return a.title.localizedStandardCompare(b.title)
                     == .orderedAscending
             }.map(\.entry)
+        case .size:
+            let titleMemo = TitleKeyMemo()
+            return entries.sorted { a, b in
+                if !pinned.isEmpty {
+                    let ap = pinned.contains(a.path)
+                    let bp = pinned.contains(b.path)
+                    if ap != bp { return ap }
+                }
+                let asz = a.size ?? -1
+                let bsz = b.size ?? -1
+                if asz != bsz { return asz > bsz }
+                return titleMemo.title(for: a)
+                    .localizedStandardCompare(
+                        titleMemo.title(for: b)
+                    ) == .orderedAscending
+            }
         case .lastOpened, .lastModified:
             let titleMemo = TitleKeyMemo()
             return entries.sorted { a, b in
