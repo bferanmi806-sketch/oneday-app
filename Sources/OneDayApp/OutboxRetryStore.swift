@@ -11,6 +11,7 @@ import OneDayCore
 /// 不许陈账无限累积。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：发件箱重试队列事件驱动，无读触发拉取（判定表见 DESIGN §416）
 final class OutboxRetryStore {
     private(set) var records: [String: OutboxRetryRecord] = [:]
 

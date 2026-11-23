@@ -27,8 +27,34 @@ final class LearningGraphStore {
     /// 呈现，不翻态、不清数据）
     private(set) var notice: String?
     private var loadInFlight = false
+    /// 新鲜度门（§416 收编，§367 口径）：读触发先
+    /// 过门，TTL 内零请求
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
 
     func load(appState: AppState) async {
+        await load(appState: appState, now: Date())
+    }
+
+    /// 读触发入口（§416 新鲜度门）：TTL 内且配置没
+    /// 变直接用已载图谱、零请求；首拉/过期/换服务
+    /// 器才走 load 全量。下拉刷新不经此门、恒走
+    /// load 强制；写后回读（改写/删除节点）走 load
+    /// 本体、成功同落 stamp（§367.4）
+    func loadIfNeeded(appState: AppState) async {
+        await loadIfNeeded(appState: appState, now: Date())
+    }
+
+    func loadIfNeeded(appState: AppState, now: Date) async {
+        guard !freshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await load(appState: appState, now: now)
+    }
+
+    /// 时刻注入的加载本体（钉测拨时刻验过期）
+    func load(appState: AppState, now: Date) async {
         guard !loadInFlight else { return }
         loadInFlight = true
         defer { loadInFlight = false }
@@ -38,6 +64,9 @@ final class LearningGraphStore {
             }
             graph = loaded
             loadState = .ready
+            freshness.stamp(
+                configKey: appState.config?.baseString, now: now
+            )
             notice = nil
         } catch {
             let message = (error as? HermesError)?.userMessage

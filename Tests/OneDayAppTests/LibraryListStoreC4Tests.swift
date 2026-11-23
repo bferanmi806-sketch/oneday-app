@@ -407,10 +407,16 @@ final class LibraryListStoreC4Tests: XCTestCase {
         XCTAssertEqual(
             src.components(separatedBy: "await collect()")
                 .count - 1,
-            3,
-            "§369：collect 只许 .task、上传完成、失败重试"
-                + "三处触发（基线 5 处含两条删除路径）；"
-                + "删除路径不许再整表重拉"
+            2,
+            "§369＋§416：collect 强制口只许上传完成、失败"
+                + "重试两处触发；.task 读触发改走 collectIfNeeded "
+                + "过新鲜度门（§416）；删除路径不许再整表重拉"
+        )
+        XCTAssertEqual(
+            src.components(separatedBy: "await collectIfNeeded()")
+                .count - 1,
+            1,
+            "§416：collectIfNeeded 读触发口只许 .task 一处"
         )
     }
 }

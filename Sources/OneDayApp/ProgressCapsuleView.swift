@@ -74,7 +74,7 @@ struct ProgressCapsuleView: View {
         )
         .task {
             await store.load(appState: appState)
-            await kanbanStore.load(appState: appState)
+            await kanbanStore.loadIfNeeded(appState: appState)
             await store.runVisibleLoop(appState: appState)
         }
         .sheet(item: $detailItem) { item in

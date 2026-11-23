@@ -46,6 +46,11 @@ final class MonitorsStore {
 
     private let client = OneDayBridgeClient()
     private var loadInFlight = false
+    /// 新鲜度门（§416 收编，§367 口径）：读触发先
+    /// 过门，TTL 内零请求
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
 
     /// 呈现序（未读多者靠前，纯函数在 Core）
     var sortedMonitors: [BridgeMonitor] {
@@ -63,6 +68,52 @@ final class MonitorsStore {
     // MARK: - 加载
 
     func load(appState: AppState) async {
+        await load(appState: appState, now: Date())
+    }
+
+    /// 时刻注入的加载（钉测拨时刻验过期）
+    func load(appState: AppState, now: Date) async {
+        await load(
+            appState: appState, now: now,
+            fetch: { config in
+                try await client.monitors(config: config)
+            }
+        )
+    }
+
+    /// 读触发入口（§416 新鲜度门）：TTL 内且配置没
+    /// 变直接用已载名单、零请求；首拉/过期/换服务
+    /// 器才走 load 全量。下拉刷新与错误重试不经此
+    /// 门、恒走 load 强制
+    func loadIfNeeded(appState: AppState) async {
+        await loadIfNeeded(appState: appState, now: Date())
+    }
+
+    func loadIfNeeded(appState: AppState, now: Date) async {
+        await loadIfNeeded(appState: appState, now: now) { config in
+            try await client.monitors(config: config)
+        }
+    }
+
+    /// 读触发口的注入缝重载（钉测数请求用）：门内新鲜
+    /// 直接回、否则走带缝 load
+    func loadIfNeeded(
+        appState: AppState, now: Date,
+        fetch: (ServerConfig) async throws -> [BridgeMonitor]
+    ) async {
+        guard !freshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await load(appState: appState, now: now, fetch: fetch)
+    }
+
+    /// 加载本体（名单读口可注入，与 ArchiveStore
+    /// loadCheckpoints(fetch:) 同式；生产恒走桥客
+    /// 户端）。成功落 freshness stamp（§416）
+    func load(
+        appState: AppState, now: Date,
+        fetch: (ServerConfig) async throws -> [BridgeMonitor]
+    ) async {
         guard !loadInFlight else { return }
         guard let config = appState.config else {
             loadState = .failed(L10n.string("尚未连接服务器。"))
@@ -72,9 +123,12 @@ final class MonitorsStore {
         defer { loadInFlight = false }
         do {
             installLoadedMonitors(
-                try await client.monitors(config: config)
+                try await fetch(config)
             )
             loadState = .ready
+            freshness.stamp(
+                configKey: config.baseString, now: now
+            )
         } catch let error as OneDayBridgeError {
             if loadState == .ready { return }
             loadState = Self.state(for: error)
@@ -89,6 +143,11 @@ final class MonitorsStore {
         guard let config = appState.config else { return }
         if let fetched = try? await client.monitors(config: config) {
             installLoadedMonitors(fetched)
+            // 写后回读即全量现值：落账新鲜度（回读本
+            // 身不经门、不许被门跳过，§367.4/§416）
+            freshness.stamp(
+                configKey: config.baseString, now: Date()
+            )
         }
     }
 

@@ -233,7 +233,7 @@ struct DeliverablesView: View {
             // §131：以文件库修订号为键——打开页改名成
             // 功递增修订号，本页重聚合不留旧名残影
             .task(id: appState.fileLibraryRevision) {
-                await collect()
+                await collectIfNeeded()
             }
             .onChange(of: appState.router.fileRevealPath) { _, _ in
                 consumeRevealIfReady()
@@ -1421,24 +1421,55 @@ struct DeliverablesView: View {
     /// 单流）与既有 loadError 口径回填：无数据失败／
     /// 无配置才给错误态、成功且非空清错误、已有数据
     /// 刷新失败保留旧集不清屏（店内已保、本处不置错）
+    /// 桥读面单流取数（collect 两口共用闭包本体）
+    private func fetchLibraryPage() async throws
+        -> [Deliverable] {
+        guard let config = appState.config else {
+            // 键非 nil 时配置同源必在；店内当前键
+            // 为 nil 时不会调用本闭包
+            throw HermesError.sessionExpired
+        }
+        let page = try await bridgeClient.fileLibrary(
+            config: config
+        )
+        return page.items.map {
+            Deliverable(entry: $0.entry, source: $0.source)
+        }
+    }
+
+    /// 对账（强制口）：上传落定/失败重试走本口——
+    /// 不经新鲜度门、必真拉
     private func collect() async {
         let outcome = await listStore.refresh(
             currentConfigKey: appState.config?.baseString
         ) {
-            guard let config = appState.config else {
-                // 键非 nil 时配置同源必在；店内当前键
-                // 为 nil 时不会调用本闭包
-                throw HermesError.sessionExpired
-            }
-            let page = try await bridgeClient.fileLibrary(
-                config: config
-            )
-            return page.items.map {
-                Deliverable(entry: $0.entry, source: $0.source)
-            }
+            try await fetchLibraryPage()
         }
+        applyCollectOutcome(outcome)
+    }
+
+    /// 对账（读触发口，§416）：进面 .task 走本口
+    /// ——店内先播种快照、门内新鲜整轮零请求；改
+    /// 名失效与修订号同拍（失效口在 FileOpenView
+    /// 改名落点），修订触发的重跑不被门吞
+    private func collectIfNeeded() async {
+        let outcome = await listStore.refreshIfNeeded(
+            currentConfigKey: appState.config?.baseString
+        ) {
+            try await fetchLibraryPage()
+        }
+        applyCollectOutcome(outcome)
+    }
+
+    /// 对账结局回填（两口共用）：loadError 口径与
+    /// §369 逐字同——无数据失败/无配置才给错误态、
+    /// 成功且非空清错误、已有数据刷新失败保留旧
+    /// 集不清屏（店内已保、本处不置错）
+    private func applyCollectOutcome(
+        _ outcome: LibraryListStore.RefreshOutcome
+    ) {
         switch outcome {
-        case .loaded:
+        case .loaded, .stillFresh:
             if !(deliverables?.isEmpty ?? true) {
                 loadError = nil
             }

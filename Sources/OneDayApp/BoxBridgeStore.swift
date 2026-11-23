@@ -37,6 +37,7 @@ final class BoxBridgeStore {
 
     // MARK: - 状态
 
+/// §416 新鲜度普查豁免：显式刷新口——状态/截图按需现拉（判定表见 DESIGN §416）
     func refreshStatus(appState: AppState) async {
         guard !statusInFlight else { return }
         guard appState.phase == .connected, let config = appState.config else {

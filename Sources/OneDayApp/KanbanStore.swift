@@ -33,6 +33,12 @@ final class KanbanStore {
 
     private var probed = false
     private var loadInFlight = false
+    /// 新鲜度门（§416 收编，§367 口径）：读触发先
+    /// 过门，TTL 内零请求；落账点在 fetchBoard 成
+    /// 功（快照落地即全量现值，写后回板同口径）
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
 
     var groups: [KanbanTaskGroup] {
         KanbanBoardGrouping.group(snapshot?.tasks ?? [])
@@ -44,6 +50,26 @@ final class KanbanStore {
     /// 取不到时不臆断未开通——直取板快照、404 才落
     /// 未开通态；清单明确无 oneday 才直接落未开通
     func load(appState: AppState) async {
+        await load(appState: appState, now: Date())
+    }
+
+    /// 读触发入口（§416 新鲜度门）：TTL 内且配置没
+    /// 变直接用已载快照、零请求；首拉/过期/换服务
+    /// 器才走 load 全量。下拉刷新与错误重试不经此
+    /// 门、恒走 load 强制
+    func loadIfNeeded(appState: AppState) async {
+        await loadIfNeeded(appState: appState, now: Date())
+    }
+
+    func loadIfNeeded(appState: AppState, now: Date) async {
+        guard !freshness.isFresh(
+            configKey: appState.config?.baseString, now: now
+        ) else { return }
+        await load(appState: appState, now: now)
+    }
+
+    /// 时刻注入的加载本体（钉测拨时刻验过期）
+    func load(appState: AppState, now: Date) async {
         guard !loadInFlight else { return }
         guard appState.config != nil else {
             loadState = .notConnected
@@ -78,7 +104,8 @@ final class KanbanStore {
         }
         await fetchBoard(
             appState: appState,
-            missingMeansUnprovisioned: provisioned == nil
+            missingMeansUnprovisioned: provisioned == nil,
+            now: now
         )
     }
 
@@ -86,7 +113,8 @@ final class KanbanStore {
     /// 动作回读不许把整段打成失败页）；未就绪时才按
     /// 错误落态（404＋清单不可用→未开通，其余人话失败）
     private func fetchBoard(
-        appState: AppState, missingMeansUnprovisioned: Bool
+        appState: AppState, missingMeansUnprovisioned: Bool,
+        now: Date = Date()
     ) async {
         do {
             let fetched = try await appState.performAdmin { client, config in
@@ -96,6 +124,9 @@ final class KanbanStore {
             }
             snapshot = fetched
             loadState = .ready
+            freshness.stamp(
+                configKey: appState.config?.baseString, now: now
+            )
         } catch let error as HermesError {
             if loadState == .ready, snapshot != nil { return }
             if case .unexpectedStatus(_, let status) = error,

@@ -16284,3 +16284,49 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
+
+
+## §416 新鲜度双轨收口：FreshnessGate 全仓普查与二线面收编（2026-11-23；分支 feat/freshness-unify，基线 rel-05102 @64f2b56；起因 same-class-skeleton-sweep-20261123.md #25 复判「双轨未消」）
+
+### 普查口径与全集
+
+- 门本体：`FreshnessGate`（值件：ttl＋lastLoadedAt＋loadedConfigKey；isFresh/stamp；名单档 standardListTTL=60）。现行已采口径（C1 三店＋§370）：读触发走 loadIfNeeded 过门（TTL 内且配置键未变＝零请求）、load 为强制口（下拉/重试/写后回读不经门）、成功才 stamp、写后回读成功补 stamp（§367.4）。
+- 普查方法：全仓枚举一切持有服务端名单/状态、带读触发拉取的 Store 与 AppState 内的新鲜度判定点，逐面判「已采／接门／豁免＋理由」，不留未判。计数：已采 4、接门 5、豁免 40（A 会话级单拉 3、B config 编辑面 8、C 状态/探测/轮询/检查 10、经 SessionLedger 2、G 门同口径手写 2、D 本地数据 13、E 事件/写驱动 2、F 按需单项懒取并入 D/F 注记口径随 detail 面）。
+
+### 已采（4，本包前已在门上，不动）
+
+FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（listFreshness＋epoch＋invalidateListFreshness，§370）。
+
+### 接门（5，本包落码）
+
+| 面 | 收编形态 |
+|---|---|
+| LibraryListStore | 手写冷启快照第二实现收编：快照层保留（播种/落盘/差异合并原样），其上加 FreshnessGate（standardListTTL）＋epoch；refresh 拆为强制口 refresh（不经门、成功 stamp）与读触发口 refreshIfNeeded（播种同 refresh 逐字、门内新鲜回新 outcome `.stillFresh` 零请求）；名单外写动作（改名）落点调 invalidateFreshness（epoch+1＋重置门，仿 SessionLedger）；DeliverablesView 首拉改读触发口、上传落定/失败重试仍走强制口，GlobalSearchView 补数改读触发口 |
+| MemoriesStore | load 拆注入缝重载（生产恒走 bridge.entries）；成功在 refreshApprovals 前 stamp；loadIfNeeded 对（读触发过门）＋注入缝重载供钉测 |
+| LearningGraphStore | load 成功 stamp；loadIfNeeded 对 |
+| KanbanStore | fetchBoard 成功 stamp（now 贯穿 load→fetchBoard，其余回板调用默认当下时刻）；loadIfNeeded 对 |
+| MonitorsStore | load 拆注入缝重载（monitors 读口不在桥协议面、未扩协议，生产恒走 client.monitors）；成功 stamp、refetch 成功补 stamp（§367.4）；loadIfNeeded 对＋注入缝重载供钉测 |
+
+调用点同步：MemoryViews.task（记忆库/学习图谱改读触发口，.refreshable 保持强制）、HubLedgerSection.task（看板/监测改读触发口）、ProgressCapsuleView.task（看板改读触发口）、GoalDetailView 关联三店改 force 三路同分支（监测/看板读触发、目标店强制）。
+
+### 豁免（逐面理由，代码处均留一行注记指向本节）
+
+- A 会话级单拉＋显式刷新（严于 TTL、接门非等价）：CronStore（范式源头：hasLoaded＋配置键失效＋写后 refresh）、ArchiveStore（loadCheckpointsIfNeeded 以 checkpoints==nil 跳过）、AgentHubStore（didLoadInitial/段内懒载＋force 回读）。
+- B config 编辑面（写回纪律要求现读全量现值）：ModelManagementStore（其目录已走 AppState §368 门口径）、ToolsetsStore（清单与 config 真值同拉）、GrantsLedgerStore、DelegationRoutingStore、WebhooksStore、MoaStore、ServerInternalsStore（后四为 ops 注入的设置子页，读待编辑现值、写后回读对账）。
+- C 状态/探测/轮询面：ChannelStatusStore（事实只认 status 现读、写后即回读）、PairingStore（待批时效敏感、TTL 跳过会藏新请求）、ServerVersionStore（进面读现值）、OverviewBridgeStore（30 秒轮询自带节奏）、LedgerStore（10 秒 since 增量轮询）、CompanionProbeStore（尝试节流、非成功落账口径）、ConnectionsStore＋ConnectorsFacade（进页/下拉同序的探测复合面）、HealthCheckStore＋ConnectionSelfCheckStore（检查面显式触发汇总）、BoxBridgeStore（显式刷新口）。
+- 经 SessionLedger：HermesChannelStore（委托 refreshVisible、门已覆盖）、AllConversationsStore（委托强制路 refresh、全量重拉是显式动作口）。
+- G 门同口径手写：AppState 模型目录 §368（TTL 300 有定档理由、判定与 epoch/单飞焊死＋专属钉测 ModelCatalogFreshnessC2Tests，机械替换无口径收益）、AppState 身份刷新 refreshIdentityName（30 秒尝试节流、单值非名单面）。
+- D 本地数据：FilePinStore、FileOpenHistoryStore、ThreadReadMarkStore、BackupRecordStore、PresetStore、RunLedgerStore、SideChatStore、DeviceSyncStore（DevicePreferences 回执）、FileThumbnailStore、AgentProfileStore（另有 serverUpdatedAt 自有时刻口径）、PairingSummaryStore、Keychain/MemoryIdentityValueStore（凭据/身份值件，非名单面）。
+- E 事件/写驱动：PushRegistrationStore、OutboxRetryStore。
+- F 按需单项懒取：DeliveryStore.loadMeta、FileMetadataStore.ensureSize，及各店 detail 按 id 加载（非名单全量拉取）。
+
+### 行为等价钉测（FreshnessUnify416Tests，9 例）
+
+- 资源库：首拉 1 轮、TTL 内.stillFresh 零请求、过期再拉、换键必拉、强制口不经门、invalidateFreshness 后必真拉；失败不 stamp（无数据.failedNoData 下轮重试、有数据.keptAfterFailure 且失败轮不落账）；冷启硬线——新实例播种后首帧名单已在屏、读触发取数发起瞬间名单仍为快照（SWR 时机）、别台快照不串台。
+- 监测/记忆库：注入缝计数（首拉 1、TTL 内 0、过期 1）＋失败不 stamp 下轮重试。
+- 看板/学习图谱：CountingKanbanLearningClient 计数桩（由 CountingCatalogClient 复制改名、四口计数应答）数 kanbanBoard/learningGraph 请求，同上三拍。
+- 定向回归：FreshnessUnify416Tests＋CacheFreshnessGateC1Tests＋DrawerListFreshnessC3Tests＋LibraryListStoreC4Tests＋LibraryListSnapshotTests＋ModelCatalogFreshnessC2Tests。实跑 6 套 47 例全绿、0 红 0 跳过（bundle Test-Freshness416，ProbePhone，TEST SUCCEEDED）：FreshnessUnify416Tests 9、CacheFreshnessGateC1Tests 与 DrawerListFreshnessC3Tests 合 14、LibraryListStoreC4Tests 12、LibraryListSnapshotTests 5、ModelCatalogFreshnessC2Tests 7。注：C4 的 testViewWiringPins 随本节更新口径——collect 出现数 3 改 2（.task 改走 collectIfNeeded 读触发口）、新增 collectIfNeeded 恰 1 处断言，§369 三处触发与删除不重拉的约束本体不变。
+
+### 附带观察（不入本包施工）
+
+- KanbanStore.runVisibleLoop 无任何调用方（沉睡代码）；LibraryListStore 快照 payload 的 savedAt 只写不读（死数据）；ArchiveStore checkpoints 不记配置键（换服务器不失效）。

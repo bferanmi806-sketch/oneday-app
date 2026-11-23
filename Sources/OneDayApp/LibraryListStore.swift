@@ -25,6 +25,14 @@ import OneDayCore
 /// - 失效事件：对账成功整份覆写；本地删除（成功／
 ///   回滚）后同步覆写；配置键变化自然失效；文件损
 ///   坏或解码失败按无快照处理（不崩、不冒充）。
+///
+/// §416（新鲜度双轨收口）：对账时机收编 Freshness-
+/// Gate（§367 现行口径）——refreshIfNeeded 是读触
+/// 发口（播种逐字不变、门内新鲜零请求），refresh
+/// 是强制口（不经门、成功落 stamp）；改名等名单
+/// 外写动作经 invalidateFreshness 失效。快照播种
+/// 与差异合并语义不动，行为对拍见 Freshness-
+/// Unify416Tests。
 @MainActor
 @Observable
 final class LibraryListStore {
@@ -82,6 +90,9 @@ final class LibraryListStore {
         case noConfig
         /// 已有对账在飞，本次跳过（单飞，与各店同式）
         case alreadyInFlight
+        /// 读触发过门判新鲜、整轮跳过（§416）：名单
+        /// 已在屏（快照或内存），视图按已载处理
+        case stillFresh
     }
 
     /// 删除结局：失败带人话（HermesError.userMessage
@@ -100,6 +111,17 @@ final class LibraryListStore {
 
     /// 对账单飞守卫（.task 与上传完成回调可并发触发）
     private var isRefreshing = false
+
+    /// 新鲜度门（§416 收编，§367 口径）：本店手写
+    /// 快照冷启是 SWR 的 stale 半边，对账时机自此
+    /// 归门判定——读触发过门、强制口不经门
+    private var freshness = FreshnessGate(
+        ttl: FreshnessGate.standardListTTL
+    )
+    /// 门失效代次（§416）：invalidate 自增；对账落
+    /// stamp 前对账，横跨失效的轮次不落账冒充新鲜
+    /// （与 SessionLedger §370 epoch 同式）
+    private var freshnessEpoch = 0
 
     private let snapshotFileURL: URL
 
@@ -145,9 +167,11 @@ final class LibraryListStore {
 
     // MARK: - 对账（revalidate 半边）
 
-    /// 对账：先播种、再恰一次全量拉取；成功差异合
-    /// 并换新并覆写快照，失败保留现有名单不清屏。
-    /// fetch 只在当前键非 nil 且无对账在飞时调用。
+    /// 对账（强制口）：先播种、再恰一次全量拉取；
+    /// 成功差异合并换新并覆写快照，失败保留现有名
+    /// 单不清屏。fetch 只在当前键非 nil 且无对账在
+    /// 飞时调用。不经新鲜度门（上传落定/失败重试
+    /// 走本口），成功落 stamp（§416）
     func refresh(
         currentConfigKey: String?,
         fetch: @MainActor () async throws -> [Deliverable]
@@ -159,8 +183,44 @@ final class LibraryListStore {
             return .noConfig
         }
         guard !isRefreshing else { return .alreadyInFlight }
+        return await performRefresh(
+            key: key, now: Date(), fetch: fetch
+        )
+    }
+
+    /// 对账（读触发口，§416）：播种与 refresh 逐字
+    /// 同（冷启首帧先显快照的口径不变）；门内新鲜
+    /// 即整轮跳过、回 .stillFresh、零请求；首拉/
+    /// 过期/换服务器/失效后走对账本体全量
+    func refreshIfNeeded(
+        currentConfigKey: String?,
+        now: Date = Date(),
+        fetch: @MainActor () async throws -> [Deliverable]
+    ) async -> RefreshOutcome {
+        seedFromSnapshotIfNeeded(
+            currentConfigKey: currentConfigKey
+        )
+        guard let key = currentConfigKey else {
+            return .noConfig
+        }
+        guard !isRefreshing else { return .alreadyInFlight }
+        guard !freshness.isFresh(configKey: key, now: now)
+        else { return .stillFresh }
+        return await performRefresh(
+            key: key, now: now, fetch: fetch
+        )
+    }
+
+    /// 对账本体（两口共用）：单飞＋全量拉取＋差异
+    /// 合并＋落盘；成功落 freshness stamp——拉取横
+    /// 跨一次 invalidateFreshness 的轮次不落账
+    private func performRefresh(
+        key: String, now: Date,
+        fetch: @MainActor () async throws -> [Deliverable]
+    ) async -> RefreshOutcome {
         isRefreshing = true
         defer { isRefreshing = false }
+        let epochAtStart = freshnessEpoch
         do {
             let fresh = try await fetch()
             deliverables = Self.reconciled(
@@ -168,11 +228,25 @@ final class LibraryListStore {
             )
             deliverablesConfigKey = key
             persistSnapshot()
+            if freshnessEpoch == epochAtStart {
+                freshness.stamp(configKey: key, now: now)
+            }
             return .loaded
         } catch {
             return deliverables == nil
                 ? .failedNoData : .keptAfterFailure
         }
+    }
+
+    /// 名单外写事件的失效口（§416）：改名等不经本
+    /// 店的写动作落定后调——下一次读触发必真拉，
+    /// 写后一致性优先于省请求（与 SessionLedger
+    /// invalidateListFreshness 同式）
+    func invalidateFreshness() {
+        freshnessEpoch += 1
+        freshness = FreshnessGate(
+            ttl: FreshnessGate.standardListTTL
+        )
     }
 
     /// 差异合并（纯函数）：结果与 fresh 逐项等价（同

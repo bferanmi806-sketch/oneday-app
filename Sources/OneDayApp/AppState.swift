@@ -612,6 +612,7 @@ final class AppState {
     /// 名，App 要等冷重启才跟上（2026-11-13 改名事
     /// 故的第二断点）。刷新失败保旧值不翻假名；演示
     /// 模式不连真服务端、跳过
+/// §416 新鲜度普查豁免：单值尝试节流（尝试计时、保旧值），非名单新鲜度判定，与门口径分离（判定表见 DESIGN §416）
     func refreshIdentityName() async {
         guard config != nil, !isDemo else { return }
         if let last = lastIdentityRefreshAt,
@@ -1325,6 +1326,7 @@ final class AppState {
         modelCatalogLoadedAt = nil
     }
 
+/// §416 新鲜度普查豁免：§368 已是门同口径（TTL＋配置键＋只许成功落账＋写失效），判定与 epoch/单飞焊死且有专属钉测，机械替换无口径收益（判定表见 DESIGN §416）
     private var modelCatalogIsFresh: Bool {
         guard modelCatalogLoadedEpoch == modelCatalogEpoch,
               modelCatalogLoadedForConfig == config?.baseString,

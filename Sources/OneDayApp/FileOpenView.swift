@@ -757,6 +757,11 @@ struct FileOpenContent: View {
                 mimeType: target.mimeType, anchor: target.anchor
             )
             appState.fileLibraryRevision += 1
+            // §416：改名是名单外写动作——名单店新鲜
+            // 度同步失效，下轮读触发必真拉（与修订号
+            // 同拍，文件页重跑过门也不许跳）
+            appState.sharedLibraryListStore()
+                .invalidateFreshness()
             if oldRemoved {
                 notice = L10n.format("已改名为「%@」", newName)
                 Haptics.success()

@@ -22,6 +22,7 @@ final class ChannelStatusStore {
         statuses[platform]
     }
 
+/// §416 新鲜度普查豁免：状态面——事实只认 status 现读，凭据写后即回读（判定表见 DESIGN §416）
     func load(appState: AppState) async {
         if appState.isDemo {
             statuses = Self.demoStatuses

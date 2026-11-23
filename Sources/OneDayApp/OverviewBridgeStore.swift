@@ -140,6 +140,7 @@ final class OverviewBridgeStore {
         OverviewBadge.count(snapshot: snapshot)
     }
 
+/// §416 新鲜度普查豁免：30 秒前台轮询自带节奏，门不介入（判定表见 DESIGN §416）
     /// 前台轮询主循环：立即一轮，之后每 30 秒一轮；
     /// 任务取消（退后台/壳层消失）即停。
     func poll(appState: AppState) async {

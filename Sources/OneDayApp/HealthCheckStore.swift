@@ -60,6 +60,7 @@ enum HealthCheckEngineError: Error {
 /// 败组可单独重试；整轮结束把结论摘要落留痕。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：检查面——显式触发汇总，无读触发全量拉取（判定表见 DESIGN §416）
 final class HealthCheckStore {
     enum Phase: Equatable {
         case idle

@@ -52,6 +52,7 @@ final class CronStore {
         appState.config?.baseString
     }
 
+/// §416 新鲜度普查豁免：本店是范式源头——会话级单拉＋配置键失效＋写后 refresh 显式同步，严于 TTL 门，接门非等价（判定表见 DESIGN §416）
     /// 按需加载：已加载且服务器没变即跳过；在飞不重入
     func loadIfNeeded() async {
         guard !isLoading else { return }

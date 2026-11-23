@@ -9,6 +9,7 @@ import OneDayCore
 /// （shared）。
 @MainActor
 @Observable
+/// §416 新鲜度普查豁免：本地备份痕落盘店，无远端新鲜度问题（判定表见 DESIGN §416）
 final class BackupRecordStore {
     static let shared = BackupRecordStore()
 
@@ -118,6 +119,7 @@ final class ArchiveStore {
         }
     }
 
+/// §416 新鲜度普查豁免：检查点会话级单拉（已有数据不重拉、失败直拉重试），同 CronStore 口径（判定表见 DESIGN §416）
     /// 进面首拉：已有数据就不重拉（失败重试走
     /// loadCheckpoints 直拉）
     func loadCheckpointsIfNeeded(appState: AppState) async {

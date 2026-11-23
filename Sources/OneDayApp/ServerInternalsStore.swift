@@ -37,6 +37,7 @@ final class ServerInternalsStore {
     /// 三件各拉各的：一件失败只降级自己那一段（串行
     /// 执行——ops 是主线程隔离的操作组，并发发送会触
     /// 区域隔离红线；三件都是小读、串行不亏体感）
+/// §416 新鲜度普查豁免：config 编辑面（ops 注入）——读待编辑现值、写后回读对账（判定表见 DESIGN §416）
     func loadAll(ops: ServerInternalsOperations) async {
         await loadCurator(ops: ops)
         await loadStats(ops: ops)

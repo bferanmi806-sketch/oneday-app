@@ -22,6 +22,7 @@ import UIKit
 ///   供查看器首帧种子（点开即显的来源）；
 /// - 并发闸 2：滚动时不让缩略生成把带宽与解码打满。
 @MainActor
+/// §416 新鲜度普查豁免：本地缩略图缓存件，无远端新鲜度问题（判定表见 DESIGN §416）
 final class FileThumbnailStore {
     static let shared = FileThumbnailStore()
 

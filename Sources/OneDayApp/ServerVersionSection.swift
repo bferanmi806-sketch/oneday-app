@@ -64,6 +64,7 @@ final class ServerVersionStore {
         var updateReceipt: () async throws -> UpdateReceiptResponse
     }
 
+/// §416 新鲜度普查豁免：版本状态面，进面读现值（判定表见 DESIGN §416）
     func load(appState: AppState) async {
         guard let config = appState.config else {
             unavailableMessage =

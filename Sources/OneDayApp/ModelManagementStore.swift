@@ -87,6 +87,7 @@ final class ModelManagementStore {
 
     // MARK: - 加载
 
+/// §416 新鲜度普查豁免：config 编辑面——写回纪律要求读全量现值；模型目录已走 AppState §368 门口径（判定表见 DESIGN §416）
     func load(appState: AppState, forceCatalog: Bool = false) async {
         guard !isLoading else { return }
         isLoading = true

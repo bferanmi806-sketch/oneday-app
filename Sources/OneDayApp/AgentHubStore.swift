@@ -176,6 +176,7 @@ final class AgentHubStore {
     private var didLoadInitial = false
     private var didRecheckProfile = false
 
+/// §416 新鲜度普查豁免：段内懒载单拉＋裁决 force 回读，会话级口径（判定表见 DESIGN §416）
     /// 页头初始加载（台账 198 收敛 C1 瘦身后）：只剩
     /// profile 冻结＋网关状态＋身份名解析三件——旧版
     /// 顺带拉的 serverSessions 100 条只喂已退役的活

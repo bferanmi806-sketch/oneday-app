@@ -65,6 +65,7 @@ final class ToolsetsStore {
 
     // MARK: - 读
 
+/// §416 新鲜度普查豁免：清单与 config 真值同拉的编辑面，现值口径（判定表见 DESIGN §416）
     /// 拉清单＋config 真值＋终端后端。未连接/无凭据 →
     /// .unavailable（不冒充空清单）；清单失败 → .failed
     /// 如实呈现；config/后端是附带真源，各自失败只降级
