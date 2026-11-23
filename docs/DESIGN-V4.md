@@ -16285,6 +16285,28 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
 
+## §411 朗读触发方式改造：自动朗读默认关、改点按朗读（2026-11-23；分支 feat/tts-manual-trigger，基线 rel-05102 @64f2b56；用户 17:28 批准）
+
+### §411.1 现行触发点全集（先查清，实查 rel-05102）
+- 自动触发点全集＝1 处：ChatView.applySettledTurn 落定段——phase 为 .finished 且 watchedTurn（用户在场看完的本轮）且 UserDefaults 的 autoReadKey 为开时，调 SpeechPlayer.autoRead。恢复/后台落定恒不触发（§140 静默口径）。全仓 grep SpeechPlayer.shared 调用点逐个对账：其余皆为停播/暂停/继续/状态呈现读与可用性刷新，无第二个自动起播点。
+- 点按链为 H2-a/D1 存量、本包不重造：speakMenuItem（ChatView）经 makeSpeakItem 挂 ChatRowActionSheetData 动作面（ChatNativeList），助手落定回复限定（工具卡/回响/锚定条目不出项）、未开通不出项、标题随播放态在朗读/停止朗读间切换（点按 toggle：同条停、异条切换），播放条暂停/继续/停止齐备。
+- 设置开关为 H2-a 存量：设置 → 服务器管理 → 维护 →「语音」面 Toggle「自动朗读新回复」，@AppStorage(VoiceSpeechPreferences.autoReadKey)，默认关。
+
+### §411.2 本包落点（摘除与收口）
+- 开关判读从落定点摘除、收进 TTS 服务：ChatView 落定段不再读 UserDefaults，只保留在场判读（watchedTurn）与一次调用 SpeechPlayer.autoReadIfEnabled；判读口在 SpeechPlayer 内（VoiceSpeechPreferences.autoReadEnabled，现值现读不缓存），关＝静默返回、开＝走 autoRead 既有口径（不抢播、暂停不抢、未开通不出声，存量语义全数不变）。红线：设置开关关闭态行为与现行逐字一致。
+- 偏好键进位 v1 → v2（voice.autoReadReplies.v2）：用户拍板「默认关」须对存量设备生效——事故设备上 v1 键已被拨开为 true，只改默认值对存量无声；进位后存量 true 弃置、升级即回默认关，v1 键不再被任何代码读。设置面 Toggle 与播放器判读共用同一常量，拨开即写 v2、即刻恢复落定自动读。
+- 引擎口径不变（服务端 edge-tts 合成、音色服务端定）；ChatView 改动收最小＝落定段一处调用点（S2/IO 两包在飞，合并序本包最后）。
+
+### §411.3 钉测与回归
+- 新增钉测 3 例（SpeechPlayerTests）：testAutoReadIfEnabledOffByDefaultStaysSilent（无存值＝默认关、入口静默、零 speak 请求）、testAutoReadIgnoresLegacyV1Key（v1 存 true 不顶开默认关）、testAutoReadIfEnabledOnRestoresAutoRead（写开→判读口读回为开→起播到播放态；关回→再调静默）。
+- 点按起停由存量钉测把守（testTogglePlaysAndRefinesAvailability、testToggleSameStopsAndOtherSwitches、testPauseResumeForwardsWithoutTeardown），本包复跑全绿。
+- 定向三套实跑（bundle Test-TTSTrigger，xcresulttool 对账）：VoiceSpeechTests 24＋SpeechEngineCallbackIsolationTests 3＋SpeechPlayerTests 15（原 12＋新 3）＝42/42 全绿、0 跳过。发布集全量留组版统一跑。
+
+### §411.4 真机门（未过不关账）
+- 存量曾开过自动朗读的设备升级后：新回复落定不自动出声（默认关对存量生效）。
+- 设置 → 语音拨开「自动朗读新回复」后：在场落定回复恢复自动读；拨回关即停。
+- 长按助手回复：「朗读」起播、朗读中同条再点「停止朗读」可停；播放条暂停/继续/停止如旧。
+
 ## §413 落定行有高无内容热修（2026-11-23；分支 feat/settle-hotfix，基线 rel-05102 @64f2b56；取证 settle-text-missing-forensics-20261123.md）
 
 ### §413.1 定因（取证判 §407 回归、部分定因偏强；本包钉测补完最后一拍）

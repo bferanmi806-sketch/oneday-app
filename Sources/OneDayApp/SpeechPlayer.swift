@@ -2,10 +2,22 @@ import AVFoundation
 import Foundation
 import OneDayCore
 
-/// 语音偏好键（设置「语音」段与聊天页自动朗读共读
+/// 语音偏好键（设置「语音」段与播放器自动朗读共读
 /// 同一键，不许两处各写一份字面量）
 enum VoiceSpeechPreferences {
-    static let autoReadKey = "voice.autoReadReplies.v1"
+    /// §411 键进位 v2：用户拍板「自动朗读默认关」
+    /// 须对存量设备生效——v1 键若曾被拨开过，存量
+    /// true 不许带进新口径；v1 键就此弃置，想开的
+    /// 人在设置面拨一次即写 v2
+    static let autoReadKey = "voice.autoReadReplies.v2"
+
+    /// 自动朗读开关现值（无存值＝关）：落定自动朗
+    /// 读的唯一判读口（SpeechPlayer 的 autoReadIf-
+    /// Enabled），设置面 Toggle 经 @AppStorage 同
+    /// 键共写；现值现读、不缓存
+    static var autoReadEnabled: Bool {
+        UserDefaults.standard.bool(forKey: autoReadKey)
+    }
 }
 
 /// 朗读音频引擎口（注入点）：生产实现包 AVAudio-
@@ -281,6 +293,21 @@ final class SpeechPlayer {
         let effects = machine.tap(entryID: entryID)
         run(effects, entryID: entryID, content: content,
             appState: appState)
+    }
+
+    /// 落定自动朗读的唯一入口（§411）：开关判读收
+    /// 在播放器内——关（默认）＝静默返回，落定点不
+    /// 再自己读偏好；开＝走 autoRead 既有口径（不
+    /// 抢播、未开通不出声）
+    func autoReadIfEnabled(
+        entryID: UUID, content: String, appState: AppState
+    ) {
+        guard VoiceSpeechPreferences.autoReadEnabled
+        else { return }
+        autoRead(
+            entryID: entryID, content: content,
+            appState: appState
+        )
     }
 
     /// 停播（离开页面/发送新消息/开始听写共用）：
