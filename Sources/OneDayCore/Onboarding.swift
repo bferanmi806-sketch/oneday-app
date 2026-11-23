@@ -346,8 +346,11 @@ public enum NotificationGuideSegment {
     }
 }
 
-/// 首次聊天空态的建议条（原型 chat 面三条）：点按即
-/// 发送。文案是给智能体的真实问句，不编造能力。
+/// 聊天空态建议的冷启回落池：§455 起常态建议由
+/// StarterSuggestionsEngine 以用户当下真实状态现算
+/// （待批/目标/定时/资源库），本池只在上下文未就绪
+/// 或真数据凑不满三条时补位。文案是给智能体的真实
+/// 问句，不编造能力。
 public enum EmptyChatSuggestions {
     public static let texts: [String] = [
         "今天服务器状态怎么样？",

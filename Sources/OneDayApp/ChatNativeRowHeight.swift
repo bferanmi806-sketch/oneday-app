@@ -2414,17 +2414,17 @@ struct ChatNativeRowHeightComposer {
             + OneDayMetrics.spacingS + captionHeight
     }
 
-    /// 空态建议条段高：顶距 spacingL＋三条建议
+    /// 空态建议条段高：顶距 spacingL＋各条建议
     /// 行（minHeight 50、行内文 callout 折行兜
-    /// 底）＋行间 spacingS
-    func emptySuggestionsHeight() -> CGFloat {
-        rowMemo("es|\(environmentFingerprint)") {
-            emptySuggestionsHeightUncached()
+    /// 底）＋行间 spacingS；§455 起文案动态化，
+    /// 估高按当下实际建议文案、备忘键带文案指纹
+    func emptySuggestionsHeight(texts: [String]) -> CGFloat {
+        rowMemo("es|\(texts.joined(separator: "\u{1}"))|\(environmentFingerprint)") {
+            emptySuggestionsHeightUncached(texts: texts)
         }
     }
 
-    func emptySuggestionsHeightUncached() -> CGFloat {
-        let texts = EmptyChatSuggestions.texts
+    func emptySuggestionsHeightUncached(texts: [String]) -> CGFloat {
         var total = OneDayMetrics.spacingL
         for text in texts {
             let textHeight = plainHeight(
