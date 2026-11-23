@@ -524,31 +524,27 @@ struct ContentView: View {
     /// 内容根、栏件回系统默认中性着色（见 tabView 内
     /// 0.32.0 注）；「tint 不改灰」的理由仍成立，故采
     /// 收窄作用域而非改色
+    /// §403 口径更新（§382 定因后）：本函数图标已改
+    /// 模板图资产（见 icon 处注）；标题/无障碍口径不
+    /// 变。符号名（pair.normal）自此只供抽屉名单等栏
+    /// 外消费者，底栏呈现与符号身份脱钩。
     private func tabLabel(_ pair: TabSymbolPair) -> some View {
         Label {
             Text(pair.title)
         } icon: {
-            Image(systemName: pair.normal)
-                .symbolVariant(.none)
-                // 0.33.1：渲染模式钉 monochrome（系统栏件
-                // 惯例）——单色模板渲染，杜绝 hierarchical/
-                // palette 派生让字形发实发花的余地；符号名
-                // 全表本就是 outline 原名（TabBarSymbols-
-                // Tests 钉死禁 .fill、两态同名），选中态的
-                // 填充观感来自宿主对栏件的自动 .fill 变体
-                // 派生，变体锁（本处＋根环境）双锁保留
-                .symbolRenderingMode(.monochrome)
-                // 0.22.0 字形定版（审计 T1 复量）：符号
-                // 不换、字重 regular→light 一档——探针实
-                // 测（24pt 紧致密度）：message .270→.222、
-                // lightbulb .340→.288、checklist .296→
-                // .272、tray .383→.329；候选 checkmark
-                // .square（.404）比现行 checklist 更浓、
-                // 否决（§49）。字体直接钉在图上随图进宿
-                // 主构建（与 0.4.3 的子树环境到不了构建
-                // 处是两回事）；底栏呈现终由系统介导，
-                // 落档以真机终审 V3 并排为准
-                .font(.system(size: 24, weight: .light))
+            // §403（§382 B1 落地）：图标脱离 symbol 身
+            // 份、改模板图资产——iOS 26 宿主在条目构建
+            // 层注入的 fill 变体只作用于活 symbol image
+            // （定因 DESIGN §403），普通模板图无从替
+            // 换。资产由系统 CoreGlyphs 矢量母版按
+            // 24pt light 标定生成（Scripts/make-tab-
+            // assets.swift），画布＝符号原布局框、两态
+            // 同图；原 L3 的 symbol 专属修饰（symbol-
+            // Variant/symbolRenderingMode/.font）随之
+            // 退役。结构钉测 TabBarTemplateAsset-
+            // StructureTests 把守本处不得回归
+            // Image(systemName:)。
+            Image(pair.asset)
         }
         .labelStyle(.iconOnly)
         // 0.34.0（底栏填充正解，论坛调研 tabbar-fill-
@@ -571,6 +567,11 @@ struct ContentView: View {
         // CI 侧无法证伪/证实此项，终审仍以 JJ 真机逐
         // 格对 Muse 为准；本版判死则转备选 B（四字
         // 形导出模板图资产、脱离 symbol 身份）
+        // §403 后记：预注册决策树已走完——真机定因判
+        // A 案（环境直赋）不足恃、B1 模板资产已落地
+        // （见 tabLabel icon 处注），本行自此降为防线
+        // 保留（对资产图无作用、对未来混入的 symbol
+        // 仍生效），与 TabView 外层 L1 同口径。
         .environment(\.symbolVariants, .none)
         .accessibilityLabel(pair.title)
     }

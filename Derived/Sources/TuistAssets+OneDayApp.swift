@@ -76,6 +76,11 @@ public enum OneDayAppAsset: Sendable {
   public static let fileiconUnknown = OneDayAppImages(name: "fileicon-unknown")
   public static let fileiconVideo = OneDayAppImages(name: "fileicon-video")
   public static let fileiconWord = OneDayAppImages(name: "fileicon-word")
+  public static let tabChat = OneDayAppImages(name: "tab.chat")
+  public static let tabFeed = OneDayAppImages(name: "tab.feed")
+  public static let tabFiles = OneDayAppImages(name: "tab.files")
+  public static let tabGoals = OneDayAppImages(name: "tab.goals")
+  public static let tabIdeas = OneDayAppImages(name: "tab.ideas")
 }
 
 // MARK: - Implementation Details
