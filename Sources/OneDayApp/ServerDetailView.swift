@@ -187,10 +187,7 @@ struct ServerDetailView: View {
                     .foregroundStyle(Palette.inkSecondary)
             }
             Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: FrameworkIcon.composerGlyphSize))
-                .foregroundStyle(Palette.inkSecondary)
-                .accessibilityHidden(true)
+            DisclosureChevron(font: .system(size: FrameworkIcon.composerGlyphSize))
         }
         .padding(.horizontal, OneDayMetrics.spacingM)
         .frame(minHeight: OneDayMetrics.rowHeight)

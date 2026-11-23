@@ -75,7 +75,7 @@ final class ThemeAlign431Tests: XCTestCase {
             count(of: "Image(systemName: \"chevron.right\")", in: all), 1)
         XCTAssertEqual(
             count(of: "Image(systemName: \"chevron.up.chevron.down\")", in: all), 0)
-        XCTAssertEqual(count(of: "DisclosureChevron(", in: all), 45)
+        XCTAssertEqual(count(of: "DisclosureChevron(", in: all), 46)
     }
 
     /// 外观页五触点逐点在位（四 selection＋一 impact）
