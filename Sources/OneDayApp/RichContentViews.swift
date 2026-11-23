@@ -1319,7 +1319,7 @@ struct FileChip: View {
                 client, config in
                 try await client.files(config: config, path: parent)
             }
-            if listing?.entries.contains(where: { zsh.path == path }) == true {
+            if listing?.entries.contains(where: { $0.path == path }) == true {
                 notice = "删除未生效，「\(name)」仍在服务器上。"
                 Haptics.warning()
             } else {

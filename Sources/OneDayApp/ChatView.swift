@@ -6226,7 +6226,7 @@ struct ChatView: View {
         _ target: FileOpenTarget, localURL: URL
     ) {
         let qlOK = QLPreviewController.canPreview(
-            localURL as QLPreviewItem
+            localURL as NSURL
         )
         switch FileOpenRoute.resolve(target: target) {
         case .imageViewer:

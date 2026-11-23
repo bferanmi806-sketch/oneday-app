@@ -892,6 +892,13 @@ struct DeliverablesView: View {
         }
     }
 
+    /// 网格双列（§452 定版④：列距/行距走梯队，
+    /// 与 Muse 资源库两列同构）
+    private static let cardColumns = [
+        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
+        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
+    ]
+
     /// 网格态（§452 定版③/④）：单列表平铺不分组
     /// （置顶由排序钉顶承载、最近在前由默认排序承
     /// 载，§4.5 分组退役）；双列、结构对齐 Muse 资

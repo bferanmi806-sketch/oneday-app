@@ -1,5 +1,6 @@
 import SwiftUI
 import OneDayCore
+import OneDayDesign
 
 /// 聊天 QuickLook 呈示项（§452.6）
 struct ChatQuickLookItem: Identifiable {

@@ -156,7 +156,7 @@ public enum LibraryOrdering {
                     let am = a.mtime ?? 0
                     let bm = b.mtime ?? 0
                     if am != bm { return am > bm }
-                case .title:
+                case .title, .size:
                     break
                 }
                 return titleMemo.title(for: a)
