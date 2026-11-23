@@ -94,6 +94,11 @@ struct ChatNativeRowFacets {
     /// 派生在合成器核心经 ApprovalZoneQueue
     /// 做）；nil＝非 ready
     var zoneRecords: [WriteGateRecord]?
+    /// 选择框行高输入（总表 203／§441）：键＝条
+    /// 目 id；值由 ChatView 按覆盖层＋线程尾位规
+    /// 则派生后经快照器注入（与 sources 同为呈现
+    /// 层派生 facet）；键缺＝无卡、零增量
+    var optionsCards: [UUID: OptionsCardHeightInput] = [:]
     var zoneAnchoredIDs: Set<String> = []
     var zoneResolvedLineIDs: [String] = []
 }
@@ -109,9 +114,13 @@ enum ChatNativeRowFacetSnapshotter {
     static func entryFacets(
         for entry: ChatEntry,
         ledger: ChatRowStateLedger,
-        hubStore: AgentHubStore
+        hubStore: AgentHubStore,
+        optionsCard: OptionsCardHeightInput? = nil
     ) -> ChatNativeRowFacets {
         var facets = ChatNativeRowFacets()
+        if let optionsCard {
+            facets.optionsCards[entry.id] = optionsCard
+        }
         recordExpansion(
             ledger,
             key: ChatRowStateKeys.reasoningEntry(entry.id),

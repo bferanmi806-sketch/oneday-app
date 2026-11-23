@@ -554,6 +554,7 @@ struct ChatNativeRowHeightComposer {
         for entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false,
         sources: [MessageSource] = [],
+        optionsCard: OptionsCardHeightInput? = nil,
         memoKey: String, rowKey: String
     ) -> ChatNativeRowMeasureJob {
         let facets: ChatNativeRowFacets
@@ -561,7 +562,8 @@ struct ChatNativeRowHeightComposer {
             facets = ChatNativeRowFacetSnapshotter
                 .entryFacets(
                     for: entry, ledger: ledger,
-                    hubStore: hubStore
+                    hubStore: hubStore,
+                    optionsCard: optionsCard
                 )
         } else {
             facets = ChatNativeRowFacets()
@@ -1098,7 +1100,8 @@ struct ChatNativeRowHeightComposer {
     /// 逐项按合成读点对账列全
     private func entryFacetDigest(
         _ entry: ChatEntry,
-        buildProducts: ChatEntryRowBuildMemo.Products? = nil
+        buildProducts: ChatEntryRowBuildMemo.Products? = nil,
+        optionsCard: OptionsCardHeightInput? = nil
     ) -> String {
         var parts: [String] = []
         parts.append(
@@ -1110,6 +1113,14 @@ struct ChatNativeRowHeightComposer {
         parts.append(
             "sx\(Self.boolDigest(facetExpansionOverride(for: ChatRowStateKeys.sourcesEntry(entry.id))))"
         )
+        if let oc = optionsCard {
+            // 选择框（§441）：状态＋项数折入——卡
+            // 出现/点选/过期都改行高，摘要必须同
+            // 变；入参由行构建点按覆盖层派生（与
+            // sources 同为呈现层派生入参），合成器
+            // 核心读 facets 同值（快照器注入）
+            parts.append("oc\(oc.kind == .live ? "l" : oc.kind == .selected ? "s" : "e")\(oc.optionCount)")
+        }
         if entry.traceKey != nil {
             // 回响时刻文案随日界变宽（今天只时刻、
             // 跨日带月日）：折当日判定
@@ -2533,14 +2544,15 @@ struct ChatNativeRowHeightComposer {
     func entryMemoKey(
         baseRevision: ChatNativeRowRevision,
         entry: ChatEntry,
-        buildProducts: ChatEntryRowBuildMemo.Products? = nil
+        buildProducts: ChatEntryRowBuildMemo.Products? = nil,
+        optionsCard: OptionsCardHeightInput? = nil
     ) -> String {
         var revision = baseRevision
         revision.addFlag(false)
         revision.addText("")
         return "e|\(entry.id.uuidString)"
             + "|\(Self.revisionDigest(revision))"
-            + "|\(entryFacetDigest(entry, buildProducts: buildProducts))"
+            + "|\(entryFacetDigest(entry, buildProducts: buildProducts, optionsCard: optionsCard))"
             + "|\(environmentFingerprint)"
     }
 
@@ -2552,15 +2564,19 @@ struct ChatNativeRowHeightComposer {
     func entryHeightWithFacets(
         _ entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false,
-        sources: [MessageSource] = []
+        sources: [MessageSource] = [],
+        optionsCard: OptionsCardHeightInput? = nil
     ) -> CGFloat {
         var core = self
         if let ledger, let hubStore {
             core.facets = ChatNativeRowFacetSnapshotter
                 .entryFacets(
                     for: entry, ledger: ledger,
-                    hubStore: hubStore
+                    hubStore: hubStore,
+                    optionsCard: optionsCard
                 )
+        } else if let optionsCard {
+            core.facets.optionsCards[entry.id] = optionsCard
         }
         return core.entryHeightCore(
             ChatEntryHeightSnapshot(entry, sources: sources),
@@ -2590,6 +2606,7 @@ struct ChatNativeRowHeightComposer {
         for entry: ChatEntry, dividerText: String?,
         showsUnreadDivider: Bool = false,
         sources: [MessageSource] = [],
+        optionsCard: OptionsCardHeightInput? = nil,
         product: LayoutProduct
     ) -> CGFloat? {
         guard entry.role == "assistant",
@@ -2611,8 +2628,11 @@ struct ChatNativeRowHeightComposer {
             core.facets = ChatNativeRowFacetSnapshotter
                 .entryFacets(
                     for: entry, ledger: ledger,
-                    hubStore: hubStore
+                    hubStore: hubStore,
+                    optionsCard: optionsCard
                 )
+        } else if let optionsCard {
+            core.facets.optionsCards[entry.id] = optionsCard
         }
         core.productSegmentHeights = segmentHeights
         return core.entryHeightCore(
@@ -2676,6 +2696,7 @@ struct ChatNativeRowHeightComposer {
         return total + assistantEntryHeight(entry)
             + reactionReserve(entry)
             + sourceStripSlot(entry)
+            + optionsCardSlot(entry)
     }
 
     /// 反应 pill 悬出预留（台账 187）：pill 压气泡底
@@ -2690,6 +2711,29 @@ struct ChatNativeRowHeightComposer {
         entry.reactions.isEmpty
             ? 0
             : ChatReactionMetrics.rowReserve
+    }
+
+    /// 选择框槽（总表 203／§441）：气泡下方选项
+    /// 卡——活卡＝项数×单行高＋行间 spacingXS＋
+    /// 槽距 spacingS；已选/过期＝一行紧凑高＋槽
+    /// 距。视图侧 OptionsCardView 逐值同式（单行
+    /// 截断、minTapTarget 行高）。无卡恒 0（两态
+    /// 差由测试钉住）
+    private func optionsCardSlot(
+        _ entry: ChatEntryHeightSnapshot
+    ) -> CGFloat {
+        guard let input = facets.optionsCards[entry.id]
+        else { return 0 }
+        switch input.kind {
+        case .live:
+            let rows = CGFloat(max(input.optionCount, 0))
+            return OneDayMetrics.spacingS
+                + rows * OneDayMetrics.minTapTarget
+                + max(rows - 1, 0) * OneDayMetrics.spacingXS
+        case .selected, .expired:
+            return OneDayMetrics.spacingS
+                + OneDayMetrics.minTapTarget
+        }
     }
 
     /// 来源条槽（D4，§349）：定稿气泡下方的轮级来

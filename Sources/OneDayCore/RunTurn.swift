@@ -507,11 +507,19 @@ public struct SettledRunTurn: Sendable, Equatable {
     /// 钉桩留给导入/回补路径，行被拆开落盘后各自成
     /// 条目、坐标自明）
     public var assistantRowID: Int?
+    /// 总表 203／§441：本轮最终 assistant 行的选
+    /// 择框载荷与行 id——提取口在段内取带 options
+    /// 的最后一条 assistant 行（终态 attach 每轮
+    /// 至多挂一行）；落定点据此播种本机覆盖层。
+    /// 失败轮恒 nil（失败分支先行返回）
+    public var options: MessageOptions?
+    public var optionsRowID: Int?
 
     public init(
         found: Bool, toolCards: [ToolCard], reasoning: String?,
         finalText: String?, failed: Bool, failureText: String?,
-        userRowID: Int? = nil, assistantRowID: Int? = nil
+        userRowID: Int? = nil, assistantRowID: Int? = nil,
+        options: MessageOptions? = nil, optionsRowID: Int? = nil
     ) {
         self.found = found
         self.toolCards = toolCards
@@ -521,6 +529,8 @@ public struct SettledRunTurn: Sendable, Equatable {
         self.failureText = failureText
         self.userRowID = userRowID
         self.assistantRowID = assistantRowID
+        self.options = options
+        self.optionsRowID = optionsRowID
     }
 
     public static let notFound = SettledRunTurn(
@@ -600,7 +610,13 @@ public enum RunTranscriptSettle {
             failed: false, failureText: nil,
             userRowID: Self.rowID(messages[lastUserIndex]),
             assistantRowID: textRows.count == 1
-                ? Self.rowID(textRows[0].row) : nil
+                ? Self.rowID(textRows[0].row) : nil,
+            options: segment.last(where: {
+                $0.role == "assistant" && $0.options != nil
+            })?.options,
+            optionsRowID: segment.last(where: {
+                $0.role == "assistant" && $0.options != nil
+            }).flatMap { Self.rowID($0) }
         )
     }
 

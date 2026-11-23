@@ -63,13 +63,18 @@ public enum SessionHistoryImport {
         /// 台账 187：服务端反应全集——落盘覆写条目
         /// 镜像（服务端唯一真源）；工具卡项恒空
         public let reactions: [MessageReaction]
+        /// 总表 203／§441：选择框载荷——不进条目本
+        /// 体（v1 瞬态覆盖层口径），由导入侧按尾位规
+        /// 则播种覆盖层；工具卡项恒 nil
+        public let options: MessageOptions?
 
         public init(
             role: String, content: String, date: Date?,
             imagePaths: [String], toolCard: ToolCard?,
             fileRefs: [String] = [],
             serverRowID: Int? = nil,
-            reactions: [MessageReaction] = []
+            reactions: [MessageReaction] = [],
+            options: MessageOptions? = nil
         ) {
             self.role = role
             self.content = content
@@ -79,6 +84,7 @@ public enum SessionHistoryImport {
             self.fileRefs = fileRefs
             self.serverRowID = serverRowID
             self.reactions = reactions
+            self.options = options
         }
     }
 
@@ -163,7 +169,8 @@ public enum SessionHistoryImport {
                         serverRowID: Self.serverRowID(
                             of: message
                         ),
-                        reactions: message.reactions
+                        reactions: message.reactions,
+                        options: message.options
                     )
                 }
                 let parsed = AttachedImageRef.parse(message.content)
@@ -174,7 +181,8 @@ public enum SessionHistoryImport {
                     date: message.date, imagePaths: parsed.paths,
                     toolCard: nil,
                     serverRowID: Self.serverRowID(of: message),
-                    reactions: message.reactions
+                    reactions: message.reactions,
+                        options: message.options
                 )
             }
         }
