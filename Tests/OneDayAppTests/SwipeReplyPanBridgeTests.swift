@@ -191,16 +191,24 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
             )
         )
         // shouldBegin 负分支一：起滑点被排除帧覆盖
-        installer.excludedFrames = [
-            CGRect(x: -500, y: -500, width: 1000, height: 1000)
-        ]
+        // （G-07 后排除帧由标记视图直算：向行根贴一
+        // 枚全覆盖标记，判定时刻应算出覆盖起始点的帧）
+        var rowRoot = installer as UIView
+        while let parent = rowRoot.superview,
+              parent !== scrollView {
+            rowRoot = parent
+        }
+        let marker = SwipeReplyExcludedMarkerView(
+            frame: rowRoot.bounds
+        )
+        rowRoot.addSubview(marker)
         XCTAssertFalse(
             installer.gestureRecognizerShouldBegin(pan),
             "起滑点落在排除帧内不许开始"
         )
         // shouldBegin 正分支：无排除帧即放行——方向判定在识别器
         // 子类的 began 前裁决（换代包 8），本口只判排除帧
-        installer.excludedFrames = []
+        marker.removeFromSuperview()
         XCTAssertTrue(
             installer.gestureRecognizerShouldBegin(pan),
             "无排除帧应放行，方向由位移锁在 handlePan 内判定"
@@ -293,6 +301,156 @@ final class SwipeReplyPanBridgeTests: XCTestCase {
         XCTAssertEqual(
             swipePans().count, 0,
             "右滑停用后识别器应自宿主滚动视图摘除"
+        )
+    }
+    // MARK: - G-07 排除帧直算（2026-11-23）
+
+    /// 排除区装配 harness：行内容内嵌一段生产
+    /// .swipeReplyExcluded() 标记区（120×44）
+    private struct ExcludedHarness: View {
+        let log: ReplyLog
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 8) {
+                SelectableInlineText(
+                    paragraphs: [
+                        .plain("alpha bravo charlie delta")
+                    ]
+                )
+                Color.clear
+                    .frame(width: 120, height: 44)
+                    .swipeReplyExcluded()
+            }
+            .modifier(
+                SwipeReplyModifier(
+                    isEnabled: true,
+                    onReply: { log.count += 1 }
+                )
+            )
+            .frame(width: 320, alignment: .leading)
+            .padding()
+        }
+    }
+
+    private func assembleExcluded(log: ReplyLog) {
+        scrollView = UIScrollView(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        let host = UIHostingController(
+            rootView: ExcludedHarness(log: log)
+        )
+        host.view.frame = CGRect(
+            x: 0, y: 0, width: 402, height: 600
+        )
+        scrollView.addSubview(host.view)
+        window = UIWindow(
+            frame: CGRect(x: 0, y: 0, width: 402, height: 874)
+        )
+        window.rootViewController = UIViewController()
+        window.rootViewController?.view.addSubview(scrollView)
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        spinRunLoop(seconds: 1.0)
+        window.layoutIfNeeded()
+    }
+
+    /// 直算装配：生产标记区在行子树内 → 安装器判
+    /// 定时刻算出恰一帧、尺寸与标记区一致；无标
+    /// 记的行算出零帧（布局期无任何帧发布通道）
+    func testExcludedFramesComputedFromProductionMarker() throws {
+        assembleExcluded(log: ReplyLog())
+        let installer = try XCTUnwrap(installerViews().first)
+        let frames = installer.computeExcludedFrames()
+        XCTAssertEqual(
+            frames.count, 1, "生产标记区应直算出恰一帧"
+        )
+        let frame = try XCTUnwrap(frames.first)
+        XCTAssertEqual(
+            frame.width, 120, accuracy: 1.5,
+            "排除帧宽应与标记区一致"
+        )
+        XCTAssertEqual(
+            frame.height, 44, accuracy: 1.5,
+            "排除帧高应与标记区一致"
+        )
+
+        // 对照：无标记区的普通行恒零帧
+        assemble(
+            control: Control(), log: ReplyLog(), rowCount: 1
+        )
+        let plain = try XCTUnwrap(installerViews().first)
+        XCTAssertTrue(
+            plain.computeExcludedFrames().isEmpty,
+            "无标记区行应算出零排除帧"
+        )
+    }
+
+    /// G-07 结构钉：排除路径零布局反哺——偏好键整
+    /// 套退役（全 Sources 零命中）、修饰符落点改
+    /// 标记视图（函数体内无 GeometryReader）、桥
+    /// 侧直算入口在位。源码不可达时整件跳过（同
+    /// HapticsMatrixTests 口径）
+    func testExclusionStructurePin() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sources = root.appendingPathComponent("Sources")
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(
+            atPath: sources.path, isDirectory: &isDir
+        ), isDir.boolValue else {
+            throw XCTSkip("源码树在测试环境不可达，结构钉跳过")
+        }
+        var allText = ""
+        var chatViewText = ""
+        var bridgeText = ""
+        let enumerator = FileManager.default.enumerator(
+            at: sources, includingPropertiesForKeys: nil
+        )
+        while let url = enumerator?.nextObject() as? URL {
+            guard url.pathExtension == "swift",
+                  let text = try? String(
+                      contentsOf: url, encoding: .utf8
+                  )
+            else { continue }
+            allText += text
+            if url.lastPathComponent == "ChatView.swift" {
+                chatViewText = text
+            }
+            if url.lastPathComponent
+                == "SwipeReplyPanBridge.swift" {
+                bridgeText = text
+            }
+        }
+        XCTAssertFalse(
+            allText.contains("SwipeReplyExcludedFrameKey"),
+            "偏好键发布通道应整套退役（G-07）"
+        )
+        XCTAssertFalse(
+            allText.contains("swipeToReply"),
+            "命名坐标空间随发布通道一并退役（G-07）"
+        )
+        XCTAssertTrue(
+            bridgeText.contains("computeExcludedFrames"),
+            "桥侧判定时刻直算入口应在位"
+        )
+        let anchor = chatViewText.range(
+            of: "func swipeReplyExcluded()"
+        )
+        let fnText = try XCTUnwrap(anchor.map {
+            String(
+                chatViewText[$0.lowerBound...].prefix(600)
+            )
+        })
+        XCTAssertTrue(
+            fnText.contains("SwipeReplyExcludedMarker"),
+            "修饰符应落标记视图"
+        )
+        XCTAssertFalse(
+            fnText.contains("GeometryReader"),
+            "修饰符体内不许再有协商型构件（G-07 本体）"
         )
     }
 }

@@ -29,6 +29,14 @@ import UIKit
 ///   被 cancelsTouchesInView 吞掉、横滚区自家
 ///   滚动不受扰（旧 SwiftUI 构造靠同时识别＋回
 ///   调内忽略，本构造靠不开始）；
+/// - 排除帧来源（G-07 收口，2026-11-23）：原为行
+///   内背景 GeometryReader 经偏好键在布局期发布
+///   帧、修饰符 @State 收集——行内协商型构件兼作
+///   手势仲裁，与列表行「尺寸确定」通则相悖（大
+///   厂差距审计 G-07）；改贴 UIKit 标记视图
+///   （SwipeReplyExcludedMarker），帧由本类在判
+///   定时刻自 cell 视图层级直算，布局期零状态写
+///   入、行内零协商型构件。
 /// - 数值判定（起滑/触发/封顶）仍全走 Core
 ///   SwipeReplyMotion 单源，呈现层状态写回走
 ///   onPanChanged/onPanEnded 两条回调（修饰符
@@ -62,7 +70,6 @@ import UIKit
 /// 10/起滑 30/触发 60/re-arm 55）逐字不变；
 /// handlePan 自此只消费已锁定横向的位移与收尾。
 struct SwipeReplyPanInstaller: UIViewRepresentable {
-    var excludedFrames: [CGRect]
     var onPanChanged: (CGFloat) -> Void
     var onPanEnded: () -> Void
 
@@ -81,7 +88,6 @@ struct SwipeReplyPanInstaller: UIViewRepresentable {
         _ uiView: SwipeReplyPanInstallerView,
         context: Context
     ) {
-        uiView.excludedFrames = excludedFrames
         uiView.onPanChanged = onPanChanged
         uiView.onPanEnded = onPanEnded
         uiView.installIfNeeded()
@@ -226,7 +232,6 @@ final class DirectionLockPanGestureRecognizer:
 final class SwipeReplyPanInstallerView: UIView,
     UIGestureRecognizerDelegate
 {
-    var excludedFrames: [CGRect] = []
     var onPanChanged: ((CGFloat) -> Void)?
     var onPanEnded: (() -> Void)?
 
@@ -428,7 +433,7 @@ final class SwipeReplyPanInstallerView: UIView,
         }
         if SwipeReplyMotion.isExcluded(
             startLocation: startLocation,
-            frames: excludedFrames
+            frames: computeExcludedFrames()
         ) {
             return false
         }
@@ -458,5 +463,74 @@ final class SwipeReplyPanInstallerView: UIView,
             otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
         false
+    }
+}
+
+/// 右滑引用排除区标记视图（G-07）：纯 UIKit 惰性
+/// 标记——不参与命中、不发布状态；其帧即排除区
+/// 几何，由安装器在判定时刻直算（见 computeEx-
+/// cludedFrames）。SwiftUI 侧经 SwipeReplyExclu-
+/// dedMarker 以背景形态贴附被标记视图、帧与被标
+/// 记视图一致
+final class SwipeReplyExcludedMarkerView: UIView {}
+
+/// 排除区标记的 SwiftUI 桥（G-07）：取代原背景
+/// GeometryReader＋偏好键的布局期帧发布
+struct SwipeReplyExcludedMarker: UIViewRepresentable {
+    func makeUIView(
+        context: Context
+    ) -> SwipeReplyExcludedMarkerView {
+        let view = SwipeReplyExcludedMarkerView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(
+        _ uiView: SwipeReplyExcludedMarkerView,
+        context: Context
+    ) {}
+}
+
+extension SwipeReplyPanInstallerView {
+    /// 本行内容的 UIKit 根：上行至 cell 为止；无
+    /// cell 承载时取宿主滚动视图之下的最高祖先
+    /// （判定与计算只在本行子树内，不越行串扰）
+    private func rowRootView() -> UIView {
+        var root: UIView = self
+        var ancestor = superview
+        while let current = ancestor {
+            if current is UICollectionViewCell {
+                return current
+            }
+            if let scroll = installedScrollView,
+               current === scroll {
+                break
+            }
+            root = current
+            ancestor = current.superview
+        }
+        return root
+    }
+
+    /// 排除帧直算（G-07）：行子树内全部标记视图的
+    /// 帧（换算到本视图坐标系），判定时刻现算——
+    /// 与旧偏好发布同语义（被标记区＝代码块横滚
+    /// ScrollView 本体／表格整区），只是几何来源
+    /// 自布局期状态改为 UIKit 层级实帧
+    func computeExcludedFrames() -> [CGRect] {
+        let root = rowRootView()
+        var frames: [CGRect] = []
+        func walk(_ view: UIView) {
+            if let marker = view
+                as? SwipeReplyExcludedMarkerView {
+                frames.append(
+                    marker.convert(marker.bounds, to: self)
+                )
+            }
+            for sub in view.subviews { walk(sub) }
+        }
+        walk(root)
+        return frames
     }
 }

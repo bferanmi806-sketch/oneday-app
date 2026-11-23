@@ -12410,8 +12410,6 @@ struct SwipeReplyModifier: ViewModifier {
     @State private var dragOffset: CGFloat = 0
     /// 整段拖动只触发一次（越线当场置位、松手复位）
     @State private var hasTriggered = false
-    /// 起始点排除帧（行内横向滚动子区发布，本层收集）
-    @State private var excludedFrames: [CGRect] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ViewBuilder
@@ -12427,7 +12425,6 @@ struct SwipeReplyModifier: ViewModifier {
                     // 本 contentShape 只管行内 SwiftUI
                     // 命中形态、语义不变）
                     .contentShape(Rectangle())
-                    .coordinateSpace(name: "swipeToReply")
                     // §265：UIKit 识别器桥挂行内容
                     // background（零尺寸语义外的全帧
                     // 背景视图、isUserInteractionEna-
@@ -12436,7 +12433,6 @@ struct SwipeReplyModifier: ViewModifier {
                     // SwipeReplyPanBridge）
                     .background {
                         SwipeReplyPanInstaller(
-                            excludedFrames: excludedFrames,
                             onPanChanged: { translationX in
                                 handlePanChanged(translationX)
                             },
@@ -12450,11 +12446,6 @@ struct SwipeReplyModifier: ViewModifier {
                             for: dragOffset
                         )
                     )
-                    .onPreferenceChange(
-                        SwipeReplyExcludedFrameKey.self
-                    ) { frames in
-                        excludedFrames = frames
-                    }
             }
         } else {
             content
@@ -12537,39 +12528,20 @@ struct SwipeReplyModifier: ViewModifier {
     }
 }
 
-/// 右滑引用排除帧（Stream SwipeToReplyExcluded-
-/// FrameKey 同款）：行内子视图把自己在「swipeTo-
-/// Reply」命名坐标空间里的帧发布上来，行修饰符
-/// 收集后按拖动起始点判定整段忽略
-struct SwipeReplyExcludedFrameKey: PreferenceKey {
-    nonisolated static let defaultValue: [CGRect] = []
-
-    static func reduce(
-        value: inout [CGRect], nextValue: () -> [CGRect]
-    ) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
 extension View {
     /// 标记右滑引用排除区：本视图区域内的横滑归
     /// 它自己的横向交互（代码块/表格横滚），不触
-    /// 发本行右滑引用（Stream 音频进度条同款落法：
-    /// 背景 GeometryReader 在命名坐标空间发布帧）
+    /// 发本行右滑引用。形态沿革：0.36.26 §95 初版
+    /// 为背景 GeometryReader 在命名坐标空间经偏
+    /// 好键发布帧、行修饰符 @State 收集——行内协
+    /// 商型构件兼作手势仲裁、布局期反哺状态，与
+    /// 列表行「尺寸确定」通则相悖（大厂差距审计
+    /// G-07）；2026-11-23 收口改贴 UIKit 标记视图
+    /// （SwipeReplyExcludedMarker），帧由识别器
+    /// 桥在判定时刻自 cell 视图层级直算，行内不
+    /// 再有布局反哺点
     func swipeReplyExcluded() -> some View {
-        background {
-            GeometryReader { proxy in
-                Color.clear
-                    .preference(
-                        key: SwipeReplyExcludedFrameKey.self,
-                        value: [
-                            proxy.frame(
-                                in: .named("swipeToReply")
-                            )
-                        ]
-                    )
-            }
-        }
+        background { SwipeReplyExcludedMarker() }
     }
 }
 
