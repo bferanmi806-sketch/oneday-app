@@ -124,7 +124,7 @@ enum ChatNativeRowFacetSnapshotter {
         if entry.role == "user" {
             facets.localImageDecoded = entry
                 .allImageDatas.indices.map { index in
-                    LocalImageDecodeCache.shared.image(
+                    LocalImageStore.shared.image(
                         entryID: entry.id, index: index,
                         data: entry.allImageDatas[index]
                     ) != nil

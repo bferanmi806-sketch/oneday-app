@@ -132,6 +132,10 @@ let project = Project(
                 .target(name: "OneDayCore"),
                 .target(name: "OneDayDesign"),
                 .target(name: "OneDayWidgets"),
+                // §418（#23 图片管线换底）：Nuke 核心＋
+                // NukeUI（版本钉死在 Tuist/Package.swift）
+                .external(name: "Nuke"),
+                .external(name: "NukeUI"),
             ]
         ),
         .target(
@@ -178,6 +182,7 @@ let project = Project(
             sources: ["Tests/OneDayAppTests/**"],
             dependencies: [
                 .target(name: "OneDayApp"),
+                .external(name: "Nuke"),
             ]
         ),
         // UI 测试（症二阶段二动作级验证起）：系统级

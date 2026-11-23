@@ -973,7 +973,7 @@ struct ChatNativeRowHeightComposer {
         entryID: UUID, index: Int, data: Data
     ) -> Bool {
         if ledger != nil {
-            return LocalImageDecodeCache.shared.image(
+            return LocalImageStore.shared.image(
                 entryID: entryID, index: index,
                 data: data
             ) != nil
@@ -2797,7 +2797,7 @@ struct ChatNativeRowHeightComposer {
         if !localImageDatas.isEmpty {
             // localImageRow：解码成功才出卡（同缓
             // 存同步读）、全失败整行 0——与视图同
-            // 判（LocalImageDecodeCache 同源）
+            // 判（LocalImageStore 同源）
             let decoded = localImageDatas.indices
                 .contains { index in
                     facetLocalImageDecoded(

@@ -1,4 +1,5 @@
 import ImageIO
+import Nuke
 import OneDayCore
 import OneDayDesign
 import QuickLookThumbnailing
@@ -29,6 +30,11 @@ private final class ThumbImageBox: @unchecked Sendable {
     init(_ image: UIImage) { self.image = image }
 }
 
+/// §418 接缝收编：图片变体与视频海报的取数改走统一
+/// 构造器＋Nuke 管线（按路由键登记本笔通道，loader 内
+/// 变体优先／原图回落），不再自拼桥调用；生成后播种
+/// 改投管线内存缓存（经 RemoteImagePipeline 门面）。
+/// 本体（生成器：QL 首面/并发闸/自有双缓存）保留。
 @MainActor
 /// §416 新鲜度普查豁免：本地缩略图缓存件，无远端新鲜度问题（判定表见 DESIGN §416）
 final class FileThumbnailStore {
@@ -136,77 +142,63 @@ final class FileThumbnailStore {
     private func generate(
         for entry: WorkspaceFileEntry,
         targetPixelSize: CGFloat,
-        loader: () async -> Data?,
+        loader: @escaping () async -> Data?,
         renditionLoader: ((String) async -> Data?)?
     ) async -> UIImage? {
         if entry.mediaKind == .image {
-            // 变体优先（360 档 JPEG），回落原图降采样
-            if let renditionLoader,
-               let data = await renditionLoader("image"),
-               let image = await Self.downsampledImageOffMain(
-                   data: data, pixelSize: targetPixelSize) {
-                return image
-            }
-            guard let data = await loader() else { return nil }
-            return await Self.downsampledImageOffMain(
-                data: data, pixelSize: targetPixelSize
-            )
+            // §418：变体取数收编——按 thumb 路由键登记
+            // 本笔通道后走统一管线（loader 内变体优先、
+            // 回落原图），解码封顶＝目标像素（与旧
+            // downsampledImage 封顶逐值同口径）
+            HermesImageRouting.shared.register(
+                key: RemoteImageKey.make(
+                    path: entry.path,
+                    mtime: entry.mtime ?? 0, tier: .thumb),
+                config: nil,
+                originalLoader: loader,
+                renditionLoader: renditionLoader)
+            var request = RemoteImageRequestFactory
+                .renditionRequest(
+                    path: entry.path,
+                    mtime: entry.mtime ?? 0, tier: .thumb)
+            request.processors = [
+                ImageProcessors.Resize(
+                    size: CGSize(
+                        width: targetPixelSize,
+                        height: targetPixelSize),
+                    unit: .pixels,
+                    contentMode: .aspectFit,
+                    crop: false,
+                    upscale: false),
+            ]
+            return try? await OneDayImagePipelines.remote
+                .image(for: request)
         }
         if entry.mediaKind == .video {
-            // 海报帧当缩略源；拿不到回落类型面（调用
-            // 方呈现），整段下载抽帧不做（旧口径保留）
-            if let renditionLoader,
-               let data = await renditionLoader("poster") {
-                return await Self.downsampledImageOffMain(
-                    data: data, pixelSize: targetPixelSize
-                )
-            }
-            return nil
+            // 海报帧当缩略源（§418 同收编 poster 路）；
+            // 拿不到回落类型面（调用方呈现），整段下载
+            // 抽帧不做（旧口径保留）
+            guard renditionLoader != nil else { return nil }
+            HermesImageRouting.shared.register(
+                key: RemoteImageRequestFactory.posterKey(
+                    path: entry.path,
+                    mtime: entry.mtime ?? 0),
+                config: nil,
+                originalLoader: loader,
+                renditionLoader: renditionLoader)
+            let request = RemoteImageRequestFactory
+                .posterRequest(
+                    path: entry.path,
+                    mtime: entry.mtime ?? 0,
+                    pixelCap: Int(targetPixelSize))
+            return try? await OneDayImagePipelines.remote
+                .image(for: request)
         }
         guard let data = await loader() else { return nil }
         return await Self.quickLookThumbnail(
             data: data, entry: entry,
             targetPixelSize: targetPixelSize
         )
-    }
-
-    /// §410：降采样解码的离主线程入口——同步本体虽是
-    /// static，从 @MainActor 上下文直调仍在主线执行；
-    /// 独立任务里跑、装箱回主线。并发闸在调用侧
-    /// （thumbnail 的 ThumbnailGate）不变
-    private static func downsampledImageOffMain(
-        data: Data, pixelSize: CGFloat
-    ) async -> UIImage? {
-        let box = await Task.detached(priority: .userInitiated) {
-            downsampledImage(data: data, pixelSize: pixelSize)
-                .map(ThumbImageBox.init)
-        }.value
-        return box?.image
-    }
-
-    /// ImageIO 降采样：只解到目标像素量级，不整图入内存
-    /// §410 接管修：nonisolated——纯参数函数（ImageIO
-    /// 线程安全），类 @MainActor 隔离会让独立任务里的
-    /// 调用无法过编译（前任版本即卡在此处未编译）
-    private nonisolated static func downsampledImage(
-        data: Data, pixelSize: CGFloat
-    ) -> UIImage? {
-        let sourceOptions: [CFString: Any] = [
-            kCGImageSourceShouldCache: false,
-        ]
-        guard let source = CGImageSourceCreateWithData(
-            data as CFData, sourceOptions as CFDictionary
-        ) else { return nil }
-        let thumbOptions: [CFString: Any] = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: pixelSize,
-        ]
-        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(
-            source, 0, thumbOptions as CFDictionary
-        ) else { return nil }
-        return UIImage(cgImage: cgImage)
     }
 
     /// QL 首面：缩略提供者认扩展名，临时文件必须保原名

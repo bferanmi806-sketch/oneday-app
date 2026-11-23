@@ -16473,3 +16473,38 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 
 ### §417.5 真机门（未过不关账）
 组版后随整版验：消息选区四件（点选／长按菜单／拷贝／引用）行为不变、§392 表格一帧对位、代码块渲染与拷贝、≥20KB 长文档滚动、浅深双色各一帧；实验室绿不代真机 verdict。
+
+## §418 版本外包线：图片管线换底 Nuke（2026-11-23；分支 feat/nuke-adopt，基线 rel-05102 @64f2b56；施工图 swap-md-image-prep-20261123.md 第二部）
+
+### §418.1 换底定案与配置
+- 底座：kean/Nuke 钉 13.2.3（exact；14.0 仅 beta 不取），只取 Nuke＋NukeUI 两模块；SPM 经 Tuist/Package.swift 引入，Package.resolved 只增 nuke 一钉、未动他人行（Exyte/swift-markdown 两线各自加行、组版线收口）。
+- 装配（OneDayImagePipelines）：远端管线＝DataCache「OneDayRemoteImages」512MB＋ImageCache 256MB/300 枚＋渐进解码开＋断点续传开；预取器走同管线 .memoryCache 目的地、并发默认 2；本地管线＝无磁盘层＋ImageCache 64MB/300 枚。
+- 请求构造器收口（RemoteImageRequestFactory 单点）：档位/变体端点/缓存键（path＋mtime＋tier 的旧 RemoteImageKey 编进路由 URL 路径段）单点构造；公开 URL 与鉴权 URL 在构造器层分开（public 直通＋Resize 封顶；routed 走虚构主机 img.oneday.invalid）。档位映射照 ImageRenditionTier 数值冻结（thumb 360/viewer 1080/detail 2048/original 封顶 4096），Resize 统一 .pixels＋aspectFit＋upscale=false。
+- 自定义 DataLoader（HermesImageDataLoader，全仓唯一自定义件）：按构造器标记四路分发——变体走桥 rendition、原图走 performAdmin 鉴权下载、本地图走 localdata:// 合成键＋注入表、公开 http(s) 走 Nuke 默认 DataLoader 直通；loader 不猜鉴权，无登记必失败。取数通道经 HermesImageRouting 登记表按**路由键**（含档位）分格登记（同文件不同档位、缩略店与查看器并发同文件互不串通道；同路由键整笔覆盖，与旧管线「合并请求以首位调用方通道为准」同级近似）。
+- 解码回读：管线解码器经 ProbeImageDecoder 包装注册表默认解码器，整图解码计时仍回读 ChatLagProbe.noteDecode（渐进局部解码不计，同旧口径）。
+
+### §418.2 逐面迁移（每面一提交）
+- 795c5ce 步骤 0：SPM＋构造器/路由登记/DataLoader/管线装配，零消费面切换。
+- d4bd062 步骤 1：Feed 三处（帖行通栏图/详情逐张图/来源卡头像）＋聊天引用卡一处裸 AsyncImage 换 LazyImage，消长图全尺寸解码；公开图降采样封顶新定档（行 1200/详情 1600/头像与引用卡 160）；失败整块不显（来源卡头像走 selectionFill 回落）的旧口径以 success-only 闭包等价保留；LazyImage 不随请求自变，四处均加 .id(url) 保换图。
+- c067b99 步骤 2：RemoteImagePipeline 本体换底为门面（类名与 API 签名不变，查看器/图卡/预取调用点零改动）；内存层走管线缓存、seedImage 磁盘探查走 returnCacheDataDontLoad 异步载（不在主线程同步解码）、image() 以非结构化任务护盾保「共享请求不随视图消失取消」旧语义。
+- fedf145 步骤 3：本地图收口——LocalImageDecodeCache 退役删除，LocalImageStore 同步门面接管三消费点（facet 判定/行高合成/body 建卡，同步契约不变）；解码产物入 Nuke 本地管线缓存（合成键 条目/图序/字节数，与旧键逐字同构）。
+- 73902bb 步骤 4：FileThumbnailStore 只改两处接缝——图片变体/视频海报取数收编构造器＋管线（路由键登记本笔通道），生成后播种经门面投管线内存缓存；本体（生成器/并发闸/自有双缓存与 FileThumbnails 磁盘目录）保留。
+- 旧管线磁盘缓存目录 Caches/RemoteImages 自换底起不再读写、留待系统回收，未删。
+
+### §418.3 一次性代价与行为微差（如实登记）
+- 一次性代价：磁盘缓存冷启——远端图首次打开需重取一轮变体（新 DataCache 从空起），旧目录字节不迁移。
+- 微差一：变体字节**解码失败**时旧码回落原图字节再降采样，新管线在取数层只对取数失败回落、解码失败整笔失败——用户可见结果同类（失败卡＋可点重试），不静默错图。
+- 微差二：回落原图时新磁盘层存原图字节（旧存降采样 JPEG），512MB LRU 封顶内自限。
+- 微差三：本地图未命中解码由 UIImage(data:) 全尺寸直解改 ImageIO 降采样（长边封顶 1024）——宽高比不变、ChatImageSizing 只吃宽高比，布局口径不受影响（本项即施工图「消全尺寸解码」本意）。
+
+### §418.4 钉测与回归对账
+- 构造器键等价差分＋DataLoader 四路分发（ImagePipelineSwapTests 10 例）：同输入同键/任一分量变键必变/URL 嵌旧键原文、路由解析往返、public 直通、rendition 优先登记通道、rendition 回落原图、original 不串 rendition、poster kind 且不碰原图、无登记必失败、localdata 注入命中/未注入必失败——全绿。
+- 门面对账（ImagePipelineFacadeSwapTests 5 例）：种子内存命中直出、种子未命中不发网络、取图回落原图且同键二取走内存、解码回读 ChatLagProbe ≥1 次、预取落内存缓存——全绿。
+- 本地图测试平移：LocalImageDecodeCacheTests → LocalImageStoreTests（套件改名、2 例断言口径不变——同键零重解码/坏图不入缓存，观测点换 LocalImageStore.decodeCount）。
+- 定向回归第一批 9 套 81/81 全绿（bundle Test-Nuke-Swap）：上述三套＋ImageDecodeCacheS1Tests 5、ImageViewerLogicTests 9、ImageViewerSpecTests 2、ViewerImageProgressionTests 11、ChatImageSizingTests 13、InlineImageCandidateTests 24，回归基线断言零改动。
+- 受影响面第二批 85 套 562 项：540 过、22 红——红名与 pristine rel-05102 同 9 套对账**逐名完全一致**（装配/结构族基线红、9 套均不在发布集内），非本包回归（bundle Test-Nuke-Batch2 vs Test-Nuke-Base）。
+- 性能对账：解码回读链以钉测存续验证（§418.4 门面对账第 4 例）；修前/修后同图集解码耗时绝对值在实验室无基线工件可比（旧值为真机运行时读数），**劣化判定留真机门**——组版后以 0.50.102 同图集对 ChatLagProbe 摘要行解码段（次数/均值/峰值）复核，异常再立账。
+- 发布集全量按包约定留组版线统一跑（本包只交分支不组版）。
+
+### §418.5 真机门（未过不关账）
+聊天图卡首帧种子命中、查看器种子→viewer→detail→原图升级链、Feed 三面图、引用卡换图、文件/影音缩略生成与播种、断网下失败卡重试；ChatLagProbe 解码段与 0.50.102 同图集读数对比。

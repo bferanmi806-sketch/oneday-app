@@ -1,3 +1,4 @@
+import NukeUI
 import OneDayCore
 import OneDayDesign
 import SwiftData
@@ -416,8 +417,16 @@ struct FeedView: View {
                 // 占位，旧口径不变）
                 if let first = post.images.first,
                    let url = URL(string: first.url) {
-                    AsyncImage(url: url) { phase in
-                        if case .success(let image) = phase {
+                    // §418：取图换 Nuke LazyImage（统一管
+                    // 线：解码缓存＋降采样，旧 AsyncImage
+                    // 两样都没有）；失败/未成整块不显的
+                    // 旧口径由 success-only 闭包等价实现
+                    LazyImage(
+                        request: RemoteImageRequestFactory
+                            .publicRequest(
+                                url: url, longEdgeCap: 1200)
+                    ) { state in
+                        if let image = state.image {
                             FeedPostImageBox(
                                 image: image,
                                 cornerRadius: OneDayMetrics
@@ -425,6 +434,8 @@ struct FeedView: View {
                             )
                         }
                     }
+                    .pipeline(OneDayImagePipelines.remote)
+                    .id(url)
                     .accessibilityHidden(true)
                 }
                 if let card = post.sourceCard {
@@ -775,9 +786,15 @@ struct FeedPostDetailView: View {
                             id: \.offset
                         ) { _, item in
                             if let url = URL(string: item.url) {
-                                AsyncImage(url: url) { phase in
-                                    if case .success(let image)
-                                        = phase {
+                                // §418：同帖行口径换 LazyImage
+                                LazyImage(
+                                    request:
+                                        RemoteImageRequestFactory
+                                        .publicRequest(
+                                            url: url,
+                                            longEdgeCap: 1600)
+                                ) { state in
+                                    if let image = state.image {
                                         FeedPostImageBox(
                                             image: image,
                                             cornerRadius:
@@ -786,6 +803,9 @@ struct FeedPostDetailView: View {
                                         )
                                     }
                                 }
+                                .pipeline(
+                                    OneDayImagePipelines.remote)
+                                .id(url)
                                 // 0.43.0（A11Y-V2）：详情大
                                 // 图的文本等价——以图片 URL
                                 // 文件名为最低口径（A11y-
@@ -916,7 +936,7 @@ struct FeedPostDetailView: View {
 /// 担定尺寸的那一层，不许把比例约束挂在会以自然
 /// 尺寸参与求解的图片载体本体上）。帖行（只喂第
 /// 一张）与详情（逐张）共用；是否出现由外层
-/// AsyncImage 相位决定（成功才建盒，失败整块不
+/// LazyImage 状态决定（成功才建盒，失败整块不
 /// 显、无占位，旧口径不变）
 private struct FeedPostImageBox: View {
     let image: Image
@@ -945,8 +965,14 @@ struct FeedSourceCardView: View {
         let content = HStack(alignment: .top, spacing: OneDayMetrics.cardInnerGap) {
             if let imageUrl = card.imageUrl,
                let url = URL(string: imageUrl) {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
+                // §418：同口径换 LazyImage；未成/失败显
+                // selectionFill 的旧回落由 else 分支保留
+                LazyImage(
+                    request: RemoteImageRequestFactory
+                        .publicRequest(
+                            url: url, longEdgeCap: 160)
+                ) { state in
+                    if let image = state.image {
                         image
                             .resizable()
                             .scaledToFill()
@@ -954,6 +980,8 @@ struct FeedSourceCardView: View {
                         Palette.selectionFill
                     }
                 }
+                .pipeline(OneDayImagePipelines.remote)
+                .id(url)
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
             }

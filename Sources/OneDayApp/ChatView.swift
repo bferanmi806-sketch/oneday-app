@@ -1,3 +1,4 @@
+import NukeUI
 import OneDayDesign
 import OneDayCore
 import Photos
@@ -5588,12 +5589,13 @@ struct ChatView: View {
     private func localImageRow(
         _ datas: [Data], entry: ChatEntry
     ) -> some View {
-        // §199：解码改走 LocalImageDecodeCache（同
-        // 条目同图序只解一次、命中直取）；解码失败
-        // 单张不出卡的旧口径不变（坏图不入缓存）
+        // §199：解码改走本地图解码口（§418 起为
+        // LocalImageStore：同条目同图序只解一次、命
+        // 中直取）；解码失败单张不出卡的旧口径不变
+        // （坏图不入缓存）
         let pairs: [(data: Data, image: UIImage)] =
             datas.enumerated().compactMap { index, data in
-                guard let image = LocalImageDecodeCache.shared
+                guard let image = LocalImageStore.shared
                     .image(
                         entryID: entry.id, index: index,
                         data: data
@@ -7100,8 +7102,16 @@ struct ChatView: View {
             Spacer(minLength: 0)
             if let imageURL = quote.imageURL,
                let url = URL(string: imageURL) {
-                AsyncImage(url: url) { phase in
-                    if case .success(let image) = phase {
+                // §418：取图换 Nuke LazyImage（统一管
+                // 线）；失败整块不显、不占位的旧口径由
+                // success-only 闭包等价实现；.id(url) 保
+                // 引用切换时换图（LazyImage 不随请求自变）
+                LazyImage(
+                    request: RemoteImageRequestFactory
+                        .publicRequest(
+                            url: url, longEdgeCap: 160)
+                ) { state in
+                    if let image = state.image {
                         image
                             .resizable()
                             .scaledToFill()
@@ -7111,6 +7121,8 @@ struct ChatView: View {
                             ))
                     }
                 }
+                .pipeline(OneDayImagePipelines.remote)
+                .id(url)
                 .frame(width: 36, height: 36)
                 .accessibilityHidden(true)
             }
