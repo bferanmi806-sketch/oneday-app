@@ -13,14 +13,15 @@ import XCTest
 /// sheetPresentationController detents 包含一
 /// 个 .height 档与 .large、帧高−safeBottom ≈
 /// 内容理想高（容差 4，贴合不再留大片空白）；
-/// ③确认行增减跟随（D5 新增）：模拟确认行出
-/// 现/消失，帧高跟随 ±68pt（52 行高＋16 间
+/// ③确认按钮增减跟随（D5 新增、§461 续）：模
+/// 拟确认按钮出现/消失，帧高跟随 ±72pt（56 按
+/// 钮高＋16 间
 /// 距）；
 /// §327 沿革：custom detent 桥退役、改系统档位
 /// [.medium, .large]、帧高恒半窗、增行不改高。
 /// D5 修订：改 .height(fitted) 贴合档＋.large、
-/// 帧高贴内容（三态 137/305/373＋safeArea）、
-/// 确认行增减时停在贴合档才跟随。
+/// 帧高贴内容（三态 137/305/377＋safeArea）、
+/// 确认按钮增减时停在贴合档才跟随。
 /// 首轮（§303 run 43763594395）实测 App 测试
 /// 窗口内无障碍标签集为空集，在场断言因此不用
 /// AX 标签、改走托管视图 sizeThatFits 对账（标
@@ -245,11 +246,11 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         )
     }
 
-    // MARK: - ③ 确认行增减跟随（D5 新增）
+    // MARK: - ③ 确认按钮增减跟随（D5 新增、§461 续）
 
-    /// 确认行模拟探针（D5）：模拟附件面板「有库未
-    /// 选→已选→未选」的确认行增减，验证 D5 的跟
-    /// 随行为（停在贴合档时高度跟随 ±68pt）
+    /// 确认按钮模拟探针（D5、§461 续）：模拟附件面
+    /// 板「有库未选→已选→未选」的确认按钮增减，验
+    /// 证 D5 的跟随行为（停在贴合档时高度跟随 ±72pt）
     private final class ConfirmRowModel: ObservableObject {
         @Published var hasConfirmRow = false
     }
@@ -261,8 +262,8 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
         @Environment(\.dynamicTypeSize) private var dynamicTypeSize
         
         private var fittedHeight: CGFloat {
-            // 简化高度：有库未选 305、已选 373（＋确认行 68）
-            let base: CGFloat = model.hasConfirmRow ? 373 : 305
+            // 简化高度：有库未选 305、已选 377（＋确认按钮 72）
+            let base: CGFloat = model.hasConfirmRow ? 377 : 305
             return base
         }
         
@@ -283,9 +284,9 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
                 Text("库区占位").font(.body)
                     .frame(minHeight: 152)
                 if model.hasConfirmRow {
-                    Text("确认行")
+                    Text("确认按钮")
                         .font(.body)
-                        .frame(minHeight: 52)
+                        .frame(minHeight: 56)
                 }
                 Text("动作行占位").font(.body)
                     .frame(minHeight: 105)
@@ -328,7 +329,7 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
             "确认行探针 sheet 未在时限内呈现落定"
         )
         
-        // 确认行出现：高度增加约 68pt（52 行高＋16 间距）
+        // 确认按钮出现：高度增加约 72pt（56 按钮高＋16 间距）
         model.hasConfirmRow = true
         spinRunLoop(seconds: 0.5)
         let withConfirm = try XCTUnwrap(
@@ -340,8 +341,8 @@ final class AttachmentPanelFitAssemblyTests: XCTestCase {
                 + "withConfirm=\(withConfirm) delta=\(withConfirm - initial)"
         )
         XCTAssertEqual(
-            withConfirm - initial, 68, accuracy: 4,
-            "确认行出现，sheet 高度应增加 68pt（52＋16），"
+            withConfirm - initial, 72, accuracy: 4,
+            "确认按钮出现，sheet 高度应增加 72pt（56＋16），"
                 + "实际 \(withConfirm - initial)"
         )
         

@@ -415,6 +415,14 @@ public enum Palette {
     /// 强调实填：与 primary 同源同值（0.26.0 前即同
     /// 值双名，本版直接别名化，语义不变）
     public static var primaryFill: Color { primary }
+    /// 主按钮饱和蓝（§461，2026-11-24 用户点定）：主
+    /// 行动钮的定版面色——饱和蓝底＋白字。值 #0064D4
+    /// 浅暗同值，源出用户参照图钮面采样（与 §453 点
+    /// 子「开始吧」改色同名同值同源；两线组版相遇时
+    /// 留一份即可，值同无漂移面）
+    public static let primarySaturated = themedColor(
+        light: 0x0064D4, dark: 0x0064D4
+    )
     /// 主填充蓝（OpenMuse blue #C8E7FF，ui.tsx:24——它
     /// 的主按钮面色：浅蓝填充＋深墨字，与用户泡同源；
     /// 暗色取 blueDark #1473C8 作深档）

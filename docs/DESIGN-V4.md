@@ -16863,3 +16863,13 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - UI 补跑（bundle Test-TopBar434UI-rel05106.xcresult）：testHubLayoutWithFullCatalog 过；testTopBarSingleActionDispatch 红——失败文（:137，命中盘宽 67.0、间隙点 fired=model）与 §434 分支本体（feat/header-zoom @9db3c06，对照 bundle Test-TopBar434UI-branch.xcresult）**逐字同形**，判分支既存、非合并引入；该测 §434 自记「其真跑归组版 CI」，本次为其首次真跑现形，修复归 §434 线后续（顶簇命中几何：头像钮命中盘 67≠44、两元素间隔 <8pt、间隙死区未成立），不拦本版（发布集外）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05106-release）；~/build/OneDay-0.50.106.ipa，16,762,717 字节，md5 c76da88b0be7245a72d8526ba1223e33；本体三值亲验 0.50.106／234／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本机 ~/workspace/oneday-releases/）。
 - 分支 rel-05106 未 push、未打 tag（主线处置）；需求总表 0.50.106 版本行与真机复验清单待主线组版复核时入账。
+
+## §461 附件选择盘确认按钮改版（2026-11-24）
+
+用户对照 Muse 形态图点定，范围经用户亲口澄清收窄：现行选择盘的横滑照片条、多选勾选、「添加文件／添加视频」行、「资源库／查看全部」标题行本来就有、一律不动，只改确认动作一件。
+
+- 改动两点：①§152 的「添加 N 张」确认行退役，同一动作挪到 sheet 底部、改整宽大按钮，文案随目标图作「添加 N 个附件」（N＝已勾选数）；②按钮面色改饱和蓝底＋白字——Palette 新增 primarySaturated（#0064D4，浅暗同值，源出参照图钮面采样；与 §453 点子「开始吧」改色同名同值同源，基线 rel-05106 无此令牌、本包补入，两线组版相遇留一份即可）。
+- 行为等价（只换位置与颜色）：呈现条件不变——未选不呈现，与 Core addSelectedTitle 的 nil 同源；接线不变——点按钮仍走 orderedSelection（呈现序）→ onConfirmPhotos → 既有附件管线（文件 IO／上传／发送路径零改动）；添加文件／添加视频仍点开即走系统选择器。
+- 高度账：确认段高由行高 52 改按钮高 56（Core Layout.confirmButtonHeight 单源）；D5 贴合档三态——无库 137／有库未选 305 不变、有库已选 373→377；停在贴合档时的高度跟随差 ±68→±72。
+- 落点：AttachmentPanelView.confirmButton（旧 confirmRow 整段删除）；Core AttachmentPanel.addSelectedTitle 文案改「添加 N 个附件」；按钮圆角取 OneDayMetrics.radiusPreview（16）、字重 semibold。
+- 验收：Core 钉测（文案／常量／三态高度）与装配探针 ③（跟随差 72）随改；真机门——饱和蓝与参照图并排观感、勾选后按钮出现与计数对账、点按钮后附件入待发区、贴合档高度跟随动画。
