@@ -110,34 +110,29 @@ struct ChatView: View {
     /// 语音输入控制器（0.36.6，§71）：端上识别、录音
     /// 条占住发送舱；文本经 onTextChange 回写 input
     @State private var dictation = DictationController()
-    /// 非 nil 表示正在生成：值是当前打开段已发布的
-    /// 流式快照（第 93 条起按段装配：封存段不在此
-    /// 值里，走 sealedStreamSegments）
+    /// 在飞旗（§409 步 A 语义收口）：非 nil＝本轮
+    /// 生成在飞、nil＝不在飞——只承载生命周期，
+    /// 不再承载正文快照（生成期呈现只有 §407 占位
+    /// 行；正文/思考全文只在装配器与思考累积器里
+    /// 累积，落盘与落定兜底直读、不经视图状态）
     @State private var streamingText: String?
-    /// 流式思考（reasoning）已发布快照（0.5.1，§32）：
-    /// 非 nil 表示本轮已收到思考增量；思考原文经发布
-    /// 闸合并后写入，呈现走直播区折叠单元（live-
-    /// ReasoningBlock，0.36.10 起按事件序落位）
-    @State private var streamingReasoning: String?
-    /// 本轮首个思考增量的到达时刻（0.5.1）：折叠单元
-    /// 实时计时与落盘 reasoningSeconds 的计时起点
+    /// 本轮首个思考增量的到达时刻（0.5.1）：落盘
+    /// reasoningSeconds 的计时起点（直播思考块已
+    /// 随 §409 步 A 退役，呈现侧无读者，计时口径
+    /// 保留待 S3 过程行）
     @State private var reasoningStartedAt: Date?
     /// 正文分段装配器（第 93 条，OneDayCore.Stream-
-    /// SegmentAssembler）：段内仍是 0.5.1 发布合并闸
-    /// （§32：80ms 窗/64 字阈值合并发布，与 stream-
-    /// FollowGate 管滚动分工互不替代），装配器在其
-    /// 上补段维度——工具边界封段、新段新缓冲，
-    /// streamingText 自此只承载当前打开段的已发布
-    /// 快照，封存段走 sealedStreamSegments 只读呈现
+    /// SegmentAssembler）：§409 起纯数据面——工具
+    /// 边界封段、新段新缓冲，fullSegments/merged-
+    /// FullText 喂半截落盘与落定兜底（第 93 条账
+    /// 本口径不变）；封存段真值在本体内，视图侧
+    /// 镜像（旧 sealedStreamSegments）已退役
     @State private var streamAssembler = StreamSegmentAssembler()
-    /// 思考通道的发布合并闸（0.5.1，§32）：增量先攒
-    /// 缓冲合并发布，run 驱动起止归零
+    /// 思考通道累积器（0.5.1 发布闸，§409 步 E 瘦
+    /// 身为纯累积器）：fullText 是落盘推理文本的
+    /// 源头、hasContent 喂占位行思考相判定，run
+    /// 驱动起止归零
     @State private var reasoningPublishGate = StreamPublishGate()
-    /// 已封存正文段的全文（事件序，第 93 条）：工具
-    /// 边界封段后入列，直播区/carrier 按 liveOrder
-    /// 的 .sealedText 标记原位只读呈现，不再参与累
-    /// 积——下一段的增量永不回流到这里
-    @State private var sealedStreamSegments: [String] = []
     @State private var sendTask: Task<Void, Never>?
     /// 发件箱自动重排在飞标记（台账 154，DESIGN
     /// §336）：drain 重入闸——多触发点（回前台/网
@@ -2885,12 +2880,13 @@ struct ChatView: View {
         // 修正只走既有锚定路径）。§293 的逐项直播
         // 行（思考/封存段/打开段/工具卡逐项成行、
         // 高度随内容生长）自此退出原生喂入；
-        // nativeLiveRow 仅余共享件身份、不再被本
-        // 面调用。在飞判定：sendTask 在席（起手至
-        // 落定全程，含首词元前的上传/等待段）∨ 直
-        // 播项非空（对账恢复等无 sendTask 的在飞
-        // 形态与旧喂入口径同界）
-        if sendTask != nil || !liveRenderItems().isEmpty {
+        // nativeLiveRow 本体已随 §409 步 A 删除。
+        // 在飞判定：sendTask 在席（起手至落定全
+        // 程，含首词元前的上传/等待段）∨ active-
+        // RunThreadID 在席（对账恢复等无 sendTask
+        // 的在飞形态，§409 步 A 改判——旧「直播项
+        // 非空」随直播呈现退役失去来源）
+        if sendTask != nil || activeRunThreadID != nil {
             rows.append(
                 livePlaceholderRow(composer: composer)
             )
@@ -3835,7 +3831,7 @@ struct ChatView: View {
             }
             return "正在上传文件…"
         }
-        if streamingReasoning != nil {
+        if reasoningPublishGate.hasContent {
             return "正在思考…"
         }
         if !liveToolCards.isEmpty {
@@ -3865,234 +3861,6 @@ struct ChatView: View {
             )
         }
     }
-
-    /// §293（原生重建 R2）原生面直播行：与 gen3
-    /// carrierLiveRow 同源同序（liveRenderItems
-    /// 单口）、同键——思考/工具/工具组三类直接转
-    /// gen3 行描述（无流式分叉）；正文两类（打开
-    /// 段/封存段）在本面走单渲染路径：内容只由装
-    /// 配器快照的段文本一次同步渲染（Streaming-
-    /// BlockText 闭合前缀＋尾块同拍派生），gen4
-    /// 关的全文回落路（streamingBubble 全文逐词
-    /// 路）不在本面设——施工图 §五 R2「gen4 关回
-    /// 落路在新面不设」。§325：修订值改结构化派
-    /// 生（段文本全文/工具卡编码本体逐值入账），
-    /// 行高估算（块产物组合口径）退出本面
-    private func nativeLiveRow(
-        _ item: LiveRenderItem,
-        composer: ChatNativeRowHeightComposer
-    ) -> ChatNativeRow {
-        switch item {
-        case .reasoning:
-            let parts = liveSharedRowParts(item)!
-            var revision = ChatNativeRowRevision()
-            revision.addText(streamingReasoning)
-            revision.addFlag(
-                !((streamingText ?? "").isEmpty
-                    && liveToolCards.isEmpty)
-            )
-            return ChatNativeRow(
-                key: parts.key,
-                entryID: nil,
-                revision: revision,
-                height: composer.liveReasoningHeight(
-                    text: streamingReasoning ?? "",
-                    contentStarted: !((streamingText ?? "")
-                        .isEmpty && liveToolCards.isEmpty)
-                ),
-                makeView: parts.makeView
-            )
-        case .tool(let card):
-            let parts = liveSharedRowParts(item)!
-            return ChatNativeRow(
-                key: parts.key,
-                entryID: nil,
-                revision: Self.toolCardRevision(card),
-                height: composer.toolCardHeight(
-                    card: card, width: composer.contentWidth,
-                    expanded: rowStateLedger
-                        .expansionOverride(
-                            for: ChatRowStateKeys
-                                .toolLive(card.id)
-                        ) ?? false,
-                    plain: false
-                ),
-                makeView: parts.makeView
-            )
-        case .toolGroup(let cards):
-            let parts = liveSharedRowParts(item)!
-            var revision = ChatNativeRowRevision()
-            for card in cards {
-                revision.parts.append(contentsOf:
-                    Self.toolCardRevision(card).parts)
-            }
-            return ChatNativeRow(
-                key: parts.key,
-                entryID: nil,
-                revision: revision,
-                height: composer.toolGroupHeight(
-                    cards: cards,
-                    groupKey: ChatRowStateKeys
-                        .liveToolGroup(item.id)
-                ),
-                makeView: parts.makeView
-            )
-        case .text:
-            let text = streamingText ?? ""
-            let blocks = StreamingBlockSegmenter.blocks(
-                for: text
-            )
-            var revision = ChatNativeRowRevision()
-            revision.addText(text)
-            revision.addCount(blocks.count)
-            return ChatNativeRow(
-                key: currentStreamRowKey(),
-                entryID: nil,
-                revision: revision,
-                height: composer.liveTextHeight(
-                    text: text,
-                    isUploading: isUploadingFiles
-                ),
-                makeView: {
-                    AnyView(
-                        self.nativeStreamingContent(text)
-                    )
-                }
-            )
-        case .sealedText(let index, let text):
-            var revision = ChatNativeRowRevision()
-            revision.addText(text)
-            return ChatNativeRow(
-                key: "\(currentStreamRowKey())#seg\(index)",
-                entryID: nil,
-                revision: revision,
-                height: composer.liveTextHeight(
-                    text: text, isUploading: false
-                ),
-                makeView: {
-                    AnyView(
-                        self.nativeStreamingContent(text)
-                    )
-                }
-            )
-        }
-    }
-
-    /// 工具卡修订值（§325）：卡本体 Codable 编码
-    /// 逐值入账（标题/摘要/结果/失败位任一变即修
-    /// 订变）；编码失败回落字段文本清单
-    private static func toolCardRevision(
-        _ card: ToolCard
-    ) -> ChatNativeRowRevision {
-        var revision = ChatNativeRowRevision()
-        if let data = try? JSONEncoder().encode(card) {
-            revision.addData(data)
-        } else {
-            revision.addText(card.id)
-            revision.addText(card.title)
-            revision.addText(card.summary)
-            revision.addText(card.result)
-            revision.addFlag(card.resultFailed)
-        }
-        return revision
-    }
-
-    /// 原生面流式段内容（单渲染路径，H4）：非空
-    /// 文本恒走块级呈现——StreamingBlockText 按同
-    /// 一份不可变段文本同拍派生闭合前缀（静态）与
-    /// 尾块（动效），同一段文字在任一帧只存在于本
-    /// item 的一次渲染内；封段拍由快照 diff 把段
-    /// 文移入封存段 item、打开段 item 同拍换新段
-    /// 文本，两 item 构造互斥、不靠时序合并。空文
-    /// 本＝等待态（等待点/上传进度走既有等待形
-    /// 态，非 gen4 回落路）
-    @ViewBuilder
-    private func nativeStreamingContent(
-        _ text: String,
-        menuEntry: ChatEntry? = nil
-    ) -> some View {
-        if text.isEmpty {
-            streamingBubble(text, menuEntry: menuEntry)
-        } else {
-            assistantBubble(menuEntry: menuEntry) {
-                StreamingBlockText(text: text)
-            }
-        }
-    }
-
-    /// §374.9（步骤 6）抽取：直播行三类（推理/工
-    /// 具/工具组）的键与视图构造——原 carrierLiveRow
-    /// 中被原生面复用的部分：nativeLiveRow 只消费
-    /// key 与 makeView（版本/估高由原生面自家 com-
-    /// poser 承接）；正文/封存段两类是 gen3 专属、
-    /// 随承载退役（原生面有自家分支）。三类恒有
-    /// 值，.text/.sealedText 传入即编程错误（调用点
-    /// 在三类的 case 分支内）
-    private func liveSharedRowParts(
-        _ item: LiveRenderItem
-    ) -> (key: String, makeView: @MainActor () -> AnyView)? {
-        switch item {
-        case .reasoning:
-            return (
-                key: "live-reasoning",
-                makeView: { AnyView(liveReasoningBlock) }
-            )
-        case .tool(let card):
-            return (
-                key: "live-\(item.id)",
-                makeView: {
-                    AnyView(
-                        ToolCardView(
-                            card: card,
-                            expansionKey: ChatRowStateKeys
-                                .toolLive(card.id),
-                            ledger: rowStateLedger
-                        )
-                    )
-                }
-            )
-        case .toolGroup(let cards):
-            return (
-                key: "live-\(item.id)",
-                makeView: {
-                    AnyView(
-                        ToolCardGroupView(
-                            cards: cards,
-                            expansionKey: ChatRowStateKeys
-                                .liveToolGroup(item.id),
-                            ledger: rowStateLedger
-                        )
-                    )
-                }
-            )
-        case .text, .sealedText:
-            return nil
-        }
-    }
-
-
-
-    /// 流式行键：账本在飞轮的用户条目 id 为主形
-    /// 态；账本缺位（恢复接管前一瞬等）回线程回
-    /// 落键；无线程回常量键（直播态必有线程、本
-    /// 支仅为完备）
-    private func currentStreamRowKey() -> String {
-        guard let thread = currentThread else {
-            return "stream-detached"
-        }
-        if let ledger = appState.runLedger.entry(
-            forThreadID: thread.id
-        ) {
-            return StreamingRowIdentity.streamRowKey(
-                userEntryID: ledger.userEntryID
-            )
-        }
-        return StreamingRowIdentity.fallbackStreamRowKey(
-            threadID: thread.id
-        )
-    }
-
-
 
     /// 块产物催产（StreamPublishGate 消费端切换
     /// 的落点）：发布文本每变一拍，缺产物的文本
@@ -4537,93 +4305,6 @@ struct ChatView: View {
         renderPlanCache.sources = sources
         return (dividers, items, sources)
     }
-
-    /// 直播区渲染计划：按 liveOrder 标记交错思考/工
-    /// 具/正文，连续工具标记 ≥2 收成组；标记外的卡
-    /// （恢复回填等）按卡序殿后、正文标记缺失时殿后
-    /// 补位——只重排呈现、不丢段
-    private enum LiveRenderItem: Identifiable {
-        case reasoning
-        case text
-        /// 已封存正文段的只读呈现（第 93 条）：内容
-        /// 定稿不再变，与打开段的流式气泡分开成项
-        case sealedText(index: Int, text: String)
-        case tool(ToolCard)
-        case toolGroup([ToolCard])
-
-        var id: String {
-            switch self {
-            case .reasoning: return "live-reasoning"
-            case .text: return "live-text"
-            case .sealedText(let index, _):
-                return "sealed-text-\(index)"
-            case .tool(let card): return "tool-\(card.id)"
-            case .toolGroup(let cards):
-                return "toolgroup-\(cards.first?.id ?? "none")"
-            }
-        }
-    }
-
-    private func liveRenderItems() -> [LiveRenderItem] {
-        var items: [LiveRenderItem] = []
-        var pendingTools: [ToolCard] = []
-        var seenCardIDs: Set<String> = []
-        func flushTools() {
-            if pendingTools.count == 1 {
-                items.append(.tool(pendingTools[0]))
-            } else if pendingTools.count > 1 {
-                items.append(.toolGroup(pendingTools))
-            }
-            pendingTools = []
-        }
-        for marker in liveOrder {
-            switch marker {
-            case .reasoning:
-                flushTools()
-                if streamingReasoning != nil {
-                    items.append(.reasoning)
-                }
-            case .text:
-                flushTools()
-                if streamingText != nil {
-                    items.append(.text)
-                }
-            case .sealedText(let index):
-                flushTools()
-                if sealedStreamSegments.indices
-                    .contains(index) {
-                    items.append(
-                        .sealedText(
-                            index: index,
-                            text: sealedStreamSegments[index]
-                        )
-                    )
-                }
-            case .tool(let id):
-                if let card = liveToolCards.first(
-                    where: { $0.id == id }
-                ) {
-                    pendingTools.append(card)
-                    seenCardIDs.insert(id)
-                }
-            }
-        }
-        flushTools()
-        let leftovers = liveToolCards.filter {
-            !seenCardIDs.contains($0.id)
-        }
-        if leftovers.count == 1 {
-            items.append(.tool(leftovers[0]))
-        } else if leftovers.count > 1 {
-            items.append(.toolGroup(leftovers))
-        }
-        if streamingText != nil, !liveOrder.contains(.text) {
-            items.append(.text)
-        }
-        return items
-    }
-
-
 
     /// 在底判定单一派生点（§135 几何单源；键盘整
     /// 包 R2 定版，2026-11-13）：一切 isNearBottom
@@ -6970,76 +6651,6 @@ struct ChatView: View {
             .buttonStyle(.odPressable)
             .accessibilityLabel("标为已读")
             .padding(OneDayMetrics.spacingM)
-        }
-    }
-
-    /// 直播思考块（0.36.10 自 streamingRow 拆出）：
-    /// 折叠单元独立成段、按 liveOrder 落位（诊断
-    /// D3-10）；相位口径不变——正文已发布或工具卡已
-    /// 到即思考期结束，折叠单元据此自动收起（硬规
-    /// 格：正文起流后思考不许继续整屏展开）
-    @ViewBuilder
-    private var liveReasoningBlock: some View {
-        if let reasoning = streamingReasoning {
-            ReasoningBlock(
-                text: reasoning,
-                seconds: nil,
-                isStreaming: true,
-                startedAt: reasoningStartedAt,
-                contentStarted: !(streamingText ?? "").isEmpty
-                    || !liveToolCards.isEmpty,
-                expansionKey: ChatRowStateKeys.liveReasoning,
-                ledger: rowStateLedger
-            )
-        }
-    }
-
-    /// 等待态气泡（§392：旧流式整段路死支退役）：
-    /// 非空流式正文恒走 nativeStreamingContent 的
-    /// StreamingBlockText（闭合段静态＋尾块渐显），
-    /// 本函数只承空文等待态（打字点／上传进度）——
-    /// 唯一调用点即 nativeStreamingContent 空文分支，
-    /// 非空分支旧 StreamingText 整段路已不可达、删除
-    @ViewBuilder
-    private func streamingBubble(_ text: String, menuEntry: ChatEntry? = nil) -> some View {
-        if text.isEmpty {
-            assistantBubble(menuEntry: menuEntry) {
-                // 0.32.1（F05 止血）：Qwen 冷启「模型唤醒中」
-                // 提示整路拆除——该模型已停用下线，不再有
-                // 唤醒态；等待一律只剩打字点
-                // 基础止血包（P7 文案半步）：文件上传段
-                // 例外——如实说上传中，不许让等待点冒充
-                // 生成中；§237 正解：有真实聚合进度时把
-                // 百分比一并说清（数字源头是 URLSession
-                // 实报字节，不许估算）
-                if isUploadingFiles {
-                    HStack(spacing: OneDayMetrics.spacingS) {
-                        TypingDots()
-                        if let fraction = uploadProgressFraction {
-                            Text(
-                                "正在上传文件 \(Int((fraction * 100).rounded()))%…"
-                            )
-                            .font(.callout)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .monospacedDigit()
-                        } else {
-                            Text("正在上传文件…")
-                                .font(.callout)
-                                .foregroundStyle(Palette.inkSecondary)
-                        }
-                    }
-                    .padding(.vertical, OneDayMetrics.spacingXS)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel(
-                        uploadProgressFraction.map {
-                            "正在上传文件，已完成 \(Int(($0 * 100).rounded()))%"
-                        } ?? "正在上传文件"
-                    )
-                } else {
-                    TypingDots()
-                        .padding(.vertical, OneDayMetrics.spacingXS)
-                }
-            }
         }
     }
 
@@ -10118,9 +9729,8 @@ private struct ComposerBarLayout: Layout {
         liveToolCards = []
         // 0.36.10：事件序标记同步清零，从本轮重记
         liveOrder = []
-        // 第 93 条：封存段列同清（装配器本体在
-        // driveRun 起点归零）
-        sealedStreamSegments = []
+        // 第 93 条：封存段真值只在装配器本体内
+        // （driveRun 起点归零），视图侧无镜像可清
         sendTask = Task {
             // 0.36.29（件四）：带文件时先逐个上传——
             // 任一失败整条拦下，不许丢下文件只发文本；
@@ -10153,14 +9763,12 @@ private struct ComposerBarLayout: Layout {
                         + "处理后点这条消息旁的感叹号重新发送。"
                     Haptics.error()
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
                 } catch is CancellationError {
                     isUploadingFiles = false
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10175,7 +9783,6 @@ private struct ComposerBarLayout: Layout {
                     errorMessage = "文件上传失败，这条还没发出去，请稍后再试。"
                     Haptics.error()
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10184,7 +9791,6 @@ private struct ComposerBarLayout: Layout {
                 uploadProgressFraction = nil
                 if Task.isCancelled {
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10241,14 +9847,12 @@ private struct ComposerBarLayout: Layout {
                 )
             } catch is CancellationError {
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
             } catch {
                 if Task.isCancelled {
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10261,14 +9865,12 @@ private struct ComposerBarLayout: Layout {
                 // 失败改判 error（0.36.2，表 D 语义归位）
                 Haptics.error()
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
             }
             if Task.isCancelled {
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
@@ -10495,7 +10097,6 @@ private struct ComposerBarLayout: Layout {
         streamingText = ""
         liveToolCards = []
         liveOrder = []
-        sealedStreamSegments = []
         sendTask = Task {
             var fileServerPaths = entry.remoteFilePaths
             if !filePayloads.isEmpty, fileServerPaths.isEmpty {
@@ -10513,7 +10114,6 @@ private struct ComposerBarLayout: Layout {
                     isUploadingFiles = false
                     uploadProgressFraction = nil
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10525,7 +10125,6 @@ private struct ComposerBarLayout: Layout {
                         + "这条消息仍保存在本机，可稍后再试。"
                     Haptics.error()
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10535,7 +10134,6 @@ private struct ComposerBarLayout: Layout {
                     errorMessage = "文件上传还是失败，这条消息仍保存在本机，可稍后再试。"
                     Haptics.error()
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10562,7 +10160,6 @@ private struct ComposerBarLayout: Layout {
             }
             if Task.isCancelled {
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
@@ -10599,14 +10196,12 @@ private struct ComposerBarLayout: Layout {
                 )
             } catch is CancellationError {
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
             } catch {
                 if Task.isCancelled {
                     streamingText = nil
-                    streamingReasoning = nil
                     reasoningStartedAt = nil
                     sendTask = nil
                     return
@@ -10617,14 +10212,12 @@ private struct ComposerBarLayout: Layout {
                     + "。恢复后可再点按重发。"
                 Haptics.error()
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
             }
             if Task.isCancelled {
                 streamingText = nil
-                streamingReasoning = nil
                 reasoningStartedAt = nil
                 sendTask = nil
                 return
@@ -11260,7 +10853,6 @@ private struct ComposerBarLayout: Layout {
         guard let config = appState.config,
               let apiKey = appState.apiKey else {
             streamingText = nil
-            streamingReasoning = nil
             reasoningStartedAt = nil
             presentError(.sessionExpired)
             // 基础止血包（P1）：连接态缺失同样是本轮
@@ -11293,9 +10885,7 @@ private struct ComposerBarLayout: Layout {
         terminalOutputHint = nil
         terminalStatusHint = nil
         streamAssembler.reset()
-        sealedStreamSegments = []
         reasoningPublishGate.reset()
-        streamingReasoning = nil
         reasoningStartedAt = nil
         // 输入组装：尾条纯文本走字符串形态、多模态走
         // 单元素消息形态（探针实测两形态均成立）
@@ -11427,10 +11017,12 @@ private struct ComposerBarLayout: Layout {
         }
     }
 
-    /// events 订阅呈现：增量过发布闸、工具卡实时拼
-    /// 装、思考预览（若服务端发出）同路；见到终态事
-    /// 件记账返回，流自结束（断线/缓冲过期）按「未见
-    /// 终态」进结果未知——不在此报错、不做失败分型
+    /// events 订阅：增量入装配器/思考累积器（数据
+    /// 面，§409 步 A 起不再发布呈现快照）、工具卡
+    /// 实时拼装、思考预览（若服务端发出）同路；见
+    /// 到终态事件记账返回，流自结束（断线/缓冲过
+    /// 期）按「未见终态」进结果未知——不在此报错、
+    /// 不做失败分型
     private func followRunEvents(
         thread: ChatThread, entry: RunLedgerEntry,
         demoMode: Bool
@@ -11438,25 +11030,6 @@ private struct ComposerBarLayout: Layout {
         guard let runID = entry.runID,
               let config = appState.config,
               let apiKey = appState.apiKey else { return }
-        // 发布巡查 ticker（旧 runStream 同制：40ms 一
-        // 查，窗口到期把攒着的增量推给视图；订阅期外
-        // 无增量可推，ticker 随订阅生灭）
-        let publishTicker = Task { @MainActor in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(40))
-                if Task.isCancelled { break }
-                let now = ProcessInfo.processInfo.systemUptime
-                if let snapshot = streamAssembler
-                    .collectDue(at: now) {
-                    streamingText = snapshot
-                }
-                if let snapshot = reasoningPublishGate
-                    .collectDue(at: now) {
-                    streamingReasoning = snapshot
-                }
-            }
-        }
-        defer { publishTicker.cancel() }
         let stream = appState.client.runEvents(
             config: config, apiKey: apiKey,
             runID: runID, lastSeq: lastEventSeq
@@ -11473,10 +11046,9 @@ private struct ComposerBarLayout: Layout {
                     // .sealedText，新段首增量在此重新记位
                     // ——位置即新段的事件位（工具卡之后）
                     noteLiveOrder(.text)
-                    if let snapshot = streamAssembler
-                        .offer(delta, at: now) {
-                        streamingText = snapshot
-                    }
+                    // §409 步 A：增量只入装配器累积，
+                    // 不再发布快照写视图状态
+                    streamAssembler.offer(delta, at: now)
                 }
             case .reasoningPreview(let text):
                 if reasoningStartedAt == nil {
@@ -11484,10 +11056,9 @@ private struct ComposerBarLayout: Layout {
                 }
                 // 0.36.10：思考首达记位（事件序编排）
                 noteLiveOrder(.reasoning)
-                if let snapshot = reasoningPublishGate
-                    .offer(text, at: now) {
-                    streamingReasoning = snapshot
-                }
+                // §409 步 A：思考增量只入累积器（落
+                // 盘源头），不再发布快照
+                reasoningPublishGate.offer(text, at: now)
             case .toolStarted(let id, let name, let preview):
                 // 第 93 条：工具开始＝服务端段边界——
                 // 先封当前正文段再落卡，卡后的新段增量
@@ -11521,29 +11092,24 @@ private struct ComposerBarLayout: Layout {
     }
 
     /// 封段（第 93 条）：工具边界到达时把当前正文段
-    /// 定稿入封存列——呈现侧三件同步：封存列镜像装
-    /// 配器、liveOrder 的 .text 标记原位换成 .sealed-
-    /// Text（段的事件位不动）、streamingText 回到新
-    /// 段的空快照（本轮未结束、保持非 nil 的生成
-    /// 态）。当前段为空（工具先行/并行工具连发边界）
-    /// 时装配器无段可封，此处整件空转
+    /// 在装配器内定稿入封存列——liveOrder 的 .text
+    /// 标记原位换成 .sealedText（段的事件位不动，
+    /// 半截落盘按此序成条）。§409 步 A 起无呈现侧
+    /// 同步（旧镜像/快照回写/块催产三件已退役）。
+    /// 当前段为空（工具先行/并行工具连发边界）时
+    /// 装配器无段可封，此处整件空转
     private func sealStreamSegment(at now: TimeInterval) {
-        guard let sealed = streamAssembler
-            .sealCurrentSegment(at: now) else { return }
-        sealedStreamSegments = streamAssembler.sealedSegments
+        guard streamAssembler
+            .sealCurrentSegment(at: now) != nil
+        else { return }
         let marker = LiveOrderItem.sealedText(
-            sealedStreamSegments.count - 1
+            streamAssembler.sealedSegments.count - 1
         )
         if let textIndex = liveOrder.firstIndex(of: .text) {
             liveOrder[textIndex] = marker
         } else {
             noteLiveOrder(marker)
         }
-        streamingText = streamAssembler.currentPublished
-        // 封存段的块产物在打开期已逐拍催产，封段的
-        // flush 可能带出尾巴增量：为定稿全文补一拍
-        // 催产，防尾块产物缺位（新承载＋新路才工作）
-        kickStreamingBlockProducts(for: sealed)
     }
 
     private func appendLiveToolCard(
@@ -12170,14 +11736,12 @@ private struct ComposerBarLayout: Layout {
     /// 重挂等）按卡序/段序殿后补齐，不丢件
     private func persistRunPartials(thread: ChatThread) {
         let flushNow = ProcessInfo.processInfo.systemUptime
-        if let snapshot = streamAssembler
-            .flushCurrent(at: flushNow) {
-            streamingText = snapshot
-        }
-        if let snapshot = reasoningPublishGate
-            .flush(at: flushNow) {
-            streamingReasoning = snapshot
-        }
+        // §409 步 A：flush 只定稿装配器/累积器内部
+        // 口径，快照不再写视图状态——落盘直读
+        // fullSegments/fullText（与 flush 前逐字同
+        // 值，条目写入逻辑不变）
+        _ = streamAssembler.flushCurrent(at: flushNow)
+        _ = reasoningPublishGate.flush(at: flushNow)
         deleteLivePartialEntries(in: thread)
         let reasoningText = reasoningPublishGate.fullText
         let segments = streamAssembler.fullSegments
@@ -12282,7 +11846,6 @@ private struct ComposerBarLayout: Layout {
             Haptics.error()
         }
         streamingText = nil
-        streamingReasoning = nil
         reasoningStartedAt = nil
         sendTask = nil
         activeRunThreadID = nil
@@ -12295,10 +11858,8 @@ private struct ComposerBarLayout: Layout {
         // 在调用本函数之前已把半截转入条目）
         liveToolCards = []
         liveOrder = []
-        // 第 93 条：封存段列同清——落定条目已入列，
-        // 残留段会在下一轮直播区冒头（装配器本体在
-        // 下一轮 driveRun 起点归零）
-        sealedStreamSegments = []
+        // 第 93 条：封存段真值在装配器本体内，下
+        // 一轮 driveRun 起点归零，视图侧无镜像可清
     }
 
     /// 停止（0.31.0）：runs 通道真取消——发 stop 后
@@ -12353,9 +11914,7 @@ private struct ComposerBarLayout: Layout {
         terminalOutputHint = nil
         terminalStatusHint = nil
         streamAssembler.reset()
-        sealedStreamSegments = []
         reasoningPublishGate.reset()
-        streamingReasoning = nil
         reasoningStartedAt = nil
         // 半截呈现回填：上次落盘的本轮条目即当前可见
         // 内容（落定时以 transcript 整段替换）
@@ -12418,10 +11977,8 @@ private struct ComposerBarLayout: Layout {
                 sealed: sealedTexts, current: openText,
                 at: ProcessInfo.processInfo.systemUptime
             )
-            sealedStreamSegments = streamAssembler
-                .sealedSegments
             liveOrder = rebuiltOrder
-            streamingText = streamAssembler.currentPublished
+            streamingText = ""
         } else {
             streamingText = ""
             // 0.36.10：无半截可回填时事件序仍立正文位
