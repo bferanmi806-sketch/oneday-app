@@ -34,7 +34,15 @@ public struct ProfileSoulDocument: Decodable, Sendable, Equatable {
     }
 
     private static let contentKeys = ["content", "soul", "text"]
-    private static let dateKeys = ["updated_at", "modified_at", "mtime"]
+    // §449.8 定因补键：服务端回执实际用 camelCase
+    // updatedAt（epoch 秒、SOUL 文件 mtime 或末写胜
+    // 台账时刻——companion identity_bridge 同口径实
+    // 证），旧表只有 snake_case 三键、日期恒解不出
+    // nil（SOUL 卡日期永不显的真因）；宽容口径不变、
+    // 候选键补全 camelCase 两键
+    private static let dateKeys = [
+        "updated_at", "updatedAt", "modified_at", "modifiedAt", "mtime",
+    ]
     private static let nameKeys = ["name", "profile"]
 
     public init(from decoder: Decoder) throws {
@@ -186,6 +194,27 @@ public enum SoulSectionParser {
                 append(line, to: current, persona: &personaParts, style: &styleParts)
                 continue
             }
+            // §449.8 平文标题：服务端 SOUL 的实际形态
+            // 是无 ATX 的独立标题行（如「风格口径
+            // （…）」）＋子弹列——旧解析只认 ATX、整
+            // 篇落 persona、风格永不分出（身份段整篇
+            // 直倒的定因）。归一键命中已知标题（等值
+            // 或前缀）才切桶并消费该行；认不出按正文
+            // 行处理（与未知 ATX 同纪律）
+            if let key = plainHeadingKey(of: line) {
+                if personaTitles.contains(key)
+                    || personaTitles.contains(where: { key.hasPrefix($0) }) {
+                    current = .persona
+                    sawKnownTitle = true
+                    continue
+                }
+                if styleTitles.contains(key)
+                    || styleTitles.contains(where: { key.hasPrefix($0) }) {
+                    current = .style
+                    sawKnownTitle = true
+                    continue
+                }
+            }
             append(line, to: current, persona: &personaParts, style: &styleParts)
         }
 
@@ -220,6 +249,33 @@ public enum SoulSectionParser {
         let text = parts.joined(separator: "\n")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return text.isEmpty ? nil : text
+    }
+
+    /// 平文标题行的归一键（§449.8）：认定从严——
+    /// 短行（2–40 字）、无句读（。！？；）、不以子
+    /// 弹/标题符起头、不以逗顿结尾；尾部括号注（全
+    /// 角/半角）先剥再归一。返回 nil ＝不是标题行。
+    /// 正文整句多带句号、天然出局；宁可漏认、不可
+    /// 把正文行错当标题吞掉
+    static func plainHeadingKey(of line: String) -> String? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2, trimmed.count <= 40 else { return nil }
+        guard !trimmed.hasPrefix("-"), !trimmed.hasPrefix("#"),
+              !trimmed.hasPrefix("•"), !trimmed.hasPrefix("*")
+        else { return nil }
+        let sentenceMarks: [Character] = ["。", "！", "？", "；"]
+        guard !trimmed.contains(where: { sentenceMarks.contains($0) })
+        else { return nil }
+        guard !trimmed.hasSuffix("，"), !trimmed.hasSuffix("、")
+        else { return nil }
+        var core = trimmed
+        if core.hasSuffix("）"), let open = core.lastIndex(of: "（") {
+            core = String(core[..<open])
+        } else if core.hasSuffix(")"), let open = core.lastIndex(of: "(") {
+            core = String(core[..<open])
+        }
+        let key = normalizeTitle(core)
+        return key.isEmpty ? nil : key
     }
 
     /// ATX 标题行（# ～ ######）→ 标题文本；非标题行 nil。
@@ -314,17 +370,72 @@ public enum SoulPresentationBuilder {
         let distilled = SoulDistillation.visibleText(
             from: sections.displayedPersona
         )
+        var intro = paragraphs(
+            from: distilled.text,
+            displayName: displayName, dropNameHeading: true
+        )
+        let style = paragraphs(
+            from: sections.style ?? "",
+            displayName: displayName, dropNameHeading: false
+        )
+        // §449.8 气质摘要（对 Muse 呈现结构）：风
+        // 格块中带「气质／Vibe」标签的条目，其内容
+        // 提作简介区末段灰字摘要——Muse 的灰字摘
+        // 要与其「风格」节同文同源，此处同法；风格
+        // 块内原文保留不动、只多呈一处摘要，无此
+        // 标签不强凑
+        if let temperament = temperamentSummary(in: style),
+           !intro.contains(temperament) {
+            intro.append(temperament)
+        }
         return SoulPresentation(
-            introParagraphs: paragraphs(
-                from: distilled.text,
-                displayName: displayName, dropNameHeading: true
-            ),
-            styleParagraphs: paragraphs(
-                from: sections.style ?? "",
-                displayName: displayName, dropNameHeading: false
-            ),
+            introParagraphs: intro,
+            styleParagraphs: style,
             withheldSegmentCount: distilled.withheldCount
         )
+    }
+
+    /// 子弹行 → 条目文本（剥 `- `/`• ` 标记）；非子
+    /// 弹行返回 nil（§449.8）
+    static func bulletText(of trimmedLine: String) -> String? {
+        for marker in ["- ", "• "] {
+            if trimmedLine.hasPrefix(marker) {
+                let text = trimmedLine.dropFirst(marker.count)
+                    .trimmingCharacters(in: .whitespaces)
+                return text.isEmpty ? nil : text
+            }
+        }
+        return nil
+    }
+
+    /// 行组中 index 之后的第一个非空行（修剪形）
+    static func nextNonEmptyLine(
+        in lines: [String], after index: Int
+    ) -> String? {
+        guard index + 1 < lines.count else { return nil }
+        for line in lines[(index + 1)...] {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !trimmed.isEmpty { return trimmed }
+        }
+        return nil
+    }
+
+    /// 风格段落中「气质：…／Vibe: …」标签条的内容
+    /// （§449.8 气质摘要的来源；无此条返回 nil）
+    static func temperamentSummary(in styleParagraphs: [String]) -> String? {
+        for paragraph in styleParagraphs {
+            for label in ["气质", "Vibe", "vibe"] {
+                for separator in ["：", ":"] {
+                    if paragraph.hasPrefix(label + separator) {
+                        let rest = paragraph
+                            .dropFirst(label.count + separator.count)
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !rest.isEmpty { return rest }
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     /// 一段文本 → 呈现段落：空行分段；段内 ATX 标题行
@@ -338,15 +449,41 @@ public enum SoulPresentationBuilder {
             .replacingOccurrences(of: "\r", with: "\n")
         var blocks: [[String]] = []
         var current: [String] = []
-        for line in normalized.components(separatedBy: "\n") {
-            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+        let allLines = normalized.components(separatedBy: "\n")
+        for (index, line) in allLines.enumerated() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
                 if !current.isEmpty {
                     blocks.append(current)
                     current = []
                 }
-            } else {
-                current.append(line)
+                continue
             }
+            // §449.8 子弹成段：子弹行自成一段（剥
+            // `- `/`• ` 标记），续行（无标记）并入本
+            // 条——服务端 SOUL 的子弹列由此成散文流
+            // （对 Muse 呈现），不再带标记直倒
+            if let bullet = bulletText(of: trimmed) {
+                if !current.isEmpty {
+                    blocks.append(current)
+                }
+                current = [bullet]
+                continue
+            }
+            // §449.8 未知平文标题（其后紧跟子弹时）自
+            // 成一段作节题呈现，不与子弹粘连；ATX 行
+            // 维持旧口径（段内剥 #、与正文同段）
+            if SoulSectionParser.plainHeadingKey(of: line) != nil,
+               let next = nextNonEmptyLine(in: allLines, after: index),
+               bulletText(of: next) != nil {
+                if !current.isEmpty {
+                    blocks.append(current)
+                    current = []
+                }
+                blocks.append([line])
+                continue
+            }
+            current.append(line)
         }
         if !current.isEmpty { blocks.append(current) }
 

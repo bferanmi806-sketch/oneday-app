@@ -74,12 +74,11 @@ struct ChatView: View {
     /// navigationTransition）
     @Namespace private var hubZoomNamespace
     private static let hubZoomSourceID = "hubHero"
-    /// §153：顶栏模型分组选择面（sheet）开关
-    @State private var showModelPicker = false
-    /// 隐藏服务商待确认（§158）：点隐藏的组正是服务
-    /// 端当前默认所在组时先弹后果确认（B6 收编口径：
-    /// 仅有后果才弹），确认后才走 AppState 落账
-    @State private var pendingHideGroup: ChatModelGroup?
+    // （§449 退役：顶栏模型选择面开关 showModel-
+    // Picker 与隐藏服务商待确认 pendingHideGroup
+    // 随顶栏模型胶囊整件删除——模型入口唯一收中
+    // 枢、隐藏服务商整套迁中枢选择面，见 Agent-
+    // HubView 与 DESIGN §449.2）
 
     @Environment(AppState.self) private var appState
     /// 锚点物化落盘口（§165）：store 刷新回调经它落盘
@@ -807,28 +806,11 @@ struct ChatView: View {
 
     private var isStreaming: Bool { streamingText != nil }
 
-    // MARK: - §158 隐藏服务商（本面管理动作）
+    // MARK: - §158 隐藏服务商（§449 迁中枢选择面）
 
-    /// 隐藏请求分流：组键取不到（具名组）不处理；组
-    /// 里带默认标记＝服务端当前默认正走这组——先弹
-    /// 后果确认（pendingHideGroup 的确认框在本面
-    /// sheet 上声明）；其余直接落账隐藏。隐藏全程只
-    /// 动本机呈现账（AppState），服务端与执行链零触碰
-    private func requestHideProviderGroup(_ group: ChatModelGroup) {
-        guard ProviderGroupVisibility.groupKey(for: group) != nil
-        else { return }
-        if ProviderGroupVisibility.containsDefault(group) {
-            pendingHideGroup = group
-        } else {
-            commitHideProviderGroup(group)
-        }
-    }
-
-    private func commitHideProviderGroup(_ group: ChatModelGroup) {
-        guard let key = ProviderGroupVisibility.groupKey(for: group)
-        else { return }
-        appState.hideProviderGroup(key: key)
-    }
+    /// （分流/确认/落账三件已随顶栏选择面退役整套
+    /// 迁入 AgentHubView 的中枢选择面——全 App 只
+    /// 剩那一处，口径逐字不变，见 DESIGN §449.2）
 
     /// 本会话模型账的取键入参（§227 账合一派生）：
     /// 胶囊读/写与枢纽共用 Core SessionModelAccount
@@ -1086,11 +1068,10 @@ struct ChatView: View {
         // 三行并入下方既有 currentThreadID 处理器——本
         // 根链不再为 D3 多裹两层类型（真机启动崩溃热修，
         // 见 DESIGN §354）
-        // 选择面使用唯一、稳定的宿主；胶囊全量/紧凑档
-        // 与 safeAreaBar 的布局切换不再重建呈现锚点。
-        .sheet(isPresented: $showModelPicker) {
-            modelPickerSheet
-        }
+        // （§449 退役：顶栏模型选择面 sheet 随顶栏
+        // 模型胶囊整件删除——选择面唯一宿主改中枢
+        // 页内 modelEntryRow 的 sheet，见 AgentHub-
+        // View）
         // 0.8.0（P1）：图片点开全屏查看（本地图与历史
         // 服务端图共用一个查看器）；文件牌点开走系统
         // QuickLook（字节先经文件下载通道落临时目录）
@@ -1395,8 +1376,17 @@ struct ChatView: View {
                 // 分量）；聚焦态自此退出坞显隐派生。本修饰
                 // 只挂聊天格内容根、逐格生效，切到其他格时
                 // 由该格自身口径接管（恒可见）
+                // §449 第 5 条定因（实验 K）：本根旧
+                // 式在键盘落下时显式断言 .visible，与
+                // push 页（如中枢 hubFullPageChrome）
+                // 的 .hidden 在同栈正面对撞、根断言
+                // 胜出，push 页藏栏永不生效（A/B/C/
+                // D/G 五式排除后坐实）。改 .automatic：
+                // 根只在键盘升起时断言 .hidden，其余
+                // 不表态、由栈顶页自决——键盘坞行为
+                // 不变（升起仍藏、落下默认可见）
                 .toolbar(
-                    kbSnapshot.isKeyboardUp ? .hidden : .visible,
+                    kbSnapshot.isKeyboardUp ? .hidden : .automatic,
                     for: .tabBar
                 )
             )
@@ -1929,10 +1919,12 @@ struct ChatView: View {
     /// TopBarGuideHost），列表顶留位据此记账
     private var topBarCluster: some View {
         VStack(spacing: OneDayMetrics.rowInnerGap) {
-            headerBar
-            // §434：居中身份区（大头像＋身份胶囊）进
-            // 顶簇——位置在顶栏行之下、进展胶囊之上
-            headerIdentityHero
+            // §449（六报之 1/2/3）：顶簇改单带——旧
+            // 两段式（headerBar 整行＋其下身份区）退
+            // 役：放大镜钮与顶栏模型胶囊整件删除、汉
+            // 堡/铃两钮与居中身份区同带（topBand）；
+            // 进展胶囊与查找栏的次序不变
+            topBand
             ProgressCapsuleView(
                 currentSessionID: currentThread?.serverSessionID,
                 onOpenSession: { sessionID in
@@ -1945,198 +1937,111 @@ struct ChatView: View {
         }
     }
 
-    /// 顶栏（0.3.8 第 30/31 条布局，0.4.0 A 案改；0.4.3
-    /// 起注册为消息列表的 .safeAreaBar(edge: .top)、脱
-    /// 离悬浮覆盖，§28；§195 起注册退役、改由
-    /// TopBarGuideHost 锚定托管，见 topBarCluster）：
-    /// 中央组＝枢纽头像钮＋模型胶囊（§202 路线 B；
-    /// 0.6.0–0.50.26 的一颗装双域身份胶囊退役）；
-    /// 左右圆钮 0.23.0 起走系统玻璃（审计 T2，此前
-    /// 为白浮纸、与胶囊玻璃并置两材质）。
-    /// 左钮字形改汉堡线（第 31 条：与抽屉的隐喻对齐，
-    /// 「分栏」图标 sidebar.left 退场）。顶栏总高约
-    /// 40＋次行 18，比 0.3.7 的两行胶囊更紧凑（旧胶囊
-    /// 167pt 宽纯文字、无头像无 Hermes 名——第 30 条点名）
-    private var headerBar: some View {
-        VStack(spacing: OneDayMetrics.rowInnerGap) {
+    /// 顶带（§449，用户 03:08 六报之 1/2/3 定版，
+    /// 取代 §202/§434 的两段式顶簇）：汉堡/铃两钮
+    /// 与居中身份区同带——ZStack 顶对齐，钮行顶距
+    /// spacingS 使钮心落在头像心上方 ≈8pt（参照聊
+    /// 天页量测 Δ≈4–15、取栅格值 8，见 DESIGN
+    /// §449.3）；放大镜钮（第 1 条）与顶栏模型胶
+    /// 囊（第 2 条）整件退役——会话内查找改由身
+    /// 份胶囊长按菜单下沉一级（§449.1）、模型切
+    /// 换唯一入口收中枢（§449.2）。两钮本体自旧
+    /// headerBar 逐字迁入（盘/字形/命中域/角标不
+    /// 变），仅承载行由独立行改同带叠放；旧行尾的
+    /// 「会话名次行已撤销」注记随行退役（口径在
+    /// §449 与 git 史里）
+    private var topBand: some View {
+        ZStack(alignment: .top) {
+            headerIdentityHero
             HStack(alignment: .center, spacing: 0) {
-                Button {
-                    // 0.4.5：开抽屉只写语义状态，壳层据
-                    // drawerPresented 执行推式动画（并先
-                    // 收键盘，见 ContentView.setDrawer）
-                    appState.router.drawerPresented = true
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        // 两钮共用 HeaderButtonSpec（直径 40／
-                        // 字形 20 regular）；0.3.8 画法换白浮
-                        // 纸（odFloatPaper：近白＋发丝边＋柔影）
-                        // 0.23.0（审计 T2）：圆钮白浮纸换系统
-                        // 玻璃 .glassEffect(.regular)——与同
-                        // 排身份胶囊同族（此前同排两材质并置
-                        // 可辨）；视觉盘 40 不变，命中域外扩
-                        // 44（命中域审计，视觉盘居中）
-                        .font(.system(
-                            size: HeaderButtonSpec.glyphPointSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(
-                            width: HeaderButtonSpec.diameter,
-                            height: HeaderButtonSpec.diameter
-                        )
-                        .glassEffect(.regular, in: Circle())
-                        .frame(
-                            width: OneDayMetrics.minTapTarget,
-                            height: OneDayMetrics.minTapTarget
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("会话列表")
-                .accessibilityIdentifier("drawer.open")
-
+                drawerButton
                 Spacer(minLength: OneDayMetrics.spacingS)
-
-                // 顶栏三件套之中（§202 路线 B）：中央组
-                // ＝枢纽头像钮＋模型胶囊两个独立元素——
-                // 0.6.0–0.50.26 的「一颗胶囊装双点按域」
-                // （身份域开枢纽／模型域开选择面）整套退
-                // 役：融域命中真机反复派错、0.50.26 终验
-                // 判红，用户拍板拆开。头像钮独立开枢纽
-                // （呈现仍在本页根 fullScreenCover）；模
-                // 型胶囊整颗只开分组选择面（§153 本会话
-                // 作用域，见 modelPickerSheet）。两元素
-                // 间距 spacingS、命中域互不融接；短名时
-                // 胶囊照常 hug 内容宽、长名尾部截断
-                topBarCenterCluster
-
-                Spacer(minLength: OneDayMetrics.spacingS)
-
-                // 0.6.0 顶栏三件套之右：铃铛＋角标（角标＝
-                // 未读通知＋待审批，总览桥聚合）。原右钮
-                // 「新建会话」退场——新建入口在抽屉底条与
-                // 抽屉空态行各有一处，不占顶栏三件套之位
-                // §434（用户亲点删「更多」钮）：原 D9 菜
-                // 单内仅「在对话中查找」一项、且系全
-                // App 独一份入口——菜单整件删除，功能
-                // 改直达放大镜圆钮（单功能不进菜单的大
-                // 厂单义钮做法）；盘/字形/命中域与同排
-                // 圆钮同规格，点开仍是下方 findBar，行
-                // 为零变化
-                Button {
-                    showFind = true
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(
-                            size: HeaderButtonSpec.glyphPointSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(
-                            width: HeaderButtonSpec.diameter,
-                            height: HeaderButtonSpec.diameter
-                        )
-                        .glassEffect(.regular, in: Circle())
-                        .frame(
-                            width: OneDayMetrics.minTapTarget,
-                            height: OneDayMetrics.minTapTarget
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("在对话中查找")
-                .accessibilityIdentifier("topbar.findButton")
-
-                Spacer(minLength: OneDayMetrics.spacingXS)
-
-                Button {
-                    showNotifications = true
-                } label: {
-                    ZStack(alignment: .topTrailing) {
-                        Image(systemName: "bell")
-                            .font(.system(
-                                size: HeaderButtonSpec.glyphPointSize,
-                                weight: .regular
-                            ))
-                            .foregroundStyle(Palette.ink)
-                            .frame(
-                                width: HeaderButtonSpec.diameter,
-                                height: HeaderButtonSpec.diameter
-                            )
-                            // 0.23.0（审计 T2）：同左钮换系统
-                            // 玻璃；角标与盘的相对位不变
-                            .glassEffect(.regular, in: Circle())
-                        if overviewBadgeCount > 0 {
-                            Text("\(overviewBadgeCount)")
-                                .font(.caption2.weight(.bold))
-                                // 角标坐在 dangerFill 面上，字恒白
-                                // （0.6.1：onPrimary 已改深字口径、
-                                // 不再借作白字）
-                                // 2026-11-15（第 85 条 BC-6）：填
-                                // 充改 dangerFill——danger 暗档
-                                // systemRed 白字压之仅 3.41，
-                                // dangerFill 暗档深红实算 4.87
-                                .foregroundStyle(Color.white)
-                                .padding(.horizontal, 4)
-                                .frame(minWidth: 18, minHeight: 18)
-                                .background(Palette.dangerFill, in: Capsule())
-                                .offset(x: 4, y: -4)
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    // 0.23.0（命中域审计）：命中域外扩 44
-                    // （视觉盘 40 居中、角标相对位不变）
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel(
-                    overviewBadgeCount > 0
-                        ? "通知，\(overviewBadgeCount) 条待处理"
-                        : "通知"
-                )
+                bellButton
             }
-
-            // （0.20.0 第五条，用户原话「状态栏下面不要显
-            // 示当前对话的名字，就一个状态栏就行了」：胶
-            // 囊之下的会话名次行整行撤销——第 30 条的弱行
-            // 与 0.4.0 的会话信息入口一并退役；会话名只在
-            // 抽屉旁聊区与管理页出现，会话详情经管理页
-            // ServerSessionRow 进入、不失联。showSession-
-            // Info 状态与 sheet 承载同轮拆除）
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingS)
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
-        .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingS)
     }
 
-    /// 顶簇中央组适配（§202 路线 B，本体 HubAvatar-
-    /// Button／ModelCapsuleView 两件）：本处只作适
-    /// 配——值与动作仍由本页单源派生，呈现宿主
-    /// （枢纽 cover／模型面 sheet）留在本页根
-    /// （§175），一件不多。两元素之间是一条 8pt
-    /// 显式隔断（透明命中盾：吃掉间隙点、不触发
-    /// 任何动作）——间隔由此按构造恒为死区，不靠
-    /// 两侧命中域自觉收边（胶囊玻璃命中外扩的实
-    /// 测教训见 ModelCapsuleView 文件头）；隔断宽
-    /// ＝spacingS，不许压小
-    private var topBarCenterCluster: some View {
-        // §434：中央组只剩模型胶囊——头像钮迁往顶
-        // 簇下方的居中身份区（headerIdentityHero，
-        // 67pt 大头像＋身份胶囊，对位 Muse 聊天
-        // 页）；§202 路线 B 的「一钮一动作」不变
-        // （模型胶囊仍只开选择面、头像仍只开枢
-        // 纽），只是不再同排并置，16pt 命中死区隔
-        // 断随并置消失一并退役
-        ModelCapsuleView(
-            modelTriggerLabel: ModelDisplayNames.triggerLabel(
-                for: currentChoice.model
-            ),
-            modelAccessibilityLabel: "当前模型 \(displayModelName)，切换模型",
-            onOpenModelPicker: { showModelPicker = true }
+    /// 左钮：汉堡（开抽屉）。本体自旧 headerBar 迁
+    /// 入、规格一字未动（HeaderButtonSpec 直径 40／
+    /// 字形 20 regular、0.23.0 起系统玻璃、命中域
+    /// 外扩 44）；字形取汉堡线与抽屉隐喻对齐（第
+    /// 31 条，「分栏」图标 sidebar.left 已退场）
+    private var drawerButton: some View {
+        Button {
+            // 0.4.5：开抽屉只写语义状态，壳层据
+            // drawerPresented 执行推式动画（并先
+            // 收键盘，见 ContentView.setDrawer）
+            appState.router.drawerPresented = true
+        } label: {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(
+                    size: HeaderButtonSpec.glyphPointSize,
+                    weight: .regular
+                ))
+                .foregroundStyle(Palette.ink)
+                .frame(
+                    width: HeaderButtonSpec.diameter,
+                    height: HeaderButtonSpec.diameter
+                )
+                .glassEffect(.regular, in: Circle())
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel("会话列表")
+        .accessibilityIdentifier("drawer.open")
+    }
+
+    /// 右钮：铃铛＋角标（角标＝未读通知＋待审批，
+    /// 总览桥聚合）。本体自旧 headerBar 迁入、规
+    /// 格一字未动（玻璃盘 40、命中域 44、角标
+    /// dangerFill 白字压右上）
+    private var bellButton: some View {
+        Button {
+            showNotifications = true
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                Image(systemName: "bell")
+                    .font(.system(
+                        size: HeaderButtonSpec.glyphPointSize,
+                        weight: .regular
+                    ))
+                    .foregroundStyle(Palette.ink)
+                    .frame(
+                        width: HeaderButtonSpec.diameter,
+                        height: HeaderButtonSpec.diameter
+                    )
+                    .glassEffect(.regular, in: Circle())
+                if overviewBadgeCount > 0 {
+                    Text("\(overviewBadgeCount)")
+                        .font(.caption2.weight(.bold))
+                        // 角标坐在 dangerFill 面上，字恒白
+                        // （第 85 条 BC-6：dangerFill 暗档
+                        // 深红实算 4.87、白字可读）
+                        .foregroundStyle(Color.white)
+                        .padding(.horizontal, 4)
+                        .frame(minWidth: 18, minHeight: 18)
+                        .background(Palette.dangerFill, in: Capsule())
+                        .offset(x: 4, y: -4)
+                        .accessibilityHidden(true)
+                }
+            }
+            .frame(
+                width: OneDayMetrics.minTapTarget,
+                height: OneDayMetrics.minTapTarget
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel(
+            overviewBadgeCount > 0
+                ? "通知，\(overviewBadgeCount) 条待处理"
+                : "通知"
         )
     }
 
@@ -2164,83 +2069,30 @@ struct ChatView: View {
             )
             .padding(.bottom, 36)
 
-            Button {
-                showHub = true
-            } label: {
-                VStack(spacing: OneDayMetrics.spacingMicro) {
-                    Text(appState.agentDisplayName)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                    HStack(spacing: OneDayMetrics.spacingXS) {
-                        Circle()
-                            .fill(overviewStatusColor)
-                            .frame(width: 6, height: 6)
-                        Text(overviewStatusWord)
-                            .font(.caption)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .lineLimit(1)
-                    }
-                }
-                .padding(.horizontal, OneDayMetrics.spacingSM)
-                .frame(height: OneDayMetrics.minTapTarget)
-                .glassEffect(.regular, in: Capsule())
-            }
-            .buttonStyle(.odPressable)
-            .accessibilityLabel(
-                "\(appState.agentDisplayName)，\(overviewStatusWord)，打开枢纽"
+            // §449：胶囊本体抽为独立件 HubIdentity-
+            // Capsule（顶带复刻 rig 同件复用）；名/状
+            // 态数据源与旧顶簇头像钮同源（agentDis-
+            // playName＋overviewStatusWord），不新造
+            HubIdentityCapsule(
+                displayName: appState.agentDisplayName,
+                // §449.9：第二行＝当前工具活动短语（与
+                // 中枢状态行同读 AppState.liveActivity-
+                // Phrase、同源同口径），无活动回落状态词
+                statusWord: appState.liveActivityPhrase
+                    ?? overviewStatusWord,
+                onOpenHub: { showHub = true },
+                onFindInConversation: { showFind = true }
             )
-            .accessibilityIdentifier("topbar.identityCapsule")
         }
         .frame(maxWidth: .infinity)
         .padding(.top, OneDayMetrics.spacingXS)
     }
 
-    /// （模型触发钮本体在 ModelCapsuleView；§153 的
-    /// 选面纪律注记并入下方 modelPickerSheet 注）
-
-    /// 模型面只由稳定的聊天根呈现，不挂在 ViewThatFits
-    /// 的两个候选按钮上；保留选择、隐藏确认和作用域逻辑。
-    /// §153 B1/B2 纪律（随触发钮迁件自原 modelMenu 注
-    /// 移入）：分组选择面取代旧原生 Menu＋Picker（写死
-    /// 两项装不下服务商分组，新面准入四问①②见
-    /// §153.4）；勾的纪律不回退——选择面是系统 List、
-    /// 当前执行行由系统 checkmark 呈现、单选互斥由
-    /// 「点行即落账关面」构造保证（FB16679936 的教训
-    /// 是自绘勾被 UIKit 剥透明度，双勾源于自绘而非列
-    /// 表形态本身）；选择只写本会话账（selectCurrent-
-    /// Choice），不改服务端默认、不发网络请求
-    private var modelPickerSheet: some View {
-        ChatModelPickerView(
-            groups: appState.pickerModelGroups,
-            current: currentChoice,
-            onSelect: { choice in
-                selectCurrentChoice(choice)
-                showModelPicker = false
-            },
-            onHideGroup: { group in
-                requestHideProviderGroup(group)
-            }
-        )
-        .confirmationDialog(
-            "隐藏默认服务商？",
-            isPresented: Binding(
-                get: { pendingHideGroup != nil },
-                set: { if !$0 { pendingHideGroup = nil } }
-            ),
-            titleVisibility: .visible
-        ) {
-            Button("隐藏服务商", role: .destructive) {
-                if let group = pendingHideGroup {
-                    commitHideProviderGroup(group)
-                }
-                pendingHideGroup = nil
-            }
-            Button("取消", role: .cancel) { pendingHideGroup = nil }
-        } message: {
-            Text("隐藏这家，服务端的新对话默认也会随之改走默认服务商。当前已经打开的对话不受影响。")
-        }
-    }
+    // （§449 退役：顶栏模型选择面 modelPickerSheet
+    // 随顶栏模型胶囊整件删除——§153 选择面本体
+    // （ChatModelPickerView）不退役，唯一宿主改中
+    // 枢选择面；隐藏服务商的 §158 分流/确认/落账
+    // 随迁 AgentHubView，见 DESIGN §449.2）
 
     /// 底部发送区（0.2.6 起由消息列表的安全区承载、不
     /// 再是覆盖层；0.2.6–0.4.2 为 .safeAreaInset，0.4.3
@@ -2891,66 +2743,6 @@ struct ChatView: View {
                             ),
                             composer: composer,
                             styleKey: styleKey
-                        )
-                    )
-                case .toolGroup(let groupEntries):
-                    for entry in groupEntries {
-                        seenEntryIDs.insert(entry.id)
-                    }
-                    let cards = groupEntries.compactMap(\.toolCard)
-                    var groupRevision = ChatNativeRowRevision()
-                    for entry in groupEntries {
-                        groupRevision.parts.append(contentsOf:
-                            rowBuildMemo.entryRevision(
-                                for: entry,
-                                dividerText: plan.dividers[entry.id],
-                                highlighted: false,
-                                styleKey: nativeRowStyleKey
-                            ).parts)
-                    }
-                    let groupKey =
-                        "toolgroup-\(groupEntries[0].id.uuidString)"
-                    // §331：工具组行高同走量测台
-                    let groupMemoKey =
-                        composer.toolGroupMemoKey(
-                            cards: cards, groupKey: groupKey
-                        )
-                    let groupResolved =
-                        rowMeasureDesk.resolve(
-                            memoKey: groupMemoKey,
-                            rowKey: groupKey,
-                            fallback:
-                                ChatNativeRowHeightComposer
-                                    .fallbackHeight
-                        )
-                    if groupResolved.needsJob {
-                        rowMeasureDesk.collect(
-                            composer
-                                .makeToolGroupMeasureJob(
-                                    cards: cards,
-                                    groupKey: groupKey,
-                                    memoKey: groupMemoKey,
-                                    rowKey: groupKey
-                                )
-                        )
-                    }
-                    rows.append(
-                        ChatNativeRow(
-                            key: groupKey,
-                            entryID: groupEntries[0].id,
-                            revision: groupRevision,
-                            height: groupResolved.height,
-                            heightIsProvisional:
-                                !groupResolved.isExact,
-                            makeView: { [rowStateLedger] in
-                                AnyView(
-                                    ToolCardGroupView(
-                                        cards: cards,
-                                        expansionKey: groupKey,
-                                        ledger: rowStateLedger
-                                    )
-                                )
-                            }
                         )
                     )
                 }
@@ -4370,18 +4162,17 @@ struct ChatView: View {
 
     // MARK: - 工具卡成组与直播区（0.36.10，诊断 D3-8/D3-10）
 
-    /// 落定条目渲染计划：连续工具卡条目 ≥2 收成一
-    /// 组、单卡仍走 .entry 原路（bubble 内 ToolCard-
-    /// View）。时间分隔走查只认会话条目、与本计划无
-    /// 关（映射在 timelineDividers 独立计算）
+    /// 落定条目渲染计划（§449.9 起）：工具条目不进
+    /// 本计划——活动呈现归页头胶囊活动行/直播占位
+    /// 行，流内不再有工具卡（组卡形态随之退役）；时
+    /// 间分隔走查只认会话条目、与本计划无关（映射在
+    /// timelineDividers 独立计算）
     private enum EntryRenderItem: Identifiable {
         case entry(ChatEntry)
-        case toolGroup([ChatEntry])
 
         var id: UUID {
             switch self {
             case .entry(let entry): return entry.id
-            case .toolGroup(let entries): return entries[0].id
             }
         }
     }
@@ -4389,26 +4180,12 @@ struct ChatView: View {
     private func entryRenderItems(
         for entries: [ChatEntry]
     ) -> [EntryRenderItem] {
-        var items: [EntryRenderItem] = []
-        var run: [ChatEntry] = []
-        func flush() {
-            if run.count == 1 {
-                items.append(.entry(run[0]))
-            } else if run.count > 1 {
-                items.append(.toolGroup(run))
-            }
-            run = []
-        }
-        for entry in entries {
-            if entry.toolCard != nil {
-                run.append(entry)
-            } else {
-                flush()
-                items.append(.entry(entry))
-            }
-        }
-        flush()
-        return items
+        // §449.9：工具条目在计划层过滤（数据层条目
+        // 原样保留——来源聚合/历史回放/台账详情照旧
+        // 读），两承载（原生行/旧 Lazy 承载）同效
+        entries
+            .filter { $0.toolCard == nil }
+            .map(EntryRenderItem.entry)
     }
 
     /// 渲染计划缓存（§135 B 案）：存上轮的分隔映射
@@ -5309,15 +5086,13 @@ struct ChatView: View {
             // 行，不是气泡、不冒充任何一方发言（回响
             // 是 App 按真源落的事实记录，见 GoalEcho）
             echoRow(entry)
-        } else if let card = entry.toolCard {
-            // 0.8.0（P1）：工具卡条目（role="tool"）——
-            // 不进气泡形态、不挂长按菜单、不进发送上下文
-            ToolCardView(
-                card: card,
-                expansionKey: ChatRowStateKeys
-                    .toolEntry(entry.id),
-                ledger: rowStateLedger
-            )
+        } else if entry.toolCard != nil {
+            // §449.9（2026-11-24 用户令）：工具条目不
+            // 再成卡进流——活动归页头胶囊活动行；渲染
+            // 计划层已过滤，本支是其余直调（长按快照
+            // 等）的兜底，恒空；条目数据层不动、仍不
+            // 进发送上下文（0.8.0 口径不变）
+            EmptyView()
         } else if entry.role == "user" {
             HStack {
                 Spacer(minLength: OneDayMetrics.bubbleSideInset)
@@ -11623,6 +11398,10 @@ private struct ComposerBarLayout: Layout {
         thread: ChatThread, entry: RunLedgerEntry,
         demoMode: Bool
     ) async {
+        // §449.9：新一轮跟随起手先清活动短语（上一轮
+        // 残值不许串轮）；工具在飞栈为本趟局部账
+        appState.liveActivityPhrase = nil
+        var liveToolStack: [(id: String, phrase: String)] = []
         guard let runID = entry.runID,
               let config = appState.config,
               let apiKey = appState.apiKey else { return }
@@ -11662,6 +11441,17 @@ private struct ComposerBarLayout: Layout {
                 appendLiveToolCard(
                     id: id, name: name, preview: preview
                 )
+                // §449.9：活动短语入 AppState 单源（胶
+                // 囊第二行/中枢状态行同读）；短语由
+                // Core 映射表单点派生
+                liveToolStack.append((
+                    id: id,
+                    phrase: ToolCardClassifier.activityPhrase(
+                        forToolName: name
+                    )
+                ))
+                appState.liveActivityPhrase =
+                    liveToolStack.last?.phrase
             case .toolCompleted(
                 let id, let name, let preview, let failed
             ):
@@ -11669,7 +11459,11 @@ private struct ComposerBarLayout: Layout {
                     id: id, name: name, preview: preview,
                     failed: failed
                 )
+                liveToolStack.removeAll { $0.id == id }
+                appState.liveActivityPhrase =
+                    liveToolStack.last?.phrase
             case .terminal(let kind, let output):
+                appState.liveActivityPhrase = nil
                 terminalOutputHint = output
                 runMachine.apply(.statusTerminal(kind))
                 return
@@ -11679,6 +11473,7 @@ private struct ComposerBarLayout: Layout {
         }
         // 流结束而未见终态：结果未知（非错误）。半截
         // 先落盘，进程被回收也不凭空消失
+        appState.liveActivityPhrase = nil
         if !runMachine.isSettled,
            case .generating(_) = runMachine.phase {
             runMachine.apply(.streamLost)

@@ -156,9 +156,11 @@ struct HubIdentitySection: View {
     /// 测）：标题＋「请谨慎访问」小字居左上、日期与字
     /// 形同居底行（日期左下、字形右下），卡面留白；
     /// SOUL 卡更新日期是真数据（取不到仍省略、不编
-    /// 造；记忆卡无日期数据源、恒不显）。渐变守冷中
-    /// 性（SOUL＝岩板蓝灰、记忆＝深钢蓝向单强调蓝靠
-    /// 拢），不照抄基准的暖色；暗色给同系深值
+    /// 造；记忆卡服务端暂无文件日期字段、恒不显，
+    /// 待补字段接线）。§449.8（用户 05:34 亲令与
+    /// Muse 对齐）：渐变改参照采样暖棕/深红、覆盖
+    /// §218 冷中性口径（仅本双卡）；日期格式改
+    /// MM.DD.YY
     private var cardsRow: some View {
         HStack(spacing: OneDayMetrics.spacingM) {
             NavigationLink {
@@ -205,7 +207,7 @@ struct HubIdentitySection: View {
             Spacer()
             HStack(alignment: .bottom) {
                 if let date {
-                    Text(AdminFormat.day(date))
+                    Text(Self.cardDate(date))
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.75))
                 }
@@ -221,41 +223,66 @@ struct HubIdentitySection: View {
         // 随内容长高不裁字（定高在大字号档装不下三行
         // 文本）；§222 常态高 128→150 对基准量测
         .frame(minHeight: 163)
+        // §449 圆角规范核：补 .continuous——连续圆
+        // 角（squircle）是 iOS 系统标准形态，Roun-
+        // dedRectangle 默认 .circular 不合规范口径；
+        // 半径值 23（containerCorner 梯队锚点）不动
         .background(
             gradient,
-            in: RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
+            in: RoundedRectangle(
+                cornerRadius: OneDayMetrics.containerCorner,
+                style: .continuous
+            )
         )
     }
 
-    /// SOUL 卡渐变（岩板蓝灰，冷中性；暗色同系深值）
+    /// 卡面日期口径（§449.8 对 Muse 参照帧采样）：
+    /// MM.DD.YY（如 11.24.26）——日期是文件的更新
+    /// 日期、服务端真值（SOUL＝soulDocument.
+    /// updatedAt，解码键表 §449.8 补 camelCase 后
+    /// 可达）；记忆卡服务端暂无文件日期字段（GET
+    /// /api/memory 只给计数），date 恒 nil 省略、
+    /// 待服务端补字段后接线，不编造
+    private static func cardDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MM.dd.yy"
+        return formatter.string(from: date)
+    }
+
+    /// SOUL 卡渐变（§449.8：用户 05:34 亲令与
+    /// Muse 对齐，覆盖 §218 冷中性口径——本双卡
+    /// 按参照帧像素采样：暖棕 #7C6B59→#AB8D71；
+    /// 暗色同色系压深）
     private static let soulGradient = LinearGradient(
         colors: [
             Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0x3E / 255.0, green: 0x4E / 255.0, blue: 0x61 / 255.0, alpha: 1)
-                    : UIColor(red: 0x6B / 255.0, green: 0x7D / 255.0, blue: 0x90 / 255.0, alpha: 1)
+                    ? UIColor(red: 0x57 / 255.0, green: 0x49 / 255.0, blue: 0x3B / 255.0, alpha: 1)
+                    : UIColor(red: 0x7C / 255.0, green: 0x6B / 255.0, blue: 0x59 / 255.0, alpha: 1)
             }),
             Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0x27 / 255.0, green: 0x33 / 255.0, blue: 0x41 / 255.0, alpha: 1)
-                    : UIColor(red: 0x47 / 255.0, green: 0x57 / 255.0, blue: 0x69 / 255.0, alpha: 1)
+                    ? UIColor(red: 0x77 / 255.0, green: 0x64 / 255.0, blue: 0x4C / 255.0, alpha: 1)
+                    : UIColor(red: 0xAB / 255.0, green: 0x8D / 255.0, blue: 0x71 / 255.0, alpha: 1)
             }),
         ],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
-    /// 记忆卡渐变（深钢蓝，向单强调蓝靠拢；暗色同系深值）
+    /// 记忆卡渐变（§449.8：参照采样深红 #7B1C20
+    /// →#962C36；暗色同色系压深）
     private static let memoryGradient = LinearGradient(
         colors: [
             Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0x2F / 255.0, green: 0x47 / 255.0, blue: 0x66 / 255.0, alpha: 1)
-                    : UIColor(red: 0x5B / 255.0, green: 0x7C / 255.0, blue: 0xA8 / 255.0, alpha: 1)
+                    ? UIColor(red: 0x57 / 255.0, green: 0x12 / 255.0, blue: 0x16 / 255.0, alpha: 1)
+                    : UIColor(red: 0x7B / 255.0, green: 0x1C / 255.0, blue: 0x20 / 255.0, alpha: 1)
             }),
             Color(UIColor { traits in
                 traits.userInterfaceStyle == .dark
-                    ? UIColor(red: 0x1E / 255.0, green: 0x30 / 255.0, blue: 0x47 / 255.0, alpha: 1)
-                    : UIColor(red: 0x3A / 255.0, green: 0x57 / 255.0, blue: 0x7E / 255.0, alpha: 1)
+                    ? UIColor(red: 0x6E / 255.0, green: 0x1F / 255.0, blue: 0x28 / 255.0, alpha: 1)
+                    : UIColor(red: 0x96 / 255.0, green: 0x2C / 255.0, blue: 0x36 / 255.0, alpha: 1)
             }),
         ],
         startPoint: .topLeading, endPoint: .bottomTrailing

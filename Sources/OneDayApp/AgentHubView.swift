@@ -115,7 +115,14 @@ struct AgentHubView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var store: AgentHubStore?
+    /// 共享 store 同步直取（§449 第 4 条）：本体是
+    /// AppState 的同步单例（0.36.21 起）——body 求
+    /// 值即在手、内容首帧直出。旧 @State 可空＋.task
+    /// 内赋值（且排在网络调用之后）令整页先转圈，
+    /// 连同 body 的 nil 闸整段退役
+    private var hubStore: AgentHubStore {
+        appState.sharedHubStore()
+    }
     @State private var segment: HubSegmentID = .work
     /// 分格注册表输入（§434）：初值＝连通＋本地通
     /// 道状态（Box 钥匙在位可同步判），其余回读旗
@@ -125,6 +132,10 @@ struct AgentHubView: View {
         AgentHubView.initialSegmentInputs()
     /// 模型选择面（§434 入口点开，与聊天页同组件）
     @State private var showModelPicker = false
+    /// 隐藏服务商待确认（§449 自顶栏选择面迁入，
+    /// §158 口径不变）：点隐藏的组正是服务端当前
+    /// 默认所在组时先弹后果确认，确认后才落账
+    @State private var pendingHideGroup: ChatModelGroup?
     /// 头像/名称编辑面（0.36.22 档案菜单两项）
     @State private var showAvatarEditor = false
     @State private var showNameEditor = false
@@ -159,6 +170,25 @@ struct AgentHubView: View {
         HubSegmentRegistry.resolve(segmentInputs)
     }
 
+    /// 有效段集（§449 第 4 条）：注册表输入叠加共
+    /// 享 store 的现行回读态——同会话内聊天页或上
+    /// 一次开枢纽已把审批/授权拉成 .ready 时，本
+    /// 次开页第一帧即全格，不等本页 .task 回读；
+    /// 纯输入版 availableSegments 仍是注册表裁决
+    /// 的单源（单测可直读、无环境依赖，口径不变）
+    private func effectiveSegments(
+        considering store: AgentHubStore
+    ) -> [HubSegmentID] {
+        var inputs = segmentInputs
+        if case .ready = store.grantsState {
+            inputs.grantsReadbackOK = true
+        }
+        if case .ready = store.approvalState {
+            inputs.approvalsReadbackOK = true
+        }
+        return HubSegmentRegistry.resolve(inputs)
+    }
+
     /// 通知落点的段位改道（§217 立、§434 沿用）：
     /// 原指向任务/审核/监测三撤段的落点全部改落
     /// 工作段——内容已并入工作台账（审批聚焦与
@@ -184,7 +214,7 @@ struct AgentHubView: View {
     /// 名＋域名任一变，名片图就重渲染
     private var shareRenderKey: String {
         "\(appState.agentProfileStore.revision)"
-            + "|\(store?.displayName ?? "")"
+            + "|\(hubStore.displayName)"
             + "|\(appState.serverShareHost ?? "")"
     }
 
@@ -207,11 +237,7 @@ struct AgentHubView: View {
             // 页右滑返回全归系统 pop，不再需要栈深
             NavigationStack {
                 Group {
-                    if let store {
-                        content(store)
-                    } else {
-                        ProgressView()
-                    }
+                    content(hubStore)
                 }
                 .background(Palette.pageBG)
             }
@@ -226,7 +252,7 @@ struct AgentHubView: View {
         }
         .task(id: shareRenderKey) {
             shareItem = AgentShareItem.make(
-                name: store?.displayName ?? appState.agentDisplayName,
+                name: hubStore.displayName,
                 host: appState.serverShareHost,
                 avatarImage: appState.agentAvatarImage
             )
@@ -235,18 +261,17 @@ struct AgentHubView: View {
             // 身份呈现跟随（末写胜包）：枢纽是看身份的
             // 面——每次打开先重拉名字与头像，服务器刚
             // 被 AI 改过当场跟上（节流在 AppState 内）
+            // 0.36.21：store 走 AppState 共享单例（就
+            // 地审批卡与枢纽共用同一份 /pending 数据
+            // 与裁决路径，规格 §6）；审批终态回调在此
+            // 注入（本视图是全 App 唯一呈现枢纽的入
+            // 口）。§449：注入后先按共享 store 现行回
+            // 读态刷一次分格输入（热态重开不等本轮网
+            // 络、第一帧即全格），再走刷新链
+            hubStore.onApprovalChanged = onApprovalChanged
+            refreshSegmentInputs()
             await appState.refreshIdentitySurfaces()
-            if store == nil {
-                // 0.36.21：store 改走 AppState 共享单例
-                // （就地审批卡与枢纽共用同一份 /pending
-                // 数据与裁决路径，规格 §6）；审批终态回
-                // 调仍在此注入（本视图是全 App 唯一呈现
-                // 枢纽的入口）
-                let shared = appState.sharedHubStore()
-                shared.onApprovalChanged = onApprovalChanged
-                store = shared
-            }
-            await store?.loadInitial()
+            await hubStore.loadInitial()
             // 页头状态行消费台账进行中集（结构归位
             // 包，§3.2）：开枢纽时先踢一脚共享台账店
             // 加载——与活动段 .task 的加载同店同守卫
@@ -258,10 +283,10 @@ struct AgentHubView: View {
             // （chat 刷新刚拉过会跳过），枢纽语义是「每
             // 次打开必刷新」——强制重拉保住（§155 起全
             // 量模式同口径，不再只限 .activity）
-            await store?.loadApproval(force: true)
+            await hubStore.loadApproval(force: true)
             // §434：授权账本同轮回读（审核格数据＋注
             // 册表活证），随后按真回读刷新分格输入
-            await store?.loadGrants()
+            await hubStore.loadGrants()
             refreshSegmentInputs()
             // §123（H2）：通知落点消费——按落点切到对
             // 应段（聚焦字段由对应段自己消费），消费后
@@ -287,17 +312,39 @@ struct AgentHubView: View {
         }
     }
 
+    /// 隐藏请求分流（§158 自 ChatView 顶栏选择面迁
+    /// 入、口径逐字不变）：组键取不到不处理；组里
+    /// 带默认标记＝服务端当前默认正走这组——先弹
+    /// 后果确认（pendingHideGroup 的确认框在本面
+    /// sheet 上声明）；其余直接落账隐藏。隐藏全程
+    /// 只动本机呈现账（AppState），服务端与执行链
+    /// 零触碰
+    private func requestHideProviderGroup(_ group: ChatModelGroup) {
+        guard ProviderGroupVisibility.groupKey(for: group) != nil
+        else { return }
+        if ProviderGroupVisibility.containsDefault(group) {
+            pendingHideGroup = group
+        } else {
+            commitHideProviderGroup(group)
+        }
+    }
+
+    private func commitHideProviderGroup(_ group: ChatModelGroup) {
+        guard let key = ProviderGroupVisibility.groupKey(for: group)
+        else { return }
+        appState.hideProviderGroup(key: key)
+    }
+
     /// 回读后刷新注册表输入（§434）：旗标只认真回
     /// 读结果——grants 或审批任一 ready，审核格长
     /// 入；当前段若被新格集落下（仅回读翻转时理
     /// 论可能），回落首格不留空段
     private func refreshSegmentInputs() {
-        guard let store else { return }
         var inputs = segmentInputs
-        if case .ready = store.grantsState {
+        if case .ready = hubStore.grantsState {
             inputs.grantsReadbackOK = true
         }
-        if case .ready = store.approvalState {
+        if case .ready = hubStore.approvalState {
             inputs.approvalsReadbackOK = true
         }
         segmentInputs = inputs
@@ -312,7 +359,7 @@ struct AgentHubView: View {
             if let modelEntry {
                 modelEntryRow(modelEntry)
             }
-            segmentPicker
+            segmentPicker(store)
             segmentContent(store)
         }
         .onChange(of: segment) { _, newSegment in
@@ -321,9 +368,12 @@ struct AgentHubView: View {
         .sheet(isPresented: $showModelPicker) {
             if let modelEntry {
                 // 同组件同数据源（§153/§434）：分组与
-                // 当前选择由宿主注入的本会话模型账；
-                // 隐藏分组回调传 nil——枢纽是复用面，
-                // 不在此处改服务商收纳（组件头注口径）
+                // 当前选择由宿主注入的本会话模型账。
+                // §449（第 2 条连带）：隐藏服务商自顶
+                // 栏选择面迁入本面——分流/确认/落账整
+                // 套随迁（旧「枢纽不改服务商收纳」口
+                // 径由用户删顶栏令覆盖），顶栏侧同名
+                // 逻辑已整删、全 App 只剩这一处
                 ChatModelPickerView(
                     groups: modelEntry.groups,
                     current: modelEntry.current,
@@ -331,8 +381,30 @@ struct AgentHubView: View {
                         modelEntry.onSelect(choice)
                         showModelPicker = false
                     },
-                    onHideGroup: nil
+                    onHideGroup: { group in
+                        requestHideProviderGroup(group)
+                    }
                 )
+                .confirmationDialog(
+                    "隐藏默认服务商？",
+                    isPresented: Binding(
+                        get: { pendingHideGroup != nil },
+                        set: { if !$0 { pendingHideGroup = nil } }
+                    ),
+                    titleVisibility: .visible
+                ) {
+                    Button("隐藏服务商", role: .destructive) {
+                        if let group = pendingHideGroup {
+                            commitHideProviderGroup(group)
+                        }
+                        pendingHideGroup = nil
+                    }
+                    Button("取消", role: .cancel) {
+                        pendingHideGroup = nil
+                    }
+                } message: {
+                    Text("隐藏这家，服务端的新对话默认也会随之改走默认服务商。当前已经打开的对话不受影响。")
+                }
             }
         }
     }
@@ -446,13 +518,38 @@ struct AgentHubView: View {
         // 口径（头像→名 16、名→状态 8）。§344 的
         // 收紧理由（占高过大）让位于用户本轮明确
         // 的整页对位要求，覆盖关系在此登记
-        VStack(spacing: 0) {
+        // §449（第 3/6 条）：钮行改与 hero 同带叠放
+        // （ZStack 顶对齐）——§344 的独立成行退役：
+        // 钮 44 命中帧顶与头像顶同线，钮心在头像心
+        // 上方实得 ≈20.5pt（参照量测 ≈22，见 DESIGN
+        // §449.3）
+        ZStack(alignment: .top) {
+
+            // 身份 hero（§434）：头像居中＋名居中＋
+            // 状态行居中（状态语义与派生不动，仍是
+            // statusLine 本体：活动优先、连接兜底）
+            VStack(spacing: 0) {
+                avatarBlock
+
+                Text(store.displayName)
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .lineLimit(1)
+                    .padding(.top, OneDayMetrics.spacingM)
+
+                statusLine(store)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.top, OneDayMetrics.spacingS)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+
             // 圆钮行（✕ 关闭＋分享名片）：0.36.22 起
             // 两模式统一常驻——整页呈现下活动模式同
             // 样需要显式关闭与分享落点（学 Muse 智
             // 能体页）；0.6.0 的「活动模式撤圆钮行」
-            // 口径由整页化覆盖。§344 起独立成行（旧版
-            // 与头像 ZStack 叠放、靠头像高撑行高）
+            // 口径由整页化覆盖。§449 改同带叠放
+            // （§344 独立成行退役，见 header 头注）
             HStack {
                 // 页头圆钮（L1，用户定案③：照样板形态、
                 // 用系统玻璃原生件拼装）
@@ -481,26 +578,6 @@ struct AgentHubView: View {
                 shareButton(store)
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
-
-            // 身份 hero（§434）：头像居中＋名居中＋
-            // 状态行居中（状态语义与派生不动，仍是
-            // statusLine 本体：活动优先、连接兜底）
-            VStack(spacing: 0) {
-                avatarBlock
-
-                Text(store.displayName)
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .lineLimit(1)
-                    .padding(.top, OneDayMetrics.spacingM)
-
-                statusLine(store)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.top, OneDayMetrics.spacingS)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, OneDayMetrics.pageGutter)
-            .padding(.top, OneDayMetrics.spacingS)
         }
         .padding(.top, OneDayMetrics.spacingS)
         .padding(.bottom, OneDayMetrics.spacingS)
@@ -509,12 +586,22 @@ struct AgentHubView: View {
     /// 状态行（结构归位包，D4-1）：第一语义＝
     /// 当前活动——台账有进行中条目时显活动行
     /// （转圈＋人话标题），连接状态降为兜底
-    /// （无进行中时回落圆点＋现行状态词）。§344
+    /// （无进行中时回落现行状态词，§449 起不带点）。§344
     /// 起自页头抽出独立件、搬入身份行名下，语义
     /// 与派生不动
+    /// §449.9 增补：本轮工具活动短语（AppState.live-
+    /// ActivityPhrase，与聊天页头胶囊第二行同源同
+    /// 口径）优先于台账活动行——同一活动两面一词
     private func statusLine(_ store: AgentHubStore) -> some View {
         HStack(spacing: OneDayMetrics.rowInnerGap) {
-            if let activityLine = hubActivityLine {
+            if let livePhrase = appState.liveActivityPhrase {
+                ProgressView()
+                    .controlSize(.mini)
+                Text(livePhrase)
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            } else if let activityLine = hubActivityLine {
                 ProgressView()
                     .controlSize(.mini)
                 Text(activityLine)
@@ -522,9 +609,10 @@ struct AgentHubView: View {
                     .foregroundStyle(Palette.inkSecondary)
                     .lineLimit(1)
             } else {
-                Circle()
-                    .fill(store.isOnline ? Palette.success : Palette.inkMuted)
-                    .frame(width: 8, height: 8)
+                // §449（03:19 去重）：状态点删除——
+                // 本簇 presence 只以文案呈现（参照中
+                // 枢状态行同为纯文案、无点）；词的派
+                // 生与语义不动
                 Text(store.statusText)
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
@@ -633,9 +721,11 @@ struct AgentHubView: View {
     /// trait（UI 布局探针按标签回落查按钮、兼容）。
     /// 条下 Divider 撤除——基准是留白节奏不是线（宪
     /// 法③的分隔几何收口不在此面回潮）
-    private var segmentPicker: some View {
+    private func segmentPicker(
+        _ store: AgentHubStore
+    ) -> some View {
         HStack(spacing: OneDayMetrics.spacingXS) {
-            ForEach(availableSegments) { item in
+            ForEach(effectiveSegments(considering: store)) { item in
                 Button {
                     segment = item
                 } label: {

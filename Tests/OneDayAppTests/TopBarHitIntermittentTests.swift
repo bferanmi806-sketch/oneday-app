@@ -11,9 +11,12 @@ import XCTest
 /// 打不开。生产同构壳（DrawerContainerController
 /// 前景＋真 TabView，与 ComposerGuideHostTests 同
 /// 式）里挂**生产件** TopBarGuideHost，顶簇内容按
-/// ChatView.topBarCluster 的现行构成复刻（抽屉钮
-/// 本体照 headerBar 原样、HubAvatarButton 与
-/// ModelCapsuleView 用生产件、16pt 命中死区同位）。
+/// ChatView.topBarCluster 的现行构成复刻（§449
+/// 带面：抽屉/铃钮本体照 topBand 原样、HubAva-
+/// tarButton 与身份胶囊 HubIdentityCapsule 用生
+/// 产件、钮与头像同带叠放同位；旧复刻的顶栏行
+/// 中央组〈36 头像＋16pt 死区＋模型胶囊〉已随生
+/// 产形态退役）。
 ///
 /// 证据纪律＝路由环为判据（本线三轮取证演进的
 /// 终点，逐项有 CI 实证）：断言＝在钮的活量中心
@@ -53,7 +56,10 @@ final class TopBarHitIntermittentTests: XCTestCase {
     @Observable
     final class RigState {
         var selection = 0
-        var topBarHeight: CGFloat = 60
+        /// 宿主记账高：§449 带面实高 ≈107（带 103
+        /// ＋顶距 4），取 120 容带面全高（进展行生
+        /// 长时探针仍只打带内三件、不受影响）
+        var topBarHeight: CGFloat = 120
         /// 聚焦态（替身以此驱动 .toolbar 坞显隐，与
         /// 生产 composerFocused 同一位的开关）
         var focused = false
@@ -61,7 +67,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
         var showSheet = false
         var drawerTaps = 0
         var hubTaps = 0
-        var modelTaps = 0
+        var capsuleTaps = 0
         var bellTaps = 0
     }
 
@@ -139,7 +145,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
         let box: FrameBox
         var body: some View {
             VStack(spacing: OneDayMetrics.rowInnerGap) {
-                headerReplica
+                bandReplica
                 if state.progressShown {
                     // 进展胶囊行的结构替身（生产 Pro-
                     // gressCapsuleView 显形时的同位行）
@@ -151,89 +157,105 @@ final class TopBarHitIntermittentTests: XCTestCase {
             }
         }
 
-        /// 顶栏本体：构成照 ChatView.headerBar（左
-        /// 钮本体逐字同式、中央组生产件＋16pt 死
-        /// 区、右铃铛同式），动作改记替身计数
-        private var headerReplica: some View {
-            HStack(alignment: .center, spacing: 0) {
-                Button {
-                    state.drawerTaps += 1
-                } label: {
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(
-                            size: HeaderButtonSpec.glyphPointSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(
-                            width: HeaderButtonSpec.diameter,
-                            height: HeaderButtonSpec.diameter
-                        )
-                        .glassEffect(.regular, in: Circle())
-                        .frame(
-                            width: OneDayMetrics.minTapTarget,
-                            height: OneDayMetrics.minTapTarget
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("会话列表")
-                .background(FrameReporter(name: "drawerBtn", box: box))
-
-                Spacer(minLength: OneDayMetrics.spacingS)
-
+        /// 顶带本体：构成照 ChatView.topBand（§449
+        /// 同带叠放——居中身份区在下、汉堡/铃钮行
+        /// 叠于头像带；钮本体逐字同式、身份两件用
+        /// 生产件），动作改记替身计数
+        private var bandReplica: some View {
+            ZStack(alignment: .top) {
+                heroReplica
                 HStack(alignment: .center, spacing: 0) {
-                    HubAvatarButton(
-                        avatar: Image(systemName: "pawprint.fill"),
-                        displayName: "三狗",
-                        statusWord: "在线",
-                        statusColor: .green,
-                        avatarPointSize: 36,
-                        onOpenHub: { state.hubTaps += 1 }
-                    )
-                    Color.clear
-                        .frame(
-                            width: OneDayMetrics.spacingM,
-                            height: OneDayMetrics.minTapTarget
-                        )
-                        .contentShape(Rectangle())
-                        .onTapGesture {}
-                    ModelCapsuleView(
-                        modelTriggerLabel: "claude-sonnet-4-6",
-                        modelAccessibilityLabel: "当前模型，切换模型",
-                        onOpenModelPicker: { state.modelTaps += 1 }
-                    )
-                    .background(FrameReporter(name: "capsule", box: box))
+                    drawerReplica
+                    Spacer(minLength: OneDayMetrics.spacingS)
+                    bellReplica
                 }
-
-                Spacer(minLength: OneDayMetrics.spacingS)
-
-                Button {
-                    state.bellTaps += 1
-                } label: {
-                    Image(systemName: "bell")
-                        .font(.system(
-                            size: HeaderButtonSpec.glyphPointSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(
-                            width: HeaderButtonSpec.diameter,
-                            height: HeaderButtonSpec.diameter
-                        )
-                        .glassEffect(.regular, in: Circle())
-                        .frame(
-                            width: OneDayMetrics.minTapTarget,
-                            height: OneDayMetrics.minTapTarget
-                        )
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("通知")
+                .padding(.horizontal, OneDayMetrics.pageGutter)
+                .padding(.top, OneDayMetrics.spacingS)
             }
-            .padding(.horizontal, OneDayMetrics.pageGutter)
-            .padding(.top, OneDayMetrics.spacingS)
-            .padding(.bottom, OneDayMetrics.spacingS)
+        }
+
+        /// 居中身份区：照 ChatView.headerIdentity-
+        /// Hero（生产件 HubAvatarButton 67 档＋生产
+        /// 件 HubIdentityCapsule、胶囊压头像下沿同
+        /// 位——头像底距 36、重叠 ≈8）
+        private var heroReplica: some View {
+            ZStack(alignment: .bottom) {
+                HubAvatarButton(
+                    avatar: Image(systemName: "pawprint.fill"),
+                    displayName: "三狗",
+                    statusWord: "在线",
+                    statusColor: .green,
+                    avatarPointSize: OneDayMetrics.avatarChatHero,
+                    onOpenHub: { state.hubTaps += 1 }
+                )
+                .padding(.bottom, 36)
+                .background(FrameReporter(name: "heroAvatar", box: box))
+
+                HubIdentityCapsule(
+                    displayName: "三狗",
+                    statusWord: "在线",
+                    onOpenHub: { state.capsuleTaps += 1 },
+                    onFindInConversation: {}
+                )
+                .background(FrameReporter(name: "capsule", box: box))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, OneDayMetrics.spacingXS)
+        }
+
+        /// 左钮本体：照 ChatView.drawerButton（汉堡
+        /// 线、HeaderButtonSpec、玻璃盘 40、命中 44）
+        private var drawerReplica: some View {
+            Button {
+                state.drawerTaps += 1
+            } label: {
+                Image(systemName: "line.3.horizontal")
+                    .font(.system(
+                        size: HeaderButtonSpec.glyphPointSize,
+                        weight: .regular
+                    ))
+                    .foregroundStyle(Palette.ink)
+                    .frame(
+                        width: HeaderButtonSpec.diameter,
+                        height: HeaderButtonSpec.diameter
+                    )
+                    .glassEffect(.regular, in: Circle())
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("会话列表")
+            .background(FrameReporter(name: "drawerBtn", box: box))
+        }
+
+        /// 右钮本体：照 ChatView.bellButton（铃、规
+        /// 格同左钮；角标在替身里恒缺席、与命中无涉）
+        private var bellReplica: some View {
+            Button {
+                state.bellTaps += 1
+            } label: {
+                Image(systemName: "bell")
+                    .font(.system(
+                        size: HeaderButtonSpec.glyphPointSize,
+                        weight: .regular
+                    ))
+                    .foregroundStyle(Palette.ink)
+                    .frame(
+                        width: HeaderButtonSpec.diameter,
+                        height: HeaderButtonSpec.diameter
+                    )
+                    .glassEffect(.regular, in: Circle())
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("通知")
         }
     }
 
@@ -452,6 +474,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
     private func primeRig() {
         waitForView("capsule")
         waitForView("drawerBtn")
+        waitForView("heroAvatar")
         settle(0.6)
     }
 
@@ -464,7 +487,8 @@ final class TopBarHitIntermittentTests: XCTestCase {
     func testRest_baseline_bothButtonsFire() {
         primeRig()
         assertDrawerFires("静息/抽屉钮")
-        assertCapsuleFires("静息/模型胶囊")
+        assertCapsuleFires("静息/身份胶囊")
+        assertRouting("heroAvatar", "静息/hero头像")
     }
 
     /// S1a 宿主帧被重排上移 49、无布局拍（§195 落
@@ -523,7 +547,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
         state.selection = 0
         settle(1.2)
         assertDrawerFires("切格往返/抽屉钮")
-        assertCapsuleFires("切格往返/模型胶囊")
+        assertCapsuleFires("切格往返/身份胶囊")
     }
 
     /// S3 sheet 开关往返：模型面同型的呈现/消散一
@@ -534,7 +558,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
         settle(1.0)
         state.showSheet = false
         settle(1.0)
-        assertCapsuleFires("sheet往返/模型胶囊")
+        assertCapsuleFires("sheet往返/身份胶囊")
         assertDrawerFires("sheet往返/抽屉钮")
     }
 
@@ -561,7 +585,7 @@ final class TopBarHitIntermittentTests: XCTestCase {
         spinRunLoop(seconds: 2.0)
         settle(0.4)
         assertDrawerFires("抽屉落定/抽屉钮")
-        assertCapsuleFires("抽屉落定/模型胶囊")
+        assertCapsuleFires("抽屉落定/身份胶囊")
     }
 
     /// S5 坞显隐落定（键盘聚焦态的结构同构件）：
@@ -572,10 +596,10 @@ final class TopBarHitIntermittentTests: XCTestCase {
         primeRig()
         state.focused = true
         settle(1.2)
-        assertCapsuleFires("坞隐藏落定/模型胶囊")
+        assertCapsuleFires("坞隐藏落定/身份胶囊")
         state.focused = false
         settle(1.2)
-        assertCapsuleFires("坞回显落定/模型胶囊")
+        assertCapsuleFires("坞回显落定/身份胶囊")
         assertDrawerFires("坞回显落定/抽屉钮")
     }
 
@@ -587,10 +611,10 @@ final class TopBarHitIntermittentTests: XCTestCase {
         state.progressShown = true
         settle(1.2)
         assertDrawerFires("进展生长/抽屉钮")
-        assertCapsuleFires("进展生长/模型胶囊")
+        assertCapsuleFires("进展生长/身份胶囊")
         state.progressShown = false
         settle(1.2)
-        assertCapsuleFires("进展收起/模型胶囊")
+        assertCapsuleFires("进展收起/身份胶囊")
     }
 
     /// S7 外观切换：深色一轮后两钮可点（特征化状
@@ -600,9 +624,9 @@ final class TopBarHitIntermittentTests: XCTestCase {
         window.overrideUserInterfaceStyle = .dark
         settle(0.8)
         assertDrawerFires("深色/抽屉钮")
-        assertCapsuleFires("深色/模型胶囊")
+        assertCapsuleFires("深色/身份胶囊")
         window.overrideUserInterfaceStyle = .light
         settle(0.8)
-        assertCapsuleFires("回浅色/模型胶囊")
+        assertCapsuleFires("回浅色/身份胶囊")
     }
 }
