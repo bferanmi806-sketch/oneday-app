@@ -1089,7 +1089,7 @@ struct FileChip: View {
                 Circle().fill(Palette.surface)
                 Circle()
                     .stroke(
-                        Palette.inkTertiary.opacity(0.35),
+                        Palette.inkMuted.opacity(0.35),
                         lineWidth: 2
                     )
                 if expected > 0 {
@@ -1172,12 +1172,14 @@ struct FileChip: View {
            entry.mediaKind == nil {
             return
         }
+        // 本地缓存先在主线取定（loader 闭包非隔离、
+        // 不直摸 @MainActor 店的同步面）
+        let cachedURL = store.localURL(for: path)
         let image = await FileThumbnailStore.shared.thumbnail(
             for: entry, targetPixelSize: 200,
             loader: {
-                if let url = ChatFileStore.shared
-                    .localURL(for: path) {
-                    return try? Data(contentsOf: url)
+                if let cachedURL {
+                    return try? Data(contentsOf: cachedURL)
                 }
                 guard let url = try? await ChatFileStore.shared
                     .download(path: path, appState: appState)
