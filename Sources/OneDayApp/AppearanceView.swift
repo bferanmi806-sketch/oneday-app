@@ -419,10 +419,6 @@ struct AppearanceView: View {
             }
         } header: {
             appearanceHeader("聊天个性化")
-        } footer: {
-            Text("默认即自家定版（气泡「定版」＋背景「默认」）；改选只影响聊天页呈现，随时可改回。")
-                .font(.rowSubtitle)
-                .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
     }
