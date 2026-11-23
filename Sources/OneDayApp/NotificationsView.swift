@@ -27,6 +27,10 @@ import SwiftUI
 ///   出桥 50 条窗口的旧回告仍在本页回看、点行进详
 ///   情、落点可达；角标与聊天页回告卡仍读桥现行，
 ///   不许拿历史面冒充未读口径；
+/// - §454 入账分级：三级条目（前台会话正常完成）
+///   在入账口已拦下，本页与存档都见不到；二级同
+///   类事件按 NotificationIntakePolicy.rows 折成
+///   计数行呈现，点开整组标已读（cohort 通道）；
 /// - 伴生 1.0.27「已决不提醒」：已决回执在桥侧已读
 ///   出生，本页不重算、不复活未读；角标口径原样由
 ///   桥快照出，本页零改动；
@@ -92,7 +96,11 @@ struct NotificationsView: View {
             .background(Palette.pageBG)
             .toolbar(.hidden, for: .navigationBar)
             .task {
-                await store.loadNotifications(appState: appState)
+                await store.loadNotifications(
+                    appState: appState,
+                    userSessionIDs: ChatSessionScope
+                        .userSessionIDs(from: modelContext)
+                )
             }
             .onReceive(
                 Timer.publish(every: 60, on: .main, in: .common)
@@ -219,7 +227,13 @@ struct NotificationsView: View {
                 Text("通知暂时读不到。请检查服务器连接，或稍后重试。")
             } actions: {
                 Button("重新加载") {
-                    Task { await store.loadNotifications(appState: appState) }
+                    Task {
+                        await store.loadNotifications(
+                            appState: appState,
+                            userSessionIDs: ChatSessionScope
+                                .userSessionIDs(from: modelContext)
+                        )
+                    }
                 }
                 .buttonStyle(.bordered)
             }
@@ -288,8 +302,12 @@ struct NotificationsView: View {
             ForEach(Array(groups.enumerated()), id: \.element.id) {
                 index, group in
                 Section {
-                    ForEach(group.items) { item in
-                        notificationRow(item)
+                    ForEach(
+                        NotificationIntakePolicy.rows(
+                            items: group.items
+                        )
+                    ) { row in
+                        notificationRow(row)
                     }
                 } header: {
                     groupHeader(group, isFirst: index == 0)
@@ -313,7 +331,11 @@ struct NotificationsView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .refreshable {
-            await store.loadNotifications(appState: appState)
+            await store.loadNotifications(
+                appState: appState,
+                userSessionIDs: ChatSessionScope
+                    .userSessionIDs(from: modelContext)
+            )
         }
     }
 
@@ -342,8 +364,9 @@ struct NotificationsView: View {
     /// 行上发生、归详情页落点按钮（原型分工）
 
     private func notificationRow(
-        _ item: OverviewNotification
+        _ row: NotificationIntakePolicy.Row
     ) -> some View {
+        let item = row.lead
         let presentation = NotificationSummary.presentation(
             kind: item.kind, title: item.title, body: item.body
         )
@@ -351,6 +374,7 @@ struct NotificationsView: View {
             NotificationDetailView(
                 store: store,
                 item: item,
+                cohort: row.isAggregate ? row.items : [],
                 destination: destination(for: item)
             )
         } label: {
@@ -365,9 +389,9 @@ struct NotificationsView: View {
 
                 ) {
                     Text(item.title)
-                        .font(item.read
-                            ? .rowTitleL
-                            : .rowTitleL.weight(.semibold))
+                        .font(row.hasUnread
+                            ? .rowTitleL.weight(.semibold)
+                            : .rowTitleL)
                         .foregroundStyle(Palette.ink)
                         .lineLimit(2)
                     if !presentation.summary.isEmpty {
@@ -376,7 +400,7 @@ struct NotificationsView: View {
                             .foregroundStyle(Palette.inkSecondary)
                             .lineLimit(2)
                     }
-                    metaLine(item)
+                    metaLine(row)
                 }
                 Spacer(minLength: 0)
             }
@@ -392,19 +416,23 @@ struct NotificationsView: View {
         // 自左缘起（沿旧版落法）
         .alignmentGuide(.listRowSeparatorLeading) { _ in 0 }
         .swipeActions(edge: .trailing) {
-            if !item.read {
+            if row.hasUnread {
                 Button("标已读") {
                     Task {
-                        await store.markRead(
-                            appState: appState, id: item.id
-                        )
+                        // 聚合行整组同消（§454）：组内
+                        // 未读逐条标读，不留计数尾巴
+                        for entry in row.items where !entry.read {
+                            await store.markRead(
+                                appState: appState, id: entry.id
+                            )
+                        }
                     }
                 }
                 .tint(Palette.primary)
             }
         }
         .accessibilityLabel(
-            item.read ? item.title : "未读，\(item.title)"
+            row.hasUnread ? "未读，\(item.title)" : item.title
         )
     }
 
@@ -463,16 +491,16 @@ struct NotificationsView: View {
     /// 元信息行：未读蓝点（5pt，只此一处未读点——旧
     /// 版左列点已随行形态收编）＋相对时间＋「· 类别」
     private func metaLine(
-        _ item: OverviewNotification
+        _ row: NotificationIntakePolicy.Row
     ) -> some View {
         HStack(spacing: OneDayMetrics.spacingXS) {
-            if !item.read {
+            if row.hasUnread {
                 Circle()
                     .fill(Palette.primary)
                     .frame(width: 5, height: 5)
                     .accessibilityHidden(true)
             }
-            Text(metaText(item))
+            Text(metaText(row))
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
                 .monospacedDigit()
@@ -483,14 +511,24 @@ struct NotificationsView: View {
     /// 源——旧版只给监测加「· 监测」、裁决不加的口径
     /// 随原型收编为全类带类别）。createdAt 解析不了
     /// 原样呈现（不编造时间，沿旧版）
-    private func metaText(_ item: OverviewNotification) -> String {
+    private func metaText(
+        _ row: NotificationIntakePolicy.Row
+    ) -> String {
+        let item = row.lead
         let time: String
         if let date = NotificationGrouping.parseCreatedAt(item.createdAt) {
             time = DisplayDate.relative(date, now: now)
         } else {
             time = item.createdAt
         }
-        return time + " · " + NotificationDetail.categoryName(for: item)
+        var text = time + " · "
+            + NotificationDetail.categoryName(for: item)
+        // 聚合行计数申报（§454）：行面以最新一条为
+        // 准，组内总数在元信息行如实给出
+        if row.isAggregate {
+            text += " · 共 \(row.items.count) 条"
+        }
+        return text
     }
 
     // MARK: - 落点（详情页消费，跳转机制单一来源）
@@ -560,6 +598,9 @@ struct NotificationsView: View {
 private struct NotificationDetailView: View {
     let store: OverviewBridgeStore
     let item: OverviewNotification
+    /// 聚合行同组条目（§454）：进页标已读时整组同
+    /// 消；单条行恒空
+    var cohort: [OverviewNotification] = []
     let destination: NotificationDestination
 
     @Environment(AppState.self) private var appState
@@ -651,6 +692,12 @@ private struct NotificationDetailView: View {
             // 入同拍）；已记者 store 侧自然跳过
             if !item.read {
                 await store.markRead(appState: appState, id: item.id)
+            }
+            for entry in cohort
+            where !entry.read && entry.id != item.id {
+                await store.markRead(
+                    appState: appState, id: entry.id
+                )
             }
         }
     }

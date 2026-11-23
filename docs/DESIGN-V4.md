@@ -16941,3 +16941,18 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 ### §453 改判追记（2026-11-24）：点子「开始吧」主钮改色
 
 用户 2026-11-24 04:20 亲裁（原话「我觉得人家的蓝色和白色挺好的呀」，指 Muse 点子 sheet 图一）：点子详情 sheet「开始吧」主钮改**饱和蓝底＋白字**，**推翻本节交卷时保留的 BC-1 对比度口径**（浅蓝 primaryPale＋深墨字 onPrimary）。落法：Palette 新增专用令牌 `primarySaturated`＝#0064D4（采样自用户 04:06 附件图一钮面像素中位），仅 IdeasView「开始吧」一钮消费；同栏已采纳态「打开对话」与全 App 其余 primaryPale 主钮面（发送钮/审批主钮/目标「开始吧」/通用主钮组件等）**未跟改**，跟改范围清单在分支 feat/idea-start-button 交卷内，待主线裁。分支 feat/idea-start-button（基线本节分支 tip 9e29aca）。
+
+
+## §454 通知中心降噪：留底策略分级（2026-11-24；分支 feat/notif-policy，基线 rel-05106 @3b2d9ea）
+
+- 病象与口径：用户 2026-11-24 03:50 亲点「铃铛页为什么每一次回复消息都有运行完成的提示」。成熟口径（Slack/ChatGPT/Claude 通行）＝回复本身即通知：前台会话的正常完成不进通知中心；§426 已在聊天侧定版（当前打开会话的完成/失败自动消账），铃铛侧未跟上，本节补齐入账侧。通知中心只装「需要用户知道或处理」的东西。
+- 数据源查实（本线实查 companion overview_bridge.py `_current_notifications`）：四源合流——①write_gate_decision 裁决回执（出生已读）②monitor_change 监测变化 ③approval_pending 待批条目（id 前缀 wgp-、refId＝写闸记录 id、出生未读、随待批存亡）④Hermes /v1/runs?limit=50 终态：completed→task_completed（标题「运行完成」）、failed→run_failed，refId＝该 run 的 session_id，cancelled/interrupted 桥侧已剔。App 消费链：OverviewBridgeClient.notifications → OverviewBridgeStore.loadNotifications（唯一入账口）→ install 名单 → §241 本机存档 absorb → 铃铛读 historyNotifications（现行∪存档）经 NotificationGrouping 按日分组。病根：§426 RunCompletionResolution 只对「当前打开会话」翻已读，条目照样入名单＋存档，故每轮回复铃铛必多一条。
+- 三级判定落点：Core 新增 NotificationIntakePolicy（Sources/OneDayCore/NotificationIntakePolicy.swift），纯函数、单源口径。一级（即时＋留底、恒单行不聚合）：kind 含 fail/error 的失败/异常终态（含 run_failed）、approval_pending 待批、write_gate_decision 裁决回执。二级（留底、可聚合）：monitor_change、未命中会话链的 task_completed（后台/cron/kanban 等不在本机线程集的完成）、未知 kind。三级（不进铃铛）：task_completed 且 refId 非空且 ∈ userSessionIDs（本机 ChatThread 的 serverSessionID 集）——只认正向识别，认不出（无 refId／会话未收养／集合为空）一律留底走二级，宁多留不错杀。
+- 入账收口：OverviewBridgeStore.loadNotifications 新增参数 userSessionIDs（默认空集＝不压、行为同旧）；取数后先算 suppressed 集，install 与 absorb 只吃过滤后名单；被压条目逐条向桥 markRead 确认已读（最佳努力、失败下轮自愈），保桥侧角标口径不虚高。调用方传链：ChatView 轮询点与 NotificationsView 三个加载点均传 ChatSessionScope.userSessionIDs(from: modelContext)（@MainActor 现取全部 ChatThread.serverSessionID，不落盘不缓存）。
+- 聚合：NotificationIntakePolicy.rows(items:) 把一日条目（新→旧）折行——仅二级参与、键＝kind、相邻间隔 ≤600 秒（aggregationWindow 常量、Core 单源）链式合并（链总跨度可超窗）；一级恒单行并截断聚合链；时间解析不出者不参与。铃铛行渲染走 Row：lead 渲染、聚合行元信息尾加「· 共 N 条」、未读按组传播（任一未读整行未读样式）；滑动标已读对聚合行整组逐条标；详情页 cohort 参数带入，进页把 cohort 未读一并标读。
+- 待批同源（与 §449 审核格对齐）：桥 pendingApprovals＝写闸 /status 计数（memory＋skills），枢纽审核格待批＝AgentHubStore.loadApproval → 写闸 /pending 名单——两处同出写闸待批一账，本包不新建第三计数；钉测以快照原值透传断言把守（3 与 3+2 两态）。
+- 连带口径：提醒器（NotificationTierAlerter）只消费过滤后名单，被压的前台完成不再产生 passive 本地提醒——与「回复本身即通知」同向。既有能力不动：已读/未读、全部已读、§426 前台失败消账、§241 存档与按日分组均保留。
+- 存量口径：历史已留底条目不删、不回溯过滤；只改新入账策略。被压条目不入存档，故升级后新增回复不再沉淀。
+- 钉测（NotificationIntakePolicyTests 15 测，Test-Notif454.xcresult，notif454 exit 0）：前台会话完成被压／后台完成留底二级／无 refId 不压／空会话链不压／run_failed 与 task_error 在用户会话也一级／approval_pending 与裁决回执一级／monitor_change 二级／待批角标轴＝快照原值两态／聚合诸态（窗内并、链式跨窗并、超窗拆、一级截断、异 kind 不并、单条不并、未读传播）。同跑相邻套全绿：OverviewBridgeTests 28、NotificationTierStructureTests 7、ChatSendConfirmPinTests 7、MutationOptimisticTests 14；总 71/71、逐套点名计数闭合（防 -only-testing 静默跳过式假绿）。
+- 真机门（待用户 verdict）：普通回复后铃铛不再新增「运行完成」；run 失败仍在账且一级单行；后台/cron 完成留底并在 10 分钟窗内聚合成计数行；待批条数与中枢审核格一致。
+- 已知边界：桥快照未读数（monitor＋runs 轴）在压后一轮轮询内自洽（被压条目已向桥确认已读）；Store 层未做可注入客户端的集成测，判定逻辑由 Core 钉测把守；聚合仅铃铛呈现层折行，存档仍逐条（点开计数行看 lead 详情、cohort 标读，不做组内逐条展开页）。

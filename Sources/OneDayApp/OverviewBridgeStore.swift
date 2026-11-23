@@ -1,5 +1,6 @@
 import Foundation
 import OneDayCore
+import SwiftData
 
 /// 总览桥状态持有（0.6.0 一期）：ContentView 壳层持有，
 /// 聊天页顶栏（状态行＋铃铛角标）与通知 sheet 共同消费。
@@ -284,7 +285,8 @@ final class OverviewBridgeStore {
 
     func loadNotifications(
         appState: AppState,
-        foregroundServerSessionID: String? = nil
+        foregroundServerSessionID: String? = nil,
+        userSessionIDs: Set<String> = []
     ) async {
         notificationsFailed = false
         demoMode = appState.isDemo
@@ -300,13 +302,41 @@ final class OverviewBridgeStore {
             return
         }
         do {
+            let loaded = try await client.notifications(
+                config: config
+            )
+            // §454 入账收口：三级条目（前台会话的正
+            // 常完成）在入账口拦下——不入名单、不入
+            // 存档、不进下方的消账与提醒规划；只向
+            // 桥确认已读，保桥侧未读口径（runs 轴）
+            // 不虚高。判定在 Core（Notification-
+            // IntakePolicy），只认 refId 命中用户在
+            // 场会话链的正向识别；认不出的照旧留底。
+            // 历史存量不回溯、不删（本轮之前已入存
+            // 档的同类条目原样保留）
+            let suppressed = Set(
+                NotificationIntakePolicy.suppressedIDs(
+                    notifications: loaded,
+                    userSessionIDs: userSessionIDs
+                )
+            )
             installLoadedNotifications(
-                try await client.notifications(config: config)
+                loaded.filter { !suppressed.contains($0.id) }
             )
             notificationsLoaded = true
             // §241 留存：先吸收进存档再走自动消账——被
             // 消账的回执也已在历史里，不因已读而丢记录
             absorbIntoArchive(notifications)
+            // §454：被压条目逐条向桥确认已读（最佳
+            // 努力：失败不打扰，下轮拉取会再压再确
+            // 认、自愈）；本地无其记录可翻，不走
+            // markRead 的存档通道
+            for item in loaded
+            where suppressed.contains(item.id) && !item.read {
+                _ = try? await client.markRead(
+                    config: config, id: item.id
+                )
+            }
             // 0.36.5（联动 C 部）：本人裁决的回执一到
             // 即自动消账——按 refId 命中本人裁决集的
             // 未读回执逐条走既有 markRead 通道（§233
@@ -412,5 +442,25 @@ final class OverviewBridgeStore {
         // 面，与本地呈现态同源；桥确认仍走 §233 纪律）
         markArchiveRead(id: id)
         _ = try? await client.markRead(config: config, id: id)
+    }
+}
+
+/// 用户在场会话链（§454）：本机线程已关联的服务端
+/// 会话 id 全集——铃铛入账三级判定的正向识别名单。
+/// 调用方（ChatView/NotificationsView）以各自的
+/// modelContext 现取现传：不落盘、不缓存，线程收
+/// 养随时发生、名单以当轮为准
+@MainActor
+enum ChatSessionScope {
+    static func userSessionIDs(
+        from context: ModelContext
+    ) -> Set<String> {
+        let threads = (try? context.fetch(
+            FetchDescriptor<ChatThread>()
+        )) ?? []
+        return Set(
+            threads.compactMap(\.serverSessionID)
+                .filter { !$0.isEmpty }
+        )
     }
 }
