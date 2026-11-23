@@ -75,6 +75,8 @@
 	<string>OneDay 需要读取你的提醒事项：待办只在这台手机上查看；开启智能体调用后，被问到时现读现回；只有你在连接器详情页亲手开启「数据同步」时，才会把没做完的提醒同步一份到你自己的服务器，供智能体整份查询。</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>OneDay 使用语音识别把你的话转成文字；识别在你的 iPhone 本机完成，录音不会离开手机。</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

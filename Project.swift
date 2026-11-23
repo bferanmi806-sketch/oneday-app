@@ -45,6 +45,10 @@ let project = Project(
                 // 只写字面量才进包。
                 "CFBundleShortVersionString": "0.50.98",
                 "CFBundleVersion": "226",                "ITSAppUsesNonExemptEncryption": false,
+                // 实时活动（总表 163，DESIGN §385.3）：
+                // App 内发起的聊天运行进行态上锁屏/灵
+                // 动岛；缺此键 Activity.request 必失败
+                "NSSupportsLiveActivities": true,
                 "UILaunchScreen": ["UIColorName": "LaunchBackground"],
                 // 自托管场景：允许连接局域网内的自建服务器（http）。
                 // 公网服务器仍走 https；上架前如需收紧在此复核
@@ -126,7 +130,26 @@ let project = Project(
             dependencies: [
                 .target(name: "OneDayCore"),
                 .target(name: "OneDayDesign"),
+                .target(name: "OneDayWidgets"),
             ]
+        ),
+        .target(
+            // 实时活动呈现扩展（总表 163，DESIGN
+            // §385.3）：只承载 RunLiveActivity 的锁屏
+            // 面与灵动岛，无桌面小组件；属性型与 App
+            // 共用 OneDayCore 的 RunLiveActivityAttributes
+            name: "OneDayWidgets",
+            destinations: .iOS,
+            product: .appExtension,
+            bundleId: "site.didichou.oneday.widgets",
+            deploymentTargets: iOS26,
+            infoPlist: .extendingDefault(with: [
+                "NSExtension": [
+                    "NSExtensionPointIdentifier": "com.apple.widgetkit-extension",
+                ],
+            ]),
+            sources: ["Sources/OneDayWidgets/**"],
+            dependencies: [.target(name: "OneDayCore")]
         ),
         .target(
             name: "OneDayCoreTests",

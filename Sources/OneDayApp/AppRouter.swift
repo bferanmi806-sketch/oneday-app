@@ -77,6 +77,10 @@ enum SettingsRoute: Hashable {
     /// 归组后落设置根偏好与权限组（Core 目录 voice
     /// 条目直达）
     case voice
+    /// 通知面（总表 162/163，DESIGN §385）：分级提
+    /// 醒开关＋实时活动总开关，落设置根偏好与权限
+    /// 组（Core 目录 notifications 条目直达）
+    case notifications
     /// 添加设备（配对一期，台账 153/160）：已登录侧
     /// 出码面，台账 198 收敛 S13 后落设置根服务器段
     case addDevice

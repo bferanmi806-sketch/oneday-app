@@ -279,6 +279,13 @@ final class OverviewBridgeStore {
             ) {
                 await markRead(appState: appState, id: id)
             }
+            // §385（总表 162）：新到未读按分级矩阵发
+            // 本地提醒——规划/去重/投递在提醒器内；
+            // 本人回执已在上方消账（read 已翻真、不
+            // 入提醒规划）
+            await NotificationTierAlerter.consume(
+                items: notifications
+            )
         } catch {
             notifications = []
             notificationsLoaded = true

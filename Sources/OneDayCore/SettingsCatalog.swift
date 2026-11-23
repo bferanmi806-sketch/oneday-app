@@ -133,6 +133,10 @@ public enum SettingsDestination: Equatable, Sendable {
     /// 读是回复呈现偏好（用户心智），与外观同族，
     /// 改归偏好与权限组（服务端合成只是实现细节）
     case voice
+    /// 通知（总表 162/163，DESIGN §385）：分级提醒
+    /// 四类开关＋实时活动总开关——提醒是呈现偏好、
+    /// 与语音同族，归偏好与权限组、紧随语音行
+    case notifications
     /// 添加设备（配对一期，台账 153/160）：已登录侧
     /// 出码面——向网关领一次性认领码、组二维码给新
     /// 设备扫码入驻。台账 198 收敛 S13：连接引导属
@@ -407,6 +411,15 @@ public enum SettingsCatalog {
             summary: "回复朗读、自动朗读与音色",
             keywords: ["语音", "朗读", "音色", "回复朗读", "voice", "speak", "tts"],
             destination: .voice
+        ),
+        // 通知（总表 162/163，DESIGN §385）：分级开
+        // 关与实时活动同面，紧随语音行
+        SettingsCatalogEntry(
+            id: "notifications", group: .preferences,
+            title: "通知",
+            summary: "分类提醒与实时活动",
+            keywords: ["通知", "提醒", "分级", "实时活动", "灵动岛", "notification", "alert"],
+            destination: .notifications
         ),
         SettingsCatalogEntry(
             id: "connectors", group: .preferences,

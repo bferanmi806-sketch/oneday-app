@@ -1632,6 +1632,13 @@ struct ChatView: View {
         // 静默口径，拉取失败保留旧卡（见 refreshEcho-
         // Traces 注）
         .onChange(of: isStreaming) { wasStreaming, nowStreaming in
+            if !wasStreaming && nowStreaming {
+                // §385（总表 163）：流式上升沿——实时
+                // 活动切「生成中」阶段
+                Task {
+                    await RunLiveActivityCenter.shared.update(phase: .generating)
+                }
+            }
             if wasStreaming && !nowStreaming {
                 // 0.43.0（A11Y-S6）：VO 运行时播报生成
                 // 完成——同一下降沿、同等静默（VO 关时
@@ -11052,7 +11059,16 @@ private struct ComposerBarLayout: Layout {
             return
         }
         isDrivingRun = true
-        defer { isDrivingRun = false }
+        // §385（总表 163）：实时活动随一轮起落——起
+        // 跑沿启动、退出沿（defer 覆盖失败/取消一切
+        // 出口）收
+        await RunLiveActivityCenter.shared.begin(
+            taskName: thread.title
+        )
+        defer {
+            isDrivingRun = false
+            Task { await RunLiveActivityCenter.shared.end() }
+        }
         runMachine = RunTurnStateMachine()
         activeRunThreadID = thread.id
         lastEventSeq = -1
@@ -12177,6 +12193,11 @@ private struct ComposerBarLayout: Layout {
             // （卡列恒空、只剩 .text 一记）
             liveOrder = [.text]
         }
+        // §385（总表 163）：续接在跑的一轮同起实时
+        // 活动，落定即收（与 driveRun 同口径）
+        await RunLiveActivityCenter.shared.begin(
+            taskName: thread.title
+        )
         isDrivingRun = true
         var mutableEntry = entry
         await reconcileRun(
@@ -12184,6 +12205,7 @@ private struct ComposerBarLayout: Layout {
             demoMode: false
         )
         isDrivingRun = false
+        await RunLiveActivityCenter.shared.end()
     }
 
 }
