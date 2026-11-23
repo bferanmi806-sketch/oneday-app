@@ -15374,3 +15374,43 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 过程两笔（均当轮修复、留痕）：①AssistantMediaImage 的 accessibilityAction 为单行式、首轮切片多吞 if 块关闭括号，构建当场拦截（RichContentViews.swift:1353 Expected '}'），补回后过；②traceEchoRow 首版双 return 触发 OpaqueTypeInference，改 Group 条件形后过。首轮另有一跑因新 worktree 未 tuist generate 无 workspace 而 exit 66（与代码无关，generate 后重跑）。
 
 回归（ProbePhone，发布集口径）：rel05098 发布集 97 套 817 项＋新结构套 1 套 2 项＝预期 98 套 819 项 → 实跑 **819/819 全绿、0 红、0 跳过**（bundle Test-OneDayApp-pressbtn，xcresulttool 逐项对账：passedTests 819／failedTests 0／skippedTests 0）。受影响面点名套件同在发布集内全绿：ChatRootChainStructureS371Tests、ChatDepthStructureS373Tests（chatScaffold 根链零触碰）、ChatNativeHotfix330Tests、ChatSettleScopeS5Tests、LibraryListSnapshotTests（§363 缺席断言仍成立）、RichContentTests、ReactionFloatingBarTests、ChatSwapStep6StructureTests。**新红零**。未组版未打包，随后续版并入；真机门（随并入版）：聊天内图片点开查看器、回告卡整卡开枢纽＋✕ 标已读、回响行点达、动态标题点进详情、模型段头折叠、登记图点开——点按落点与按压反馈逐点与旧版同感即关账。
+## §380 文件预览双轨合一·现行树复核与残余收口（2026-11-23；分支 feat/file-preview-quicklook，基线 rel-05098 @3f9598f；待办总表第 70 条）
+
+**缘起与口径**：第 70 条本体已由 §271（2026-11-14，0.50.50 出货）执行——自研阅读轨（DocumentReaderView/SpreadsheetReaderView＋伴生转码呈现）整轨退役、主链收成 QuickLook 单轨；总表第 70 条未划线、2026-11-23 全域复核误标「无落码证据」，本节以现行树（rel-05098）全量普查复核 §271 后的真实形态，并收口其后新长出的两处绕门点。图片查看器（ImageViewerView/ZoomHostingController 一线）是已定版自研面、不在本条范围（任务书明示），只登记不碰。
+
+**普查表（现行树全入口，逐点点名）**：
+
+| # | 入口 | 现行走法 | 判定 |
+|---|---|---|---|
+| P1 | 聊天文件牌（FileChip/AssistantFileChip/BarePathFileCard → ChatView.openFile → FileOpenView 中间页） | 图片直达查看器；其余经 Core FileOpenRoute 单表 → 取字节落盘 → canPreview 资格门 → QuickLookHostView（共用 QuickLookPreview 承载）＋工具栏 readingActions（分享/下载/复制文字/导出 PDF） | 单轨 ✓ 不动 |
+| P2 | 文件页 FilesView（行点按 navigationDestination） | 图片直达查看器（集合翻页）；其余 FileOpenContent 中间页（与 P1 同壳同表） | 单轨 ✓ 不动 |
+| P3 | 资料库 DeliverablesView（openEntry 分流） | 图片直达查看器；其余（含视频）FileOpenContent 中间页 | 单轨 ✓ 不动 |
+| P4 | 文件打开页内嵌防御落点（FileOpenContent route=.imageViewer） | ImageViewerView 单图 | 查看器线（范围外） |
+| P5 | 盒文件 BoxFilesView → DataFilePreviewView（字节直读） | 图片→查看器；其余落临时文件**直呈 QuickLookPreview、不验资格**，QL 分支只有文件名栏＋「关闭」、无分享/保存兜底 | **双轨残余·收口（见下 R1）** |
+| P6 | 设备工具 file_preview（FilePresenceEngine.preview → DeviceFilePresenceBridge.presentPreview） | 沙箱文件 URL 命令式呈 QLPreviewController；urlForPreview 只验存在/非目录、**无资格门**（同文件 print 路有 canPrint 门、preview 独缺） | **双轨残余·收口（见下 R2）**；呈现桥本体为例外 E2 |
+| P7 | 设备工具 file_print | UIPrintInteractionController 系统打印面＋canPrint 门 | 系统面 ✓ 不动 |
+| P8 | 缩略图 FileThumbnailStore（QLThumbnailing＋originalLoader/renditionLoader 双路 loader） | 系统缩略图通道＋服务端变体 | 非预览（§271 已登记不动），例外 E5 |
+| P9 | 复制文字/导出 PDF（FileTextExtractor/DocumentReading 块模型/DocumentPDFExporter） | 打开页/QL 承载面/文件牌/资料库四处动作消费 | 动作非预览（§271 保留定案），例外 E6 |
+| P10 | 无预览三态（FileOpenRoute .infoOnly/.saveOnly/.locked） | QL 能力外（.other 降级说明行＋分享/下载）、压缩包保存、敏感锁定 | 设计内无预览态、非双轨，例外 E4 |
+
+**残余收口（本包落码）**：
+- R1（P5）：DataFilePreviewView 落盘后先验 ChatFilePreviewItem.canPreview——可预览才进 QL 承载；不可预览落「不支持预览」态（人话说明＋「分享/保存」兜底：已取字节写 FileShareItem 出 FileShareSheet，与主链 .failed(.unsupportedType)＋failureActions 的口径对齐），不再硬呈 QL 空白死页（§121 明令禁的失败形态）。壳本身保留（例外 E3）。
+- R2（P6）：FilePresenceEngine.preview 呈桥前补资格门（QLPreviewController.canPreview，与 print 的 canPrint 门同式同位），不过即抛 DeviceToolError.failed 人话（「这个文件手机预览不了：<路径>」），不硬呈空白页。呈现桥本体不动。
+
+**例外点名（保留，逐点理由）**：
+- E1 图片→ImageViewerView 自研查看器：已定版自研面，任务书明示不在本条范围。
+- E2 DeviceFilePresenceBridge 的命令式 QLPreviewController 呈现：设备工具执行器无 SwiftUI 宿主、且需 DidDismiss→continuation 的完成语义，无法共用 QuickLookPreview（UIViewControllerRepresentable）；与主链同为 QLPreviewController 原生本体，非渲染双轨。
+- E3 DataFilePreviewView 壳：盒文件字节源是电脑桥 loadData 闭包、非服务器文件链（FileOpenContent 恒走 Hermes 服务端 fileData 取字节、无注入口），无法直迁中间页；壳内 QL 承载已共用 QuickLookPreview 组件，本包补齐资格门＋兜底后行为口径与主链一致。
+- E4 无预览三态：QL 能力外与敏感策略的设计内落点，非双轨。
+- E5 缩略图双路 loader：缩略图非预览，§271 登记不动。
+- E6 复制文字/导出 PDF：动作非预览，§271 保留定案；DocumentReading 块模型现唯一消费方即导出 PDF。
+
+**行为面对齐核对**：P1–P3 的打开/分享/下载/复制文字/导出 PDF/删除/置顶/改名动作集走 FileActionPolicy 单源、本包零触碰；R1 新增的只是盒文件 QL 不可预览时的兜底出口（分享/保存＋关闭），原有「关闭」与图片路不变；R2 只在原本必现空白页的入参上改报人话错误，工具回执形态（viewed/path/humanSummary）不变。
+
+**结构钉测（新套 FilePreviewSingleTrackStructureTests）**：①退役符号禁词普查（DocumentReaderView/SpreadsheetReaderView/BridgeSpreadsheet/opensInReader/isSpreadsheet 在 App/Core 生产代码行零残留）；②QLPreviewController 构造点普查只许两处文件（RichContentViews.swift＝QuickLookPreview 共用组件、DeviceEverydayExecutors.swift＝例外 E2 呈现桥）；③盒文件资格门与分享兜底在场（BoxFilesView 切片断言 canPreview＋FileShareSheet）；④设备工具 preview 资格门在场（DeviceEverydayExecutors 切片断言 QLPreviewController.canPreview）。
+
+**收口结果（定稿）**：R1/R2 落码提交 18ff775（普查草案 6f7ac73）；diff 规模＝生产源码 2 文件 +42/−1（BoxFilesView +32/−1：资格门＋不支持预览态＋分享/保存兜底＋sheet 承载；DeviceEverydayExecutors +11：preview 资格门）＋新钉测 1 文件（FilePreviewSingleTrackStructureTests 4 项）＋本节。普查 10 点：单轨不动 5（P1/P2/P3/P7＋P10 设计内三态归 E4）、收口 2（P5→R1、P6→R2）、例外保留 6（E1–E6，其中 P4 归 E1、P8 归 E5、P9 归 E6）。
+
+**回归记账（定稿）**：聚焦轮 23/23 全绿（新结构套 4＋S371/S373＋FileOpenRouteTests，bundle Test-OneDayApp-qlpreview-focus）。发布集轮：名单＝Test-OneDayApp-rel05098 bundle 提取 97 套全限定名＋新套 1 ＝ 98 套，预期 817＋4＝821 项 → 实跑 **821/821 全绿、0 红、0 跳过**（bundle Test-OneDayApp-qlpreview-release，xcresulttool 本体对账：套级与 rel05098 bundle 逐套比对，缺 0、增仅本包新套）。S371/S373 在发布集内全绿（chatScaffold 根链零触碰）。通道注记：本轮时段多线并行、测试通道争用严重，两轮均经「双读判闲→忙即中止」纪律守候空窗踢入，未抢道、未覆写他人轮次。
+
+**真机门（留组版后用户 verdict）**：①盒文件打开 QL 不认的类型（如 .ipa/.zip 直落盒文件面）——落「不支持预览」态＋分享/保存可用、不再空白页；②盒文件常规类型（PDF/文本/表格）QL 呈现与图片查看器不回退；③设备工具 file_preview 对不可预览类型回人话错误、对可预览类型照常呈现；④主链三面（聊天/文件页/资料库）打开/分享/下载冒烟不回退。
