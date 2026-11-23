@@ -462,7 +462,7 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         }
         row.tap()
         XCTAssertTrue(
-            app.buttons["topbar.modelCapsule"]
+            app.buttons["topbar.identityCapsule"]
                 .waitForExistence(timeout: 15),
             "点种子行后顶栏胶囊未出现——抽屉导航没落定"
         )
@@ -547,7 +547,7 @@ final class ChatGestureNativeSurfaceTests: XCTestCase {
         matching needle: String, in app: XCUIApplication
     ) throws -> XCUIElement {
         XCTAssertTrue(
-            app.buttons["topbar.modelCapsule"]
+            app.buttons["topbar.identityCapsule"]
                 .waitForExistence(timeout: 30),
             "聊天页未组装：顶栏胶囊 30 秒未出现"
         )
@@ -1334,7 +1334,7 @@ final class LongPressPresentation440Tests: XCTestCase {
         }
         row.tap()
         XCTAssertTrue(
-            app.buttons["topbar.modelCapsule"]
+            app.buttons["topbar.identityCapsule"]
                 .waitForExistence(timeout: 15),
             "点种子行后顶栏胶囊未出现"
         )

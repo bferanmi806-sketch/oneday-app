@@ -311,7 +311,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
         }
         row.tap()
         XCTAssertTrue(
-            app.buttons["topbar.modelCapsule"]
+            app.buttons["topbar.identityCapsule"]
                 .waitForExistence(timeout: 15),
             "点种子行后顶栏胶囊未出现——抽屉导航没落定"
         )
@@ -364,7 +364,7 @@ final class ChatGestureArbitrationTests: XCTestCase {
         // 图、轮询多久都是零（KeyboardDragDismiss-
         // Tests 同口径先等胶囊 30 秒）
         XCTAssertTrue(
-            app.buttons["topbar.modelCapsule"]
+            app.buttons["topbar.identityCapsule"]
                 .waitForExistence(timeout: 30),
             "聊天页未组装：顶栏胶囊 30 秒未出现"
         )

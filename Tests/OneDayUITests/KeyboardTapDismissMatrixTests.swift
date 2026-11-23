@@ -45,7 +45,7 @@ final class KeyboardTapDismissMatrixTests: XCTestCase {
         app.launch()
         defer { app.terminate() }
 
-        let capsule = app.buttons["topbar.modelCapsule"]
+        let capsule = app.buttons["topbar.identityCapsule"]
         guard capsule.waitForExistence(timeout: 30) else {
             emit(["MATRIX=NOT-UP"])
             XCTFail("演示装配聊天页未起来")
