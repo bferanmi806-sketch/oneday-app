@@ -39,7 +39,7 @@ let specs: [(key: String, symbol: String, w: Double, h: Double)] = [
     ("feed", "text.document", 16.5086, 20.8188),
     ("ideas", "lightbulb", 13.1644, 23.1),
     ("goals", "checklist", 21.935, 19.6953),
-    ("files", "tray.full", 23.2313, 16.2656),
+    ("files", "tray", 27.7955, 19.5188),
 ]
 
 var failures = 0
