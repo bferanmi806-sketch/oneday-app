@@ -16108,3 +16108,37 @@ App 头＋body 同值双带：旧服务端忽略未知 body 字段、头键账�
 - 生命周期常设门（§395）：版本对 0.50.98→0.50.99 实跑 S1–S5 五段全过（首装/升级/同版重装/降级启动全存活、标记跨升级·重装·降级保留、删除重装回初始态；容器 UUID 每装必变系重注册伪影、内容连续性以标记实存为据，同 §395 既定口径）。
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.99/227/site.didichou.oneday、15,801,143 字节、md5 637a479ac45628f5e34e3f4d7128e572（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）；包内含 OneDayWidgets.appex（§385 实时活动扩展）。体积较 0.50.98 增约 1.0MB（新面与扩展目标所致）。
 - 真机门（用户，未过不关账）：各节分项门随节留档（§379.2／§380／§384.4／§385／§386.3／§387／§388.5／§389／§390–§394／§396／§397 归批 4b），总表对应条目已各加「已并入 0.50.99」组版注记、复选框未动，划线等 verdict。重点：底栏图标冷启首帧（§382 仍等用户冷启截图取证）、流式/停滚存量门、通知分级与实时活动首验、成包跨机装包、连接状态断网呈现。
+
+## §401 冒烟门按现行面重做（2026-11-23；分支 feat/smoke-gate-rework，基线 rel-05099 @46150bf；未组版、随 0.50.101 并入）
+
+台账 79 横扫总根（§392.2 留项）：旧 chore/smoke-gate 分支 12 轮未合入、多例目标面已被换引擎（§374）／结构归位（2026-11-20）／文件面重构改写，本节按现行面重做为独立包。定位＝出货前快速真执行门：核心面真拨／真连／真渲染的冒烟，与 §395 生命周期常设门分工——那边管装／升／降旅程（S1–S5），本门管核心面真执行，不重复造门。本门红＝不许组版交付（§190 前置子集口径不变）。注：本节号 §401 依任务书占位；本树 DESIGN 止于 §399，0.50.100 组版线若另占 §400，两线合并时由主线统一重排。
+
+### 401.1 旧 14 例三态（逐例对 rel-05099 树实查）
+
+- **改写 5**：gen3 两例→列表引擎两例（gen3 承载与 chat.carrier.gen3 开关已随换引擎步骤 6／§374.9 整件退役；「非默认构造首帧不崩」职责改写到现行仍在的真开关「聊天列表单 section 布局」——关＝回退 §329 逐行 section 构造：设置内真拨 testSmokeListEngineFlipFromSettings＋启动参数预置 testSmokeListEnginePresetFirstFrame，形态与原例 1:1）；A-1 首连（欢迎面改分叉版式，首步改点「连接已有服务器」）；A-2① 迁移执行段（已自 AllConversationsStore 迁入 SessionLedger.runMigration，归档键改由 ledger 自持回读）；A-2④ 主线双旗回读（主线身份账已迁 SessionLedger，标题覆盖仍在 SideChatStore，按两店分工分别断言）。
+- **迁移 6**：A-2② 旧模型播种、A-2③ 身份旧账迁移、A-4 文件网格首帧、A-6 英文首帧、偏好合并（深色＋obsidian＋大头像）、回底箭头端到端。
+- **按新面重写 1**：长会话内容侧——承载换 ChatNativeList（UICollectionView＋DiffableDataSource）后，旧例的 SwiftUI 几何回读整件退役，改在 UIKit 层取真值：contentOffset 双向实测＋构造无关序号映射＋首／末可见 cell 帧相交两件套；正文普查只打印作证据（托管 cell 文本通道无保证）；旧 inset 台阶轮询与箭头 AX 激活保留为只打印的登记哨（台阶断言已于第十轮定因退役，不复活为断言）。
+- **退役 2（明示理由）**：全部对话「显示系统运行」开关例——该开关已于 2026-11-20 结构归位第二批退役，系统运行下沉维护子页恒显、无开关可拨；A-8 抽屉分区显隐例——显隐账整套同日退役（SectionCollapse.swift 退役注记：治理面摘除、分区恒显、旧键不再被消费），无面可验。两例退役理由同时登记在 SmokeGateUITests 文件头。
+
+### 401.2 门构成（12 例）
+
+- `OneDayUITests/SmokeGateUITests` 7 例：列表引擎真拨／预置、回底箭头端到端、A-1 首连全流程、A-4 文件网格首帧、A-6 英文首帧、偏好合并。
+- `OneDayAppTests/SmokeGateMigrationTests` 4 例：A-2①②③④（先构造存量 fixture 再真执行迁移路径，不走全新安装口径）。
+- `OneDayAppTests/SmokeGateLongListScrollTests` 1 例：长会话滚底／滚顶两件套。
+- 实跑同轮带 ChatRootChainStructureS371Tests／ChatDepthStructureS373Tests 守卫（本包零触生产码，根链纪律对账）。
+
+### 401.3 实跑与定因（ProbePhone 50C1A6D5-96A6-408F-82E1-FCEB1A42C419，Xcode 27.2）
+
+六轮：r1 编译红 1 处（ChatEntry.role 现行为 String 字面）→r2 9／15→r3 11／15→r4 13／15→r5 13／15→r6 定版轮 13／15。**终态 13 过 2 红，两红均为产品侧（401.4 登记），其余 13 例含 S371／S373 守卫全绿；本包未改一行产品码、未放宽任何断言粉饰。**
+
+测试侧定因四件（均已修门）：①抽屉本地行在长抽屉里落在屏幕外（实测首行 frame y≈839／屏高 874 仅露一线，XCUI 对半露行仍报 hittable、点按落在屏底不激活，旧「不可命中才滑一次」兜底不触发）→openFirstSeededThread 改为先把抽屉滚到行完整入屏再点；②连接成功页主按钮现行文案为「继续」（旧审计记的「开始聊天」已漂），且其后新增通知引导页一步（允许通知／暂时跳过）→A-1 按活树改写；③UI 套件同装共享沙盒、上轮拨关后中断会把「关」残留在盘上污染下轮基线（r3 实证）→Flip 例先归一化为开再走被测关程（只摆 fixture、不动断言）；④离底手势方向：旧翻转列表上滑离底，新正向 UICollectionView 已在底部时上滑无处可去（三式手势连读滚动条 value 全程 100% 定因）→箭头例改下滑离底。
+
+### 401.4 产品侧缺口登记（3，门保持红，待主线立项）
+
+- **缺口一（A-4）**：演示模式文件库死面。文件页读面自 0.50.60 改走伴生桥 `GET /file-library` 单流（DeliverablesView.collect→OneDayBridgeClient.fileLibrary），视图直持 `OneDayBridgeClient()`、桥客户端全无 demo 分支；演示态打开资源库必然落「产出目录没读出来」错误面、点重试不恢复（活树实证）。旧版经 DemoHermesClient 回执的演示文件路径已随桥单流收口退役。修向（主线裁）：演示态为桥读面配存根，或 demoMode 下文件页回落演示回执。
+- **缺口二（箭头例首步）**：开线程落底在 UI 真执行口径下未达。开种子主线程后聊天列表稳定停在其自身滚动条 90%（x=369 主列表条、h=453；r5 全套与探针单跑两轮一致），回底箭头（frame 342,684,44,44）真显示、落定轮询 10 秒不落底；与进程内 ChatNativeListAssemblyTests「开线程距底 ≤1pt」的结论口径不一致。机制推断（未证实）：审批卡／长 markdown 等重 cell 高度再估算使 contentSize 在初始落底后继续生长、跟随逻辑未对再估算重钉。处置：升主线帧级取证（真机与进程内同口径对拍）；本门该例按第十二轮规矩如实红，不改产品码、不放宽断言。
+- **缺口三（r6 新见，间歇崩溃）**：OneDayApp 0.50.99／227 在 UI 真执行启动约 10 秒崩溃一次（箭头例启动相、尚未开抽屉）：EXC_CRASH／SIGABRT，崩溃线程 `site.didichou.oneday.rowmeasure`（行高量测线），栈顶 NSTextLayoutManager `enumerateTextLayoutFragmentsFromLocation:` 内 ObjC 异常 rethrow 后 abort（ensureLayoutForRange／ui_contentSizeForLastContainerView 路径）。证据：Mac `~/Library/Logs/DiagnosticReports/OneDayApp-2026-11-23-153224.ips`。频次：r2–r5 同流程未现、r6 命中 1 次，间歇性成立与否待复现轮确认；r6 箭头例即因此红（该轮落底结论由缺口二的两轮证据承接）。
+
+### 401.5 与 §395 分工
+
+§395 管装／升／降生命周期旅程（常设门 S1–S5 模拟器＋S6／S7 真机）；本门管核心面真执行冒烟（开关真拨、首连全流程、存量迁移真执行、长列表真滚动、非默认偏好首帧）。两门同为出货前置：组版须 §395 旅程过＋本门除已登记缺口外全绿。
