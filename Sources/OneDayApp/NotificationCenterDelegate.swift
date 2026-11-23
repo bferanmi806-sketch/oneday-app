@@ -17,8 +17,11 @@ import UserNotifications
 ///    打开 App，不假装有落点。
 /// 回调均为 nonisolated 系统域入口：只碰 Sendable 值与
 /// 纯函数解析，不碰任何 actor 隔离状态（回调隔离铁律）。
+/// 无可变状态（两回调只读入参、只转交 Sendable 值），
+/// 故 @unchecked Sendable 成立——单例靠本类静态持有
+/// 强引用（center.delegate 是弱引用，不持有会失效）
 final class NotificationCenterDelegate: NSObject,
-    UNUserNotificationCenterDelegate {
+    UNUserNotificationCenterDelegate, @unchecked Sendable {
 
     static let shared = NotificationCenterDelegate()
 

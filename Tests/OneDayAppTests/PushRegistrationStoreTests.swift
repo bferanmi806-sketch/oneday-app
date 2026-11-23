@@ -103,10 +103,14 @@ final class PushRegistrationStoreTests: XCTestCase {
             recorder: recorder, stub: UploadStub()
         )
         await store.proceed(permission: .denied)
-        await store.proceed(permission: .notDetermined)
         XCTAssertEqual(recorder.calls, 0)
         XCTAssertEqual(
             store.readinessReport.rows[0].tone, .blocked
+        )
+        await store.proceed(permission: .notDetermined)
+        XCTAssertEqual(recorder.calls, 0)
+        XCTAssertEqual(
+            store.readinessReport.rows[0].tone, .pending
         )
     }
 

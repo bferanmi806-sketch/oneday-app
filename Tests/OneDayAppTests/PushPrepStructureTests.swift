@@ -48,7 +48,9 @@ final class PushPrepStructureTests: XCTestCase {
         let store = try source(
             "Sources/OneDayApp/PushRegistrationStore.swift"
         )
-        XCTAssertFalse(store.contains("requestAuthorization"))
+        // 查调用形态（带括号）：注释里点名此词是口径
+        // 说明、不算调用；真调用必带括号收不住
+        XCTAssertFalse(store.contains("requestAuthorization("))
         XCTAssertTrue(store.contains("readSystemState"))
         XCTAssertTrue(
             store.contains("registerForRemoteNotifications")
