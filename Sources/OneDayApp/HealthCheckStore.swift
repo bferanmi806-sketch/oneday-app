@@ -330,7 +330,9 @@ final class HealthCheckStore {
             switch hermes {
             case .sessionExpired, .loginRejected:
                 return "登录已过期，重新连接后再试"
-            case .unreachable, .transientNetwork:
+            case .unreachable, .transientNetwork, .notSentOffline:
+                // notSentOffline（§414 增补分型）：保形
+                // 同落——拆分前经 transientNetwork 归此句
                 return "连不上服务器，检查网络后再试"
             case .demoLimitReached:
                 return "演示模式下不能体检"

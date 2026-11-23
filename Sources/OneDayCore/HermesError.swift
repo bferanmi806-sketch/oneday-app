@@ -16,6 +16,15 @@ public enum HermesError: Error, Sendable {
     /// 旧文案误导去查地址）。发送链对此类失败自动重
     /// 试一次（未产出任何内容时，见 ChatView.runStream）
     case transientNetwork
+    /// 确定未发出（§414 增补，断网发送态规格 5.2）：
+    /// 设备侧确定事实——无网络接口/蜂窝数据被禁，
+    /// 请求根本不可能出设备（URLError.notConnected-
+    /// ToInternet/.dataNotAllowed）。与 transientNet-
+    /// work 的「可能已达服务端、回执丢失」真未知是
+    /// 两回事：不许同桶按结果未知处理（对账 600 秒
+    /// 假生成即此误伤）。发送提交段对此分型不判未
+    /// 知、不进对账，直接折回待发巷等网络恢复续发
+    case notSentOffline
     /// 第一步 /health 非 200
     case healthCheckFailed(status: Int)
     /// 第二步登录被拒：密码不对（401/403）
@@ -124,6 +133,11 @@ public enum HermesError: Error, Sendable {
         case .transientNetwork:
             return L10n.string(
                 "网络好像断了一下，这条没发出去。等网络稳一点，再发一次试试。",
+                locale: locale
+            )
+        case .notSentOffline:
+            return L10n.string(
+                "设备现在没有网络，这条还没发出去。网络恢复后会自动发送。",
                 locale: locale
             )
         case .healthCheckFailed:
@@ -269,10 +283,14 @@ public enum HermesError: Error, Sendable {
     /// 与 .notConnectedToInternet 都塞进 unreachable
     /// 「网络不可用＋查地址」一档，即 23:35 词与事实
     /// 打架的出处）。
+    /// - 未发出档（notSentOffline，§414 增补）：系统
+    ///   报无网、蜂窝数据被禁——设备侧确定事实，请
+    ///   求不可能出设备，与真未知分开（见 case 注）；
     /// - 瞬断档（transientNetwork）：超时、连接丢失、
-    ///   系统报无网、连不上主机、蜂窝受限——路径抖动
-    ///   优先归因（顶栏另有桥轮询的在线信号可互证，
-    ///   此档文案不提地址对用户更诚实）；
+    ///   连不上主机、漫游关——请求可能已达服务端、
+    ///   回执丢失的真未知，路径抖动优先归因（顶栏
+    ///   另有桥轮询的在线信号可互证，此档文案不提
+    ///   地址对用户更诚实）；
     /// - 地址档（unreachable）：只有主机名解析失败
     ///   （找不到主机/DNS）才配让用户查地址；
     /// - 其余网络错误归 unreachable「网络错误」。
@@ -280,9 +298,10 @@ public enum HermesError: Error, Sendable {
         _ error: URLError, locale: Locale = AppLocale.uiLocale
     ) -> HermesError {
         switch error.code {
+        case .notConnectedToInternet, .dataNotAllowed:
+            return .notSentOffline
         case .timedOut, .networkConnectionLost,
-             .notConnectedToInternet, .cannotConnectToHost,
-             .dataNotAllowed, .internationalRoamingOff:
+             .cannotConnectToHost, .internationalRoamingOff:
             return .transientNetwork
         case .cannotFindHost, .dnsLookupFailed:
             return .unreachable(L10n.string("无法建立连接", locale: locale))
@@ -343,7 +362,8 @@ extension HermesError {
     ///   不许冒充已分类。
     public var category: HermesErrorCategory {
         switch self {
-        case .unreachable, .transientNetwork, .runNetworkInterrupted:
+        case .unreachable, .transientNetwork, .notSentOffline,
+             .runNetworkInterrupted:
             return .network
         case .loginRejected, .loginRateLimited, .loginFailed,
              .apiKeyRejected, .sessionExpired,

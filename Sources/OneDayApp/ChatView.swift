@@ -628,6 +628,18 @@ struct ChatView: View {
     /// 单在发送时刻按 sortedEntries 现算（Rewind-
     /// TurnSlicing 单点切分），不在此持名单防过期
     @State private var editSentTarget: EditSentTarget?
+    /// §414（修复包一·路三）：未发送条目原位编辑的
+    /// 武装目标——editUnsentEntry 只装载发送舱并记
+    /// 目标 id、不删原条目；send() 在目标所在线程
+    /// 发送时把新内容写回原条目本体再走发件箱重
+    /// 发口（performUnsentEditSend）
+    @State private var unsentEditTargetID: UUID?
+    /// 武装时文件面是否由发送舱完整代表：文件载
+    /// 荷可回载（或条目本无远端文件）为 true；文
+    /// 件已上传、载荷不在本机而远端路径在场时为
+    /// false——该形态下文件面不归编辑管辖、远端
+    /// 路径原样保留
+    @State private var unsentEditFilesRepresented = false
     /// D3 破坏性确认的待发稿快照：非末轮编辑点发送
     /// 时暂存——确认期间发送舱原样不动，确认后经
     /// performEditSend 发出、取消即弃
@@ -3327,7 +3339,7 @@ struct ChatView: View {
         guard appState.runLedger.entry(
             forThreadID: thread.id
         ) == nil else {
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            showNotice(ledgerBusyNotice(threadID: thread.id))
             return
         }
         guard input.trimmingCharacters(
@@ -3531,7 +3543,7 @@ struct ChatView: View {
         guard appState.runLedger.entry(
             forThreadID: thread.id
         ) == nil else {
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            showNotice(ledgerBusyNotice(threadID: thread.id))
             Task { await resumeRunIfNeeded() }
             return
         }
@@ -3783,23 +3795,87 @@ struct ChatView: View {
         )
     }
 
-    /// 占位行状态文案（§407）：只报阶段、不报内
-    /// 容——上传/思考/工具/生成四相，文案变化不
+    /// 占位行状态文案单源（§407 立制；§414 增补
+    /// 按断网规格 5.1 改判）：判定源＝runMachine
+    /// 相位＋本轮 run 确立与否＋尾条发送状态，优
+    /// 先级——上传段 → 生成相三文案（思考/工具/
+    /// 生成）→ 未受理段「等待发送…」→ 已受理的
+    /// 结果未知「正在确认结果…」。铁则：「正在
+    /// 生成…」只许在 .submitAccepted 之后（相位
+    /// == .generating）出现；run 未确立前只许报
+    /// 等待/确认类文案——旧四相无未受理相，断网
+    /// 提交未出设备时全程冒充「正在生成…」即此
+    /// 病灶。纯函数（钉测逐相把守），文案变化不
     /// 影响行高（合成器常量把守、钉测在案）
-    private func livePlaceholderStatusText() -> String {
-        if isUploadingFiles {
-            if let fraction = uploadProgressFraction {
-                return "正在上传文件 \(Int((fraction * 100).rounded()))%…"
+    static func placeholderStatusText(
+        phase: RunTurnPhase,
+        runIDEstablished: Bool,
+        tailSendState: ChatSendState?,
+        isUploading: Bool,
+        uploadFraction: Double?,
+        hasReasoning: Bool,
+        hasToolCards: Bool
+    ) -> String {
+        if isUploading {
+            if let uploadFraction {
+                return "正在上传文件 \(Int((uploadFraction * 100).rounded()))%…"
             }
             return "正在上传文件…"
         }
-        if reasoningPublishGate.hasContent {
-            return "正在思考…"
+        if case .generating = phase {
+            if hasReasoning {
+                return "正在思考…"
+            }
+            if hasToolCards {
+                return "正在调用工具…"
+            }
+            return "正在生成…"
         }
-        if !liveToolCards.isEmpty {
-            return "正在调用工具…"
+        // 未受理段：提交相／结果未知相／对账相且
+        // run 从未确立，或尾条仍在队列三态——run
+        // 没成立过，不许报生成、也不许报确认（无
+        // 可确认之物），只报等待发送（网络恢复后
+        // 由发件箱 drain 续发，见 driveRun 未发出
+        // 分型落点）
+        let tailInQueue = tailSendState == .queued
+            || tailSendState == .linking
+            || tailSendState == .sending
+        if !runIDEstablished,
+           phase == .submitting || phase == .unknown
+            || phase == .reconciling || tailInQueue {
+            return "等待发送…"
         }
-        return "正在生成…"
+        if phase == .unknown || phase == .reconciling {
+            // 已受理但结果未知：真对账语义
+            return "正在确认结果…"
+        }
+        // 提交相（runID 已确立在此不可达）与落定
+        // 相（占位行本不该在席）：兜底不报生成
+        return "等待发送…"
+    }
+
+    /// 占位行状态文案的实例取数口：相位读状态
+    /// 机、run 确立与尾条状态读本轮账本与条目，
+    /// 判定全在 placeholderStatusText 单源
+    private func livePlaceholderStatusText() -> String {
+        let ledger = (activeRunThreadID ?? currentThread?.id)
+            .flatMap {
+                appState.runLedger.entry(forThreadID: $0)
+            }
+        let tailSendState = ledger.flatMap { entry in
+            currentThread?.entries.first(
+                where: { $0.id.uuidString == entry.userEntryID }
+            )?.sendState
+        }
+        return Self.placeholderStatusText(
+            phase: runMachine.phase,
+            runIDEstablished: ledger?.runID != nil,
+            tailSendState: tailSendState,
+            isUploading: isUploadingFiles,
+            uploadFraction: uploadProgressFraction,
+            hasReasoning: reasoningPublishGate.hasContent,
+            hasToolCards: !liveToolCards.isEmpty
+        )
     }
 
     /// 占位行视图（§407）：助手侧状态泡——等待
@@ -4953,6 +5029,14 @@ struct ChatView: View {
     /// 行在列内加槽——皆为状态翻转换高源，已退
     /// 役）。待发文案保留在无障碍标签里，点达面
     /// 的整行菜单另有发件箱动作面承接
+    /// §414 增补（断网规格 5.3）：时钟条件改挂发
+    /// 送状态机谓词 isUnconfirmedSend（与气泡浅
+    /// 色态同口），不再读 deliveryState——首发在
+    /// 飞全程（queued→sending）时钟在席（在飞期
+    /// 钮由 isStreaming 禁用、落定/折回待发后可
+    /// 点），旧读口下首发从第一帧到落定无任何标
+    /// 记即此病灶；点按动作仍走 resendPending 的
+    /// isPendingSend 守卫（真待发条目才重发）
     @ViewBuilder
     private func sendStateMark(
         for entry: ChatEntry
@@ -4974,7 +5058,7 @@ struct ChatView: View {
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel("发送失败，点按重新发送")
-        } else if entry.isPendingSend {
+        } else if entry.isUnconfirmedSend {
             Button {
                 resendPending(entry)
             } label: {
@@ -5164,6 +5248,23 @@ struct ChatView: View {
                                 )
                                 .fill(Palette.userBubbleFill)
                             }
+                            // §414 增补（断网规格 5.3）：未
+                            // 确认发送的泡体浅色态——谓词
+                            // isUnconfirmedSend 在途时整泡
+                            // （字色与填充同体）降至 0.45，
+                            // 服务端确认（delivered/落定）
+                            // 后 0.2s 过渡回全色（Muse 形
+                            // 态）；只改呈现不改几何——行
+                            // 高合成器不感知颜色，翻转前后
+                            // 行高逐值不变（§407 钉测把守）
+                            .opacity(
+                                entry.isUnconfirmedSend
+                                    ? 0.45 : 1
+                            )
+                            .animation(
+                                .easeInOut(duration: 0.2),
+                                value: entry.isUnconfirmedSend
+                            )
                             .modifier(messageMenu(for: entry))
                     }
                     // 0.46.1（§116）：用户附件文件牌——
@@ -6838,6 +6939,21 @@ struct ChatView: View {
             }
         }
         .background(Palette.pageBG)
+    }
+
+    /// 账本忙碌提示的 runID 分型（§414 增补，断网
+    /// 规格 5.1 连带修正）：账本在席但 run 从未确
+    /// 立（runID == nil）时不许说「还在生成中」——
+    /// 那条根本没发出去；五处守卫提示（编辑已发
+    /// 送/重新生成/失败重发/待发重发/编辑未发送）
+    /// 共用本口，不许各写一份
+    private func ledgerBusyNotice(threadID: UUID) -> String {
+        if let entry = appState.runLedger.entry(
+            forThreadID: threadID
+        ), entry.runID == nil {
+            return "上一条还没发出去，正在确认结果，确认完就能继续发送。"
+        }
+        return "上一条还在生成中，正在确认结果，确认完就能继续发送。"
     }
 
     /// 提示条赋值唯一口（§140 提示纪律第 3 条）：带档
@@ -9485,9 +9601,11 @@ private struct ComposerBarLayout: Layout {
         // 触感口径（2026-11-14 定版，覆盖 0.3.2「发送
         // 起手不挂触感」）：发送动作补最轻档 impact
         // .light，落点在条目落盘上屏处（见下方 insert
-        // 后）——前置校验退回路径（定位失败/旧轮未落
-        // 定）不许响，响必须与「消息真发出了」同因果；
-        // 结果点不变：完成 .success / 失败 .error
+        // 后）——前置校验退回路径（定位失败）不许
+        // 响，响必须与「消息真发出了」同因果；§414
+        // 起旧轮未落定不再退回：条目落位待发、同落
+        // 盘点响；结果点不变：完成 .success / 失败
+        // .error
         input = ""
         attachments = []
         pendingQuote = nil
@@ -9507,20 +9625,37 @@ private struct ComposerBarLayout: Layout {
             pendingSourceQuote = sourceQuote
             return
         }
-        // 0.31.0：本线程有未落定 run（切后台/杀进程遗
-        // 留或对账预算耗尽）时不许叠发新轮——同会话
-        // 同时至多一轮在飞（落定的段锚点靠它成立）；
-        // 输入原样退回、先触发旧轮对账，落定后再发
-        if appState.runLedger.entry(forThreadID: thread.id)
-            != nil {
-            input = text
-            attachments = pending
-            pendingQuote = quote
-            pendingFeedQuote = feedQuote
-            pendingSourceQuote = sourceQuote
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
-            Task { await resumeRunIfNeeded() }
-            return
+        // §414（修复包一·路三）：未发送条目原位编辑
+        // 的武装在本线程发送时消费——新内容写回原条
+        // 目本体（同 id、同位置、不删条重建）再走发
+        // 件箱统一重发口；目标已落定/已撤回则武装过
+        // 期作废、走正常发送；目标在别的线程时不消
+        // 费（回其线程发送才轮到它），目标已不存在
+        // 时武装作废
+        if let targetID = unsentEditTargetID {
+            if let target = thread.entries.first(
+                where: { $0.id == targetID }
+            ) {
+                let filesRepresented =
+                    unsentEditFilesRepresented
+                unsentEditTargetID = nil
+                unsentEditFilesRepresented = false
+                if isOutboxEntry(target) {
+                    performUnsentEditSend(
+                        target: target, thread: thread,
+                        text: text, pending: pending,
+                        quote: quote,
+                        combinedSourceQuote: combinedSourceQuote,
+                        filesRepresented: filesRepresented
+                    )
+                    return
+                }
+            } else if !threads.contains(where: {
+                $0.entries.contains { $0.id == targetID }
+            }) {
+                unsentEditTargetID = nil
+                unsentEditFilesRepresented = false
+            }
         }
         // FA-1：动态讨论信号的待发判定要在本轮条目
         // 落盘前算——本线程若由动态「讨论」建聊而来
@@ -9593,6 +9728,26 @@ private struct ComposerBarLayout: Layout {
                 postID: feedDiscussPostID, threadID: thread.id,
                 firstText: text
             )
+        }
+        // §414（修复包一·路一）：本线程有未落定 run
+        // 账本（切后台/杀进程遗留或对账未完）时不再
+        // 整轮弹回——条目已按上方正常口径落盘，本
+        // 处只改投递时机：挂待发标记原位呈现（时钟
+        // 标记＋发件箱成员资格；待发身份另受整段替
+        // 换与半截回填的候选界保护、不陪葬，种子口
+        // 径亦排除待发、不双账），先触发旧轮对账；
+        // 旧轮落定后由发件箱 drain 按落盘序自动真
+        // 发（派发钩子在 launchTurn/resendPending 的
+        // driveRun 收尾与 resumeRunIfNeeded 出口）。
+        // 0.31.0「同会话同时至多一轮在飞」的互斥不
+        // 变——改的是投递面（落位排队），不是取消
+        // 互斥
+        if appState.runLedger.entry(forThreadID: thread.id)
+            != nil {
+            newEntry.markPendingSend(in: modelContext)
+            showNotice("上一条还在确认结果，这条已先记下，确认完会自动发送。")
+            Task { await resumeRunIfNeeded() }
+            return
         }
         // 上下文组装走共用出口 outgoingContext（组装
         // 口径注在该函数；基础止血包起失败重发同走它，
@@ -9862,6 +10017,13 @@ private struct ComposerBarLayout: Layout {
                 sessionID: shape.sessionID,
                 userEntry: userEntry
             )
+            // §414（修复包一·路一）：本轮落定收尾（账
+            // 本已在落定链内清除、驱动旗已落）后排发
+            // 件箱——账本滞留期落位的待发条目在此按
+            // 落盘序接上真发；drain 自带守卫（账本/
+            // 在飞/连接态/当前线程），无待发条目时空
+            // 转即返
+            drainOutboxIfNeeded()
         }
     }
 
@@ -9921,17 +10083,21 @@ private struct ComposerBarLayout: Layout {
     }
 
     /// 失败条目重发（基础止血包 P1/P2，微信点感叹号
-    /// 口径）：条目是线程末条时原地重走一轮（它本身
-    /// 即尾条）；不是末条时把内容复制成新条目落到末
-    /// 尾再发、旧失败条目随即删除——落定整段替换按
-    /// 用户条目时刻清其后条目（deleteTurnPartial-
-    /// Entries），原地重发中段条目会误伤其后已落定
-    /// 的轮次，只能复制。两路都汇进 launchTurn 同一
-    /// 链：新 run 由 driveRun 驱动、幂等键复用原条
-    /// 目的 clientMessageID（§383，复制路一并转移：
-    /// 服务端回原 run 不双跑）、账本在飞守卫防叠发
-    /// （与 send() 同一道闸），成功落定
-    /// 自动清标记、再失败由各失败分支重新挂上
+    /// 口径；§414 改判原位）：恒以原条目本体再走一
+    /// 轮——同 id、同位置、clientMessageID 不动（服
+    /// 务端凭幂等键回原 run 不双跑，§383）。旧「非
+    /// 末条复制到末尾＋删原条」作废：复制的唯一理
+    /// 由是落定整段替换按用户条目时刻清其后条目、
+    /// 会误伤其后已落定轮次；§414 已给整段替换与
+    /// 半截回填装上「下一轮用户条目」界（turnPar-
+    /// tialCandidates），中段原位重发的落定只清本
+    /// 轮半截、其后轮次免于陪葬，复制删条失去存
+    /// 在理由。出站只喂本条（与 resendPending 同口
+    /// 径：会话载荷恒取尾条、本条即尾条，本条在
+    /// 线程中的位置与出站形态无关）；种子按非待
+    /// 发序位剔除本条自身、其余历史原样。账本在
+    /// 飞守卫防叠发（与 send() 同一道闸），成功落
+    /// 定自动清标记、再失败由各失败分支重新挂上
     private func resendFailedEntry(_ entry: ChatEntry) {
         guard entry.sendFailed, !isStreaming,
               let thread = entry.thread else { return }
@@ -9939,7 +10105,7 @@ private struct ComposerBarLayout: Layout {
         // 不许叠发，先触发旧轮对账
         guard appState.runLedger.entry(forThreadID: thread.id)
             == nil else {
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            showNotice(ledgerBusyNotice(threadID: thread.id))
             Task { await resumeRunIfNeeded() }
             return
         }
@@ -9949,61 +10115,64 @@ private struct ComposerBarLayout: Layout {
         }
         sendFrameStartedAt = Date()
         sendFrameRestickLogged = false
-        let target: ChatEntry
-        if thread.sortedEntries.last?.id == entry.id {
-            target = entry
-        } else {
-            let copy = ChatEntry(
-                role: "user", content: entry.content, thread: thread,
-                imageDatas: entry.allImageDatas, quote: entry.quote,
-                sourceQuote: entry.sourceQuote
-            )
-            copy.remoteFilePathsData = entry.remoteFilePathsData
-            // §383：消息级幂等身份随复制转移——重发的
-            // 仍是同一条消息，服务端按此 id 回原 run；
-            // 编辑回收路径不转移（内容已变、新条目新
-            // 身份）
-            copy.clientMessageID = entry.clientMessageID
-            modelContext.insert(copy)
-            // 上传未成的载荷随复制转移（键随条目走）
-            if let payloads = failedFilePayloads[entry.id] {
-                failedFilePayloads[copy.id] = payloads
-                failedFilePayloads[entry.id] = nil
-            }
-            // §237 P1：磁盘暂存同理随复制转移——重启
-            // 后只剩磁盘这份时不许在复制处丢掉
-            try? stagedSendStore.transfer(
-                from: entry.id, to: copy.id
-            )
-            modelContext.delete(entry)
-            target = copy
-        }
-        target.sendFailed = false
+        entry.sendFailed = false
         // §237：重发启动即回待发队列态（与清失败标
         // 记同点，状态原值不许残留 failed）
-        target.markSendState(.queued, in: modelContext)
+        entry.markSendState(.queued, in: modelContext)
         thread.updatedAt = Date()
         try? modelContext.save()
-        // 种子快照剔除尾条本体（两路 target 恒为末
-        // 条、种子与条目 1:1 同序）：链接导入的历史
-        // 只含尾条之前，防尾条在服务端落两份——与
-        // send() 落盘前取快照同义
-        let seedSnapshot = Array(
-            Self.seedEntries(of: thread).dropLast()
-        )
-        launchTurn(
-            thread: thread, userEntry: target,
-            text: target.content,
-            // §237 P1：载荷取数走统一口——内存未命中
-            // 回磁盘暂存重建，重启后不退化纯文本
-            filePayloads: resendFilePayloads(entryID: target.id),
-            presetFilePaths: target.remoteFilePaths,
-            seedSnapshot: seedSnapshot,
-            context: outgoingContext(
-                of: thread, tailEntry: target,
-                text: target.content, quote: target.quote,
-                sourceQuote: target.sourceQuote
+        // 种子剔除本条自身：种子＝非待发条目的同序
+        // 快照（seedEntries 与 sortedEntries 的非待
+        // 发子集 1:1 同序），本条居其原位——按序位
+        // 摘除该行，其余历史（含其后已落定轮次）原
+        // 样保留；本条只以尾条身份经 run 投递，不
+        // 许在种子里先落一份（与 send() 落盘前取快
+        // 照同义）
+        let nonPendingIDs = thread.sortedEntries
+            .filter { !$0.isPendingSend }
+            .map(\.id)
+        var seedSnapshot = Self.seedEntries(of: thread)
+        if let seedIndex = nonPendingIDs.firstIndex(
+            of: entry.id
+        ), seedIndex < seedSnapshot.count {
+            seedSnapshot.remove(at: seedIndex)
+        }
+        // 出站只喂本条（resendPending 同口径）：引用
+        // 拼装走 MessageQuote.outgoingContent、本地
+        // 图走多模态 parts；旧全量 outgoingContext
+        // 的尾条恒为线程末条、中段重发喂它即喂错条
+        // 目，随原位化一并退役本路用法
+        var outgoing = ChatMessage(
+            role: "user",
+            content: MessageQuote.outgoingContent(
+                userText: entry.content, quote: entry.quote,
+                sourceQuote: entry.sourceQuote
             )
+        )
+        let entryImageDatas = entry.allImageDatas
+        if !entryImageDatas.isEmpty {
+            outgoing = ChatMessage(
+                role: "user",
+                text: MessageQuote.outgoingContent(
+                    userText: entry.content, quote: entry.quote,
+                    sourceQuote: entry.sourceQuote
+                ),
+                imageDataURLs: entryImageDatas.map {
+                    "data:image/jpeg;base64,"
+                        + $0.base64EncodedString()
+                }
+            )
+        }
+        launchTurn(
+            thread: thread, userEntry: entry,
+            text: entry.content,
+            // §237 P1：载荷取数走统一口——内存未命中
+            // 回磁盘暂存重建，重启后不退化纯文本；原
+            // 位重发后键恒为本条 id，不再有复制转移
+            filePayloads: resendFilePayloads(entryID: entry.id),
+            presetFilePaths: entry.remoteFilePaths,
+            seedSnapshot: seedSnapshot,
+            context: [outgoing]
         )
     }
 
@@ -10021,7 +10190,7 @@ private struct ComposerBarLayout: Layout {
         else { return }
         if appState.runLedger.entry(forThreadID: thread.id)
             != nil {
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            showNotice(ledgerBusyNotice(threadID: thread.id))
             Task { await resumeRunIfNeeded() }
             return
         }
@@ -10185,6 +10354,11 @@ private struct ComposerBarLayout: Layout {
                 thread: thread, tail: tail,
                 sessionID: shape.sessionID, userEntry: entry
             )
+            // §414（修复包一·路一）：同 launchTurn 收
+            // 尾口径——本轮落定后排发件箱，滞留期落
+            // 位的待发条目按序接上（手动重发不在
+            // drain 趟内时靠本钩子续排）
+            drainOutboxIfNeeded()
         }
     }
 
@@ -10259,6 +10433,12 @@ private struct ComposerBarLayout: Layout {
               ) == nil
         else { return }
         let entryID = entry.id
+        // §414：撤回的若是原位编辑的武装目标，武装
+        // 同点作废（条目已删、写回无从谈起）
+        if unsentEditTargetID == entryID {
+            unsentEditTargetID = nil
+            unsentEditFilesRepresented = false
+        }
         if failedResendEntryID == entryID {
             failedResendEntryID = nil
             errorMessage = nil
@@ -10271,15 +10451,19 @@ private struct ComposerBarLayout: Layout {
         try? modelContext.save()
     }
 
-    /// 编辑未发送条目（台账 154）：把内容与附件回
-    /// 收进发送舱、改完再发——回收走既有载荷口径
-    /// （图片全集在条目本体、文件凭条目 id 回暂存
-    /// 重建、引用两槽按 send() 快照的同款互斥回
-    /// 填），原条目按撤回清理删除；新内容由用户点
-    /// 发送走正常 send() 链（新条目新一轮，不在旧
-    /// 条目上原地改字——出站上下文与种子口径都以
-    /// 落盘条目为准，原地改字会让已拼装的出站形态
-    /// 与条目静默分叉）
+    /// 编辑未发送条目（台账 154；§414 改判原位）：
+    /// 把内容与附件装载进发送舱并武装目标——装载
+    /// 走既有载荷口径（图片全集在条目本体、文件
+    /// 凭条目 id 回暂存重建、引用两槽按 send() 快
+    /// 照的同款互斥回填）；原条目不删、不动，用户
+    /// 改完点发送时由 send() 把新内容写回原条目
+    /// 本体原位重发（performUnsentEditSend，同
+    /// id/同位置）。旧「回收删条＋新条目新一轮」
+    /// 作废：删条重建让失败消息在编辑一次后换位
+    /// 换身份，与失败不消失定版相悖；旧虑「原地
+    /// 改字让已拼装出站形态与条目分叉」由写回后
+    /// 重走发件箱重发口消解（出站形态在重发时按
+    /// 新条目内容现拼，不存在先拼后改）
     private func editUnsentEntry(_ entry: ChatEntry) {
         guard isOutboxEntry(entry), !isStreaming,
               let thread = entry.thread,
@@ -10287,7 +10471,7 @@ private struct ComposerBarLayout: Layout {
         guard appState.runLedger.entry(
             forThreadID: thread.id
         ) == nil else {
-            showNotice("上一条还在生成中，正在确认结果，确认完就能继续发送。")
+            showNotice(ledgerBusyNotice(threadID: thread.id))
             return
         }
         // 发送舱有未发完的内容时不许回收覆盖（用户
@@ -10310,7 +10494,14 @@ private struct ComposerBarLayout: Layout {
         )
         let quote = entry.quote
         let sourceQuote = entry.sourceQuote
-        withdrawUnsentEntry(entry)
+        // §414：只武装＋装载，原条目原样留列（失败/
+        // 待发标记、暂存、远端路径全不动）；文件面
+        // 管辖按载荷可代表性记账（载荷不在而远端路
+        // 径在场＝文件已在服务端，编辑只管正文/图
+        // 片/引用，文件面在写回时原样保留）
+        unsentEditTargetID = entry.id
+        unsentEditFilesRepresented = !filePayloads.isEmpty
+            || entry.remoteFilePaths.isEmpty
         input = text
         attachments = imageDatas.map {
             PendingAttachment(kind: .image($0))
@@ -10329,6 +10520,51 @@ private struct ComposerBarLayout: Layout {
             break
         }
         composerFocusHandle.focus()
+    }
+
+    /// §414（修复包一·路三）：未发送编辑的发送落点
+    /// ——新内容写回原条目本体（applyUnsentEdit：
+    /// 同 id、同时刻、同位置，发送状态不动），附
+    /// 件面按武装时的可代表性分工：可代表时以发
+    /// 送舱快照重建——旧暂存（内存格＋磁盘）全
+    /// 清、新载荷重暂存、远端路径作废待重传（上
+    /// 传同名覆盖、口径见 uploadPendingFiles）；
+    /// 不可代表时（文件已在服务端、载荷不在本
+    /// 机）文件面一字不动、只改正文/图片/引用。
+    /// 写回后走发件箱统一重发口 resumeOutbox-
+    /// Entry（失败/待发/准备段中断三态同口分
+    /// 发），标记与状态由重发链自理
+    private func performUnsentEditSend(
+        target: ChatEntry, thread: ChatThread, text: String,
+        pending: [PendingAttachment], quote: MessageQuote?,
+        combinedSourceQuote: SourceQuote?,
+        filesRepresented: Bool
+    ) {
+        let imageDatas = pending.compactMap(\.imageData)
+        let filePayloads = pending.compactMap(\.filePayload)
+        target.applyUnsentEdit(
+            content: text, imageDatas: imageDatas,
+            quote: quote, sourceQuote: combinedSourceQuote,
+            in: modelContext
+        )
+        if filesRepresented {
+            failedFilePayloads[target.id] = nil
+            pendingResendAttachments[target.id] = nil
+            try? stagedSendStore.remove(entryID: target.id)
+            if !filePayloads.isEmpty {
+                try? stagedSendStore.stage(
+                    entryID: target.id,
+                    payloads: filePayloads.map {
+                        StagedSendPayload(
+                            name: $0.name, data: $0.data
+                        )
+                    }
+                )
+            }
+            target.remoteFilePathsData = nil
+            try? modelContext.save()
+        }
+        resumeOutboxEntry(target)
     }
 
     /// 发件箱自动重排触发口（台账 154／G-04）：
@@ -10853,7 +11089,8 @@ private struct ComposerBarLayout: Layout {
         // 台账 154（DESIGN §383）：消息级幂等身份——
         // 账本幂等键自此取条目的 clientMessageID：首
         // 轮铸造并落盘，之后发件箱自动重试/手点重发/
-        // 中段复制重发跨 driveRun 复用同一 id，服务
+        // 中段原位重发（§414）跨 driveRun 复用同一
+        // id，服务
         // 端按此 id 回原 run（hermes-deploy 1.5.0 的
         // client_message_id 语义，头＋body 同值双带）；
         // 单轮内账本重演口径不变。demo 无服务端、键
@@ -10913,6 +11150,29 @@ private struct ComposerBarLayout: Layout {
                         appState.runLedger.upsert(ledgerEntry)
                     }
                     runMachine.apply(.stopRequested)
+                    finishRunPresentation(failed: false)
+                    return
+                }
+                if case .notSentOffline = error {
+                    // §414 增补（断网规格 5.2）：设备明
+                    // 确无网、请求根本没出设备——不是
+                    // 结果未知：不重试、不判 ambiguous、
+                    // 不进对账。折回待发巷（待发标记＋
+                    // queued 态、mayAutoResume）、清账
+                    // 本、收尾呈现（占位行随 sendTask
+                    // 收尾撤）；网络恢复/回前台后由发
+                    // 件箱 drain 自动续发（同 key 幂等
+                    // 不变）。真未知（回执丢失）仍走下
+                    // 方瞬态重试→ambiguous→对账全套，
+                    // 154 幂等本体不动
+                    if !demoMode {
+                        appState.runLedger.remove(
+                            threadID: thread.id
+                        )
+                        userEntry.markPendingSend(
+                            in: modelContext
+                        )
+                    }
                     finishRunPresentation(failed: false)
                     return
                 }
@@ -11255,13 +11515,43 @@ private struct ComposerBarLayout: Layout {
         }
         if !runMachine.isSettled {
             runMachine.apply(.settleExhausted)
-            // 体面出口：生成仍在服务端进行（或结果待
-            // 查），账本保留、下次进本线程自动续对账
             persistRunPartials(thread: thread)
-            showNotice(
-                "生成仍在服务器进行中，稍后回到本对话会自动补齐结果。",
-                tier: .extended
-            )
+            if entry.runID == nil {
+                // §414 增补（断网规格 5.2）：本轮从未
+                // 被服务端受理（runID 恒 nil）却磨满
+                // 预算——「生成仍在服务器进行中」对
+                // 它是假话。折回待发巷（待发标记＋
+                // queued 态）、清账本（账本留着只会
+                // 让后续发送全撞忙碌守卫、条目永无标
+                // 记），提示照实说还没发出去；网络恢
+                // 复后 drain 自动续发
+                if !demoMode,
+                   let userEntry = thread.entries.first(
+                       where: {
+                           $0.id.uuidString == entry.userEntryID
+                       }
+                   ) {
+                    userEntry.markPendingSend(
+                        in: modelContext
+                    )
+                    appState.runLedger.remove(
+                        threadID: thread.id
+                    )
+                }
+                showNotice(
+                    "这条还没发出去，网络恢复后会自动发送，也可以点按消息旁的时钟重发。",
+                    tier: .extended
+                )
+            } else {
+                // 体面出口：生成仍在服务端进行（或结
+                // 果待查），账本保留、下次进本线程自
+                // 动续对账——runID 在席时这句是真话，
+                // 保留现行语义
+                showNotice(
+                    "生成仍在服务器进行中，稍后回到本对话会自动补齐结果。",
+                    tier: .extended
+                )
+            }
             finishRunPresentation(failed: false)
         }
     }
@@ -11647,8 +11937,43 @@ private struct ComposerBarLayout: Layout {
         finishRunPresentation(failed: false)
     }
 
-    /// 整段替换的删除面：已落盘的半截名单＋用户条目
-    /// 之后落盘的全部条目（发送互斥保证其必属本轮）
+    /// 本轮半截候选的单点谓词（§414 抽出，整段替换
+    /// 与半截回填共用）：用户条目之后、下一轮用户
+    /// 条目之前的非锚定非待发条目。「下一轮」界＝
+    /// 其后首个非待发的用户条目（待发条目未被服
+    /// 务端受理、不构成轮次边界，其自身另有待发
+    /// 豁免）。旧口径只有「用户条目之后必属本轮」
+    /// 一条（发送互斥下成立）；§414 中段条目原位
+    /// 重发后该前提失效——本轮用户条目之后可以躺
+    /// 着已落定的后续轮次，靠本界免于陪葬。常规
+    /// 轮（用户条目居末）无下一轮、界不生效，行
+    /// 为与旧口径逐字同。既有豁免并入谓词：§123/
+    /// §165 系统锚定条目（跨面并发落盘、不属本
+    /// 轮）、待发条目（从未被服务端受理、不属任
+    /// 何一轮的半截，用户消息不许陪葬）
+    static func turnPartialCandidates(
+        in thread: ChatThread, userEntry: ChatEntry
+    ) -> [ChatEntry] {
+        let nextTurnStart = thread.sortedEntries.first(
+            where: {
+                $0.id != userEntry.id
+                    && $0.createdAt > userEntry.createdAt
+                    && $0.role == "user"
+                    && !$0.isPendingSend
+            }
+        )?.createdAt
+        return thread.entries.filter {
+            $0.id != userEntry.id
+                && $0.createdAt > userEntry.createdAt
+                && !$0.isSystemAnchored
+                && !$0.isPendingSend
+                && (nextTurnStart == nil
+                    || $0.createdAt < nextTurnStart!)
+        }
+    }
+
+    /// 整段替换的删除面：已落盘的半截名单＋本轮半
+    /// 截候选（turnPartialCandidates，含下一轮界）
     private func deleteTurnPartialEntries(
         thread: ChatThread, entry: RunLedgerEntry
     ) {
@@ -11656,22 +11981,9 @@ private struct ComposerBarLayout: Layout {
         guard let userEntry = thread.entries.first(
             where: { $0.id.uuidString == entry.userEntryID }
         ) else { return }
-        for candidate in thread.entries
-        where candidate.id != userEntry.id
-            && candidate.createdAt > userEntry.createdAt {
-            // §123（H1）：回响条目不属本轮——它可能恰在
-            // 一轮进行中由目标详情侧落盘（跨面并发），
-            // 「用户条目之后必属本轮」的发送互斥前提对
-            // 它不成立，整段替换不许删它
-            // §165：审批锚定条目同理（物化由 store 刷新
-            // 触发、可在一轮进行中落盘），谓词同上统一
-            guard !candidate.isSystemAnchored else { continue }
-            // 聊天可靠性包：待发条目同理不删——它从未
-            // 被服务端受理、不属任何一轮的半截；极端
-            // 时序下（前一轮对账未落定时其 createdAt
-            // 落在本轮用户条目之后）整段替换扫到它也
-            // 必须跳过，用户消息不许陪葬
-            guard !candidate.isPendingSend else { continue }
+        for candidate in Self.turnPartialCandidates(
+            in: thread, userEntry: userEntry
+        ) {
             modelContext.delete(candidate)
         }
         try? modelContext.save()
@@ -11878,11 +12190,13 @@ private struct ComposerBarLayout: Layout {
             // 本轮半截——不进半截名单、正文回填也不许
             // 把它当作助手半截正文吞进流式区
             // §165：审批锚定条目同族同守（谓词统一）
-            let partials = thread.entries.filter {
-                $0.id != userEntry.id
-                    && $0.createdAt > userEntry.createdAt
-                    && !$0.isSystemAnchored
-            }
+            // §414：候选面收口到 turnPartialCandidates
+            // ——补待发豁免（账本滞留期落位的待发条目
+            // 不许被当作本轮半截吞掉/删掉）与下一轮界
+            // （中段重发轮之后已落定轮次不进半截名单）
+            let partials = Self.turnPartialCandidates(
+                in: thread, userEntry: userEntry
+            )
             livePartialEntryIDs = partials.map(\.id)
             liveToolCards = partials
                 .filter { $0.role == "tool" }
@@ -11947,6 +12261,11 @@ private struct ComposerBarLayout: Layout {
         )
         isDrivingRun = false
         await RunLiveActivityCenter.shared.end()
+        // §414（修复包一·路一）：对账落定收尾后排发
+        // 件箱——滞留账本期落位的待发条目在旧轮结
+        // 清后按落盘序真发（账本未清/对账未落定时
+        // drain 自守卫不发）
+        drainOutboxIfNeeded()
     }
 
 }

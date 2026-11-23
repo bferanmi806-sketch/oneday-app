@@ -57,7 +57,10 @@ public enum FileOpenFailure: String, CaseIterable, Sendable {
             case 500...599: return .serviceUnavailable
             default: return .other
             }
-        case .transientNetwork:
+        case .transientNetwork, .notSentOffline:
+            // notSentOffline（§414 增补分型）：文件打开
+            // 面保形——拆分前经 transientNetwork 同落
+            // 本档，拆分后同行同落，行为不变
             return .timeout
         case .unreachable, .healthCheckFailed,
              .sessionExpired, .loginRejected, .loginRateLimited,
