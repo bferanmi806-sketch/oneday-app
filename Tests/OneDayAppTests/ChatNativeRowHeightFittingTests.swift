@@ -184,6 +184,16 @@ final class ChatNativeRowHeightFittingTests: XCTestCase {
             composer: composer
         )
         assertMarkdownFit(
+            "表格Grid长格封顶折行",
+            """
+            | 项目 | 状态 | 备注 |
+            | --- | --- | --- |
+            | 换引擎 | 收官 | 步骤四五六全部合入组版，停滚落定跟手度与流式滑动结清帧率都留了真机门，等用户醒来逐项验收之后才算真正关账 |
+            | 草稿 |  | 短注 |
+            """,
+            composer: composer
+        )
+        assertMarkdownFit(
             "表格降级列表",
             """
             | 甲 | 乙 | 丙 | 丁 | 戊 | 己 |

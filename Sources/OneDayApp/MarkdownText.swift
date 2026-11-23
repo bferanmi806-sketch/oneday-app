@@ -405,12 +405,25 @@ struct MarkdownText: View {
     /// 长文本单元格整行不折、3 列长文表也要横拖才
     /// 看得全（格式显示诊断 §四）；封顶后宽表先折
     /// 行、横滑只剩多列总宽仍超气泡宽时的余量
+    /// §396 落码：SwiftUI Grid 无列宽设定 API、格上
+    /// frame(maxWidth:) 不构成列宽约束（§329 校准
+    /// 拟合实证：列按自然宽、整行不折）——列宽改由
+    /// MarkdownTableGridLayout 按与量测同源的拼装
+    /// 算定（逐列自然宽封顶）后以显式宽喂格，呈现
+    /// 与行高合成器共用同一列宽单源
     private func tableGridView(
         header: [String],
         alignments: [MarkdownTableAlignment],
         rows: [[String]]
     ) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let columnWidths = MarkdownTableGridLayout
+            .columnWidths(
+                header: header, rows: rows,
+                category: dynamicTypeSize
+                    .contentSizeCategory,
+                boldText: legibilityWeight == .bold
+            )
+        return ScrollView(.horizontal, showsIndicators: false) {
             Grid(
                 alignment: .leading,
                 horizontalSpacing: OneDayMetrics.spacingM,
@@ -432,10 +445,7 @@ struct MarkdownText: View {
                         // 27 起格内选段），不冒充同档
                         .textSelection(.enabled)
                         .frame(
-                            maxWidth: CGFloat(
-                                MarkdownTablePresentation
-                                    .maxColumnWidth
-                            ),
+                            width: columnWidths[column],
                             alignment: Self.frameAlignment(
                                 alignments[column]
                             )
@@ -467,10 +477,7 @@ struct MarkdownText: View {
                             .foregroundStyle(Palette.bodyInk)
                             .textSelection(.enabled)
                             .frame(
-                                maxWidth: CGFloat(
-                                    MarkdownTablePresentation
-                                        .maxColumnWidth
-                                ),
+                                width: columnWidths[column],
                                 alignment: Self.frameAlignment(
                                     alignments[column]
                                 )

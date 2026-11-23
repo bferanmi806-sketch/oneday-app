@@ -47,8 +47,17 @@ final class SideChatStore {
         static let scrollAnchors = "sideChats.scrollAnchors"
     }
 
-    init(persisted: Bool) {
-        defaults = persisted ? .standard : nil
+    convenience init(persisted: Bool) {
+        self.init(defaults: persisted ? .standard : nil)
+    }
+
+    /// 指定初始化器（§396 钉测注入口）：以给定
+    /// UserDefaults 建店，落盘/解码语义与 persisted
+    /// =true 逐字同——草稿跨实例读回（重启语义）的
+    /// 把守测走本口、用独立 suite 不污染真实档案；
+    /// 传 nil 即演示模式纯内存
+    init(defaults: UserDefaults?) {
+        self.defaults = defaults
         guard let defaults else { return }
         if let raw = defaults.string(forKey: Key.lastThreadID) {
             lastThreadID = UUID(uuidString: raw)
