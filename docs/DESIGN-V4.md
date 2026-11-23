@@ -16715,3 +16715,19 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 3. 点色板／模式／语言／形象大小选择时轻触感有无与强度观感，及点开形象大小 Menu 的点按触感；
 4. 语言切换（整树重建）时触感是否正常送达；
 5. 深色模式七款气泡观感对照（本包值未动、仅提示）。
+
+## §433 0.50.105 组版记账（2026-11-24）
+
+基线 rel-05104 @4f19d38，分支 rel-05105，版本 0.50.105／build 233。合入三件（各节原文随各自分支并入，本节只记组版账）：
+
+- §426 四缺陷热修（feat/send-confirm-visual @3f64655，合并 ea27d2d）：变色受理点清账（markAcceptedEntryDelivered 挂三受理点、呈现读数单源化）、前台完成卡消账（RunCompletionResolution 同式审批消账、run_failed 一并纳入）、键盘贴底意图（keyboardPinIntent 动前捕获＋中途帧钉测）、生成占位纯三点（placeholderVisual 分相、TypingDots iMessage 落数）。
+- §424 量测包 2（feat/rowmeasure-pureread @b6387fc 三笔，合并 ee9b11e）：resolve 纯读化；包 1 @f78307e 已为 104 祖先、链上不重复、无双计。DESIGN 追加冲突与 §426 并集解（两节全留）。
+- §431 主题对位（feat/theme-align @9e146c7，合并 ffa9d9c）：七款 bubbleLight 按参照采样逐值对齐、DisclosureChevron 收口 45 处、外观页触感五点；与热修线文件零交集；DESIGN 追加冲突并集解。本包开工时未交卷、交卷后经主线裁定合入。
+- 版本戳：Project.swift 0.50.105/233＋tuist generate 刷新 Derived（c8cf069），generate 后未还原 Derived。
+- 留版：§430 量测包 3（feat/rowmeasure-single-exec @de86869）交卷时发布集整轮已开跑，按处置口径不打断、留 0.50.106（届时发布集加 RowMeasureSingleExec430 套单列对账）。
+- 发布集（RUN 2026-11-24 00:45:41，bundle Test-OneDayApp-rel05105.xcresult，dd-05105-test，ProbePhone 组版前已擦）：名单＝104 bundle xcresulttool 提取 143 套全限定名＋新套 4（ChatSendConfirmPinTests／ChatKeyboardPinAssemblyTests／RowMeasurePureRead422Tests／ThemeAlign431Tests）＝147 套；总项 1095（1075＋19 新套测＋ChatTheme 新钉 1）逐套对账精确闭合；1094 过、1 红。
+- 红名单对账：唯一红 MarkdownEngineDifferentialTests/testPerformanceGate 与 104 bundle 逐字同红（#13 已裁决项：用户接受 2.3× 量级、门限修订记账欠账照旧）；新红 0、消红 0。口径注记：104 官方 bundle summary 实为 1075 项 1 红，104 组版卡所记另 3 红（Drawer scene-gate×2＋SwipeReplyPanBridge×1）在 bundle 节点数据中 104/105 两版均为 Passed，本版起按 bundle 实数对账、留主线知悉。
+- drain 三钉：ChatFailKeepPinTests 7/7、ChatQueueSendPinTests 5/5 发布集内绿；ChatReliabilityOfflineTests 不在 104 谱系名单（103 bundle 提取即无此套），本版于冒烟轮同树补跑 5/5 绿——谱系缺口留主线知悉（该套自 §414/§419 线起只在各线自有回归内运行，未进发布集名单）。
+- 冒烟轮（bundle Test-Smoke-rel05105.xcresult）：6 套 20 测全绿（Reliability 5＋S373 结构 2＋S371 结构 1＋长列表滚动 1＋迁移 4＋UI 冒烟 7）；过程注记：本轮被重复 kick 两次（断线后等待器与首跑交叠），两跑 exit 均 0、第二跑 bundle 封口实数如上。
+- IPA：Release 构建 exit 0；~/build/OneDay-0.50.105.ipa，16,612,208 字节，md5 2ad5bbc5e725d6a196cf72adb1a7dc2e；本体三值亲验 0.50.105／233／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
+- 需求总表已加 0.50.105 版本行＋四缺陷真机复验清单（变色／完成卡／键盘贴底／三点，各一句验收动作）；四缺陷划线等用户真机 verdict。分支 rel-05105 未 push、未打 tag（主线处置）。
