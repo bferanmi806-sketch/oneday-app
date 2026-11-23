@@ -245,6 +245,8 @@ struct SettingsView: View {
                     })
                 case .voice:
                     VoiceSettingsView()
+                case .notifications:
+                    NotificationSettingsView()
                 case .addDevice:
                     AddDeviceView()
                 case .pairingManagement:
@@ -746,6 +748,7 @@ struct SettingsView: View {
         case .healthCheck: return .healthCheck
         case .connectionSelfCheck: return .connectionSelfCheck
         case .voice: return .voice
+        case .notifications: return .notifications
         case .addDevice: return .addDevice
         case .pairingManagement: return .pairingManagement
         case .chatDiagnostics: return .chatDiagnostics
@@ -789,6 +792,7 @@ struct SettingsView: View {
         case "connectionSelfCheck": return "antenna.radiowaves.left.and.right"
         case "status": return "waveform.path.ecg"
         case "voice": return "speaker.wave.2"
+        case "notifications": return "bell"
         case "addDevice": return "qrcode"
         case "pairing": return "person.badge.key"
         case "disconnect": return "rectangle.portrait.and.arrow.right"

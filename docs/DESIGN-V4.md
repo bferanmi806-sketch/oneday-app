@@ -15345,3 +15345,61 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.98/226/site.didichou.oneday、14,782,884 字节、md5 5dad895663a4328cc0b5187800adfc2d（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/），rel-05098 已推 GitHub。体积较 0.50.97 减约 339KB，与步骤 6 删 9,793 行相符。
 - program 收官指针：换引擎 program 步骤 0–6 全景与量测总账见 §374.10；本版起聊天列表只剩 native 单链（gen3／legacy／ComposerGuideHost 已退役），调度复合体四件已收敛（删窗／单拍结清／删抽屉冻结／滚动记账过渡规则定版），选区保护收敛单键暂缓。
 - 真机门（用户，未过不关账）：步骤 4——停滚落定跟手度、流式中滑动与停滚结清帧率、长会话滚动停滚结清、尾行行高跟随手感；步骤 5 选区四项——①流式中长按选字拖手柄选区不消失不跳变、清账后一次性追平；②双击选词高亮稳定、取消后补发最新；③选区在场时流式推进他行照常、选区行冻结、滚动不被顶动；④选区在场时落定不冲选区、清账后立刻补发终稿；步骤 3 观察期八项（随 0.50.97 已挂、见 §377）与存量清单（抽屉名单零闪动、四格滑动、三面行题、四新面真拉、编辑重发、命令授权区、朗读）一并 verdict。
+
+## §385 通知分级矩阵（总表 162）＋Live Activities（总表 163）（2026-11-23；基线 rel-05098 @3f9598f，分支 feat/notification-tiers-liveactivities）
+
+用户 2026-11-23 令全部解冻、全推进，两条同属通知面合一包。先查现行通知面实况（本节为开工草案，落码与回归记账回填于 §385 定稿段）。
+
+### §385.1 现行通知面实况（实查 2026-11-23）
+
+**站内通知（唯一成体系的通知面）**：条目由 overview-bridge（伴生只读聚合面）生成、App 经 OverviewBridgeStore.loadNotifications 拉取，落 NotificationsView 列表＋角标（OverviewBadge.count＝未读通知数＋待审批数，顶栏与底栏消费同一口径）。现行 kind 与呈现逐项：
+
+| 类（本包口径） | 服务端 kind | 现状呈现 | 现状分级 |
+|---|---|---|---|
+| 审批 | `write_gate_decision`（裁决回执：已批准／已被驳回） | 列表行（文档符号＋结果标签）＋未读计角标；本人裁决回执按 refId 命中即自动消账（ApprovalResolution） | 无分级：与一切未读同权计角标 |
+| 运行完成 | `task_completed`（任务结果） | 列表行（清单符号＋「已完成」标签）＋未读计角标 | 无分级 |
+| 失败 | **无专用 kind**（见缺口 G1） | —— | —— |
+| 系统 | `monitor_change`（监测变化）＋未知 kind 兜底 | 列表行（波形符号／铃铛符号）＋未读计角标 | 无分级 |
+
+**本地通知（UNUserNotificationCenter）**：只有设备工具执行器一口——Hermes 经 notify_post 工具请 App 代发（NotificationEngine.post，DeviceExecutors.swift），标题／正文由调用方给，恒定 `.default` 声音、无 interruptionLevel、无分类、无角标联动；发送前过 NotificationPermissionGate（先异步读真状态过 DevicePermissionGate 铁律：已决定绝不重走 requestAuthorization 回调；未决定才发那一次请求）。站内通知新到时**不发**本地通知——App 不在前台就无任何提醒面（APNs 远程推送未做、付费账号搁置在案）。
+
+**待审批本体**：不生成通知条目，只在桥快照 pendingApprovals 里计数（状态行＋角标＋聊天内审批卡呈现），无独立通知 kind（缺口 G2）。
+
+**Live Activities**：全仓零 ActivityKit 引用、无 widget 扩展目标、Info.plist 无 NSSupportsLiveActivities——从未立项，本包新建。
+
+**Hermes 能力面对账（缺口只登记、不动生产）**：
+- G1 失败无 kind：任务／运行失败不进通知流（桥 kind 只有 write_gate_decision／monitor_change／task_completed 三种成文）；本包分类器预留失败类（kind 含 fail/error 信号即归失败类），服务端补 kind 后自动生效。
+- G2 待审批不生成条目：即时打断级当前只能覆盖裁决回执；待审批的打断面仍是聊天内审批卡＋状态行，属呈现面非通知面，本包不改。
+- G3 聊天一轮（run）完成／失败不进通知流：run 终态只在聊天页内呈现（落定／失败标记），无通知条目；Live Activities（§385.3）覆盖其进行态，终态通知待 G1/G3 服务端补事件后另议。
+
+### §385.2 分级矩阵（162 定版口径）
+
+对位 iOS 通行分级（UNNotificationInterruptionLevel）：即时打断＝`.timeSensitive`（可穿透专注模式的时间敏感级，配声音）；静默入盒＝`.passive`（只进通知列表、不点亮屏幕、无声音）；仅角标＝不发本地通知、只计 App 内角标与站内列表。
+
+| 类 | 级 | 本地提醒形态 | 理由 |
+|---|---|---|---|
+| 审批（裁决回执） | 即时打断 | timeSensitive＋默认声音 | 裁决是用户动作的结果回执、他人／自动裁决的回执是「未读重要事件」（0.36.5 口径），需及时知晓 |
+| 失败（预留，待 G1） | 即时打断 | timeSensitive＋默认声音 | 失败需用户介入处理，与审批同级 |
+| 运行完成 | 静默入盒 | passive、无声音 | 结果可回看，不值当点亮屏幕 |
+| 系统（监测变化／未知） | 仅角标 | 不发本地通知 | 监测变化是背景信息流，只留站内列表＋角标 |
+
+**落码形态**：分类与矩阵收进 OneDayCore.NotificationTier（纯函数：OverviewNotification→类→级）；提醒规划同为 Core 纯函数（新到未读条目＋分类开关＋已提醒 id 集 → 提醒指令集＋新已提醒集），首见基线不补发（首次规划把现存未读全数登记为已提醒、防积压风暴）。App 侧 NotificationTierAlerter 在 loadNotifications 成功后消费规划：先经 NotificationPermissionGate.currentState() 读真状态（已授权才发；未决定**不**在轮询里发授权请求——铁律，未决定时本轮静默、只登记已提醒防下轮补弹），按级组 UN 内容（interruptionLevel／声音／threadIdentifier 按类分组）投递，前缀 `oneday-tier-` 与设备工具的 `oneday-notify-` 分账。
+
+**设置面**：设置「偏好与权限」组新增「通知」页（目录 id `notifications`）——四类各一个开关（缺省全开），键 `notify.category.<类>.enabled`，Core 偏好口与设置页 @AppStorage 同键同读，回读以同一 UserDefaults 实值为准（钉测把守写后读回一致）；关类＝该类不发本地提醒（站内列表与角标口径不动，角标是站内账、不是提醒面）。同页含 Live Activities 总开关（§385.3）。
+
+### §385.3 Live Activities（163 定版口径）
+
+**边界先行**：只做 App 内发起形态——ActivityKit 本地 `Activity.request` 启动、App 内 update/end；**不做 APNs 远程更新**（push token／服务端推送通道随付费账号搁置，本包不碰）；App 被杀后活动由系统按最后状态留置、staleDate 兜底，不承诺跨进程续更。
+
+**形态**：新增 widget 扩展目标 OneDayWidgets（WidgetKit＋ActivityKit），承载 RunLiveActivityAttributes 的锁屏面与灵动岛（expanded／compact／minimal）。属性定义放 OneDayCore（App 与扩展共用一型）：静态属性只有任务名（会话标题，截断 40 字）；内容态只有进度阶段（准备中／生成中两档枚举）＋阶段起始时刻——**不呈正文、不呈回复片段、不呈工具参数**（隐私口径：锁屏可见面只许任务名与阶段）。App 侧 RunLiveActivityCenter 单点管理：driveRun 起跑沿启动（任务名＝线程标题）、流式上升沿切「生成中」、driveRun 退出沿（defer，含失败／取消一切出口）结束（dismissalPolicy `.immediate`，任务结束自动收）。全程尽力而为：授权未开／活动被系统拒／开关关——静默跳过，绝不挡运行本体。设置页总开关 `notify.liveActivity.enabled`（缺省开）。
+
+**授权铁律验收项（明列）**：本包不新增任何权限请求路径——通知提醒沿用 NotificationPermissionGate 既有门（先读真状态、已决定绝不重走异步请求回调）；Live Activities 只读 ActivityAuthorizationInfo 同步状态判可用性，不发请求。钉测以结构普查把守：本包新文件零 `requestAuthorization` 出现。
+
+**§385.5 落码与验收（定稿）**
+
+- 新增文件：Core `NotificationTier.swift`（分类＋矩阵＋偏好口＋规划器，纯函数与 UserDefaults 口）、Core `RunLiveActivityAttributes.swift`（ActivityAttributes，内容态仅 phase＋phaseStartedAt）；App `NotificationTierAlerter.swift`（前缀 `oneday-tier-`、已提醒账 cap 500、只读真状态过门、interrupt=timeSensitive＋响铃／inbox=passive 无声／badgeOnly 不投递）、`RunLiveActivityCenter.swift`（@MainActor、只存活动 id、现查现调、begin/update/end 全 async）、`NotificationSettingsView.swift`（四分类开关＋LA 总开关）、扩展 `OneDayWidgets/OneDayWidgets.swift`（锁屏面＋灵动岛三态）。
+- 接线：SettingsCatalog/SettingsView/AppRouter 三处 notifications 落点（preferences 组、紧随语音）；OverviewBridgeStore.loadNotifications 成功后调 Alerter.consume（自动消账之后）；ChatView driveRun 起跑 await begin、defer 以 Task 收 end，续接 driver 同口径 begin/end，isStreaming 上升沿 Task 切 generating；Project.swift 加 NSSupportsLiveActivities、App 嵌 OneDayWidgets.appex（构建产物 PlugIns 实查在场）；Localizable.xcstrings 新增 15 条三语（zh-Hans/zh-Hant/en）。
+- 区域隔离实测口径（本包踩实）：Activity 非 Sendable，存属性取出或经函数/闭包返回值再异步调用必翻「sending risks data races」；唯一过关形态＝只存 id 字符串、调用点 for 迭代 Activity.activities 现取现调。begin/update/end 因此全 async，同步沿口（defer、onChange）以 Task 只捕获中心单例（@MainActor 类、Sendable）过渡。
+- 钉测：OneDayCoreTests/NotificationTierTests 8 项（分类四路＋失败预留信号、矩阵四路、偏好键稳定、缺省全开＋写后回读、规划器基线/去重/已读/开关四闸）；OneDayAppTests/NotificationTierStructureTests 7 项（新文件零 requestAuthorization 普查＋提醒器只读过门在场、属性无正文字段型面、设置键与 Core 同键、目录/路由/工程接线、ChatView 三沿＋桥店消费点、任务名截断、内容态编解码往返）。SettingsCatalogTests 偏好组期望序同步加 notifications（六行）。
+- 回归：发布集基底自 rel05098 bundle 提取 97 套 817 项全限定名＋新 2 套 = 99 套 832 项，全绿零失败（bundle Test-OneDayApp-notify385.xcresult，agent RUN 2026-11-23 10:45:34 CST 轮）；S371/S373 在集内 全绿。
+- 真机门（发版前用户真机验）：①通知授权已开时新到审批回执以 timeSensitive 响铃穿透、运行完成静默入通知中心、监测变化无本地提醒（角标+1 来自服务端未读数）；②设置页关某一类后该类新通知不再提醒、回读开关状态与行为一致，关 LA 总开关后新一轮不再发起活动；③发起一轮生成：锁屏与灵动岛见会话名＋「准备中」，开始输出后切「生成中」，落定自动收起，全程不显示回复内容；④通知授权从未决定时，进动态页轮询不弹授权窗（铁律眼验）；⑤系统设置关 OneDay 实时活动后，发起一轮不报错、不挡生成。

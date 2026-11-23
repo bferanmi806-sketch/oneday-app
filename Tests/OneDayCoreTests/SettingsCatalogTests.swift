@@ -74,6 +74,8 @@ final class SettingsCatalogTests: XCTestCase {
             .disconnect,
             // H2-a 新增（台账 159）
             .voice,
+            // §385 新增（总表 162/163）
+            .notifications,
             // 配对一期新增（台账 153/160）
             .addDevice,
             // H5 新增（台账 35）
@@ -134,12 +136,13 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertTrue(SettingsCatalog.browseSegments(in: .preferences).isEmpty)
     }
 
-    /// preferences 组五行（台账 198 收敛 S13：语音行
-    /// 自服务器组迁入、紧随外观）
+    /// preferences 组六行（台账 198 收敛 S13：语音行
+    /// 自服务器组迁入、紧随外观；§385 通知行随分级
+    /// 提醒立项紧随语音）
     func testPreferencesGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).map(\.id),
-            ["appearance", "voice", "connectors", "devicePermissions", "approvalRules"]
+            ["appearance", "voice", "notifications", "connectors", "devicePermissions", "approvalRules"]
         )
     }
 
