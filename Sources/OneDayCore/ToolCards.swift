@@ -268,6 +268,8 @@ public enum ToolCardClassifier {
         case "web_search": return L10n.string("联网搜索", locale: locale)
         case "tool_describe": return L10n.string("查阅工具说明", locale: locale)
         case "tool_call": return L10n.string("调用工具", locale: locale)
+        case "react_to_message":
+            return L10n.string("回应消息", locale: locale)
         case "read_file": return L10n.string("读取文件", locale: locale)
         case "write_file": return L10n.string("写入文件", locale: locale)
         case "kanban_complete": return L10n.string("完成任务", locale: locale)
@@ -308,6 +310,20 @@ public enum ToolCardClassifier {
         forToolName name: String, locale: Locale = AppLocale.uiLocale
     ) -> String {
         category(forToolName: name).fallbackTitle(locale: locale)
+    }
+
+    /// 活动短语（§449.9，2026-11-24 用户令「工具活动进
+    /// 胶囊、不进流」）：胶囊第二行与中枢状态行共用的
+    /// 当前活动人话短语——与卡面标题同一张映射表（逐
+    /// 工具标题优先、无参数通道时 memory/skill 回类内
+    /// 默认），未命中回分类短语，未知工具回「工具调
+    /// 用」类短语。直播 events 只有工具名、无参数全
+    /// 文，故此处以空参数取标题
+    public static func activityPhrase(
+        forToolName name: String, locale: Locale = AppLocale.uiLocale
+    ) -> String {
+        title(forToolName: name, arguments: "", locale: locale)
+            ?? fallbackTitle(forToolName: name, locale: locale)
     }
 
     /// 直播期摘要净化（0.36.10）：events 的 preview 原

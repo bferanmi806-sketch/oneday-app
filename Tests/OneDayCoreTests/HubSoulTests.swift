@@ -266,4 +266,74 @@ final class HubSoulTests: XCTestCase {
         XCTAssertEqual(presentation.styleParagraphs, ["直接、克制。"])
         XCTAssertEqual(presentation.withheldSegmentCount, 1)
     }
+
+    // MARK: - §449.8 身份页与 Muse 对齐（平文标题/子弹/气质/日期键）
+
+    /// 服务端回执 camelCase updatedAt（epoch）须解出
+    /// （identity_bridge 同口径；旧键表只有 snake_
+    /// case、SOUL 卡日期恒 nil 的定因回归钉）
+    func testUpdatedAtCamelCase() throws {
+        let epoch = try decode(#"{"content": "x", "updatedAt": 1762700000}"#)
+        XCTAssertEqual(epoch.updatedAt?.timeIntervalSince1970, 1762700000)
+        let iso = try decode(
+            #"{"content": "x", "updatedAt": "2026-11-21T03:00:00Z"}"#
+        )
+        XCTAssertNotNil(iso.updatedAt)
+    }
+
+    /// 平文标题分桶：服务端 SOUL 实际形态（无 ATX
+    /// 的「风格口径（…）」标题行＋子弹列）须分出风
+    /// 格桶，前言归人设
+    func testPlainHeadingStyleSplit() {
+        let sections = SoulSectionParser.parse("""
+        我是三狗，OneDay 的智能体，底层运行在 Hermes 上。
+        风格口径（与主线三狗共用一份，2026-11-24 对齐）
+        - 气质：直接、克制、认账快。
+        - 结论先行、数字殿后；没查过不说。
+        """)
+        XCTAssertEqual(
+            sections.persona,
+            "我是三狗，OneDay 的智能体，底层运行在 Hermes 上。"
+        )
+        XCTAssertEqual(
+            sections.style,
+            "- 气质：直接、克制、认账快。\n- 结论先行、数字殿后；没查过不说。"
+        )
+    }
+
+    /// 带句读的正文行不许被平文标题误认（整篇仍归
+    /// 人设、风格不出）
+    func testPlainProseLineNotHeading() {
+        let sections = SoulSectionParser.parse("""
+        先说结论。
+        风格要稳重，话要留三分。
+        """)
+        XCTAssertNil(sections.style)
+        XCTAssertEqual(
+            sections.displayedPersona,
+            "先说结论。\n风格要稳重，话要留三分。"
+        )
+    }
+
+    /// 呈现：子弹逐条成段剥标记、气质条提作灰字摘
+    /// 要（风格块内原文保留），与 Muse 结构同形
+    func testPresentationBulletsAndTemperament() {
+        let sections = SoulSectionParser.parse("""
+        我是三狗，OneDay 的智能体，底层运行在 Hermes 上。
+        风格口径（与主线三狗共用一份，2026-11-24 对齐）
+        - 气质：直接、克制、认账快。
+        - 结论先行、数字殿后；没查过不说。
+        """)
+        let presentation = SoulPresentationBuilder.build(
+            from: sections, displayName: "三狗"
+        )
+        XCTAssertEqual(presentation.introParagraphs, [
+            "我是三狗，OneDay 的智能体，底层运行在 Hermes 上。",
+            "直接、克制、认账快。",
+        ])
+        XCTAssertEqual(presentation.styleParagraphs, [
+            "气质：直接、克制、认账快。",
+            "结论先行、数字殿后；没查过不说。",
+        ])
+    }
 }

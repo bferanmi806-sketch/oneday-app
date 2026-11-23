@@ -53,6 +53,12 @@ final class AppState {
     /// Store 探活链唯一喂入、自检面等呈现层只读；判定
     /// 口径在 Core ConnectionStatus
     var connectionStatus = ConnectionStatus()
+    /// 当前工具活动短语（§449.9）：聊天运行驱动在工
+    /// 具开始/结束事件处单点写入（Core ToolCardClas-
+    /// sifier.activityPhrase 派生），聊天页头身份胶囊
+    /// 第二行与中枢状态行同读此值——两面同源同口径；
+    /// 无工具在飞恒 nil，两面各自回落既有状态口径
+    var liveActivityPhrase: String?
     /// AI 自反应能力结论（DESIGN §432）：外观页
     /// 「AI 反应」开关行的显隐单读此值——判定单源
     /// 在 Core CapabilityNegotiation，本处只持有最

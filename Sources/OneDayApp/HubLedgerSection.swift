@@ -466,7 +466,8 @@ struct HubLedgerSection: View {
                     .padding(.horizontal, OneDayMetrics.iconTextGap)
                     .padding(.vertical, OneDayMetrics.spacingMicro)
                     .overlay {
-                        RoundedRectangle(cornerRadius: 4)
+                        // §449 圆角规范核：补 .continuous（同 §449.3 身份卡口径）
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
                             .stroke(Palette.hairline, lineWidth: 1)
                     }
             }

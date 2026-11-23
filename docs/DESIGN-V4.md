@@ -17007,3 +17007,131 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 复跑整集（bundle Test-OneDayApp-rel05107-fix）：160 套／1206 项，1205 过、1 红（仅 #13 性能门）、0 跳过；目标测 testAccessoryChevronsUnifiedIntoComponent passed。drain 三钉全绿（ChatFailKeepPinTests 7/7、ChatQueueSendPinTests 5/5、ChatSettleExchangePinTests 3/3）；UI 补跑 ChatGestureNativeSurfaceTests 6 测＝4 过＋2 既有跳过、0 红。
 - 打包：Release build exit 0（dd-05107-release）；IPA 16,780,467 字节，md5 80b1039772e293c665ce8c04e02cd522；unzip 验 IPA 本体 plist 三值＝0.50.107／235／site.didichou.oneday；落 ~/workspace/OneDay-0.50.107-235.ipa，Mac ~/build 与 VM 两副本 md5 一致。rel-05107 已 push（不打 tag），回读结果见组版交卷。
 - 真机门（归用户 verdict）：八件各自真机门随本版验——§440 快照对位／双路拖动收起、§450 根页 25 行与新名、§453 卡底与关于节与点子 sheet、开始吧蓝白观感、§454 铃铛三级策略、§455 建议现算、§457 空态落位、§458 删后观感。
+
+## §449 中枢/页头真机六报根治包（2026-11-24，用户 03:08 六报＋03:19/03:20/03:21 三追加令；原拟并入 0.50.107，后按版本拆分定版移至 0.50.108）
+
+工地 feat/hub-fix @rel-05106（3b2d9ea）。证据分级：【实测】＝本线像素量测/代码亲读/真机截图；【规范】＝Apple HIG 与系统度量；【产品实查】＝成熟产品行为查证；【社区共识】＝开发者社区通行口径，未定案。
+
+### 六报处置总表
+
+| # | 用户报 | 定因 | 处置 |
+|---|---|---|---|
+| 1 | 搜索按钮删除 | 顶栏放大镜钮系 §434 改直达的独一份入口【实测】 | 钮删；功能安置＝身份胶囊长按菜单（下沉一级，见 §449.1） |
+| 2 | 顶栏模型选择删除 | 顶栏 ModelCapsuleView 与中枢 modelEntryRow 双入口【实测】 | 顶栏整件退役（胶囊＋sheet＋隐藏服务商链迁中枢，见 §449.2）；模型入口唯一＝中枢 |
+| 3 | 头像和胶囊位置不对 | 聊天 hero 被整行顶栏行压低 ≈72pt；中枢钮行独立成行压低头像 ≈51pt【实测】 | 两处页头改「钮与头像同带」：聊天＝ZStack 同带（钮心＝头像心−8）；中枢＝✕/分享与头像顶齐同带。数值全表见 §449.3 |
+| 3+ | 在线状态双绿点（03:19 追加） | 聊天簇头像角点＋胶囊点共 2 处；中枢状态行点 1 处；参照两帧像素实测 0 处【实测】 | 聊天胶囊去点（留头像角点一处，偏离参照 0 处之理由见 §449.3 状态行）；中枢状态行去点（与参照严格一致） |
+| 4 | 中枢打开要加载一会 | 整页被 store==nil 闸住且 store 赋值排在网络调用 refreshIdentitySurfaces() 之后；分段输入初值 grants/approvals=false、审核格等回读后才长入【实测·代码路径】 | store 改同步取共享单例、删 nil 闸；分段有效输入由共享 store 现行回读态派生（同会话重开即时全格）；刷新全退 .task 后台 |
+| 5 | 中枢打开底栏还在 | 底栏＝原生 TabView（ContentView.swift:397-398，0.4.0 拆自绘回原生【实测·沿革注释】）；隐藏声明 hubFullPageChrome 已在 AgentHubView.swift:742-743 写明 .toolbar(.hidden, for: .tabBar) 却真机不生效（截图底栏玻璃带 y 794–864pt【实测】）；同链 navigationBar 隐藏生效、tabBar 不生效 | 结构定因（见 §449.5）：只许动承载结构让既有声明生效，不新写隐藏机制、不动壳本体 |
+| 6 | 中枢整体对位 | 逐元素差见 §449.6 | 本包收：页头同带、状态点去重、模型行保留（用户口径）、分段即时性；留账：钮盘视觉尺寸差、胶囊二行语义差、邮件格长格条件（服务端邮件面，独立件） |
+
+### §449.1 第 1 条：「在对话中查找」安置
+
+- 成熟做法【产品实查】：Telegram iOS——点聊天名/头像展开页头，展开区内出放大镜；WhatsApp iOS——点头像名进信息页、页内「搜索」回聊天开查找。两家共同形态：会话内查找挂在**身份面下沉一级**，顶栏无常驻搜索钮；参照 Muse 聊天页顶带同样无搜索钮（右＝通话＋礼物胶囊）【实测】。
+- 落点：聊天页**身份胶囊长按菜单**（系统原生 contextMenu）出「在对话中查找」＋「打开枢纽」两项；胶囊另挂 VoiceOver 自定义动作同名。findBar 本体与查找机制一字不动（showFind 仍为唯一开关、栏仍在顶簇内出）。代价明示：长按可发现性弱于常驻钮——系用户删钮令的必然代价，与两家参照的「下沉一级」同构。
+
+### §449.2 第 2 条连带件：隐藏服务商不许随顶栏选择面消失
+
+- 现状【实测】：「隐藏服务商」全 App 唯一入口＝顶栏选择面（modelPickerSheet 的 onHideGroup＋pendingHideGroup 后果确认框，ChatView.swift:2213-2247、814-834）；中枢选择面现传 onHideGroup: nil（AgentHubView.swift:332 注明「不在此处改服务商收纳」）。
+- 迁法：分流/落账逻辑（ProviderGroupVisibility，OneDayCore 公开件）＋确认框整套移入中枢选择面（AgentHubView 内自持 pendingHideGroup、确认框挂其 sheet 内容，与旧承载同构）；ChatView 侧 requestHide/commitHide/pendingHideGroup/modelPickerSheet/showModelPicker 随顶栏退役整删。ModelCapsuleView 组件删后全仓无引用、同轮删文件（TopBarHitIntermittentTests 的挂载随新形态重钉）。
+
+### §449.3 第 3 条几何四栏表（规范优先、量测旁证；聊天态＋中枢大头态）
+
+| 项 | 现行值 | 规范值【规范】 | 参照量测值【实测】 | 最终取值与依据 |
+|---|---|---|---|---|
+| 聊天头像直径 | 67 | 无定值（HIG 不定头像尺寸） | ≈67（§434 采样＋本轮复核） | **67 不变**：规范无定值从参照；非 8 栅格数，系参照实测＋§434 用户定版，明标偏离栅格之理由＝参照本体值 |
+| 中枢头像直径 | 85 | 无定值 | ≈85（圆 72–157pt） | **85 不变**：同上 |
+| 聊天头像顶距（簇顶→头像顶） | 4（spacingXS）＋整行顶栏行 ≈60 在其上 | 安全区锚定、不手算（TopBarGuideHost 托管【实测】）；栅格 4/8 | ≈1–5（头像顶 ≈60–64pt、安全区顶 59） | **4 不变＋删整行行**：删行后头像心由 ≈169 回 ≈97（参照 ≈93.5，差 ≈3.5 在量测误差内） |
+| 聊天钮带纵向关系 | 钮行独立在上（钮心 ≈92、头像心 ≈169，纵差 77） | —（构图关系无规范数） | 钮心 ≈83–90、头像心 ≈93.5，钮心在头像心上方 ≈4–15 | **钮心＝头像心−8**（ZStack 同带、钮行顶距 spacingS 8 实现、实得 Δ≈7.5）：取栅格值 8 落量测区间内 |
+| 中枢钮带纵向关系 | 钮行独立成行（钮心 ≈88、头像心 ≈161） | — | 钮心 ≈88、头像心 ≈110，Δ≈22；钮顶与头像顶基本齐（67.5 vs ≈70） | **顶齐同带**（ZStack .top 对齐、44 命中帧顶与头像顶同线）：实得钮心 Δ≈20.5，与量测 22 差 1.5 在误差内 |
+| 身份胶囊高（聊天） | 44 | 最小命中 44（HIG） | ≈44–48 | **44 不变**：规范值与量测双合 |
+| 胶囊压头像重叠 | 8（44−36） | 栅格 8 | ≈8（§434） | **8 不变**：栅格＋量测双合 |
+| 聊天名字阶 | 17 semibold（字面值） | Headline＝17 semibold | — | **改走 .headline 语义阶**：数值同、口径归系统字阶（Dynamic Type 随档） |
+| 聊天状态字阶 | .caption（12） | Caption1＝12 | 二行＝活动文案、无点 | **.caption 不变**（语义差见 §449.6） |
+| 中枢名字阶 | .title bold（28） | Title1＝28 | — | **不变**：已是语义阶 |
+| 中枢状态字阶 | .body（17） | Body＝17 | 二行＝活动图标＋文案、无点 | **不变** |
+| 中枢 头像→名／名→状态距 | 16（spacingM）／8（spacingS） | 栅格 16/8 | 名带/状态带位置与之相符 | **不变** |
+| 胶囊内名↔状态行距 | 2（spacingMicro） | 字行内距属排版内距、非布局栅格 | 44 高内两行紧凑同现 | **2 不变**：性质标注为排版内距，不占栅格口径 |
+| 页边距 | 20（pageGutter） | 无单一强制值（16/20 均见系统页） | ≈16–20 | **20 不变**：全仓统一边距优先于与参照差的 ≤4 |
+| 在线状态呈现点 | 聊天簇 2 处（头像角点＋胶囊 6pt 点）；中枢 1 处（状态行 8pt 点） | presence 角点为 iOS 通行呈现（Messages/Telegram 头像角点式） | **0 处**（两帧像素实测：头像无角点、文案行无点；§434 规格「参照头像有绿点」一记与本轮实测不符，以实测为准、旧记作废） | **聊天簇收为 1 处＝头像角点**（胶囊去点）：偏离参照 0 处之理由——角点系通行 presence 呈现，且该点与状态词同源三态（在线绿/待审批橙/联系不上灰，0.19.0 用户真机点名定版的状态灯），整机退掉丢已定版能力；用户「只许一处」令已满足。严格归零路径＝删 HubAvatarButton 的 StatusDot 一行、留账待用户一句话。**中枢收为 0 处**（状态行去点、文案保留，与参照严格一致；中枢头像角标是铅笔编辑标、非 presence，不计） |
+| 圆角·身份胶囊（聊天） | Capsule 构造 | 全圆角＝高/2（22）＋连续曲率（Capsule 内生） | 全圆角 | **不变**：合规 |
+| 圆角·头像 | Circle 构造 | 半径＝直径/2（内生） | 圆 | **不变**：合规 |
+| 圆角·中枢模型行 | Capsule 构造（高 44） | 全圆角＝22 | —（参照无此行，用户口径保留） | **不变**：合规 |
+| 圆角·分段条＋选中胶囊 | 条 Capsule（高 48→R24）；选中 Capsule（高 36→R18） | 同心：外＝内＋间距（纵向间距 6 → 18＋6＝24） | 全圆角条 | **不变**：纵向同心精确成立；横向端距 4 与半径差 6 差 2pt，属 Capsule 端部构造、视觉不可辨，留观不改 |
+| 圆角·身份段卡片 | RoundedRectangle(containerCorner 23)、**未带 .continuous** | 连续圆角（squircle）为 iOS 系统标准形态；SwiftUI RoundedRectangle 默认 .circular 须显式声明 | — | **补 style: .continuous**（值 23 不变，梯队锚点 containerCorner 不动）：本轮圆角审计唯一规范偏差 |
+| 圆角·同心关系（卡内嵌套） | 卡内边距 16（spacingM）、卡内无贴边圆角容器 | 外＝内＋间距（仓内 CornerRadius.concentric 同式） | — | **不适用**：卡内为文字行、无嵌套圆角对象，明标不硬套 |
+
+### §449.4 第 4 条定因与修法（代码路径证据）
+
+- 定因【实测·代码】：①AgentHubView body 在 store==nil 时只显 ProgressView，而 store 赋值在 .task 内排于 `await appState.refreshIdentitySurfaces()`（网络）之后——开页必先转圈等网络；②segmentInputs 初值 grants/approvals=false，审核格须等 loadApproval/loadGrants 回读＋refreshSegmentInputs 才长入——「相关设置加载一会才出来」的像素形态（用户截图当时 3 格）。store 本体是 AppState.sharedHubStore() 同步单例（AppState.swift:469），聊天页同会话早已共用同店拉过审批/台账——数据在手、纯属呈现闸误设。
+- 修法（成熟口径＝本地已有状态即时呈现＋后台刷新）：store 改 body 同步直取共享单例、删 nil 闸与整页 ProgressView；availableSegments 的有效输入叠加共享 store 现行 grantsState/approvalState 的 .ready 态派生——同会话重开第一帧即全格；身份刷新/台账/审批/授权回读全数退 .task 后台（现行 .task 链原样保留、只不再挡首帧）。真冷启首开（store 处子态）审核格仍待首次回读长入——数据真不在手、非呈现延迟，明标区分。
+- 耗时对比法：UITest（demo 态）量「点胶囊→分段钮全数在场」耗时，改前/改后同树同法各跑；代码路径证据为主证（首帧内容由构造保证），demo 态数字为旁证，真机手感留 verdict。
+
+### §449.5 第 5 条结构定因节（主线 03:14 改判口径）
+
+- 声明在哪【实测】：hubFullPageChrome（AgentHubView.swift:739-745）＝ .toolbar(.hidden, for: .navigationBar) ＋ .toolbar(.hidden, for: .tabBar)，挂在 hubDestination 的 AgentHubView 上（ChatView.swift:1897-1927）；底栏本体＝原生 TabView（ContentView.swift:397-398，沿革注释：0.2.4 回原生→FloatingTabBar 自绘期→0.4.0 拆自绘回原生，悬浮外观系 iOS 26 原生形态）。
+- 为何不生效（待实验钉死，嫌疑序）：①中枢目的地自带**内层 NavigationStack**（AgentHubView body 内）——工具栏可见性按导航上下文解析、嵌套栈造成 competing bars 的社区口径【社区共识】与此形态吻合，且同链 navigationBar 隐藏生效（外层栈的栏由目的地声明管辖）而 tabBar 不生效，提示可见性解析落点被内层栈截走；②**zoom 转场**（navigationTransition .zoom）走系统专用转场承载、工具栏偏好在转场目标上被忽略的可能；③**DrawerContainer 承载**：TabView 整体被装进 UIHostingController 且 .ignoresSafeArea()、容器以 transform 推页——沿革自载「外层包裹扰动 TabView 安全区」前科（§156 症三）；④.tabBarMinimizeBehavior(.never) 相互作用（弱嫌疑）。
+- 实验盘（模拟器＋UITest 探针、同口径截图量测底栏玻璃带）：A 现行形态（基线复现）→ B 关 zoom（标准 push）隔离② → C chrome 声明同落内层栈根内容隔离① → D 拆内层栈（子页下钻并入外层栈）验证①的根治形。判读：哪步底栏带消失即定因落该步；修法只取结构承载关系的最小改动让既有声明生效，不新写隐藏机制、不动 TabView 本体与 DrawerContainer 动画。实验结果落码后补记本节。
+
+### §449.6 第 6 条中枢逐元素对位（参照＝用户 Muse 中枢页截图）
+
+| 元素 | 参照 | 咱们（改前） | 处置 |
+|---|---|---|---|
+| 身份头构图 | ✕/分享与头像同带、头像居中、名、活动行 | 钮独立成行、头像被压低 ≈51pt | 已收（§449.3 中枢行） |
+| 头像角标 | 铅笔圆标（编辑） | 铅笔圆标 26pt（§434 同式） | 一致、不动 |
+| 状态行 | 活动图标＋活动文案（正在回复）、无点 | 活动优先（转圈＋文案）、兜底为点＋状态词 | 去点后形态对齐（活动行本已一致） |
+| 模型行 | 无 | 有（整行胶囊） | **保留**：用户 03:08 口径「中枢里有就可以」——参照无此行系产品功能差、非错位 |
+| 分段条 | 5 格固定（工作/审核/电脑/身份/邮箱） | 注册表动态格（截图当时 3 格） | 口径差非错位：§434 用户定版「有真能力才长格」；邮箱格长格条件＝服务端只读邮件面（独立件在账）；电脑格本轮未长＝本机 Box 钥未在钥匙串在位读到——真机门请用户确认云电脑是否连过，若连过仍不长按钥匙串读数问题另立项 |
+| 分段条位置 | 紧贴状态行下 | 状态行下（模型行居其间） | 模型行保留的连带差，接受 |
+| 底部 | 无底栏 | 底栏在场（794–864pt） | 第 5 条（§449.5） |
+| 工作格内容 | 预定任务折叠节＋任务行（pitch ≈70） | 同构（§434 已对位：节头＋行 pitch 70／图标盒 40） | 不动 |
+| 页头钮盘尺寸 | ✕/分享盘 ≈45pt 视觉径；聊天汉堡盘 ≈45pt | 中枢 36（系统 .glass 钮样式内生）＋44 命中；聊天 40（HeaderButtonSpec 全仓统一）＋44 命中 | **留观不动**：命中域同为 44 合 HIG；视觉盘差系材质内生（换大盘须弃系统 .glass 钮样式改手搓玻璃、与系统件优先令相冲），登记待用户 verdict 一句话 |
+| 聊天页右上 | 通话＋礼物双钮胶囊 | 铃钮（通知＋角标） | 功能差非错位，不动 |
+
+落码记账与实验结果随后补记。
+
+### §449.5 补记（2026-11-24 实验定因全录）
+
+探针 HubPresentationProbeTests（demo 态、真装配）在 rel-05106 基线与各变体上的逐轮结果（底栏帧，聊天态恒 (0,791 402×83)）：
+
+| 变体 | 改动 | 中枢态底栏 |
+|---|---|---|
+| A 基线 | 无（既有声明在 AgentHubView 根 hubFullPageChrome） | 在场 (0,791 402×83) |
+| C | chrome 声明复落内层 NavigationStack 根内容 | 在场 |
+| B | hubDestination 关 zoom、标准 push | 在场 |
+| D | 拆中枢内层 NavigationStack（子页并入外层栈） | 在场 |
+| G | ContentView 摘 DrawerContainer、TabView 直挂根 | 在场 |
+| **K** | **ChatView 根键盘坞声明 `.toolbar(kb ? .hidden : .visible, for: .tabBar)` 的 .visible 改 .automatic** | **消失（exists=false）；pop 回聊天回归在场** |
+
+定因：聊天格内容根（ChatView.swift chatSurface 修饰链，键盘整包 R5 引入）为键盘坞行为在键盘落下时**显式断言底栏 .visible**，与 push 页 .hidden 在同一导航栈正面对撞、根断言胜出，中枢的既有声明（§434 落码）因此永不生效——与真机、模拟器同签名。{内层栈 × zoom} 四组合与容器托管（DrawerContainer）经 B/C/D/G 逐一排除。修法＝变体 K 一词：根只在键盘升起时断言 .hidden、其余 .automatic 不表态由栈顶页自决；不新增任何隐藏机制、不动壳本体、不动中枢声明。键盘坞行为回归门：探针 CHAT_TABBAR（聊天态在场）＋CHAT_TABBAR_AFTER（pop 后回归）双绿、HubPresentationProbeTests 整套通过（内层栈已恢复、K 单独成立）。
+
+### §449.7 落码记账（2026-11-24）
+
+- 第 1 条：ChatView 删放大镜钮（topbar.findButton 标识随删）；新件 HubIdentityCapsule（身份胶囊）承载 find 安置——长按 contextMenu「在对话中查找」＋VoiceOver 自定义动作，点按仍开枢纽；findBar/showFind 机制未动。
+- 第 2 条：顶栏模型胶囊整件删除（ModelCapsuleView.swift 删文件、showModelPicker/pendingHideGroup 状态与 sheet 退役）；**附带堵口**：旧顶栏选择面独占的「隐藏服务商」整套迁入中枢选择面（HubModelEntry 注入不变、中枢 sheet 改传 onHideGroup＋同文案 confirmationDialog，AppState.hideProviderGroup/ProviderGroupVisibility 本体未动）。
+- 第 3 条：topBarCluster 首行改 topBand 单带（ZStack 顶对齐：汉堡/铃钮行与 hero 同带，钮心高出头像心 7pt 实测对位参照 Δ≈4–15 取栅格 8）；hero 名行改 .headline 系统字阶；**双绿点去重**：聊天胶囊去状态点（新件本无点）、中枢 statusLine 兜底支去 8pt 点——全簇 presence 只剩头像角点一处（0.19.0 三态状态灯定版保留于角点；参照实测为零点，严格归零路径＝删 HubAvatarButton 的 StatusDot 一行，留账待用户一句话）；圆角：身份胶囊/模型行/分段条本为 Capsule 全圆角，身份卡（HubIdentitySection）与台账「补记」小标补 style:.continuous。
+- 第 4 条：AgentHubView 删 @State store?＋整页 ProgressView 闸——store 改计算属性同步直取 AppState.sharedHubStore()；.task 先以 store 现行状态刷一次分段有效集（effectiveSegments 叠加 grantsState/approvalState 的 .ready 派生、availableSegments 纯函数未动）再后台刷新，审核格热态首帧即在。耗时：demo 态 AX 量测被查询开销主导（单轮约 0.5s），改前 FIRST_OPEN 1599/REOPEN 1324 与改后 1429–1589/1336–1385 无显著差——demo 无网络延迟可削，证据以代码路径为准（首帧内容由构造保证、网络全退 .task 之后），真机手感留用户 verdict。
+- 第 5 条：见 §449.5 补记（变体 K 落 ChatView.swift 一词＋注）。
+- 第 6 条：中枢页头改同带叠放（✕/分享钮行与 hero 头像同带，实测 ✕ 帧 (16,66 44×44)、与头像带齐平）；模型行保留（第 2 条用户口径）；分段格集差＝注册表数据口径（电脑格须云电脑连过、邮件格须服务端 advertise）非布局差；钮盘视觉径差（中枢 36/聊天 40 vs 参照 ≈45、命中域同为 44）留观待用户一句话。
+- §458 转交三项处置：H1（中枢审核格说明 HubApprovalSupport.swift:110）＝**待裁未动**（与设置侧 T8 同机制重复、留一处由主线/用户裁，删哪处涉及两线领地）；H2（台账起始说明）＝判留未动；H3（聊天空态招呼块副文）＝空态收口线已在其分支整块删除、本线未动，组版合入后消解。
+- 测试证据（最终全包轮 2026-11-24 05:46 kick，bundle Test-HubFix449.xcresult）：单元七套——HubSoulTests 绿、HubSegmentsConsolidationTests 绿、HubSegmentRegistryTests 绿、TopBarBandFaceTests 绿、TopBarHitIntermittentTests 绿、HitArea44Tests 绿；UI 两套——HubPresentationProbeTests 绿（TABBAR_HIDDEN=true、pop 回聊天底栏恢复、审核格热态在场）、TopBarSingleActionTapTests 绿（派发 violations=0、布局 violations=0、头像心 (201,99)、钮心与头像心纵差 7pt）。ChatSearchFocusAssemblyTests 3 红（136/152/174 行 XCTUnwrap CGFloat）＝环境敏感既有红：pristine 基线树（rel-05106 @3b2d9ea）同环境同模拟器直跑同 3 红同行号、与 §447 在 rel-05104 记录同签名，非本包引入（106 发布集 erased-sim 轮为绿）。
+
+### §449.8 中枢身份页与 Muse 对齐（2026-11-24 05:37 用户亲报追加，版本 108）
+
+用户原话：「一样的记忆，显示咋不一样？还有下面的卡片也不一样！和 muse 对齐」。
+
+- **正文呈现定因**：§218 已有 SoulPresentationBuilder＋SoulSectionParser（OneDayCore/ProfileSoulModels.swift），但解析器只认 ATX 标题；服务端 SOUL 实际形态＝平文标题行＋「- 」子弹列（首行「我是三狗，OneDay 的智能体，底层运行在 Hermes 上。」＋「风格口径（…）」平文行＋子弹列）→全落 persona、style 恒 nil、子弹前缀不剥、气质提炼切不开→整篇原文直倒（106 两屏实证）。修法（解析层，不动内容与数据源）：①parse 增平文标题分支 plainHeadingKey（短行 2–40 字、无句读、不以 -/# /•/* 起头、剥尾部括号注后归一，命中 persona/style 标题集才切桶消费该行）；②paragraphs 增子弹成段（剥「- 」「• 」逐条成段、续行并入本条）；③build 增气质提炼 temperamentSummary（风格段「气质：/Vibe:」条内容提作 intro 末段灰字摘要，风格块原文保留）。
+- **呈现结构对位**：Muse 名题→headerRow（既有）；灰字摘要→personaBlock intro（前言＋气质提炼段）；「风格」小灰标签＋正文→styleBlock（解析修复后生效）；编辑钮→editRow（既有）；状态行→中枢 hero statusLine（活动优先，既有＋§449.9 同源化）。
+- **双卡日期定因**：SOUL 卡代码已有日期位（HubIdentitySection cardsRow 读 store.soulDocument?.updatedAt），但 ProfileSoulDocument.dateKeys 只有 snake_case（updated_at/modified_at/mtime），服务端回执实际用 camelCase `updatedAt`（epoch 秒＝SOUL 文件 mtime 或末写胜台账时刻；证据＝hermes-deploy/companion/modules/identity_bridge.py:263-264 及其 selftest 用 v["updatedAt"]）→恒 nil 永不显。修：dateKeys 补 "updatedAt"/"modifiedAt"；卡面日期格式改 MM.dd.yy（DateFormatter en_US_POSIX，新 cardDate 助手），与 Muse 卡面（11.21.26 式）同口径。**记忆卡日期＝服务端缺口**：现行 API 无 MEMORY.md mtime 字段（GET /api/memory 只给 builtin_files 计数、MemoryBridgeModels 无文件日期、companion 无 memory mtime 暴露）→不编造，待服务端补 builtin 文件 mtime 字段（属部署包领地、动生产需用户批），补齐后客户端接同一 cardDate 呈现。
+- **双卡颜色**：§218「守冷中性、不照抄暖色」被本轮用户亲令覆盖（仅本双卡）：SOUL 暖棕渐变（PIL 采样参照 TL #7C6B59→BR #AB8D71）、记忆深红渐变（#7B1C20→#962C36），暗色同系压深；右下大水印图标（heart.fill／text.bubble.fill）本已同，未动。
+- **圆角补记**：身份卡 RoundedRectangle(containerCorner 23) 补 style:.continuous、台账「补记」小标补 .continuous（§449 第 3 条圆角审计的两处偏差，本包 §449.7 已落）。
+- 测试：HubSoulTests 新增 4 测（testUpdatedAtCamelCase／testPlainHeadingStyleSplit／testPlainProseLineNotHeading／testPresentationBulletsAndTemperament）＋旧测全绿（05:46 轮）。真机门：身份页结构/摘要/分节/卡色/卡日期呈现留用户 verdict。
+
+
+### §449.9 工具活动进胶囊、不进流（2026-11-24 05:49 用户亲点追加，版本 108）
+
+用户原话：「muse 调用工具好像在这个胶囊里吧，显示干什么！咱们能不能一样？」对照实证：Muse 聊天页身份胶囊第二行＝当前活动人话短语（如「检查诊断日志」）、流内无工具卡；OneDay 106 胶囊第二行写死「在线」、每轮后在流内留一行「🔧 工具调用」可展开卡（展开为参数 JSON），连纯聊天轮（react 类轻动作）也成卡。
+
+- **活动短语（单源同口径）**：派生表单点＝Core `ToolCardClassifier.activityPhrase(forToolName:)`（§449.9 新增）——与卡面标题同一张映射表：逐工具标题优先（无参数通道，memory/skill 回类内默认短语），未命中回分类短语，未知回「工具调用」。新增逐条：react_to_message→「回应消息」（此前无映射、回落成卡名正是用户所指）。全表（短名→短语）：browser_navigate 打开网页／browser_back·forward·reload 浏览器导航／browser_click 点击页面／browser_type 在页面输入／browser_snapshot·get_content·read·tabs 读取页面／box_status 查看云电脑状态／box_list 查看云电脑／screenshot·computer_state 查看电脑画面／computer_act 操作电脑／box_view 打开电脑画面／shell 在云电脑运行命令／terminal 运行命令／execute_code 运行代码／vision_analyze 看图分析／vision_ocr 识别图片文字／vision_scan_code 扫描条码／vision_document_scan 扫描文档／tool_search 查找工具／tool_describe 查阅工具说明／tool_call 调用工具／react_to_message 回应消息／manage_connections 管理连接／device_status 查看设备状态／device_info 查看设备信息／calendar_list_events 查询日历日程／calendar_create_event 新建日程／calendar_update_event 修改日程／reminders_list 查看提醒事项／reminders_create 新建提醒／reminders_complete 完成提醒／contacts_search 查通讯录／clipboard_get 读取剪贴板／clipboard_set 写入剪贴板／files_list 查看文件列表／files_read 读取文件／files_write 写入文件／alarm_set 设定闹钟／alarm_list 查看闹钟／alarm_cancel 取消闹钟／notify_post 发送本地通知／open_target 打开指定页面／camera_capture 拍照／translate_text 翻译文字／ondevice_model_run 端上智能回答／auth_biometric 本人确认／location_current 查看当前位置／location_search_places 搜索附近地点／location_geocode 地址坐标换算／media_library_search 搜索媒体库／media_playlists 查看歌单／media_playlist_create 新建歌单／media_playback_control 控制音乐播放／call_start 拨打电话／compose_sms 写短信／compose_email 写邮件／share_sheet 分享内容／shortcut_run 运行快捷指令／file_preview 预览文件／file_print 打印文件／health_daily_summary 查看健康摘要／home_status 查看家庭状态／web_search 联网搜索／read_file 读取文件／write_file 写入文件／kanban_complete 完成任务／kanban* 任务操作／memory 记忆操作（有参数形态：写入/更新/删除/查找记忆）／skill_manage 技能操作（新建/更新/删除技能）。类回落：browser 浏览器操作／desktop 电脑操作／search 搜索查找／file 文件操作／terminal 运行命令／memory 记忆操作／skill 技能操作／vision 看图分析／task 任务操作／connection 连接管理／device 手机设备／other 工具调用。
+- **接线**：AppState 新增 `liveActivityPhrase: String?` 单源。ChatView.followRunEvents 在 .toolStarted/.toolCompleted 处维护在飞工具栈并写该值（终态/流结束/新轮起手清零）；聊天页头 HubIdentityCapsule 第二行＝`liveActivityPhrase ?? overviewStatusWord`；中枢 statusLine 第一语义＝`liveActivityPhrase`（转圈＋短语）＞台账活动行＞状态词——两面同读一值、一词。无活动时两面各自回落既有口径（聊天＝三态状态词、中枢＝台账行/状态词）。
+- **流内摘卡（grep 证据）**：①ChatView 原生行装配的 .toolGroup 分支整段删除、EntryRenderItem.toolGroup 枚举 case 删除；②entryRenderItems（渲染计划层）改为过滤工具条目（`.filter { $0.toolCard == nil }.map(EntryRenderItem.entry)`），两承载同效；③bubble() 的 toolCard 分支由实例化工具卡视图改为 EmptyView 兜底（长按快照等直调路径同样不出卡）。摘后 ChatView 内工具卡视图实例化零命中（HubActivity449Tests 钉守）。**保留不动**：ToolCard 模型/分类/呈现（Core 数据层）、条目落盘 toolCardData、TurnSourceAggregation 来源聚合（仍读工具条目、来源条照旧）、LedgerDetailView 工具明细、时间分隔（timelineDividers 本就只认会话条目）；ToolCardView/ToolCardGroupView 视图本体与 composer 的 toolGroupHeight/toolGroupMemoKey 保留——行高拟合等测试仍以其为夹具（ChatNativeRowHeightFittingTests/ChatNativeListR2AssemblyTests/ChatNativeHotfix330Tests），归行系统/S3 过程行线后续处置，本包不预设第二套过程行；过程呈现现行落点＝直播占位行（§407 既有）＋胶囊/中枢活动行（本节）。失败可见性说明：工具失败不再有流内红卡，失败由当轮助手正文与台账详情承载（与参照同形态），已在交卷明示。
+- **测试证据**（2026-11-24 06:03 轮，bundle Test-HubFix449b.xcresult）：RichContentTests 绿（含新增 testActivityPhraseMapping 7 组断言）、HubActivity449Tests 绿（摘卡零实例化＋单源接线两钉）、TopBarBandFace/TopBarHitIntermittent/HubSegmentsConsolidation/HitArea44/ChatNativeHotfix330 全绿、UI 两套（HubPresentationProbe/TopBarSingleActionTap）全绿。ChatNativeListR2AssemblyTests 3 红（testLiveItemsOccupySeparateItems/testBlockClosureKeepsSegmentInExactlyOneItem/testComposerNotificationFollowAndSnapshotFeed）＝既有环境红：pristine 基线树 rel-05106 同环境直跑同 3 测、同行号（289/368/628）同文案，非本包引入（该套件自建行夹具直喂 ChatNativeList、不经渲染计划）。真机门：发一轮带工具的对话，验胶囊第二行实时短语、中枢状态行同词、流内无工具卡残留。

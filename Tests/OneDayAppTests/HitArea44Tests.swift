@@ -244,7 +244,7 @@ final class HitArea44Tests: XCTestCase {
     func testHubSegmentHitHeightExpanded() throws {
         let hub = try fileText("OneDayApp/AgentHubView.swift")
         let seg = segment(
-            hub, from: "private var segmentPicker",
+            hub, from: "private func segmentPicker",
             to: "OneDayMetrics.hubSegBarHeight"
         )
         XCTAssertTrue(
