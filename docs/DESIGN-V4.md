@@ -16591,3 +16591,22 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 - TSan 轮（RUN 22:59:32，日志归档 ~/build/rowmeasure419-tsan-20261123.log）：夹具＋LayoutProductPoolTests＋ChatNativeMeasureDeskTests 三套全 passed；生产量测路径（量测台／分发／池／合成器／Desk 工单执行）零 race 报告；2 条 Swift access race 均在 ChatNativeMeasureDeskTests 测试脚手架（LockedCounter 计数器、runPass 助手——raced 内存为测试本地变量、栈内生产帧仅回调测试闭包），既存、非包 1 表面，立账待包 2/3 或测试卫生单处置；该轮因 TSan issue 计 exit 65（suites 本身全绿）。
 - 回归第一轮（13 套 ChatNative／PreLayout／量测相关，RUN 23:09:57）：本树红 15 例（FollowSource 1、ListAssembly 5、R2 4、R3 3、R4 1、ProductionChain 1；105 failures／42 unexpected）；与 pristine 基线同集对账轮（RUN 23:17:19，bundle Test-OneDayApp-rowmeasure419-baseline）逐项比对——红名单完全一致（基线同为 105／42，Executed 73＝本树 75 减夹具 2 例），零新增回归；15 红为基线既存（装配套族在本通道整批红、与在册老红名单口径不符，留主线知悉）。整包关账口径（同树连绿两轮）依图等包 3 后统一关，本包只记第一轮。
 - 不碰：行高公式、量测池本体、备忘键、resolve／工单纪律（包 2/3）；与排队包线文件零交集（两线进度卡互证）。
+
+## §422 0.50.104 组版记账（2026-11-23）
+
+基线 rel-05103 @3c7c9e7，分支 rel-05104，版本 0.50.104／build 232。合入十件（各节原文随各自分支并入、节号并存，本节只记组版账）：
+
+- §409 S2 瘦身版（feat/prelayout-step2 @a0335d2）：呈现退役五步＋发布闸瘦身为纯累积器，净删 2,342 行；布局对象化半边取消。残留登记：StreamingText.swift＋三枚呈现开关无消费方，随 Exyte 接入清理（删设置 UI 另行拍板）。
+- §410 发文件卡 IO（feat/file-send-io @164ee2b）：四段重活下主线程，100MB 档峰值内存 366.9→100.1MB。
+- §415 三面收口（feat/faces-tidy @f127dab）。
+- §416 新鲜度收口（feat/freshness-unify @7a3dadd）：五面接 FreshnessGate 60s＋epoch。
+- §417 #13 Markdown 换底（feat/md-swift-markdown @4eca1a9）：swift-markdown 0.6.0、Path B 降解、旧扫描器留回滚位一周期。性能门实测 2.22–2.30× 冷解析成本，用户 2026-11-23 19:51 裁决接受、照常组版；MarkdownEngineDifferentialTests/testPerformanceGate 门限（1.10×）修订未随分支落码，发布集该例红属已裁决项、门限修订记账欠账。另：签收文档 md-swap-diff-signoff-20261123.md 账面存续差异 13 条实为 12 条（B 类 7＋C 类 5），文档已加更正节、本节注明。
+- §418 #23 图片管线换底（feat/nuke-adopt @13ddb4c）：Nuke 13.2.3（Nuke＋NukeUI）。SPM 并集口径：Tuist/Package.swift＝swift-markdown exact 0.6.0＋Nuke exact 13.2.3（Exyte 钉不带入）；Package.resolved pins＝nuke／swift-cmark／swift-markdown。
+- §414 失败不消失（feat/fail-keep @62b75d1）：ChatView 冲突一处亲解——placeholderStatusText 取 §414 相位门控结构、调用点改接 §409 的 reasoningPublishGate.hasContent。
+- §419 生成中排队（feat/queue-send @83a9f10，含 B 案落码）：ChatNativeList 冲突一处亲解——§413 占位守卫与 §419 atBottomTolerance=48pt 并集。
+- §421 演示死面（feat/demo-files-fix @0085a0f）：DeliverablesView 冲突一处亲解——demo 分叉移入共用 fetchLibraryPage()，名单键抽 libraryConfigKey 两口共用（堵 collectIfNeeded 演示态串用快照的并集新洞）。
+- §420 量测包 1（feat/rowmeasure-confine @f78307e）：量测台线程禁闭收口，仅 DESIGN 并集、代码零冲突。
+
+验证：发布集 143 套 1075 项（0.50.103 的 1044 −37 退役/瘦身 ＋68 新增、逐套对账闭合），1071 过、4 红——3 红与 0.50.103 发布 bundle 逐字同红（DrawerContainerControllerTests scene-gate 两例＋SwipeReplyPanBridgeTests 一例，UIHostingController 子视图告警型、本通道基线），1 红为 §417 已裁决性能门；ChatFailKeepPinTests 7/7 绿（drain 门过、失败包留在本版）。冒烟轮 15/15 绿，含 testSmokeA4FilesGridFirstFrame 转绿（§401.4 演示缺口一销账）。Release 构建成功，IPA 本体亲验 0.50.104／232／site.didichou.oneday，16,616,719 字节，md5 2a399697a4e9904371c011a81828d36a，三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）。
+
+真机门（随版清单）：断网四行为重验（浅色泡＋时钟＋「等待发送…」→恢复自动续发→失败红感叹号原位重发）、排队五项、落定三项与朗读三项（0.50.103 存量未判项）、#13 选区四件/表格一帧/代码块/长文档/浅深双色、#23 图卡与查看器链、量测崩溃窗口观察。
