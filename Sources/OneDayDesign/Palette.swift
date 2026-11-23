@@ -775,6 +775,11 @@ public enum OneDayMetrics {
     public static let avatarPageHead: CGFloat = 90
     public static let avatarSectionHead: CGFloat = 45
     public static let avatarListRow: CGFloat = 44
+    /// 页头改版档（§434，参照截图工具采样定值）：
+    /// 聊天页居中身份区头像 67／中枢页 hero 头像
+    /// 85——照抄参照量测，不与页头盘 90 档混用
+    public static let avatarChatHero: CGFloat = 67
+    public static let avatarHubHero: CGFloat = 85
     /// 分隔线起点（0.36.0，宪法 §3／审计 C1 定版）：
     /// 整行贯通——起点＝容器左缘、全 App 一个 x
     /// 值，恒 0。旧值 62（边距 20＋槽 30＋间距 12、
