@@ -183,17 +183,12 @@ struct DeliveryImageView: View {
     }
 }
 
-/// 登记文件的封面卡（§146，§125 白卡形态）：白
-/// 卡＝封面区（有封面时通栏）＋文件名（.body
-/// semibold、至多 2 行）＋副行「类型 · 大小」；
-/// 大小是登记时端点实测的真值（meta.size），不
-/// 走文件牌的回填链、不编造。封面形态（§407
-/// 定高）：只认登记旗 meta.cover.cover——在册
-/// 即恒预留 148 封面区，取数序＝登记快照 cover
-/// → §32 客户端管线回落填同区，都无则占位面落
-/// 类型图标；不在册恒 C8 类型图标行（File-
-/// IconBox），管线缩略图不再撑起封面区。点开
-/// 落点由宿主给（§125 FileOpenView 中间页）。
+/// 登记文件卡（§146；§452.3 换代）：登记封面在
+/// 册＝成品块（气泡灰容器＋228 预览区＋元行，Muse
+/// 聊天块式，取代 §125 白卡＋§407 的 148 封面）；
+/// 不在册＝微信式文件卡（FileChip 同组件）。大小
+/// 是登记时端点实测的真值（meta.size）。点开落点
+/// 由宿主给（§452.6 聊天两路：QL 直达／兜底页）。
 struct DeliveryFileCard: View {
     @Environment(AppState.self) private var appState
 
@@ -202,13 +197,15 @@ struct DeliveryFileCard: View {
     let onOpen: () -> Void
 
     @State private var coverImage: UIImage?
-    /// §407：封面取数已穷尽（快照＋管线皆空）——
-    /// 占位面自此落类型图标、不再挂菊花
+    /// 封面取数已穷尽（快照＋管线皆空）——占位面自
+    /// 此落类型图标、不再挂菊花（§407 口径续）
     @State private var coverSettled = false
+    @State private var shareItem: FileShareItem?
+    @State private var deletePending = false
+    @State private var notice: String?
 
-    /// §32 客户端管线用的合成条目：名/路径/大小
-    /// 全是登记实测，其余按名称口径推导——与
-    /// FileChip 的合成条目同法
+    /// 合成条目：名/路径/大小全是登记实测，其余按
+    /// 名称口径推导——与 FileChip 的合成条目同法
     private var entry: WorkspaceFileEntry {
         WorkspaceFileEntry(
             name: meta.name, path: meta.path, isDirectory: false,
@@ -216,97 +213,146 @@ struct DeliveryFileCard: View {
         )
     }
 
-    private var subtitle: String {
-        let type = DeliverableFileType.label(forFileName: meta.name)
-        let sizeText = ByteCountFormatter.string(
-            fromByteCount: meta.size, countStyle: .file
-        )
-        return "\(type) · \(sizeText)"
+    private var actions: [FileItemAction] {
+        FileActionPolicy.menuActions(for: entry)
     }
 
     var body: some View {
-        Button(action: onOpen) {
-            VStack(alignment: .leading, spacing: 0) {
-                // §407（文件行定高）：封面区按登记
-                // 旗预留——cover 在册即恒占 148，图
-                // 未到显占位面、到后只换图；不在册
-                // 恒图标行形态。旧形态按 coverImage
-                // 到达态出没封面区＝到图换高，退役
-                // （合成器 deliveryFileCardHeight 同
-                // 判：形态只认 meta.cover.cover）
-                if meta.cover.cover {
-                    if let coverImage {
-                        Image(uiImage: coverImage)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 148)
-                            .clipped()
-                    } else {
-                        Rectangle()
-                            .fill(Palette.bubbleFill)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 148)
-                            .overlay {
-                                if coverSettled {
-                                    FileIconBox(
-                                        name: meta.name,
-                                        size: 40
-                                    )
-                                } else {
-                                    ProgressView()
-                                }
-                            }
-                    }
-                }
-                HStack(spacing: OneDayMetrics.spacingSM) {
-                    if !meta.cover.cover {
-                        FileIconBox(name: meta.name, size: 40)
-                    }
-                    VStack(
-                        alignment: .leading,
-                        spacing: OneDayMetrics.spacingXS
-                    ) {
-                        Text(meta.name)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Palette.ink)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.leading)
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.leading, OneDayMetrics.spacingSM)
-                .padding(.vertical, OneDayMetrics.cardInnerGap)
-            }
-            .background(
-                Palette.surface,
-                in: RoundedRectangle(
-                    cornerRadius: OneDayMetrics.radiusPreview
-                )
-            )
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: OneDayMetrics.radiusPreview
-                )
-            )
-            .contentShape(
-                RoundedRectangle(
-                    cornerRadius: OneDayMetrics.radiusPreview
-                )
-            )
+        // §452.1/452.3 两形态：登记封面在册（①渲染
+        // 类交付）→成品块；其余→微信式文件卡（与
+        // FileChip 同组件，§452.2）
+        if meta.cover.cover {
+            blockBody
+        } else {
+            FileChip(path: meta.path, onOpen: onOpen)
         }
-        .buttonStyle(.odPressable)
+    }
+
+    // MARK: 成品块（§452.3，Muse 聊天块式）
+
+    private var blockBody: some View {
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
+            ZStack(alignment: .bottomTrailing) {
+                Button(action: onOpen) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        previewArea
+                        metaRow
+                    }
+                    .background(
+                        Palette.bubbleFill,
+                        in: RoundedRectangle(
+                            cornerRadius: OneDayMetrics.radiusPreview
+                        )
+                    )
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: OneDayMetrics.radiusPreview
+                        )
+                    )
+                    .contentShape(
+                        RoundedRectangle(
+                            cornerRadius: OneDayMetrics.radiusPreview
+                        )
+                    )
+                }
+                .buttonStyle(.odPressable)
+                if !actions.isEmpty {
+                    Menu {
+                        actionItems
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(Palette.inkSecondary)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("更多操作")
+                    .padding(.trailing, 2)
+                    .padding(.bottom, 11)
+                }
+            }
+            if let notice {
+                Text(notice)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+        }
         .task(id: meta.id) { await loadCover() }
+        .sheet(item: $shareItem) { item in
+            FileShareSheet(url: item.url)
+        }
+        .confirmationDialog(
+            "删除「\(meta.name)」？",
+            isPresented: $deletePending,
+            titleVisibility: .visible
+        ) {
+            Button("删除", role: .destructive) {
+                Haptics.impact(.heavy)
+                Task { await deleteFile() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("删除后无法恢复。")
+        }
+    }
+
+    /// 预览区：内距 8、定高 228（§452.3；§407 定高
+    /// 契约续——形态只认登记旗、图到只换图不换高）；
+    /// 真图填充裁切，未到/无图占位面落居中类型图标
+    private var previewArea: some View {
+        Group {
+            if let coverImage {
+                Image(uiImage: coverImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Rectangle()
+                    .fill(Palette.surface)
+                    .overlay {
+                        if coverSettled {
+                            FileTypeIconView(
+                                fileName: meta.name, height: 64
+                            )
+                        } else {
+                            ProgressView()
+                        }
+                    }
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 228)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(.top, OneDayMetrics.spacingS)
+        .padding(.horizontal, OneDayMetrics.spacingS)
+    }
+
+    /// 元行：24 图标＋名（一行）＋类型标＋尾部菜单
+    /// 占位（菜单钮以覆盖层同位落此行，§363 同式）
+    private var metaRow: some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            FileTypeIconView(fileName: meta.name, height: 24)
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingMicro
+            ) {
+                Text(meta.name)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                Text(DeliverableFileType.label(forFileName: meta.name))
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 40)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingSM)
+        .padding(.vertical, 10)
     }
 
     private func loadCover() async {
-        // §407：取图只许填已预留的封面区——登记旗
-        // 不在册时整路不跑（恒图标行形态，管线缩
-        // 略图不再把卡撑成封面形态）
+        // 取图只许填已预留的预览区——登记旗不在册
+        // 时整路不跑（恒卡形态，§407 口径续）
         guard meta.cover.cover, coverImage == nil,
               !coverSettled
         else { return }
@@ -331,5 +377,150 @@ struct DeliveryFileCard: View {
             }
         }
         coverSettled = true
+    }
+
+    // MARK: 块菜单动作（与 FileChip 长按菜单同源同处理）
+
+    @ViewBuilder
+    private var actionItems: some View {
+        ForEach(actions, id: \.self) { action in
+            if action == .delete {
+                Button(role: .destructive) {
+                    deletePending = true
+                } label: {
+                    Label(action.label, systemImage: action.systemImage)
+                }
+            } else {
+                Button {
+                    perform(action)
+                } label: {
+                    Label(action.label, systemImage: action.systemImage)
+                }
+            }
+        }
+    }
+
+    private func perform(_ action: FileItemAction) {
+        notice = nil
+        switch action {
+        case .preview:
+            onOpen()
+        case .copyText:
+            Task { await copyText() }
+        case .exportPDF:
+            Task { await exportPDF() }
+        case .share, .download:
+            Task { await downloadAndShare() }
+        case .delete:
+            deletePending = true
+        case .pin, .unpin, .rename, .openInFiles:
+            break
+        }
+    }
+
+    private func fetchBytes() async throws -> Data {
+        try await appState.performAdmin {
+            client, config in
+            try await client.fileData(
+                config: config, path: meta.path
+            )
+        }
+    }
+
+    private func copyText() async {
+        do {
+            let data = try await fetchBytes()
+            if let text = FileTextExtractor.plainText(
+                from: data, entry: entry
+            ) {
+                UIPasteboard.general.string = text
+                notice = "已复制全文。"
+                Haptics.success()
+            } else {
+                notice = "这个文件没能读出文字。"
+            }
+        } catch {
+            notice = (error as? HermesError)?.userMessage
+                ?? "下载失败，请稍后再试。"
+            Haptics.error()
+        }
+    }
+
+    private func exportPDF() async {
+        do {
+            let data = try await fetchBytes()
+            guard let kind = DocumentTextKind.kind(
+                      forFileName: meta.name
+                  ),
+                  let text = FileTextExtractor.plainText(
+                      from: data, entry: entry
+                  ),
+                  let pdf = DocumentPDFExporter.pdfData(
+                      title: DeliverableFileType.displayTitle(
+                          forFileName: meta.name
+                      ),
+                      blocks: DocumentReading.blocks(
+                          for: text, kind: kind
+                      )
+                  )
+            else {
+                notice = "导出 PDF 失败，请稍后再试。"
+                Haptics.error()
+                return
+            }
+            shareItem = try FileShareItem.write(
+                data: pdf,
+                name: "\(DeliverableFileType.displayTitle(forFileName: meta.name)).pdf"
+            )
+        } catch {
+            notice = (error as? HermesError)?.userMessage
+                ?? "下载失败，请稍后再试。"
+            Haptics.error()
+        }
+    }
+
+    private func downloadAndShare() async {
+        do {
+            let data = try await fetchBytes()
+            shareItem = try FileShareItem.write(
+                data: data, name: meta.name
+            )
+        } catch {
+            notice = (error as? HermesError)?.userMessage
+                ?? "下载失败，请稍后再试。"
+            Haptics.error()
+        }
+    }
+
+    private func deleteFile() async {
+        do {
+            try await appState.performAdmin { client, config in
+                try await client.deleteFile(
+                    config: config, path: meta.path,
+                    recursive: false
+                )
+            }
+            // 回读核对（本仓纪律：删除以列表无此项为准）
+            let parent = (meta.path as NSString)
+                .deletingLastPathComponent
+            let listing = try? await appState.performAdmin {
+                client, config in
+                try await client.files(config: config, path: parent)
+            }
+            if listing?.entries.contains(
+                where: { $0.path == meta.path }
+            ) == true {
+                notice = "删除未生效，「\(meta.name)」仍在服务器上。"
+                Haptics.warning()
+            } else {
+                FileMetadataStore.shared.forget(path: meta.path)
+                FilePinStore.shared.removed(path: meta.path)
+                notice = "已删除「\(meta.name)」。"
+            }
+        } catch {
+            notice = (error as? HermesError)?.userMessage
+                ?? "删除失败，请稍后再试。"
+            Haptics.error()
+        }
     }
 }

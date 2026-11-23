@@ -1622,32 +1622,33 @@ struct ChatNativeRowHeightComposer {
         }
     }
 
-    /// DeliveryFileCard 高：封面区 148（封面形态
-    /// 时）＋名列行（纵内距 cardInnerGap×2＋max(
-    /// 图标盒 40〔无封面时〕, 名列高)）。封面形态
-    /// 判定（§407 定版，§329 三路口径退役）：只
-    /// 认登记旗 meta.cover.cover——视图同判预留
-    /// 封面区、图到只换图不换高
+    /// DeliveryFileCard 高（§452.3）：封面形态＝
+    /// 成品块定高——顶内距 8＋预览区 228＋元行
+    /// （纵内距 10×2＋max(图标 24, 名行＋微距 2＋
+    /// 类型标行)），名在块内恒一行、整高恒定；卡
+    /// 形态＝FileChip 同式（fileChipHeight 同源计
+    /// 算）。封面形态判定只认登记旗 meta.cover.
+    /// cover（§407 定版续）
     func deliveryFileCardHeight(
         _ meta: BridgeDelivery
     ) -> CGFloat {
-        let coverForm = facetDeliveryCoverForm(meta)
-        let nameWidth = contentWidth
-            - OneDayMetrics.spacingSM
-            - (coverForm
-                ? 0
-                : 40 + OneDayMetrics.spacingSM)
-        let nameHeight = weightedHeight(
-            meta.name, .body, .semibold,
-            width: nameWidth, lineLimit: 2
+        guard facetDeliveryCoverForm(meta) else {
+            return fileChipHeight(
+                path: meta.path, width: contentWidth
+            )
+        }
+        let nameLine = weightedHeight(
+            "名", .body, .semibold,
+            width: 10_000, lineLimit: 1
         )
-        let columnHeight = nameHeight
-            + OneDayMetrics.spacingXS + spec(.caption1)
-        let rowHeight = max(
-            coverForm ? 0 : 40, columnHeight
+        let labelLine = weightedHeight(
+            "PDF", .subheadline, .regular,
+            width: 10_000, lineLimit: 1
         )
-        return (coverForm ? 148 : 0)
-            + OneDayMetrics.cardInnerGap * 2 + rowHeight
+        let metaRow = 20 + max(
+            24, nameLine + OneDayMetrics.spacingMicro + labelLine
+        )
+        return OneDayMetrics.spacingS + 228 + metaRow
     }
 
     // MARK: - 思考块
