@@ -347,10 +347,14 @@ struct FeedView: View {
     /// ImageBox 定尺盒（见该类型注）
     private func postRow(_ post: BridgeFeedPost) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
-            Text(post.displayEmoji)
-                .font(.contentEmoji)
+            Image(systemName: post.kind.symbolName)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 28, height: 28)
+                .background(post.kind.kickerColor)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 .frame(width: 44, height: 44)
-                // 内容 emoji 是帖的类别信号、动作行另
+                // kicker 字形块是帖的类别信号、动作行另
                 // 有类别文字——对 VO 隐藏免逐字念名
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
@@ -1289,6 +1293,22 @@ struct FeedBriefEditorView: View {
             savedNote = store.briefDoc?.expandStarted == true
                 ? "已保存，正在按新简报去看一轮。"
                 : "已保存。"
+        }
+    }
+}
+
+// MARK: - Kicker 字形块映射（§462）
+
+extension FeedPostKind {
+    /// kicker 字形块底色（§462）：按类别映射到 Palette
+    /// 既有令牌——扁平色块，去卡通化
+    var kickerColor: Color {
+        switch self {
+        case .digest: return Palette.tintSky
+        case .morning: return Palette.tintOrange
+        case .research: return Palette.tintLavender
+        case .seed: return Palette.tintGreen
+        case .unknown: return Palette.primaryPale
         }
     }
 }

@@ -339,18 +339,25 @@ struct IdeaRowView: View {
     let idea: BridgeIdea
     let note: String?
 
-    private var displayEmoji: String {
-        IdeaEmoji.resolve(emoji: idea.emoji)
+    private var kickerSymbol: String {
+        IdeaKicker.symbolName(for: idea.category)
+    }
+
+    private var kickerColor: Color {
+        IdeaKicker.color(for: idea.category)
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
-            Text(displayEmoji)
-                .font(.system(size: 38))
+            Image(systemName: kickerSymbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 28, height: 28)
+                .background(kickerColor)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 .frame(width: 44, height: 44)
-                // emoji 是内容不是界面图标（§117.5）；
-                // 类别语义另有依据行/详情承载，对 VO
-                // 隐藏免逐字念符号名
+                // kicker 字形块是点子的类别信号、详情另
+                // 有类别语义——对 VO 隐藏免逐字念名
                 .accessibilityHidden(true)
             VStack(
                 alignment: .leading, spacing: OneDayMetrics.spacingXS
@@ -691,5 +698,69 @@ struct IdeaDetailView: View {
             predicate: #Predicate { $0.id == id }
         )
         return try? modelContext.fetch(descriptor).first
+    }
+}
+
+// MARK: - Kicker 字形块映射（§462）
+
+enum IdeaKicker {
+    /// 点子 kicker 字形名（§462）：按 category 映射到
+    /// SF Symbol，无分类走灯泡兜底
+    static func symbolName(for category: String?) -> String {
+        guard let category = category?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ), !category.isEmpty else {
+            return "lightbulb.fill"
+        }
+        
+        // 按已知类别键或中文名映射
+        switch category {
+        case "health", "健康":
+            return "heart.fill"
+        case "relationships", "人际关系":
+            return "person.2.fill"
+        case "finance", "财务":
+            return "dollarsign.circle.fill"
+        case "career", "事业":
+            return "briefcase.fill"
+        case "interest", "兴趣":
+            return "star.fill"
+        case "efficiency", "效率提升":
+            return "bolt.fill"
+        case "other", "其他":
+            return "lightbulb.fill"
+        default:
+            // 未知类别走兜底
+            return "lightbulb.fill"
+        }
+    }
+    
+    /// 点子 kicker 底色（§462）：按 category 映射到
+    /// Palette 令牌，无分类走 fillSecondary
+    static func color(for category: String?) -> Color {
+        guard let category = category?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        ), !category.isEmpty else {
+            return Palette.fillSecondary
+        }
+        
+        switch category {
+        case "health", "健康":
+            return Palette.tintGreen
+        case "relationships", "人际关系":
+            return Palette.tintLavender
+        case "finance", "财务":
+            return Palette.tintOrange
+        case "career", "事业":
+            return Palette.primary
+        case "interest", "兴趣":
+            return Palette.tintSky
+        case "efficiency", "效率提升":
+            return Palette.primaryPale
+        case "other", "其他":
+            return Palette.fillSecondary
+        default:
+            return Palette.fillSecondary
+        }
     }
 }
