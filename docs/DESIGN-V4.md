@@ -16759,3 +16759,27 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 与 W2 正修的差（复核图内三项）：①本修不动列表引擎（仍 compositional），W2 换 Exyte 后键盘定位在其引擎内重做，本修事务纪律（同事务应用＋事务窗冻结＋双向意图捕获）平移为 W2 验收口径；②不做逐帧呈现帧采样驱动，平台动画事务插值已达成散布门；③交互式手势收键盘沿 WillChangeFrame 路径同式处理，不另立引擎。
 - 状态：已落码提交（d03b67e＋本节），未 push（主线处置）；待组版并入与用户真机 verdict。
 - 同树连绿第二轮（Test-KbSmooth438-Pin2.xcresult，RUN 2026-11-24 02:06，dd-kbsmooth）：ChatKeyboardPinAssemblyTests 单套复跑 4/4 全绿、exit 0；与首轮五套轮内同套 4/4 绿构成同树（d03b67e）连绿两轮。
+## §446 输入栏尾部按钮单槽化（2026-11-24；分支 feat/queue-fix，基线 rel-05105 @b5a6b96；用户 0.50.105 真机 verdict 改判）
+
+用户 verdict（2026-11-24 01:57，同轮其余项全过）：生成中输入第二条点发送，排队未生效。用户亲判改题（01:59）：不是排队逻辑坏了——生成中输入框有字时停止按钮占着位、发送按钮被挤到屏幕外只剩半个（截图右边缘蓝色箭头即是），根本点不到发送，所以无从排队。主线初判（drain/QueueSend 逻辑）作废；drain 与 QueueSend 实验室结论未被证伪、仍成立（本轮回归 5/5 照绿）。
+
+定因（代码行级）：Core `ComposerTrailingState.resolve` 流式＋canSend → `.stopAndSend`（§419 锁一双钮设计）；ChatView `trailingControl` 双钮态渲染 `HStack(spacing: 2) { stopMiniButton, sendStopButton }`，两钮布局宽各 `ComposerLayout.buttonHeight`＝30pt、合计 62pt；`ComposerBarLayout.placeSubviews` 右端 subviews[2] 恒按 30pt 槽位以 `bounds.maxX - pad - btn` 右锚放置——内容溢出槽位 32pt，发送圆盘被推出胶囊右界与屏幕，与截图逐项吻合（停止钮在槽位、发送钮半个在屏外）。§419 钉测头注早已自明「send() 本体与右端钮点按在挂载环境不可达、列真机门」——实验室从未点过这颗钮，缺口在此。
+
+大厂对位（四象限尾部按钮）：
+
+| 象限 | ChatGPT（消费端） | Claude 消费端 App/Web | Claude Code（agent 端） | OneDay §446 定版 |
+|---|---|---|---|---|
+| 空闲＋无字 | 图标行占位、无发送钮 | 麦克风等占位 | — | 麦克风占位（不变） |
+| 空闲＋有字 | 发送箭头（32pt 圆）、单槽 | 发送箭头、单槽 | Enter 发送 | 发送箭头、单槽（不变） |
+| 生成中＋无字 | 停止钮、同槽置换 | 停止钮、同槽置换 | Esc 中断 | 停止钮、单槽 |
+| 生成中＋有字 | 停止钮独占（须停或等、无排队钮） | 停止钮独占 | Enter 入队（灰显、轮终按序发） | 发送钮（点按走 §419 入队） |
+
+证据等级：Claude Code 排队语义＝官方文档 Interactive mode「Queue messages while Claude works」A 级；「生成中发送钮置换为停止钮」＝UI 模式目录 Stop Generating Button 条目（明示 ChatGPT/Claude/Gemini 同式）B 级；ChatGPT 槽位形态（32pt 圆、空场图标行、有字收起出发送）＝iOS 设计分析 B 级。全家不变量：右端恒单槽单钮、槽宽恒定，双钮并排无任何一家采用——现行双钮正违反此不变量，是溢出总根。分歧明示：生成中＋有字象限，用户口径（发送优先、点按入队）与消费端两家（停止优先）不符、与 agent 端排队语义同构；OneDay 定位 agent 客户端、长工具链场景，§419 已定排队制，按用户亲裁执行。停止不丢：无字＋生成中即出停止钮（用户真想停时多在旁观、输入为空状态）。
+
+修法（最小改面，与 §419 机器同构）：Core `ComposerTrailingState` 删 `.stopAndSend`，`resolve` 判定序改内容优先（canSend → .send；isStreaming → .stop；否则 .mic）；ChatView `trailingControl` 删双钮分支（恒单钮：圆盘键或麦克风）、删 `stopMiniButton`，`sendStopButton` 本体不动（.stop 态 requestRunStop、余态 send()；流式有字点按即落既有 §419 账本分支入队并清空输入框，入队后 canSend 转假、状态自然翻到 .stop）。`ComposerBarLayout` 不动：槽位恒 30pt、三态布局宽恒 30pt，切换不引起输入栏宽度跳动。ChatView 根链 chatScaffold 未加任何视图修饰层。
+
+钉测（先红后绿留痕）：MotionGateTests 四象限改 §446 口径＋新增 ChatComposerTrailing446PinTests 源码钉（HitArea44 式：Core 无双钮态且 resolve 本体内容优先；ChatView 无 stopMiniButton、trailingControl 无 HStack；圆盘键点按分流在位）。RED 轮（Test-QueueFix446-Red，exit 65）：MotionGate 两红（stopAndSend≠send、allCases 4≠3）＋源码钉四断言红，点按分流钉绿（守恒项）。GREEN 轮（Test-QueueFix446-Green，xcresult 本体核对）：MotionGate／446 源码钉／ChatQueueSendPinTests／ChatFailKeepPinTests／HitArea44Tests 五套 29 测全绿、零失败。
+
+真机门（挂载环境不可达、沿 §419 口径，随 0.50.106 verdict）：生成中输入「测试2」→ 发送圆盘完整在框内可点 → 点按入队（条目落位灰显＋时钟、输入框清空、槽位翻停止钮）→ 轮终自动发出；生成中空输入 → 停止钮在位可点、点停后队列保留续发。
+
+影响面：§419 锁一双钮形态作废（本节 supersede），§419 其余（锁二/锁三、drain、幂等、B 案）不动；DictationController 的 `stopAndSend()` 是听写方法名、与本节无关未动。提交：4d77a66（钉测先行）＋1fc639a（落码）＋本节入档笔。
