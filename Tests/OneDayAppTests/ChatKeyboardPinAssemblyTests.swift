@@ -198,24 +198,37 @@ final class ChatKeyboardPinAssemblyTests: XCTestCase {
         XCTAssertLessThanOrEqual(handle.latestDistance, 1)
     }
 
-    /// 中途帧：键盘动画未走完时末行已完整可见、栈
-    /// 留位一步到位不逐帧爬（无压扁/被盖的中间态）
+    /// 中途帧（§438 改钉）：键盘动画全程末行与舱
+    /// 同程跟随——呈现层间距（舱呈现顶−末行屏幕
+    /// 底）恒≈静息值：末行不被盖（间距不为负）、
+    /// 也不抢跑（间距不胀）。§426 旧钉断言「中途
+    /// 帧留位一步到位」钉的正是抢跑机制本身（内
+    /// 容单帧瞬移、舱独行，用户视频实证），改钉理
+    /// 由见 kb-smooth-spec §438 三章；旧测的深层
+    /// 意图（末行完整可见、无被盖中间态）在新不
+    /// 变量下更强地成立
     func testKeyboardShowMidAnimationTailAlreadyVisible() {
         assemblePinnedAndSettled()
-        let insetBefore = handle.bottomInset
+        let restGap = presentationGap()
+        XCTAssertNotNil(restGap, "前置：呈现层采样应可得")
         postKeyboardShow(height: keyboardHeight, duration: 0.6)
-        drain(0.12)
-        XCTAssertTrue(
-            handle.contentEndVisible,
-            "动画中途帧末行应已完整可见，实距底 \(handle.latestDistance)"
-        )
-        XCTAssertEqual(
-            handle.bottomInset - insetBefore, keyboardHeight,
-            accuracy: 1.5,
-            "中途帧留位应已一步到位（单事务记账），实增量 "
-                + "\(handle.bottomInset - insetBefore)"
-        )
-        drain(0.8)
+        for sample in 1...3 {
+            drain(0.15)
+            guard let gap = presentationGap() else {
+                XCTFail("中途帧样本 \(sample)：呈现层采样不可得")
+                continue
+            }
+            XCTAssertEqual(
+                gap, restGap ?? 8, accuracy: 10,
+                "中途帧样本 \(sample)：末行应与舱同程（间距守恒），"
+                    + "实间距 \(gap)、静息 \(restGap ?? -1)"
+            )
+            XCTAssertGreaterThanOrEqual(
+                gap, -1,
+                "中途帧样本 \(sample)：末行不许被舱盖住，实间距 \(gap)"
+            )
+        }
+        drain(0.6)
         XCTAssertTrue(handle.contentEndVisible)
         XCTAssertLessThanOrEqual(handle.latestDistance, 1)
     }
@@ -245,5 +258,76 @@ final class ChatKeyboardPinAssemblyTests: XCTestCase {
             "离底时键盘升起不许动用户位置"
         )
         XCTAssertFalse(handle.contentEndVisible)
+    }
+
+    /// §438 合侧：在底→升起→收起全程同程跟随、
+    /// 终点精确回静息（旧链收起无专属回钉：落偏
+    /// 靠事后偶然收敛，用户视频合后 +149px 不归
+    /// 位；裸装配无坞、竞速不复现，本测守终态与
+    /// 中途间距不劣化，生产几何差集见图内说明）
+    func testKeyboardHideFollowsAndReturnsToRest() {
+        assemblePinnedAndSettled()
+        let restInset = handle.bottomInset
+        postKeyboardShow(height: keyboardHeight)
+        drain(0.7)
+        XCTAssertLessThanOrEqual(
+            handle.latestDistance, 1,
+            "前置：键盘态应在底，实 \(handle.latestDistance)"
+        )
+        let restGap = presentationGap()
+        XCTAssertNotNil(restGap, "前置：呈现层采样应可得")
+        postKeyboardHide(duration: 0.6)
+        for sample in 1...3 {
+            drain(0.15)
+            guard let gap = presentationGap() else {
+                XCTFail("合侧中途样本 \(sample)：呈现层采样不可得")
+                continue
+            }
+            XCTAssertEqual(
+                gap, restGap ?? 8, accuracy: 10,
+                "合侧中途样本 \(sample)：末行应与舱同程，"
+                    + "实间距 \(gap)、静息 \(restGap ?? -1)"
+            )
+        }
+        drain(0.6)
+        XCTAssertTrue(
+            handle.contentEndVisible,
+            "收起后末行应完整可见"
+        )
+        XCTAssertLessThanOrEqual(
+            handle.latestDistance, 1,
+            "收起后应精确归位在底，实 \(handle.latestDistance)"
+        )
+        XCTAssertEqual(
+            handle.bottomInset, restInset, accuracy: 1.5,
+            "收起后留位应回静息值"
+        )
+    }
+
+    /// §438 呈现层间距采样：舱呈现顶 − 末行屏幕
+    /// 底（窗口系）。在底静息时恒＝底 padding；
+    /// 内容与舱同事务跟随则动画全程守恒，内容抢
+    /// 跑/脱钉时中途帧显著偏离
+    private func presentationGap() -> CGFloat? {
+        guard let cv = controller?.collectionView,
+              let hostView = controller?.composerHost?.view,
+              let hostSuperview = hostView.superview,
+              let tailBottom = cv.visibleCells
+                .map({ $0.frame.maxY }).max()
+        else { return nil }
+        let presOffsetY = cv.layer.presentation()?
+            .bounds.origin.y ?? cv.contentOffset.y
+        let cvWindowTop = cv.superview?
+            .convert(
+                CGPoint(x: 0, y: cv.frame.minY), to: nil
+            ).y ?? 0
+        let tailScreenBottom = cvWindowTop + tailBottom
+            - presOffsetY
+        let presFrame = hostView.layer.presentation()?
+            .frame ?? hostView.frame
+        let composerWindowTop = hostSuperview.convert(
+            CGPoint(x: 0, y: presFrame.minY), to: nil
+        ).y
+        return composerWindowTop - tailScreenBottom
     }
 }
