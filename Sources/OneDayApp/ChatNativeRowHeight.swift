@@ -954,30 +954,16 @@ struct ChatNativeRowHeightComposer {
         return facets.deliveryMetas[id]
     }
 
-    /// 封面形态：活读形态按现行公式现算（登记快
-    /// 照 cover ∨ 封面图缓存 ∨ 缩略图缓存）、快
-    /// 照形态读快照点同公式的定格值
+    /// 封面形态（§407 定高）：只认登记旗
+    /// meta.cover.cover——入列时模型已知的唯一判
+    /// 定；快照图/缩略图缓存是到达态、进公式即
+    /// 「图到换高」，旧三路 OR 自此退役（钉测播
+    /// 种把守）。快照形态读快照点同公式的定格值
     private func facetDeliveryCoverForm(
         _ meta: BridgeDelivery
     ) -> Bool {
         if ledger != nil {
-            let synthetic = WorkspaceFileEntry(
-                name: meta.name, path: meta.path,
-                isDirectory: false, size: meta.size,
-                mtime: nil, mimeType: meta.mime
-            )
-            return MainActor.assumeIsolated {
-                meta.cover.cover
-                    || DeliveryStore.shared
-                        .hasCachedImage(
-                            id: meta.id, variant: .cover
-                        )
-                    || FileThumbnailStore.shared
-                        .hasCachedThumbnail(
-                            for: synthetic,
-                            targetPixelSize: 720
-                        )
-            }
+            return meta.cover.cover
         }
         return facets.deliveryCoverForms[meta.id]
             ?? false
@@ -1624,9 +1610,9 @@ struct ChatNativeRowHeightComposer {
     /// DeliveryFileCard 高：封面区 148（封面形态
     /// 时）＋名列行（纵内距 cardInnerGap×2＋max(
     /// 图标盒 40〔无封面时〕, 名列高)）。封面形态
-    /// 判定（§329）：登记快照 cover 在册 ∨ 快照
-    /// 字节已缓存 ∨ §32 缩略图已缓存——三路皆空
-    /// 时按无封面合成、管线首载到达后靠重渲回填
+    /// 判定（§407 定版，§329 三路口径退役）：只
+    /// 认登记旗 meta.cover.cover——视图同判预留
+    /// 封面区、图到只换图不换高
     func deliveryFileCardHeight(
         _ meta: BridgeDelivery
     ) -> CGFloat {
@@ -2513,6 +2499,18 @@ struct ChatNativeRowHeightComposer {
         )
     }
 
+    /// 直播占位行高（§407，A 案简化模型）：生成
+    /// 中状态行恒高——与等待泡上传形态同几何（一
+    /// 行 callout 状态文案＋等待点，内容纵内距
+    /// spacingXS×2＋气泡纵内距 bubblePaddingV×2），
+    /// 不读任何阶段/内容输入：上传/思考/工具/生成
+    /// 四相逐值同高，落定拍整行换落定条目行
+    var livePlaceholderHeight: CGFloat {
+        max(6, spec(.callout))
+            + OneDayMetrics.spacingXS * 2
+            + OneDayMetrics.bubblePaddingV * 2
+    }
+
     /// 直播正文行高（nativeStreamingContent）：
     /// 空文＝等待泡（打字点 6／上传行 callout，
     /// 内容纵内距 spacingXS×2＋气泡纵内距 26）；
@@ -2944,15 +2942,16 @@ struct ChatNativeRowHeightComposer {
         // §329 续修（拟合直测校准实证）：HStack 与
         // Spacer 相邻处不另计默认间距（Spacer 本身
         // 即间距、相邻 stack spacing 被吸收）——旧
-        // 稿多扣 8pt 令正文宽窄一档、长文虚高 3 行；
-        // 失败重发钮与正文列之间无 Spacer、默认间
-        // 距 spacingS 照计
-        var columnWidth = contentWidth
+        // 稿多扣 8pt 令正文宽窄一档、长文虚高 3 行
+        // §407（预排版步骤 1）：发送状态自此不进高
+        // 度输入——失败钮/待发标记改 overlay 挂正
+        // 文列左侧让位区（ChatView.sendStateMark），
+        // 列宽恒按终态形态计、状态翻转同内容同高
+        // （ChatPreLayoutStep1Tests 钉测把守）；旧
+        // 失败扣列宽 52＋待发加槽＋失败 max 44 三
+        // 项一并退役
+        let columnWidth = contentWidth
             - OneDayMetrics.bubbleSideInset
-        if entry.sendFailed {
-            columnWidth -= OneDayMetrics.spacingS
-                + OneDayMetrics.minTapTarget
-        }
         let textWidth = columnWidth
             - OneDayMetrics.bubblePaddingH * 2
         var slots: [CGFloat] = []
@@ -3063,19 +3062,11 @@ struct ChatNativeRowHeightComposer {
                 )
             slots.append(chips)
         }
-        if entry.isPendingSend {
-            slots.append(spec(.caption1))
-        }
         var total: CGFloat = 0
         if !slots.isEmpty {
             total = slots.reduce(0, +)
                 + OneDayMetrics.spacingXS
                     * CGFloat(slots.count - 1)
-        }
-        if entry.sendFailed {
-            total = max(
-                total, OneDayMetrics.minTapTarget
-            )
         }
         return total
     }

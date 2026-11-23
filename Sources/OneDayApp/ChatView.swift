@@ -399,6 +399,16 @@ struct ChatView: View {
     /// 在场时优先走路径、两格都不经）
     @State private var failedFilePayloads:
         [UUID: [(name: String, data: Data)]] = [:]
+    /// §407（预排版步骤 1·预定高）：本会话亲手发
+    /// 出的条目 id 集（send/编辑重发两处登记）——
+    /// nativeEntryRow 对集内用户行在入列首趟就地
+    /// 同步量测（measureNow），入列即确定终态高、
+    /// 不走「兜底 120→后台回填换高」的临界路；
+    /// 历史行不入集（冷开长会话全表同步量测会把
+    /// 成本压回主线程、正是量测台要避的）。集随
+    /// 视图生命周期、量级＝本会话发送数
+    @State private var sessionSentEntryIDs:
+        Set<UUID> = []
     /// §237（基础正解批 P1）：待发文件载荷的持久暂
     /// 存口——发送起手即按条目 id 落盘（文件名＋字节
     /// ＋清单原子换入），失败/待发重发时凭条目 id 重
@@ -2868,14 +2878,21 @@ struct ChatView: View {
                 }
             }
         }
-        // §293（原生重建 R2）：直播区收编——不再整
-        // 段一块，liveRenderItems 逐项成快照 item
-        // （思考/封存段/打开段/工具卡各自独立身份，
-        // 与 gen3 逐项行同源同序；打开段单 cell 同
-        // 步渲染、块闭合构造互斥，见 nativeLiveRow）
-        for item in liveRenderItems() {
+        // §407（预排版步骤 1·A 案简化模型）：直播
+        // 区收成一行定高占位行——生成中只显状态、
+        // 回复成型后整条以终态高落定（落定条目行
+        // 走既有条目路入列、占位行同趟移除，offset
+        // 修正只走既有锚定路径）。§293 的逐项直播
+        // 行（思考/封存段/打开段/工具卡逐项成行、
+        // 高度随内容生长）自此退出原生喂入；
+        // nativeLiveRow 仅余共享件身份、不再被本
+        // 面调用。在飞判定：sendTask 在席（起手至
+        // 落定全程，含首词元前的上传/等待段）∨ 直
+        // 播项非空（对账恢复等无 sendTask 的在飞
+        // 形态与旧喂入口径同界）
+        if sendTask != nil || !liveRenderItems().isEmpty {
             rows.append(
-                nativeLiveRow(item, composer: composer)
+                livePlaceholderRow(composer: composer)
             )
         }
         if let overviewStore {
@@ -3099,6 +3116,25 @@ struct ChatView: View {
                 )
             )
         }
+        // §407（预排版步骤 1·预定高）：本会话刚发
+        // 出的用户行不等后台回填——工单已收集/在飞
+        // 时就地同步量测（measureNow 同口：单行毫
+        // 秒级、与量测台同源同值），入列即确定终
+        // 态高；台上无单可量（极端时序）时回落既有
+        // 预计算/兜底口径。作用域只限本会话新行：
+        // 历史行同步量测会把成本压回主线程、正是
+        // 量测台要避的，故不扩围
+        var feedIsExact = resolved.isExact
+        var urgentHeight: CGFloat? = nil
+        if !resolved.isExact, entry.role == "user",
+           sessionSentEntryIDs.contains(entry.id) {
+            urgentHeight = rowMeasureDesk.measureNow(
+                rowKey: key
+            )
+            if urgentHeight != nil {
+                feedIsExact = true
+            }
+        }
         let highlighted = entry.id == anchorHighlightEntryID || entry.id == findHighlightEntryID
         // 台账 190 留账·nanoMuse 三件②（§335）：量
         // 测未就绪时先问预计算——产物段高＋合成器
@@ -3110,7 +3146,9 @@ struct ChatView: View {
         // 值回填后经发布代次以确高重喂、本行终态
         // 口径零变
         var feedHeight = resolved.height
-        if !resolved.isExact,
+        if let urgentHeight {
+            feedHeight = urgentHeight
+        } else if !resolved.isExact,
            let product = entryLayoutProduct(entry),
            let precomputed = composer
             .precomputedEntryHeight(
@@ -3144,7 +3182,7 @@ struct ChatView: View {
                     highlighted: highlighted,
                     styleKey: styleKey,
                     feedHeight: feedHeight,
-                    heightIsProvisional: !resolved.isExact
+                    heightIsProvisional: !feedIsExact
                 )
             )
         }
@@ -3160,7 +3198,7 @@ struct ChatView: View {
                 // 台账 190②：非确定高（未量测/上次
                 // 高顶替）标临界——布局提供者对将入
                 // 视口的临界行就地量测给确定高
-                heightIsProvisional: !resolved.isExact,
+                heightIsProvisional: !feedIsExact,
                 makeView: {
                     AnyView(
                         entryRowContent(
@@ -3432,6 +3470,7 @@ struct ChatView: View {
             sourceQuote: combinedSourceQuote
         )
         modelContext.insert(newEntry)
+        sessionSentEntryIDs.insert(newEntry.id)
         Haptics.impact(.light)
         thread.updatedAt = Date()
         try? modelContext.save()
@@ -3763,6 +3802,68 @@ struct ChatView: View {
             components(Palette.inkSecondaryOnFill),
             components(Palette.userBubbleText),
         ].joined(separator: "|")
+    }
+
+    /// 直播占位行（§407）：键恒定、高＝合成器常
+    /// 量 livePlaceholderHeight，修订只折状态文
+    /// 案——阶段切换原地重配、高度逐值不变；落
+    /// 定拍本行移除＋落定条目行入列（变更集由既
+    /// 有追踪器派生、offset 走既有锚定路径）
+    private func livePlaceholderRow(
+        composer: ChatNativeRowHeightComposer
+    ) -> ChatNativeRow {
+        var revision = ChatNativeRowRevision()
+        revision.addText(livePlaceholderStatusText())
+        return ChatNativeRow(
+            key: "live-placeholder",
+            entryID: nil,
+            revision: revision,
+            height: composer.livePlaceholderHeight,
+            makeView: {
+                AnyView(livePlaceholderContent())
+            }
+        )
+    }
+
+    /// 占位行状态文案（§407）：只报阶段、不报内
+    /// 容——上传/思考/工具/生成四相，文案变化不
+    /// 影响行高（合成器常量把守、钉测在案）
+    private func livePlaceholderStatusText() -> String {
+        if isUploadingFiles {
+            if let fraction = uploadProgressFraction {
+                return "正在上传文件 \(Int((fraction * 100).rounded()))%…"
+            }
+            return "正在上传文件…"
+        }
+        if streamingReasoning != nil {
+            return "正在思考…"
+        }
+        if !liveToolCards.isEmpty {
+            return "正在调用工具…"
+        }
+        return "正在生成…"
+    }
+
+    /// 占位行视图（§407）：助手侧状态泡——等待
+    /// 点＋一行状态文案，与流式等待泡同形态同几
+    /// 何（内容纵内距 spacingXS、气泡纵内距
+    /// bubblePaddingV，与合成器
+    /// livePlaceholderHeight 逐项同值）
+    private func livePlaceholderContent() -> some View {
+        assistantBubble {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                TypingDots()
+                Text(livePlaceholderStatusText())
+                    .font(.callout)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(1)
+            }
+            .padding(.vertical, OneDayMetrics.spacingXS)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(
+                livePlaceholderStatusText()
+            )
+        }
     }
 
     /// §293（原生重建 R2）原生面直播行：与 gen3
@@ -5257,6 +5358,57 @@ struct ChatView: View {
         )
     }
 
+    /// 发送状态标记（§407）：失败＝红叹号钮（点
+    /// 按原条目重发）、待发＝时钟钮（点按同条目
+    /// 重发）——微信口径的气泡旁小标记，两态互
+    /// 斥、失败优先；由 bubble 以 overlay 挂正文
+    /// 列左侧让位区呈现，不占列宽、不进行高（旧
+    /// 形态：失败钮在 HStack 内扣列宽、待发状态
+    /// 行在列内加槽——皆为状态翻转换高源，已退
+    /// 役）。待发文案保留在无障碍标签里，点达面
+    /// 的整行菜单另有发件箱动作面承接
+    @ViewBuilder
+    private func sendStateMark(
+        for entry: ChatEntry
+    ) -> some View {
+        if entry.sendFailed {
+            Button {
+                resendFailedEntry(entry)
+            } label: {
+                Image(
+                    systemName: "exclamationmark.circle.fill"
+                )
+                .font(.system(size: 20))
+                .foregroundStyle(Palette.danger)
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("发送失败，点按重新发送")
+        } else if entry.isPendingSend {
+            Button {
+                resendPending(entry)
+            } label: {
+                Image(systemName: "clock")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(
+                        width: OneDayMetrics.minTapTarget,
+                        height: OneDayMetrics.minTapTarget
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .disabled(isStreaming)
+            .accessibilityLabel(
+                L10n.string("未发送 · 点按重发")
+            )
+        }
+    }
+
     @ViewBuilder
     private func bubble(_ entry: ChatEntry) -> some View {
         if entry.traceKey != nil {
@@ -5289,26 +5441,6 @@ struct ChatView: View {
         } else if entry.role == "user" {
             HStack {
                 Spacer(minLength: OneDayMetrics.bubbleSideInset)
-                // 基础止血包（P1/P2）：发送失败标记——
-                // 红叹号挂气泡左侧（微信口径），点它以
-                // 原条目重发；条目不删、不回退输入框，
-                // 标记随重发成功落定清除
-                if entry.sendFailed {
-                    Button {
-                        resendFailedEntry(entry)
-                    } label: {
-                        Image(systemName: "exclamationmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Palette.danger)
-                            .frame(
-                                width: OneDayMetrics.minTapTarget,
-                                height: OneDayMetrics.minTapTarget
-                            )
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.odPressable)
-                    .accessibilityLabel("发送失败，点按重新发送")
-                }
                 VStack(alignment: .trailing, spacing: OneDayMetrics.spacingXS) {
                     if let quote = entry.quote {
                         // §265（S3）：引用块是纯 Text 铬
@@ -5481,34 +5613,6 @@ struct ChatView: View {
                         // 行菜单挂载面之一
                         .modifier(messageMenu(for: entry))
                     }
-                    // 聊天可靠性包：待发条目的状态行——
-                    // 消息留在原位不消失，状态只在气泡
-                    // 下安静标明、点按即用同一条目重发
-                    // （大厂口径：失败留痕＋一键重发，
-                    // 不删不退回输入框）
-                    if entry.isPendingSend {
-                        Button {
-                            resendPending(entry)
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(
-                                    systemName: "exclamationmark.circle"
-                                )
-                                Text(L10n.string("未发送 · 点按重发"))
-                            }
-                            .font(.caption)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.odPressable)
-                        .disabled(isStreaming)
-                        .accessibilityLabel(
-                            L10n.string("未发送 · 点按重发")
-                        )
-                        // §265（S3）：状态行是铬件——整行
-                        // 菜单挂载面之一（点按仍走重发）
-                        .modifier(messageMenu(for: entry))
-                    }
                 }
                 // §265（S3）：整行菜单自此不在行根挂载
                 // （旧挂法罩住文本面、长按文本先出整行
@@ -5522,6 +5626,20 @@ struct ChatView: View {
                         .offset(
                             x: ChatReactionMetrics.cornerInset,
                             y: ChatReactionMetrics.hangDepth
+                        )
+                }
+                // §407（预排版步骤 1）：发送状态标记
+                // overlay 挂正文列左侧让位区——失败
+                // 红叹号/待发时钟（sendStateMark），
+                // 落点与旧 HStack 内钮同位（列左
+                // spacingS 间隙外 44 钮身），不占列
+                // 宽、不进高度：状态翻转只换标记、
+                // 行高逐值不变（合成器已摘状态项）
+                .overlay(alignment: .leading) {
+                    sendStateMark(for: entry)
+                        .offset(
+                            x: -(OneDayMetrics.minTapTarget
+                                + OneDayMetrics.spacingS)
                         )
                 }
                 .modifier(swipeReply(for: entry))
@@ -9869,6 +9987,7 @@ private struct ComposerBarLayout: Layout {
             quote: quote, sourceQuote: combinedSourceQuote
         )
         modelContext.insert(newEntry)
+        sessionSentEntryIDs.insert(newEntry.id)
         // 发送触感（2026-11-14 定版）：消息落盘上屏
         // 同帧补最轻档 impact——「把球交出去」一下轻
         // 震；自动重发/队列补发不经本函数、不许响
@@ -10334,7 +10453,7 @@ private struct ComposerBarLayout: Layout {
     }
 
     /// 待发条目重发（聊天可靠性包，2026-11-13）：
-    /// 用户点按气泡下「未发送 · 点按重发」触发——
+    /// 用户点按气泡旁待发时钟标记（§407）触发——
     /// 不新建条目，用同一条目再走一遍「上传（仅暂
     /// 存载荷还在且未传成时）→定形→driveRun」；受
     /// 理/转对账后待发标记由 driveRun 脱落，再失
