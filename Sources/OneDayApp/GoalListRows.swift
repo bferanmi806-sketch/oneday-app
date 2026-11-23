@@ -47,6 +47,87 @@ struct UngroupedTaskRowView: View {
     }
 }
 
+/// 未归类任务管理页（§453，用户 2026-11-24 亲点）：
+/// 原整区（说明段＋逐条归组行）占目标页主体，与 Muse
+/// 目标页「纯目标列表」形态不符——整区移出主体、收进
+/// 本页，目标页只留一行入口。功能一件不少：说明、行
+/// 小字（状态＋来源）、归组菜单、失败注记全随区搬入。
+/// 数据与动作仍走 GoalsStore 同一口（归组→回读刷新）。
+/// 归类口径不变：只呈现＋用户点归，系统不自动归组
+/// 【2026-11-14 19:05 用户拍板】；纯系统/定时任务不
+/// 在此面（归台账）
+struct UngroupedTasksView: View {
+    @Environment(AppState.self) private var appState
+    private var store: GoalsStore {
+        appState.sharedGoalsStore()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("在对话里安排的、采纳点子时生成的任务，还没归到目标下。归组后，它的进展会记到那个目标里。")
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .padding(.bottom, OneDayMetrics.spacingS)
+                VStack(spacing: 0) {
+                    ForEach(store.ungroupedTasks, id: \.taskId) { row in
+                        if row.taskId
+                            != store.ungroupedTasks.first?.taskId {
+                            GroupDivider()
+                        }
+                        UngroupedTaskRowView(
+                            row: row,
+                            detail: Self.rowDetail(row),
+                            targets: store.goals.filter {
+                                $0.status == .active
+                            }
+                        ) { goalID in
+                            Task {
+                                await store.assignUngroupedTask(
+                                    appState: appState,
+                                    taskID: row.taskId,
+                                    toGoalID: goalID
+                                )
+                            }
+                        }
+                    }
+                }
+                if store.ungroupedTasks.isEmpty {
+                    Text("暂时没有未归类的任务。")
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .padding(.vertical, OneDayMetrics.spacingSM)
+                }
+                if let note = store.ungroupedNote {
+                    Text(note)
+                        .font(.footnote)
+                        .foregroundStyle(Palette.danger)
+                        .padding(.top, OneDayMetrics.spacingS)
+                }
+            }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.vertical, OneDayMetrics.spacingM)
+        }
+        .background(Palette.pageBG.ignoresSafeArea())
+        .navigationTitle("未归类任务")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// 未归类行小字：状态（桥给的原生状态经既有状态
+    /// 呈现解析）＋来源；状态缺失时只给来源，不编
+    /// （自 GoalsView 原 helper 随区搬入，口径逐字不变）
+    private static func rowDetail(
+        _ row: BridgeUngroupedTask
+    ) -> String {
+        let origin = UngroupedTaskPresentation.originLabel(row.origin)
+        guard let status = row.status else { return origin }
+        let label = KanbanStatusPresentation.resolve(
+            status: status, blockKind: nil, lastFailureError: nil
+        ).label
+        return "\(label) · \(origin)"
+    }
+}
+
 /// 分类七行（0.40.0）：图标＋类名＋右端「＋」，空态整页
 /// 与分类选择 sheet 共用同一组件（规格第三章：同一分类
 /// 组件两处复用）。图标走 SF Symbols 同语义位（宪法
@@ -335,7 +416,10 @@ struct GoalRowView: View {
                             .font(.body)
                             .foregroundStyle(Palette.inkSecondary)
                             // §364：截断 2→3 行（对位 Muse 2–3 行）
-                            .lineLimit(3)
+                            // §453 改判 4 行：用户 2026-11-24
+                            // 截图实证 Muse 现状摘要全显可达
+                            // 4 行，3 行会腰斩最新进展条目
+                            .lineLimit(4)
                             .multilineTextAlignment(.leading)
                     }
                     // 活动行（GD-1 呈现，§238）：桥派生

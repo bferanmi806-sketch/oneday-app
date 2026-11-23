@@ -29,7 +29,6 @@ struct IdeasView: View {
     private var kanban: KanbanStore {
         appState.sharedKanbanStore()
     }
-    @State private var showCreate = false
     @State private var deleteCandidate: BridgeIdea?
     /// 详情 sheet 的当前点子（0.47.0：点行不再推页）
     @State private var selectedIdeaID: String?
@@ -79,15 +78,6 @@ struct IdeasView: View {
                     .ignoresSafeArea()
             }
             .navigationTitle("点子")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showCreate = true
-                    } label: {
-                        Label("新建点子", systemImage: "plus")
-                    }
-                }
-            }
             .task {
                 await store.loadIfNeeded(appState: appState)
                 // §177：底栏角标退役后进页不再推进
@@ -95,9 +85,6 @@ struct IdeasView: View {
                 if !store.adoptedIdeas.isEmpty {
                     await kanban.load(appState: appState)
                 }
-            }
-            .sheet(isPresented: $showCreate) {
-                IdeaCreateView(store: store)
             }
             .sheet(isPresented: Binding(
                 get: { selectedIdeaID != nil },
@@ -201,13 +188,13 @@ struct IdeasView: View {
                 ODEmptyState(
                     "还没有点子",
                     systemImage: "lightbulb",
-                    description: "每天早上我会想一轮，你也可以点右上角＋先记一个"
+                    description: "点子都由我来想——每天早上我会想一轮，想到新的就会出现在这里"
                 )
             case .cleared:
                 ODEmptyState(
                     "这一轮的点子都处理完了",
                     systemImage: "checkmark.circle",
-                    description: "明早会再想一轮；也可以点右上角＋自己记一个"
+                    description: "明早会再想一轮，想到新的就会出现在这里"
                 )
             }
         } else {
@@ -400,9 +387,11 @@ struct IdeaRowView: View {
     }
 }
 
-/// 点子详情（0.47.0 §117 对标形态）：底部 sheet 呈
-/// 现——标题→正文全文→依据小节→「包含哪些内容」
-/// 交付物清单（蓝勾圆）→信息组小字；底部固定动作
+/// 点子详情（0.47.0 §117 对标形态；§453 用户
+/// 2026-11-24 亲裁收构成）：底部 sheet 呈现——只
+/// 留标题→摘要正文→「包含哪些内容」交付物清单
+/// （蓝勾圆）；依据小节与信息组（来源/生成于罗
+/// 列）整形态退役、不许搬进 sheet；底部固定动作
 /// 栏＝左侧浅灰圆形「···」菜单（太泛了/忽略/删除，
 /// 沿用既有 store 动作）＋通栏蓝色胶囊主钮。
 /// 0.48.0（§122，用户亲定）：主钮落点改开旁聊——
@@ -452,19 +441,12 @@ struct IdeaDetailView: View {
                                     .foregroundStyle(Palette.bodyInk)
                             }
                         }
-                        if idea.source == .generated,
-                           !idea.evidence.isEmpty {
-                            GroupDivider()
-                            evidenceSection(idea)
-                        }
                         if IdeaDeliverablesSection.isVisible(
                             idea.deliverables
                         ) {
                             GroupDivider()
                             deliverablesSection(idea)
                         }
-                        GroupDivider()
-                        infoGroup(idea)
                         if let note = store.notes[idea.id] {
                             InlineError(note)
                         }
@@ -521,18 +503,6 @@ struct IdeaDetailView: View {
         }
     }
 
-    private func evidenceSection(_ idea: BridgeIdea) -> some View {
-        VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
-            Text("依据")
-                .font(.headline)
-                .foregroundStyle(Palette.bodyInk)
-            Text(idea.evidence)
-                .font(.body)
-                .foregroundStyle(Palette.bodyInk)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     /// 「包含哪些内容」（0.47.0 §117）：交付物行＝粗
     /// 体名＋灰副文＋右侧蓝色实心对勾圆；小节标题右
     /// 侧剪贴板图标与 Muse 同位
@@ -576,56 +546,6 @@ struct IdeaDetailView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func infoGroup(_ idea: BridgeIdea) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("信息")
-                .padding(.bottom, OneDayMetrics.spacingS)
-            VStack(spacing: 0) {
-                FieldRow(label: "来源") {
-                    Text(idea.source == .generated ? "生成" : "手记")
-                }
-                GroupDivider()
-                FieldRow(label: idea.source == .generated ? "生成于" : "记于") {
-                    Text(
-                        DisplayDate.dateTime(
-                            Date(timeIntervalSince1970: idea.createdAt)
-                        )
-                    )
-                }
-                if let expiresAt = idea.expiresAt {
-                    GroupDivider()
-                    FieldRow(label: "过期") {
-                        Text(
-                            DisplayDate.dateOnly(
-                                Date(timeIntervalSince1970: expiresAt)
-                            )
-                        )
-                    }
-                }
-                if let goalTitle = store.goalTitle(for: idea) {
-                    GroupDivider()
-                    FieldRow(label: "关联目标") {
-                        Text(goalTitle)
-                    }
-                }
-                if idea.isAdopted, idea.taskId != nil {
-                    GroupDivider()
-                    FieldRow(label: "任务状态") {
-                        Text(
-                            store.taskStatusText(
-                                for: idea, kanban: kanban
-                            ) ?? "已转任务"
-                        )
-                    }
-                }
-                // §177：详情不再摆点子自身的状态字
-                // （待阅/已采纳/已忽略/已过期）——状态
-                // 只决定卡进不进列表，不做呈现
-            }
-            .odGroup()
-        }
     }
 
     /// 底部动作栏（0.47.0 §117）：「···」圆钮收次要
@@ -771,105 +691,5 @@ struct IdeaDetailView: View {
             predicate: #Predicate { $0.id == id }
         )
         return try? modelContext.fetch(descriptor).first
-    }
-}
-
-/// 新建点子（sheet）：标题＋详情＋可挂目标（picker 只
-/// 列现存目标——服务端对假 goalId 回 400，客户端不给
-/// 选不存在的；目标列表是打开表单时 IdeasStore 已拉的
-/// 一批，提交时服务端再校验、错误透人话）
-struct IdeaCreateView: View {
-    @Environment(AppState.self) private var appState
-    @Environment(\.dismiss) private var dismiss
-
-    let store: IdeasStore
-
-    @State private var title = ""
-    @State private var detail = ""
-    @State private var goalId: String?
-    /// 分类（§177）：必选——无分类的卡不进列表，入
-    /// 口就不能产出无分类卡；选项与桥分类同表（Core
-    /// IdeaCategory.pickerOptions），存键不存名
-    @State private var categoryKey: String?
-
-    private var isValid: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && categoryKey != nil
-    }
-
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: OneDayMetrics.spacingL) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        SectionLabel("点子")
-                            .padding(.bottom, OneDayMetrics.spacingS)
-                        VStack(spacing: 0) {
-                            FieldRow(label: "标题") {
-                                TextField("一句话说清这个点子", text: $title)
-                            }
-                            GroupDivider()
-                            FieldRow(label: "详情") {
-                                TextField("可选", text: $detail, axis: .vertical)
-                                    .lineLimit(2...6)
-                            }
-                            GroupDivider()
-                            FieldRow(label: "分类") {
-                                Picker("分类", selection: $categoryKey) {
-                                    Text("请选择").tag(String?.none)
-                                    ForEach(
-                                        IdeaCategory.pickerOptions
-                                    ) { option in
-                                        Text(option.title)
-                                            .tag(String?.some(option.key))
-                                    }
-                                }
-                                .labelsHidden()
-                            }
-                            GroupDivider()
-                            FieldRow(label: "关联目标") {
-                                Picker("关联目标", selection: $goalId) {
-                                    Text("不关联").tag(String?.none)
-                                    ForEach(store.goals) { goal in
-                                        Text(goal.title)
-                                            .tag(String?.some(goal.id))
-                                    }
-                                }
-                                .labelsHidden()
-                            }
-                        }
-                        .odGroup()
-                    }
-                    if let error = store.createError {
-                        InlineError(error)
-                    }
-                }
-                .padding(.horizontal, OneDayMetrics.pageGutter)
-                .padding(.top, OneDayMetrics.spacingM)
-                .padding(.bottom, OneDayMetrics.spacingXL)
-            }
-            .background(Palette.pageBG)
-            .navigationTitle("新建点子")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(store.creating ? "创建中…" : "创建") {
-                        Task {
-                            if await store.create(
-                                appState: appState, title: title,
-                                detail: detail, goalId: goalId,
-                                category: categoryKey
-                            ) {
-                                dismiss()
-                            }
-                        }
-                    }
-                    .disabled(!isValid || store.creating)
-                }
-            }
-        }
     }
 }

@@ -60,8 +60,9 @@ struct FeedView: View {
     /// 清过滤态（见 readyContent 的 onChange）
     @State private var searchText = ""
     @State private var isSearching = false
-    /// 来源小 sheet 的当前帖（动作行 ⓘ 点按）
-    @State private var sourcesPost: BridgeFeedPost?
+    /// 「关于」展开节当前展开的帖 id（§453：动作
+    /// 行 ⓘ 原地 toggle，一次至多一帖展开）
+    @State private var expandedAboutID: String?
     /// §208 原帖回跳挂起中的帖 id：回跳请求已消费、
     /// 帖名单未就绪时先挂起，posts 到达后再判（见
     /// resolveFeedOpen）
@@ -162,12 +163,6 @@ struct FeedView: View {
             }
             .sheet(isPresented: $briefEditorShown) {
                 FeedBriefEditorView(store: store)
-            }
-            .sheet(item: $sourcesPost) { post in
-                FeedSourcesSheet(post: post) { ref in
-                    sourcesPost = nil
-                    path.append(Route.ref(ref))
-                }
             }
             // §208：聊天里点动态引用块的原帖回跳——请
             // 求在此消费（清零先行防重入），落点判定走
@@ -441,6 +436,9 @@ struct FeedView: View {
                 if !post.refs.isEmpty {
                     refsRow(post.refs)
                 }
+                if expandedAboutID == post.id {
+                    aboutSection(post)
+                }
                 actionRow(post)
             }
         }
@@ -453,10 +451,11 @@ struct FeedView: View {
         }
     }
 
-    /// 动作行（0.47.0）：讨论（以本帖开新会话）＋类
-    /// 别小字＋相对时间＋ⓘ（来源小 sheet）。行内含
-    /// 真按钮，0.43.0 的「动作行合并元素」自此退役
-    /// ——合并会吞掉按钮的可达性
+    /// 动作行（0.47.0；§453 收简约对 Muse 卡底
+    /// 定版）：♡＋讨论＋短相对时间＋ⓘ 四件——类别
+    /// 与方向撤出卡底归详情头，精确时刻搬进 ⓘ 的
+    /// 「关于」展开节。行内含真按钮，0.43.0 的「动
+    /// 作行合并元素」自此退役——合并吞按钮可达性
     @ViewBuilder
     private func actionRow(_ post: BridgeFeedPost) -> some View {
         if FeedSeedPosts.isSeed(post.id) {
@@ -522,35 +521,40 @@ struct FeedView: View {
                 HStack(spacing: OneDayMetrics.stackGap) {
                     Image(systemName: "text.bubble")
                     Text("讨论")
+                        .lineLimit(1)
                 }
                 .font(.subheadline)
                 .foregroundStyle(Palette.inkSecondary)
+                .fixedSize(horizontal: true, vertical: false)
             }
             .buttonStyle(.plain)
-            Text(post.kind.label)
-                .font(.footnote)
-                .foregroundStyle(Palette.inkSecondary)
-            if let direction = post.direction, !direction.isEmpty {
-                Text(direction)
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-            }
+            // §453：类别（kind.label）与方向撤出卡
+            // 底——归详情页头部（类别原已在详情头，
+            // 本包补方向），卡面只留四件
             // 动作行「未读」文字已撤（§126）：与底栏
             // 角标、行内蓝点同批取消未读提醒面
             Spacer()
-            Text(FeedBoard.relativeText(
+            Text(FeedBoard.relativeShortText(
                 for: post.createdAt, now: Date()
             ))
             .font(.footnote)
             .foregroundStyle(Palette.inkSecondary)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             Button {
                 markRead(post)
-                sourcesPost = post
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    expandedAboutID =
+                        expandedAboutID == post.id ? nil : post.id
+                }
             } label: {
-                Image(systemName: "info.circle")
+                Image(systemName: expandedAboutID == post.id
+                      ? "info.circle.fill" : "info.circle")
                     .font(.subheadline)
-                    .foregroundStyle(Palette.inkSecondary)
+                    .foregroundStyle(
+                        expandedAboutID == post.id
+                            ? Palette.ink : Palette.inkSecondary
+                    )
                     // 第 83 条（命中域收口）：字形不变、命
                     // 中域外扩 44；负内边距按字形名义 15 抵
                     // 消（(44−15)/2），帖头行高由同排脚注文
@@ -563,8 +567,38 @@ struct FeedView: View {
                     .padding(-(OneDayMetrics.minTapTarget - 15) / 2)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("来源")
+            .accessibilityLabel(
+                expandedAboutID == post.id ? "收起关于" : "关于"
+            )
         }
+    }
+
+    /// 「关于」展开节（§453 对 Muse 定版）：ⓘ 在
+    /// 卡内原地展开——标题「为何我创建这篇帖子」＋
+    /// 生成理由（why 真字段）＋节底精确时刻；无理
+    /// 由的帖只给时刻、不编理由。内容裁决在 Core
+    /// FeedBoard.aboutSection，展开态与 ⓘ 实心态绑定
+    @ViewBuilder
+    private func aboutSection(_ post: BridgeFeedPost) -> some View {
+        let about = FeedBoard.aboutSection(for: post)
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
+            Divider()
+            if about.showsHeading {
+                Text("为何我创建这篇帖子")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.inkSecondary)
+                if let reason = about.reason {
+                    Text(reason)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
+            }
+            Text(about.preciseTime)
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .transition(.opacity)
     }
 
     private func openPost(_ post: BridgeFeedPost) {
@@ -753,6 +787,15 @@ struct FeedPostDetailView: View {
                             Text(post.kind.label)
                                 .font(.footnote.weight(.medium))
                                 .foregroundStyle(Palette.inkSecondary)
+                            // §453：方向自卡底撤出后归
+                            // 此（类别原已在详情头）
+                            if let direction = post.direction,
+                               !direction.isEmpty {
+                                Text(direction)
+                                    .font(.footnote.weight(.medium))
+                                    .foregroundStyle(Palette.inkSecondary)
+                                    .lineLimit(1)
+                            }
                             Spacer()
                             // FA-2：种子帖无产出时刻，
                             // 详情头不显相对时间
@@ -1028,96 +1071,10 @@ struct FeedSourceCardView: View {
     }
 }
 
-/// 来源小 sheet（0.47.0 §117）：动作行 ⓘ 的落点——
-/// 为什么选这篇＋外链清单＋站内引用；数据全是帖自
-/// 带字段（桥真抓），没有的段整段不出现。点引用先
-/// 关 sheet 再由父视图压栈（onOpenRef 回调）
-struct FeedSourcesSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    let post: BridgeFeedPost
-    let onOpenRef: (BridgeFeedRef) -> Void
-
-    var body: some View {
-        NavigationStack {
-            List {
-                if let why = post.why, !why.isEmpty {
-                    Section {
-                        Text(why)
-                            .font(.subheadline)
-                            .foregroundStyle(Palette.bodyInk)
-                    } header: {
-                        Text("为什么选这篇")
-                    }
-                }
-                if !post.links.isEmpty {
-                    Section {
-                        ForEach(
-                            Array(post.links.enumerated()), id: \.offset
-                        ) { _, link in
-                            if let url = URL(string: link.url) {
-                                Link(destination: url) {
-                                    HStack(spacing: OneDayMetrics.rowInnerGap) {
-                                        Image(systemName: "link")
-                                            .font(.caption)
-                                        Text(link.title.isEmpty
-                                             ? link.url : link.title)
-                                            .lineLimit(2)
-                                    }
-                                    .font(.subheadline)
-                                }
-                            }
-                        }
-                    } header: {
-                        Text("链接")
-                    }
-                }
-                if !post.refs.isEmpty {
-                    Section {
-                        ForEach(
-                            Array(post.refs.enumerated()), id: \.offset
-                        ) { _, ref in
-                            if let type = ref.refType {
-                                Button {
-                                    dismiss()
-                                    onOpenRef(ref)
-                                } label: {
-                                    HStack(spacing: OneDayMetrics.rowInnerGap) {
-                                        Image(systemName: type.symbolName)
-                                            .font(.caption)
-                                        Text(type.label)
-                                            .foregroundStyle(Palette.bodyInk)
-                                        Spacer()
-                                        DisclosureChevron(font: .caption2.weight(.semibold))
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    } header: {
-                        Text("引用")
-                    }
-                }
-                if post.why == nil || post.why?.isEmpty == true,
-                   post.links.isEmpty, post.refs.isEmpty {
-                    Section {
-                        ContentUnavailableView(
-                            "这篇没有附带来源信息",
-                            systemImage: "info.circle"
-                        )
-                    }
-                }
-            }
-            .navigationTitle("来源")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
-    }
-}
+/// 来源小 sheet 已退役（§453）：ⓘ 改 Muse 式
+/// 「关于」原地展开节——why 归展开节，links/refs
+/// 归详情页（详情头与正文区已全量呈现），卡面不
+/// 再开 sheet
 
 /// 简报编辑器（0.38.0 两层制）：上层只写自己的话，
 /// 保存后由 AI 整理成下层的正式简报；正式简报可见
