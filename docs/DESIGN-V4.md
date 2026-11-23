@@ -16580,3 +16580,14 @@ FeedStore、IdeasStore、GoalsStore（C1 三店）；SessionLedger 可见段（l
 - 编译前置：build-for-testing TEST BUILD SUCCEEDED（22:35）。
 - 真机/活树门（留组版后）：冒烟门 testSmokeA4FilesGridFirstFrame 应转绿（本包未跑 UITests 轮，销 §401.4 缺口一以该例转绿为最终凭据，随 0.50.104 冒烟门轮一并验）。
 - 组版合并注记：本分支与新鲜度收口分支（feat/freshness-unify）同改 DeliverablesView.collect 区段（彼改 refresh 入口分工、此改 fetch 闭包与键表达式），组版时该区段须语义合并——演示分叉在 fetch 闭包内、与 refresh/refreshIfNeeded 入口分工正交，合并后两义须并存。
+
+## §420 量测台崩溃修复包 1「量测收口」（2026-11-23；分支 feat/rowmeasure-confine，基线 rel-05103 @3c7c9e7；施工图 rowmeasure-crash-spec-20261123.md 包 1）
+
+- 编号：原拟 §419，主线裁定排队包先占 §419、本包入档改 §420 防组版撞号；代码内断言哨与夹具类名（RowMeasureConfinement419Tests）的 §419 字样指哨名、保留不动。
+- 定因（图内实锤）：合成器两处直调 SelectableTextRepresentable.referenceHeight 绕过 ChatNativeTextMeasure 线程分发，后台工单可达全局共享 UITextView 量测台（SelectableTextView.swift:605 measuringView）变异段——0.50.99 崩①（153224.ips）成因、0.50.103 仍在。
+- 清查对账：全仓 referenceHeight／measuredSize／measuringView 消费点逐个登记——漏网直调 2 处（本包收口）；许留：ChatNativeTextMeasure 主线程支（assumeIsolated 内 referenceHeight :35／measuredSize :108）与 SelectableTextRepresentable.sizeThatFits 本体（:626）；LayoutProductService.swift:404-490 的 referenceHeight 仅影子账字段名、非量测台调用；measuringView 无外部消费点；测试侧直调 2 处（LayoutProductPoolTests:24、ChatSelectionProtectionAssemblyTests:205/210）均主线程、登记保留。
+- 落码（2 提交）：8b0771f 取证先行＝夹具 RowMeasureConfinement419Tests（量测台形态合成器、含代码块＋表格条目集、主/后台两路并发、等长 token 变体避静态文本备忘、逐条 ±1pt 同值对账）＋measuredSize 变异段主线程断言哨（debug-only、release 行为不变、留一个版本周期作回归哨）；75030c5 收口＝segmentHeight .code 分支改走 ChatNativeTextMeasure.height(width: 10_000)（原 width: nil 在 measuredWidth 同落 10_000——主线程逐值不变、后台落量测池）、tableCellTextHeight 改走 height（emptyLineHeight＝格 baseFont(.callout).lineHeight）。收口后全仓生产面 .referenceHeight( 只剩分发原语主线程支一处（grep 实证）。
+- 先红后绿：基线＋哨 RUN 22:32:14 exit 65——SelectableTextView.swift:684 Assertion failed「§419 量测台变异离主线程」由后台路触发、进程 abort（bundle Test-OneDayApp-rowmeasure419-red）；收口后 RUN 22:36:57 exit 0、夹具 2/2 过（bundle Test-OneDayApp-rowmeasure419-green）。
+- TSan 轮（RUN 22:59:32，日志归档 ~/build/rowmeasure419-tsan-20261123.log）：夹具＋LayoutProductPoolTests＋ChatNativeMeasureDeskTests 三套全 passed；生产量测路径（量测台／分发／池／合成器／Desk 工单执行）零 race 报告；2 条 Swift access race 均在 ChatNativeMeasureDeskTests 测试脚手架（LockedCounter 计数器、runPass 助手——raced 内存为测试本地变量、栈内生产帧仅回调测试闭包），既存、非包 1 表面，立账待包 2/3 或测试卫生单处置；该轮因 TSan issue 计 exit 65（suites 本身全绿）。
+- 回归第一轮（13 套 ChatNative／PreLayout／量测相关，RUN 23:09:57）：本树红 15 例（FollowSource 1、ListAssembly 5、R2 4、R3 3、R4 1、ProductionChain 1；105 failures／42 unexpected）；与 pristine 基线同集对账轮（RUN 23:17:19，bundle Test-OneDayApp-rowmeasure419-baseline）逐项比对——红名单完全一致（基线同为 105／42，Executed 73＝本树 75 减夹具 2 例），零新增回归；15 红为基线既存（装配套族在本通道整批红、与在册老红名单口径不符，留主线知悉）。整包关账口径（同树连绿两轮）依图等包 3 后统一关，本包只记第一轮。
+- 不碰：行高公式、量测池本体、备忘键、resolve／工单纪律（包 2/3）；与排队包线文件零交集（两线进度卡互证）。
