@@ -69,7 +69,7 @@ final class TabBarTemplateAssetStructureTests: XCTestCase {
             ("tab.feed", CGSize(width: 16.5086, height: 20.8188)),
             ("tab.ideas", CGSize(width: 13.1644, height: 23.1)),
             ("tab.goals", CGSize(width: 21.935, height: 19.6953)),
-            (tab.files, CGSize(width: 27.7955, height: 19.5188)),
+            ("tab.files", CGSize(width: 27.7955, height: 19.5188)),
         ]
         XCTAssertEqual(TabBarSymbols.all.map(\.asset), expected.map(\.0))
         for (name, size) in expected {
