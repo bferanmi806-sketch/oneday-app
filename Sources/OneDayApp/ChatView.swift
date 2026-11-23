@@ -5048,15 +5048,18 @@ struct ChatView: View {
         // 按压修饰退役）；无会话目标的行保持纯展示——
         // 无动作不装可点、连反馈也不给（原 enabled 旗
         // 语义逐字保留）
-        if let openableSessionID {
-            return Button {
-                openEchoSession(openableSessionID)
-            } label: {
+        return Group {
+            if let openableSessionID {
+                Button {
+                    openEchoSession(openableSessionID)
+                } label: {
+                    row
+                }
+                .buttonStyle(.odPressable)
+            } else {
                 row
             }
-            .buttonStyle(.odPressable)
         }
-        return row
     }
 
     /// 回响行时间要素：今天只给时刻、跨日带月日（与

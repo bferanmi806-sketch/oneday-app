@@ -1281,6 +1281,7 @@ struct AssistantMediaImage: View {
                     )
                 )
                 .accessibilityHint(L10n.string("查看大图"))
+            }
         }
         .task(id: path) {
             await FileMetadataStore.shared.verifyExistence(
