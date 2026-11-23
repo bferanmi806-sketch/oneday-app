@@ -10940,7 +10940,6 @@ private struct ComposerBarLayout: Layout {
         )
         for await envelope in stream {
             if let seq = envelope.seq { lastEventSeq = seq }
-            let now = ProcessInfo.processInfo.systemUptime
             switch envelope.event {
             case .contentDelta(let delta),
                  .interim(let delta):
@@ -10950,9 +10949,9 @@ private struct ComposerBarLayout: Layout {
                     // .sealedText，新段首增量在此重新记位
                     // ——位置即新段的事件位（工具卡之后）
                     noteLiveOrder(.text)
-                    // §409 步 A：增量只入装配器累积，
-                    // 不再发布快照写视图状态
-                    streamAssembler.offer(delta, at: now)
+                    // §409 步 A/E：增量只入装配器累
+                    // 积（纯累积器、无发布语义）
+                    streamAssembler.offer(delta)
                 }
             case .reasoningPreview(let text):
                 if reasoningStartedAt == nil {
@@ -10960,14 +10959,14 @@ private struct ComposerBarLayout: Layout {
                 }
                 // 0.36.10：思考首达记位（事件序编排）
                 noteLiveOrder(.reasoning)
-                // §409 步 A：思考增量只入累积器（落
-                // 盘源头），不再发布快照
-                reasoningPublishGate.offer(text, at: now)
+                // §409 步 A/E：思考增量只入累积器
+                // （落盘源头），不再发布快照
+                reasoningPublishGate.offer(text)
             case .toolStarted(let id, let name, let preview):
                 // 第 93 条：工具开始＝服务端段边界——
                 // 先封当前正文段再落卡，卡后的新段增量
                 // 进新缓冲，不许再拼回本段
-                sealStreamSegment(at: now)
+                sealStreamSegment()
                 appendLiveToolCard(
                     id: id, name: name, preview: preview
                 )
@@ -11002,9 +11001,9 @@ private struct ComposerBarLayout: Layout {
     /// 同步（旧镜像/快照回写/块催产三件已退役）。
     /// 当前段为空（工具先行/并行工具连发边界）时
     /// 装配器无段可封，此处整件空转
-    private func sealStreamSegment(at now: TimeInterval) {
+    private func sealStreamSegment() {
         guard streamAssembler
-            .sealCurrentSegment(at: now) != nil
+            .sealCurrentSegment() != nil
         else { return }
         let marker = LiveOrderItem.sealedText(
             streamAssembler.sealedSegments.count - 1
@@ -11639,13 +11638,10 @@ private struct ComposerBarLayout: Layout {
     /// 段与后段就此混为一谈）。标记外的卡/段（回填
     /// 重挂等）按卡序/段序殿后补齐，不丢件
     private func persistRunPartials(thread: ChatThread) {
-        let flushNow = ProcessInfo.processInfo.systemUptime
-        // §409 步 A：flush 只定稿装配器/累积器内部
-        // 口径，快照不再写视图状态——落盘直读
-        // fullSegments/fullText（与 flush 前逐字同
-        // 值，条目写入逻辑不变）
-        _ = streamAssembler.flushCurrent(at: flushNow)
-        _ = reasoningPublishGate.flush(at: flushNow)
+        // §409 步 E：装配器/累积器已是纯累积形态，
+        // fullSegments/fullText 每拍恒精确——旧
+        // flush 定稿两行随发布语义退役删除，落盘
+        // 直读两口径（条目写入逻辑逐字不变）
         deleteLivePartialEntries(in: thread)
         let reasoningText = reasoningPublishGate.fullText
         let segments = streamAssembler.fullSegments
@@ -11878,8 +11874,7 @@ private struct ComposerBarLayout: Layout {
                 rebuiltOrder.append(.text)
             }
             streamAssembler.restore(
-                sealed: sealedTexts, current: openText,
-                at: ProcessInfo.processInfo.systemUptime
+                sealed: sealedTexts, current: openText
             )
             liveOrder = rebuiltOrder
             streamingText = ""

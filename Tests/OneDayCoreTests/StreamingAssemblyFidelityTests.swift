@@ -9,17 +9,17 @@ import XCTest
 /// original-20261114.md），丢字在 App 侧。本套
 /// 两层钉死：
 /// 1) 数据装配层——分片序列把闭合 ** 切成独立
-///    小 delta（故障形态签名）喂发布闸，按视图
-///    侧真实节拍（offer＋40ms ticker collectDue
-///    ＋收尾 flush）装配，全文与原文逐字节一致、
-///    任一中间快照恒为原文前缀；
+///    小 delta（故障形态签名）喂累积器（§409 步
+///    E 瘦身后形态：offer 逐拍入账、无 ticker/
+///    flush），任一时刻全文恒为已喂分片的精确拼
+///    接、收尾与原文逐字节一致；
 /// 2) 呈现装配层——落定/流式共用的装配链（块
 ///    解析→段落整形→行内解析）对完整原文的标
 ///    题行须产出 strong run 且可见文本无字面 **
 ///    残留（整形劈定界符的回归面）
 final class StreamingAssemblyFidelityTests: XCTestCase {
 
-    // MARK: - 1) 发布闸装配逐字保真
+    // MARK: - 1) 累积器装配逐字保真（§409 步 E 改形态）
 
     func testGateAssemblyIsByteExactWithTinyClosingDeltas() {
         // 分片即原文的构造源：闭合 ** 恒为独立
@@ -35,36 +35,19 @@ final class StreamingAssemblyFidelityTests: XCTestCase {
         ]
         let original = parts.joined()
         var gate = StreamPublishGate()
-        var now: TimeInterval = 0
-        var lastSnapshot = ""
         for (index, delta) in parts.enumerated() {
-            now += 0.01
-            if let snapshot = gate.offer(delta, at: now) {
-                lastSnapshot = snapshot
-            }
-            // 视图侧 40ms ticker 的 collectDue 节拍
-            if index % 4 == 3,
-               let snapshot = gate.collectDue(at: now + 0.04) {
-                lastSnapshot = snapshot
-            }
-            // 任一时刻：已发布快照恒为原文前缀、
-            // 闸内全文恒等于已喂入分片的精确拼接
-            XCTAssertTrue(
-                original.hasPrefix(lastSnapshot),
-                "中间快照不是原文前缀（装配丢/造字）")
+            gate.offer(delta)
+            // 任一时刻：累积全文恒等于已喂入分片
+            // 的精确拼接（§409 步 E：无发布快照，
+            // fullText 即唯一口径、每拍精确）
             XCTAssertEqual(
                 gate.fullText,
                 parts[...index].joined(),
-                "闸内全文与已喂分片不一致")
-        }
-        if let snapshot = gate.flush(at: now + 1) {
-            lastSnapshot = snapshot
+                "累积全文与已喂分片不一致")
         }
         // 逐字节一致（utf8 序列直比，不走规范等价）
         XCTAssertEqual(
             Array(gate.fullText.utf8), Array(original.utf8))
-        XCTAssertEqual(
-            Array(lastSnapshot.utf8), Array(original.utf8))
     }
 
     // MARK: - 2) 呈现装配层保真
