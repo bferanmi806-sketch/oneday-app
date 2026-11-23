@@ -16284,3 +16284,25 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 生命周期门（§395）：版本对 0.50.101→0.50.102（journey-run-102.sh，留档 journey-result-102.txt 为单跑干净轮）——S1 装 0.50.101 标记写入、S3 升级 0.50.102 标记保留、S2 同版重装标记保留、S4 降级回 0.50.101 标记保留、S5 卸载后容器消失＋新装回初始态，五段全过、各段启动 ALIVE。
 - IPA：OneDay-0.50.102.ipa，15,771,775 字节，md5 169fddb0269f74c2e08b1a255058dd7f；本体 unzip 验三值 0.50.102／230／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 真机门（用户，未过不关账）：§407 发送路径——底部与中途滚动位各连发文本/图片/文件一组，无行移、无跳底失控；待发时钟与失败红叹号标记点达可见，状态翻转瞬间行高不变；生成中占位行恒高、回复落定整条不错行；文件行封面到手只换图、行高不变。
+
+## §413 落定行有高无内容热修（2026-11-23；分支 feat/settle-hotfix，基线 rel-05102 @64f2b56；取证 settle-text-missing-forensics-20261123.md）
+
+### §413.1 定因（取证判 §407 回归、部分定因偏强；本包钉测补完最后一拍）
+- 现象：0.50.102 真机——回复被朗读读完（数据面同源已证：applySettledTurn 同点建条目落盘＋autoRead 同 content），文本始终不出、用户行下方大块空白、回底箭头在显。
+- 机制：§407 把落定交换由同键重配换成「删 live-placeholder＋新键首见插入」；增量路 applyChangesNow 的落写序与旧路 applyNow 相反——旧路先 rows/rowsByKey 后 applySnapshot，增量路先 applySnapshot 后维护三账。快照 apply 内同步物化可见区新 cell 时，cell 供应器（makeDataSource）读 rowsByKey 未命中即返回未配置 cell、无兜底；且该键其后在追踪器/修订账/高度账三方均记「在席且正确」，后续趟无理由重配——不自愈，与真机「读完仍不出」严丝合缝。
+- 钉测补完：控制器级端到端例在测试宿主复现了该时序窗（见 §413.3 红先行实测），取证「静态读码不可分」的最后一拍就此落定为主判成立。
+
+### §413.2 落码（三处、同一不变量）
+1. **增量段落写序对齐**（ChatNativeList.applyChangesNow）：三账增量维护（rowsByKey/revisionsByKey 按键出入账）＋rows＝newRows 整段移到快照增量编辑之前，与旧路同序。cell 供应器兜底配置一案按取证二选一纪律**不采**（两处都改即凑绿、且兜底会掩盖落写序不变量）。
+2. **重建路同不变量**（applyChangesFullRebuild）：整批三账落写移到 applySnapshot 之前。立项依据＝本包附探针实测：短会话（落定前行集 2 行、插＋删≥行数）落定走本路、同红（即时 configuredKey＝nil）——用户真机现场（问候＋一问）亦在此量级，非假想面。
+3. **意图消费闸**（performSettleBeat，取证候选乙查实后落码）：landingIntent 消费判据加一位——直播占位行（键 live-placeholder）在席时不许消费。查实证据：探针实测占位稳态期后落定增长拍终距恰＝净增长 238.0（300−62）——占位行恒高使 contentSize 生成期逐值稳定、与「落定后稳定」在判据上不可分，意图被提前消费、增长拍无钉底承接。占位离席后判据照旧，在席期间每拍钉底照常执行；用户拖动清意图等既有边界不变。
+
+### §413.3 钉测（新套 ChatSettleExchangePinTests 3 例，红先行全程留痕）
+- 例一（增量路）：冷开→占位趟→落定趟全链，断言落定 cell 落写趟内已配置（configuredKey 命中＋configureCount≥1）＋快照序/高度账对账＋稳态末态在位。修前红：即时 configuredKey＝nil、configureCount＝0。
+- 例二（重建路）：短会话同链，修前同红、修后绿。
+- 例三（乙探针）：长列表在底＋意图在席→占位稳态多拍→落定增长拍断言终距≤0.5；修前红（238.0）、修后绿。
+- 修后三例全绿。末态断言口径注：测试壳舱座位走回落常量、静止位 offset 被钉底推过内容顶（壳几何伪影，measuredBottomSpace 派生 inset≈全高），故末态以「滚入可见区取 cell 验配置」断言行自身供应，不取静止位可见集；即时断言（落写趟内物化＋配置）为本套回归钉本体，修前红修后绿不依赖该口径。
+
+### §413.4 回归
+- 发布集口径：名单＝rel05102 的 130 套＋新增 ChatSettleExchangePinTests＝131 套。实跑 1029/1029 全绿、0 红、0 跳过（bundle Test-OneDayApp-settle413，xcresulttool 汇总 Passed 1029/Failed 0）；逐套计数与 rel05102 bundle 对账：唯一差异＝ChatSettleExchangePinTests +3，其余 130 套逐套零差异、两边非过集皆空。
+- 真机门（未过不关账，与 0.50.103 同版）：落定回复文本即时上屏（不再朗读完仍空白）；长会话生成期在底等待、落定后仍钉底；短会话首轮同验。与朗读点按包（§411）同版组 0.50.103。

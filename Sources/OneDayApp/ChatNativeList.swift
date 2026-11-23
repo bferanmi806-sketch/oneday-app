@@ -3029,6 +3029,27 @@ final class ChatRootViewController: UIViewController,
         if heightsChanged {
             pendingLayoutInvalidation = true
         }
+        // §413：三账落写先行于快照编辑——与旧路
+        // applyNow 同序（彼处 rows/rowsByKey 先
+        // 于 applySnapshot）。快照 apply 内会同
+        // 步物化可见区新 cell、供应器当场读 rows-
+        // ByKey，三账在后即落定行有高无内容且不
+        // 自愈（0.50.102 真机主症状、钉测在案）
+        // 三账增量维护：按键行/按键修订只动变更
+        // 键（删出账、插/更/高-only 入现行值——
+        // 高-only 修订未变、修订账不写）
+        for key in effectiveDeleted {
+            rowsByKey[key] = nil
+            revisionsByKey[key] = nil
+        }
+        for (key, row) in changedRowByKey {
+            rowsByKey[key] = row
+            if changeSet.updated.contains(key)
+                || effectiveInserted.contains(key) {
+                revisionsByKey[key] = row.revision
+            }
+        }
+        rows = newRows
         // 快照增量编辑（两构造分流）：单 sec-
         // tion 构造＝条目级编辑（删条目→锚定插
         // 条目→重构）；逐行 section 构造＝sec-
@@ -3214,21 +3235,6 @@ final class ChatRootViewController: UIViewController,
                 reconfiguring: reconfigureKeys.count
             )
         }
-        // 三账增量维护：按键行/按键修订只动变更
-        // 键（删出账、插/更/高-only 入现行值——
-        // 高-only 修订未变、修订账不写）
-        for key in effectiveDeleted {
-            rowsByKey[key] = nil
-            revisionsByKey[key] = nil
-        }
-        for (key, row) in changedRowByKey {
-            rowsByKey[key] = row
-            if changeSet.updated.contains(key)
-                || effectiveInserted.contains(key) {
-                revisionsByKey[key] = row.revision
-            }
-        }
-        rows = newRows
         finishFeed(
             topInset: topInset,
             bottomMargin: newMargin,
@@ -3291,6 +3297,21 @@ final class ChatRootViewController: UIViewController,
             mergedHeights: mergedHeights,
             mergedFlags: mergedFlags
         )
+        // §413：三账先行于快照落写（与旧路同序、
+        // 与增量段同不变量）——重建路快照 apply
+        // 内同步物化的 cell 同读 rowsByKey，短会
+        // 话落定走本路实测同病（钉测在案）
+        rowsByKey = Dictionary(
+            uniqueKeysWithValues: newRows.map {
+                ($0.key, $0)
+            }
+        )
+        revisionsByKey = Dictionary(
+            uniqueKeysWithValues: newRows.map {
+                ($0.key, $0.revision)
+            }
+        )
+        rows = newRows
         applySnapshot(
             rebuiltSnapshot(
                 newKeys: newKeys,
@@ -3305,17 +3326,6 @@ final class ChatRootViewController: UIViewController,
             landingIntentSince = CACurrentMediaTime()
             landingSettleContentSize = nil
         }
-        rowsByKey = Dictionary(
-            uniqueKeysWithValues: newRows.map {
-                ($0.key, $0)
-            }
-        )
-        revisionsByKey = Dictionary(
-            uniqueKeysWithValues: newRows.map {
-                ($0.key, $0.revision)
-            }
-        )
-        rows = newRows
         finishFeed(
             topInset: topInset,
             bottomMargin: newMargin,
@@ -3539,9 +3549,20 @@ final class ChatRootViewController: UIViewController,
             let prePinDistance = currentDistance()
             pinToBottom()
             let csNow = collectionView.contentSize.height
+            // §413：消费加一位闸——直播占位行在
+            // 席（本轮未落定）时不许消费：占位行
+            // 恒高使 contentSize 在生成期逐值稳
+            // 定、与「落定后稳定」在判据上不可
+            // 分，提前消费会吃掉落定增长拍的钉
+            // 底承接（探针实测终距恰＝净增长）；
+            // 占位离席后判据照旧，在席期间本拍
+            // 钉底照常执行
             if prePinDistance <= 0.5
                 && currentDistance() <= 0.5
-                && landingSettleContentSize == csNow {
+                && landingSettleContentSize == csNow
+                && !rows.contains(
+                    where: { $0.key == "live-placeholder" }
+                ) {
                 // §302.3 消费判据＝上一钉熬过整拍：
                 // 本拍开口（布局冲刷后、钉前）已在
                 // 底＋钉后仍在底＋contentSize 与上一
