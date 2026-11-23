@@ -15817,3 +15817,48 @@ App 现状（基线实查）：168 委派路由零接线（grep 命中的 delega
 - 新增：OneDayCoreTests/HermesAdvancedModelsTests（17 件：四面契约解码、密钥预览往返、校验同义、pickerGroup 形、目录条目与看板动作结构钉）＋OneDayAppTests/AdvancedStoresTests（11 件：四 Store 加载三态/回读对账确认与未确认/预检拦截/一次性密钥/needs_restart 口径/curator 指名）。
 - 发布集回归：从 rel05098 发布 bundle 用 xcresulttool 提取 97 套全限定名（目标/套件）＋本包新 2 套，合计 845 件——**845/845 全绿、新红零**；S371（1 件）/S373（2 件）随集全绿。首轮跑 833 件 3 红，逐项定案：SettingsCatalog 两红是目录新增 delegation 条目的期望未同步（已更新测试口径：覆盖集加 .delegation、agent 组浏览序 toolsets 后加 delegation）；WebSourceExtractor 12 件首轮缺跑是名单文件末行无换行被 while read 吞掉（生成法已修、复跑 12 件全回）；ChatSwapStep4c 延迟探针首轮在多线满载下红（删冻 80ms vs 基线 50ms），复跑绿、本包未触聊天列表代码，判负载抖动。
 - S371/S373 随发布集同轮全绿（见上行）。
+## §391 OB 组六条合包（台账 174–179；2026-11-23；基线 rel-05098 @3f9598f，分支 feat/ob-bundle）
+
+用户 2026-11-23 令全部解冻、全线推进，本包承接第二波补位线：OB 组六条合包。内容口径一律以总表条目＋OpenBot 对位审计档（openbot-hermes-deep-study-20261119.md）为准，逐条先实查现状再定处置，三态＝落码／定案＋钉测／缺口登记。
+
+### §391.1 174 OB-F2 例程关系图（降维版）——落码
+
+- 实查：CronJob 的关系字段只有 deliver（投递目标）/model/provider/schedule 类，无 agent/profile 字段——「自动化关系」在本部署的真源即任务→投递目标；CronStore 已是三面共享单源（台账 198），详情页 CronJobDetailView 在役；投递译名已有 Core CronPresentation.deliverLabel 单源。
+- 落码：Core 新增 CronRelationGraph（纯函数组装：投递按「人能分辨的目标」归一——平台形按平台聚合、origin/local/log 各成一目标、缺失落「未指定投递」桶；目标按任务数降序、边与成员一致性由 Core 测把守）；App 新增 CronRelationGraphView（左任务节点/右目标节点/Canvas 连线，坐标由行序纯算不测量；点任务直推既有详情、点目标高亮其全部任务）；入口＝定时任务页工具栏「关系图」。无拖拽/缩放/编辑（桌面画布不移植，审计定版）。
+- 真机门：任务多时图面滚动与连线对位、点节点进详情、高亮切换。
+
+### §391.2 175 OB-U3 更新编排——App 侧落码＋服务端半边定案
+
+- 实查：服务端半边已由 H12 案 A 落地（§360「版本与更新」只读感知：版本/回执/托管说明，执行在运维侧、App 内永不设更新执行钮）——本条服务端半边**定案**、不重复造面。「等待要说清为什么等」在服务端更新语境即回执 displayText 如实呈现，已在 §360 口径内。
+- App 侧缺口属实：关于页只有版本号、无更新说明；且 OneDayVersionLabel 字面量停在 v0.50.78、与发货 0.50.98 脱节（实查坐实）。
+- 落码：①OneDayVersionLabel 改现读 Bundle（CFBundleShortVersionString/CFBundleVersion，读不到回落字面量），设置页脚与关于页 hero 同受益；②Core 新增 ReleaseNotes 随包表（0.50.94–0.50.98 五条已发货版本人话要点，出处＝各版组版记账；新版组版时表头加一条为后续纪律）；③关于页新增「更新说明」段：当前版本（按 Bundle 真值对账）在首带「当前版本」标、此前版本随后，当前版本不在表中整表呈现不冒充。
+
+### §391.3 176 OB-U4 全局统一搜索——落码
+
+- 实查：会话搜索已有服务端端点（/api/sessions/search，全部对话页在用、450ms 防抖）；设置页内已有 Core SettingsCatalog.search（§164）但只活在设置页内；文件（LibraryListStore 名单店）与定时（CronStore）各有共享店、无统一入口。
+- 落码：新增 GlobalSearchView（入口＝全部对话页工具栏放大镜，sheet＋NavigationStack）：会话走服务端端点（防抖同口径、命中走宿主 onOpenSearchHit 同路落点）；文件走名单店现名单（未载入时同 DeliverablesView 的 fileLibrary 接线触发对账，命中置 fileRevealPath＋切文件格）；定时走 CronStore（命中在本栈直推既有详情）；设置走 SettingsCatalog.search（命中置 pendingSettingsRoute＋settingsSheetRequested）。顺带收口：目的地→路由映射自 SettingsView 私有函数上收 AppRouter 的 SettingsRoute.from(destination:)，设置页改委托、两面共用一份（防双轨漂移）。
+
+### §391.4 177 OB-U5 空状态编排——落码（组件＋主面迁移，余面登记续迁）
+
+- 实查：全仓 ContentUnavailableView 约 57 处/26 文件；动效令牌 MotionTokens.entrance 已定版（0.45 easeOut、每屏至多一次）。
+- 落码：OneDayDesign 新增 ODEmptyState（图标→标题→说明→动作四阶段入场、阶段差 90ms、entrance 收束；减动效时阶段差归零、去位移只留淡入——与 OB-U5 审计「减动效只保留淡入、去掉位移」逐字对位）。已迁移主空态：动态（刚上线/近来没有新动态）、点子（还没有点子/都处理完了）、文件（DeliverablesView.emptyState 助手一处、两调用点受益）、定时（还没有定时任务）、关系图空态。未迁：其余约 50 处（多为错误态/搜索无结果/详情缺失等非首印象面）登记续迁——后续逐面换、组件已在位，不再新写裸 ContentUnavailableView 主空态。
+
+### §391.5 178 OB-U6 首启免费兜底——定案＋钉测；OB-I3 落码；OB-I2 备查登记
+
+- OB-U6 实查定案：首连向导（ConnectView）全程无付费路径——欢迎面双出口已在位（主路「连接已有服务器」＋备路「还没有服务器？了解部署」），登录三式（密码/密钥/扫码认领）全为自有服务器凭据、无计划/订阅步。OpenBot「付费路径旁留免费出口阀」的分寸在本 App 由形态本身满足（根本没有付费路径），**定案**；防回潮钉测：结构测断言 ConnectView 全文无 StoreKit/付费/订阅/购买/purchase 等付费面符号、双出口文案在场。
+- OB-I3（并入本条）实查：§140 提示纪律本已规定错误族常驻，但无动作位的失败一直借道提示条.extended 8 秒自清——删除失败（§232）、编辑/重新生成 rewind 失败、反应失败、附件/文件被拒汇总、无效路径、朗读失败共 11 处；图片查看器提示把失败（保存失败/权限缺失/分享准备失败/图未加载完）与成功混在同一 2.5 秒自清里。
+- OB-I3 落码：①Core ChatNoticeTier 新增.persistent 常驻档（autoDismissSeconds 改 Optional、常驻为 nil；ChatNoticeTests 同步扩档）；ChatView.showNotice 对常驻档不起计时（只许 ✕ 手关），上述 11 处失败改判.persistent；②ImageViewerView 提示分型 ViewerNotice（isFailure）——失败常驻＋点按关闭、成功/状态沿旧制 2.5 秒自清。告知类（生成仍在进行等状态告知）不改判、仍自清。
+- OB-I2（动作音效）：按总表注记备查低优先——本包**登记不落码**，触感体系稳定后再议。
+
+### §391.6 179 OB-I1 聊天个性化——落码两件＋backdrop 缺口登记
+
+- 实查：外观页已有主题（颜色）/形象档/模式/回复呈现四组；气泡圆角三值（bubbleCorner/assistantBubbleCorner/bubbleTailCorner＝22/22/7）是 OneDayMetrics 常量、消费点全为聊天呈现；聊天背景是 chatSurface 单点背景层（ChatView 一处），但 chatSurface 本体被抽屉等多面共用、不可直接改值。
+- 落码（可选开关、默认定版）：Core 新增 ChatBubbleStyle（定版 22/22/7＝旧常量逐值恒等／圆润 28/28/10／利落 12/12/4）与 ChatBackgroundStyle（默认/雾灰/石板），键 chatBubbleStyle/chatBackground 入 AppearanceStorageKeys、读口入 AppearancePreferences（未设/脏值回 standard，与主题读口同制）；Palette 三角改现读个性化档（未设置呈现零变化），新增 Palette.chatBackground（默认档与 chatSurface 逐值相同、另两档冷中性灰阶浅暗成对），ChatView 背景层改读 chatBackground（抽屉等共用面不跟随）；外观页新增「聊天个性化」区（两 Picker＋区脚明示默认即定版），顶部预览随之同变。
+- 缺口登记：智能体专属 backdrop 未落——需逐智能体的背景资产与身份 plumbing（当前聊天页无「当前智能体」呈现锚点可挂），且与 146 定版的关系需单独出图拍板；本包只落「全聊天统一背景」一层，backdrop 另行立项，不硬造。
+
+### §391.7 回归与真机门
+
+- 新增测试：OneDayCoreTests/OBBundleCoreTests（图组装/说明表/个性化读口）、OneDayAppTests/OBBundleStructureTests（六条形态把守 8 件）、ChatNoticeTests 扩档（2 件改写）。
+- 发布集口径回归（审计补完轮回填，2026-11-23）：名单＝rel05098 bundle 提取 97 套 817 项全限定名＋本包新 2 套 18 项（OBBundleCoreTests 10＋OBBundleStructureTests 8）＝99 套 835 项，bundle Test-OneDayApp-obbundle 逐套对账：834 过／1 红／0 跳过。唯一红＝ChatSwapStep4cProbeTests.testDrawerWindowLatencyAndCostDroppedVsRetained（基线在册的时序成本探针，断言 0.07288＞0.07235、差 0.7%，与本包 diff 零交集；同日多线满载下触发，隔离复跑 1/1 绿、bundle Test-OneDayApp-obbundle-probe——按时序 flake 定案，不作本包回归）。另：ChatNoticeTests 不在发布集 97 套内（rel05098 bundle 实查无此套），因本包改写其 2 件，单独定向跑 9/9 全绿（bundle Test-OneDayApp-obbundle-notice）。
+- S371/S373：在发布集内同轮全绿（ChatRootChainStructureS371Tests／ChatDepthStructureS373Tests 均过，ChatView 根链零新增修饰层——本包 ChatView 改动仅提示档位与背景令牌读口）。
+- 真机门（随并入版）：关系图连线对位与点入详情；全局搜索四类命中落点各一遍；关于页更新说明与当前版本对账；空态入场与减动效降级；失败提示常驻（删会话失败/反应失败各一）；气泡样式与聊天背景改选即时生效且默认零变化。

@@ -98,6 +98,52 @@ enum SettingsRoute: Hashable {
     case crashReports
 }
 
+/// 目的地 → 设置路由映射（原 SettingsView 内私有，
+/// 台账 176/DESIGN §391 起收口共用：设置页与全局搜索
+/// 共用一份，不许再各写一份）；sheet 三件与无路由项
+/// 返回 nil，由调用方分流
+extension SettingsRoute {
+    static func from(
+        destination: SettingsDestination
+    ) -> SettingsRoute? {
+        switch destination {
+        case .identity: return .identity
+        case .profiles: return .profiles
+        case .memory: return .agent(.memory)
+        case .skills: return .agent(.skills)
+        case .toolsets: return .agent(.toolsets)
+        case .delegation: return .agent(.delegation)
+        case .cron: return .agent(.cron)
+        case .models: return .models
+        case .envVars: return .envVars
+        case .usage: return .usage
+        case .serverDetail: return .serverDetail
+        case .connectors: return .agent(.mcp)
+        case .devicePermissions: return .agent(.devicePermissions)
+        case .approvalRules: return .agent(.approvalRules)
+        case .gateway: return .gateway
+        case .logs: return .logs
+        case .appearance: return .appearance
+        case .help: return .help
+        case .about: return .about
+        case .privacy: return .privacy
+        case .terms: return .terms
+        case .computer, .serverFiles,
+             .disconnect, .serverSessions: return nil
+        case .status: return .status
+        case .mainSession: return .mainSession
+        case .healthCheck: return .healthCheck
+        case .connectionSelfCheck: return .connectionSelfCheck
+        case .voice: return .voice
+        case .notifications: return .notifications
+        case .addDevice: return .addDevice
+        case .pairingManagement: return .pairingManagement
+        case .chatDiagnostics: return .chatDiagnostics
+        case .crashReports: return .crashReports
+        }
+    }
+}
+
 /// 「工作区」组两页的 sheet 呈现槽枚举（原定义在
 /// SettingsView 内部、旧工作区枢纽页反向借用——
 /// §305 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现

@@ -891,7 +891,9 @@ struct ChatView: View {
         ) { _, notice in
             if let notice {
                 if !noticePresentation.isPresenting {
-                    showNotice(notice, tier: .extended)
+                    // OB-I3（§391）：删除失败是需要人知
+                    // 道的失败——常驻、手关才退场
+                    showNotice(notice, tier: .persistent)
                 }
                 appState.consumeSessionDeletionFailureNotice()
             }
@@ -1343,7 +1345,11 @@ struct ChatView: View {
                 // 复，页面背景单独忽略安全区铺满整屏，栏下内
                 // 容能流到位时边缘即由滚动效果化开
                 .background {
-                    Palette.chatSurface
+                    // 台账 179（§391）：背景走个性化读口
+                    // ——默认档与 chatSurface 逐值相同，
+                    // 改选只动本层（抽屉等共用 chatSur-
+                    // face 的面不跟随）
+                    Palette.chatBackground
                         .ignoresSafeArea()
                 }
                 // §186 配套（诊断 K1）：聚焦打字时隐藏导航坞——
@@ -1681,7 +1687,7 @@ struct ChatView: View {
             _, newState in
             switch newState {
             case .failed(_, let message):
-                showNotice(message)
+                showNotice(message, tier: .persistent)
             case .playing:
                 A11yAnnouncer.announce(
                     L10n.string("正在朗读")
@@ -2367,7 +2373,7 @@ struct ChatView: View {
         if let deletionNotice =
             appState.sessionDeletionFailureNotice {
             if !noticePresentation.isPresenting {
-                showNotice(deletionNotice, tier: .extended)
+                showNotice(deletionNotice, tier: .persistent)
             }
             appState.consumeSessionDeletionFailureNotice()
         }
@@ -3476,7 +3482,7 @@ struct ChatView: View {
                     invalidTarget: "这条消息太早了，没法再编辑。",
                     conflict: "对话刚刚有新变化，这次编辑没生效，原来的对话没有动。再试一次就行。",
                     fallback: "这次编辑没生效，原来的对话没有动。再试一次就行。"
-                ))
+                ), tier: .persistent)
                 Haptics.error()
                 return
             }
@@ -3566,7 +3572,7 @@ struct ChatView: View {
                     invalidTarget: "重新生成没成功，原来的回答没有动。再试一次就行。",
                     conflict: "重新生成没成功，原来的回答没有动。再试一次就行。",
                     fallback: "重新生成没成功，原来的回答没有动。再试一次就行。"
-                ))
+                ), tier: .persistent)
                 Haptics.error()
                 return
             }
@@ -3691,13 +3697,13 @@ struct ChatView: View {
             } catch let error as HermesError {
                 entry.applyReactions(previous)
                 try? modelContext.save()
-                showNotice(error.userMessage, tier: .extended)
+                showNotice(error.userMessage, tier: .persistent)
             } catch {
                 entry.applyReactions(previous)
                 try? modelContext.save()
                 showNotice(
                     L10n.string("反应没发出去，请稍后再试。"),
-                    tier: .extended
+                    tier: .persistent
                 )
             }
         }
@@ -6021,7 +6027,10 @@ struct ChatView: View {
             return
         }
         if FileOpenFailure.isInvalidPath(path) {
-            showNotice(FileOpenFailure.invalidPath.message())
+            showNotice(
+                FileOpenFailure.invalidPath.message(),
+                tier: .persistent
+            )
             return
         }
         fileOpenTarget = FileOpenTarget(path: path, anchor: anchor)
@@ -7198,22 +7207,24 @@ struct ChatView: View {
 
     /// 提示条赋值唯一口（§140 提示纪律第 3 条）：带档
     /// 位赋值即起自清计时（中性 5s／重要 8s，档位秒
-    /// 数在 Core ChatNoticeTier）；换代先取消旧计时，
-    /// 自清只清自己那一代（Core expire 代号判定），
-    /// 手关后旧计时到期不复活。计时模式沿听写提示行
-    /// 先例（DictationController.showNotice）
+    /// 数在 Core ChatNoticeTier）；常驻档（失败类，
+    /// OB-I3/§391）不起计时、只许手关。换代先取消旧
+    /// 计时，自清只清自己那一代（Core expire 代号判
+    /// 定），手关后旧计时到期不复活。计时模式沿听写
+    /// 提示行先例（DictationController.showNotice）
     private func showNotice(
         _ text: String, tier: ChatNoticeTier = .brief
     ) {
         let item = ChatNotice(text: text, tier: tier)
         noticePresentation.present(item)
         noticeDismissTask?.cancel()
-        noticeDismissTask = Task { @MainActor in
-            try? await Task.sleep(
-                for: .seconds(item.tier.autoDismissSeconds)
-            )
-            guard !Task.isCancelled else { return }
-            noticePresentation.expire(id: item.id)
+        noticeDismissTask = nil
+        if let seconds = item.tier.autoDismissSeconds {
+            noticeDismissTask = Task { @MainActor in
+                try? await Task.sleep(for: .seconds(seconds))
+                guard !Task.isCancelled else { return }
+                noticePresentation.expire(id: item.id)
+            }
         }
     }
 
@@ -8264,7 +8275,7 @@ private struct ComposerBarLayout: Layout {
             AttachmentPanel.failedPhotosNotice(count: failed),
         ].compactMap { $0 }
         if !notices.isEmpty {
-            showNotice(notices.joined(), tier: .extended)
+            showNotice(notices.joined(), tier: .persistent)
         }
     }
 
@@ -8333,7 +8344,7 @@ private struct ComposerBarLayout: Layout {
         if let notice = FileIntake.rejectionNotice(
             oversized: oversized, unreadable: unreadable
         ) {
-            showNotice(notice, tier: .extended)
+            showNotice(notice, tier: .persistent)
         }
     }
 
@@ -8420,7 +8431,7 @@ private struct ComposerBarLayout: Layout {
             ),
         ].compactMap { $0 }
         if !summaries.isEmpty {
-            showNotice(summaries.joined(), tier: .extended)
+            showNotice(summaries.joined(), tier: .persistent)
         }
     }
 

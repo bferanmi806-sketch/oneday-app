@@ -715,50 +715,13 @@ struct SettingsView: View {
         }
     }
 
-    /// 目的地 → 设置路由（sheet 三件与无路由项返回
-    /// nil，由 activate/特型行分流）
+    /// 目的地 → 设置路由（映射本体已收口 AppRouter
+    /// 侧 SettingsRoute.from(destination:)，设置页与
+    /// 全局搜索共用一份，DESIGN §391）
     private func route(
         for destination: SettingsDestination
     ) -> SettingsRoute? {
-        switch destination {
-        case .identity: return .identity
-        case .profiles: return .profiles
-        case .memory: return .agent(.memory)
-        case .skills: return .agent(.skills)
-        case .toolsets: return .agent(.toolsets)
-        case .delegation: return .agent(.delegation)
-        case .cron: return .agent(.cron)
-        case .models: return .models
-        case .envVars: return .envVars
-        case .usage: return .usage
-        case .serverDetail: return .serverDetail
-        case .connectors: return .agent(.mcp)
-        case .devicePermissions: return .agent(.devicePermissions)
-        case .approvalRules: return .agent(.approvalRules)
-        case .gateway: return .gateway
-        case .logs: return .logs
-        case .appearance: return .appearance
-        case .help: return .help
-        case .about: return .about
-        case .privacy: return .privacy
-        case .terms: return .terms
-        case .computer, .serverFiles,
-             .disconnect, .serverSessions: return nil
-        // prototype-2 叶子（枢纽页撤销后直达；重启网
-        // 关目的地已随台账 198 收敛 S4 退役、服务器会
-        // 话目的地随台账 199 收敛退役——会话管理归
-        // 全部对话）
-        case .status: return .status
-        case .mainSession: return .mainSession
-        case .healthCheck: return .healthCheck
-        case .connectionSelfCheck: return .connectionSelfCheck
-        case .voice: return .voice
-        case .notifications: return .notifications
-        case .addDevice: return .addDevice
-        case .pairingManagement: return .pairingManagement
-        case .chatDiagnostics: return .chatDiagnostics
-        case .crashReports: return .crashReports
-        }
+        SettingsRoute.from(destination: destination)
     }
 
     /// 条目行图标（SF 符号留 App 层；既有行图标沿旧

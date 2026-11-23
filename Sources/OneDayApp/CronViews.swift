@@ -65,10 +65,10 @@ struct CronJobsView: View {
                     }
                     .padding(.top, OneDayMetrics.spacingL)
                 } else {
-                    ContentUnavailableView(
+                    ODEmptyState(
                         "还没有定时任务",
                         systemImage: "clock.arrow.2.circlepath",
-                        description: Text("点右上角新建，让 Hermes 按计划自动干活。")
+                        description: "点右上角新建，让 Hermes 按计划自动干活。"
                     )
                     .padding(.top, OneDayMetrics.spacingXXL)
                 }
@@ -111,6 +111,17 @@ struct CronJobsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("模板") { showBlueprints = true }
                     .accessibilityLabel("从模板新建定时任务")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    CronRelationGraphView()
+                } label: {
+                    Image(
+                        systemName:
+                            "point.3.connected.trianglepath.dotted"
+                    )
+                }
+                .accessibilityLabel("关系图")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
