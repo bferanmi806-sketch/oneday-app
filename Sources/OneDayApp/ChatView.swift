@@ -6876,6 +6876,12 @@ struct ChatView: View {
         }
     }
 
+    /// 等待态气泡（§392：旧流式整段路死支退役）：
+    /// 非空流式正文恒走 nativeStreamingContent 的
+    /// StreamingBlockText（闭合段静态＋尾块渐显），
+    /// 本函数只承空文等待态（打字点／上传进度）——
+    /// 唯一调用点即 nativeStreamingContent 空文分支，
+    /// 非空分支旧 StreamingText 整段路已不可达、删除
     @ViewBuilder
     private func streamingBubble(_ text: String, menuEntry: ChatEntry? = nil) -> some View {
         if text.isEmpty {
@@ -6915,12 +6921,6 @@ struct ChatView: View {
                     TypingDots()
                         .padding(.vertical, OneDayMetrics.spacingXS)
                 }
-            }
-        } else {
-            assistantBubble(menuEntry: menuEntry) {
-                // 条 4（§14）：流式走渐显组件逐字入场；
-                // Markdown 只在落盘成品上渲染
-                StreamingText(text)
             }
         }
     }

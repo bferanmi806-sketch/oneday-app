@@ -15862,3 +15862,64 @@ App 现状（基线实查）：168 委派路由零接线（grep 命中的 delega
 - 发布集口径回归（审计补完轮回填，2026-11-23）：名单＝rel05098 bundle 提取 97 套 817 项全限定名＋本包新 2 套 18 项（OBBundleCoreTests 10＋OBBundleStructureTests 8）＝99 套 835 项，bundle Test-OneDayApp-obbundle 逐套对账：834 过／1 红／0 跳过。唯一红＝ChatSwapStep4cProbeTests.testDrawerWindowLatencyAndCostDroppedVsRetained（基线在册的时序成本探针，断言 0.07288＞0.07235、差 0.7%，与本包 diff 零交集；同日多线满载下触发，隔离复跑 1/1 绿、bundle Test-OneDayApp-obbundle-probe——按时序 flake 定案，不作本包回归）。另：ChatNoticeTests 不在发布集 97 套内（rel05098 bundle 实查无此套），因本包改写其 2 件，单独定向跑 9/9 全绿（bundle Test-OneDayApp-obbundle-notice）。
 - S371/S373：在发布集内同轮全绿（ChatRootChainStructureS371Tests／ChatDepthStructureS373Tests 均过，ChatView 根链零新增修饰层——本包 ChatView 改动仅提示档位与背景令牌读口）。
 - 真机门（随并入版）：关系图连线对位与点入详情；全局搜索四类命中落点各一遍；关于页更新说明与当前版本对账；空态入场与减动效降级；失败提示常驻（删会话失败/反应失败各一）；气泡样式与聊天背景改选即时生效且默认零变化。
+## §392 文本管线归属收敛＋同类横扫 15 处逐处处置（2026-11-23；分支 feat/text-pipeline-sweep，基线 rel-05098@3f9598f；待办总表第 72/79 条）
+
+### §392.1 第 72 条实查：管线归属现状（rel-05098 逐件点名）
+
+归属已单源的部分（核实属实，不动）：
+- **块解析**：Core `MarkdownParser`（MarkdownBlocks.swift），`MarkdownParseMemos.blocks` 记忆化，全仓唯一；消费＝MarkdownText／DocumentReading（PDF 导出）／装配层。
+- **行内语义**：Core `InlineRunBuilder`（InlineRuns.swift，内含 MarkdownInline 切删除线段＋系统行内解析读 intent，`MarkdownParseMemos.runs` 记忆化）；消费＝SelectableInlineText（呈现）／LayoutProductService（量测产物）／ChatView 用户泡 plainRuns。
+- **代码高亮词法**：Core `CodeHighlight.tokens`（记忆化），唯一消费＝MarkdownText.codeView；色映射在呈现层按角色落 Palette（呈现职，非解析分叉）。
+- **段装配**：Core `MarkdownMessageAssembler`（MarkdownMessage.swift）＋`MarkdownDelimiterAudit` 真值断言＋`MarkdownTablePresentation` 表格口径（封顶 168／>4 列降级），均单源。
+- **呈现**：App `MarkdownText` 单视图，消费面 5 处（聊天助手行／Feed 两处／SkillHub／ServerSessionDetail／StreamingBlockText 闭合段）；段落映射 `MarkdownText.proseParagraphs/quoteParagraphs` 静态单源，呈现与 LayoutProductService 量测共用（§251）。
+- **选字**：App `SelectableInlineText`＋`SelectableUITextView` 单件，全仓无第二份文本 Representable（grep 实查：余 Representable 皆图片/手势/锚点类）；代码块与表格格走 SwiftUI `.textSelection` 为 §149.3 定档次档（呈现档位差，非解析分叉，留）。
+
+未收敛残余（本包落码收口）：
+1. **表格格呈现私抄一份行内解析**：`MarkdownText.inline/inlineAttributed`（MarkdownText.swift 旧 :566-620）——App 层自带 `MarkdownInline.segments`＋`AttributedString(markdown:)`＋intent 重映射，与 Core InlineRunBuilder 同口径手抄，仅表格格（Grid/降级列表两形）消费。
+2. **表格格量测再抄一份**：`ChatNativeRowHeight.tableCellAttributed`（旧 :1462-1517）——同一语义第三份手抄（注释自承「与 MarkdownText.inline 同路」），呈现/量测两份手抄须人工同步、漂移即格高与渲染不符。
+3. **流式旧路死支**：`ChatView.streamingBubble` 非空分支（StreamingText 整段渲染）唯一调用点 nativeStreamingContent 只在 text.isEmpty 时调用、非空恒走 StreamingBlockText——旧流式路在新面内留不可达死支，徒增「流式有两路」的误读面。
+
+明示留（不动，附理由）：
+- `TextShaping.prettyWrap/shapeRuns`：台账 200 件四（2026-11-22 用户拍板）整形退役的恒等保留——入口留签名防调用方 churn、`wordJoiner` 常量供存量文本复制净化；非管线分叉，动它违已拍板口径。
+- `MessagePlainText`：复制/朗读的纯文本口径（目标可读、非渲染），与渲染管线异职、异消费（长按复制/VoiceSpeech），非分叉。
+- `ReasoningBlock` 纯 Text：0.5.1 定版口径（思考原文不进 Markdown 解析），非分叉。
+- 表格格/代码块 `.textSelection` 次档：§149.3 定档，见上。
+
+### §392.2 第 79 条逐处实查与处置（基线 same-class-sweep-20261114.md 15 处＋总根，rel-05098 逐处核对）
+
+三态口径：**收**＝已收口（他包落码、本包逐处核实属实，含本包落码者注明）；**留**＝本包不动、附理由与归属。
+
+| 处 | rel-05098 实查 | 处置 |
+|---|---|---|
+| 总根：UI 测试全 -odDemoMode、生产装配零真执行 | UI 测试仍全 -odDemoMode（演示装配＝真 App 装配＋内存库/DemoHermesClient）；冒烟门在 `origin/chore/smoke-gate` 分支 12 轮未合入出货线；但 App 层装配真执行已成批落地（SessionLedger 系列/ChatNativeListAssembly/LibraryListSnapshot 等进程内真装配测） | **留**：冒烟门合入为独立包——其基线在 §262 代、多例目标面已被 §374 换引擎/文件面重构改写（gen3 例已随承载退役失效），须按现行面重做而非直合；不在本包范围 |
+| A-1 连接页装配零执行 | `-odDemoConnect` 在 Tests/ 仍零引用；ConnectView 无任何测试落点 | **留**：冒烟门 A-1 例在 chore/smoke-gate 分支（首连 UI 例），随冒烟门包处置 |
+| A-2 升级存量迁移路径群 | 迁移执行本体已迁账本（第 90 条），`SessionLedgerTailCloseTests` 3 例 App 级真执行（refresh 触发迁移清本地/失败留痕保本地/旧键读写）；`chatModelMigrated149`、`legacyUsesCustomAvatar` 两一次性播种点已随后续收口退役、grep 零残留 | **收**（67/90＋TailClose 测，核实属实） |
+| A-3 设备权限三态与同步执行器 | Core 判定层有测：DevicePermissionFlowTests／DeviceSyncTests／DeviceSourcesTests；App 执行器（EventKit/Contacts/Photos 真读）与真权限三态模拟器 CI 原理不可构造（审计自述同判），授权铁律判定已下沉 Core 纯函数 | **留**：真机手验为既定口径，非 CI 可收 |
+| A-4 文件网格模式 | 文件网格已改 SwiftUI `LazyVGrid`（DeliverablesView:718）与列表同面同源，审计时「第二 UICollectionView 双承载」已消亡；网格渲染 UI 真执行仍缺（仅 Core LibraryDisplayMode.resolved 逻辑测） | **留**：危害已随双承载消亡降级；首帧真执行归冒烟门 |
+| A-5 服务端为空首帧群 | 各面空态分支在位（Feed/Goals 创建流/Files ContentUnavailableView/Hub 各段/Ideas），文件面空集有快照层测；生产空账号首帧无 UI 真执行 | **留**：纯呈现分支、无写路径与对账下游，危害最低；归冒烟门后续批次 |
+| A-6 英文语言路径 | 冒烟 A6 例抓到真 bug（英文档设置 sheet 不呈现）已修，并转常驻 UI 回归对 `SettingsSheetLocaleTests`（英/中各一）在出货树内——英文态首帧已有常驻真执行落点 | **收**（核心路径已收口；全 App 英文广覆盖余量归冒烟门后续批次） |
+| A-7 仅真服务器可达管理面群 | 呈现/判定多已下沉 Core 有测（CronPresentation 呈现测、EmptySessionCleanup 候选＋清理闸测、ServerLabels）；真服务器写路径（重启/环境变量/终端执行段）CI 原理不可真执行、DemoHermesClient 假回执为唯一 CI 形态 | **留**：真机＋服务端自测把守为既定口径 |
+| A-8 抽屉分区可见性关态 | Core 折叠/键逻辑有测（SectionCollapseTests 5+ 例）；关态装配 UI 真执行在冒烟门分支 A8 例 | **留**：审计自评「量级小、登记备查」；随冒烟门包处置 |
+| B-1 会话名单分页无去重无对账 ★ | `SessionLedger.fetchAllPages` 单一装配核：保首现序去重＋全程对账（重行/总数漂移/页上限走满任一→incompleteReason 打标留痕），删除向消费据标跳过；`testRefreshIncompleteGatesLiveSet` 钉住 | **收**（第 67 条包一，核实属实） |
+| B-2 清理扫描私抄第二份分页 | `EmptyCleanupView.fetchAllSessions` 私抄整段已退役、改走 `SessionLedger.fetchAll`（archived=include）＋`EmptyCleanupScanGate` 名单不完整不许生成候选；Package2 闸测 2 例钉住 | **收**（第 67 条包二，核实属实） |
+| B-3 全部对话两段装配＋对账回收 | 对账迁账本 `refresh()`：可见/归档双段皆 complete 才以并集存活集调 reconcileLocalThreads，任一不完整→跳过＋留痕（SessionLedger.swift:1054-1075 实查） | **收**（67/90，核实属实） |
+| B-4 频道页两套名单各自装配 | ChannelPairingView 已无任何会话名单（grep "session" 零命中）；频道面 HermesChannelView 读 `sessionLedger.visibleSessions` 账本投影；`testChannelListReadsLedgerProjection` 钉住 | **收**（第 67 条包二，核实属实） |
+| B-5 Hermes 全文取回 1000 静默截断 | 旧 HistoryImportStore.fetchAllHistory 已整件消亡；现行 SessionHistoryBackfiller 走 Core `SessionHistoryPagePlanner`（页 100、短页止、无条数上限）＋拉后与服务端 messageCount 对账，未对齐→historyUnsynced＋.partial，永不静默（§331 线） | **收**（§331，核实属实） |
+| C-1 文件网格 cell 复用池双承载 | 第二 UICollectionView 已随文件面重构消亡，文件/影音网格皆 SwiftUI LazyVGrid、与列表共用快照单源（§363/§369 线） | **收**（文件面重构，核实属实） |
+| C-2 影音网格长按预览复用池 | 自研长按预览已消亡：影音格长按＝系统 `.contextMenu`、点开走统一文件打开页（§259 QuickLook 单轨），无预览复用池残留（grep 实查） | **收**（文件面重构，核实属实） |
+
+分布：**收 9**（A-2／A-6／B-1／B-2／B-3／B-4／B-5／C-1／C-2）／**留 6**（A-1／A-3／A-4／A-5／A-7／A-8）／总根留（冒烟门独立包）。
+
+### §392.3 落码（第 72 条收敛三件）
+
+1. `MarkdownText.inline` 改走 Core 单源：删 `inlineAttributed` 私有系统解析，新增 `MarkdownText.cellAttributed(_:strongFont:)` 静态映射——`InlineRunBuilder.runs(for:)` 产语义 run，本函数只做 run→SwiftUI AttributedString 呈现映射（intent 按 run 旗标回填、strong 段映射 strongFont、斜体叠 intent、code 段字重/删线不碰、删线取 run 旗标、链接透传），与旧读法逐项同口径（解析失败降级在 builder 内、永不丢字）。
+2. `ChatNativeRowHeight.tableCellAttributed` 改走同一单源：run→NSAttributedString 映射，字体口径与旧逐字同（strong→.callout bold、余皆 .callout base；删线不入高、与旧「不拼」同）。
+3. `ChatView.streamingBubble` 删不可达非空死支（StreamingText 整段路），只承等待态（打字点/上传进度），注释登记非空流式正文恒走 nativeStreamingContent→StreamingBlockText。
+
+钉测（新增 `TextPipelineConvergenceTests`，OneDayAppTests）：
+- 语义等价：cellAttributed 对纯文本/粗体/粗斜体/行内码/删除线（含码段不划）/链接/未闭合字面六类样本逐 run 断言（文字保全、intent、strong 字体映射、删线、链接）。
+- 结构钉：Sources/OneDayApp 全目录不得再现 `AttributedString(markdown` 与 `MarkdownParsingOptions`（App 层零行内解析）；不得再现 `MarkdownInline.segments` 直调（删除线分段只许 Core 内消费）；`serverSessionsPage(` 调用点全仓恰一处且在 SessionLedger.swift（B 类私抄防回潮）。
+
+### §392.4 回归（回填）
+
+发布集口径（rel05098 基底 97 套 817 项）＋本包相关 7 套（新 TextPipelineConvergence 10／InlineRunBuilder 13／TextPipelineRunLayer 15／VisualRules 2／SessionLedgerApp 5／SessionLedgerPackage2 4／SessionLedgerTailClose 3＝52）＝**104 套 869 项全绿、零红**（xcresulttool summary：Passed 869／failed 0／skipped 0；`** TEST SUCCEEDED **`）。S371 1/1、S373 2/2 在发布集内同绿；ChatView 根链无新增修饰层（本包 ChatView 改动仅删死支＋注释）。首轮（10:09 kick）测试目标编译失败 3 处（新测文件 Run 类型名与属性断言写法），按生产同款推断式改写后二轮（10:56 kick）全绿——生产码两轮零改。真机门（归主线）：含表格消息一帧——格内粗体/链接/删除线呈现与旧版同、格高无跳变（量测同源替换）。
