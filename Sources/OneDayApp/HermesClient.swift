@@ -865,6 +865,18 @@ extension HermesClientProtocol {
             onProgress: onProgress
         )
     }
+
+    /// §452 默认实现（测试替身用）：无增量进度，
+    /// 完成后回一次满格；真实客户端覆盖为带进
+    /// 度回调版。
+    func fileDataWithProgress(
+        config: ServerConfig, path: String,
+        onProgress: @escaping @Sendable (Int64, Int64) -> Void
+    ) async throws -> Data {
+        let data = try await fileData(config: config, path: path)
+        onProgress(Int64(data.count), Int64(data.count))
+        return data
+    }
 }
 
 /// §410：/api/files/upload 请求体的流式拼装器（纯
