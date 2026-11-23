@@ -122,42 +122,41 @@ public enum HermesError: Error, Sendable {
                 "网络好像断了一下，这条没发出去。等网络稳一点，再发一次试试。",
                 locale: locale
             )
-        case .healthCheckFailed(let status):
-            return L10n.format(
-                "服务器健康检查没通过（状态 %@），可能不是 Hermes 服务，或版本太旧。",
-                locale: locale, String(status)
+        case .healthCheckFailed:
+            return L10n.string(
+                "服务器健康检查没通过，可能不是 Hermes 服务，或版本太旧。",
+                locale: locale
             )
         case .loginRejected:
             return L10n.string("登录被拒：密码不对（和伴生面板、网页端同一把）。", locale: locale)
         case .loginRateLimited:
             return L10n.string("登录试太多次了，请几分钟后再试。", locale: locale)
-        case .loginFailed(let status):
-            return L10n.format(
-                "登录失败（状态 %@），请稍后再试。",
-                locale: locale, String(status)
+        case .loginFailed:
+            return L10n.string(
+                "登录失败，请稍后再试。", locale: locale
             )
         case .apiKeyRejected:
             return L10n.string(
                 "API 密钥被拒：检查密钥是否填对、是否已被撤销。", locale: locale
             )
-        case .unexpectedStatus(let endpoint, let status):
-            return L10n.format(
-                "%@ 返回了状态 %@，请稍后再试。",
-                locale: locale, endpoint, String(status)
+        case .unexpectedStatus:
+            return L10n.string(
+                "服务器没能处理这个请求，请稍后再试。",
+                locale: locale
             )
         case .sessionBusy:
             return L10n.string(
                 "这条会话还在运行中，等它跑完再删。", locale: locale
             )
-        case .serverError(let endpoint, let status, _):
-            return L10n.format(
-                "%@ 返回了状态 %@，请稍后再试。",
-                locale: locale, endpoint, String(status)
+        case .serverError:
+            return L10n.string(
+                "服务器没能处理这个请求，请稍后再试。",
+                locale: locale
             )
-        case .decodingFailed(let endpoint):
-            return L10n.format(
-                "%@ 的返回看不懂，可能是服务端版本与 App 不匹配。",
-                locale: locale, endpoint
+        case .decodingFailed:
+            return L10n.string(
+                "服务器的返回看不懂，可能是服务端版本与 App 不匹配。",
+                locale: locale
             )
         case .speechProviderUnavailable:
             return L10n.string(
@@ -280,6 +279,118 @@ public enum HermesError: Error, Sendable {
             return .unreachable(L10n.string("无法建立连接", locale: locale))
         default:
             return .unreachable(L10n.string("网络错误", locale: locale))
+        }
+    }
+}
+
+/// 错误大类（G-03，DESIGN §389）：错误横幅的人话主
+/// 文案按类取底表——网络/鉴权/服务端/未知四类。分
+/// 类只认错误本体形态，不读文案字符串（防文案改字
+/// 漂移分类）。
+public enum HermesErrorCategory: String, CaseIterable, Sendable {
+    case network
+    case authentication
+    case server
+    case unknown
+
+    /// 四类底表（横幅主文案的最后兜底：错误本体没
+    /// 有更具体的人话时按类取此句；具体人话在
+    /// HermesError.userMessage，两者不许互相冒充）
+    public func headline(locale: Locale) -> String {
+        switch self {
+        case .network:
+            return L10n.string(
+                "网络好像不太稳，这一步没能完成。等网络恢复后再试一次。",
+                locale: locale
+            )
+        case .authentication:
+            return L10n.string(
+                "登录状态失效了，重新登录后再试。",
+                locale: locale
+            )
+        case .server:
+            return L10n.string(
+                "服务器那边出了点问题，这一步没能完成，请稍后再试。",
+                locale: locale
+            )
+        case .unknown:
+            return L10n.string(
+                "这一步没能完成，请稍后再试。",
+                locale: locale
+            )
+        }
+    }
+}
+
+extension HermesError {
+    /// 本错误归入的横幅大类（§389 映射表）：
+    /// - network：连不上/瞬断/run 网络中断——路径抖
+    ///   动优先归因，不许甩锅地址；
+    /// - authentication：登录/密钥/会话/认领码家族
+    ///   ——用户的下一步是重新登录或重新出码；
+    /// - server：服务端明确回错或其能力信号（健康
+    ///   检查/状态码/解码/欠费/超时/未开通等）；
+    /// - unknown：客户端校验与判不出的一律落此，
+    ///   不许冒充已分类。
+    public var category: HermesErrorCategory {
+        switch self {
+        case .unreachable, .transientNetwork, .runNetworkInterrupted:
+            return .network
+        case .loginRejected, .loginRateLimited, .loginFailed,
+             .apiKeyRejected, .sessionExpired,
+             .enrollmentCodeInvalid, .enrollmentCodeExpired,
+             .enrollmentLocked, .enrollmentTooManyPending:
+            return .authentication
+        case .healthCheckFailed, .unexpectedStatus, .serverError,
+             .decodingFailed, .sessionBusy,
+             .speechProviderUnavailable, .reactionTargetGone,
+             .modelNotUpstream,
+             .runBillingExhausted, .runServiceUnavailable,
+             .runTimedOut:
+            return .server
+        case .invalidServerAddress, .cancelled, .demoLimitReached,
+             .runFailedGeneric:
+            return .unknown
+        }
+    }
+
+    /// 诊断详情（G-03）：状态码/接口名/错误码只许
+    /// 进这里——错误横幅的「详情」展开与诊断日志共
+    /// 用，用户主文案（userMessage）永不带这些。无
+    /// 技术细节可给的错误返回 nil（横幅不显详情钮）
+    public var diagnosticDetail: String? {
+        switch self {
+        case .healthCheckFailed(let status):
+            return "健康检查 · HTTP \(status)"
+        case .loginFailed(let status):
+            return "登录 · HTTP \(status)"
+        case .unexpectedStatus(let endpoint, let status):
+            return "\(endpoint) · HTTP \(status)"
+        case .serverError(let endpoint, let status, let code):
+            return "\(endpoint) · HTTP \(status) · \(code)"
+        case .decodingFailed(let endpoint):
+            return "\(endpoint) · 响应解码失败"
+        case .unreachable(let detail):
+            return detail
+        default:
+            return nil
+        }
+    }
+
+    /// 是否分页契约被拒（台账 117，§389）：/messages
+    /// 分页被服务端以 400 invalid_pagination 拒——
+    /// 历史拉取链据此降级无参全量拉取。结构化码在
+    /// 场时只认码本体；裸 unexpectedStatus 无码可
+    /// 验，在分页调用点语境下 400 只此一种成因，按
+    /// 状态码认。
+    public var isPaginationRejected: Bool {
+        switch self {
+        case .serverError(_, let status, let code):
+            return status == 400 && code == "invalid_pagination"
+        case .unexpectedStatus(_, let status):
+            return status == 400
+        default:
+            return false
         }
     }
 }
