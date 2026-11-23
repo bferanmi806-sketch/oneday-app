@@ -24,6 +24,9 @@ struct NotificationSettingsView: View {
     @AppStorage(RunLiveActivityCenter.enabledKey)
     private var liveActivityEnabled = true
 
+    // §397 子项 3 组版接线：推送就绪面挂本面（唯一的家）
+    @Environment(AppState.self) private var appState
+
     var body: some View {
         List {
             Section {
@@ -76,6 +79,7 @@ struct NotificationSettingsView: View {
             }
             .listRowBackground(Palette.surface)
             .listRowInsets(settingsRowInsets)
+            PushReadinessView(store: appState.pushRegistration)
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
