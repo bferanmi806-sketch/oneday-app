@@ -656,6 +656,87 @@ public enum FeedBoard {
         }
     }
 
+    /// 动作行短相对时间（§453 对 Muse 动态卡底
+    /// 定版）：刚刚／N分钟／N小时／N天，满 7 天走
+    /// 日期（无时刻）；恒短式单行——卡面不带精确
+    /// 时刻，精确时刻住「关于」展开节（preciseText）
+    public static func relativeShortText(
+        for ts: Double, now: Date, calendar: Calendar = .current,
+        locale: Locale = AppLocale.uiLocale
+    ) -> String {
+        let date = Date(timeIntervalSince1970: ts)
+        let diff = now.timeIntervalSince(date)
+        if diff < 60 {
+            return L10n.string("刚刚", locale: locale)
+        }
+        let dayDiff = DisplayDate.dayDifference(
+            of: date, now: now, calendar: calendar
+        )
+        if dayDiff <= 0 {
+            if diff < 3600 {
+                return L10n.format(
+                    "%@分钟", locale: locale,
+                    String(Int(diff / 60))
+                )
+            }
+            return L10n.format(
+                "%@小时", locale: locale,
+                String(Int(diff / 3600))
+            )
+        }
+        if dayDiff <= 6 {
+            return L10n.format(
+                "%@天", locale: locale, String(dayDiff)
+            )
+        }
+        return DisplayDate.absoluteDate(
+            of: date, now: now, calendar: calendar, locale: locale
+        )
+    }
+
+    /// 「关于」展开节底部精确时刻（§453 对 Muse
+    /// 定版：星期六08:22 式——星期＋HH:mm 连写）
+    public static func preciseText(
+        for ts: Double, calendar: Calendar = .current,
+        locale: Locale = AppLocale.uiLocale
+    ) -> String {
+        let date = Date(timeIntervalSince1970: ts)
+        let weekday = DisplayDate.weekdayText(
+            of: date, calendar: calendar, locale: locale
+        )
+        let time = DisplayDate.timeText(
+            of: date, calendar: calendar, locale: locale
+        )
+        return "\(weekday)\(time)"
+    }
+
+    /// 「关于」展开节内容裁决（§453）：有生成理由
+    /// （why 真字段）→标题＋理由＋精确时刻；无理由
+    /// →只给精确时刻，不许编理由
+    public struct AboutSection: Equatable, Sendable {
+        public let showsHeading: Bool
+        public let reason: String?
+        public let preciseTime: String
+    }
+
+    public static func aboutSection(
+        for post: BridgeFeedPost, calendar: Calendar = .current,
+        locale: Locale = AppLocale.uiLocale
+    ) -> AboutSection {
+        let reason = post.why?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let hasReason = !(reason?.isEmpty ?? true)
+        return AboutSection(
+            showsHeading: hasReason,
+            reason: hasReason ? reason : nil,
+            preciseTime: preciseText(
+                for: post.createdAt, calendar: calendar,
+                locale: locale
+            )
+        )
+    }
+
     public static func unreadCount(_ posts: [BridgeFeedPost]) -> Int {
         posts.count { !$0.isRead }
     }

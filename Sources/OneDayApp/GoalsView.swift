@@ -182,7 +182,7 @@ struct GoalsView: View {
                     }
                     if !store.ungroupedTasks.isEmpty
                         || store.ungroupedNote != nil {
-                        ungroupedSection
+                        ungroupedEntryRow
                     }
                     createArea
                 }
@@ -362,83 +362,59 @@ struct GoalsView: View {
         }
     }
 
-    /// 未归类任务区（GD-2，调和读法）：你在对话里安
-    /// 排的、采纳点子时生成的任务，还没归到任何目标
-    /// 下的集中在这里，点「归组」选一个目标即可；归
-    /// 组后它的进展会记到那个目标里。纯系统/定时任
-    /// 务不在此面（归台账）。此区只呈现＋用户点归，
-    /// 系统不自动归组【归类口径：2026-11-14 19:05
-    /// 用户拍板，按审计提案落码视同已追认】
-    private var ungroupedSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("未归类任务")
-                .padding(.bottom, OneDayMetrics.spacingXS)
-            Text("在对话里安排的、采纳点子时生成的任务，还没归到目标下。归组后，它的进展会记到那个目标里。")
-                .font(.footnote)
-                .foregroundStyle(Palette.inkSecondary)
-                .padding(.bottom, OneDayMetrics.spacingS)
-            VStack(spacing: 0) {
-                ForEach(store.ungroupedTasks, id: \.taskId) { row in
-                    if row.taskId
-                        != store.ungroupedTasks.first?.taskId {
-                        GroupDivider()
-                    }
-                    UngroupedTaskRowView(
-                        row: row,
-                        detail: ungroupedRowDetail(row),
-                        targets: store.goals.filter {
-                            $0.status == .active
-                        }
-                    ) { goalID in
-                        Task {
-                            await store.assignUngroupedTask(
-                                appState: appState,
-                                taskID: row.taskId,
-                                toGoalID: goalID
-                            )
-                        }
-                    }
+    /// 未归类任务入口行（§453，用户 2026-11-24 亲
+    /// 点）：GD-2 整区（说明段＋逐条归组行）原占目标页
+    /// 主体——Muse 目标页是干净的目标列表（追踪中＋已
+    /// 完成折叠），归类杂务不占主体。整区移入独立管理
+    /// 页 UngroupedTasksView，主体只留此一行入口（有
+    /// 任务或有失败注记时才出现，口径同旧区）
+    private var ungroupedEntryRow: some View {
+        NavigationLink {
+            UngroupedTasksView()
+        } label: {
+            HStack(spacing: OneDayMetrics.spacingSM) {
+                Image(systemName: "checklist")
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(width: 24)
+                Text("未归类任务")
+                    .font(.body)
+                    .foregroundStyle(Palette.bodyInk)
+                if !store.ungroupedTasks.isEmpty {
+                    Text("\(store.ungroupedTasks.count)")
+                        .font(.body)
+                        .foregroundStyle(Palette.inkSecondary)
                 }
+                Spacer()
+                DisclosureChevron(
+                    font: .system(size: 14, weight: .regular)
+                )
             }
-            if let note = store.ungroupedNote {
-                Text(note)
-                    .font(.footnote)
-                    .foregroundStyle(Palette.danger)
-                    .padding(.top, OneDayMetrics.spacingS)
-            }
+            .contentShape(Rectangle())
         }
-    }
-
-    /// 未归类行小字：状态（桥给的原生状态经既有状态
-    /// 呈现解析）＋来源；状态缺失时只给来源，不编
-    private func ungroupedRowDetail(
-        _ row: BridgeUngroupedTask
-    ) -> String {
-        let origin = UngroupedTaskPresentation.originLabel(row.origin)
-        guard let status = row.status else { return origin }
-        let label = KanbanStatusPresentation.resolve(
-            status: status, blockKind: nil, lastFailureError: nil
-        ).label
-        return "\(label) · \(origin)"
+        .buttonStyle(.odPressable)
+        .accessibilityLabel(
+            "未归类任务，\(store.ungroupedTasks.count) 条"
+        )
     }
 
     /// 列表底常驻创建区（照 Muse 目标页图位置）：分隔线
-    /// 下「＋ 创建目标」＋一句说明；点入先出分类选择（与
-    /// 空态同一分类组件），选完出介绍卡（§238 三步流）
+    /// 下「＋ 创建目标」＋一句说明＋七分类行直接在列
+    /// （§453 对齐 Muse 底部形态、与空态同一分类组
+    /// 件）；点一行直达介绍卡（§238 三步流），工具栏
+    /// ＋仍走分类选择 sheet 为第二入口
     private var createArea: some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
             Divider()
-            Button {
-                createSheet = .categories
-            } label: {
-                Label("创建目标", systemImage: "plus")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(Palette.bodyInk)
-            }
-            .buttonStyle(.odPressable)
+            Label("创建目标", systemImage: "plus")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(Palette.bodyInk)
             Text("先选一个类别，再到对话里把目标聊定。定好之后它会出现在这里，进展和简报会慢慢长出来。")
                 .font(.body)
                 .foregroundStyle(Palette.inkSecondary)
+            GoalCategoryRowsView { category in
+                createSheet = .intro(category)
+            }
         }
         .padding(.top, OneDayMetrics.spacingS)
     }
