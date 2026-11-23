@@ -20,7 +20,8 @@ let project = Project(
             deploymentTargets: iOS26,
             infoPlist: .default,
             sources: ["Sources/OneDayCore/**"],
-            dependencies: []
+            // §417：swift-markdown 解析核（Tuist/Package.swift 钉版 0.6.0）
+            dependencies: [.external(name: "Markdown")]
         ),
         .target(
             name: "OneDayDesign",
