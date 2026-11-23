@@ -8,7 +8,10 @@ import UIKit
 /// Sendable 的依据：载荷是组装后不可变的值快照
 /// （与 §251 LayoutAttributedBox 同口径），
 /// measure 只读快照、只写线程安全缓存（NSCache/
-/// ParseMemoBox 家族）与 §251 量测池的每线栈
+/// ParseMemoBox 家族）与 §251 量测池的每线栈；
+/// 执行者唯一由量测台认领盒保证（§430 包 3：
+/// 队列与 measureNow 任一时刻只一执行者持单），
+/// 闭包本体不被并发重入——背书自此完整
 struct ChatNativeRowMeasureJob: @unchecked Sendable {
     let memoKey: String
     let rowKey: String
@@ -40,6 +43,11 @@ struct ChatNativeRowMeasureJob: @unchecked Sendable {
 ///   交（重配才伤手势、改高不伤）；
 /// - 发布信号合并（40ms 窗）：冷开长会话几百
 ///   单陆续完成不逐单触发重渲；
+/// - 单执行者（§430 包 3）：同一工单任一时刻
+///   只许一个执行者——队列块与 measureNow 执
+///   行前各经认领盒认领，认领失败不许碰闭包；
+///   已量完的事实以行高缓存为凭据，后到执行者
+///   查缓存复用、不二次执行；
 /// - 队列串行：量测次序＝投单次序的逆序（趟末
 ///   flushCollected 按行序逆序投递——最新行靠
 ///   底、用户视线所在，先量先就绪）
@@ -53,6 +61,36 @@ struct ChatNativeRowMeasureJob: @unchecked Sendable {
 ///   供者问高时同步量出确定高（学 Telegram 无
 ///   估算高——120 兜底只留给永不入视口的行）；
 ///   积压计数入静态账盒供诊断面回读
+/// 工单执行认领盒（§430 包 3）：同一 memoKey 任
+/// 一时刻只许一个执行者持有——量测台队列块与
+/// measureNow 在跑工单闭包前都须先认领，认领失
+/// 败即不许碰该闭包。认领是执行期瞬时互斥（存
+/// 缓存后即释放）：「已量完」的事实由行高缓存
+/// 本身作凭据——持认领者先查缓存再执行，后到
+/// 的认领成功时缓存必已落、查缓存即复用，不会
+/// 二次执行。盒本体锁护、与 BacklogBox 同式
+private final class RowMeasureExecutionClaims:
+    @unchecked Sendable {
+    private let lock = NSLock()
+    private var claimed: Set<String> = []
+
+    /// 认领成功＝调用方是当前唯一执行者
+    func tryClaim(_ memoKey: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !claimed.contains(memoKey)
+        else { return false }
+        claimed.insert(memoKey)
+        return true
+    }
+
+    func release(_ memoKey: String) {
+        lock.lock()
+        claimed.remove(memoKey)
+        lock.unlock()
+    }
+}
+
 @MainActor
 @Observable
 final class ChatNativeRowMeasureDesk {
@@ -66,6 +104,13 @@ final class ChatNativeRowMeasureDesk {
         label: "site.didichou.oneday.rowmeasure",
         qos: .userInitiated
     )
+    @ObservationIgnored
+    /// §430 单执行者认领盒：队列块（后台线程）
+    /// 与 measureNow（主线程）执行工单前各认领，
+    /// 盒本体线程安全（与 BacklogBox 同式）
+    @ObservationIgnored
+    private let executionClaims =
+        RowMeasureExecutionClaims()
     @ObservationIgnored
     private var inFlight: Set<String> = []
     @ObservationIgnored
@@ -183,12 +228,34 @@ final class ChatNativeRowMeasureDesk {
             guard !inFlight.contains(job.memoKey)
             else { continue }
             inFlight.insert(job.memoKey)
+            let claims = executionClaims
             queue.async { [weak self] in
-                let height = job.measure()
-                ChatNativeRowHeightComposer
-                    .storeRowHeight(
-                        height, forKey: job.memoKey
-                    )
+                // §430 单执行者：先认领再碰闭包。
+                // 认领失败＝measureNow 正在主线程
+                // 直执同一工单——不许并发同跑，等
+                // 其结果落缓存后复用对账（见
+                // reuseClaimBusyResult）
+                guard claims.tryClaim(job.memoKey)
+                else {
+                    self?.reuseClaimBusyResult(job)
+                    return
+                }
+                // 持认领先查缓存：measureNow 已先
+                // 行量完并释放认领时缓存必已落，
+                // 复用其值、不二次执行
+                let height: CGFloat
+                if let cached = ChatNativeRowHeightComposer
+                    .cachedRowHeight(forKey: job.memoKey) {
+                    height = cached
+                } else {
+                    let measured = job.measure()
+                    ChatNativeRowHeightComposer
+                        .storeRowHeight(
+                            measured, forKey: job.memoKey
+                        )
+                    height = measured
+                }
+                claims.release(job.memoKey)
                 let memoKey = job.memoKey
                 let rowKey = job.rowKey
                 Task { @MainActor [weak self] in
@@ -199,6 +266,46 @@ final class ChatNativeRowMeasureDesk {
                 }
             }
         }
+    }
+
+    /// §430 队列侧复用路（认领失败时）：measureNow
+    /// 正在主线程直执同一工单，其结果毫秒级落缓存
+    /// ——后台轮询缓存，落了即复用其值走 finish 对
+    /// 账；超时仍无值（认领者异常未落缓存的理论兜
+    /// 底）放弃本趟、清在飞账，该行经下一趟 resolve
+    /// 重新投单，不许把在飞账烂尾在账上
+    nonisolated private func reuseClaimBusyResult(
+        _ job: ChatNativeRowMeasureJob
+    ) {
+        var reused: CGFloat?
+        for _ in 0..<400 {
+            if let cached = ChatNativeRowHeightComposer
+                .cachedRowHeight(forKey: job.memoKey) {
+                reused = cached
+                break
+            }
+            usleep(5_000)
+        }
+        let memoKey = job.memoKey
+        let rowKey = job.rowKey
+        Task { @MainActor [weak self] in
+            if let reused {
+                self?.finish(
+                    memoKey: memoKey, rowKey: rowKey,
+                    height: reused
+                )
+            } else {
+                self?.abandonInFlight(memoKey: memoKey)
+            }
+        }
+    }
+
+    /// §430 理论兜底：认领者未落缓存时清在飞账
+    /// （jobsByRowKey 留账保留——后续 measureNow
+    /// 仍可认领直执，resolve 也会重新报 needsJob）
+    private func abandonInFlight(memoKey: String) {
+        inFlight.remove(memoKey)
+        noteBacklog()
     }
 
     private func finish(
@@ -308,12 +415,13 @@ final class ChatNativeRowMeasureDesk {
     /// 就地量测（台账 190②）：行将入视口而当趟
     /// 高仍非确定值时，布局侧经 ChatView 闭包调
     /// 本口同步执行该行工单——单行量测毫秒级、
-    /// 入屏前付清，不让估算高在屏上跳。工单已
-    /// 在后台在飞时同闭包会并发执行一次（载荷
-    /// 是不可变快照、量测只写线程安全缓存、同
-    /// 输入同输出，后到 finish 以同值对账无害）；
-    /// 工单已完成则回缓存确定值；无工单无缓存
-    /// 回 nil（布局侧保留当趟喂入高）
+    /// 入屏前付清，不让估算高在屏上跳。单执行
+    /// 者纪律（§430 包 3）：直执前经认领盒认领，
+    /// 工单正在量测台队列执行时认领失败——回
+    /// nil（布局侧保留当趟喂入高），不许在主线
+    /// 程并发重跑同一闭包，队列完成自有 finish
+    /// 的高度-only 修正把确定高送到；工单已完
+    /// 成则回缓存确定值；无工单无缓存回 nil
     func measureNow(rowKey: String) -> CGFloat? {
         guard let job = jobsByRowKey[rowKey] else {
             guard let memoKey = memoKeyByRowKey[rowKey]
@@ -328,10 +436,15 @@ final class ChatNativeRowMeasureDesk {
             jobsByRowKey[rowKey] = nil
             return cached
         }
+        // §430 单执行者：认领失败＝队列正在执行
+        // 同一工单，回 nil 等 finish 修正（见头注）
+        guard executionClaims.tryClaim(job.memoKey)
+        else { return nil }
         let height = job.measure()
         ChatNativeRowHeightComposer.storeRowHeight(
             height, forKey: job.memoKey
         )
+        executionClaims.release(job.memoKey)
         if let position = collected.firstIndex(
             where: { $0.memoKey == job.memoKey }
         ) {

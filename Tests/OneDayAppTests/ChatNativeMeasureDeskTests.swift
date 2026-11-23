@@ -170,6 +170,16 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             value += 1
             lock.unlock()
         }
+
+        /// §430 测试卫生：读也走锁——旧形态外部
+        /// 裸读 value 与 increment 的锁写构成
+        /// Swift access race（TSan 既存账之一），
+        /// 本包顺手收口
+        func snapshot() -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            return value
+        }
     }
 
     // MARK: - ① 对拍
@@ -321,7 +331,7 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
         )
         desk.flushCollected()
         let deadline = Date().addingTimeInterval(5)
-        while counter.value == 0, Date() < deadline {
+        while counter.snapshot() == 0, Date() < deadline {
             try? await Task.sleep(
                 nanoseconds: 50_000_000
             )
@@ -330,7 +340,7 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             nanoseconds: 300_000_000
         )
         XCTAssertEqual(
-            counter.value, 1, "同键工单只许执行一次"
+            counter.snapshot(), 1, "同键工单只许执行一次"
         )
     }
 
@@ -467,6 +477,16 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             values.append(value)
             lock.unlock()
         }
+
+        /// §430 测试卫生：读也走锁——runPass 轮询
+        /// 与断言旧形态裸读 values，与 append 的
+        /// 锁写构成 Swift access race（TSan 既存
+        /// 账之二），本包顺手收口
+        func snapshot() -> [String] {
+            lock.lock()
+            defer { lock.unlock() }
+            return values
+        }
         func clear() {
             lock.lock()
             values = []
@@ -559,7 +579,7 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
             }
             desk.flushCollected()
             let deadline = Date().addingTimeInterval(5)
-            while recorder.values.count < 5,
+            while recorder.snapshot().count < 5,
                   Date() < deadline {
                 try? await Task.sleep(
                     nanoseconds: 50_000_000
@@ -569,7 +589,7 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
         // 第一趟：建行序账（默认逆序＝最新先量）
         await runPass(tag: "p1")
         XCTAssertEqual(
-            recorder.values, Array(rowKeys.reversed()),
+            recorder.snapshot(), Array(rowKeys.reversed()),
             "无趋势时投单序恒逆序（现行口径）"
         )
         recorder.clear()
@@ -578,7 +598,7 @@ final class ChatNativeMeasureDeskTests: XCTestCase {
         desk.noteTopVisible(rowKey: rowKeys[1])
         await runPass(tag: "p2")
         XCTAssertEqual(
-            recorder.values,
+            recorder.snapshot(),
             [rowKeys[1], rowKeys[0], rowKeys[2],
              rowKeys[3], rowKeys[4]],
             "上滑趋势下投单序须锚上方最近行先量、锚下方次之"

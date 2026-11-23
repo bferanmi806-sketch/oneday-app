@@ -131,7 +131,12 @@ final class RowMeasurePureRead422Tests: XCTestCase {
     /// 守卫 pin：命中落写按 memoKey 守卫——同行其后
     /// 收集的新修订工单（异键）不被旧命中的落写误
     /// 清，flush 后仍可经 measureNow 量出新高
-    func testSettlementDoesNotClearNewerJobForSameRow() {
+    /// （§430 时序改形：单执行者纪律下 flush 后队
+    /// 列可能已认领新单执行中，measureNow 单次调
+    /// 用可合法回 nil——断言本体（新单不被误清、
+    /// 终态经 measureNow 得 66）不放松，只改单次
+    /// 同步调用为轮询收敛）
+    func testSettlementDoesNotClearNewerJobForSameRow() async {
         let desk = ChatNativeRowMeasureDesk()
         let suffix = UUID().uuidString
         let oldKey = "pure422-guard-old-\(suffix)"
@@ -152,8 +157,18 @@ final class RowMeasurePureRead422Tests: XCTestCase {
             job(memoKey: newKey, rowKey: rowKey, height: 66)
         )
         desk.flushCollected()
+        var measured: CGFloat?
+        let deadline = Date().addingTimeInterval(5)
+        while measured == nil, Date() < deadline {
+            measured = desk.measureNow(rowKey: rowKey)
+            if measured == nil {
+                try? await Task.sleep(
+                    nanoseconds: 20_000_000
+                )
+            }
+        }
         XCTAssertEqual(
-            desk.measureNow(rowKey: rowKey), 66,
+            measured, 66,
             "落写清账须按命中键守卫：新修订工单不许被旧命中误清"
         )
     }
