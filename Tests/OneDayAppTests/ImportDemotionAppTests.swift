@@ -257,6 +257,65 @@ final class ImportDemotionAppTests: XCTestCase {
         XCTAssertTrue(thread.historyUnsynced)
     }
 
+    // MARK: - ③′ 回补分页被拒降级（台账 117，§389）
+
+    func testBackfillPaginationRejectedFallsBackToFullFetch() async {
+        var client = ScriptedSessionsClient()
+        client.scriptedSessions = [
+            "srv-hist": serverSession(
+                id: "srv-hist", messageCount: 150
+            ),
+        ]
+        // 分页被服务端以 400 invalid_pagination 拒
+        // （服务端分页口径漂移形态）；全量脚本在位
+        client.scriptedMessagePageErrors = [
+            "srv-hist|0": .serverError(
+                endpoint: "服务端会话消息", status: 400,
+                code: "invalid_pagination"
+            ),
+        ]
+        client.scriptedFullMessages = [
+            "srv-hist": messages(1...150),
+        ]
+        let appState = AppState(client: client, demoMode: .connected)
+        let thread = makeThread(
+            serverSessionID: "srv-hist", unsynced: true
+        )
+        let outcome = await SessionHistoryBackfiller(
+            appState: appState
+        ).backfill(thread: thread, context: context)
+        // 降级全量一次拉齐：不许整轮失败、不许留未同步
+        XCTAssertEqual(outcome, .complete)
+        XCTAssertEqual(thread.entries.count, 150)
+        XCTAssertFalse(thread.historyUnsynced)
+    }
+
+    func testBackfillPaginationRejectedFullFetchAlsoFailsKeepsFailed() async {
+        var client = ScriptedSessionsClient()
+        client.scriptedSessions = [
+            "srv-hist": serverSession(
+                id: "srv-hist", messageCount: 150
+            ),
+        ]
+        client.scriptedMessagePageErrors = [
+            "srv-hist|0": .serverError(
+                endpoint: "服务端会话消息", status: 400,
+                code: "invalid_pagination"
+            ),
+        ]
+        // 全量脚本缺席＝全量也失败：回既有失败收尾
+        let appState = AppState(client: client, demoMode: .connected)
+        let thread = makeThread(
+            serverSessionID: "srv-hist", unsynced: true
+        )
+        let outcome = await SessionHistoryBackfiller(
+            appState: appState
+        ).backfill(thread: thread, context: context)
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(thread.entries.count, 0)
+        XCTAssertTrue(thread.historyUnsynced)
+    }
+
     // MARK: - ④ 种子同步（回读决策＋稳定 id＋幂等）
 
     private let seedEntriesFixture: [SeedEntry] = [

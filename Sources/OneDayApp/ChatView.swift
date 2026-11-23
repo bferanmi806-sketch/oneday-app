@@ -182,6 +182,16 @@ struct ChatView: View {
     }
 
     @State private var errorMessage: String?
+    /// G-03（§389）：错误横幅的诊断详情与发生时
+    /// 刻——技术原文（状态码/接口名/错误码）只许
+    /// 随 HermesError.diagnosticDetail 进横幅的
+    /// 「详情」展开，主文案恒人话；时刻由
+    /// presentError 同点记下（字面赋值点由
+    /// errorMessage 变化观察补记，见 bottomBar
+    /// 组装口）
+    @State private var errorDetail: String?
+    @State private var errorOccurredAt: Date?
+    @State private var errorDetailExpanded = false
     /// 0.2.1：非错误提示条。§140 提示纪律起分档自消：
     /// 呈现状态与代号在 Core NoticePresentation，赋值
     /// 一律走 showNotice（中性 5s／重要 8s 自清）；错
@@ -2239,6 +2249,23 @@ struct ChatView: View {
             },
             onCancelEditSend: { pendingEditSend = nil }
         )
+        .onChange(of: errorMessage) { _, newValue in
+            // G-03（§389）：横幅详情/时刻与
+            // errorMessage 同生命周期——字面赋值点
+            // （未走 presentError）在此补记出现时
+            // 刻；presentError 同点已记者不覆写；
+            // 清空时详情/时刻/展开态一并清，不许
+            // 上一条的详情残挂到下一条上
+            if newValue != nil {
+                if errorOccurredAt == nil {
+                    errorOccurredAt = Date()
+                }
+            } else {
+                errorDetail = nil
+                errorOccurredAt = nil
+                errorDetailExpanded = false
+            }
+        }
     }
 
     /// body 的 onAppear 闭包体（整段抽出为方法：
@@ -7063,6 +7090,20 @@ struct ChatView: View {
         return entry
     }
 
+    /// G-03 错误横幅赋值口（§389）：HermesError 驱
+    /// 动的失败一律走此口——主文案＝userMessage
+    /// （人话、无状态码/子系统名）、详情＝
+    /// diagnosticDetail（技术原文只许在此，缺省
+    /// nil 时横幅不显详情钮）、时刻＝当下。字面文
+    /// 案赋值点不走此口（本就人话、无技术原文可
+    /// 收），其时刻由组装口 onChange 补记
+    private func presentError(_ error: HermesError) {
+        errorMessage = error.userMessage
+        errorDetail = error.diagnosticDetail
+        errorOccurredAt = Date()
+        errorDetailExpanded = false
+    }
+
     private func errorBanner(
         _ message: String, onResend: (() -> Void)? = nil
     ) -> some View {
@@ -7075,10 +7116,39 @@ struct ChatView: View {
                     .font(.system(size: 15))
                     .foregroundStyle(Palette.danger)
                     .accessibilityHidden(true)
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.ink)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.ink)
+                    // G-03 恢复三件之时间戳（§389）：本
+                    // 条错误的发生时刻小字在位，只报时
+                    // 刻不报技术细节
+                    if let errorOccurredAt {
+                        Text(errorOccurredAt, style: .time)
+                            .font(.caption2)
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                }
                 Spacer()
+                // G-03 恢复三件之详情（§389）：技术原
+                // 文（状态码/接口名/错误码）只许在展
+                // 开区出现，主文案永不带；无详情的错
+                // 误不显此钮
+                if errorDetail != nil {
+                    Button {
+                        errorDetailExpanded.toggle()
+                    } label: {
+                        Text("详情")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Palette.primary)
+                            .frame(
+                                minHeight: OneDayMetrics.minTapTarget
+                            )
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.odPressable)
+                    .accessibilityLabel("错误详情")
+                }
                 if let onResend {
                     Button {
                         onResend()
@@ -7113,6 +7183,15 @@ struct ChatView: View {
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.vertical, OneDayMetrics.spacingS)
+            if errorDetailExpanded, let errorDetail {
+                Text(errorDetail)
+                    .font(.caption)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, OneDayMetrics.pageGutter)
+                    .padding(.bottom, OneDayMetrics.spacingS)
+            }
         }
         .background(Palette.pageBG)
     }
@@ -9616,9 +9695,10 @@ private struct ComposerBarLayout: Layout {
                 errorMessage = "网络不可用，这条会话还没存到本机，联网后就能打开。"
             } else if error is URLError {
                 errorMessage = "网络不可用，这条会话还没存到本机，联网后就能打开。"
+            } else if let hermesError = error as? HermesError {
+                presentError(hermesError)
             } else {
-                errorMessage = (error as? HermesError)?.userMessage
-                    ?? "会话导入失败，请稍后重试。"
+                errorMessage = "会话导入失败，请稍后重试。"
             }
             return .failed
         }
@@ -11045,7 +11125,7 @@ private struct ComposerBarLayout: Layout {
             streamingText = nil
             streamingReasoning = nil
             reasoningStartedAt = nil
-            errorMessage = HermesError.sessionExpired.userMessage
+            presentError(.sessionExpired)
             // 基础止血包（P1）：连接态缺失同样是本轮
             // 失败——条目留痕挂标记，恢复连接后点标
             // 记重发（演示态不挂，种子条目不是用户真
@@ -11174,7 +11254,7 @@ private struct ComposerBarLayout: Layout {
                 appState.runLedger.remove(threadID: thread.id)
                 markTurnFailed(entry: userEntry)
             }
-            errorMessage = submitError.userMessage
+            presentError(submitError)
             finishRunPresentation(failed: true)
             return
         }
@@ -11713,7 +11793,7 @@ private struct ComposerBarLayout: Layout {
             if !appState.isDemo {
                 markRunFailure(entry: entry, in: thread)
             }
-            errorMessage = failure.userMessage
+            presentError(failure)
             runMachine.apply(.transcriptSettled)
             finishRunPresentation(failed: true)
             return
@@ -11785,7 +11865,7 @@ private struct ComposerBarLayout: Layout {
                 appState.runLedger.remove(threadID: thread.id)
                 markRunFailure(entry: entry, in: thread)
             }
-            errorMessage = failure.userMessage
+            presentError(failure)
             finishRunPresentation(failed: true)
             return
         }

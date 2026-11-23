@@ -15750,3 +15750,29 @@ H7（MCP 目录）：
 
 - 发布集口径（自 rel05098 bundle 提取 97 套 817 件全限定名）＋本包新 2 套 10 件（OneDayCoreTests/CronBlueprintCatalogTests 6、OneDayAppTests/H6H7StructureTests 4）＝**99 套 827 件全绿、新红零**（bundle Test-OneDayApp-h6h7.xcresult，xcresulttool 对账 total 827 / failed 0）；S371/S373 在基底内同绿。
 - 服务端零改动、未对生产发任何写请求（对账全程只读：部署包注册表＋容器源码＋openapi 规格）；安装/实例化的真写只在用户真机点按时发生。
+## §389 历史导入分页 App 侧正解（台账 117）＋错误横幅人话 G-03（台账 120）（2026-11-23；分支 feat/history-import-paging-banner，基线 rel-05098 @3f9598f）
+
+### 117 现状对账（施工前实查）
+
+- **服务端三段在役形态（只读回读，2026-11-23）**：网关面 patches/api_server.py（compose 单文件 ro 挂载在役、容器 hermes Up）——①索引段 GET /api/sessions（列表）与 GET /api/sessions/{id}（单查）同源在役；②消息段 GET /api/sessions/{id}/messages 同源端点：order 只认 oldest/latest（余值 400 code=invalid_pagination）、limit 上限 500、无参缺省＝latest 页 500；③别名补丁仍在挂载文件内（desc→latest/asc→oldest，api_server.py:3311–3320，注释自带「App 改发规范词后可移除」）——本包 App 侧改完后别名具备退役条件，退役属服务端窗口事项、本包不动生产，仅登记。服务器内存实查 55.8%（<80% 红线）。
+- **App 侧存量（§331 已落、本包不重做）**：sessionMessagesPage 已改发 order=latest（HermesClient＋协议注、Demo 桩同语义）；SessionHistoryPagePlanner 分页计划（pageSize 100、offset 只前进、按 id 升序落盘）；打开链 openServerSession 首屏分页失败（非 404）已降级无参全量、全量再失败空开＋后台回补；后续页失败保留已落部分＋未同步标记＋回补续拉。
+- **本包补的真缺口**：回补链 SessionHistoryBackfiller 对分页失败只有「保留部分/整轮失败」两收尾——分页契约被拒（400 invalid_pagination，服务端分页口径漂移形态）时每轮必瘫、历史永不补齐，与打开链已有的降级口径不一致。
+
+### 117 落码
+
+- Core HermesError 新增 `isPaginationRejected`：结构化码在场只认 code=invalid_pagination＋status 400；裸 unexpectedStatus 无码可验、在分页调用点语境下 400 只此一种成因、按状态码认。
+- SessionHistoryBackfiller：落盘收成单点 `ingest(_:)`（对账→指纹去重→落新项，分页与降级共用、防两份实现漂移）；分页 catch 中若 isPaginationRejected 且本轮未降级过 → 无参全量 sessionMessages 降级一次（记账位 paginationFallbackUsed），成功即 ingest 后走既有拉齐判据；全量亦失败回既有 partial/failed 收尾。非 400 失败口径逐字不变（§331 降级链不扩围）。
+- 钉测：ImportDemotionAppTests 新增两测（分页 400＋全量在位→complete 150 条清未同步位；分页 400＋全量缺席→failed 保留标记）；脚本桩 ScriptedSessionsClient 加 scriptedMessagePageErrors 错误脚本位（缺席行为与旧口径一致）。
+
+### 120 现状与落码（G-03）
+
+- **现状定因**：HermesError 三处模板把技术原文直出 userMessage——healthCheckFailed/loginFailed 嵌状态码、unexpectedStatus/serverError 嵌接口名（调用方给的子系统名）＋状态码、decodingFailed 嵌接口名；聊天页错误横幅只收一条 String 直显，无详情、无时刻，失败点把 .userMessage 逐点赋值（ChatView 五处）。
+- **映射底表（四类，Core HermesErrorCategory）**：network＝unreachable/transientNetwork/runNetworkInterrupted；authentication＝loginRejected/loginRateLimited/loginFailed/apiKeyRejected/sessionExpired＋enrollment 四态；server＝healthCheckFailed/unexpectedStatus/serverError/decodingFailed/sessionBusy/speechProviderUnavailable/reactionTargetGone/modelNotUpstream/runBillingExhausted/runServiceUnavailable/runTimedOut；unknown＝invalidServerAddress/cancelled/demoLimitReached/runFailedGeneric。分类只认错误本体形态、不读文案。四类底表文案（headline）为横幅最后兜底，与各错误自带具体人话分工、不互相冒充。
+- **主文案洁净化（源头）**：五处模板改人话——健康检查去状态码、登录失败去状态码、unexpectedStatus/serverError 去接口名＋状态码（统一「服务器没能处理这个请求，请稍后再试。」）、decodingFailed 去接口名。技术原文收进新 `diagnosticDetail`（健康检查/登录/状态/解码五形态成串：接口名 · HTTP 状态 · 错误码），无技术细节的错误返回 nil。
+- **横幅恢复三件**：①重试——既有「重新发送」动作位原样保留（failedResendTarget 在场时）；②详情——新增 presentError(HermesError) 赋值口，ChatView 五处 HermesError 驱动赋值全迁（openServerSession 兜底支/submitError 拒绝/run 落定失败两处/sessionExpired 直达），主文案＋diagnosticDetail＋时刻同点落；横幅新增「详情」钮（有详情才显）展开技术原文（可选中复制）；③时间戳——横幅主文案下小字呈现发生时刻（.time 样式）；字面文案赋值点（本就人话、无技术原文）的时刻由组装口 onChange(of: errorMessage) 补记，清空时详情/时刻/展开态随 onChange 一并清、不残挂下一条。presentError 同点已记者 onChange 不覆写。
+- **钉测**：Core 新套 HermesErrorG03Tests 8 测（四类逐员分类/底表互异且无技术字样/主文案无状态码无接口名无「状态」字样/诊断详情逐串/分页被拒判定六路）；App 新套 ErrorBannerG03StructureTests 3 测（HermesError 源码旧模板零残留＋三新口在场、ChatView 三件穿线、Backfiller 降级穿线）。
+
+### 回归与真机门
+
+- 回归（2026-11-23，两轮合账，xcresulttool 本体对账）：发布集 97 套 **817/817 全绿、新红零**（名单＝rel05098 bundle 提取 85 套基底口径的延续——本包按目标拆两轮：Core 39 套 526/526＋App 58 套 291/291，逐套计数与 rel05098 基线逐值一致；S371 1/1、S373 2/2 在集内全绿）；新套 2 个 11 测全绿（HermesErrorG03Tests 8/8、ErrorBannerG03StructureTests 3/3）；定向套全绿（ImportDemotionAppTests 11/11 含新降级两测、SessionCatalogGuardTests 9/9、HermesErrorTests 6/6、FileOpenFailureTests 5/5、BasicsStopgapTests 17/17、StoreLoadStateTests 8/8、I18nFormattingTests 9/9、DemoLimitTests 2/2、EnrollmentPayloadTests 9/9）。过程注记：首轮 App 目标在执行中被并行线 kickstart 抢道杀跑（bundle 仅余 runner error 伪例 1 件、Core 部分已完整跑毕），按缺套清单补跑第二轮后合账，抢道事实在此留痕、不计本包红。
+- 真机门（用户，未过不关账）：①重装/无本地副本时打开长会话：首屏最新页先到、历史逐页补齐不整段报错；②断网发送失败：横幅人话＋时刻在位、无「重新发送」误挂（非失败条目时）；③发送被服务端拒（如会话忙/鉴权失效）：横幅主文案无人话外技术串、点「详情」可见状态码原文、关闭后下一条错误不残挂上一条详情；④登录过期再进：横幅为鉴权类人话。

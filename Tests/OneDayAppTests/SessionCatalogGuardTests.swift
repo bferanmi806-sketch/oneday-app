@@ -454,6 +454,11 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     /// （充当分页失败脚本）；配 messageFetchRecorder
     /// 计数（缺席时不计数、行为与旧口径一致）
     var scriptedMessagePages: [String: [SessionMessage]] = [:]
+    /// 消息分页错误脚本（§389，键＝"会话 id|offset"）：
+    /// sessionMessagesPage 先查它、命中即抛该错误
+    /// （400 invalid_pagination 降级测用）；缺席行为
+    /// 与旧口径一致
+    var scriptedMessagePageErrors: [String: HermesError] = [:]
     /// 消息全量脚本（§331，键＝会话 id）：session-
     /// Messages 查它，缺席仍抛 unreachable
     var scriptedFullMessages: [String: [SessionMessage]] = [:]
@@ -735,6 +740,7 @@ struct ScriptedSessionsClient: HermesClientProtocol {
     ) async throws -> [SessionMessage] {
         messageFetchRecorder?.recordPage()
         let key = "\(id)|\(offset)"
+        if let error = scriptedMessagePageErrors[key] { throw error }
         if let messages = scriptedMessagePages[key] { return messages }
         throw HermesError.unreachable("脚本消息页缺失：\(key)")
     }

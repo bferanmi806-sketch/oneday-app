@@ -148,24 +148,15 @@ final class SessionHistoryBackfiller {
         }
         var offset = 0
         var processed = 0
-        while true {
-            let page: [SessionMessage]
-            do {
-                page = try await appState.performAdmin { client, config in
-                    try await client.sessionMessagesPage(
-                        config: config, id: sessionID,
-                        limit: SessionHistoryPagePlanner.pageSize,
-                        offset: offset
-                    )
-                }
-            } catch {
-                // 降级口径：已落部分保留、未同步标记
-                // 在位，整段失败呈现就此退役（§331）
-                thread.historyUnsynced = true
-                thread.historyLoadedCount = thread.entries.count
-                try? context.save()
-                return processed > 0 ? .partial : .failed
-            }
+        // 台账 117 降级（§389）：分页被服务端以 400
+        // invalid_pagination 拒时，本轮只许降级一次
+        // 无参全量拉取（与打开链 §331 首屏降级同口
+        // 径）；全量也失败才走既有部分/失败收尾
+        var paginationFallbackUsed = false
+        // 一页（或全量降级的一整批）的落盘单点：对账
+        // →指纹去重→落新项，分页与降级共用、不许两
+        // 份实现漂移
+        func ingest(_ page: [SessionMessage]) {
             let ordered = SessionHistoryPagePlanner
                 .chronological(page)
             let items = SessionHistoryImport.richItems(
@@ -191,6 +182,43 @@ final class SessionHistoryBackfiller {
             // 有的量）；处理量只作下方对齐判据
             thread.historyLoadedCount = thread.entries.count
             try? context.save()
+        }
+        while true {
+            let page: [SessionMessage]
+            do {
+                page = try await appState.performAdmin { client, config in
+                    try await client.sessionMessagesPage(
+                        config: config, id: sessionID,
+                        limit: SessionHistoryPagePlanner.pageSize,
+                        offset: offset
+                    )
+                }
+            } catch {
+                // 台账 117：分页契约被拒（400 invalid_
+                // pagination）先降级全量——服务端分页
+                // 口径漂移不许让历史回补整轮瘫痪
+                if !paginationFallbackUsed,
+                   let hermesError = error as? HermesError,
+                   hermesError.isPaginationRejected,
+                   let full = try? await appState.performAdmin(
+                       { client, config in
+                           try await client.sessionMessages(
+                               config: config, id: sessionID
+                           )
+                       }
+                   ) {
+                    paginationFallbackUsed = true
+                    ingest(full)
+                    break
+                }
+                // 降级口径：已落部分保留、未同步标记
+                // 在位，整段失败呈现就此退役（§331）
+                thread.historyUnsynced = true
+                thread.historyLoadedCount = thread.entries.count
+                try? context.save()
+                return processed > 0 ? .partial : .failed
+            }
+            ingest(page)
             guard let next = SessionHistoryPagePlanner.nextOffset(
                 currentOffset: offset, receivedCount: page.count
             ) else { break }
