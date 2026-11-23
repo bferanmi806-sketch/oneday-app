@@ -545,6 +545,37 @@ final class OneDayBridgeClient: @unchecked Sendable {
         return response.items
     }
 
+    // MARK: - 留痕自报（§383 包一：直连写口的留痕落点）
+
+    /// POST /traces：五要素留痕自报——已迁直连
+    /// 的写口（如改名 soul 直写）把动作补报进同
+    /// 一本留痕账，与桥内各模块的记账同口径
+    /// （服务端在门口校验五要素：action/actor/
+    /// target/status/result|error/detail）。回执
+    /// 为新建的留痕条目（201）
+    func recordTrace(
+        config: ServerConfig, action: String, actor: String,
+        targetKind: String, targetID: String,
+        targetLabel: String, targetRef: String,
+        status: String, result: String?, error: String?,
+        detail: [String: String]?
+    ) async throws {
+        let body = BridgeTraceReportRequest(
+            action: action, actor: actor,
+            target: .init(
+                kind: targetKind, id: targetID,
+                label: targetLabel, ref: targetRef
+            ),
+            status: status, result: result, error: error,
+            detail: detail
+        )
+        let _: BridgeTrace = try await send(
+            config: config, path: "/traces", method: "POST",
+            body: body, endpoint: L10n.string("留痕自报"),
+            collection: false
+        )
+    }
+
     // MARK: - 请求底座（基座代行，本类只给状态口径）
 
     private func makeRequest(
@@ -602,4 +633,23 @@ final class OneDayBridgeClient: @unchecked Sendable {
     ) async throws -> (Data, HTTPURLResponse) {
         try await base.data(for: request, endpoint: endpoint)
     }
+}
+/// 留痕自报请求体（§383）：与桥 POST /traces 的
+/// 五要素契约同形（target 与 BridgeTraceTarget
+/// 同四键）
+private struct BridgeTraceReportRequest: Encodable {
+    struct Target: Encodable {
+        let kind: String
+        let id: String
+        let label: String
+        let ref: String
+    }
+
+    let action: String
+    let actor: String
+    let target: Target
+    let status: String
+    let result: String?
+    let error: String?
+    let detail: [String: String]?
 }

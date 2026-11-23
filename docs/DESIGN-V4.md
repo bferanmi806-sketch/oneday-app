@@ -15473,3 +15473,55 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 
 ### 真机门（后续落码时启用）
 冷启首帧五格图标与点后逐格同形态（截图并排）；深/浅两态各一轮；重启复现率 3/3 不再出现。
+## §383 桥面余量收敛（总表 66）：普查＋收敛施工图＋包一改名写口迁直连（2026-11-23；分支 feat/bridge-convergence，基线 rel-05098 @3f9598f）
+
+### §383.1 普查（2026-11-23 实查）
+
+- 范围与方法：App 侧全部网络客户端逐个读（桥家族基座 BridgeClientBase＋12 薄客户端、HermesClient、ChannelsDirectClient、BoxMCPClient、ProviderProbeClient）；伴生侧以 hermes-deploy/companion/modules 源码 dispatch 为据；Hermes 直连面以 HermesClient 实调路径＋部署包 CAPABILITIES 1.4.0（批 0–5／34-S 在役面）为准。前置盘点＝api-direct-inventory-20261114（26 组：A 3／B 6／C 17），本节是其复核版：A/B 两波均已落码（box 甩桥走 Simular MCP、channels 走 Dashboard 直连、spreadsheet/rendition 拆 fileproc 薄端点、身份名读走 soul 直连），本轮只对**现行 App 实调桥面**重新分类。
+- 两套传输家族现状：直连家族＝HermesClient（8642 API Server＋9119 Dashboard，含补丁面 /v1/approvals、/v1/grants、/v1/reactions、/v1/toolsets、/v1/enrollment、rewind）；桥家族＝单基座（C-10 收敛）＋12 薄客户端，部署模块 6 个（oneday 8646／overview 8644／write-gate 8643／identity 8648／device 8647／front 8650）＋fileproc 薄加工（8651→8652）。OneDay 桥（oneday 模块）端点面最大，为余量大头——但其大头是数据本体而非通道浪费，逐组判定见下表。
+- 订正旧盘点两处：①A3 /ai-sessions 已不在 App 客户端（当年即 App 未调用；桥端点存废属伴生侧维护窗口、非 App 面）；②B3 当年记「POST /identity/name App 未调用」已过期——§253 身份包起 App 改名写穿实调此口（AppState.renameAgent＋迁移待推两处），本轮按现行实调普查。
+
+| 组 | 桥面（模块／端点） | App 消费方 | Hermes 直连等价 | 判定 |
+|---|---|---|---|---|
+| G1 | oneday／feed 组：GET /feed、/feed/generation、POST /feed/{id}/read·like·signal、POST /feed/generate、GET·PUT /meta/brief | 动态店 FeedStore | 无（动态数据与生成管线是伴生自有存储与编排） | 桥本体保留 |
+| G2 | oneday／ideas 组：GET·POST /ideas、PATCH·DELETE /ideas/{id}、GET /ideas/generation | 点子店 IdeasStore | 无（点子池与生成在伴生） | 桥本体保留 |
+| G3 | oneday／goals 组：/goals CRUD＋entries＋briefings＋tasks＋ungrouped-tasks＋delegate、/tasks/{id}/goal | 目标店 GoalsStore、中枢看板 | 任务本体有（/api/plugins/kanban 已直连在用）；目标数据与目标↔任务链接账在桥，拼装面无等价端点 | 桥本体保留 |
+| G4 | oneday／monitors 组：CRUD＋changes＋read＋check＋pause/resume | 监测店 MonitorsStore | 无（抓取-指纹-比对引擎在伴生） | 桥本体保留 |
+| G5 | oneday／traces：GET /traces（写口 POST /traces 为留痕账写口） | 聊天回响、留痕总账面 | 无（留痕账在伴生） | 桥本体保留 |
+| G6 | oneday／deliveries 组：GET /deliveries/{id}、/{id}/thumb·cover | 聊天交付卡、交付面 | 无（登记账由交付哨兵写、快照为登记时点字节，无文件路径等价物） | 桥本体保留 |
+| G7 | oneday／GET /file-library | 文件页 | 无聚合等价端点（/api/files 只有目录原语；走查/准入/去重/排序是桥侧聚合，A-06 定版） | 桥本体保留 |
+| G8 | oneday／ledger 组：GET /ledger·/summary·/{id}、POST /ledger/report（LedgerBridgeClient） | 台账面、聊天发送链上报 | 无（五路多源对账产物） | 桥本体保留 |
+| G9 | overview／GET /overview、/notifications、POST /notifications/{id}/read | 中枢总览、通知面 | 无（通知账＝桥汇流 write-gate 决策账＋监测账的自有数据；/overview 子项虽有直连零件，待批数挂 G10 拆不动） | 桥本体保留 |
+| G10 | write-gate／GET /status、/pending 组、/decisions | 审批面（记忆/技能写入审批） | 无等价：/v1/approvals（批 2）是网关 run 工具审批的另一本账；写闸暂存由伴生进程内消费 Hermes 内部模块（wa.stage_write），官方 API 面无此队列 | 桥本体保留 |
+| G11 | write-gate／rules 组：GET·POST /rules、DELETE /rules/{id} | 审批面规则区、设置授权面 | 读投影已被 /v1/grants（批 5）直连分担；撤销按批 5 定版「写闸单一写者在桥」 | 桥本体保留 |
+| G12 | write-gate／memories 组：GET /memories·/{id}、POST /memories/propose、GET /decisions（MemoryBridgeClient） | 记忆条目面 | 无（Dashboard /api/memory 只有 provider 状态与配置，无条目读写） | 桥本体保留 |
+| G13 | identity／POST /identity/name（App 改名写穿，§253） | AppState.renameAgent、身份迁移待推 | **有**：Dashboard GET·PUT /api/profiles/{p}/soul 已直连在用（名读 A2 已迁、soul 编辑器已直写）；解析/校验规则 Core AgentName 与桥 _validate_new_name/_find_title_line 逐条同源 | **包一迁直连** |
+| G14 | identity／avatar 组：GET /identity/avatar·/image、POST /identity/avatar | AppState 头像写穿、AgentAvatarSync | 无（头像仓资产＋历史＋指针在伴生 /opt/identity-data，Hermes 无头像 API） | 桥本体保留 |
+| G15 | device／device 组：session·heartbeat·poll·respond·resume·park-state·disconnect＋sync/* | 设备面、同步链 | 无（NAT 后长轮询中继＋同步副本库即通道本体） | 桥本体保留 |
+| G16 | front／GET /api/companion/info | 伴生探测 CompanionProbeStore | 无（探的对象就是伴生本体） | 桥本体保留 |
+| G17 | front／connections 组：GET·POST /connections、/{id}/credential·verify·disconnect | 连接面（ConnectorsFacade） | 无（登记账在伴生；凭据定版＝服务端保管、App 只传递不留存） | 桥本体保留 |
+| G18 | front／GET /api/companion/gateway-channels | 设置网关渠道面 | 目标 API 在（New API 管理面），但管理凭据绝不可下发 App——桥是凭据托管代理 | 桥本体保留 |
+| G19 | front／POST /api/companion/web-login（HermesClient 内调用） | 连接自检（面板密码验，§244 一把密码） | 无（验的是伴生面板自家密码） | 桥本体保留 |
+| G20 | fileproc／GET /media/rendition（OneDayBridgeClient.rendition 委托） | 聊天/文件图片变体 | 无（/api/files 只回原文件、无 rendition 参数）——现行形态已是从 oneday 大桥拆出的独立薄端点（B5 落点） | 已收敛形态保留；登记待补 API 缺口（见施工图包二） |
+| G21 | box 全组 | Box 面 | 已直连（Simular MCP，A1 甩桥毕；三客户端只余名号、内走 BoxMCPClient） | 不在桥账 |
+| G22 | channels 状态/凭据 | 频道面 | 已直连（Dashboard /api/messaging/platforms＋/api/gateway/restart，B1/B2 毕，ChannelsDirectClient） | 不在桥账 |
+
+- 计数：端点组共 22 组——已直连 2 组（G21/G22）；仍走桥 20 组，其中已有直连等价而 App 仍走桥 **1 组**（G13），桥本体保留 **19 组**。结论与 2026-11-14 盘点一致并更收敛：桥面余量不是「懒得直连」，A/B 波打完后只剩 G13 一处真余量；其余皆为功能本体长在伴生（目标/点子/动态/监测/台账/设备中继/同步库/头像仓/连接登记/写闸治理），Hermes 无对应 API 存在。收敛守则沿用：新对接进桥前须在本表留一行（查过哪个现成 API、为何不可用），查无此行不许开桥。
+
+### §383.2 收敛施工图（分包表）
+
+| 包 | 内容 | 验收 | 卡点 |
+|---|---|---|---|
+| 包一（本包） | G13 改名写口迁直连：Core 补改名校验＋标题行手术（与桥 _validate_new_name/_find_title_line 逐条同口径：≤20 字、禁句读标点、禁结构词、禁 # 与控制符；窗口＝前 3 个非空行内首个 H1、替换或首行插入、写后自验 resolve==新名）；AppState 两调用点（renameAgent＋adoptFetchedIdentityName 待推）改走 Dashboard soul 直写（默认档案，与名读同源：profiles 取默认档→profileSoul→手术→updateProfileSoul），写后现行「以 Dashboard 回读为准落缓存」尾链不变；留痕按 B3 口径自报——OneDayBridgeClient 新增 POST /traces 五要素自报（action=identity.set_name、actor=user、target 与桥 _soul_target 同形、result 摘要同桥文案式样、detail.via=app-direct），自报失败不回滚改名、落 ChatDiagTrace 本地留痕（对齐桥侧「留痕不许静默消失」口径的 App 侧等价物）；IdentityBridgeClient.setName 删除（桥调用清零） | 发布集全绿＋Core 写口单测＋结构钉测（setName 与 /identity/name 写口在 App 侧零残留） | 无 |
+| 包二（候选，只登记） | G20 rendition 再迁：前置＝Hermes 原生文件面补 rendition 参数/端点，fileproc 薄端点随之退役 | — | 卡服务端补 API：上游镜像面，须走部署包流程另行立项；本包只登记缺口、不动生产 |
+| 包三（候选，随后续组版搭载） | ①identity 桥端点存废评估结论先行记账：POST /identity/name 在 App 迁完后剩余调用方＝AI 侧 MCP identity 工具（智能体自改名窄口，本体即此桥）与面板——**不退役**，身份桥对 App 自此只剩头像仓 G14；②客户端小重复收口：MemoryBridgeClient.decisions 与 WriteGateClient.decisions 同打 GET /decisions 一口，收成一处实现 | 随搭载版发布集全绿 | 无技术卡点，排期随后续组版 |
+| 守则 | G1–G12、G14–G20 桥本体不动；任何新对接进桥前先查 Hermes 现成 API 并在本表留行（见 §383.1 守则） | | |
+
+- 包一与桥写口的口径差（先行记账，免得日后当回归查）：桥 _set_name 的三件服务端治理随迁直连退出 App 写路——①SOUL 备份（soul-backups）②name-state 账（name/updatedAt/source）③原子替换＋回读验名。其中③的回读验名由 App 写后回读尾链等价承接；①②桥侧已为「经他路写入」设计兜底（_get_name 对 name-state 不匹配时回落 soul 文件 mtime，源码注记明示含 App soul 编辑器路径），且 AI 侧经 MCP 改名仍走桥全套、账不空转；整文 PUT 的并发面与中枢 soul 编辑器现行直写同级（同一档案同一 PUT 口），不新增并发等级。
+
+### §383.3 包一结果
+
+- 落码（分支 feat/bridge-convergence；落码提交 92085c9、编译修复 783a5bc）：①Core AgentIdentity.swift 新增改名写口——AgentNameWriteError 五态、AgentName.validatedNewName（桥 _validate_new_name 镜像）、applyingNewName/hasIdentityTitle（桥 _find_title_line 窗口镜像、写后自验 resolve==新名）；②AppState 新增 writeAgentNameDirect（校验→默认档案 soul 读改写→留痕自报）＋reportAgentNameTrace＋校验人话映射，renameAgent 与 adoptFetchedIdentityName 待推两调用点改走直连；③OneDayBridgeClient 新增 recordTrace（POST /traces 五要素自报）＋BridgeTraceReportRequest 请求体；④IdentityBridgeClient.setName 删除。桥端代码按施工图本包不删（存废结论见包三：不退役）。
+- 桥调用清零证据：全仓 `.setName(` 零命中、IdentityBridgeClient 代码行无 setName 与 /identity/name（BridgeConvergenceStructureTests 钉测在集内把守）。
+- 回归（run Test-OneDayApp-bridge383，ProbePhone 50C1A6D5）：发布集口径＝rel05098 bundle 97 套 817 项为基底，本包只增不减——新增 3 套 12 项（AgentIdentityTests 4，存量套此前未入发布集、本包随写口一并纳入；AgentNameWriteTests 6；BridgeConvergenceStructureTests 2），预期 100 套 829 项 → 实跑 **829/829 全绿、0 红、0 跳过**，xcresulttool 本体逐套对账一致。S371（ChatRootChainStructureS371Tests 1/1）、S373（ChatDepthStructureS373Tests 2/2）在集内全绿；受影响面在集套件点名全绿（MonitorBridgeModelsTests 21/21、LedgerModelsTests 31/31、GrantsContractTests 7/7；动态/点子/目标/交付面由全集绿覆盖）。过程记账：首轮因 recordTrace 漏传 send 的 collection 参数编译红（exit 65），修复（783a5bc）后重跑全绿。
+- 余包清单与卡点：包二（G20 rendition 再迁）卡 Hermes 原生 rendition API——只登记缺口、不动生产，日后立项走部署包流程；包三（identity 桥口存废结论＝不退役＋/decisions 双客户端重复收口）无技术卡点、随后续组版搭载；其余 19 组桥本体保留为终局形态（Hermes 上游新增对应 API 时再逐组复核）。
