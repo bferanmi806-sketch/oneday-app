@@ -16108,3 +16108,35 @@ App 头＋body 同值双带：旧服务端忽略未知 body 字段、头键账�
 - 生命周期常设门（§395）：版本对 0.50.98→0.50.99 实跑 S1–S5 五段全过（首装/升级/同版重装/降级启动全存活、标记跨升级·重装·降级保留、删除重装回初始态；容器 UUID 每装必变系重注册伪影、内容连续性以标记实存为据，同 §395 既定口径）。
 - IPA：本地 Mac 出包、IPA 本体亲验 0.50.99/227/site.didichou.oneday、15,801,143 字节、md5 637a479ac45628f5e34e3f4d7128e572（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）；包内含 OneDayWidgets.appex（§385 实时活动扩展）。体积较 0.50.98 增约 1.0MB（新面与扩展目标所致）。
 - 真机门（用户，未过不关账）：各节分项门随节留档（§379.2／§380／§384.4／§385／§386.3／§387／§388.5／§389／§390–§394／§396／§397 归批 4b），总表对应条目已各加「已并入 0.50.99」组版注记、复选框未动，划线等 verdict。重点：底栏图标冷启首帧（§382 仍等用户冷启截图取证）、流式/停滚存量门、通知分级与实时活动首验、成包跨机装包、连接状态断网呈现。
+
+## §403 §382 B1 落地：底栏图标脱离 symbol 身份、改模板图资产（2026-11-23；分支 feat/tabbar-template-assets，基线 rel-05099 @46150bf；定因全文 s382-verdict-fixplan-20261123.md 留档）
+
+### §403.1 定因（压缩版）
+
+- 现象：冷启后底栏五格图标呈填充实色，点任意一格后全栏回描边、不回弹。
+- 根因（证真）：iOS 26 标签栏宿主在条目构建层把 symbolVariants 环境重设为 .fill 并按 symbol 身份生成条目图（WWDC24 10147 官方机制），与选中无关、与字重无关。App 三道 .none 防御全灭：L1（TabView 层 .environment）被宿主注入覆盖——ENV 探针在 L1 直赋之下、进程启动 t+0.01s 即读 eqFill=true；L2（tabLabel 本体直赋）挂在条目图生成点下游；L3（Label 内累积修饰）语义先天清不掉 fill（Sarunw 解析、代码注释自认）。字重派生说、首帧竞态说、时间自愈说均证伪（墨迹与 fill 定标逐格对账；fill 持续 ≥19s、转折与切格同拍且不回弹）。
+- 转折触发源＝切格（证真）：切格后宿主再材料化偶然产出描边——副作用、非可依赖机制。SWITCH-SEEN 检出失效（证真）：iOS 26 悬浮栏不暴露 UITabBarButton、诊断探针 buttons 恒 0；源码复读补注：检出另有 selectedItem 回退腿，P1 的 15s 轮询上限源于就绪门要求 5 按钮带图、导出差值＝3.07s 记录器延迟＋15s 轮询（裁决档 §3.1 补注）。
+
+### §403.2 修法三类判定
+
+- ①平台原生：变体 opt-out 的唯一原生手段＝环境直赋（A 案），在本宿主已被进程内证据判死；UITabBarAppearance 无变体维度且被 iOS 26 玻璃栏整体忽略。①类穷尽、无可用原生开关。
+- ②成熟项目现成实现：**B 案——图标脱离 symbol 身份、改模板图资产**（Muse 同构路：自有字形集、非活 symbol；机制与 WWDC24 10147 严丝合缝——变体优选只作用于 symbol image，普通模板图无从替换；0.34.0 代码注释与 2026-11-10 调研决策树均预注册「A 判死则转 B」）。采用。
+- ③自创无出处：不采用（introspection 运行时改写 UITabBarItem.image、运行时 UIImage 预渲染均排除/列备选，理由见裁决档 §5.1）。
+
+### §403.3 实现记账
+
+- **资产生成（等效官方导出）**：SF Symbols 应用不在本机，改走与该应用同一母版数据源的程序化导出——CoreUI 私有 API 打开系统 CoreGlyphs.bundle/Assets.car，namedVectorGlyph 取五枚符号真矢量路径（CGPath）直写单色矢量 PDF（无位图 XObject、1.2–1.5KB/枚）。标定（对 NSImage 24pt light 活渲染逐格量测对账定准）：glyphWeight＝Light（枚举 3）、glyphSize＝0、pointSize＝24；五格墨迹框与活渲染逐格一致、像素差 ≤0.51%、密度差 ≤0.005。两处口径注：feed 的 doc.text 在 car 中以官方别名目录名 text.document 存（name_aliases.strings 实查）；checklist 为可翻转符号、按 LayoutDirection 双 rendition 分键，取 LTR 键（dir=5，像素差 7.23%→翻行修正后 0.01%）。生成器归档 Scripts/make-tab-assets.swift（方法与标定全注、单命令可重跑）。
+- **资产清单**（画布＝符号原布局框；密度＝资产墨迹密度，活渲染定标同带）：tab.chat（message）31×27／0.134；tab.feed（text.document）26×29／0.196；tab.ideas（lightbulb）22×31／0.141；tab.goals（checklist）32×28／0.159；tab.files（tray）34×24／0.182。Contents.json 声明 template-rendering-intent＝template＋preserves-vector-representation＝true。
+- **代码**：TabBarSymbols.TabSymbolPair 新增 asset 字段（init 默认 ""；在栏五格必填、栏外四条 activity/apps/overview/settings 为空）；符号名字段保留供栏外消费者（DrawerView 消费 .normal 作抽屉行符号、无宿主注入、本就不受此病——保留 normal/selected 不动栏外）。ContentView.tabLabel 图标改 Image(pair.asset)、选中与未选中两态同图；L3 三修饰（.symbolVariant/.symbolRenderingMode/.font）随 symbol 图标退役；L1（TabView 层）/L2（tabLabel 本体）环境直赋降为防线保留并加 §403 后记注（对资产图无作用、对未来混入的 symbol 仍生效）。
+- **钉测**：TabBarSymbolsTests 新增 testTabAssetNamesArePinned（五名钉死＋去重＋栏外四条 asset 为空）；新套 TabBarTemplateAssetStructureTests 3 项——①tabLabel 代码行（剔注释行后扫）含 Image(pair.asset) 且禁 Image(systemName:) 回归；②五枚资产在生产包内 UIImage(named:) 解析得出、画布尺寸钉标定框、renderingMode＝.alwaysTemplate 实测；③Contents.json 声明＋PDF 实物在位。
+
+### §403.4 验证
+
+- 定向首轮 19 项 18 过：唯一红为新钉测误扫自家 §403 注释中的被禁字样，修为剔注释行后扫（同仓结构钉惯例）；复跑新套＋符号表套 7/7 全绿。
+- 发布集全量（本包）：名单＝rel05099 bundle（Test-OneDayApp-rel05099）xcresulttool 提取 124 套全限定名＋本包两套（TabBarTemplateAssetStructureTests、TabBarSymbolsTests——后者本不在 0.50.99 发布集内、本包改动其源故纳入）＝126 套；实跑 **1011/1011 全绿、0 红、0 跳过**（bundle Test-OneDayApp-tabassets-full，xcresulttool summary 对账：1004 基线＋符号表套 4＋新结构套 3＝1011，分毫不差）。S371/S373 在集内全绿、ChatView 根链零触碰。
+- 测试通道纪律：与冒烟门线（feat/smoke-gate-rework）共用通道，全程走单一 kick 脚本「双读判闲→忙即中止→闲才覆写 test-cmd.sh 并 kick」，三轮均先到先跑、无抢道（本包 RUN 14:11/14:15/14:19 与对方 RUN 错峰衔接，agent-test.log 留痕）。
+- **真机门（未过不关账，主线另发用户）**：冷启后不点底栏先截图，逐格量测填充率 ≤0.35（与修复前 0.60–0.81 逐格对账回落）；逐格点过一轮再回冷启态复截（两路径同形）；深色一帧；与 Muse 并排对位（外壳终审口径）。
+
+### §403.5 回滚基线
+
+rel-05099 @46150bf。图标来源单点切换（tabLabel＋TabBarSymbols 两处＋资产目录＋生成器），回滚＝还原本包提交；L1/L2 防线与符号名完整保留，随时可回 symbol 路径。
