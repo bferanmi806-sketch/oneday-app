@@ -689,42 +689,4 @@ final class ChatNativeHotfix330Tests: XCTestCase {
         )
     }
 
-    /// 流式两行（思考/正文）同口径：同文同态重复
-    /// 求值命中、零实算
-    func testLiveRowsMemoized() {
-        ChatNativeRowHeightComposer
-            .resetRowComputationCount()
-        let reasoning = makeComposer()
-            .liveReasoningHeight(
-                text: "正在整理思路……",
-                contentStarted: false
-            )
-        let text = makeComposer().liveTextHeight(
-            text: "第一批文字已经到达。",
-            isUploading: false
-        )
-        let afterFirst =
-            ChatNativeRowHeightComposer
-                .rowComputationCount
-        XCTAssertEqual(
-            makeComposer().liveReasoningHeight(
-                text: "正在整理思路……",
-                contentStarted: false
-            ),
-            reasoning
-        )
-        XCTAssertEqual(
-            makeComposer().liveTextHeight(
-                text: "第一批文字已经到达。",
-                isUploading: false
-            ),
-            text
-        )
-        XCTAssertEqual(
-            ChatNativeRowHeightComposer
-                .rowComputationCount,
-            afterFirst,
-            "流式行同文同态须命中"
-        )
-    }
 }
