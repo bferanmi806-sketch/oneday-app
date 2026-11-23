@@ -609,13 +609,16 @@ struct IdeaDetailView: View {
                         Text(acting ? "处理中…" : "开始吧")
                     }
                     .font(.headline)
-                    // 第 85 条（BC-1）：主钮改走 primaryPale
-                    // ＋onPrimary 正道（旧白字压 primary 暗
-                    // 档仅 2.33:1）
-                    .foregroundStyle(Palette.onPrimary)
+                    // 2026-11-24 用户亲裁改判：主钮改饱和
+                    // 蓝底＋白字（Palette.primarySaturated，
+                    // 对位 Muse 样张 #0064D4）——推翻第
+                    // 85 条 BC-1 在本钮的 primaryPale 口
+                    // 径（§453 改判追记）；同栏「打开对
+                    // 话」未跟改，待主线裁
+                    .foregroundStyle(Color.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 48)
-                    .background(Palette.primaryPale, in: Capsule())
+                    .background(Palette.primarySaturated, in: Capsule())
                 }
                 // 手感 A 档：页面主动作补按下态（公用
                 // 按压件）；采纳结果触感已由 IdeasStore
