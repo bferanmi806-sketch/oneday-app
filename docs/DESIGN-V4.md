@@ -17181,3 +17181,69 @@ queued 语义收窄：ChatSendState.queued 自此只是落盘瞬态（落盘未�
 - 红项处置：①#13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–108 逐字同红、已裁可接受。②HapticsMatrixTests/testMatrixCallSiteCounts 新红——归因坐实：Haptics.error() 全树计数 108 树 54→合并树 51，−3 全在 ChatView 且全部出自 §451 分支自身（§451 分支树即 51、合并零丢失）：旧发送链 launchTurn 三落点＋resendPending 三落点（复刻一条龙）随换代收敛为提交泵 performSubmission 三落点（上传失败／准备失败／提交被拒），resend 改委托泵、失败触感由泵内落点承接、行为不丢。处置：按该测既有惯例改钉 54→51 并附 §451 注记，独立模拟器（iPhone 17 Pro Max）复跑 HapticsMatrixTests 全套绿（bundle Test-HapticsPin-rel05109）。§451 线自带七套选跑未含此套，故未在其交卷暴露。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05109-release）；~/build/OneDay-0.50.109-237.ipa，16,739,556 字节，md5 55d7953cb26608552c04c699250e18f9；unzip 验 IPA 本体 plist 三值＝0.50.109／237／site.didichou.oneday；VM 副本 md5 一致。
 - 真机门（归用户 verdict，§451 四项）：①断网连发保序——断网连发数条、恢复网络后按落盘序依次提交受理、不乱序不越过；②失败条泵停原位重试——首条被明确拒绝时泵停在失败条、后续不越过，失败条原位呈现，手点重发或自动重试到点后先行重试解堵；③变色时机——连发时第二条在首轮未落定时、其受理回执到即变满色（不再等首轮回复完）；④SettledRunTurn 锚定——多轮并存时各轮落定只收本轮段（锚 serverRowID），后轮失败不污染先行轮呈现。另 §451 节内真机门同批：已受理条目长按撤回手势全程、新泵下 154 断网重发不双跑复核。
+
+## §452 文件呈现换代（2026-11-24 用户五轮亲裁合并定版）
+
+总规则（03:42 终裁，覆盖 03:38 扩围口径）：**聊天里只按「封面出不出得了真图」分两路，没有第三类。**渲染集合对齐 Muse（它封面渲的咱们渲、它不渲的咱们也不渲——大厂有其顾虑，不自作聪明扩围）；点开后的查看一律 iOS 原生 QuickLook；资源库按 03:41 四条定版重排。卡形学微信、图标生成与下载状态学 Telegram-iOS 开源实现（出处逐节标注）、结构学 Muse 资源库。
+
+### 452.1 格式判定表（逐行写死：聊天类／封面渲什么／点开落点）
+
+| 格式 | 聊天类 | 封面（真图来源） | 点开落点 |
+|---|---|---|---|
+| 图片 jpg/png/heic/gif/webp | ①渲染 | 图本身（既有图片管线） | 全屏图片查看器（既有） |
+| 视频 mp4/mov/m4v | ①渲染 | 视频帧（服务端 poster／本地抽帧既有管线） | QuickLook（内播） |
+| PDF | ①渲染 | 首页渲染（登记快照→QLThumbnailGenerator） | QuickLook |
+| Word doc/docx | ①渲染 | 首页渲染（同上） | QuickLook |
+| 网页/空间成品 html/空间 | ①渲染 | 页面截图/渲染（登记快照 cover） | 成品本体（空间页／网页承载） |
+| MD/纯文本/代码 md/txt/swift/py… | ②微信卡 | 不渲（扁平图标） | QuickLook |
+| 表格 xls/xlsx/csv | ②微信卡 | 不渲（扁平图标，Muse 同） | QuickLook |
+| 演示 ppt/pptx | ②微信卡 | 不渲（未见 Muse 渲染证据） | QuickLook |
+| 音频 mp3/m4a/wav/flac | ②微信卡 | 不渲（扁平图标） | QuickLook（内播） |
+| 压缩包 zip/rar/7z | ②微信卡 | 不渲（扁平图标） | 兜底页（主钮＝用其他应用打开） |
+| 可执行/安装包 bin/ipa/dmg/exe | ②微信卡 | 不渲（扁平图标） | 兜底页 |
+| 未知/无扩展名 | ②微信卡 | 不渲（扁平图标） | 兜底页（QL canPreview 为真时改走 QL） |
+| 敏感文件（SensitiveFilePolicy 命中） | ②微信卡 | 不渲 | 兜底页锁定变体（无按钮、只说明） |
+| 文件夹（仅资源库） | — | 文件夹图标 | 进入目录 |
+
+①的呈现分工：图片/视频＝直接显示（既有行形态）；PDF/DOCX/空间＝交付语境（登记交付 DeliveryFileCard）走成品大块、引用语境（FileChip 路径牌）走卡面缩略位真图；②一律微信式文件卡。封面生成失败（管线回 nil）一律降 ② 图标呈现，**不许拿图标冒充渲过**——呈现类以生成结果为准、扩展名只作预判分工。
+
+### 452.2 聊天文件卡（②与引用语境①共用卡体，微信式）
+
+量测对位（参照图一微信卡，1206×2622@3x PIL 实测）：卡宽 ≈255pt（含尾巴）／高 67.7pt、图标 37.7×47.7pt 在右、文件名左对齐至多 2 行、下行仅大小「321KB」（无空格无类型前缀）、小圆角、PDF 红 #E14948。
+本包定版：独立定宽卡（宽 min(252, 行宽)），左文右图：内距 12；文件名 .body semibold 至多 2 行；副行 .caption 只显大小（CompactByteText 无空格格式，如 321KB/1.2MB，大小未知或下载态时按 452.5 换文案）；右侧视觉位 40×50（①类显真缩略图圆角 6 裁切、②类显扁平类型图标）；卡面无 ⋮（动作归长按菜单与打开页，微信同）；底 Palette.surface、圆角 12（radiusCard）、描边发丝线。行高两档可预算：名单行高＝max(50, 名行数×24＋4＋15)＋纵内距 20 → 1 行 74／2 行 94（ChatNativeRowHeight.fileChipHeight 同步改式，名宽＝252−12−40−8−12）。
+
+### 452.3 成品块（①交付语境，Muse 聊天块式）
+
+量测对位（03:35 Muse 聊天截图）：容器＝气泡灰整块（宽 ≈347pt）、预览内嵌（≈338×228，≈3:2，圆角 ≈16）、其下元行＝小图标 ≈31pt＋名（17 semibold 一行）＋类型标（灰，名下）＋右侧「•••」。
+本包定版（DeliveryFileCard 块形态，取代 §407 的 148 白卡封面形态）：容器 Palette.bubbleFill、圆角 radiusPreview 16；预览区内距 8、定高 228（§407 定高契约续：coverForm 旗决定预留，行高公式 148→228 同步改）；预览源序＝登记快照 cover→客户端管线（452.1 的①集合）；元行＝24pt 扁平类型图标＋名（.body semibold 一行截断）＋类型标（.subheadline inkSecondary）＋尾「•••」菜单（FileActionPolicy 同源）。无封面/②类交付回落 452.2 卡形态（DeliveryFileCard 卡形态与 FileChip 同组件规格、数据用 meta 实测值）。
+
+### 452.4 图标（成套扁平，程序绘制零图片资源）
+
+风格依据：微信图一 PDF 图标（扁平文档形＋折角＋纯色块）与 Muse 资源库 XLSX 扁平绿图标为正面样本；用户 03:27 定调——扁平、克制、专业，零立体、零表情包味。现行 §128 的 3D 黏土 PNG 套（FileIconImageView 资产）整套退役（资产留仓一版不删、渲染不再引用）。
+生成法学 TG：Telegram-iOS `ChatMessageInteractiveFileNode` 的已下载态用主题图形程序资源（principalGraphics 文档字形）、无图片文件——本包对应实现＝SwiftUI 程序绘制 `FileTypeIconView`：文档形（3:4、圆角 8%）＋右上折角（同色深一档）＋白色粗体短标（PDF/W/表 X/文 P/TXT/</> 等），按 DeliverableIconStyle 家族分类（Core 单源不动）配色：PDF #D93A3A、Word #4A7DC9、表格 #35A05A、演示 #E2703A、压缩包 #A97B2F、图片 #7D6BC4、视频 #5856D6、音频 #C94F6D、文本/MD 石板蓝灰 #64748B、代码 #2A9D8F、网页 #3E7CB1、应用 #5A5A5E、文件夹 #E3B341（扁平文件夹形）、未知 #9A9AA0＋「?」。渲染落点：FileIconBox 内部换绘制（尺寸契约 36/40/56 不变，FilesView/交付面/打开页头全域顺带一致）；FileTypeFace 改白面＋居中绘制图标（资源库 28pt 高、成品块占位 64pt 高，两档参数化）。
+
+### 452.5 下载状态机（学 TG，本地化）
+
+TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未下载→.download 圆钮；传输中→.progress（下限 0.027 防空环、可取消）；已下载→文档字形（圆消失）；点圆：传输中取消、未下载开始、已下载打开。
+本包对应：状态源 `ChatFileStore`（按 path：idle/downloading(进度)/ready(localURL)/failed，Caches 落盘＋大小校验使 ready 跨会话成立；下载走 HermesClient 新增 delegate 进度法，照 §237 上传先例）。呈现＝视觉位左下 20pt 徽标圆：idle＝↓、downloading＝进度环＋副行「已下载 X / 共 Y」、ready＝无徽标、failed＝↻＋副行「下载失败，点按重试」。整卡点按分流：downloading→取消；idle→开始下载（完成自动续开）；ready→按 452.6 路由打开；failed→重试。与 Exyte 二期 W7 衔接：W7 的 TG 状态圆是 Exyte 行上的同一状态机——本包先在原生行落状态源与徽标，W7 落地时复用 ChatFileStore 状态、不另立第二套；上传四态（待发/上传中）在发送管线、归 W7，不在本卡。
+
+### 452.6 点开路由（两路，复用 FileOpenRoute 单源）
+
+聊天点卡（ready 后）按 FileOpenRoute.resolve 分流，呈示改：.imageViewer→既有全屏查看器；.quickLook→fullScreenCover 内 NavigationStack＋既有 QuickLookPreview（QL 自带分享出口，§259 单轨续）；.saveOnly/.infoOnly→`FileFallbackView`（sheet）；.locked→FileFallbackView 锁定变体。聊天侧不再经 FileOpenView 中间页（§125 两段式仅文件页侧保留，本节修订其聊天侧口径）。
+兜底页规格（图三微信页 PIL 量测）：大图标 49.7×63.7pt 居中（本包 50×64 绘制图标）、完整文件名居中多行不截断、下接大小、说明文「暂时无法打开此类文件，你可以使用其他应用打开并预览。」（锁定变体换敏感说明）、主按钮「用其他应用打开」（App accent 令牌、胶囊、高 47——只学形态不抄微信绿 #07C160）→系统分享表；未下载时主按钮先下载（按钮内进度）后唤分享。
+
+### 452.7 资源库定版（03:41 四条）
+
+①双向单库：聚合名单（Deliverable.source 既有字段）即单源，每项卡面标来源、顶栏来源筛选（全部来源＋逐来源）。②排列：默认最近在前（LibrarySort.lastModified）＋置顶钉顶（既有 pinned 机制）；排序菜单补「大小」档（LibrarySort.size 新增，名称＝既有 title 档）。③不分栏：文件/影音两段退役——单列表单数据源＋顶部筛选片（全部/文档/图片/影音/其他，分类走 FileItemCategory＋MediaKind 派生）＋搜索（既有）；影音在单网格内以同卡呈现（预览区填帧面/图）。④网格对齐 Muse 资源库（03:33 截图量测）：2 列、卡宽 ≈179pt、预览区高 124（现行 112→124）、不可渲类预览区正中扁平图标 28pt 高（≈预览高 1/4.4）、信息条＝名（17 semibold 一行截断）＋类型标（灰、大写短标）；数据层 LibraryListSnapshot 由分段改筛选（类别＋来源＋搜索→单序），快照指纹同步换参；既有 ⋮/长按/删除/揭示等行为不丢。
+
+### 452.8 回滚与边界
+
+回滚＝分支 revert；旧图标 PNG 资产留仓一版；FileOpenView 文件页侧、§418/§410 管线、FileOpenRoute 判定本体不动（仅聊天呈示层改）。真机门：10 格式卡面＋落点、成品块、兜底页、资源库单列表四组截图待用户真机 verdict。
+
+### 452.9 资源库搜索（03:44 追加定版）
+
+| 列 | 内容 |
+|---|---|
+| 现行 | 搜索框常驻顶栏（「更多」钮左侧），恒占横向空间，用户评「感觉不对劲」 |
+| 成熟做法 | 苹果 Files/照片、TG 同路：顶栏只留放大镜图标钮；点开顶栏原地变身为整栏搜索框（内嵌放大镜＋清除钮）＋「取消」文字钮、键盘同步升起；输入即实时过滤；取消后键盘落、顶栏还原、列表与滚动位置回到搜索前 |
+| 定版 | 走 iOS 原生 searchable 形态（isPresented 绑定＋searchScopes），不自研展开动画：顶栏放大镜钮与「更多」同排同级（44 命中域）；筛选片（全部/文档/图片/影音/其他）即搜索范围片（searchScopes 承载，与 452.7 分类筛选同一套、搜索内外同源，不许两套并存）；空输入态经 searchSuggestions 给最近搜索（本地存、空则不显）＋热门类型入口（文档/图片/影音三入口＝切范围片），不放装饰内容；数值按顶栏既有令牌（钮 44、框圆角走系统、片距 spacingS）。与 §449 六报包页头交叉处：本节只动资源库页内搜索呈现，顶栏身份簇/胶囊不动，冲突以 §449 为准并在交卷注明 |

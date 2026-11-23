@@ -71,6 +71,10 @@ struct FileSearchField: View {
     @Binding var query: String
     /// 占位文案（默认文件名搜索；段内搜索传自家词）
     var placeholder: String = "搜索文件名"
+    /// 出现即聚焦（§452.9：资源库搜索钮点开键盘同
+    /// 步升起）；常驻型调用点不传、保持旧行为
+    var autoFocus: Bool = false
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack(spacing: OneDayMetrics.spacingS) {
@@ -79,6 +83,7 @@ struct FileSearchField: View {
                 .foregroundStyle(Palette.inkMuted)
                 .accessibilityHidden(true)
             TextField(placeholder, text: $query)
+                .focused($focused)
                 .textFieldStyle(.plain)
                 .font(.callout)
                 // 搜索词是文件名/关键词：关自动首字母
@@ -99,6 +104,9 @@ struct FileSearchField: View {
         .padding(.horizontal, OneDayMetrics.spacingM)
         .padding(.vertical, OneDayMetrics.spacingS)
         .background(Palette.fieldFill, in: RoundedRectangle(cornerRadius: OneDayMetrics.radiusThumb))
+        .onAppear {
+            if autoFocus { focused = true }
+        }
     }
 }
 
@@ -156,24 +164,15 @@ struct FileIconBox: View {
     }
 
     var body: some View {
-        let style = DeliverableIconStyle.style(
-            forFileName: name,
-            isDirectory: isDirectory,
-            isExpanded: isExpanded
+        // §452.4：黏土 PNG 砖退役——程序绘制扁平图标
+        // 居中承载（尺寸契约 36/40/56 不变，图标高 =
+        // 边长 × 0.86，两侧留白与旧砖内图同量级）
+        FileTypeIconView(
+            fileName: name, isDirectory: isDirectory,
+            height: size * 0.86
         )
-        FileIconImageView(assetName: style.assetName)
-            .frame(width: size, height: size)
-            .background(Color.white)
-            .clipShape(
-                RoundedRectangle(cornerRadius: cornerRadius)
-            )
-            .accessibilityHidden(true)
-    }
-
-    /// 圆角按边长 0.25 推导：36→9（radiusTile）、
-    /// 40→10（radiusThumb 同值）、56→14，下限 radiusTile
-    private var cornerRadius: CGFloat {
-        max(OneDayMetrics.radiusTile, size * 0.25)
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 

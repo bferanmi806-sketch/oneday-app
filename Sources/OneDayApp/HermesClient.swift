@@ -760,6 +760,13 @@ protocol HermesClientProtocol: Sendable {
     func deleteFile(config: ServerConfig, path: String, recursive: Bool) async throws
     /// GET /api/files/download?path= → 原始字节（预览/下载共用）
     func fileData(config: ServerConfig, path: String) async throws -> Data
+    /// 同端点带字节进度版（§452 聊天文件卡下载态）：
+    /// onProgress 实报 (已收字节, 预计总字节)，预计
+    /// 未知时 expected ≤ 0
+    func fileDataWithProgress(
+        config: ServerConfig, path: String,
+        onProgress: @escaping @Sendable (_ received: Int64, _ expected: Int64) -> Void
+    ) async throws -> Data
     /// POST /api/files/upload {path, data_url, overwrite}
     /// （openapi ManagedFileUpload，2026-11-09 据 docs 内
     /// OpenAPI 组件 schema 实查；与列表/删除同一 9119 会话
@@ -857,6 +864,18 @@ extension HermesClientProtocol {
             ),
             onProgress: onProgress
         )
+    }
+
+    /// §452 默认实现（测试替身用）：无增量进度，
+    /// 完成后回一次满格；真实客户端覆盖为带进
+    /// 度回调版。
+    func fileDataWithProgress(
+        config: ServerConfig, path: String,
+        onProgress: @escaping @Sendable (Int64, Int64) -> Void
+    ) async throws -> Data {
+        let data = try await fileData(config: config, path: path)
+        onProgress(Int64(data.count), Int64(data.count))
+        return data
     }
 }
 
@@ -3594,6 +3613,59 @@ final class HermesClient: HermesClientProtocol, @unchecked Sendable {
         return data
     }
 
+    /// §452 实现：照 §237 P7 上传先例——每请求新建会
+    /// 话挂本请求的 delegate 取字节回调，cookie 走
+    /// .shared 同一存储、鉴权口径与 dataRequest 一
+    /// 致，用完即 invalidate。Task 取消传导取消底层
+    /// 任务，URLError.cancelled 归一 Cancellation-
+    /// Error（调用方按用户取消收尾、不挂失败标记）
+    func fileDataWithProgress(
+        config: ServerConfig, path: String,
+        onProgress: @escaping @Sendable (_ received: Int64, _ expected: Int64) -> Void
+    ) async throws -> Data {
+        let request = URLRequest(
+            url: url(
+                config: config, path: "/api/files/download",
+                query: [URLQueryItem(name: "path", value: path)]
+            )
+        )
+        let delegate = DownloadProgressDelegate(onProgress: onProgress)
+        let configuration = URLSessionConfiguration.default
+        configuration.httpCookieStorage = .shared
+        configuration.httpShouldSetCookies = true
+        configuration.httpCookieAcceptPolicy = .always
+        configuration.waitsForConnectivity = true
+        let downloadSession = URLSession(
+            configuration: configuration,
+            delegate: delegate, delegateQueue: nil
+        )
+        defer { downloadSession.finishTasksAndInvalidate() }
+        let data: Data
+        let http: HTTPURLResponse
+        do {
+            let (rawData, response) = try await downloadSession.data(
+                for: request, delegate: delegate
+            )
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw HermesError.unreachable(L10n.string("无响应"))
+            }
+            data = rawData
+            http = httpResponse
+        } catch let urlError as URLError
+        where urlError.code == .cancelled {
+            throw CancellationError()
+        } catch let error as HermesError {
+            throw error
+        } catch {
+            throw mapNetworkError(error)
+        }
+        guard http.statusCode == 200 else {
+            throw HermesError.unexpectedStatus(endpoint: L10n.string("文件下载"), status: http.statusCode)
+        }
+        onTransportSuccess?()
+        return data
+    }
+
     func uploadFile(
         config: ServerConfig, path: String, dataURL: String, overwrite: Bool
     ) async throws {
@@ -3871,6 +3943,44 @@ private final class UploadProgressDelegate: NSObject,
                 )
             )
         )
+    }
+}
+
+/// §452：download 字节进度转发——只把 URLSession
+/// 实报的已收/预计字节向外送，不缓存、不估算。回
+/// 调在会话队列线程投递：闭包 nonisolated 语义、只
+/// 碰本盒的锁内计数与 Sendable 回调（回调隔离铁律）
+private final class DownloadProgressDelegate: NSObject,
+    URLSessionDataDelegate, @unchecked Sendable {
+    private let onProgress: @Sendable (Int64, Int64) -> Void
+    private let lock = NSLock()
+    private var received: Int64 = 0
+    private var expected: Int64 = -1
+
+    init(onProgress: @escaping @Sendable (Int64, Int64) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    func urlSession(
+        _ session: URLSession, dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        lock.lock()
+        expected = response.expectedContentLength
+        lock.unlock()
+        completionHandler(.allow)
+    }
+
+    func urlSession(
+        _ session: URLSession, dataTask: URLSessionDataTask,
+        didReceive data: Data
+    ) {
+        lock.lock()
+        received += Int64(data.count)
+        let snapshot = (received, expected)
+        lock.unlock()
+        onProgress(snapshot.0, snapshot.1)
     }
 }
 

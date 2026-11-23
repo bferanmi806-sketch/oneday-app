@@ -25,6 +25,12 @@ struct LibraryListSnapshot {
     /// 当前段已排序条目（非当前段为空数组，本趟无人消费）
     let sortedDocuments: [WorkspaceFileEntry]
     let sortedMedia: [WorkspaceFileEntry]
+    /// §452 定版③统一集：搜索＋类别片＋来源过滤后
+    /// 的全集（未排序）与已排序条目——单列表单数据
+    /// 源；文件/影音分段旧字段只剩兼容计算（视图不
+    /// 再消费）
+    let items: [Deliverable]
+    let sortedItems: [WorkspaceFileEntry]
     /// 路径→交付物（同路径首个优先，与旧线性首命中同义）
     let deliverableByPath: [String: Deliverable]
 
@@ -38,10 +44,13 @@ struct LibraryListSnapshot {
     /// 的事件路径走这里，不付排序账
     static func filtered(
         deliverables: [Deliverable]?,
-        query: String
+        query: String,
+        category: LibraryCategory = .all,
+        source: String = ""
     ) -> (
         documents: [Deliverable],
         mediaItems: [Deliverable],
+        items: [Deliverable],
         byPath: [String: Deliverable]
     ) {
         let all = deliverables ?? []
@@ -62,6 +71,11 @@ struct LibraryListSnapshot {
             mediaItems: all.filter {
                 $0.entry.mediaKind != nil && matches($0)
             },
+            items: all.filter {
+                matches($0)
+                    && category.includes($0.entry)
+                    && (source.isEmpty || $0.source == source)
+            },
             byPath: byPath
         )
     }
@@ -74,9 +88,14 @@ struct LibraryListSnapshot {
         sort: LibrarySort,
         openedAt: [String: TimeInterval],
         pinned: Set<String>,
-        segment: Int
+        segment: Int,
+        category: LibraryCategory = .all,
+        source: String = ""
     ) -> LibraryListSnapshot {
-        let base = filtered(deliverables: deliverables, query: query)
+        let base = filtered(
+            deliverables: deliverables, query: query,
+            category: category, source: source
+        )
         let sortedDocuments = segment == 0
             ? LibraryOrdering.sorted(
                 base.documents.map(\.entry), by: sort,
@@ -94,6 +113,11 @@ struct LibraryListSnapshot {
             mediaItems: base.mediaItems,
             sortedDocuments: sortedDocuments,
             sortedMedia: sortedMedia,
+            items: base.items,
+            sortedItems: LibraryOrdering.sorted(
+                base.items.map(\.entry), by: sort,
+                openedAt: openedAt, pinned: pinned
+            ),
             deliverableByPath: base.byPath
         )
     }
@@ -119,6 +143,8 @@ final class LibrarySnapshotCache {
     private var lastOpenedAt: [String: TimeInterval] = [:]
     private var lastPinned: Set<String> = []
     private var lastSegment: Int?
+    private var lastCategory: LibraryCategory?
+    private var lastSource: String?
     private var lastSnapshot: LibraryListSnapshot?
 
     /// 与 LibraryListSnapshot.make 同参同果：首调
@@ -129,12 +155,16 @@ final class LibrarySnapshotCache {
         sort: LibrarySort,
         openedAt: [String: TimeInterval],
         pinned: Set<String>,
-        segment: Int
+        segment: Int,
+        category: LibraryCategory = .all,
+        source: String = ""
     ) -> LibraryListSnapshot {
         if let lastSnapshot,
            lastQuery == query,
            lastSort == sort,
            lastSegment == segment,
+           lastCategory == category,
+           lastSource == source,
            lastOpenedAt == openedAt,
            lastPinned == pinned,
            Self.deliverablesEqual(lastDeliverables, deliverables) {
@@ -146,7 +176,9 @@ final class LibrarySnapshotCache {
             sort: sort,
             openedAt: openedAt,
             pinned: pinned,
-            segment: segment
+            segment: segment,
+            category: category,
+            source: source
         )
         lastDeliverables = deliverables
         lastQuery = query
@@ -154,6 +186,8 @@ final class LibrarySnapshotCache {
         lastOpenedAt = openedAt
         lastPinned = pinned
         lastSegment = segment
+        lastCategory = category
+        lastSource = source
         lastSnapshot = made
         return made
     }

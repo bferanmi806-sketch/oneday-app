@@ -59,6 +59,10 @@ final class FeelQuickCachePinTests: XCTestCase {
                 let am = a.mtime ?? 0
                 let bm = b.mtime ?? 0
                 if am != bm { return am > bm }
+            case .size:
+                let aS = a.size ?? -1
+                let bS = b.size ?? -1
+                if aS != bS { return aS > bS }
             case .title:
                 break
             }

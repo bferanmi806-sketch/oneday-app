@@ -45,8 +45,14 @@ struct DeliverablesView: View {
     /// 文件库聚合读面客户端（A-06）：聚合集唯一来源
     private let bridgeClient = OneDayBridgeClient()
 
-    /// 0＝文件、1＝影音内容
-    @State private var segment = 0
+    /// §452 定版③：类别筛选片（全部/文档/图片/影
+    /// 音/其他）——文件/影音分段退役，单列表单源
+    @State private var category: LibraryCategory = .all
+    /// §452 定版①：来源筛选（""＝全部来源）
+    @State private var sourceFilter = ""
+    /// §452.9：最近搜索（本地存、最近在前、上限 8）
+    @AppStorage("library.recentSearches")
+    private var recentSearchesRaw = "" 
     /// §369（缓存 C4）：名单走 AppState 共享店＋落盘
     /// 快照（LibraryListStore）——冷启先显快照、后台
     /// 对账换新，删除本地摘行不重拉；本面只读消费
@@ -80,7 +86,7 @@ struct DeliverablesView: View {
     @AppStorage("files.displayMode")
     private var displayModeRaw = LibraryDisplayMode.list.rawValue
     @AppStorage("files.sort")
-    private var sortRaw = LibrarySort.lastOpened.rawValue
+    private var sortRaw = LibrarySort.lastModified.rawValue
     @State private var uploadPickerPresented = false
     @State private var systemFilesRoute: SystemFilesRoute?
     /// 定位高亮（§131）：「在文件页中打开」消费后置
@@ -145,7 +151,9 @@ struct DeliverablesView: View {
             sort: sort,
             openedAt: openHistory.openedAtMap,
             pinned: pinStore.pinnedPaths,
-            segment: segment
+            segment: 0,
+            category: category,
+            source: sourceFilter
         )
         return NavigationStack {
             VStack(spacing: 0) {
@@ -153,11 +161,11 @@ struct DeliverablesView: View {
                 if searchVisible {
                     searchFieldRow
                 }
-                segmentControl
-                if segment == 0 {
-                    filesContent(snapshot)
+                filterChipsRow
+                if searchVisible && query.isEmpty {
+                    searchSuggestions
                 } else {
-                    mediaContent(snapshot)
+                    libraryContent(snapshot)
                 }
             }
             // 0.43.0（A11Y-V7）：「文件」Rotor——条目
@@ -167,9 +175,7 @@ struct DeliverablesView: View {
                 L10n.string("文件")
             ) {
                 ForEach(
-                    segment == 0
-                        ? snapshot.sortedDocuments.map(\.name)
-                        : snapshot.sortedMedia.map(\.name),
+                    snapshot.sortedItems.map(\.name),
                     id: \.self
                 ) { name in
                     AccessibilityRotorEntry(
@@ -292,8 +298,19 @@ struct DeliverablesView: View {
                 .buttonStyle(.odPressable)
                 .accessibilityLabel("会话列表")
                 Spacer()
-                // §4.1/§4.2：右上改 ••• 菜单钮（搜索钮
-                // 撤除）——组1 显示、组2 排序（每组单
+                // §452.9：搜索钮回归顶栏——放大镜图
+                // 标钮与 ••• 同排同级（点开顶栏下原地
+                // 展开搜索行＋取消，见 searchFieldRow；
+                // §4.2 旧「搜索钮撤除＋下拉露出」口径
+                // 就此修订）
+                Button {
+                    toggleSearch()
+                } label: {
+                    headerCircleButton("magnifyingglass")
+                }
+                .buttonStyle(.odPressable)
+                .accessibilityLabel("搜索")
+                // §4.1/§4.2：右上 ••• 菜单钮——组1 显示、组2 排序（每组单
                 // 选）、组3 系统文件、组4 上传文件
                 // （OneDay 扩展，规格标注）。两组单选改
                 // 系统 Picker 承载（样式二期 S2-04）：
@@ -388,31 +405,235 @@ struct DeliverablesView: View {
     /// （本地过滤）；展开/收起由内容滚动偏移驱动（见
     /// handleScrollOffset），不新增手势识别器
     private var searchFieldRow: some View {
-        FileSearchField(query: $query)
+        HStack(spacing: OneDayMetrics.spacingS) {
+            FileSearchField(query: $query, autoFocus: true)
+                .onSubmit { recordRecentSearch() }
+            Button("取消") { cancelSearch() }
+                .font(.body)
+                .foregroundStyle(Palette.primary)
+                .buttonStyle(.odPressable)
+        }
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.bottom, OneDayMetrics.spacingSM)
+    }
+
+    /// §452.9②：顶栏放大镜钮开关搜索行（原地展开、
+    /// 键盘随字段聚焦升起，见 FileSearchField 的
+    /// autoFocus）；收起即清查询回全集
+    private func toggleSearch() {
+        withAnimation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            )
+        ) { searchVisible.toggle() }
+        if !searchVisible { query = "" }
+    }
+
+    /// §452.9⑤：取消——字段撤除键盘自落、查询清空、
+    /// 列表回搜索前全集（滚动位置以列表身份稳定近
+    /// 似保持）
+    private func cancelSearch() {
+        withAnimation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            )
+        ) { searchVisible = false }
+        query = ""
+    }
+
+    private var recentSearches: [String] {
+        recentSearchesRaw.isEmpty
+            ? []
+            : recentSearchesRaw.components(separatedBy: "\n")
+    }
+
+    private func recordRecentSearch() {
+        let term = query.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty else { return }
+        var list = recentSearches.filter { $0 != term }
+        list.insert(term, at: 0)
+        recentSearchesRaw = list.prefix(8)
+            .joined(separator: "\n")
+    }
+
+    /// 筛选片行（§452 定版③＋452.9③）：类别片与
+    /// 搜索范围片同一套——搜索内外同源、不许两套
+    /// 并存；行尾来源菜单片（定版①：每项标来源、
+    /// 可按来源筛）
+    private var filterChipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                ForEach(LibraryCategory.allCases, id: \.self) { item in
+                    Button {
+                        category = item
+                    } label: {
+                        chipLabel(
+                            title: item.label,
+                            selected: category == item
+                        )
+                    }
+                    .buttonStyle(.odPressable)
+                }
+                Menu {
+                    Button("全部来源") { sourceFilter = "" }
+                    ForEach(availableSources, id: \.self) { source in
+                        Button(source) { sourceFilter = source }
+                    }
+                } label: {
+                    chipLabel(
+                        title: sourceFilter.isEmpty
+                            ? "来源" : sourceFilter,
+                        selected: !sourceFilter.isEmpty
+                    )
+                }
+            }
             .padding(.horizontal, OneDayMetrics.pageGutter)
-            .padding(.bottom, OneDayMetrics.spacingSM)
+        }
+        .padding(.vertical, OneDayMetrics.spacingS)
+        .sensoryFeedback(.selection, trigger: category)
+    }
+
+    private var availableSources: [String] {
+        Set((deliverables ?? []).map(\.source).filter {
+            !$0.isEmpty
+        }).sorted()
+    }
+
+    private func chipLabel(
+        title: String, selected: Bool
+    ) -> some View {
+        Text(title)
+            .font(.subheadline.weight(
+                selected ? .semibold : .regular
+            ))
+            .foregroundStyle(Palette.ink)
+            .padding(.horizontal, OneDayMetrics.spacingSM)
+            .padding(.vertical, 6)
+            .background(
+                selected ? Palette.selectionFill : Palette.surface,
+                in: Capsule()
+            )
+            .overlay {
+                if !selected {
+                    Capsule().strokeBorder(
+                        Palette.separator, lineWidth: 1
+                    )
+                }
+            }
+    }
+
+    /// 搜索空输入态（§452.9④）：最近搜索（无历史
+    /// 不显此区）＋热门类型入口（点即切类别片），
+    /// 不放装饰内容
+    private var searchSuggestions: some View {
+        ScrollView {
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingL
+            ) {
+                if !recentSearches.isEmpty {
+                    VStack(
+                        alignment: .leading,
+                        spacing: OneDayMetrics.spacingS
+                    ) {
+                        HStack {
+                            Text("最近搜索")
+                                .font(.sectionLabel)
+                                .foregroundStyle(Palette.inkSecondary)
+                            Spacer()
+                            Button("清除") {
+                                recentSearchesRaw = ""
+                            }
+                            .font(.footnote)
+                            .foregroundStyle(Palette.inkSecondary)
+                            .buttonStyle(.odPressable)
+                        }
+                        ForEach(recentSearches, id: \.self) { term in
+                            Button {
+                                query = term
+                            } label: {
+                                HStack(
+                                    spacing: OneDayMetrics.spacingS
+                                ) {
+                                    Image(
+                                        systemName: "clock.arrow.circlepath"
+                                    )
+                                    .foregroundStyle(Palette.inkMuted)
+                                    Text(term)
+                                        .foregroundStyle(Palette.ink)
+                                    Spacer()
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.odPressable)
+                        }
+                    }
+                }
+                VStack(
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingS
+                ) {
+                    Text("热门类型")
+                        .font(.sectionLabel)
+                        .foregroundStyle(Palette.inkSecondary)
+                    HStack(spacing: OneDayMetrics.spacingS) {
+                        suggestionType(
+                            "文档", symbol: "doc.text",
+                            target: .documents
+                        )
+                        suggestionType(
+                            "图片", symbol: "photo",
+                            target: .images
+                        )
+                        suggestionType(
+                            "影音", symbol: "play.rectangle",
+                            target: .media
+                        )
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingS)
+        }
+    }
+
+    private func suggestionType(
+        _ title: String, symbol: String,
+        target: LibraryCategory
+    ) -> some View {
+        Button {
+            category = target
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                Text(title)
+            }
+            .font(.subheadline)
+            .foregroundStyle(Palette.ink)
+            .padding(.horizontal, OneDayMetrics.spacingSM)
+            .padding(.vertical, 8)
+            .background(Palette.surface, in: Capsule())
+            .overlay {
+                Capsule().strokeBorder(
+                    Palette.separator, lineWidth: 1
+                )
+            }
+        }
+        .buttonStyle(.odPressable)
     }
 
     /// 下拉触发口径：内容被下拉过顶 56pt 露出搜索；
     /// 回滚到顶且关键词为空才收起（输入态——关键词
     /// 非空——保持展开，§4.2）
     private func handleScrollOffset(_ y: CGFloat) {
-        if y < -56, !searchVisible {
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.swap, reduceMotion: reduceMotion
-                )
-            ) { searchVisible = true }
-        } else if y > 10, searchVisible, query.isEmpty {
-            withAnimation(
-                MotionTokens.resolved(
-                    MotionTokens.swap, reduceMotion: reduceMotion
-                )
-            ) { searchVisible = false }
-        }
+        // §452.9：搜索改顶栏钮驱动——旧「下拉 56pt
+        // 露出/回滚收起」驱动就此退役，本函只留滚动
+        // 观察位（四滚动面同挂，不再动 searchVisible）
     }
 
-    // MARK: - 大分段（2026-11-15 第 88 条收口：迁系统 segmented）
+    // MARK: - 筛选片与搜索建议（§452 定版③/452.9）
 
     /// 分段控件沿革：0.36.2 照 Muse 资源库图自制
     /// （SegmentedControlSpec 落值：总高 48／药丸 36
@@ -427,25 +648,6 @@ struct DeliverablesView: View {
     /// 构建处（deliverableRow/mediaRow/fileCard/
     /// 影音网格钮），id＝文件名与条目一一对位
     @Namespace private var fileRotorNamespace
-
-    /// 系统 segmented（第 88 条收口）：形态差如实
-    /// 记——总高 48→系统约 32；轨道自 surface 白＋
-    /// 发丝边改系统灰、选中垫自 selectionFill 改系
-    /// 统白拇指（自带微影）；字阶自 .bodyText semi-
-    /// bold 改系统分段字；左右边距自控件局部口径
-    /// 16 回页面口径 pageGutter 20。触感矩阵（规格
-    /// §2.3）：分段切换＝selection，保留；药丸滑移
-    /// 由系统分段自带过渡替代
-    private var segmentControl: some View {
-        Picker("内容类型", selection: $segment) {
-            Text("文件").tag(0)
-            Text("影音内容").tag(1)
-        }
-        .pickerStyle(.segmented)
-        .padding(.horizontal, OneDayMetrics.pageGutter)
-        .padding(.vertical, OneDayMetrics.spacingSM)
-        .sensoryFeedback(.selection, trigger: segment)
-    }
 
     // MARK: - 派生集（过滤→页级排序→分组）
 
@@ -467,20 +669,25 @@ struct DeliverablesView: View {
     // MARK: - 文件段
 
     @ViewBuilder
-    private func filesContent(
+    /// 统一内容面（§452 定版③：单列表单数据源，
+    /// 文件/影音同面——列表/网格两显示模式共用同
+    /// 一已排序集）
+    private func libraryContent(
         _ snapshot: LibraryListSnapshot
     ) -> some View {
         if deliverables == nil && loadError == nil {
             loadingState
         } else if let loadError, deliverables == nil {
             failureState(message: loadError)
-        } else if snapshot.documents.isEmpty {
+        } else if snapshot.items.isEmpty {
             emptyState(
                 title: query.isEmpty ? "暂无交付物" : "没有匹配的文件",
                 symbol: query.isEmpty
                     ? "doc.text.magnifyingglass" : "magnifyingglass",
                 message: query.isEmpty
-                    ? "智能体生成的文件与定时任务产出会出现在这里。"
+                    ? (category == .all && sourceFilter.isEmpty
+                        ? "智能体生成的文件与定时任务产出会出现在这里。"
+                        : "换个筛选试试。")
                     : "换个关键词试试。"
             )
         } else if displayMode == .list {
@@ -546,7 +753,7 @@ struct DeliverablesView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(
                             Array(
-                                snapshot.sortedDocuments
+                                snapshot.sortedItems
                                     .enumerated()
                             ),
                             id: \.element.id
@@ -619,7 +826,7 @@ struct DeliverablesView: View {
             // 合并按钮元素语义改由真 Button 承载；⋮ 菜单
             // 仍在按钮外独立可达，几何逐字不变
             Button {
-                openEntry(entry, among: snapshot.sortedDocuments)
+                openEntry(entry, among: snapshot.sortedItems)
             } label: {
                 HStack(spacing: OneDayMetrics.spacingSM) {
                     FileIconBox(entry: entry)
@@ -633,12 +840,10 @@ struct DeliverablesView: View {
                         .foregroundStyle(Palette.ink)
                         // 0.43.0（A11Y-D3）：AX 档放宽
                         .a11yLineLimit(1, ax: 2)
-                        Text(
-                            DeliverableFileType.label(
-                                forFileName: entry.name
-                            )
-                        )
-                        .font(.rowSubtitle)
+                        Text(rowMetaLine(
+                            for: entry, snapshot: snapshot
+                        ))
+                            .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                         .a11yLineLimit(1, ax: 2)
                     }
@@ -654,7 +859,7 @@ struct DeliverablesView: View {
             Spacer(minLength: OneDayMetrics.spacingS)
             Menu {
                 actionItems(
-                    for: entry, among: snapshot.sortedDocuments,
+                    for: entry, among: snapshot.sortedItems,
                     deliverable: snapshot.deliverable(for: entry)
                 )
             } label: {
@@ -681,62 +886,47 @@ struct DeliverablesView: View {
         .accessibilityRotorEntry(id: entry.name, in: fileRotorNamespace)
         .contextMenu {
             actionItems(
-                for: entry, among: snapshot.sortedDocuments,
+                for: entry, among: snapshot.sortedItems,
                 deliverable: snapshot.deliverable(for: entry)
             )
         }
     }
 
-    /// 网格态（§4.3）：双列、边距 16/列距 12/行距
-    /// 16；排序≠标题时分「最近/全部」两组（§4.5）
+    /// 网格双列（§452 定版④：列距/行距走梯队，
+    /// 与 Muse 资源库两列同构）
+    private static let cardColumns = [
+        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
+        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
+    ]
+
+    /// 网格态（§452 定版③/④）：单列表平铺不分组
+    /// （置顶由排序钉顶承载、最近在前由默认排序承
+    /// 载，§4.5 分组退役）；双列、结构对齐 Muse 资
+    /// 源库（卡宽 ≈179、预览区 124、名＋类型签）
     private func fileGridView(
         _ snapshot: LibraryListSnapshot
     ) -> some View {
-        let sections = LibraryOrdering.grouped(
-            snapshot.sortedDocuments,
-            openedAt: openHistory.openedAtMap, now: Date(),
-            pinned: pinStore.pinnedPaths
-        )
-        return ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: OneDayMetrics.spacingL) {
-                    ForEach(
-                        Array(sections.enumerated()), id: \.offset
-                    ) { _, section in
-                        VStack(
-                            alignment: .leading,
-                            spacing: OneDayMetrics.spacingM
-                        ) {
-                            if let title = section.title {
-                                Text(title)
-                                    .font(.sectionLabel)
-                                    .foregroundStyle(Palette.inkSecondary)
-                                    .padding(
-                                        .horizontal,
-                                        OneDayMetrics.spacingM
-                                    )
-                            }
-                            LazyVGrid(
-                                columns: Self.cardColumns,
-                                spacing: OneDayMetrics.spacingM
-                            ) {
-                                ForEach(section.entries) { entry in
-                                    fileCard(entry, snapshot: snapshot)
-                                }
-                            }
-                            .padding(
-                                .horizontal, OneDayMetrics.spacingM
-                            )
+                VStack(alignment: .leading, spacing: 0) {
+                    LazyVGrid(
+                        columns: Self.cardColumns,
+                        spacing: OneDayMetrics.spacingM
+                    ) {
+                        ForEach(snapshot.sortedItems) { entry in
+                            fileCard(entry, snapshot: snapshot)
                         }
                     }
+                    .padding(
+                        .horizontal, OneDayMetrics.spacingM
+                    )
                     noticeView
                 }
                 .padding(.top, OneDayMetrics.spacingM)
                 .padding(.bottom, OneDayMetrics.spacingXL)
             }
             .background(Palette.pageBG)
-            // §170：底缘 .hard（口径见 fileListView 同注）
-            // §185 按裁决改 .soft：该边缘内容可流到坞下、.hard 官方定义近乎不透明本身制造色带（solidband 裁决第四节）；§170 的 .hard 口径就此点被 §185 覆盖。
+            // §185：底缘 .soft（口径见 fileListView 同注）
             .scrollEdgeEffectStyle(.soft, for: .bottom)
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 geometry.contentOffset.y
@@ -749,15 +939,12 @@ struct DeliverablesView: View {
         }
     }
 
-    private static let cardColumns = [
-        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
-        GridItem(.flexible(), spacing: OneDayMetrics.spacingSM),
-    ]
-
-    /// 内容卡（§4.3）：预览区 112（缩略首面/类型面，
-    /// FileThumbnailStore 分档生成）＋信息条 64（展
-    /// 示标题 semibold 一行＋类型签）；图片卡带 zoom
-    /// 转场源标记（0.36.4 衔接）。
+    /// 内容卡（§4.3；§452 定版④对齐 Muse 资源
+    /// 库）：预览区 124（缩略首面/类型面，File-
+    /// ThumbnailStore 分档生成；不可渲类正中扁平
+    /// 图标 28）＋信息条 64（展示标题 semibold 一
+    /// 行＋类型签·来源）；图片卡带 zoom 转场源标
+    /// 记（0.36.4 衔接）。
     /// §131 翻案：信息条尾加 ⋮ 钮（与行 ⋮/长按同源
     /// actionItems，§125「卡上无 ⋮」口径作废）——卡
     /// 本体由 Button 改点按手势＋无障碍按钮语义（行
@@ -775,11 +962,11 @@ struct DeliverablesView: View {
         // 已知差：按压缩放只作用卡体、⋮ 不随动（0.97／
         // 0.25s 级，见 §363 注记）
         Button {
-            openEntry(entry, among: snapshot.sortedDocuments)
+            openEntry(entry, among: snapshot.sortedItems)
         } label: {
             VStack(alignment: .leading, spacing: 0) {
                 FileThumbnailView(entry: entry, targetPixelSize: 440)
-                    .frame(height: 112)
+                    .frame(height: 124)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     .matchedTransitionSource(
@@ -798,7 +985,9 @@ struct DeliverablesView: View {
                         .font(.callout.weight(.semibold))
                         .foregroundStyle(Palette.ink)
                         .lineLimit(1)
-                        Text(typeTag(for: entry))
+                        Text(cardMetaLine(
+                            for: entry, snapshot: snapshot
+                        ))
                             .font(.meta)
                             .foregroundStyle(Palette.inkSecondary)
                             .lineLimit(1)
@@ -841,7 +1030,7 @@ struct DeliverablesView: View {
         .overlay(alignment: .topTrailing) {
             Menu {
                 actionItems(
-                    for: entry, among: snapshot.sortedDocuments,
+                    for: entry, among: snapshot.sortedItems,
                     deliverable: snapshot.deliverable(for: entry)
                 )
             } label: {
@@ -861,7 +1050,7 @@ struct DeliverablesView: View {
                     .padding(-(OneDayMetrics.minTapTarget - 40) / 2)
             }
             .accessibilityLabel("更多操作")
-            .padding(.top, 112 + OneDayMetrics.spacingS)
+            .padding(.top, 124 + OneDayMetrics.spacingS)
             .padding(.trailing, OneDayMetrics.spacingSM)
         }
         .id(entry.path)
@@ -869,10 +1058,33 @@ struct DeliverablesView: View {
         .accessibilityRotorEntry(id: entry.name, in: fileRotorNamespace)
         .contextMenu {
             actionItems(
-                for: entry, among: snapshot.sortedDocuments,
+                for: entry, among: snapshot.sortedItems,
                 deliverable: snapshot.deliverable(for: entry)
             )
         }
+    }
+
+    /// 卡/行副行（§452 定版①：类型签＋来源标）：
+    /// 来源即聚合集 Deliverable.source（双向单库的
+    /// 归属标），空来源不挂尾
+    private func cardMetaLine(
+        for entry: WorkspaceFileEntry,
+        snapshot: LibraryListSnapshot
+    ) -> String {
+        let source = snapshot.deliverable(for: entry).source
+        let tag = typeTag(for: entry)
+        return source.isEmpty ? tag : "\(tag) · \(source)"
+    }
+
+    private func rowMetaLine(
+        for entry: WorkspaceFileEntry,
+        snapshot: LibraryListSnapshot
+    ) -> String {
+        let source = snapshot.deliverable(for: entry).source
+        let label = DeliverableFileType.label(
+            forFileName: entry.name
+        )
+        return source.isEmpty ? label : "\(label) · \(source)"
     }
 
     /// 类型签（§4.3）：媒体给人话词（图片/视频/音
@@ -891,264 +1103,6 @@ struct DeliverablesView: View {
             return "文本"
         }
         return DeliverableFileType.label(forFileName: entry.name)
-    }
-
-    // MARK: - 影音段
-
-    @ViewBuilder
-    private func mediaContent(
-        _ snapshot: LibraryListSnapshot
-    ) -> some View {
-        if deliverables == nil && loadError == nil {
-            loadingState
-        } else if let loadError, deliverables == nil {
-            failureState(message: loadError)
-        } else if snapshot.mediaItems.isEmpty {
-            emptyState(
-                title: query.isEmpty
-                    ? "暂无影音交付" : "没有匹配的文件",
-                symbol: query.isEmpty
-                    ? "photo.on.rectangle.angled" : "magnifyingglass",
-                message: query.isEmpty
-                    ? "智能体生成的图片、视频与音频会出现在这里。"
-                    : "换个关键词试试。"
-            )
-        } else if displayMode == .grid {
-            mediaGridView(snapshot)
-        } else {
-            mediaListView(snapshot)
-        }
-    }
-
-    private let mediaColumns = [
-        GridItem(.flexible(), spacing: OneDayMetrics.spacingMicro),
-        GridItem(.flexible(), spacing: OneDayMetrics.spacingMicro),
-        GridItem(.flexible(), spacing: OneDayMetrics.spacingMicro),
-    ]
-
-    /// 影音网格维持三列方形媒体格（§4.4：媒体本身即
-    /// 内容、方形格是系统相册惯例，不随文件段网格变）
-    private func mediaGridView(
-        _ snapshot: LibraryListSnapshot
-    ) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    LazyVGrid(columns: mediaColumns, spacing: OneDayMetrics.spacingMicro) {
-                        ForEach(snapshot.sortedMedia, id: \.id) { entry in
-                            Button {
-                                openEntry(entry, among: snapshot.sortedMedia)
-                            } label: {
-                                MediaCell(entry: entry)
-                                    // zoom 转场源标记（0.36.4）
-                                    .matchedTransitionSource(
-                                        id: entry.path,
-                                        in: viewerNamespace
-                                    )
-                                    // §131：定位高亮描边
-                                    .overlay {
-                                        if revealedPath == entry.path {
-                                            Rectangle()
-                                                .strokeBorder(
-                                                    Palette.primary,
-                                                    lineWidth: 2
-                                                )
-                                        }
-                                    }
-                            }
-                            .buttonStyle(.odPressable)
-                            .id(entry.path)
-                            // §144：以可见格为锚向后预
-                            // 取 2 行（6 格）360 档——
-                            // 滚动方向上先暖缓存，格到
-                            // 眼前时缩略已在、不阻塞布局
-                            .onAppear {
-                                prefetchMedia(
-                                    after: entry,
-                                    among: snapshot.sortedMedia
-                                )
-                            }
-                            // 0.43.0（A11Y-V7）：Rotor 卡标记
-                            .accessibilityRotorEntry(
-                                id: entry.name, in: fileRotorNamespace
-                            )
-                            .contextMenu {
-                                actionItems(
-                                    for: entry,
-                                    among: snapshot.sortedMedia,
-                                    deliverable: snapshot
-                                        .deliverable(for: entry)
-                                )
-                            }
-                        }
-                    }
-                    noticeView
-                }
-                .padding(.bottom, OneDayMetrics.spacingXL)
-            }
-            .background(Palette.pageBG)
-            // §170：底缘 .hard（口径见 fileListView 同注）
-            // §185 按裁决改 .soft：该边缘内容可流到坞下、.hard 官方定义近乎不透明本身制造色带（solidband 裁决第四节）；§170 的 .hard 口径就此点被 §185 覆盖。
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y
-            } action: { _, newValue in
-                handleScrollOffset(newValue)
-            }
-            .onChange(of: revealedPath) { _, path in
-                scrollToRevealed(path, proxy: proxy)
-            }
-        }
-    }
-
-    /// 影音列表（§4.4 新补）：56pt 缩略行——标题＋类
-    /// 型签＋大小·日期小字（服务端无时长字段，时长
-    /// 不摆、如实以大小日期代，§七同口径）
-    private func mediaListView(
-        _ snapshot: LibraryListSnapshot
-    ) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    // §363（S4）：与文件列表同改 LazyVStack
-                    // （同骨架同病根，见 fileListView 注）
-                    LazyVStack(spacing: 0) {
-                        ForEach(
-                            Array(
-                                snapshot.sortedMedia
-                                    .enumerated()
-                            ),
-                            id: \.element.id
-                        ) { index, entry in
-                            if index > 0 {
-                                GroupDivider(
-                                    inset: OneDayMetrics.dividerInset
-                                )
-                            }
-                            mediaRow(
-                                entry, snapshot: snapshot
-                            )
-                        }
-                    }
-                    noticeView
-                }
-                .padding(.top, OneDayMetrics.spacingXS)
-                .padding(.bottom, OneDayMetrics.spacingXL)
-            }
-            .background(Palette.pageBG)
-            // §170：底缘 .hard（口径见 fileListView 同注）
-            // §185 按裁决改 .soft：该边缘内容可流到坞下、.hard 官方定义近乎不透明本身制造色带（solidband 裁决第四节）；§170 的 .hard 口径就此点被 §185 覆盖。
-            .scrollEdgeEffectStyle(.soft, for: .bottom)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y
-            } action: { _, newValue in
-                handleScrollOffset(newValue)
-            }
-            .onChange(of: revealedPath) { _, path in
-                scrollToRevealed(path, proxy: proxy)
-            }
-        }
-    }
-
-    private func mediaRow(
-        _ entry: WorkspaceFileEntry,
-        snapshot: LibraryListSnapshot
-    ) -> some View {
-        HStack(spacing: OneDayMetrics.spacingSM) {
-            // §363（S4）：与文件行同式改原生 Button＋
-            // .odPressable（原因见文件行注与 §363）；缩略
-            // ＋题＋副题合并语义改由真 Button 承载，⋮ 菜
-            // 单仍在按钮外独立可达，几何逐字不变
-            Button {
-                openEntry(entry, among: snapshot.sortedMedia)
-            } label: {
-                HStack(spacing: OneDayMetrics.spacingSM) {
-                    ZStack {
-                        FileThumbnailView(entry: entry, targetPixelSize: 168)
-                            .frame(width: 56, height: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: OneDayMetrics.radiusThumb))
-                        if entry.mediaKind == .video {
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundStyle(
-                                    Color.white, Palette.ink.opacity(0.55)
-                                )
-                                .accessibilityHidden(true)
-                        }
-                    }
-                    .matchedTransitionSource(
-                        id: entry.path, in: viewerNamespace
-                    )
-                    VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                        Text(
-                            DeliverableFileType.displayTitle(
-                                forFileName: entry.name
-                            )
-                        )
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                        // 0.43.0（A11Y-D3）：AX 档放宽
-                        .a11yLineLimit(1, ax: 2)
-                        Text(mediaSubtitle(entry))
-                            .font(.rowSubtitle)
-                            .foregroundStyle(Palette.inkSecondary)
-                            .a11yLineLimit(1, ax: 2)
-                    }
-                }
-                .frame(
-                    maxWidth: .infinity, minHeight: 64,
-                    alignment: .leading
-                )
-                .contentShape(Rectangle())
-                .accessibilityElement(children: .combine)
-            }
-            .buttonStyle(.odPressable)
-            Spacer(minLength: OneDayMetrics.spacingS)
-            Menu {
-                actionItems(
-                    for: entry, among: snapshot.sortedMedia,
-                    deliverable: snapshot.deliverable(for: entry)
-                )
-            } label: {
-                Image(systemName: "ellipsis")
-                    .rotationEffect(.degrees(90))
-                    .font(.system(size: 18, weight: .regular))
-                    .foregroundStyle(Palette.inkSecondary)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("更多操作")
-        }
-        .padding(.horizontal, OneDayMetrics.spacingM)
-        .frame(minHeight: 64)
-        // §131：定位高亮（与文件行同口径）
-        .background(
-            revealedPath == entry.path
-                ? Palette.selectionFill : Color.clear
-        )
-        .contentShape(Rectangle())
-        .id(entry.path)
-        // 0.43.0（A11Y-V7）：Rotor 行标记
-        .accessibilityRotorEntry(id: entry.name, in: fileRotorNamespace)
-        .contextMenu {
-            actionItems(
-                for: entry, among: snapshot.sortedMedia,
-                deliverable: snapshot.deliverable(for: entry)
-            )
-        }
-    }
-
-    private func mediaSubtitle(
-        _ entry: WorkspaceFileEntry
-    ) -> String {
-        let size = entry.size.map {
-            ByteCountFormatter.string(
-                fromByteCount: $0, countStyle: .file
-            )
-        }
-        let date = AdminFormat.short(entry.modifiedAt)
-        return [typeTag(for: entry), size, date]
-            .compactMap { $0 }.joined(separator: " · ")
     }
 
     // MARK: - 条目动作（按类型适配，附记硬规矩）
@@ -1377,15 +1331,13 @@ struct DeliverablesView: View {
         let base = LibraryListSnapshot.filtered(
             deliverables: deliverables, query: query
         )
-        if base.documents.contains(
+        if let hit = (deliverables ?? []).first(
             where: { $0.entry.path == path }
         ) {
-            segment = 0
-            flashReveal(path: path)
-        } else if base.mediaItems.contains(
-            where: { $0.entry.path == path }
-        ) {
-            segment = 1
+            // §452 定版③：定位改切类别片＋清来源筛
+            // 选（分段退役），命中集内滚动高亮不变
+            category = LibraryCategory.bucket(for: hit.entry)
+            sourceFilter = ""
             flashReveal(path: path)
         } else {
             systemFilesRoute = SystemFilesRoute(
