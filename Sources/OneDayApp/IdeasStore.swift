@@ -70,11 +70,27 @@ final class IdeasStore {
     }
 
     /// 页面唯一结构（§177）：分类小节（标题＋卡片），
-    /// 无分类的卡不进列表，口径收口在 Core IdeaBoard
-    var categorySections: [IdeaCategorySection] {
-        IdeaBoard.categorySections(
+    /// 无分类的卡不进列表，口径收口在 Core IdeaBoard。
+    /// §415 改存储快照：旧计算属性每次访问重分组
+    /// （body 一趟多次访问多次付账）——现由三个数
+    /// 据变更漏斗（installLoadedIdeas/applyOpti-
+    /// misticDismiss/restoreDismissed）在落点重算，
+    /// 呈现侧读零计算（照资源库快照模板收口）
+    private(set) var categorySections: [IdeaCategorySection] = []
+
+    /// 分类快照修订号（§415）：每次重算 +1，钉测
+    /// 以此断言呈现侧反复读不重算
+    private(set) var categorySectionsRevision = 0
+
+    /// 快照重算落点（数据变更漏斗共用）：入参口径
+    /// 与旧计算属性逐字同（IdeaBoard.categorySec-
+    /// tions＋当前时刻——已采纳 30 天窗随数据变更
+    /// 刷新，与旧「下次访问重算」在可见面同果）
+    private func refreshCategorySections() {
+        categorySections = IdeaBoard.categorySections(
             ideas, now: Date().timeIntervalSince1970
         )
+        categorySectionsRevision += 1
     }
 
     var hasVisibleIdeas: Bool {
@@ -282,6 +298,7 @@ final class IdeasStore {
     /// 名单装载收口（load/回读/测试共用一个落点）
     func installLoadedIdeas(_ loaded: [BridgeIdea]) {
         ideas = loaded
+        refreshCategorySections()
     }
 
     /// 乐观离场落点：把点子从本地名单摘掉并返回摘下
@@ -290,7 +307,9 @@ final class IdeasStore {
         guard let index = ideas.firstIndex(
             where: { $0.id == ideaID }
         ) else { return nil }
-        return ideas.remove(at: index)
+        let removed = ideas.remove(at: index)
+        refreshCategorySections()
+        return removed
     }
 
     /// 失败恢复落点：原条放回名单（呈现序由 IdeaBoard
@@ -299,6 +318,7 @@ final class IdeasStore {
         guard !ideas.contains(where: { $0.id == idea.id })
         else { return }
         ideas.append(idea)
+        refreshCategorySections()
     }
 
     /// 低风险动作：不弹确认；**卡当拍先离场**，后台

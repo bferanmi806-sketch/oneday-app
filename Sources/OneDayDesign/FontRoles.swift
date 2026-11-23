@@ -25,6 +25,13 @@ public extension Font {
     /// §51 Headline 定点同属内容层定点，消费点只许对
     /// 象标题（帖子详情题、文档阅读页题）
     static let contentTitle: Font = .title3.weight(.semibold)
+    /// 内容 emoji 定点（§415 登记）：动态/点子行首
+    /// 的内容 emoji（§117.5「emoji 是内容不是界面
+    /// 图标」）——38pt 钉值配 44 帧，是内容层定点、
+    /// 不是界面字阶，不进 TypeRole 角色表（与
+    /// contentTitle/detailTitle 同种登记）；消费点
+    /// 只许行首内容 emoji
+    static let contentEmoji: Font = .system(size: 38)
     /// 详情页题（0.41.0 收口批 P6 定点登记）：对象详
     /// 情页的页题（目标详情头）——一页至多一处、是该
     /// 页唯一的第一级；Title2 semibold。行题/分区头

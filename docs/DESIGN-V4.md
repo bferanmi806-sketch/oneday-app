@@ -16372,3 +16372,31 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 - 通道记账：本包 run 两度被其他线 kick 抢道杀跑（18:11 run 日志尾 ** BUILD INTERRUPTED ** 实证），最终以「双树合并一踢＋错峰等待器」于 18:21 完成双树对账、18:31 完成钉测重跑；kick 纪律（单一脚本双读判闲、忙即退）全程未破。
 - **真机门（未过不关账）**：50/100MB 文件发送全程界面不冻、发送键即时响应；文件多的会话与文件页滚动无缩略图分片卡顿；断网/杀进程后暂存补传与 §237 旧口径一致。实验室绿不代真机 verdict。
 - 范围外记账：ProfilesView 档案包安装、FileOpenView 改名链走 uploadFile＋调用方 makeDataURL，非本包四段（发送链）范围，其 JSON 体编码已随段3 附带项 detached 化受益，dataURL 构造残留记后续包候选。取证 §1.4（文件牌上传后入行跳高）与 §1.6（落定翻形态）属呈现/S1 口径，不在本包。
+## §415 四面收口包：文件页虚拟化＋动态/点子快照收口（2026-11-23；分支 feat/faces-tidy，基线 rel-05102 @64f2b56；依据 same-class-skeleton-sweep-20261123.md F4/F1/F2，模板＝资源库 LibrarySnapshotCache §363/F1）
+
+### §415.1 落点三件
+1. **文件页（FilesBrowserView）**：列表本体 `ScrollView＋VStack` 急切全量建行 → `LazyVStack`（spacing 0、GroupDivider 排法、.odGroup、pageGutter 内边距逐字不变；身份 id=path、行缩略图 FileThumbnailStore 异步口径、OneDayMetrics 间距未动）。`shownEntries` 计算属性（每趟 body filter＋sort）退役 → `FilesBrowserSnapshot＋FilesBrowserSnapshotCache`（新文件 FilesBrowserSnapshot.swift）：body 单点 `currentSnapshot()` 算齐（entries/imageEntries/paths）下传 content；指纹＝名单逐项＋搜索词＋排序键＋方向，nil 名单与空目录分开记（同 Library 口径）。导航目的地闭包在触发时点调 currentSnapshot() 现取 imageEntries（与旧闭包内现算同时点同果、命中指纹回同一份）。
+2. **动态面（FeedView）**：`visiblePosts` 计算属性＋readyContent 内 `FeedBoard.sorted` 每趟重排退役 → `FeedListSnapshot＋FeedSnapshotCache`（新文件 FeedListSnapshot.swift）：body 单点算（指纹＝帖名单逐项＋搜索词＋搜索态）下传 readyContent；过滤谓词与旧 visiblePosts 逐字同、排序走 FeedBoard.sorted 单源。帖行首图裸 AsyncImage（FeedView postRow）**只登记不换**——归 #23 图片管线换 Nuke 包一并收口（全 App 图片双轨同批处理，本包不动）。
+3. **点子面（IdeasStore）**：`categorySections` 无备忘计算属性 → 存储快照（private(set) 存储属性＋refreshCategorySections 落点）：三个数据变更漏斗（installLoadedIdeas/applyOptimisticDismiss/restoreDismissed）落点重算，呈现侧读零计算；入参口径与旧计算属性逐字同（IdeaBoard.categorySections＋当前时刻，已采纳 30 天窗随数据变更刷新）。pendingIdeas/adoptedIdeas 仍为计算属性（内部判据用，非呈现路径，不在本包）。
+
+### §415.2 字阶收编登记（FeedView 11 处 .system(size:) → 令牌，默认档逐值不变）
+| # | 落点 | 改前 | 改后 | pt 对账 |
+|---|---|---|---|---|
+| 1 | postRow 内容 emoji | .system(size: 38) | FontRoles.contentEmoji（本包新增内容层定点，44 帧同 §117.5） | 38→38 |
+| 2 | 动作行 ⓘ 来源钮字形 | .system(size: 15) | .subheadline | 15→15 |
+| 3 | refsRow 引用字形 | .system(size: 11) | .caption2 | 11→11 |
+| 4 | 详情头 kind 字形 | .system(size: 15) | .subheadline | 15→15 |
+| 5 | 详情链接 link 字形 | .system(size: 12) | .caption | 12→12 |
+| 6 | 详情引用类型字形 | .system(size: 12) | .caption | 12→12 |
+| 7 | 详情引用 chevron | .system(size: 11, weight: .semibold) | .caption2.weight(.semibold) | 11→11 |
+| 8 | 来源卡 arrow.up.forward | .system(size: 11, weight: .semibold) | .caption2.weight(.semibold) | 11→11 |
+| 9 | 来源 sheet 链接 link 字形 | .system(size: 12) | .caption | 12→12 |
+| 10 | 来源 sheet 引用类型字形 | .system(size: 12) | .caption | 12→12 |
+| 11 | 来源 sheet chevron | .system(size: 11, weight: .semibold) | .caption2.weight(.semibold) | 11→11 |
+
+口径注：系统样式随 Dynamic Type 缩放（旧钉值不缩放）——收编后 AX 档字形随档长大，是令牌口径的应有之义、默认档视觉逐值不变；#2 的命中域负内边距公式名义值 15 与 .subheadline 默认档同值、公式未动。同形存量登记：IdeasView 行首内容 emoji 仍为 .system(size: 38) 原值（与 #1 改前同形），可后续随手改走 .contentEmoji，本包未动。
+
+### §415.3 钉测与回归
+- 新套 FacesTidySnapshotPinTests 3 例：文件面 3,000 条目录（修订号 1→同入参 8 次重取不增→搜索词/排序键/方向/名单/nil/空目录逐项变各 +1，且与 FileBrowserLogic 直算逐项同、imageEntries=300、paths 同序）；动态面 600 帖（修订号同法，搜索谓词与旧 visiblePosts 同果对账）；点子面 1,500 卡七类轮转（install 后修订 1、与 IdeaBoard 直算全等、反复读＋hasVisibleIdeas 不增、乐观离场 +1、恢复 +1、恢复幂等不增）。
+- 定向回归 13 套实跑 110/110 全绿、0 跳过（xcresulttool 逐套对账：FacesTidy 3、FeelQuickCachePin 6、FeelQuickProbe 14、LibraryListSnapshot 5、LibraryListStoreC4 12、MutationOptimistic 14、IdeasDeleteConfirm 4、CacheFreshnessGateC1 6、FeedDiscussQuote 6、StoresSingleSourceStructure 3、FeedBoard 13、FileBrowserLogic 16、VisualDirectionGate 8；bundle Test-FacesTidy）。发布集全量按包约定留组版统一跑。
+- 真机门（留组版）：文件页大目录滚动流畅度＋§131 定位直达滚动在 LazyVStack 下照常命中目标行；动态搜索过滤呈现与改前同果。
