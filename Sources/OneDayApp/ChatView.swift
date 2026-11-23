@@ -319,18 +319,6 @@ struct ChatView: View {
     /// 用匣（见文件头注），不再走 @State 逐帧回写
     @State private var bottomDistanceRecorder =
         BottomDistanceRecorder()
-    /// 流式跟随滚动节流闸（0.4.2，§27）：OneDayCore
-    /// 纯逻辑记账，每 ≥40 字放行一次无动画贴底；流结
-    /// 束与切换线程时归零（见 messageList 的 onChange）
-    @State private var streamFollowGate = StreamFollowGate()
-    /// 流式跟随贴底的结算挂账（割裂感 A 止血档 A3）：
-    /// 代号每登记一次自增（新登记/流结束都令旧登记
-    /// 作废），pending＝有一贴待结算后执行；执行口
-    /// settleStreamFollow 双守卫消费（见 messageList
-    /// 的 streamingText 与 composerBottomSpace 两处
-    /// onChange）
-    @State private var streamFollowSettleGeneration = 0
-    @State private var streamFollowPending = false
     /// 离底未读计数（0.41.0 收口批，台账 H 节正修）：
     /// Core AwayUnreadCounter 记账——条目变化与可见
     /// 集变化两路喂 ingest（见 messageList 两处
@@ -1206,8 +1194,6 @@ struct ChatView: View {
             // §219：点子／文件待发引用同式收口（落点线
             // 程名下有引用在场时挤掉消息引用＋聚焦）
             applyPendingSourceQuoteIfNeeded()
-            // 0.4.2：流式节流闸不跨线程带账
-            streamFollowGate.reset()
             // 0.36.7（频道规格 §10.3）：当前线程同步为
             // 抽屉当前对象引用——落点解析/抽屉改道/新
             // 建/导入最终都汇到 currentThreadID 变更、
@@ -2624,29 +2610,14 @@ struct ChatView: View {
             }
             feedAwayUnread()
         }
+        // §409 步 B：流式跟随（节流闸＋结算挂账）已
+        // 退役——生成期无逐字生长，跟随只剩条目数变
+        // 化口的通则（在底＋条目变→贴底，见上方
+        // onChange(sortedEntries.count)）；本口暂留
+        // 块催产一职，步 C 随链整口退役
         .onChange(of: streamingText) { _, newText in
             if let newText {
                 kickStreamingBlockProducts(for: newText)
-            }
-            guard let newText else {
-                streamFollowGate.reset()
-                streamFollowSettleGeneration += 1
-                streamFollowPending = false
-                return
-            }
-            if isNearBottom,
-               streamFollowGate.shouldFollow(
-                   currentCount: newText.count
-               ) {
-                streamFollowSettleGeneration += 1
-                streamFollowPending = true
-                let generation = streamFollowSettleGeneration
-                Task { @MainActor in
-                    await Task.yield()
-                    settleStreamFollow(
-                        generation: generation
-                    )
-                }
             }
         }
         .onChange(of: sendPinToken) { _, _ in
@@ -4475,19 +4446,6 @@ struct ChatView: View {
             break
         }
     }
-
-    /// A3 流式跟随贴的新承载结算口（与 settle-
-    /// StreamFollow 逐值同义，只换执行口）
-    private func settleStreamFollow(generation: Int) {
-        guard generation == streamFollowSettleGeneration,
-              streamFollowPending
-        else { return }
-        streamFollowPending = false
-        guard isNearBottom else { return }
-        scrollToBottom(animated: false)
-    }
-
-
 
     /// 切线程的新承载版（与旧承载 currentThreadID
     /// 的 onChange 逐项对位）：存锚双写（扩展锚＋
