@@ -78,10 +78,12 @@ extension HermesImageDataLoader: DataLoading {
             for: url) else {
             throw URLError(.badURL)
         }
+        let entry = RemoteImageRequestFactory.routeKey(
+            for: url).flatMap {
+            HermesImageRouting.shared.entry(forKey: $0)
+        }
         switch route {
         case .rendition(let path, let width):
-            let entry = HermesImageRouting.shared.entry(
-                for: path)
             if let renditionLoader = entry?.renditionLoader,
                let data = await renditionLoader("image") {
                 return data
@@ -96,17 +98,13 @@ extension HermesImageDataLoader: DataLoading {
                 return data
             }
             throw URLError(.resourceUnavailable)
-        case .original(let path):
-            let entry = HermesImageRouting.shared.entry(
-                for: path)
+        case .original:
             if let originalLoader = entry?.originalLoader,
                let data = await originalLoader() {
                 return data
             }
             throw URLError(.resourceUnavailable)
-        case .poster(let path):
-            let entry = HermesImageRouting.shared.entry(
-                for: path)
+        case .poster:
             if let renditionLoader = entry?.renditionLoader,
                let data = await renditionLoader("poster") {
                 return data

@@ -156,7 +156,9 @@ final class ImagePipelineSwapTests: XCTestCase {
         let box = CallBox()
         let data = pngData()
         HermesImageRouting.shared.register(
-            path: path, config: nil,
+            key: RemoteImageKey.make(
+                path: path, mtime: 3, tier: .thumb),
+            config: nil,
             originalLoader: {
                 box.noteOriginal()
                 return data
@@ -180,7 +182,9 @@ final class ImagePipelineSwapTests: XCTestCase {
         let box = CallBox()
         let data = pngData()
         HermesImageRouting.shared.register(
-            path: path, config: nil,
+            key: RemoteImageKey.make(
+                path: path, mtime: 3, tier: .viewer),
+            config: nil,
             originalLoader: {
                 box.noteOriginal()
                 return data
@@ -203,7 +207,9 @@ final class ImagePipelineSwapTests: XCTestCase {
         let box = CallBox()
         let data = pngData()
         HermesImageRouting.shared.register(
-            path: path, config: nil,
+            key: RemoteImageKey.make(
+                path: path, mtime: 3, tier: .original),
+            config: nil,
             originalLoader: {
                 box.noteOriginal()
                 return data
@@ -226,7 +232,9 @@ final class ImagePipelineSwapTests: XCTestCase {
         let box = CallBox()
         let data = pngData()
         HermesImageRouting.shared.register(
-            path: path, config: nil,
+            key: RemoteImageRequestFactory.posterKey(
+                path: path, mtime: 3),
+            config: nil,
             originalLoader: {
                 box.noteOriginal()
                 return data
@@ -283,5 +291,117 @@ final class ImagePipelineSwapTests: XCTestCase {
         } catch {
             // 预期失败
         }
+    }
+}
+
+
+/// §418 门面对账：RemoteImagePipeline 换底后既有契约
+/// 不变——种子内存命中直出、种子未命中不发网络、取图
+/// 变体缺席时回落原图通道且同键二取走内存、预取落
+/// 缓存。门面为 @MainActor，本套同隔离。
+@MainActor
+final class ImagePipelineFacadeSwapTests: XCTestCase {
+
+    private func pngData() -> Data {
+        Data(base64Encoded:
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC"
+            + "AAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+        )!
+    }
+
+    private func uniquePath() -> String {
+        "/vault/facade-\(UUID().uuidString).jpg"
+    }
+
+    func testStoreMemoryThenMemoryImageAndSeedHit() async {
+        let facade = RemoteImagePipeline.shared
+        let path = uniquePath()
+        let image = UIImage(data: pngData())!
+        facade.storeMemory(
+            image, path: path, mtime: 5, tier: .thumb)
+        XCTAssertTrue(
+            facade.memoryImage(
+                path: path, mtime: 5, tier: .thumb) === image)
+        let seed = await facade.seedImage(path: path, mtime: 5)
+        XCTAssertTrue(seed === image)
+        // 异 mtime 不命中（键含 mtime）
+        XCTAssertNil(
+            facade.memoryImage(path: path, mtime: 6, tier: .thumb))
+    }
+
+    func testSeedMissDoesNotFetch() async {
+        let facade = RemoteImagePipeline.shared
+        let seed = await facade.seedImage(
+            path: uniquePath(), mtime: 1)
+        XCTAssertNil(seed)
+    }
+
+    func testImageFallsBackToOriginalAndCaches() async {
+        let facade = RemoteImagePipeline.shared
+        let path = uniquePath()
+        let data = pngData()
+        var originalCalls = 0
+        let loader: () async -> Data? = {
+            originalCalls += 1
+            return data
+        }
+        let first = await facade.image(
+            path: path, mtime: 9, tier: .thumb,
+            config: nil, originalLoader: loader)
+        XCTAssertNotNil(first)
+        XCTAssertEqual(originalCalls, 1)
+        // 同键二取：内存命中、通道不再被调用
+        let second = await facade.image(
+            path: path, mtime: 9, tier: .thumb,
+            config: nil, originalLoader: loader)
+        XCTAssertNotNil(second)
+        XCTAssertEqual(originalCalls, 1)
+    }
+
+    /// 性能对账口径存续：换底后管线整图解码仍回读
+    /// ChatLagProbe（ProbeImageDecoder 包装注册表解码
+    /// 器），解码计数不断链——修后同口径复测可比
+    func testPipelineDecodeFeedsLagProbe() async {
+        ChatLagProbe.reset()
+        let facade = RemoteImagePipeline.shared
+        let path = uniquePath()
+        let data = pngData()
+        let image = await facade.image(
+            path: path, mtime: 11, tier: .thumb,
+            config: nil, originalLoader: { data })
+        XCTAssertNotNil(image)
+        let line = ChatLagProbe.summaryLine()
+        guard let marker = line.range(of: "解码 ") else {
+            XCTFail("摘要行缺解码段：\(line)")
+            return
+        }
+        var digits = ""
+        for ch in line[marker.upperBound...] {
+            if ch.isNumber { digits.append(ch) } else { break }
+        }
+        XCTAssertGreaterThanOrEqual(
+            Int(digits) ?? 0, 1,
+            "新管线整图解码应至少回读 1 次：\(line)")
+    }
+
+    func testPrefetchLandsInMemoryCache() async {
+        let facade = RemoteImagePipeline.shared
+        let path = uniquePath()
+        let data = pngData()
+        facade.prefetch(
+            path: path, mtime: 9, tier: .viewer,
+            config: nil,
+            originalLoader: { data })
+        var hit: UIImage?
+        for _ in 0..<50 {
+            if let image = facade.memoryImage(
+                path: path, mtime: 9, tier: .viewer) {
+                hit = image
+                break
+            }
+            try? await Task.sleep(
+                for: .milliseconds(100))
+        }
+        XCTAssertNotNil(hit, "预取应在限时内落内存缓存")
     }
 }

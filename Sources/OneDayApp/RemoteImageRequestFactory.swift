@@ -87,11 +87,15 @@ enum RemoteImageRequestFactory {
     /// 海报帧请求（FileThumbnailStore 视频缩略源）：
     /// 桥 rendition kind=poster；无原图回落（旧口径：
     /// 海报拿不到回类型面）
+    /// 海报路由键（登记表与 URL 路径段共用此值）
+    static func posterKey(path: String, mtime: Double) -> String {
+        "\(RemoteImageKey.stableHash(path))-\(Int(mtime))-poster"
+    }
+
     static func posterRequest(
         path: String, mtime: Double, pixelCap: Int
     ) -> ImageRequest {
-        let key = "\(RemoteImageKey.stableHash(path))"
-            + "-\(Int(mtime))-poster"
+        let key = posterKey(path: path, mtime: mtime)
         var components = URLComponents(
             string: "\(routeBase)/poster/\(key)")!
         components.queryItems = [
@@ -178,6 +182,15 @@ enum RemoteImageRequestFactory {
         return String(path.dropFirst())
     }
 
+    /// 路由 URL → 登记键（路径末段，即构造时嵌入的旧
+    /// 键原文）；非路由 URL 返回 nil。登记按此键分格，
+    /// 同 path 不同档位/路由的通道互不串线
+    static func routeKey(for url: URL) -> String? {
+        guard url.host == routeHost else { return nil }
+        let key = url.lastPathComponent
+        return key.isEmpty ? nil : key
+    }
+
     private static func capProcessor(
         _ longEdge: Int
     ) -> any ImageProcessing {
@@ -193,11 +206,13 @@ enum RemoteImageRequestFactory {
 }
 
 /// 取数路由登记表（§418）：门面／缩略店在每次取图前
-/// 按 path 登记本笔的取数通道（config＋原图通道＋变
-/// 体通道），HermesImageDataLoader 只按登记分发。登记
-/// 以 path 为键、整笔覆盖（register-then-load 口径，
-/// 与旧管线「合并请求以首位调用方通道为准」同级近
-/// 似）；通道闭包只经本表进出，loader 不猜鉴权。
+/// 按**路由键**（URL 路径末段＝旧缓存键，含档位）登记
+/// 本笔的取数通道（config＋原图通道＋变体通道），
+/// HermesImageDataLoader 只按登记分发。按路由键分格
+/// 而非按 path——同文件不同档位、缩略店与查看器并发
+/// 同文件时通道互不串线；同路由键的整笔覆盖与旧管线
+/// 「合并请求以首位调用方通道为准」同级近似。通道闭
+/// 包只经本表进出，loader 不猜鉴权。
 final class HermesImageRouting: @unchecked Sendable {
     static let shared = HermesImageRouting()
 
@@ -221,7 +236,7 @@ final class HermesImageRouting: @unchecked Sendable {
     private var entries: [String: Entry] = [:]
 
     func register(
-        path: String,
+        key: String,
         config: ServerConfig?,
         originalLoader: (() async -> Data?)?,
         renditionLoader: ((String) async -> Data?)? = nil
@@ -231,14 +246,14 @@ final class HermesImageRouting: @unchecked Sendable {
             originalLoader: originalLoader,
             renditionLoader: renditionLoader)
         lock.lock()
-        entries[path] = entry
+        entries[key] = entry
         lock.unlock()
     }
 
-    func entry(for path: String) -> Entry? {
+    func entry(forKey key: String) -> Entry? {
         lock.lock()
         defer { lock.unlock() }
-        return entries[path]
+        return entries[key]
     }
 }
 
