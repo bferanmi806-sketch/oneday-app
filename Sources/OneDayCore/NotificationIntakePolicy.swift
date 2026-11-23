@@ -10,6 +10,20 @@ import Foundation
 /// 目自带的结构信号（kind 与 refId），失败信号与
 /// NotificationTier 的分类口径同源（kind 含 fail/
 /// error）；View 与 Store 不许各自拼判定。
+///
+/// §459 修订（用户 2026-11-24 05:53/05:59 连点，
+/// 上段「失败永远逐条在账」对自有会话作废）：自
+/// 有会话的失败与完成同档不入账——§454 把失败一
+/// 律列一级、吞掉了 §426 老口径（在场会话的完成
+/// 与失败都不弹、只留底）；且 §454 的完成侧判据
+/// 在真机漏判（用户本人会话完成漏成二级留底、
+/// 铃铛总数 +1）。定因（生产实查）：服务端 run
+/// 通知 refId＝网关 runs.session_id、与 App 会话
+/// id 同键形（oneday-side-<uuid>，失败与完成两例
+/// 均实证），漏点不在键形而在判据只认本地线程表
+/// 快照的精确成员资格——快照缺一条即漏，实验室
+/// 测试自带完整集合、结构上测不出。自有识别自
+/// 此归一为两键任一命中（见 isOwnSessionRef）。
 public enum NotificationIntakePolicy {
 
     public enum Disposition: Equatable, Sendable {
@@ -31,47 +45,63 @@ public enum NotificationIntakePolicy {
     /// 误并成一行
     public static let aggregationWindow: TimeInterval = 600
 
-    /// 条目 → 级。userSessionIDs＝用户在场会话链
-    /// （本机线程已关联的服务端会话 id 集）；三级
-    /// 只认正向识别：refId 命中会话链才压，认不出
-    /// 的（无 refId/未收养会话）一律留底走二级，
-    /// 宁可多留不可错杀
+    /// 自有会话识别（§459 归一）：两键任一命中即
+    /// 自有——①refId 命中本机线程会话集（调用方
+    /// 现取的 ChatThread.serverSessionID 全集）；
+    /// ②refId 带 App 自铸会话 id 前缀（SideChat-
+    /// Link.ownSessionPrefix：主线 oneday-main-／
+    /// 旁聊 oneday-side-，与删除归档闸的自有判定
+    /// 同源）。②锚在 App 实际持有/铸造的会话标
+    /// 识上、不依赖本地线程表快照的完整度；服务
+    /// 端自跑 run 的 session_id 为 run id 自指形、
+    /// cron/外部会话为 api- 等外来形，都不带此前
+    /// 缀，不受影响。无 refId 恒非自有（认不出不
+    /// 压、宁可多留不可错杀的底线不变）
+    static func isOwnSessionRef(
+        _ refId: String?, userSessionIDs: Set<String>
+    ) -> Bool {
+        guard let refId, !refId.isEmpty else { return false }
+        return userSessionIDs.contains(refId)
+            || SideChatLink.isOwnSessionID(refId)
+    }
+
+    /// 条目 → 级。先判会话归属再判终态：自有会话
+    /// 的完成与失败同档三级（不即时、不计未读、
+    /// 只在入账口拦下并向桥确认已读）；非自有会
+    /// 话的失败维持一级；待批与回执恒一级
     public static func disposition(
         for item: OverviewNotification,
         userSessionIDs: Set<String>
     ) -> Disposition {
-        // 失败/异常终态恒一级：哪怕出自用户自己的
-        // 会话也必须在账——§426 对前台失败只消角
-        // 标与弹卡、记录保留，本级与之同向
+        let own = isOwnSessionRef(
+            item.refId, userSessionIDs: userSessionIDs
+        )
         let kind = item.kind.lowercased()
         if kind.contains("fail") || kind.contains("error") {
-            return .immediate
+            return own ? .suppressed : .immediate
         }
         // 待批请求与裁决回执恒一级：要用户处理或
-        // 知晓结果的，不许聚合、不许压
+        // 知晓结果的，不许聚合、不许压（其 refId
+        // 为写闸请求 id、永不命中自有会话键）
         if item.kind == "approval_pending" || item.isDecisionReceipt {
             return .immediate
         }
         if item.kind == "task_completed" {
-            if let refId = item.refId, !refId.isEmpty,
-               userSessionIDs.contains(refId) {
-                return .suppressed
-            }
-            return .aggregatable
+            return own ? .suppressed : .aggregatable
         }
         // 监测变化与未知 kind（系统类兜底）：二级
         return .aggregatable
     }
 
-    /// 一批条目里要压下的 id（入账口收口用）：会
-    /// 话链为空（调用方给不出名单）时恒空——正向
-    /// 识别不成立就不压
+    /// 一批条目里要压下的 id（入账口收口用）：自
+    /// 有识别含条目自带的前缀键，会话集为空也不
+    /// 再整体失效（§454 的空集恒空守卫随归一退
+    /// 役——它正是真机漏判的放大器之一）
     public static func suppressedIDs(
         notifications: [OverviewNotification],
         userSessionIDs: Set<String>
     ) -> [String] {
-        guard !userSessionIDs.isEmpty else { return [] }
-        return notifications.compactMap { item in
+        notifications.compactMap { item in
             disposition(
                 for: item, userSessionIDs: userSessionIDs
             ) == .suppressed ? item.id : nil
@@ -121,9 +151,11 @@ public enum NotificationIntakePolicy {
 
         for item in items {
             // 行折叠只分一级/二级：三级条目入账口已
-            // 拦下、不该到这；此处以空会话链判定，
-            // task_completed 一律按二级待折（正向识
-            // 别不在呈现层重演）
+            // 拦下、不该到这；此处以空会话链判定——
+            // 集合识别不在呈现层重演，但条目自带的
+            // 自有前缀是结构信号、随条目同判：已入
+            // 账存量里的自有终态以单行呈现（不回溯
+            // 删除、不再并入聚合计数行）
             let level = disposition(
                 for: item, userSessionIDs: []
             )

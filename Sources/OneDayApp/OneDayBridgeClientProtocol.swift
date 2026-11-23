@@ -17,11 +17,8 @@ protocol OneDayBridgeClientProtocol: Sendable {
     ) async throws -> BridgeFeedGeneration
     func feedBrief(config: ServerConfig) async throws -> BridgeBriefDoc
     func generateFeed(config: ServerConfig) async throws
-    func saveFeedInterest(
-        config: ServerConfig, interest: String
-    ) async throws -> BridgeBriefDoc
-    func saveFeedPrompt(
-        config: ServerConfig, brief: String
+    func saveFeedText(
+        config: ServerConfig, text: String
     ) async throws -> BridgeBriefDoc
     func markFeedPostRead(
         config: ServerConfig, id: String

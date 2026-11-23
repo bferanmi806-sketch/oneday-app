@@ -205,90 +205,101 @@ struct GoalCategorySheetView: View {
     }
 }
 
-/// 分类介绍卡（GA-1，§238）：点分类后的第二步——
-/// 分类图标＋「创建X目标」题＋介绍文（Core introLead
-/// 首句＋流程说明两句），说清这一类会怎么聊定、定
-/// 好之后长在哪里。主钮「开始吧」＝开目标旁聊在对
-/// 话里聊定（GA-2 终局：目标由智能体在对话里经
-/// goals_create 落桥、source=chat）；次级入口
-/// 「直接填写」走现行表单（不会聊的用户有退路，
-/// 规格 GA-1 定版——表单不删、只降次级）
+/// 分类介绍卡（GA-1，§238；§459 形态改判，用户
+/// 2026-11-24 05:54 亲点「还有目标一样」对齐
+/// Muse）：点分类后的第二步——形态自全屏页改半
+/// 屏 bottom sheet（固定高 detent、背景列表可见、
+/// 系统圆角），内容照 Muse 原口径：题＋两段短文
+/// 案（黑字）＋开始吧；分类图标与 introLead 撤出
+/// 本卡（introLead 仍供开旁聊引用道 SourceQuote
+/// 消费），长段灰字整段删除——其中「拆成哪些里
+/// 程碑」是谎话（里程碑已随 G-6 全摘），永不许再
+/// 出现。主钮「开始吧」＝开目标旁聊在对话里聊定
+/// （GA-2 终局：目标由智能体在对话里经 goals_
+/// create 落桥、source=chat）。
+/// 开始吧配色归属：改饱和蓝底白字已由 108 主钮包
+/// （feat/primary-button-unify @9390491，跟改清单
+/// 明列本卡）覆盖——本包只改形态与文案，钮的取
+/// 色两行（onPrimary/primaryPale）原样保留、不重
+/// 复改色，合并时以 108 包为准。
+/// 「直接填写」去向待主线裁（§459 交卷单列）：参
+/// 照里没有这条路、按对齐口径倾向摘除，但属行为
+/// 变更——本包原样保留、只报不裁（GA-1 旧定版
+/// 「表单不删、只降次级」在裁决前继续有效）
 struct GoalIntroView: View {
-    @Environment(\.dismiss) private var dismiss
     let category: GoalCategory
     var onStart: () -> Void
     var onForm: () -> Void
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
+            VStack(
+                alignment: .leading, spacing: OneDayMetrics.spacingL
+            ) {
                 VStack(
-                    alignment: .leading, spacing: OneDayMetrics.spacingL
+                    alignment: .leading,
+                    spacing: OneDayMetrics.spacingM
                 ) {
-                    VStack(
-                        alignment: .leading,
-                        spacing: OneDayMetrics.spacingS
-                    ) {
-                        Image(systemName: category.symbolName)
-                            .font(.title)
-                            .foregroundStyle(Palette.primary)
-                            .frame(width: 52, height: 52)
-                            .background(
-                                Palette.fieldFill,
-                                in: Circle()
-                            )
-                        Text("创建\(category.title)目标")
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(Palette.bodyInk)
-                        Text(category.introLead)
-                            .font(.body)
-                            .foregroundStyle(Palette.bodyInk)
-                        Text("点「开始吧」会打开一条新对话，在对话里把这个目标聊定——想达成什么、怎么衡量、拆成哪些里程碑。聊定之后，目标会出现在这里，它的进展、任务和简报会慢慢长出来。")
+                    Text("创建\(category.title)目标")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Palette.bodyInk)
+                    // 两段短文案照 Muse 参照原文（用
+                    // 户 05:51 参照图逐字）：先在聊天
+                    // 里一起完善、设定后在这里追踪
+                    Text("首先，我们将在聊天中一起完善目标。我会问几个问题，准确了解你的目标。")
+                        .font(.body)
+                        .foregroundStyle(Palette.bodyInk)
+                    Text("目标设置后，我会在这里追踪你的进度。")
+                        .font(.body)
+                        .foregroundStyle(Palette.bodyInk)
+                }
+                VStack(spacing: OneDayMetrics.spacingS) {
+                    Button {
+                        onStart()
+                    } label: {
+                        HStack(spacing: OneDayMetrics.spacingS) {
+                            // 对话气泡图标照 Muse 参照
+                            // （§459 形态）；取色行归 108
+                            // 包、本包不动（见类型注）
+                            Image(systemName: "bubble.left")
+                            Text("开始吧")
+                        }
+                        .font(.headline)
+                        // 第 85 条（BC-1）：主钮改走
+                        // primaryPale＋onPrimary 正道
+                        // （旧白字压 primary 暗档 2.33）
+                        .foregroundStyle(Palette.onPrimary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(
+                            Palette.primaryPale, in: Capsule()
+                        )
+                    }
+                    .buttonStyle(.odPressable)
+                    Button {
+                        onForm()
+                    } label: {
+                        Text("直接填写")
                             .font(.body)
                             .foregroundStyle(Palette.inkSecondary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                     }
-                    VStack(spacing: OneDayMetrics.spacingS) {
-                        Button {
-                            onStart()
-                        } label: {
-                            Text("开始吧")
-                                .font(.headline)
-                                // 第 85 条（BC-1）：主钮改走
-                                // primaryPale＋onPrimary 正道
-                                // （旧白字压 primary 暗档 2.33）
-                                .foregroundStyle(Palette.onPrimary)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(
-                                    Palette.primaryPale, in: Capsule()
-                                )
-                        }
-                        .buttonStyle(.odPressable)
-                        Button {
-                            onForm()
-                        } label: {
-                            Text("直接填写")
-                                .font(.body)
-                                .foregroundStyle(Palette.inkSecondary)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                        }
-                        .buttonStyle(.odPressable)
-                    }
-                }
-                .padding(.horizontal, OneDayMetrics.pageGutter)
-                .padding(.top, OneDayMetrics.spacingM)
-                .padding(.bottom, OneDayMetrics.spacingXL)
-            }
-            .background(Palette.pageBG)
-            .navigationTitle("创建目标")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    .buttonStyle(.odPressable)
                 }
             }
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingL)
+            .padding(.bottom, OneDayMetrics.spacingXL)
         }
+        .background(Palette.pageBG)
+        // §459 半屏形态：固定高 detent（内容实高约
+        // 330pt；参照 Muse 卡高占比 26% 是无「直接
+        // 填写」行的形态，本卡含待裁行实高占比约
+        // 36%——裁删后可再降，交卷对位表注明）；小
+        // 屏/AX 大字号时内部 ScrollView 兜底可滚
+        .presentationDetents([.height(344)])
+        .presentationDragIndicator(.visible)
     }
 }
 

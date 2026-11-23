@@ -22,12 +22,16 @@ final class FeedStore {
     /// 双生产者账面（汇编状态＋段二节奏＋未读数）；
     /// 旧桥无此端点时为 nil，对应呈现降级
     private(set) var generation: BridgeFeedGeneration?
-    /// 简报两层（0.38.0）：兴趣层＋执行层＋扩写状态；
+    /// 简报（§459 单层）：当前生效全文＋润色状态；
     /// 拉不到时为 nil，简报行与编辑器呈现降级
     private(set) var briefDoc: BridgeBriefDoc?
     private(set) var briefSaving = false
     /// 简报保存的就地错误（人话，呈现于编辑器内）
     private(set) var briefError: String?
+    /// 未保存的简报草稿（§459）：编辑器关掉再打开不
+    /// 丢字；与服务端回读不一致时编辑器先问用户、
+    /// 不许静默吞（判定在编辑器，Store 只留存）
+    private(set) var briefDraftText: String?
     /// 点赞失败的轻提醒（§233）：乐观翻心被后台回执
     /// 否掉时落此一句，视图层以轻提示呈现、用户点掉
     /// 即清；成功路径恒 nil
@@ -165,30 +169,36 @@ final class FeedStore {
         ) {
             generation = fetched
         }
-        // 简报两层同为附带面：失败只降级简报行
+        // 简报同为附带面：失败只降级简报行
         if let doc = try? await client.feedBrief(config: config) {
             briefDoc = doc
         }
     }
 
-    // MARK: - 简报两层（0.38.0）
+    // MARK: - 简报单层（§459）
 
-    /// 保存兴趣层：回执即保存后全文；扩写在桥侧异步
-    /// 进行，回来时以 expandStarted 知会「已开始整理」，
-    /// 执行层与新帖在下次加载/回读时对账
+    /// 保存生效全文：只发 {text}；回执即保存后全文，
+    /// 润色在桥侧异步进行，回来时以 expandStarted 知
+    /// 会「已开始整理/调研」，润色稿与新帖在下次加
+    /// 载/回读时对账。保存成功即清草稿
     @discardableResult
-    func saveInterest(appState: AppState, _ text: String) async -> Bool {
-        await saveBrief(appState: appState) {
-            try await $0.saveFeedInterest(config: $1, interest: text)
+    func saveBriefText(appState: AppState, _ text: String) async -> Bool {
+        let ok = await saveBrief(appState: appState) {
+            try await $0.saveFeedText(config: $1, text: text)
         }
+        if ok { briefDraftText = nil }
+        return ok
     }
 
-    /// 保存执行层（用户在编辑器里直改正式简报）
-    @discardableResult
-    func savePrompt(appState: AppState, _ text: String) async -> Bool {
-        await saveBrief(appState: appState) {
-            try await $0.saveFeedPrompt(config: $1, brief: text)
-        }
+    /// 编辑器每次改字留存草稿；改回与服务端一致即清
+    func noteBriefDraft(_ text: String, serverText: String) {
+        briefDraftText = FeedBriefBoard.textChanged(serverText, text)
+            ? text : nil
+    }
+
+    /// 用户在冲突询问里选了服务端版本：草稿作废
+    func discardBriefDraft() {
+        briefDraftText = nil
     }
 
     private func saveBrief(
