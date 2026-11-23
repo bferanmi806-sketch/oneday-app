@@ -209,7 +209,12 @@ final class RowMeasureSingleExec430Tests: XCTestCase {
 
     func testSingleExec_decisionData_backlogLatency() async {
         // 积压构造：24 个各耗 25ms 的桩单占住串行
-        // 队列，目标单排队尾
+        // 队列，目标单排队尾。注意投单口径＝逆序
+        // （最新先量）：collect 序的最后一单最先投
+        // 递——目标单须最先 collect 才排在投递序
+        // 的队尾（首轮夹具把此序弄反，(a) 量到队
+        // 首延迟、(b) 撞上队列已认领目标单回 nil，
+        // 均为夹具构造误、非生产面问题）
         func makeBackloggedDesk(
             suffix: String
         ) -> (
@@ -217,17 +222,6 @@ final class RowMeasureSingleExec430Tests: XCTestCase {
             targetMemo: String, targetRow: String
         ) {
             let desk = ChatNativeRowMeasureDesk()
-            for index in 0..<24 {
-                desk.collect(
-                    ChatNativeRowMeasureJob(
-                        memoKey: "se430-c-stub-\(index)-\(suffix)",
-                        rowKey: "se430-c-stub-row-\(index)-\(suffix)"
-                    ) {
-                        usleep(25_000)
-                        return 100
-                    }
-                )
-            }
             let targetMemo = "se430-c-target-\(suffix)"
             let targetRow = "se430-c-target-row-\(suffix)"
             desk.collect(
@@ -240,6 +234,17 @@ final class RowMeasureSingleExec430Tests: XCTestCase {
                     return 88
                 }
             )
+            for index in 0..<24 {
+                desk.collect(
+                    ChatNativeRowMeasureJob(
+                        memoKey: "se430-c-stub-\(index)-\(suffix)",
+                        rowKey: "se430-c-stub-row-\(index)-\(suffix)"
+                    ) {
+                        usleep(25_000)
+                        return 100
+                    }
+                )
+            }
             desk.flushCollected()
             return (desk, targetMemo, targetRow)
         }
