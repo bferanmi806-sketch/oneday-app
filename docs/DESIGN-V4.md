@@ -15443,3 +15443,33 @@ reveal 探活五轮（如实记，含作废）：一至四轮在无 Scene 的裸
 - 回归（ProbePhone 50C1A6D5-96A6-408F-82E1-FCEB1A42C419，发布集口径）：名单＝Test-OneDayApp-rel05098 bundle 以 xcresulttool 提取全限定名 97 套 817 项＋新套 StoresSingleSourceStructureTests 3 项，预期 98 套 820 项 → 实跑 **820/820 全绿、0 红、0 跳过**（run Test-OneDayApp-stores-single，xcresulttool 本体逐套对账一致），新红零。聚焦轮先行 69/69（新钉测 3＋IdeasDeleteConfirm/GoalsTailApp/CacheFreshnessGateC1/MutationOptimistic/FeedIdeasParity/StoreLoadState/GoalsTail＋S371/S373）；S371/S373 在发布集内同绿，chatScaffold 根链零触碰（本包未动 ChatView）。
 - 关账：第 75 条关账——私建点数＝**0**（生产构造点仅 AppState 单例内 2 处），收口形态与第 68 条三店先例一致；实质收口归 §339 条 4（0.50.81 已出货），本包补齐普查定案与钉测把守，总表第 75 条自此可划。真机门：无新增——两店数据一致性已在 §339 真机门④（点子/目标/动态三格与目标详情数据一致）挂账，随存量清单 verdict。
 - 未组版未打包（按任务书，随后续版并入；并入时发布集名单加 StoresSingleSourceStructureTests 3 项）。
+## §382 底栏图标冷启首帧实心、点一下恢复：定因调查（2026-11-23；分支 feat/tabbar-icon-initial，基线 rel-05098）
+
+症状（用户 0.50.98 真机实报 08:57）：刚打开 App 时底部导航栏图标呈实色（fill 变体观感），点击一下即恢复线框形态。
+
+### 结论先行
+- 我方代码层**不存在首帧与点后之间的状态差**：图标变体的全部决定项（符号名、变体锁、渲染模式、selection 初值）在冷启首喂与点击后重喂时逐字相同（见审计表）。定因不成立于我方代码——**本节不落修复码**，按「先定因再落码」纪律停手，取证方案在文末。
+- 实验室复现：**阴性**。探针 TabBarIconInitialProbeTests（ProbePhone 模拟器、演示装配、分相位截图＋逐格墨迹密度）：浅色六相位（首帧/静置 3s/重点已选格/切格/切回/重启首帧）五格密度恒定（聊天 0.094/动态 0.125/点子 0.080/目标 0.104/资源库 0.122），无变体翻转；深色两相位（G 冷启首帧／H 切格后）与浅色逐值相同（同为覆盖率口径、外观无关）——深色同样首帧即线框、无翻转。与本仓历史口径一致：此族宿主行为 CI/模拟器无法证伪证实（0.34.0 注在案），终判只认真机。
+- 机制推断（**未证实**，与症状三吻合）：宿主（TabView→UITabBar 栏件物化）在冷启首个渲染趟对栏图做快照时未吃进 label 本体的 symbolVariants 环境直赋；首次 selection 变更经 DrawerContainer 桥指纹（DrawerBridgeFingerprint 含 selection，DrawerContainerView.swift:200-205；重喂落点 :287-290 contentRoot didSet）触发 contentRoot 整树重喂（contentRoot didSet→contentHost.rootView 替换），栏件在稳态重物化后回正。吻合点：①只冷启②一点（切格）即好③实验室轻载不复现（竞态与首帧主线程饱和度相关；0.50.95–0.50.98 换引擎改动显著改变聊天页首帧构成，可能是本次显形诱因——相关性记录，非因果证明）。宿主内部闭源、实验室无从证实，故只记推断不据此落码。
+
+### 代码审计表（首帧 vs 点后，我方状态差普查）
+| 决定项 | 位置 | 首帧 | 点后 | 判定 |
+|---|---|---|---|---|
+| 符号名（两态同名、禁 .fill） | TabBarSymbols.swift 全表；tabLabel 取 pair.normal | 同 | 同 | 排除：无按态派生 fill 的路径（TabBarSymbolsTests 钉死） |
+| selection 初值 | ContentView.swift:139 `@State selection = .chat` 声明即定 | .chat | 用户所点 | 排除：非派生、无启动期异步改写（写点全为用户流） |
+| 变体锁（label 本体环境直赋） | ContentView.swift tabLabel `.environment(\.symbolVariants, .none)`（ContentView.swift:574；TabView 层同赋在 :499） | 在位 | 在位 | 排除：首喂/重喂构造逐字相同（DrawerContainerView apply 两路同码） |
+| 变体锁（TabView 层环境＋图上累积修饰） | tabView `.environment`／Image `.symbolVariant(.none)` | 在位 | 在位 | 同上 |
+| 渲染模式 | tabLabel `.symbolRenderingMode(.monochrome)` | 同 | 同 | 排除：只管着色、不管变体（2026-11-10 调研档在案） |
+| 主题令牌/外观 | RootView preferredColorScheme 等 | 与变体无关 | — | 排除：令牌不决定 symbol 变体；且症状为变体形态非颜色 |
+
+### 外部核查（三档：外部无记录——针对本时序变体）
+- 通行做法与我方现行**一致**：Apple 官方文档（symbolVariant 页）明示「忽略环境变体须以 .environment(\.symbolVariants, .none) 直赋」；生产库 callstack/react-native-bottom-tabs 的 noneSymbolVariant() 同挂法；仓内 2026-11-10 专项调研（tabbar-fill-forum-research-20261110.md）已钉宿主自动优选 fill 的机制（WWDC24 10147）与「累积修饰无效、环境直赋是唯一清除法」。
+- 但「冷启首帧实心、首次点击后自愈」这一**时序变体**，本轮检索（Apple 论坛/社区/开源库）无直接对口记录；宿主首帧物化时机属闭源行为。故核查档位＝**外部无记录**（机制层有据、时序层无据），不据此发明修法。
+
+### 下一步取证方案（真机，定因后再落码）
+1. 诊断构建（沿本仓自述读出面文化）：启动时序自述加三点——phase 置 connected 时刻、contentRootApplyCount 变化时刻、栏图区域在「首帧布局完成／+0.5s／+2s／首次切格后」四点的进程内快照（进程内渲染取图、不经 XCUITest 的 a11y 等待间隙——本轮探针的首帧截图受 waitForExistence 约束、可能错过亚秒级窗口，此为本轮实验室阴性的已知盲区）。
+2. 用户侧先行定性（零成本）：冷启后先别点，截图一张——看实心分布（全格 vs 未选格）与是否随时间自愈（等 5 秒再看），回主线即可缩小定因域。
+3. 定因分岔：若快照证「首帧快照错、重喂即正」→ 修法走「让首帧物化发生在环境已稳态的时点」（如内容根首喂时机后移至容器入窗后一拍，属装配时序正解、非强制重绘补丁），另行立包并附真机门；若快照证首帧即正、实心另有来源（如外观态/栏定制状态残留）→ 按新证据重定因。
+
+### 真机门（后续落码时启用）
+冷启首帧五格图标与点后逐格同形态（截图并排）；深/浅两态各一轮；重启复现率 3/3 不再出现。
