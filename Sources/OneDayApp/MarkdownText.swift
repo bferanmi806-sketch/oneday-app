@@ -560,61 +560,61 @@ struct MarkdownText: View {
         case .right: return .trailing
         }
     }
-
     // MARK: - 行内
 
-    /// 行内渲染：先经 Core MarkdownInline 切删除线段，
-    /// 每段再走系统行内解析；删除线段整段加删线（其
-    /// 中的行内代码段除外——代码不许被划）
+    /// 行内渲染（表格格专用）：格文本经 Core
+    /// InlineRunBuilder 单源解析产语义 run、本视图
+    /// 只做呈现映射——行内语义的读法（哪些段算
+    /// strong／code／link／删线）自 §392 起全仓只
+    /// 在 Core 一处，App 层不再自带系统行内解析
     private func inline(_ text: String, strongFont: Font) -> Text {
-        MarkdownInline.segments(text).reduce(Text("")) { partial, segment in
-            partial + Text(inlineAttributed(
-                segment.text,
-                strongFont: strongFont,
-                strikethrough: segment.strikethrough
-            ))
-        }
+        Text(Self.cellAttributed(text, strongFont: strongFont))
     }
 
-    /// 行内 markdown：解析失败回退纯文本，永不丢字。
-    /// 字重口径（0.3.3 收编、0.4.1 第 9 修定版）：strong
-    /// 只对应内容本身的 **——按 InlinePresentation-
-    /// Intent.stronglyEmphasized 找粗体段、重映射到
-    /// strongFont（同字号 .weight(.bold)，与 regular
-    /// 基准恰差一档）；斜体段在 strong 字体上叠
-    /// .italic；行内代码段（.code）字重与删线都不碰
-    private func inlineAttributed(
-        _ text: String,
-        strongFont: Font,
-        strikethrough: Bool
+    /// run→SwiftUI 属性串呈现映射（§392）：intent
+    /// 按 run 旗标回填（SwiftUI 据 intent 渲粗斜体
+    /// 与代码档、与系统解析产物同路）；字重口径与
+    /// 旧 inlineAttributed 逐项同——strong 只对应
+    /// 内容本身的 **、重映射到 strongFont（同字号
+    /// .weight(.bold)），斜体段在 strong 字体上叠
+    /// .italic；行内代码段（.code）字重与删线都不
+    /// 碰；删线取 run 旗标（Core 分段已并入）；链
+    /// 接透传。解析失败降级在 builder 内（整段普
+    /// 通 run、永不丢字）
+    nonisolated static func cellAttributed(
+        _ text: String, strongFont: Font
     ) -> AttributedString {
-        guard var attributed = try? AttributedString(
-            markdown: text,
-            options: AttributedString.MarkdownParsingOptions(
-                interpretedSyntax: .inlineOnlyPreservingWhitespace
-            )
-        ) else {
-            var fallback = AttributedString(text)
-            if strikethrough {
-                fallback.strikethroughStyle = .single
+        var result = AttributedString()
+        for run in InlineRunBuilder.runs(for: text) {
+            var piece = AttributedString(run.text)
+            var intent = InlinePresentationIntent()
+            if run.strong {
+                intent.insert(.stronglyEmphasized)
             }
-            return fallback
-        }
-        for run in Array(attributed.runs) {
-            let intent = run.inlinePresentationIntent
-            let isCode = intent?.contains(.code) ?? false
-            if let intent,
-               intent.contains(.stronglyEmphasized), !isCode {
+            if run.emphasis {
+                intent.insert(.emphasized)
+            }
+            if run.code {
+                intent.insert(.code)
+            }
+            if !intent.isEmpty {
+                piece.inlinePresentationIntent = intent
+            }
+            if run.strong, !run.code {
                 var font = strongFont
-                if intent.contains(.emphasized) {
+                if run.emphasis {
                     font = font.italic()
                 }
-                attributed[run.range].font = font
+                piece.font = font
             }
-            if strikethrough, !isCode {
-                attributed[run.range].strikethroughStyle = .single
+            if run.strikethrough, !run.code {
+                piece.strikethroughStyle = .single
             }
+            if let link = run.link {
+                piece.link = link
+            }
+            result.append(piece)
         }
-        return attributed
+        return result
     }
 }

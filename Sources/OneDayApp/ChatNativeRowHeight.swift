@@ -1458,57 +1458,26 @@ struct ChatNativeRowHeightComposer {
         return total
     }
 
-    /// 表格格文本拼装（与 MarkdownText.inline 同
-    /// 路：系统行内解析＋strong 段映射 strongFont
-    /// ——格内字阶 .callout、strong＝.callout bold；
-    /// 删除线段不影响高、不拼）
+    /// 表格格文本拼装（§392 收敛）：格文本经 Core
+    /// InlineRunBuilder 单源解析产语义 run、本函
+    /// 数只做 run→NSAttributedString 的量测映射，
+    /// 字体口径与旧自带解析逐项同——strong 段
+    /// .callout bold、余皆 .callout base（删除线
+    /// 不影响高、不拼；斜体/代码不另立字体，与旧
+    /// intent 重映射同果）。行内语义读法自此只在
+    /// Core 一处（呈现侧同源映射在 MarkdownText
+    /// .cellAttributed）
     private func tableCellAttributed(
         _ cell: String
     ) -> NSAttributedString {
         let base = plainFont(.callout)
         let bold = weightedFont(.callout, .bold)
         let result = NSMutableAttributedString()
-        for segment in MarkdownInline.segments(cell) {
-            guard let parsed = try? AttributedString(
-                markdown: segment.text,
-                options: AttributedString
-                    .MarkdownParsingOptions(
-                        interpretedSyntax:
-                            .inlineOnlyPreservingWhitespace
-                    )
-            ) else {
-                result.append(NSAttributedString(
-                    string: segment.text,
-                    attributes: [.font: base]
-                ))
-                continue
-            }
-            // 系统解析产物逐 run 按 intent 重映射
-            // 到 UIKit 字体（strong→bold、其余
-            // base），与视图 inlineAttributed 的
-            // 映射同口径；run 无 intent 即正文段
-            var converted = NSMutableAttributedString()
-            for run in parsed.runs {
-                let isStrong = run
-                    .inlinePresentationIntent?
-                    .contains(.stronglyEmphasized)
-                    ?? false
-                converted.append(NSAttributedString(
-                    string: String(
-                        parsed[run.range].characters
-                    ),
-                    attributes: [
-                        .font: isStrong ? bold : base,
-                    ]
-                ))
-            }
-            if converted.length == 0 {
-                converted = NSMutableAttributedString(
-                    string: segment.text,
-                    attributes: [.font: base]
-                )
-            }
-            result.append(converted)
+        for run in InlineRunBuilder.runs(for: cell) {
+            result.append(NSAttributedString(
+                string: run.text,
+                attributes: [.font: run.strong ? bold : base]
+            ))
         }
         if result.length == 0 {
             return NSAttributedString(
