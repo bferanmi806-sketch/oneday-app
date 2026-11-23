@@ -571,7 +571,8 @@ final class OneDayBridgeClient: @unchecked Sendable {
         )
         let _: BridgeTrace = try await send(
             config: config, path: "/traces", method: "POST",
-            body: body, endpoint: L10n.string("留痕自报")
+            body: body, endpoint: L10n.string("留痕自报"),
+            collection: false
         )
     }
 
