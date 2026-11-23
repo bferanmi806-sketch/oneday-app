@@ -16842,3 +16842,24 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 测试证据：核心选集 30/30 全绿（HubSegmentRegistryTests＋HubSegmentsConsolidationTests＋HitArea44Tests＋TopBarBandFaceTests＋TopBarHitIntermittentTests，Test-HeaderZoom434.xcresult，第三轮 exit 0）；相邻回归 22 套仅 ChatSearchFocusAssemblyTests 3 红，经 rel-05104 基线（4f19d38 detach worktree）同套直跑复现同 3 红同行同错＝既有基线红、非本包回归，本包新红为零。UITest 侧 TopBarSingleActionTapTests 已按 §434 翻口径（模型入口恢复断言、注册表段集锚格必达＋能力格在场验、底栏软留痕），其真跑归组版 CI。
 - 探针定形记账：§217 旧 sheet 探针在本 rig 的信号来自 UIKit 模态物化；NavigationStack 在无场景裸 UIWindow 不物化（hosting view 零子视图，三轮诊断在案），单元探针终口径＝「开关全程 presentedViewController 恒 nil」判别非模态；push 落位/全页/底栏隐藏归 UITests＋真机 verdict，实验室绿不等于关账。
 - 已知形态差/未定案（交主线与真机门）：参照两态只做大头态（小头卡态未做）；工作行图标盒宽参照侧未采样定案（以 40pt 落码、待真机一帧复核）；身份双卡高参照 ≈162pt 为含注记近似、现行卡 minHeight 163 未动；审核格写闸撤销仍走设置·权限区（本格只读＋exec 撤销）；邮箱格只登记不长格（长格条件见上）；嵌套 NavigationStack 下外层 pop 手势与内层栈交互、push 后底栏隐藏实效、hero 占高对聊天列表留位的影响，均须真机 verdict。
+
+## §447 0.50.106 组版记账（2026-11-24）
+
+基线 rel-05105 @b5a6b96，分支 rel-05106，版本 0.50.106／build 234。合入七件（各节原文随各自分支并入，本节只记组版账）：
+
+- §430 量测包 3（feat/rowmeasure-single-exec @de86869，合并 9e19563）：工单单执行者纪律；§433 留版项本版收编，发布集加 RowMeasureSingleExec430Tests 单列对账（3 测全绿）。
+- §438 键盘平滑（feat/kb-smooth @4982cb5，合并 6961617）：同事务应用＋事务窗冻结＋收起侧对称意图；ChatKeyboardPinAssemblyTests 3→4 测（合侧新钉），全绿；真机门留 verdict 不拦组版。
+- §446 输入栏按钮单槽化（feat/queue-fix @a72a0b1，合并 46ca0b7）：ChatComposerTrailing446PinTests 3 测全绿，QueueSend/FailKeep 钉测照绿。
+- §441 选择框（feat/options-card @6835f58，合并 8b19e48）：OptionsCard441Tests 10 测全绿；服务端未翻闸，App 潜伏形态出货（与自反应同例）。
+- §437 自主设置权一期 App（feat/selfsettings-p1 @00d6a55，合并 5970de9）：SettingsRegistryTests 12＋SessionCatalogGuardTests 9 全绿；服务端注册表未合并，App 回落形态与现行逐面全等、无损搭车。
+- §432 AI 自反应（feat/reaction-app @acc14a9，合并 10e541d）：AISelfReaction432Tests 5 测全绿；基线 rel-05104 跨 105 增量合入，ChatView 冲突＝§441 四函数全留＋反应铬件注释取 §432 新版（两边语义全保）。
+- §434 页头＋中枢改版（feat/header-zoom @9db3c06，合并 2335f15）：基线 rel-05104 跨 105 增量合入，ChatView 自动合清（页头 hunks 与 §426/§431/§432 落点不重叠）；HubSegmentRegistryTests 7 测全绿，HubSegmentsConsolidationTests/TopBarBandFaceTests 已在 105 名单内照绿，TopBarHitIntermittentTests 本版核入（10 测全绿）；其自报相邻红 ChatSearchFocusAssemblyTests 在合并树发布集内为绿（×3 红系其 104 基线工地现象，合并树形态不同但为消红方向，不触停线）。
+- 不合入：§440 长按（在跑，顺延 107）。
+- 冲突处置总账：DESIGN 五次尾部追加冲突全并集解（两节全留）；CapabilityNegotiation 三线相邻追加（§441/§437/§432 availability 函数）——首轮并集解曾少一闭括号，本版拼接时逐函数验括号补齐（brace balance 0、三 Supported 字段实存、verdicts 五项齐）。
+- 版本戳：Project.swift 0.50.106/234＋tuist generate 刷新 Derived（3b07a6d），generate 后未还原 Derived。
+- 加项验收（用户 02:28 亲问，中枢模型入口回读）：**在**。AgentHubView.content（AgentHubView.swift:311-317）序＝header 身份头→modelEntryRow→segmentPicker 分段胶囊；modelEntryRow（:359）整行胶囊（maxWidth .infinity＋Capsule 底＋minTapTarget 高）「选择模型」＋当前模型名＋chevron.down，点开 sheet 呈 ChatModelPickerView（:327）；宿主 ChatView.hubDestination（ChatView.swift:1902-1911）注入 HubModelEntry(groups: appState.pickerModelGroups, current: currentChoice, onSelect: selectCurrentChoice)，与顶栏 modelPickerSheet（:2213）同组件同数据源；顶栏 ModelCapsuleView 触发钮仍在（:2134）。
+- 发布集（RUN 2026-11-24 02:37:22，bundle Test-OneDayApp-rel05106.xcresult，dd-05106-test，ProbePhone 开跑前 simctl erase）：名单＝105 bundle xcresulttool 提取 147 套全限定名＋新套 7（AISelfReaction432/ChatComposerTrailing446Pin/RowMeasureSingleExec430/SessionCatalogGuard/HubSegmentRegistry/OptionsCard441/SettingsRegistry）＋ChatReliabilityOfflineTests 正式纳入（105 已裁）＋TopBarHitIntermittentTests（§434 点名核入）＝156 套；总项 1160（1095＋新套 64＋套内增 1＝ChatKeyboardPinAssembly 合侧新钉）逐套对账精确闭合；1159 过、1 红。
+- 红名单对账：唯一红 MarkdownEngineDifferentialTests/testPerformanceGate，与 105 bundle 同名同门（#13 已裁决项）；新红 0、消红 0。drain 三钉 FailKeep 7/7、QueueSend 5/5、Reliability 5/5 在发布集内绿。
+- UI 补跑（bundle Test-TopBar434UI-rel05106.xcresult）：testHubLayoutWithFullCatalog 过；testTopBarSingleActionDispatch 红——失败文（:137，命中盘宽 67.0、间隙点 fired=model）与 §434 分支本体（feat/header-zoom @9db3c06，对照 bundle Test-TopBar434UI-branch.xcresult）**逐字同形**，判分支既存、非合并引入；该测 §434 自记「其真跑归组版 CI」，本次为其首次真跑现形，修复归 §434 线后续（顶簇命中几何：头像钮命中盘 67≠44、两元素间隔 <8pt、间隙死区未成立），不拦本版（发布集外）。
+- IPA：Release 构建 BUILD SUCCEEDED（dd-05106-release）；~/build/OneDay-0.50.106.ipa，16,762,717 字节，md5 c76da88b0be7245a72d8526ba1223e33；本体三值亲验 0.50.106／234／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本机 ~/workspace/oneday-releases/）。
+- 分支 rel-05106 未 push、未打 tag（主线处置）；需求总表 0.50.106 版本行与真机复验清单待主线组版复核时入账。
