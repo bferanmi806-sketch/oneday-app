@@ -16994,3 +16994,16 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 转交 23 项只登记不动文件：在跑线领地按 §449（中枢审核格说明等 3）／§452（交付物与文件空态 3）／§453（动态种子帖与简报说明、目标创建与类别副行等 14）／§454（铃铛空态 1）／§455 线（聊天空态招呼块副文 2，已在其分支随整块删除、本基线残留、组版合入后消解）分组入清单。
 - 红线类按类判留不逐条删：错误与恢复文案、破坏性确认、状态/计数/时间、审批后果、设备能力范围与隐私语义、首启与法律文本。
 - 验收：构建与受影响面测试见本包交卷；真机观感归用户 verdict，并入 107 料池。
+## §460 0.50.107 组版记账（2026-11-24）
+
+版本拆分第一版（用户 04:48 亲批：先组先行版发出来，不等攒批）。基线 rel-05106 @3b2d9ea，工地 ~/build/oneday-rel05107，分支 rel-05107。
+
+- 合入八件：§440 长按呈现（5bb4b57）／§450 设置 IA（6d71a2e）／§453 内容三面（9354e68）／点子开始吧改色（d9fac38，叠 §453）／§454 铃铛降噪（8189e8d）／§455 空态建议个性化（55620c1）／§457 空态收口（e40281e，04:51 关账后主线裁定并入——与 §455 同版出才连贯）／§458 辅助标签实删（00325d4）；版本戳 fb6b804（0.50.107/235，generate 后 Derived 实读同值、未还原）。
+- 冲突处置：代码全部自动合清（含 §440 跨版 ChatView、§450×§458 同摸 DelegationRoutingView／ProfilesView）；DESIGN-V4.md 尾部追加冲突 6 次（§440／§450／§453／§454／§455／§458）全并集解——只删标记行、两节全留，合后逐节核头在位（§440／§450／§453／§454／§455／§457／§458 七节齐）。
+- §453 闸门（bundle Test-Gate453-rel05107）：10 套／100 测／0 红，先过闸才进整集。
+- 发布集名单：106 bundle 提取基线 156 套／1160 项＋增量 4 套（OneDayCoreTests/NotificationIntakePolicyTests＝§454 新文件、OneDayCoreTests/StarterSuggestionsTests＝§455 新文件、OneDayAppTests/EmptyStateTrim457StructureTests＝§457 新文件、OneDayCoreTests/FeedBoardTests＝§453 钉测套本版纳入）＝160 套／1206 项。
+- 首轮整集（bundle Test-OneDayApp-rel05107）：1204 过、2 红——#13 Markdown 性能门（MarkdownEngineDifferentialTests/testPerformanceGate，与 104／105／106 逐字同红，可接受）＋ThemeAlign431Tests/testAccessoryChevronsUnifiedIntoComponent（不可接受，按纪律停版报主线）。
+- 红修复（主线裁修法，提交 e96c7fe）：§450 R3 新增「添加与配对」节时 ServerDetailView.serverLinkRow 行尾箭头直写字面量 Image(systemName: "chevron.right")、未走 §431 收口的 DisclosureChevron 共用件（全仓字面量计数 2≠1）。改走共用件 DisclosureChevron(font: .system(size: FrameworkIcon.composerGlyphSize))（与 SettingsView 既有调用同形态）；该测第三断言的 DisclosureChevron( 登记数随 §450 增行同步更新 45→46。
+- 复跑整集（bundle Test-OneDayApp-rel05107-fix）：160 套／1206 项，1205 过、1 红（仅 #13 性能门）、0 跳过；目标测 testAccessoryChevronsUnifiedIntoComponent passed。drain 三钉全绿（ChatFailKeepPinTests 7/7、ChatQueueSendPinTests 5/5、ChatSettleExchangePinTests 3/3）；UI 补跑 ChatGestureNativeSurfaceTests 6 测＝4 过＋2 既有跳过、0 红。
+- 打包：Release build exit 0（dd-05107-release）；IPA 16,780,467 字节，md5 80b1039772e293c665ce8c04e02cd522；unzip 验 IPA 本体 plist 三值＝0.50.107／235／site.didichou.oneday；落 ~/workspace/OneDay-0.50.107-235.ipa，Mac ~/build 与 VM 两副本 md5 一致。rel-05107 已 push（不打 tag），回读结果见组版交卷。
+- 真机门（归用户 verdict）：八件各自真机门随本版验——§440 快照对位／双路拖动收起、§450 根页 25 行与新名、§453 卡底与关于节与点子 sheet、开始吧蓝白观感、§454 铃铛三级策略、§455 建议现算、§457 空态落位、§458 删后观感。
