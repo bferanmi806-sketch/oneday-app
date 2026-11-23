@@ -16328,3 +16328,12 @@ testTabAssetsOrientationMatchesLiveSymbols 像素两腿）整条作废——像�
 ### §413.4 回归
 - 发布集口径：名单＝rel05102 的 130 套＋新增 ChatSettleExchangePinTests＝131 套。实跑 1029/1029 全绿、0 红、0 跳过（bundle Test-OneDayApp-settle413，xcresulttool 汇总 Passed 1029/Failed 0）；逐套计数与 rel05102 bundle 对账：唯一差异＝ChatSettleExchangePinTests +3，其余 130 套逐套零差异、两边非过集皆空。
 - 真机门（未过不关账，与 0.50.103 同版）：落定回复文本即时上屏（不再朗读完仍空白）；长会话生成期在底等待、落定后仍钉底；短会话首轮同验。与朗读点按包（§411）同版组 0.50.103。
+
+## §418 版本 0.50.103/231 组版记账（2026-11-23；基线 rel-05102 @64f2b56）
+
+- 合入链：206b3ff §413 落定热修（源 feat/settle-hotfix，快进合入）→ c0824a2 合并 feat/tts-manual-trigger @f06ebdc（§411）→ cb3e3dc 版本笔（0.50.103/231：Project.swift 四处版本值＋tuist generate 刷新 Derived，generate 后未还原 Derived、Derived plist 回读 0.50.103/231 ✓）→ 本提交（本节）。
+- DESIGN 冲突处置：冲突 1 处（文末同锚点 §411/§413 双追加），并集解——删冲突标记、两节正文零删改，尾部节序排齐为 §411→§413。代码冲突：无。合并总 diff 与两包 diff 之和逐项一致（6 文件 +684/−38）。
+- 发布集：名单＝rel05102 bundle（Test-OneDayApp-rel05102）xcresulttool 提取 130 套全限定名＋新增 ChatSettleExchangePinTests＋SpeechPlayerTests＝132 套，实跑 1044/1044 全绿、0 红、0 跳过（bundle Test-OneDayApp-rel05103，xcresulttool 逐套对账：存量 130 套计数零差异，增量＝ChatSettleExchangePinTests +3、SpeechPlayerTests +15——该套此前不在发布集名单、仅定向跑，本版整套入列，15＝存量可执行 12＋§411 新钉 3，与 §411.3 定向口径一致）。
+- IPA：OneDay-0.50.103.ipa，15,768,336 字节，md5 b2c830394ba1cfbfe4d882a83fa0dcda；本体 unzip 验三值 0.50.103／231／site.didichou.oneday ✓，含 OneDayWidgets.appex；三副本字节与 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
+- 未含项（如实记）：生命周期 journey 门（§395 口径）本版组版单未跑，留主线裁量。
+- 真机门（用户，未过不关账）：§413——落定回复文本即时上屏（不再朗读完仍空白）、长会话生成期在底等待落定后仍钉底、短会话首轮同验；§411——存量曾开设备升级后落定不自动出声、设置拨开恢复、长按朗读起停如旧；另断网发一条验失败红感叹号真呈现＋点按原位重发。
