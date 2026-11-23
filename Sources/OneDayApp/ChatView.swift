@@ -895,7 +895,12 @@ struct ChatView: View {
                 await overviewStore.loadNotifications(
                     appState: appState,
                     foregroundServerSessionID:
-                        currentThread?.serverSessionID
+                        currentThread?.serverSessionID,
+                    // §454：本机线程会话链一并传给入
+                    // 账判定——前台会话的正常完成不
+                    // 进铃铛（三级），失败照旧在账
+                    userSessionIDs: ChatSessionScope
+                        .userSessionIDs(from: modelContext)
                 )
             }
         }
