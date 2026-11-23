@@ -1267,20 +1267,20 @@ struct AssistantMediaImage: View {
         Group {
             if FileMetadataStore.shared.existence(for: path)
                 == .exists {
-                ServerRemoteImage(path: path)
-                    .onTapGesture { onOpen() }
-                    .odPressFeedback()
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(
-                        A11yText.imageLabel(
-                            fileName: (path as NSString)
-                                .lastPathComponent
-                        )
+                Button {
+                    onOpen()
+                } label: {
+                    ServerRemoteImage(path: path)
+                }
+                .buttonStyle(.odPressable)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(
+                    A11yText.imageLabel(
+                        fileName: (path as NSString)
+                            .lastPathComponent
                     )
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityHint(L10n.string("查看大图"))
-                    .accessibilityAction { onOpen() }
-            }
+                )
+                .accessibilityHint(L10n.string("查看大图"))
         }
         .task(id: path) {
             await FileMetadataStore.shared.verifyExistence(

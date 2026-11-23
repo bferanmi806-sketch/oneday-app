@@ -4969,7 +4969,7 @@ struct ChatView: View {
         let snapshot = entry.traceEcho
         let isFailed = snapshot?.isFailed ?? false
         let openableSessionID = snapshot?.openableSessionID
-        return HStack(
+        let row = HStack(
             alignment: .top, spacing: OneDayMetrics.spacingS
         ) {
             Image(systemName: "wrench.and.screwdriver")
@@ -5043,13 +5043,20 @@ struct ChatView: View {
         .contentShape(Rectangle())
         // 点达：整行可点（承旧回响卡同手法），仅会话
         // 类目标接出口；点不达的行无动作、不装可点
-        .onTapGesture {
-            if let openableSessionID {
-                openEchoSession(openableSessionID)
-            }
-        }
-        .odPressFeedback(openableSessionID != nil)
         .accessibilityElement(children: .combine)
+        // §379：点达行迁原生 Button（原点按手势＋自研
+        // 按压修饰退役）；无会话目标的行保持纯展示——
+        // 无动作不装可点、连反馈也不给（原 enabled 旗
+        // 语义逐字保留）
+        if let openableSessionID {
+            return Button {
+                openEchoSession(openableSessionID)
+            } label: {
+                row
+            }
+            .buttonStyle(.odPressable)
+        }
+        return row
     }
 
     /// 回响行时间要素：今天只给时刻、跨日带月日（与
@@ -5293,48 +5300,38 @@ struct ChatView: View {
                         // §130：卡形由 ServerRemoteImage
                         // 本体承载（radiusCard），此处不再
                         // 外挂裁形（旧 spacingM 双重裁角）
-                        ServerRemoteImage(path: path)
-                            // §247.2 试点：同位挂 zoom 源
-                            // 锚点（点开大图自此图长出）
-                            .overlay {
-                                ZoomSourceAnchor(
-                                    sourceID: ChatImageViewerItem(
-                                        source: .remotePath(path)
-                                    ).id
-                                )
-                                .frame(
-                                    maxWidth: .infinity,
-                                    maxHeight: .infinity
-                                )
-                                .allowsHitTesting(false)
-                            }
-                            .onTapGesture {
-                                openImageViewer(
-                                    ChatImageViewerItem(
-                                        source: .remotePath(path)
-                                    )
-                                )
-                            }
-                            .odPressFeedback()
-                            // 0.43.0（A11Y-V2）：服务端图以
-                            // 文件名为最低文本等价（A11yText
-                            // 拼装）；动作与点按同一入口
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(
-                                A11yText.imageLabel(
-                                    fileName: (path as NSString)
-                                        .lastPathComponent
+                        Button {
+                            openImageViewer(
+                                ChatImageViewerItem(
+                                    source: .remotePath(path)
                                 )
                             )
-                            .accessibilityAddTraits(.isButton)
-                            .accessibilityHint(L10n.string("查看大图"))
-                            .accessibilityAction {
-                                openImageViewer(
-                                    ChatImageViewerItem(
-                                        source: .remotePath(path)
+                        } label: {
+                            ServerRemoteImage(path: path)
+                                // §247.2 试点：同位挂 zoom 源
+                                // 锚点（点开大图自此图长出）
+                                .overlay {
+                                    ZoomSourceAnchor(
+                                        sourceID: ChatImageViewerItem(
+                                            source: .remotePath(path)
+                                        ).id
                                     )
-                                )
-                            }
+                                    .frame(
+                                        maxWidth: .infinity,
+                                        maxHeight: .infinity
+                                    )
+                                    .allowsHitTesting(false)
+                                }
+                        }
+                        .buttonStyle(.odPressable)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            A11yText.imageLabel(
+                                fileName: (path as NSString)
+                                    .lastPathComponent
+                            )
+                        )
+                        .accessibilityHint(L10n.string("查看大图"))
                             // §265（S3）：图片卡是铬件——
                             // 整行菜单挂载面之一
                             .modifier(messageMenu(for: entry))
@@ -5602,34 +5599,24 @@ struct ChatView: View {
                     // §130：卡形由 ServerRemoteImage
                     // 本体承载（radiusCard），此处不再
                     // 外挂裁形（旧 spacingM 双重裁角）
-                    ServerRemoteImage(path: path)
-                        .onTapGesture {
-                            openImageViewer(
-                                ChatImageViewerItem(
-                                    source: .remotePath(path)
-                                )
-                            )
-                        }
-                        .odPressFeedback()
-                        // 0.43.0（A11Y-V2）：与用户侧同口
-                        // 径——文件名最低文本等价＋同一
-                        // 查看器入口
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(
-                            A11yText.imageLabel(
-                                fileName: (path as NSString)
-                                    .lastPathComponent
+                    Button {
+                        openImageViewer(
+                            ChatImageViewerItem(
+                                source: .remotePath(path)
                             )
                         )
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityHint(L10n.string("查看大图"))
-                        .accessibilityAction {
-                            openImageViewer(
-                                ChatImageViewerItem(
-                                    source: .remotePath(path)
-                                )
-                            )
-                        }
+                    } label: {
+                        ServerRemoteImage(path: path)
+                    }
+                    .buttonStyle(.odPressable)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(
+                        A11yText.imageLabel(
+                            fileName: (path as NSString)
+                                .lastPathComponent
+                        )
+                    )
+                    .accessibilityHint(L10n.string("查看大图"))
                 }
                 // §136：MEDIA: 标记的图片行——存在性
                 // 门在 AssistantMediaImage（与 §129
@@ -5701,36 +5688,27 @@ struct ChatView: View {
                     if FileRefDetector.isImagePath(
                         wholePathRef.path
                     ) {
-                        ServerRemoteImage(path: wholePathRef.path)
-                            .onTapGesture {
-                                openImageViewer(
-                                    ChatImageViewerItem(
-                                        source: .remotePath(
-                                            wholePathRef.path
-                                        )
+                        Button {
+                            openImageViewer(
+                                ChatImageViewerItem(
+                                    source: .remotePath(
+                                        wholePathRef.path
                                     )
-                                )
-                            }
-                            .odPressFeedback()
-                            .accessibilityElement(children: .ignore)
-                            .accessibilityLabel(
-                                A11yText.imageLabel(
-                                    fileName: (wholePathRef.path
-                                        as NSString)
-                                        .lastPathComponent
                                 )
                             )
-                            .accessibilityAddTraits(.isButton)
-                            .accessibilityHint(L10n.string("查看大图"))
-                            .accessibilityAction {
-                                openImageViewer(
-                                    ChatImageViewerItem(
-                                        source: .remotePath(
-                                            wholePathRef.path
-                                        )
-                                    )
-                                )
-                            }
+                        } label: {
+                            ServerRemoteImage(path: wholePathRef.path)
+                        }
+                        .buttonStyle(.odPressable)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(
+                            A11yText.imageLabel(
+                                fileName: (wholePathRef.path
+                                    as NSString)
+                                    .lastPathComponent
+                            )
+                        )
+                        .accessibilityHint(L10n.string("查看大图"))
                             // §265（S3）：整条裸路径图卡是
                             // 铬件——整行菜单挂载面之一
                             .modifier(messageMenu(for: entry))
@@ -5907,57 +5885,49 @@ struct ChatView: View {
         let fittedSize = ChatImageSizing.fittedSize(
             for: image.size, in: cardSize
         )
-        return ZStack {
-            Image(uiImage: image)
-                .resizable()
-                .frame(
-                    width: fittedSize.width,
-                    height: fittedSize.height
-                )
-        }
-        .frame(width: cardSize.width, height: cardSize.height)
-        .background(
-            Palette.bubbleFill,
-            in: RoundedRectangle(
-                cornerRadius: OneDayMetrics.radiusCard
-            )
-        )
-        .clipShape(
-            RoundedRectangle(
-                cornerRadius: OneDayMetrics.radiusCard
-            )
-        )
-        // §247.2 试点：同位挂 zoom 源锚点（点开大图
-        // 自此卡长出）
-        .overlay {
-            ZoomSourceAnchor(
-                sourceID: ChatImageViewerItem(
-                    source: .data(data)
-                ).id
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .allowsHitTesting(false)
-        }
-        .onTapGesture {
+        return Button {
             openImageViewer(
                 ChatImageViewerItem(source: .data(data))
             )
+        } label: {
+            ZStack {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(
+                        width: fittedSize.width,
+                        height: fittedSize.height
+                    )
+            }
+            .frame(width: cardSize.width, height: cardSize.height)
+            .background(
+                Palette.bubbleFill,
+                in: RoundedRectangle(
+                    cornerRadius: OneDayMetrics.radiusCard
+                )
+            )
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: OneDayMetrics.radiusCard
+                )
+            )
+            // §247.2 试点：同位挂 zoom 源锚点（点开大图
+            // 自此卡长出）
+            .overlay {
+                ZoomSourceAnchor(
+                    sourceID: ChatImageViewerItem(
+                        source: .data(data)
+                    ).id
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .allowsHitTesting(false)
+            }
         }
-        .odPressFeedback()
-        // 0.43.0（A11Y-V2）：本地图最低文本等价——
-        // 发送时刻（A11yText 拼装、Core 钉测）；动
-        // 作与点按同一入口（openImageViewer）
+        .buttonStyle(.odPressable)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             A11yText.imageLabel(sentAt: entry.createdAt)
         )
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint(L10n.string("查看大图"))
-        .accessibilityAction {
-            openImageViewer(
-                ChatImageViewerItem(source: .data(data))
-            )
-        }
     }
 
     /// 打开图片查看器（0.36.4）：集合＝同线程全部图
@@ -6768,23 +6738,54 @@ struct ChatView: View {
     private func reportCard(
         _ item: OverviewNotification, store: OverviewBridgeStore
     ) -> some View {
-        HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
-            Image(systemName: "bell.badge")
-                .font(.system(size: 15, weight: .regular))
-                .foregroundStyle(Palette.inkSecondary)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                Text(item.title)
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.ink)
-                if !item.body.isEmpty {
-                    Text(item.body)
-                        .font(.footnote)
+        // §379：整卡迁原生 Button（原点按手势＋自研按压
+        // 修饰退役）；点按落点不变——开枢纽 sheet
+        // （0.17.0 口径）。卡内 ✕ 本就是真 Button、不能
+        // 嵌 Button，按 §363 文件卡先例改同位覆盖层兄弟
+        // 件：原布局盒留同值占位保文本列宽，✕ 以卡内边距
+        // 同位覆盖；已知差同 §363——按压缩放只作用卡体、
+        // ✕ 不随动
+        ZStack(alignment: .topTrailing) {
+            Button {
+                showHub = true
+            } label: {
+                HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
+                    Image(systemName: "bell.badge")
+                        .font(.system(size: 15, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(3)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                        Text(item.title)
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.ink)
+                        if !item.body.isEmpty {
+                            Text(item.body)
+                                .font(.footnote)
+                                .foregroundStyle(Palette.inkSecondary)
+                                .lineLimit(3)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    // ✕ 占位：与覆盖层 ✕ 的布局盒同值
+                    Color.clear
+                        .frame(
+                            width: OneDayMetrics.minTapTarget,
+                            height: OneDayMetrics.minTapTarget
+                        )
                 }
+                .padding(OneDayMetrics.spacingM)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    Palette.surface,
+                    in: RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
+                        .strokeBorder(Palette.hairline, lineWidth: 1)
+                }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 0)
+            .buttonStyle(.odPressable)
             Button {
                 Task { await store.markRead(appState: appState, id: item.id) }
             } label: {
@@ -6804,22 +6805,8 @@ struct ChatView: View {
             }
             .buttonStyle(.odPressable)
             .accessibilityLabel("标为已读")
+            .padding(OneDayMetrics.spacingM)
         }
-        .padding(OneDayMetrics.spacingM)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            Palette.surface,
-            in: RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: OneDayMetrics.containerCorner)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        }
-        .contentShape(Rectangle())
-        // 0.17.0：回告卡点按与胶囊身份域同路——开枢纽
-        // sheet（活动格撤销前的落点是切活动格）
-        .onTapGesture { showHub = true }
-        .odPressFeedback()
     }
 
     /// 直播思考块（0.36.10 自 streamingRow 拆出）：
