@@ -17170,3 +17170,14 @@ queued 语义收窄：ChatSendState.queued 自此只是落盘瞬态（落盘未�
 真机门（挂载环境不可达、随 0.50.107 verdict）：连发变色时序（第二条在飞时第三条回执到即满色）、已受理条目长按撤回手势全程、严格保序堵泵的实际观感（失败条呈现与手点重发解堵）、新泵下 154 断网重发不双跑复核。
 
 影响面：ChatView 发送路径（send/launchTurn/drain/resend/落定链/长按菜单）、ChatNativeList 动作面数据、RunLedgerStore、Core RunTurn（账本＋落定＋分型）＋新 SubmissionLane；服务端零改动；演示路径 driveRun 零改动。提交：e5f9230（落码＋钉测）＋本节入档笔。
+
+## §464 0.50.109 组版（2026-11-24；基线 rel-05108 @3b005e8）
+
+- 料源：§451 发送机制换代独占版（feat/send-mechanism @e5f9230 落码＋@07afeb8 §451 入档，基线 rel-05106），合并提交 174d108。
+- 冲突处置：冲突一处、只在 docs/DESIGN-V4.md（节追加相撞——HEAD 侧 §440–§463 与 §451 节两边全保留），代码零冲突（ChatView 自动合并）。亲验两点：①ChatView 键盘坞为 §449 形态 `.toolbar(kbSnapshot.isKeyboardUp ? .hidden : .automatic, for: .tabBar)`，与 108 逐字一致、`.visible` 未回潮；②发送泵严格保序在位——runSubmitPump 逐条取 SubmissionLane.decision、未受理失败（.rejected／.prepareFailed／.offlineParked／.stopped）即 return 停泵、后续不越过，泵符号计数与 §451 分支一致（6 处）。
+- 版本戳：Project.swift 升 0.50.109／237，tuist generate 后 Derived 戳亲验 0.50.109／237，提交 81fb529（generate 后未还原 Derived）。
+- 发布集（RUN 2026-11-24 07:06:53，bundle Test-OneDayApp-rel05109.xcresult，dd-05109-test，ProbePhone 开跑前 simctl erase）：名单＝108 官方 bundle（Test-OneDayApp-rel05108）xcresulttool 提取 161 套／1209 项全限定名（与 §463 账精确闭合）＋§451 新套 ChatSendMechanism451PinTests／SendMechanism451Tests＋补入 RunTurnTests＝164 套；逐套对账：仅三处增量（ChatSendMechanism451PinTests +2、SendMechanism451Tests +12、RunTurnTests +49），其余 161 套计数与 108 逐套相同，总项 1272 精确闭合；1270 过、2 红。UI 腿三套（bundle Test-UI-rel05109）：9 项 7 过、2 跳（既有跳过）、0 红，与 108 同口径。
+- RunTurnTests 补入说明（谱系遗漏）：该套自 0.31.0 在树、是 RunTurn.swift 的回归套；§451 对 RunTurn.swift 有 180 行改动且其自带钉测证据含该套 49 测，但发布集谱系名单（104–108 逐版自上一版 bundle 提取）从未含它——名单自衍生使遗漏自我延续。本版按 §451 料面补入并明示；后续版本名单自 109 bundle 提取即自然在册。
+- 红项处置：①#13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–108 逐字同红、已裁可接受。②HapticsMatrixTests/testMatrixCallSiteCounts 新红——归因坐实：Haptics.error() 全树计数 108 树 54→合并树 51，−3 全在 ChatView 且全部出自 §451 分支自身（§451 分支树即 51、合并零丢失）：旧发送链 launchTurn 三落点＋resendPending 三落点（复刻一条龙）随换代收敛为提交泵 performSubmission 三落点（上传失败／准备失败／提交被拒），resend 改委托泵、失败触感由泵内落点承接、行为不丢。处置：按该测既有惯例改钉 54→51 并附 §451 注记，独立模拟器（iPhone 17 Pro Max）复跑 HapticsMatrixTests 全套绿（bundle Test-HapticsPin-rel05109）。§451 线自带七套选跑未含此套，故未在其交卷暴露。
+- IPA：Release 构建 BUILD SUCCEEDED（dd-05109-release）；~/build/OneDay-0.50.109-237.ipa，16,739,556 字节，md5 55d7953cb26608552c04c699250e18f9；unzip 验 IPA 本体 plist 三值＝0.50.109／237／site.didichou.oneday；VM 副本 md5 一致。
+- 真机门（归用户 verdict，§451 四项）：①断网连发保序——断网连发数条、恢复网络后按落盘序依次提交受理、不乱序不越过；②失败条泵停原位重试——首条被明确拒绝时泵停在失败条、后续不越过，失败条原位呈现，手点重发或自动重试到点后先行重试解堵；③变色时机——连发时第二条在首轮未落定时、其受理回执到即变满色（不再等首轮回复完）；④SettledRunTurn 锚定——多轮并存时各轮落定只收本轮段（锚 serverRowID），后轮失败不污染先行轮呈现。另 §451 节内真机门同批：已受理条目长按撤回手势全程、新泵下 154 断网重发不双跑复核。
