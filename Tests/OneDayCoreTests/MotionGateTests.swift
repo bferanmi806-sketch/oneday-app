@@ -40,10 +40,13 @@ final class MotionGateTests: XCTestCase {
 
     // MARK: - 发送舱右端状态机
 
-    func testTrailingStateStreamingWinsOverCanSend() {
+    /// §419（修复包二锁一）改判：流式中有字不再由
+    /// 停止键独占——出双钮态 .stopAndSend（发送主
+    /// 键＋停止小钮）；流式空输入仍 .stop
+    func testTrailingStateStreamingWithCanSendQueues() {
         XCTAssertEqual(
             ComposerTrailingState.resolve(isStreaming: true, canSend: true),
-            .stop
+            .stopAndSend
         )
         XCTAssertEqual(
             ComposerTrailingState.resolve(isStreaming: true, canSend: false),
@@ -66,6 +69,7 @@ final class MotionGateTests: XCTestCase {
         XCTAssertFalse(ComposerTrailingState.mic.isDiscKey)
         XCTAssertTrue(ComposerTrailingState.send.isDiscKey)
         XCTAssertTrue(ComposerTrailingState.stop.isDiscKey)
-        XCTAssertEqual(ComposerTrailingState.allCases.count, 3)
+        XCTAssertTrue(ComposerTrailingState.stopAndSend.isDiscKey)
+        XCTAssertEqual(ComposerTrailingState.allCases.count, 4)
     }
 }
