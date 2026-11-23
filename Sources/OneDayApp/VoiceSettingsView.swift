@@ -21,16 +21,6 @@ struct VoiceSettingsView: View {
     var body: some View {
         List {
             Section {
-                Text("回复朗读由你的 Hermes 服务端合成，声音在服务器那边生成。")
-                    .font(.rowSubtitle)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(
-                EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
-            )
-
-            Section {
                 HStack(spacing: OneDayMetrics.spacingSM) {
                     Text("服务端朗读")
                         .font(.rowTitleL)

@@ -48,13 +48,6 @@ struct DelegationRoutingView: View {
 
     var body: some View {
         List {
-            Section {
-                Text("Hermes 干活时会把子任务委派给子智能体。这里决定子智能体由哪个后端跑、不同活儿走哪条模型路线、能以哪些档案的身份去跑。改动保存到服务器，下一个子任务起生效。")
-                    .font(.rowSubtitle)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .listRowBackground(Color.clear)
-
             if let note = store.note {
                 Section {
                     Text(note)

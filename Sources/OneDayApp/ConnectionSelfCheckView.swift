@@ -51,16 +51,6 @@ struct ConnectionSelfCheckView: View {
 
     private func checkList(target: Target) -> some View {
         List {
-            Section {
-                Text("逐项实测这台服务器的连接、服务状态与能力，全部只读、几秒钟跑完。")
-                    .font(.rowSubtitle)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(
-                EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
-            )
-
             if target == nil {
                 Section("当前连接") {
                     liveConnectionRow

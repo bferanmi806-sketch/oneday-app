@@ -349,11 +349,6 @@ struct LearningNodeDetailView: View {
                             .frame(minHeight: 260)
                             .padding(OneDayMetrics.spacingS)
                             .odGroup()
-                        if draft != original {
-                            Text("改完点右上角「保存」，直接对它生效。")
-                                .font(.footnote)
-                                .foregroundStyle(Palette.inkSecondary)
-                        }
                     }
                     if let errorMessage {
                         InlineError(errorMessage)

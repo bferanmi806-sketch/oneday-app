@@ -516,8 +516,6 @@ struct ModelSettingsView: View {
                 )
             } header: {
                 Text(L10n.format("模型（%lld）", appState.availableModels.count))
-            } footer: {
-                Text("点一行设为默认，立即生效。")
             }
             Section {
                 actionRow("获取模型", busy: busyCards.contains(Self.mainCardID)) {
@@ -579,8 +577,6 @@ struct ModelSettingsView: View {
                 }
             } header: {
                 Text(L10n.format("模型（%lld）", entry.models.count))
-            } footer: {
-                Text("点一行设为默认，立即生效。")
             }
             Section {
                 actionRow("获取模型", busy: busyCards.contains(entry.name)) {

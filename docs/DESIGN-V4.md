@@ -16983,3 +16983,14 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 钉测：新增 EmptyStateTrim457StructureTests 2 测——招呼块 token 与两句招呼文案在生产源码代码行（整行注释除外）零残留；empty-suggestions 行与 emptyStateSuggestions 视图仍在场。
 - 验收（Test-EmptyTrim457.xcresult，ProbePhone）：build-for-testing exit 0；三套共 34 测全过 0 红——EmptyStateTrim457StructureTests 2/2、StarterSuggestionsTests 8/8、OnboardingTests 24/24。
 - 真机门：新会话空态只剩建议行、纵向落位观感——归用户 verdict，随 107 出。
+
+## §458 辅助标签与说明文清查＋清理（2026-11-24，用户 04:15 亲令）
+
+**通则（全 App 长期有效，用户原话立规）**：「请避免不必要的辅助标签与说明，让布局本身发挥解释作用。」展开口径：界面不许靠文字解释自己——控件功能一目了然的、标题已说清的、布局层级本身已表达的，旁边的复述性小字／副标题／说明段／提示条一律不设；新页面与改版评审逐面过此条。例外（承载真实信息的小字不在此限）：状态、计数、时间、错误与恢复指引、破坏性操作确认文案、无障碍标签（不可见辅助不算视觉赘肉）、首启关键授权说明；拿不准的先留、列待裁，不许先删再说。
+
+- 清查方法：全仓中文字符串 3,613 条抽取、成句文案 1,229 条逐条过目，另查 Section 页脚 64 处、`.rowSubtitle` 渲染 87 处、设置目录副行与空态组件文案；清单正本 oneday-design-review/declutter-inventory-20261124.md（登记 104 项：实删 10／待裁 37／留 34／转交各线 23）。
+- 本包实删 10 处（分支 feat/declutter-labels，基线 rel-05106，9 文件净删 61 行、零新增）：任务委派页首整段（DelegationRoutingView）、语音设置页首（VoiceSettingsView）、体检页首（HealthCheckView）、连接自检页首（ConnectionSelfCheckView）、全局搜索空查态范围行（GlobalSearchView）、档案页首分工小字（ProfilesView）、模型设置两处「点一行设为默认，立即生效。」页脚（ModelSettingsView）、外观聊天个性化页脚（AppearanceView）、学习记忆编辑页「改完点右上角保存」小字（LearningMemoryViews）。删整节的四处原节仅含说明行，删后节距按原结构归位、无豁口；删除文案无测试钉住、无 Core 引用（已 grep 验）。
+- 待裁 37 项不删、留清单：概念定义类（会商／外部事件／预设辨析）、术语与机制解释类、页首与空态说明类——删否与压缩形态归用户/主线判，其中工具页脚「全局生效」同页三份（ToolsetsSettingsView）与设置目录搜索副行整类（SettingsCatalog summary 34 条、仅搜索态渲染、兼搜索关键词源）建议优先裁。
+- 转交 23 项只登记不动文件：在跑线领地按 §449（中枢审核格说明等 3）／§452（交付物与文件空态 3）／§453（动态种子帖与简报说明、目标创建与类别副行等 14）／§454（铃铛空态 1）／§455 线（聊天空态招呼块副文 2，已在其分支随整块删除、本基线残留、组版合入后消解）分组入清单。
+- 红线类按类判留不逐条删：错误与恢复文案、破坏性确认、状态/计数/时间、审批后果、设备能力范围与隐私语义、首启与法律文本。
+- 验收：构建与受影响面测试见本包交卷；真机观感归用户 verdict，并入 107 料池。

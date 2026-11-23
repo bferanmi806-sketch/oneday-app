@@ -26,16 +26,6 @@ struct HealthCheckView: View {
 
     var body: some View {
         List {
-            Section {
-                Text("跑一遍检查，看看服务器的健康与安全状况。")
-                    .font(.rowSubtitle)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .listRowBackground(Color.clear)
-            .listRowInsets(
-                EdgeInsets(top: 8, leading: 20, bottom: 8, trailing: 20)
-            )
-
             conclusionSection
             runButtonSection
             doctorSection

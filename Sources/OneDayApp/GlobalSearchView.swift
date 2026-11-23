@@ -78,9 +78,6 @@ struct GlobalSearchView: View {
     var body: some View {
         List {
             if trimmedQuery.isEmpty {
-                Text("搜会话、文件、定时任务和设置项。")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
             } else {
                 sessionSection
                 fileSection
