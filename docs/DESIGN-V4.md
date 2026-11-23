@@ -16149,3 +16149,13 @@ App 头＋body 同值双带：旧服务端忽略未知 body 字段、头键账�
 ### §403.5 回滚基线
 
 rel-05099 @46150bf。图标来源单点切换（tabLabel＋TabBarSymbols 两处＋资产目录＋生成器），回滚＝还原本包提交；L1/L2 防线与符号名完整保留，随时可回 symbol 路径。
+
+## §404 版本 0.50.100/228 组版记账（2026-11-23；基线 rel-05099 @46150bf）
+
+- 合入链（2 笔 merge、逐条单独成笔）：af249a9 §403 §382 B1 底栏模板图资产（源 feat/tabbar-template-assets @e4a8eca）→ 83e6a43 §400 总表 73 结构钉测（源 feat/settings-route-inbox-check @bd3abb9）→ 版本笔（0.50.100/228：Project.swift 四处版本值＋tuist generate 刷新 Derived，generate 后未还原 Derived）→ 本提交（本节）。
+- DESIGN 冲突处置：两分支均在文末同锚点追加新节（§403 在先合侧、§400 在后合侧），冲突 1 处、并集解、按节号序 §400→§403 排齐，两节正文零删改。
+- 代码冲突：无。两包文件面不交叠（§403＝资产目录/ContentView/TabBarSymbols＋两套测；§400＝SettingsRouteInboxStructureTests 一套测＋DESIGN）。
+- 回归（发布门）：名单＝rel05099 bundle（Test-OneDayApp-rel05099）xcresulttool 提取 124 套全限定名＋新增 3 套（TabBarTemplateAssetStructureTests、TabBarSymbolsTests、SettingsRouteInboxStructureTests）＝127 套；实跑 **1015/1015 全绿、0 红、0 跳过**（bundle Test-OneDayApp-rel05100；summary 与逐套 identifier 对账双路一致：基线 124 套无缺席、逐套计数零差异，增量仅三套 +4/+4/+3＝+11，预期 1011＋4＝1015 分毫不差）。S371/S373 在集内全绿、ChatView 根链零触碰。通道纪律：kick 单一脚本双读判闲一次通过（冒烟门线当时未占道、无抢道），RUN 14:35→EXIT 14:47 一轮到底、xcodebuild exit 0。
+- 生命周期常设门（§395）：版本对 0.50.99→0.50.100 实跑 S1–S5 五段全过（journey-result-100.txt：首装/升级/同版重装/降级启动全 ALIVE、标记跨升级·重装·降级保留、删除重装回初始态）。注：本轮旅程与发布集测试尾段同窗并行（14:39–14:40，旅程只走 simctl 不占 test-cmd 通道），两边产物均全绿、无干扰实据；后续组版宜错峰。
+- IPA：本地 Mac 出包（pkg100 自 pkg99 sed 派生、派生四查过）、IPA 本体亲验 0.50.100/228/site.didichou.oneday、15,815,763 字节、md5 e6db2df66279031033ccb43689fa8b83（2026-11-23），三副本一致（Mac ~/build、NAS MacFast/Downloads、本地 oneday-releases/）；包内含 OneDayWidgets.appex。体积较 0.50.99 增 14,620 字节（五枚矢量资产＋钉测外生产增量）。
+- 真机门（用户，未过不关账）：§382/§403 冷启底栏——不点底栏先截图逐格量填充率 ≤0.35（修复前 0.60–0.81 逐格对账）、点一轮后复截同形、深色一帧、与 Muse 并排；73 无新增真机门（零结构/视觉改动）。总表 73 已加「已并入 0.50.100」组版注记、复选框未动，划线等主线裁/verdict；§382 在总表无独立编号行，只在本节与 §403 记账。
