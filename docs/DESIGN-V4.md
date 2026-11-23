@@ -16731,3 +16731,14 @@ OneDayDesign/Components.swift 新建共用件 DisclosureChevron：.symbolRenderi
 - 冒烟轮（bundle Test-Smoke-rel05105.xcresult）：6 套 20 测全绿（Reliability 5＋S373 结构 2＋S371 结构 1＋长列表滚动 1＋迁移 4＋UI 冒烟 7）；过程注记：本轮被重复 kick 两次（断线后等待器与首跑交叠），两跑 exit 均 0、第二跑 bundle 封口实数如上。
 - IPA：Release 构建 exit 0；~/build/OneDay-0.50.105.ipa，16,612,208 字节，md5 2ad5bbc5e725d6a196cf72adb1a7dc2e；本体三值亲验 0.50.105／233／site.didichou.oneday；三副本 md5 一致（Mac ~/build、NAS /Volumes/MacFast/Downloads、本地 ~/workspace/oneday-releases/）。
 - 需求总表已加 0.50.105 版本行＋四缺陷真机复验清单（变色／完成卡／键盘贴底／三点，各一句验收动作）；四缺陷划线等用户真机 verdict。分支 rel-05105 未 push、未打 tag（主线处置）。
+
+## §438 键盘开合跳动修（2026-11-24，用户双视频亲报）
+
+- 立项与量测：用户附双视频（OneDay 0.50.105 实况＋参照 Muse）亲报键盘开合列表「蹦」非「滑」。量测正本 ~/workspace/oneday-design-review/kb-smooth-spec-20261124.md（30fps 全帧 FFT-NCC 逐帧追踪，锚点匹配分 ≥0.95）：参照开/合锚点−输入栏偏移散布 ≤1px、步进即键盘曲线、合后精确归位；OneDay 开＝锚点单帧瞬移 −441px（100% 位移/1 帧、内容抢跑键盘 ≈0.37s、偏移散布 406px），合＝行程超程 +149px、落点不归位（末条沉入输入栏下），第一轮合后 ≈0.9s 迟到逛回、第二轮未回位。
+- 定因：开——量测/施工链读模型帧（动画终点）＋异步落定拍落写，§325.2「逐帧到达」假设对约束常量动画不成立，时序塌缩，非行高重测、非意图误判（§426 捕获正确保留）；合——收起侧设计性清意图、无专属跟随，钉靠布局拍顺带动画＋异步量测竞速，落偏后无机制找回（+149 逐 pt 载体未完全坐实、同竞速族，图内如实标注）。
+- 修法（分支 feat/kb-smooth @d03b67e，基线 rel-05105 @b5a6b96）：三件——①同事务应用：animateLayout 的通知 duration/curve 动画块内 layoutIfNeeded 落终点帧后同块 measureBottomSpace→reconcileInsets→凭意图 pinToBottom，inset/offset 由 UIKit 与舱同程插值（通行范式、Apple 示例血统，非自创）；②事务窗冻结：事务自通知处理至 completion（或被新事务接管/用户拖动接管），窗内落定拍只记账＋report、布局拍停钉，窗末 completion 唤醒一拍合并落写，completion 丢失有 deadline 自愈（沿本仓滚动/抽屉冻结同式）；③收起侧对称意图：keyboardHidePinIntent 于收起前键盘态几何下同 §426 式捕获，事务内按布局完成后的静息几何钉回。不动 §426 升起捕获、§302 常量链、落定拍其余职责。
+- 改钉（ChatKeyboardPinAssemblyTests）：testKeyboardShowMidAnimationTailAlreadyVisible 改钉呈现层间距守恒（末行−舱呈现顶间距≈静息、中途 3 采样、末行不被盖）——旧断言「中途帧留位一步到位」钉的正是抢跑机制本身，理由图内三章先行写明；新增 testKeyboardHideFollowsAndReturnsToRest（show→hide 全程同程＋终点距底 ≤1pt＋留位回静息）。
+- 测试对账（bundle Test-KbSmooth438.xcresult，RUN 2026-11-24 01:47:14，dd-kbsmooth）：相关 5 套（KeyboardPin/NativeListAssembly/SettleExchangePin/SendConfirmPin/SearchFocus）24 测＝16 过 8 红。8 红（ChatNativeListAssemblyTests×5＋ChatSearchFocusAssemblyTests×3，均为 XCTUnwrap 物化为空）经干净基线 rel05105 同选轮对照（Test-KbSmooth438-Base.xcresult，23 测 15 过 8 红）逐名、逐失败文同红——基线红（此组合在当前模拟器态的既有红），非本包新增；本包净增 1 测（合侧新钉）且绿，§438 两钉全绿，SettleExchangePin 2/2、SendConfirmPin 全绿。红名单与整树老红（R2/LibraryOrdering/Quote 系）无交集。
+- 轨迹复跑（代验说明）：量测管线针对真机录屏，模拟器录屏同法复跑未做，按图内验收口径以呈现层钉测代——开：中途 3 采样间距守恒（断言门偏差 ≤10pt、间距 ≥−1 不被盖；旧散布 406px≈227pt）；合：中途同守恒、终点距底 ≤1pt（旧 +149px≈83pt 不归位）、留位回静息 ±1.5pt 内。真机门留用户 verdict（开合跟随手感＋落点）。
+- 与 W2 正修的差（复核图内三项）：①本修不动列表引擎（仍 compositional），W2 换 Exyte 后键盘定位在其引擎内重做，本修事务纪律（同事务应用＋事务窗冻结＋双向意图捕获）平移为 W2 验收口径；②不做逐帧呈现帧采样驱动，平台动画事务插值已达成散布门；③交互式手势收键盘沿 WillChangeFrame 路径同式处理，不另立引擎。
+- 状态：已落码提交（d03b67e＋本节），未 push（主线处置）；待组版并入与用户真机 verdict。
