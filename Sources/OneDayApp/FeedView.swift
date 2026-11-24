@@ -1402,6 +1402,11 @@ extension FeedPostKind {
     var kickerColor: Color {
         switch self {
         case .digest: return Palette.tintSky
+        // §459 合并补 case（0.50.111 组版）：.event 为
+        // §459 复活的本地事件成帖新 kind，§462 映射表
+        // 成表时该 kind 不存在；事件帖同属系统装配面，
+        // 与 .digest 同族取 tintSky，不新造令牌
+        case .event: return Palette.tintSky
         case .morning: return Palette.tintOrange
         case .research: return Palette.tintLavender
         case .seed: return Palette.tintGreen
