@@ -84,7 +84,7 @@ final class ChatSwapStep4cStructureTests: XCTestCase {
             )
         }
         let settings = try source(
-            "Sources/OneDayApp/SettingsSupportViews.swift"
+            "Sources/OneDayApp/ChatDiagnosticsView.swift"
         )
         XCTAssertTrue(
             settings.contains(

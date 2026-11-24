@@ -68,14 +68,14 @@ final class ThemeAlign431Tests: XCTestCase {
     /// 全仓行尾附件箭头收口：字面量直写只许剩
     /// ChatView 强调色链接箭头一处（Palette.primary、
     /// 非披露附件，§431 登记不收）；上下双箭直写零；
-    /// 共用件落点数与 §431 落码清单一致（45 起、随版本增至 47；§476 组版改钉：§470 网关页新增「用量」行用共用件 +1，46→47，归因亲验）
+    /// 共用件落点数与 §431 落码清单一致（45 起、随版本增至 47；§476 组版改钉：§470 网关页新增「用量」行用共用件 +1，46→47，归因亲验；§493 改钉：StatusView 整页退役 −3，47→44，归因亲验）
     func testAccessoryChevronsUnifiedIntoComponent() throws {
         let all = try allSourceText()
         XCTAssertEqual(
             count(of: "Image(systemName: \"chevron.right\")", in: all), 1)
         XCTAssertEqual(
             count(of: "Image(systemName: \"chevron.up.chevron.down\")", in: all), 0)
-        XCTAssertEqual(count(of: "DisclosureChevron(", in: all), 47)
+        XCTAssertEqual(count(of: "DisclosureChevron(", in: all), 44)
     }
 
     /// 外观页五触点逐点在位（四 selection＋一 impact）
