@@ -28,6 +28,9 @@ final class BridgeScript: @unchecked Sendable {
     var goalEntriesCount = 0
 
     var feedPostsResult: [BridgeFeedPost] = []
+    /// 简报脚本值（§473 件一）：设了才出演 feedBrief，
+    /// 未设维持旧桩（抛错、调用方 try? 降级）
+    var feedBriefResult: BridgeBriefDoc?
     var ideasList: [BridgeIdea] = []
     var goalsList: [BridgeGoal] = []
     var entriesByGoal: [String: [BridgeGoalEntry]] = [:]
@@ -83,6 +86,7 @@ struct ScriptedBridgeClient: OneDayBridgeClientProtocol {
 
     func feedBrief(config: ServerConfig) async throws -> BridgeBriefDoc {
         script.feedBriefCount += 1
+        if let doc = script.feedBriefResult { return doc }
         throw stub
     }
 
