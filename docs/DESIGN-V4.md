@@ -17761,3 +17761,15 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 结构钉测按新架构更新：SettingsCatalogTests（条目 30/浏览序/段集/隐藏集 14/别名/改名钉＋status 退役与服务器管理仅搜索可达新钉）、SettingsRouteInboxStructureTests（ManageSheet 退役钉）。
 - 相关套件终验 75 项全绿、0 红（SettingsCatalogTests/SettingsRegistryTests/HermesAdvancedModelsTests/HubAuditTextTests/SettingsRouteInboxStructureTests/OBBundleStructureTests/NotificationTierStructureTests，删探针后复跑）。
 - 入口零丢失对账表（旧入口→新入口＋可达证据）见交付审计档。
+## §496 设置目标树落码·App 侧（2026-11-24）
+
+出处＝`oneday-design-review/settings-ia-restructure-20261124.md` §4.3（用户 2026-11-24 15:49 拍板「照这棵树落码」）。分支 feat/settings-tree-fix（基线 rel-05118）。
+
+- **件1 合并引擎加门**：`SettingsRegistry.effectiveBrowseRows` 与 `effectiveSearch` 一律过滤 `destination == nil` 的服务端注册表「值记录」——值记录默认不进任何浏览组与根页搜索，只许专属面 `record(forKey:)` 按 key 直查（中枢审批规则页 6 处直查实证不受影响）。根源：§493 的 D2/D3 只处理了目录条目与目的地，注册表值记录经根页合并引擎（`browseRows = 目录行 + 注册表行`）绕过目录混排——118 根页实际渲染 20 行（目录浏览 16＋手写断开行＋3 值行：api_server＋memory/skills.write_approval 两开关），而 §493 对账只数目录，未见此面。
+- **件2 断开连接迁位**：SettingsView 删服务器段末手写 disconnectRow（§493 D7 落点就此再迁、D2「维护段撤销」余绪关账）；ServerDetailView 页末（ServerVersionSection 后）新增独立组红字行（图标 rectangle.portrait.and.arrow.right＋`.odGroup()`＋`.odPressable`），本页自带 confirmationDialog——标题「断开连接？」、破坏性钮「断开连接」→`appState.disconnect()`、消息文案与旧根页逐字一致。根页 confirmationDialog 保留（仅余搜索 `activate(.disconnect)` 路径使用：目录 disconnect 行仅搜索可达、点后回根页弹框口径不变）。
+- **行数对账（更正简报口径）**：目录浏览行合计实测 **16**（智能体 7／服务器 2／偏好 5／支持 2）；迁位后根页渲染＝16 浏览行＋身份卡＋页脚，与目录 `browseEntries` 合计逐字一致。此前「根页 17 行」系把旧手写断开行算进目录账的算法（16＋1），特此更正、不硬凑原数字。
+- **服务端种子侧**（api_server 与两条 write_approval 记录 surface 改离 agent）由服务端线随部署包处理，与本门双保险；App 侧「三行不再出现」由生产同形记录钉测＋帧双证承担。
+- **测试**：SettingsRegistryTests 三测按新口径翻案（testRegistryAppliesPerSurfaceAndOthersFallBack／testFiveTypesAppearAsValueRowsInSortOrder／testRegistrySearchIncludesValueRows——方法名按本仓惯例作稳定标识不改）＋新增防复发钉 **testRegistryValueRowsNeverEnterBrowse**（生产同形三记录：全组浏览与分段浏览值行数＝0、浏览行与内置行全等、`record(forKey:)` 仍命中）；SettingsCatalogTests 根页计数测注释补 §496 对账。点名直跑 6 套 64 项全绿 0 红（SettingsRegistryTests／SettingsCatalogTests／NotificationTierStructureTests／ServerVersionStoreTests／SettingsRouteInboxStructureTests／HubSegmentsConsolidationTests；独立模拟器直跑绕共享通道）。
+- **帧证据**（临时探针 Tests/OneDayUITests/SettingsTreeFrameProbeUITests，验后已删＋重新 generate）：根页顶部帧（智能体段恰 7 行止于定时任务、无 api_server／审批开关）、根页底部帧（服务器段终于网关状态、无断开行；偏好 5＋支持 2＋页脚）、服务器页页末帧（版本与更新组后独立组红字断开行）、确认框帧（iOS 26 在本呈现上下文把 confirmationDialog 渲为 popover 式：标题／消息／破坏性钮齐、无独立「取消」钮、点外关闭——探针首轮以取消钮存在性断言误判「未呈现」，帧面实证纠正后全过；演示模式注册表为空，值行缺席的机制证据由生产同形记录钉测承担、帧只管渲染形态）。
+- **真机门**：根页无三件且 16 行与目录一致；当前服务器页页末断开连接可点且确认框照旧；中枢审批规则页两条写入审批状态行照常（直查不受门影响）。
+- **节号注记**：本节 §496 按并集顺延取号（§494 流式呈现／§495 0.50.119 组版在 rel-05119 线），组版时按对照法核对顺延。
