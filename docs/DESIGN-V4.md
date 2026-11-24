@@ -17348,3 +17348,20 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–112 逐字同红、已裁可接受。本版无新红、无改钉（HapticsMatrixTests 本轮全过）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05113-release，rc=0）；~/build/OneDay-0.50.113-241.ipa，16,835,397 字节，md5 7207d8acc03eca5e0a0fdade6fccd738；unzip 直验主 App 本体 plist 三值＝0.50.113／241／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.113-241.ipa）md5 一致。
 - 真机门（归用户 verdict）：①杀 App 48h 后重开，一轮前台周期内（≤15 分钟）calendar/reminders 的 synced_at 均刷新、审计账出现新成功记录、设备同步总览两行转绿；②装版先看健康面第一屏定因回读（权限分型人话＝实锤 blocked 分支）＋诊断段自检结论与审计逐条对账；③逐数据集点「立即同步」时刻往前走，断网点一次失败原因红字显形、不报假成功；④系统设置关日历权限→同步页该行红点＋「权限已关，去系统设置里开启」，恢复后下一轮自检自动恢复推送；⑤飞行模式回前台→恢复网络，退避到点自动补同步；提醒读取不再整轮挂死。
+
+
+## §475 工作详情两件（2026-11-24；用户 10:16 亲报，基线 rel-05113）
+
+### 件一 状态不收敛定因（服务端，先查后改）
+
+- 样本 job:morning:1795486341（动态调研，10:12:21 开始）：生产 ledger 事件账实证——10:17:37 由 bridge 正常回写 completed，全程 5 分 16 秒、本轮 produced=0（hourly 线 activity-gate）。用户 10:15 截图（已运行 3:03）时它确实还在跑，此样本本身无回写故障；动态调研一轮约 5 分钟是常态（08:30 轮 6 分 16 秒、07:43 轮 4 分 16 秒）。
+- 同类真不收敛 2 条（同日 9 条 job：* completed 6／failed 1／stale 1／running 1）：job:morning:1795485581（09:59:41 简报保存触发轮，网关 runs 实证席位活动至约 10:11–10:14，companion 1.0.75 约 10:15 重建把轮次线程连同进程杀死——无 history 记录、无 finish 事件，至今 running）；job:morning:1795466451（04:40:51，同型丢失，被僵尸梯 +30 分钟标 stale 了事）。
+- 根因：完成回写只有一条路——轮次线程在自己进程内 _feed_record_locked → _ledger_job_finish，靠进程内单槽字典 _ledger_jobs[kind] 找条目。进程死亡即整链永久丢失、启动无人对账；僵尸梯按「属主可能只是沉默」设计只标 stale 永不结算，而 job 条目属主就是桥进程自己，死了不会再上报。
+- 修法（预制在 ~/workspace/hermes-deploy-ledgerfix/，未应用、随下一 companion 槽位由主线排）：①ledger.py 新增纯函数 settle_orphan_jobs——启动时结算仍活跃的 job:* 条目（属主已死是启动事实非推断；有本轮记录按活路径同一映射补结算、无记录 failed/执行被打断；记录匹配窗 started 前后数秒严配防后轮顶替）；②oneday_seg_ledger.py 在 _ledger_start_collector 开头调孤儿结算（feedGen/ideasGen/briefGen 三史），_ledger_job_finish 槽空时按 kind 前缀兜底查找最新活跃条目。自测 ledgerfix_selftest 9/9＋存量 ledger_selftest Part A 回归 40/40。基线哈希与生产 1.0.76 逐字一致（ledger.py 41b8d59b…、oneday_seg_ledger.py d7ca9573…）。
+
+### 件二 详情页按 Muse 任务详情卡形态重做（App）
+
+- 页首卡：人话标题（.title3 semibold）＋状态 chip（圆点＋LedgerText.statusWord 单源词，底 Palette.fillSecondary、字色按状态取 successText/danger/primary/inkSecondary）＋一句话摘要（Core LedgerBoard.detailSummary，只拼条目自有字段：终态用时＋子计数、失败原因分类打头、活跃态已运行/已等逐秒走、失联给最后确认时刻；无可说返回 nil 整行不显，不编造）。
+- 概况只留人话字段：来源（sourceWord）／开始／结束／用时（终态）；「最后确认」只在失联待核时出行（它就是失联判据），活跃态时长归页首摘要不重复占行。类别行撤（身份由标题与列表行承载）。
+- 「技术信息」整段撤除（状态原文/类别原文/来源原文/记账来源/标题来源/条目编号/会话编号/运行编号/纠正者全撤）：旧口径「本页技术信息区是排障原文唯一的家」作废（2026-11-24 用户裁），排障原文归设置诊断领地（ChatDiagnosticsView 一带），本页零原文枚举。事件时间线、失败原因节、工作量节、任务/审批续行下钻与打开会话入口原样保留，文案全走 LedgerText 既有单源、无新造词表。
+- 钉测：Tests/OneDayCoreTests/LedgerDetailSummaryTests 新增 6 法（completed/running/failed/stale 四态摘要＋缺结束时刻 nil＋状态词零原文）。
