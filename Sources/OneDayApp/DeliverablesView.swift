@@ -75,6 +75,11 @@ struct DeliverablesView: View {
     /// previewEntry/readerEntry 双状态分流（预览页/
     /// 阅读页）退役，统一先进文件打开页
     @State private var previewEntry: WorkspaceFileEntry?
+
+    /// 身份簇点按进中枢（§498：ContentPageHeader 的
+    /// onOpenHub 落点，与动态/点子同式——原小胶囊在
+    /// 本页不可点，收编后同义补齐）
+    @State private var showHub = false
     /// 图片查看器路由（0.36.4）：图片直达查看器（系
     /// 统 zoom 转场、源＝格/卡的 matched 标记），不
     /// 再先进预览页
@@ -192,6 +197,9 @@ struct DeliverablesView: View {
                     .ignoresSafeArea()
             }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showHub) {
+                AgentHubView()
+            }
             // §125：打开分流收口——非图条目一律落文
             // 件打开页（中间页），文本类的阅读在其页
             // 内主钮进阅读页；旧 previewEntry/
@@ -303,32 +311,26 @@ struct DeliverablesView: View {
             .padding(.bottom, OneDayMetrics.spacingS)
     }
 
-    // MARK: - 顶部身份区（左抽屉钮／中央胶囊／右 •••）
+    // MARK: - 顶部身份区（§498 共同簇：左抽屉钮／中央身份区／右放大镜＋菜单）
 
+    /// 页头簇（§498 收编）：ContentPageHeader 共同簇
+    /// 本体（与聊天基准/动态/点子/目标同件同数），
+    /// 取代自写 identityHeader＋IdentityAnchor 小横
+    /// 胶囊＋headerCircleButton 私有副本。右位登记
+    /// ＝放大镜（开搜索行）＋菜单钮（下四组功能）
     private var identityHeader: some View {
-        ZStack {
-            HStack {
-                Button {
-                    appState.router.drawerPresented = true
-                } label: {
-                    headerCircleButton("line.3.horizontal")
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("会话列表")
-                Spacer()
-                // §452.9：搜索钮回归顶栏——放大镜图
-                // 标钮与 ••• 同排同级（点开顶栏下原地
-                // 展开搜索行＋取消，见 searchFieldRow；
-                // §4.2 旧「搜索钮撤除＋下拉露出」口径
-                // 就此修订）
-                Button {
+        ContentPageHeader(onOpenHub: { showHub = true }) {
+            HStack(spacing: OneDayMetrics.spacingS) {
+                // §452.9：搜索钮——放大镜图标钮与菜单
+                // 钮同排同级（点开顶栏下原地展开搜索
+                // 行＋取消，见 searchFieldRow）
+                PageHeaderCircleButton(
+                    symbol: "magnifyingglass",
+                    label: "搜索"
+                ) {
                     toggleSearch()
-                } label: {
-                    headerCircleButton("magnifyingglass")
                 }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("搜索")
-                // §4.1/§4.2：右上 ••• 菜单钮——组1 显示、组2 排序（每组单
+                // §4.1/§4.2：右上菜单钮——组1 显示、组2 排序（每组单
                 // 选）、组3 系统文件、组4 上传文件
                 // （OneDay 扩展，规格标注）。两组单选改
                 // 系统 Picker 承载（样式二期 S2-04）：
@@ -377,49 +379,11 @@ struct DeliverablesView: View {
                         }
                     }
                 } label: {
-                    headerCircleButton("ellipsis")
+                    PageHeaderCircleGlyph(symbol: "ellipsis")
                 }
                 .accessibilityLabel("资源库菜单")
             }
-            IdentityAnchor(
-                // 0.36.22：名与头像收敛档案出口
-                name: appState.agentDisplayName,
-                // §474（用户 2026-11-24 亲令）：小字与
-                // 聊天胶囊同源＝当前工作状态（AppState.
-                // liveActivityPhrase）；无活动传 nil——
-                // 词与点一并收起，不再显「在线／未连接」
-                statusWord: appState.liveActivityPhrase,
-                statusColor: Palette.inkMuted,
-                // 真头像注入（0.22.0 审计 F3），与聊天页
-                // 胶囊同一头像源
-                avatarImage: appState.agentAvatarImage
-            )
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
-        .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingXS)
-    }
-
-    private func headerCircleButton(_ symbol: String) -> some View {
-        Image(systemName: symbol)
-            .font(.system(
-                size: HeaderButtonSpec.glyphPointSize,
-                weight: .regular
-            ))
-            .foregroundStyle(Palette.ink)
-            .frame(
-                width: HeaderButtonSpec.diameter,
-                height: HeaderButtonSpec.diameter
-            )
-            // 与聊天页顶栏圆钮同族材质：系统玻璃
-            // .glassEffect(.regular)，视觉盘 40 不变
-            .glassEffect(.regular, in: Circle())
-            // 命中域外扩 44（视觉盘居中不变）
-            .frame(
-                width: OneDayMetrics.minTapTarget,
-                height: OneDayMetrics.minTapTarget
-            )
-            .contentShape(Rectangle())
     }
 
     /// 下拉露出搜索栏（§4.2）：搜当前聚合集的文件名

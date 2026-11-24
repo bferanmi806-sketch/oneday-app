@@ -9,10 +9,14 @@ import XCTest
 /// ①演示模式下动态页无帖数据（未连接态），行内新件
 /// FeedLinkPreviewCard 无法在整机面上验——以 Image-
 /// Renderer 离屏渲染两形态（带路径/根路径）落 PNG。
-/// ②页头滚动收起同理无真列表可滚——以托管副本验机
+/// ②页头滚动行为同理无真列表可滚——以托管副本验机
 /// 制：真 ContentPageHeader＋与 FeedView 同式的几何
-/// 归一化公式（offset＋顶 inset）＋同阈值 24，断言
-/// 静止偏移≈0、滚后 collapsed 置位，并落两帧 PNG。
+/// 归一化公式（offset＋顶 inset），断言静止偏移≈0、
+/// 滚过旧收起阈值 24 后偏移实达（滚动真发生）。
+/// §498 翻案：§486.4 的整簇收起废止——副本不再有
+/// collapsed 状态可断，改断「簇恒在」：两帧（静止/
+/// 滚后）落盘供墨迹比对，滚后帧页头区须与静止帧同
+/// 位同形（组版/真机帧同口径复核）。
 final class FeedIdeasRenderProbeTests: XCTestCase {
 
     @MainActor
@@ -43,22 +47,19 @@ final class FeedIdeasRenderProbeTests: XCTestCase {
         }
     }
 
-    // MARK: - 页头收起托管副本
+    // MARK: - 页头恒常驻托管副本（§498）
 
-    private final class CollapseFlag {
-        var collapsed = false
+    private final class ScrollFlag {
         var restOffset: CGFloat?
         var maxOffset: CGFloat = 0
     }
 
-    private struct CollapseReplica: View {
-        let flag: CollapseFlag
-        @State private var collapsed = false
+    private struct PinnedHeaderReplica: View {
+        let flag: ScrollFlag
 
         var body: some View {
             VStack(spacing: 0) {
                 ContentPageHeader(
-                    collapsed: collapsed,
                     onOpenHub: {}
                 ) {
                     PageHeaderCircleButton(
@@ -83,11 +84,6 @@ final class FeedIdeasRenderProbeTests: XCTestCase {
                             flag.restOffset = newValue
                         }
                         flag.maxOffset = max(flag.maxOffset, newValue)
-                        let next = newValue > 24
-                        if next != collapsed {
-                            collapsed = next
-                            flag.collapsed = next
-                        }
                     }
                     .onAppear {
                         DispatchQueue.main.asyncAfter(
@@ -102,8 +98,8 @@ final class FeedIdeasRenderProbeTests: XCTestCase {
     }
 
     @MainActor
-    func testHeaderCollapseReplica() async throws {
-        let flag = CollapseFlag()
+    func testHeaderStaysPinnedReplica() async throws {
+        let flag = ScrollFlag()
         let scene = try XCTUnwrap(
             UIApplication.shared.connectedScenes
                 .compactMap { $0 as? UIWindowScene }.first
@@ -111,7 +107,7 @@ final class FeedIdeasRenderProbeTests: XCTestCase {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
         let host = UIHostingController(
-            rootView: CollapseReplica(flag: flag)
+            rootView: PinnedHeaderReplica(flag: flag)
                 .environment(AppState())
         )
         window.rootViewController = host
@@ -120,20 +116,22 @@ final class FeedIdeasRenderProbeTests: XCTestCase {
 
         try await Task.sleep(for: .milliseconds(700))
         try capture(host.view, name: "header-rest")
-        // 等滚动发生并收起（上限 6 秒轮询）
+        // 等滚动实达旧收起阈值之上（上限 6 秒轮询）
         var waited = 0
-        while !flag.collapsed, waited < 60 {
+        while flag.maxOffset <= 24, waited < 60 {
             try await Task.sleep(for: .milliseconds(100))
             waited += 1
         }
         try await Task.sleep(for: .milliseconds(600))
         try capture(host.view, name: "header-scrolled")
         print(
-            "COLLAPSE restOffset=\(flag.restOffset ?? -999) "
-                + "maxOffset=\(flag.maxOffset) "
-                + "collapsed=\(flag.collapsed)"
+            "PINNED restOffset=\(flag.restOffset ?? -999) "
+                + "maxOffset=\(flag.maxOffset)"
         )
-        XCTAssertTrue(flag.collapsed, "滚动后页头应收起")
+        XCTAssertGreaterThan(
+            flag.maxOffset, 24,
+            "滚动须实达旧收起阈值之上（否则恒在断言无据）"
+        )
         if let rest = flag.restOffset {
             XCTAssertLessThan(
                 abs(rest), 1.5,

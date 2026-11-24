@@ -89,6 +89,11 @@ struct GoalsView: View {
     @State private var editTarget: BridgeGoal?
     @State private var deleteTarget: BridgeGoal?
 
+    /// 身份簇点按进中枢（§498：ContentPageHeader 的
+    /// onOpenHub 落点，与动态/点子同式——原 §485 小
+    /// 胶囊在本页不可点，收编后同义补齐）
+    @State private var showHub = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -136,6 +141,9 @@ struct GoalsView: View {
             // 由目的地自理（GoalDetailView/Ungrou-
             // pedTasksView 均自带 navigationTitle）
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showHub) {
+                AgentHubView()
+            }
             .task {
                 await store.loadIfNeeded(appState: appState)
             }
@@ -213,59 +221,16 @@ struct GoalsView: View {
         createSheet = nil
     }
 
-    /// 页头簇（§485）：与资源库页 identityHeader 同
-    /// 构——左抽屉圆钮＋中央 IdentityAnchor 胶囊
-    /// （垫距同值：横 pageGutter/上 spacingS/下
-    /// spacingXS）。右侧不设圆钮：目标页无页级菜单
-    /// 动作，参照右钮（···）功能单帧未验证（审计
-    /// §六），造空菜单违僵尸禁令——知情偏离登记
-    /// 于 DESIGN §485。胶囊小字与聊天/资源库同源
-    /// （§474：liveActivityPhrase 单源、无活动时
-    /// 词与点一并收起）
+    /// 页头簇（§498 收编）：ContentPageHeader 共同簇
+    /// 本体（与聊天基准/动态/点子/资源库同件同数），
+    /// 取代 §485 的 IdentityAnchor 小横胶囊自写簇。
+    /// 右侧不设圆钮：目标页无页级菜单动作，参照右
+    /// 钮（···）功能单帧未验证（审计 §六），造空菜
+    /// 单违僵尸禁令——§498 右位登记为空
     private var identityHeader: some View {
-        ZStack {
-            HStack {
-                Button {
-                    appState.router.drawerPresented = true
-                } label: {
-                    headerCircleButton("line.3.horizontal")
-                }
-                .buttonStyle(.odPressable)
-                .accessibilityLabel("会话列表")
-                Spacer()
-            }
-            IdentityAnchor(
-                name: appState.agentDisplayName,
-                statusWord: appState.liveActivityPhrase,
-                statusColor: Palette.inkMuted,
-                avatarImage: appState.agentAvatarImage
-            )
+        ContentPageHeader(onOpenHub: { showHub = true }) {
+            EmptyView()
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
-        .padding(.top, OneDayMetrics.spacingS)
-        .padding(.bottom, OneDayMetrics.spacingXS)
-    }
-
-    /// 页头圆钮（与资源库 headerCircleButton 同款：
-    /// HeaderButtonSpec 规格单源——玻璃盘 40、字形
-    /// 20、命中域外扩 44）
-    private func headerCircleButton(_ symbol: String) -> some View {
-        Image(systemName: symbol)
-            .font(.system(
-                size: HeaderButtonSpec.glyphPointSize,
-                weight: .regular
-            ))
-            .foregroundStyle(Palette.ink)
-            .frame(
-                width: HeaderButtonSpec.diameter,
-                height: HeaderButtonSpec.diameter
-            )
-            .glassEffect(.regular, in: Circle())
-            .frame(
-                width: OneDayMetrics.minTapTarget,
-                height: OneDayMetrics.minTapTarget
-            )
-            .contentShape(Rectangle())
     }
 
     /// 页题行（§485）：「目标」≈24pt 粗体档（照

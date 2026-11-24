@@ -22,7 +22,7 @@ import SwiftUI
 /// 索」口径就此作废：页内自持页头簇（身份簇＋34
 /// 大标题＋标题下字段槽），字段槽静止态＝简报胶
 /// 囊（胶囊行以此形态回归，与 §126 删的旧行不同
-/// 件）、滚动收起后＝搜索字段顶替【推定待真机帧
+/// 件）、滚过阈值后＝搜索字段顶替【推定待真机帧
 /// 翻案】；链接改 OG 式预览卡、链接出处图不再整
 /// 幅渲染。细则见 DESIGN §486 与 feedPageHead。§177：帖面不单独设
 /// 色——根 List 与点子页同口径隐藏系统滚动底、透
@@ -65,13 +65,15 @@ struct FeedView: View {
     /// 页头身份簇开中枢（§486：簇自聊天页同件接入
     /// 本页，落点与聊天页同为本栈推 AgentHubView）
     @State private var showHub = false
-    /// 页头滚动收起态（§486.4）：列表内容偏移驱动
-    /// （onScrollGeometryChange，资源库页同式）——过
-    /// 阈值簇整簇收起、滑杆留守、标题＋字段钉顶
-    @State private var headerCollapsed = false
+    /// 页头字段槽切换态（§498）：列表内容偏移驱动
+    /// （onScrollGeometryChange）——过阈值字段槽由简
+    /// 报胶囊换搜索入口；共同簇与大标题行恒常驻（§
+    /// 486.4 的整簇收起已废止，本状态不再触碰簇）
+    @State private var fieldSlotSwapped = false
 
-    /// 收起阈值（§486.2 翻案单点之一）：内容上滚超
-    /// 此值即收簇、字段槽换搜索形态
+    /// 字段槽切换阈值（§486.2 翻案单点之一）：内容
+    /// 上滚超此值字段槽换搜索形态（§498：只动字段
+    /// 槽，不再收簇）
     private static let collapseThreshold: CGFloat = 24
     /// 搜索（0.47.0 §117；§126 改点开式；§486 改
     /// 页头字段槽）：激活态由标题下字段槽的搜索行
@@ -273,11 +275,11 @@ struct FeedView: View {
     /// 页头整簇：身份簇（ContentPageHeader，滑杆钮
     /// 归其右位）＋大标题（pageTitle 34，与参照同
     /// 档）＋标题下字段槽。本簇在列表之外——滚动时
-    /// 天然钉顶，收起只动簇高（§486.4）
+    /// 天然钉顶；§498 起簇与标题恒常驻，滚动只切
+    /// 字段槽形态（见 fieldMode）
     private var feedPageHead: some View {
         VStack(alignment: .leading, spacing: 0) {
             ContentPageHeader(
-                collapsed: headerCollapsed,
                 onOpenHub: { showHub = true }
             ) {
                 PageHeaderCircleButton(
@@ -299,21 +301,24 @@ struct FeedView: View {
         }
     }
 
-    /// 滚动收起判定：过阈值收、回阈值内放（状态不
-    /// 变不重写，免无谓重绘）
-    private func updateHeaderCollapse(_ offset: CGFloat) {
-        let collapsed = offset > Self.collapseThreshold
-        if collapsed != headerCollapsed {
-            headerCollapsed = collapsed
+    /// 字段槽切换判定：过阈值换搜索入口、回阈值内
+    /// 还简报胶囊（状态不变不重写，免无谓重绘）
+    private func updateFieldSlot(_ offset: CGFloat) {
+        let swapped = offset > Self.collapseThreshold
+        if swapped != fieldSlotSwapped {
+            fieldSlotSwapped = swapped
         }
     }
 
     /// 标题下字段槽的形态（§486.2【推定待真机帧翻
-    /// 案】）：静止态＝简报胶囊首行、滚动收起后＝搜
-    /// 索字段顶替、搜索激活中＝真搜索行。依据＝审
-    /// 计 §1.3 槽位推定（静止帧见简报胶囊、滚动帧
-    /// 同位见搜索字段）；翻案时只改本判定与 col-
-    /// lapseThreshold，两形态件本体不动
+    /// 案】）：静止态＝简报胶囊首行、滚过阈值＝搜索
+    /// 字段顶替、搜索激活中＝真搜索行。依据＝审计
+    /// §1.3 槽位推定（静止帧见简报胶囊、滚动帧同位
+    /// 见搜索字段）；翻案时只改本判定与 collapse-
+    /// Threshold，两形态件本体不动。§498：本切换是
+    /// 全 App 唯一保留的滚动形态变化——整行交互件
+    /// 互换、非收起（簇与标题不动、编辑简报另有滑
+    /// 杆钮常驻入口）
     private enum FieldMode {
         case brief
         case searchEntry
@@ -322,7 +327,7 @@ struct FeedView: View {
 
     private var fieldMode: FieldMode {
         if isSearching { return .searching }
-        return headerCollapsed ? .searchEntry : .brief
+        return fieldSlotSwapped ? .searchEntry : .brief
     }
 
     @ViewBuilder
@@ -436,7 +441,7 @@ struct FeedView: View {
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top
             } action: { _, newValue in
-                updateHeaderCollapse(newValue)
+                updateFieldSlot(newValue)
             }
             .refreshable {
                 await reload()
@@ -497,12 +502,12 @@ struct FeedView: View {
             // spacingM，不回系统默认
             .listSectionSpacing(OneDayMetrics.spacingM)
             .contentMargins(.top, topMargin, for: .scrollContent)
-            // §486.4：滚动偏移驱动页头收起（归一化偏
-            // 移＝offset＋顶 inset，静止恒 0）
+            // §498：滚动偏移只驱动字段槽切换（归一
+            // 化偏移＝offset＋顶 inset，静止恒 0）
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top
             } action: { _, newValue in
-                updateHeaderCollapse(newValue)
+                updateFieldSlot(newValue)
             }
             .refreshable {
                 await reload()

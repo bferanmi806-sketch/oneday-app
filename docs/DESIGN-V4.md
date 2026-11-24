@@ -17810,3 +17810,71 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **整跑结果**：单元 1536 过／2 红／0 跳。红一 MarkdownEngineDifferentialTests/testPerformanceGate（#13 性能门，整树老红、逐版同红已裁可接受）。红二 ChatSwapStep4cProbeTests/testDrawerWindowLatencyAndCostDroppedVsRetained（名单外）——延迟探针：基线五轮 62.9/61.7/37.8/57.8/57.5ms、阈值锚单次最快 37.8ms，删冻 min 58.8ms 以 0.08ms 越线；时值多线满载、与本版改动面（设置注册表/服务器页）无关。隔离复跑（新建 Rel120SwapPhone＋独立 DerivedData 直跑，未占共享通道）**TEST SUCCEEDED**——基线 29.0–34.7ms、删冻 28.4–33.3ms，删冻不劣，判满载噪声间歇红、非本版回归（复跑后模拟器已 shutdown）。UI 全跑 11 过／0 红／2 跳，与 119 同形。改动面相关套 SettingsRegistryTests 14 项（含新钉）与 SettingsCatalogTests 在合并树全绿。
 - **IPA**：OneDay-0.50.120-248.ipa，28,036,689 字节，md5 7ef35c0022c5c75ee0b7184d958f3a46（Mac 与 VM 副本双边一致）；unzip 直验主 App 本体 plist 三值 0.50.120／248／site.didichou.oneday。Release 构建 dd-05120-release、CODE_SIGNING_ALLOWED=NO、BUILD SUCCEEDED。
 - **真机门（归用户 verdict）**：§496 三项——①设置根页无三件（api_server 平台工具集行、记忆/技能写入审批两开关）且 16 浏览行与目录一致；②当前服务器页页末断开连接可点、确认框照旧（iOS 26 在本呈现上下文渲为 popover 式：无独立取消钮、点外关闭，非缺陷）；③中枢审批规则页两条写入审批状态行照常（直查不受门影响）。
+
+## §498 页头单源收编（2026-11-24，feat/header-single-source，基线 rel-05117；P3-01＋用户真机点名）
+
+### 起因与定因（用户 15:15 录屏＋15:17 三截图亲点，量测说话）
+
+用户原话：「动态，怎么划着划着那几个按钮没有了，不是共同页头吗？还有目标和资源库页头也不一样」。录屏（720×1566、2fps 抽 10 帧）墨迹占比实测（阈值 <110 灰度，三区：汉堡圈/右钮圈/hero 区）：
+
+| 帧 | 页面/状态 | 汉堡 | 右钮 | hero | 小胶囊 |
+|---|---|---|---|---|---|
+| f001 | 动态·静止 | .047 | .065 | .098 | — |
+| f002/f003 | 动态·上滑 | .000 | .000 | .000 | — |
+| f004 | 动态·回顶中 | .046 | .059 | .091 | — |
+| f005 | 动态·回顶 | .053 | .066 | .098 | — |
+| f006–f008 | 目标 | .047 | .000 | — | .065 |
+| f009/f010 | 资源库 | .047 | .019 | — | .065 |
+
+定因三条：
+1. **动态整簇消失＝§486.4 收起设计＋一处布局 bug**：§486.4 定 collapsed 时 hero 与汉堡钮 opacity 0、带高 107→48（照参照滚动态推定，用户本轮亲否）；且收起帧右上残影放大验明＝滑杆圆盘被横切一半——`.frame(height:)` 默认居中对齐把 103 高的 ZStack 内容顶出 48 高的带外、`.clipped()` 切掉圆钮上半盘。用户主诉成立且比「淡没」更糟：留守钮是坏的。
+2. **目标右钮「时有时无」＝页间误读、非状态相关**：GoalsView.identityHeader 代码恒无右钮（§485 知情偏离：目标页无页级菜单动作、参照右钮功能未验证、造空菜单违僵尸禁令）；录屏/截图里带放大镜＋更多的帧是资源库页——两页同用小横胶囊形态、并排易混。处置＝目标右位登记为空（无页级动作），不造钮。
+3. **目标/资源库是两套自写簇**：各自 identityHeader＋OneDayDesign 的 IdentityAnchor 小横胶囊（头像档 capsulePointSize≈28＋名）＋headerCircleButton 私有副本（目标 1 钮、资源库 3 钮）；§486 头注自认「目标页/中枢页后续接入同件」未落。另动态/点子虽用 ContentPageHeader，与聊天 topBand 仍有三处分叉：钮行顶距 spacingSM(12) vs 聊天 spacingS(8)（钮心低 4pt）、胶囊状态词回落「在线/未连接」（违 §474 聊天口径：只许工作短语、无活动留空）、头像钮未接活头像（聊天接 livingAvatar）。
+
+### 普查对位表（收编前，代码实查）
+
+| 页面 | 簇实现 | 胶囊形态 | 左 | 右（登记差异源） | 大标题 | 滚动行为 |
+|---|---|---|---|---|---|---|
+| 聊天 | ChatView.topBand（基准） | hero 67＋名胶囊压下沿 8 | 汉堡 | 铃铛＋角标 | 无 | 恒常驻（TopBarGuideHost 托管、列表下滚） |
+| 动态 | ContentPageHeader | hero 67（同件、数值分叉见定因 3） | 汉堡 | 滑杆（编辑简报） | 动态 34 | **整簇收起＋字段槽换搜索入口（§486.4，本节废止前者）** |
+| 点子 | ContentPageHeader | hero 67 | 汉堡 | 无 | 点子 34 | 恒常驻 |
+| 目标 | 自写 identityHeader | 小横胶囊 IdentityAnchor | 汉堡 | **无（§485 定因，恒空）** | 目标 ≈24（§485 照参照量测） | 恒常驻 |
+| 资源库 | 自写 identityHeader | 小横胶囊 IdentityAnchor | 汉堡 | 放大镜（开搜索行）＋···菜单（显示/排序/系统文件/上传） | 资源库 34 | 恒常驻（搜索行由滚动偏移露出系行级行为、不动簇） |
+| 通知 | sheet 自有头 | 无簇 | — | 全部已读＋关闭 | 通知 .screenName | 模态面、非主页面簇（登记外） |
+| 中枢 | §477 身份页本体 | — | 返回 | 分段控件 | — | 身份页本体、非主页面簇（登记外） |
+
+### 口径（本节定版，覆盖 §486.4）
+
+- **共同簇单源**：零件与数值只许一源——HubAvatarButton（hero 67）＋HubIdentityCapsule（44 高、压头像下沿 8）＋PageHeaderCircleButton（HeaderButtonSpec：玻璃盘 40/字形 20/命中 44）；几何：带横距 pageGutter、hero 顶距 spacingXS、钮行顶距 spacingS（钮心在头像心上方 ≈8，§449.3 聊天定版）、带高 107。宿主两处：聊天页 topBand（基准本体，绑 TopBarGuideHost/zoom 转场/胶囊长按查找，不迁）与 ContentPageHeader（内容页宿主，本节收编至同规格）；页面不许再自写簇或复制圆钮。
+- **滚动单一口径**：共同簇与大标题行在全部主页面恒常驻——滚动不消失、不淡没、不位移（聊天页现行行为）。§486.4 的整簇收起**废止**。唯一保留的滚动相关形态变化＝动态页字段槽（简报胶囊↔搜索入口整行互换，二者皆整行交互件；编辑简报另有滑杆钮常驻入口、功能不丢），它不是收起（无元素离场）、不涉簇与标题行，全 App 仅此一处、仅此页（因其字段槽有双形态设计）。
+- **右侧动作位逐页登记**（只许差功能钮）：聊天＝铃铛＋角标；动态＝滑杆（编辑简报）；点子＝无；目标＝无（§485 定因）；资源库＝放大镜＋···菜单。新增/变更右钮先改本登记。
+- **胶囊状态词全页同源**：HubIdentityCapsule 第二行只读 AppState.liveActivityPhrase、无活动留空（§474）；ContentPageHeader 旧「在线/未连接」回落删除。
+
+### 登记差异（知情保留，不在本节动）
+
+- 头像状态点数据源：聊天走总览桥 statusLine/statusTone（OverviewBridgeStore，ContentView 局部持有、仅注入 ChatView），内容页走 config 在位判定（未连接/在线＋inkMuted/success）；常态（在线）同为绿点，边缘态（待审批橙）内容页不呈现——数据源未打通前登记，强行同源需改 ContentView 注入面、不在本节扩散。
+- 目标页大标题 ≈24pt（§485 照 Muse 参照量测的页别定版）vs 余内容页 34：标题行字阶属页别登记差异，本节只收编共同簇、不动标题字阶。
+- 通知页（模态 sheet 头）、中枢页（身份页本体）不属主页面共同簇，形态自理。
+
+### 落码（本节施工，逐项回填）
+
+- ContentPageHeader：删 collapsed 全链（参数/淡出/带高收缩/动画/clipped）；钮行顶距 spacingSM→spacingS；hero 顶距入内（spacingXS）与聊天同构成；HubAvatarButton 接 appState.livingAvatar；胶囊状态词改 liveActivityPhrase 直读、删回落；新增 PageHeaderCircleGlyph（圆盘视觉单源，供菜单标签复用）。
+- FeedView：ContentPageHeader 去 collapsed 入参；headerCollapsed 改名 fieldSlotSwapped、只驱动 fieldMode（updateHeaderCollapse→updateFieldSlot，两处 onScrollGeometryChange 同步）；标题行恒常驻；§486.4 相关注释按本节改指。
+- IdeasView：随签名更新（本就无收起、无右钮，零行为变）。
+- GoalsView：identityHeader 换 ContentPageHeader（右位 EmptyView）；删私有 headerCircleButton；补 showHub＋navigationDestination（胶囊/头像点按开中枢，与他页同义——原 IdentityAnchor 在本页不可点，系收编新增的同义行为）；§485 头注改指本节。
+- DeliverablesView：identityHeader 换 ContentPageHeader（右位＝放大镜 PageHeaderCircleButton＋···菜单，菜单标签用 PageHeaderCircleGlyph）；删私有 headerCircleButton；补 showHub 落点（同上）。
+- 测试：FeedIdeasRenderProbeTests 收起探针翻案——托管副本改断「滚动后簇恒在」（偏移实滚 >24 置位、两帧落盘比对）；余相关套件点名直跑。
+- 帧证据（浅色）：动态静止/上滑两态、点子、目标、资源库、通知各一帧＋深色抽动态一帧，逐帧核共同簇同位同形（汉堡位/hero 形态尺寸/右钮位）。
+
+### 真机门（归用户 verdict）
+
+①动态上滑：汉堡/头像胶囊/滑杆钮全程在位不淡没、字段槽换搜索入口手感；②目标/资源库：hero 大头像簇与首页同形、点胶囊/头像进中枢；③资源库放大镜/菜单点达与旧位等价、菜单四组功能无损；④目标右位恒空与「无页级动作」预期一致；⑤各页簇与首页并排比对同位（钮行高度、胶囊压沿）。
+
+### 落码记账（三续线回填，2026-11-24）
+
+- 落码与本节清单逐项吻合：未提交 5 文件经逐一审毕无半截（ContentPageHeader 收编、FeedView 簇与收起脱钩改名 fieldSlotSwapped、GoalsView/DeliverablesView 换 ContentPageHeader 并删私有 headerCircleButton、FeedIdeasRenderProbeTests 翻案）；IdeasView 基线调用点本不传 collapsed，签名更新零影响、无右钮登记不变，无需改动。
+- 改钉一处（主线裁，仅测试文件、零生产代码）：CapsuleStatus474Tests.testCapsuleStatusWordSingleSource 的资源库锚点 DeliverablesView.swift → ContentPageHeader.swift——字面 `statusWord: appState.liveActivityPhrase,` 随资源库自写簇删除迁入共同簇 HubIdentityCapsule 调用（ContentPageHeader.swift:72），行为不丢反收编；断言补 §498 归因，并加一条 DeliverablesView 含 `ContentPageHeader(` 的收编钉（同类先例：0.50.118 改钉）。
+- 测试：改钉后相关 12 套 54 项复跑＝54 过/0 败（xcresult Test-HeaderSrc，CapsuleStatus474Tests 3/3 含改钉项、FeedIdeasRenderProbe 翻案项 testHeaderStaysPinnedReplica 过——托管副本实滚 maxOffset=1384 簇恒在）。
+- 帧证据（临时 UITest HeaderSrcFrameProbeUITests，演示模式，取后已删）：AX 帧转储五页与首页逐值同——hero (186,66,67x67)、胶囊 (188,136,62x20)、汉堡 (20,70,44x44) 全页一致；动态滑杆 (376,70,44x44)、资源库放大镜 (324,70,44x44)＋菜单 (376,70,44x44)、目标/点子右位无钮；动态上滑两 swipe 后转储逐值不变（簇钉顶实证）。浅色截图逐帧目验：动态/目标/资源库均为大 hero＋胶囊压沿的首页同形（小横胶囊退役），目标右位恒空、资源库双钮齐。两点如实登记：①演示态动态为空状态不可滚，静止/上滑两帧同图，滚动钉顶以 AX 转储＋托管副本实滚探针为据；②深色帧以 -AppleInterfaceStyle Dark 启动未生效（成帧仍浅色，App 现行浅色定版），深色仅有 AX 几何同位证据、视觉深色未验，归真机门与批 C 深色帧账。另汉堡无障碍标识聊天页为 drawer.open、内容页为 line.3.horizontal（符号名），帧与行为同、仅标识名差，登记不改。
+- 节号注记：本节预制期自占 §492；0.50.121 组版时按并集连排顺延为 **§498**（§492＝0.50.118 组版节、§493＝设置 IA 节保持原号），代码/测试自指已同步 §498（六文件，见 §499 组版节对照表）。
+- 环境插曲（与本包代码无关）：复跑期间 Mac 进程表被 12 台常驻模拟器打满（约 2883 进程、fork 失败），当时无在飞 xcodebuild，已 simctl shutdown all 清理回落至约 496；首轮复跑被该故障毒化（posix_spawn 失败、构建未成），清理后重跑方得上数。另 tuist generate 须带 DEVELOPER_DIR=Xcode 27.2，否则 tuist-derived 依赖工程部署目标回落 13.1 触发构建错误（本轮实证，已按此重 generate 恢复 15.0）。
