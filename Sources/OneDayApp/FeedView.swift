@@ -16,7 +16,15 @@ import SwiftUI
 /// §117 未读口径作废）——已读回写与 readAt 保留为
 /// 静默账本，只停提醒面、不停账本；搜索改工具栏
 /// 点开式（.toolbar 落点，不再常驻一行）；列表顶
-/// 距改条件化（见 topMargin）。§177：帖面不单独设
+/// 距改条件化（见 topMargin）。
+/// §480（2026-11-24，三页审计全抄）：页头安排再
+/// 换代——§126 的「简报胶囊行删除＋工具栏点开搜
+/// 索」口径就此作废：页内自持页头簇（身份簇＋34
+/// 大标题＋标题下字段槽），字段槽静止态＝简报胶
+/// 囊（胶囊行以此形态回归，与 §126 删的旧行不同
+/// 件）、滚动收起后＝搜索字段顶替【推定待真机帧
+/// 翻案】；链接改 OG 式预览卡、链接出处图不再整
+/// 幅渲染。细则见 DESIGN §480 与 feedPageHead。§177：帖面不单独设
 /// 色——根 List 与点子页同口径隐藏系统滚动底、透
 /// 出页面底 pageBG，帖行同色（此前本页根 List 没
 /// 隐藏系统滚动底，列表区被系统默认底罩住、与页
@@ -53,11 +61,22 @@ struct FeedView: View {
     @State private var path = NavigationPath()
     /// 简报编辑器（0.38.0 两层制）呈现
     @State private var briefEditorShown = false
-    /// 搜索（0.47.0 §117；§126 改点开式）：落点改
-    /// 工具栏（.toolbar）——放大镜在工具栏内点开才
-    /// 展开搜索场，不再以 .searchable 默认落点常驻
-    /// 一整行；按标题＋正文过滤当前已载帖，收起即
-    /// 清过滤态（见 readyContent 的 onChange）
+    /// 页头身份簇开中枢（§480：簇自聊天页同件接入
+    /// 本页，落点与聊天页同为本栈推 AgentHubView）
+    @State private var showHub = false
+    /// 页头滚动收起态（§480.4）：列表内容偏移驱动
+    /// （onScrollGeometryChange，资源库页同式）——过
+    /// 阈值簇整簇收起、滑杆留守、标题＋字段钉顶
+    @State private var headerCollapsed = false
+
+    /// 收起阈值（§480.2 翻案单点之一）：内容上滚超
+    /// 此值即收簇、字段槽换搜索形态
+    private static let collapseThreshold: CGFloat = 24
+    /// 搜索（0.47.0 §117；§126 改点开式；§480 改
+    /// 页头字段槽）：激活态由标题下字段槽的搜索行
+    /// 承载（FileSearchField 单源件），不再走 .sea-
+    /// rchable 工具栏落点；按标题＋正文过滤当前已
+    /// 载帖，收起即清过滤态（见 body 的 onChange）
     @State private var searchText = ""
     @State private var isSearching = false
     /// 「关于」展开节当前展开的帖 id（§453：动作
@@ -111,7 +130,9 @@ struct FeedView: View {
             isSearching: isSearching
         )
         return NavigationStack(path: $path) {
-            Group {
+            VStack(spacing: 0) {
+                feedPageHead
+                Group {
                 switch store.loadState {
                 case .loading:
                     ProgressView()
@@ -141,24 +162,25 @@ struct FeedView: View {
                 case .ready:
                     readyContent(snapshot)
                 }
+                }
             }
             .background {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            .navigationTitle("动态")
-            .toolbar {
-                // 搜索入口（§126）：.searchable 的
-                // .toolbar 落点自带工具栏放大镜，与滑
-                // 杆钮同舱呈现；0.47.0 的自绘放大镜钮
-                // 与其重复占位，一并退役
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        briefEditorShown = true
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                    }
-                    .accessibilityLabel("编辑简报")
+            // §480：页头整簇改页内自持（ContentPage-
+            // Header＋大标题＋字段槽，见 feedPageHead），
+            // 系统导航栏在本页根隐藏——推入的详情页
+            // 各自声明栏可见性（与文件页同式）；§126
+            // 的工具栏滑杆钮与 .searchable 工具栏落点
+            // 随之退役（滑杆进页头簇、搜索进字段槽）
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showHub) {
+                AgentHubView()
+            }
+            .onChange(of: isSearching) { _, searching in
+                if !searching {
+                    searchText = ""
                 }
             }
             .sheet(isPresented: $briefEditorShown) {
@@ -241,6 +263,149 @@ struct FeedView: View {
         await store.loadIfNeeded(appState: appState)
     }
 
+    // MARK: - 页头（§480）
+
+    /// 页头整簇：身份簇（ContentPageHeader，滑杆钮
+    /// 归其右位）＋大标题（pageTitle 34，与参照同
+    /// 档）＋标题下字段槽。本簇在列表之外——滚动时
+    /// 天然钉顶，收起只动簇高（§480.4）
+    private var feedPageHead: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ContentPageHeader(
+                collapsed: headerCollapsed,
+                onOpenHub: { showHub = true }
+            ) {
+                PageHeaderCircleButton(
+                    symbol: "slider.horizontal.3",
+                    label: "编辑简报"
+                ) {
+                    briefEditorShown = true
+                }
+            }
+            Text("动态")
+                .font(.pageTitle)
+                .foregroundStyle(Palette.ink)
+                .padding(.horizontal, OneDayMetrics.pageGutter)
+                .padding(.top, OneDayMetrics.spacingS)
+            fieldSlot
+                .padding(.horizontal, OneDayMetrics.pageGutter)
+                .padding(.top, OneDayMetrics.spacingS)
+                .padding(.bottom, OneDayMetrics.spacingS)
+        }
+    }
+
+    /// 滚动收起判定：过阈值收、回阈值内放（状态不
+    /// 变不重写，免无谓重绘）
+    private func updateHeaderCollapse(_ offset: CGFloat) {
+        let collapsed = offset > Self.collapseThreshold
+        if collapsed != headerCollapsed {
+            headerCollapsed = collapsed
+        }
+    }
+
+    /// 标题下字段槽的形态（§480.2【推定待真机帧翻
+    /// 案】）：静止态＝简报胶囊首行、滚动收起后＝搜
+    /// 索字段顶替、搜索激活中＝真搜索行。依据＝审
+    /// 计 §1.3 槽位推定（静止帧见简报胶囊、滚动帧
+    /// 同位见搜索字段）；翻案时只改本判定与 col-
+    /// lapseThreshold，两形态件本体不动
+    private enum FieldMode {
+        case brief
+        case searchEntry
+        case searching
+    }
+
+    private var fieldMode: FieldMode {
+        if isSearching { return .searching }
+        return headerCollapsed ? .searchEntry : .brief
+    }
+
+    @ViewBuilder
+    private var fieldSlot: some View {
+        switch fieldMode {
+        case .searching:
+            // 真搜索行：内嵌搜索件单源 FileSearchField
+            // （第 88 条对账）＋取消，与资源库页同式；
+            // 过滤仍走既有快照（searchText/isSearching）
+            HStack(spacing: OneDayMetrics.spacingS) {
+                FileSearchField(
+                    query: $searchText,
+                    placeholder: "搜索动态",
+                    autoFocus: true
+                )
+                Button("取消") {
+                    isSearching = false
+                }
+                .font(.body)
+                .foregroundStyle(Palette.primary)
+                .buttonStyle(.odPressable)
+            }
+        case .searchEntry:
+            // 滚动帧的搜索字段形态（照参照量测：浅灰
+            // 填充、高 50、大圆角、占位「搜索动态」）：
+            // 点按进真搜索行
+            Button {
+                isSearching = true
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    Image(systemName: "magnifyingglass")
+                    Text("搜索动态")
+                    Spacer(minLength: 0)
+                }
+                .font(.body)
+                .foregroundStyle(Palette.inkSecondary)
+                .padding(.horizontal, OneDayMetrics.spacingM)
+                .frame(height: 50)
+                .background(
+                    Palette.fieldFill,
+                    in: RoundedRectangle(
+                        cornerRadius: OneDayMetrics.radiusPreview
+                    )
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("搜索动态")
+        case .brief:
+            // 简报胶囊（静止帧形态）：当前生效简报首
+            // 行单行省略；点按开简报编辑器（与滑杆钮
+            // 同落点）。简报未载/为空显引导文案（与空
+            // 态同句），不假造内容
+            Button {
+                briefEditorShown = true
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    Text(briefPillText)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+                .padding(.horizontal, OneDayMetrics.spacingM)
+                .frame(height: 40)
+                .background(Palette.fieldFill, in: Capsule())
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.odPressable)
+            .accessibilityLabel("编辑简报")
+        }
+    }
+
+    /// 简报胶囊文案：生效全文（FeedBriefBoard 单源
+    /// 口径，与编辑器同读）的首行
+    private var briefPillText: String {
+        let text = store.briefDoc
+            .map(FeedBriefBoard.effectiveText) ?? ""
+        let firstLine = text
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .first.map(String.init) ?? ""
+        let trimmed = firstLine.trimmingCharacters(
+            in: .whitespaces
+        )
+        return trimmed.isEmpty
+            ? "写下你感兴趣什么，我每天替你去看" : trimmed
+    }
+
     // MARK: - 就绪内容
 
     @ViewBuilder
@@ -263,6 +428,11 @@ struct FeedView: View {
             .background(Palette.pageBG)
             .listSectionSpacing(OneDayMetrics.spacingM)
             .contentMargins(.top, topMargin, for: .scrollContent)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, newValue in
+                updateHeaderCollapse(newValue)
+            }
             .refreshable {
                 await reload()
             }
@@ -322,17 +492,12 @@ struct FeedView: View {
             // spacingM，不回系统默认
             .listSectionSpacing(OneDayMetrics.spacingM)
             .contentMargins(.top, topMargin, for: .scrollContent)
-            // 搜索点开式（§126）：落点改工具栏——点
-            // 放大镜才展开搜索场，不再常驻一行；收起
-            // 即清过滤态（下方 onChange）
-            .searchable(
-                text: $searchText, isPresented: $isSearching,
-                placement: .toolbar, prompt: "搜索动态"
-            )
-            .onChange(of: isSearching) { _, searching in
-                if !searching {
-                    searchText = ""
-                }
+            // §480.4：滚动偏移驱动页头收起（归一化偏
+            // 移＝offset＋顶 inset，静止恒 0）
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, newValue in
+                updateHeaderCollapse(newValue)
             }
             .refreshable {
                 await reload()
@@ -369,7 +534,11 @@ struct FeedView: View {
                 .foregroundStyle(Palette.ink)
                 .frame(width: 28, height: 28)
                 .background(post.kind.kickerColor)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                // §480.3：扁平瓷砖圆角收令牌 radiusTile
+                // （与点子页 §462 瓷砖同值同形）
+                .clipShape(RoundedRectangle(
+                    cornerRadius: OneDayMetrics.radiusTile
+                ))
                 .frame(width: 44, height: 44)
                 // kicker 字形块是帖的类别信号、动作行另
                 // 有类别文字——对 VO 隐藏免逐字念名
@@ -405,18 +574,28 @@ struct FeedView: View {
                 .accessibilityElement(children: .combine)
                 // §459：category chip——简报方向原文
                 // （如「GitHub 热门」）；事件/小结帖为
-                // nil 不渲染，不拿 kind 名冒充
+                // nil 不渲染，不拿 kind 名冒充。§480.3
+                // 升参照话题灰片档：subheadline（≈15）
+                // ＋高 ≈29、浅灰填充、圆角矩形（照审
+                // 计量测：标题下、正文上、单片）
                 if let category = post.category,
                    !category.trimmingCharacters(
                        in: .whitespacesAndNewlines
                    ).isEmpty {
                     Text(category)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(Palette.inkSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
+                        .padding(
+                            .vertical, OneDayMetrics.spacingXS
+                        )
                         .background(
-                            Palette.selectionFill, in: Capsule()
+                            Palette.selectionFill,
+                            in: RoundedRectangle(
+                                cornerRadius: OneDayMetrics.radiusTile
+                            )
                         )
                         .lineLimit(1)
                 }
@@ -445,7 +624,13 @@ struct FeedView: View {
                 // 机理，用户 12:41 截图实证）；加载未
                 // 成/失败整块不显（宁无图不假图、不摆
                 // 占位，旧口径不变）
+                // §480.3：首图若是某链接/来源卡的出处图
+                // （sourceUrl 命中 links 或来源卡 url，
+                // 即该页的 OG 图），不再整幅渲成封面图
+                // ——链接由下方预览卡/来源卡承载；真配
+                // 图（sourceUrl 不命中）照旧通栏
                 if let first = post.images.first,
+                   !isLinkCoverImage(first, of: post),
                    let url = URL(string: first.url) {
                     // §418：取图换 Nuke LazyImage（统一管
                     // 线：解码缓存＋降采样，旧 AsyncImage
@@ -470,6 +655,11 @@ struct FeedView: View {
                 }
                 if let card = post.sourceCard {
                     FeedSourceCardView(card: card)
+                } else if let link = post.links.first {
+                    // §480.3：无来源卡时首链走 OG 式预
+                    // 览卡（站点名＋标题＋域名）；余下链
+                    // 接仍在详情页全量呈现
+                    FeedLinkPreviewCard(link: link)
                 }
                 if !post.refs.isEmpty {
                     refsRow(post)
@@ -642,6 +832,20 @@ struct FeedView: View {
     private func openPost(_ post: BridgeFeedPost) {
         markRead(post)
         path.append(Route.post(post.id))
+    }
+
+    /// 链接出处图判定（§480.3）：图注 sourceUrl 命
+    /// 中本帖任一链接或来源卡的 url＝该页的 OG 图
+    /// （桥抓图口径：图出自来源页，见 BridgeFeed-
+    /// Image）；空 sourceUrl 不命中
+    private func isLinkCoverImage(
+        _ image: BridgeFeedImage, of post: BridgeFeedPost
+    ) -> Bool {
+        guard !image.sourceUrl.isEmpty else { return false }
+        if post.links.contains(where: { $0.url == image.sourceUrl }) {
+            return true
+        }
+        return post.sourceCard?.url == image.sourceUrl
     }
 
     /// §208 回跳落点判定：挂起帖在已载名单里→直达
@@ -1208,6 +1412,81 @@ struct FeedSourceCardView: View {
         } else {
             content
         }
+    }
+}
+
+/// 链接预览卡（§480.3）：照 Muse 动态页 OG 卡形
+/// 态——站点名（小字，顶）＋标题（大字 semibold）
+/// ＋域名（小字，底），整卡点开链接。数据只用桥下
+/// 发的 link{title, url}：桥不下发 og:site_name／
+/// og:description，App 不自拼不假造（来源卡 §0.38
+/// 同旨）——站点名位与域名位同由 url 的 host 派生
+/// （去 www.），域名位在路径非根时带路径以与站点
+/// 名位区分；根路径时域名位与站点名位同值、只显
+/// 站点名位一行。卡面与来源卡同族（surface 底＋
+/// radiusCard）
+struct FeedLinkPreviewCard: View {
+    let link: BridgeFeedLink
+
+    @Environment(\.openURL) private var openURL
+
+    private var url: URL? { URL(string: link.url) }
+
+    /// 站点标识：host 去 www.（URL 事实派生，非编造）
+    private var host: String {
+        guard let host = url?.host(percentEncoded: false)
+        else { return "" }
+        return host.hasPrefix("www.")
+            ? String(host.dropFirst(4)) : host
+    }
+
+    /// 域名行：host＋非根路径；根路径返回 nil（不与
+    /// 站点名行重复）
+    private var domainLine: String? {
+        guard let url, !host.isEmpty else { return nil }
+        let path = url.path(percentEncoded: false)
+        guard !path.isEmpty, path != "/" else { return nil }
+        return host + path
+    }
+
+    var body: some View {
+        Button {
+            if let url { openURL(url) }
+        } label: {
+            VStack(
+                alignment: .leading,
+                spacing: OneDayMetrics.spacingS
+            ) {
+                if !host.isEmpty {
+                    Text(host)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                }
+                Text(link.title)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                if let domainLine {
+                    Text(domainLine)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.inkMuted)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(OneDayMetrics.spacingM)
+            .background(
+                Palette.surface,
+                in: RoundedRectangle(
+                    cornerRadius: OneDayMetrics.radiusCard
+                )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel("链接：\(link.title)")
     }
 }
 

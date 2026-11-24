@@ -19,6 +19,13 @@ public extension Font {
     /// 题档（旧 largeTitle 34 semibold 让位：Muse 量
     /// 测口径被用户当日指令覆盖，见 §51）
     static let screenName: Font = .title.weight(.bold)
+    /// 内容页大标题（§480）：动态/点子页头标题——
+    /// LargeTitle 34 bold，与 Muse 参照页同档（审
+    /// 计 three-pages-20261124 量测：参照 34pt、动
+    /// 态页旧呈现低一档、点子页系统大标题同为 34，
+    /// 自此两页共用本令牌钉死）；screenName（抽屉
+    /// 名头 28）是另一角色，不合并
+    static let pageTitle: Font = .largeTitle.weight(.bold)
     /// 内容标题（0.41.0 收口批 C14/P5 定点登记）：帖
     /// 子详情等「对象本体的标题」——不是界面行题、不
     /// 进 TypeRole 角色表（角色表只管界面文字）；与
