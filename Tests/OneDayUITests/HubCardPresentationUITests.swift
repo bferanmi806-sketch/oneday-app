@@ -67,7 +67,7 @@ final class HubCardPresentationUITests: XCTestCase {
         defer { app.terminate() }
         openHub(app)
         // 快速右拖：位移约 65% 屏宽＋高速 → 投影过半关闭
-        drag(app, from: (0.30, 0.45), to: (0.95, 0.45), velocity: 3000)
+        drag(app, from: (0.30, 0.45), to: (0.95, 0.45), velocity: .fast)
         assertHubDismissed(app)
     }
 
@@ -77,7 +77,7 @@ final class HubCardPresentationUITests: XCTestCase {
         openHub(app)
         // 慢拖至约 62% 屏宽松手：位移本身过半 → 关闭
         // （§7.4 投影阈值上界验证的 UI 对应项）
-        drag(app, from: (0.20, 0.45), to: (0.82, 0.45), velocity: 120)
+        drag(app, from: (0.20, 0.45), to: (0.82, 0.45), velocity: .slow)
         assertHubDismissed(app)
     }
 
@@ -87,7 +87,7 @@ final class HubCardPresentationUITests: XCTestCase {
         let win = app.windows.firstMatch.frame
         openHub(app)
         // 慢短拖：约 25% 屏宽、低速 → 投影不过半弹回
-        drag(app, from: (0.25, 0.45), to: (0.50, 0.45), velocity: 120)
+        drag(app, from: (0.25, 0.45), to: (0.50, 0.45), velocity: .slow)
         // 弹回沉降后卡片仍满屏在场、✕ 可命中
         Thread.sleep(forTimeInterval: 1.5)
         let card = app.otherElements["hub.card"]
@@ -103,7 +103,7 @@ final class HubCardPresentationUITests: XCTestCase {
         defer { app.terminate() }
         openHub(app)
         // 纵向大拖（列表滚动方向）：不许触发卡片关闭
-        drag(app, from: (0.50, 0.70), to: (0.50, 0.30), velocity: 800)
+        drag(app, from: (0.50, 0.70), to: (0.50, 0.30), velocity: .default)
         Thread.sleep(forTimeInterval: 1.0)
         XCTAssertNotNil(hubCloseButton(app))
         XCTAssertTrue(app.otherElements["hub.card"].exists)
@@ -148,7 +148,7 @@ final class HubCardPresentationUITests: XCTestCase {
     private func drag(
         _ app: XCUIApplication,
         from: (CGFloat, CGFloat), to: (CGFloat, CGFloat),
-        velocity: CGFloat
+        velocity: XCUIGestureVelocity
     ) {
         let win = app.windows.firstMatch
         let start = win.coordinate(withNormalizedOffset:

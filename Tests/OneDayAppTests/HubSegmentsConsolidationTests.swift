@@ -167,10 +167,18 @@ final class HubSegmentsConsolidationTests: XCTestCase {
         let presentDeadline = Date().addingTimeInterval(8)
         while Date() < presentDeadline {
             if let presented = host.presentedViewController {
-                XCTAssertEqual(
-                    presented.modalPresentationStyle,
-                    .fullScreen,
+                // SwiftUI fullScreenCover 的呈现样式
+                // 实测为 .overFullScreen（rawValue 5，
+                // 底层留场正合 §502 背板透出所需）或
+                // .fullScreen——同属全屏覆盖族；sheet
+                // 卡为 .pageSheet/.formSheet，不许命中
+                XCTAssertTrue(
+                    presented.modalPresentationStyle == .fullScreen
+                        || presented.modalPresentationStyle
+                            == .overFullScreen,
                     "中枢须是全屏覆盖、不许是 sheet 卡形态"
+                        + "（实测 rawValue "
+                        + "\(presented.modalPresentationStyle.rawValue)）"
                 )
                 sawFullScreenCover = true
                 break
