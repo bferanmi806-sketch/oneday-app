@@ -10,11 +10,11 @@ import Foundation
 /// 翻转、无视图树换装。
 ///
 /// 本文件是这条管线的 Core 面（纯值与纯函数）：
-/// - 块切分/块产物身份（StreamingBlockSegmen-
-///   ter／StreamingBlockIdentity 等）：§409 步
-///   C/D 已退役删除（流式呈现退役后无消费方；
-///   落定侧从不消费本簇，结构源仍是 Markdown-
-///   Parser 本体）。
+/// - 块切分（StreamingBlockSegmenter）：§409
+///   步 C/D 退役、§494 重建（解析源改现行树解
+///   析，差异注记在簇内）；块产物身份（Stream-
+///   ingBlockIdentity）与组合账随产物通道退役
+///   不重建——行高走合成器 markdownHeight 单源。
 /// - 行身份与落定映射（StreamingRowIdentity／
 ///   StreamingSettleMap）：流式行以本轮用户条目 id
 ///   为键，落定新建的助手条目沿用同一键在承载侧
@@ -100,6 +100,258 @@ public enum StreamingEntrance {
               !isFirstBatchOfGeneration
         else { return .instant }
         return .batchFade
+    }
+}
+
+// MARK: - 流式块模型（§494 重建）
+
+/// 流式块类：与 MarkdownBlock 一一对应，分「文本
+/// 块」（散文呈现族）与「结构块」两族——分族口径
+/// 与装配层分流同源（散文/引用/普通列表为文本，
+/// 代码/表格/任务清单/分割线为结构；含任务项的
+/// 列表整块归结构，与装配层一致）。§247 原版同名
+/// 件，§409 步 C/D 退役、§494 按现行解析核重建
+public enum StreamingBlockKind: Equatable, Sendable {
+    case paragraph
+    case heading
+    case list
+    case blockquote
+    case code
+    case table
+    case taskList
+    case divider
+
+    /// 是否进散文呈现族（结构块恒 false）
+    public var isTextual: Bool {
+        switch self {
+        case .paragraph, .heading, .list, .blockquote:
+            return true
+        case .code, .table, .taskList, .divider:
+            return false
+        }
+    }
+
+    /// 装配器并段集（MarkdownMessageAssembler 的
+    /// prose 累积口径）：段落／标题／列表进同一散
+    /// 文段；引用／代码／表格／任务列表／分隔各自
+    /// 成段。呈现侧段距两级口径（台账 185）据此判
+    /// 相邻块界距走 paragraphSpacing 还是 spacingSM
+    public var isProseMergeable: Bool {
+        self == .paragraph || self == .heading
+            || self == .list
+    }
+}
+
+/// 一块流式内容（不可变值）：块类＋规范源文本＋
+/// 尾块标记。规范源文本是解析块的渲染等价重构
+/// （见 StreamingBlockSegmenter 的逐项口径），只
+/// 作内容身份（哈希）与闭合前缀拼装两用
+public struct StreamingBlock: Equatable, Sendable {
+    public var index: Int
+    public var kind: StreamingBlockKind
+    public var sourceText: String
+    /// 序列最后一块：仍可随增量生长，其余块在追
+    /// 加式增长下内容冻结（解析的状态修订只发生
+    /// 在尾部块域内——表头/分隔行合并、未闭合围
+    /// 栏续渲都在最后一块内完成）
+    public var isTail: Bool
+
+    public init(
+        index: Int, kind: StreamingBlockKind,
+        sourceText: String, isTail: Bool
+    ) {
+        self.index = index
+        self.kind = kind
+        self.sourceText = sourceText
+        self.isTail = isTail
+    }
+
+    /// 内容哈希（与 LayoutProductKey 同算法同源）
+    public var contentHash: UInt64 {
+        LayoutProductKey.fnv1a(sourceText)
+    }
+
+    public var contentByteCount: Int {
+        sourceText.utf8.count
+    }
+
+    /// 文本块判定：列表块含任务项时整块归结构
+    /// （装配层把含任务项的列表分流为结构段，本
+    /// 判定在切分时已按块内容定死，见 segmenter）
+    public var isTextual: Bool { kind.isTextual }
+}
+
+// MARK: - 块切分（§494 重建）
+
+/// 块切分：MarkdownParser 块序列 → 流式块序列。
+/// 只做结构映射与规范源重构，不新造解析规则；
+/// 半截口径全随解析层既有定版（未闭合围栏续渲
+/// 成代码块、半截表格不成表、行内未闭合标记字
+/// 面——都落在尾块内，不影响已闭合块）
+///
+/// §494 重建注记（与 §247/§348 原版的差异）：解
+/// 析源改现行 MarkdownParser.parse（§417 树解
+/// 析＋解析备忘）——旧 parseWithRanges 孤岛（旧
+/// 状态机＋行号）不随本簇复活；§348 的追加链增
+/// 量随之不重建：树解析自带全文备忘、单拍切分
+/// 成本由发布门节流封顶（≤20Hz），链的「只重
+/// 切尾域」优化在当前成本量级无必要。输出口径
+/// 与原版逐块同义（分类/规范源/闭合前缀/尾块）
+public enum StreamingBlockSegmenter {
+    /// 全文备忘（同文再查即表：同拍多调用点收敛
+    /// 为一次真求值；§167 备忘同制，容量只须覆
+    /// 盖同拍多调用与近期快照）
+    private static let memo =
+        ParseMemoBox<[StreamingBlock]>(capacity: 64)
+
+    public static func blocks(
+        for text: String
+    ) -> [StreamingBlock] {
+        guard !text.isEmpty else { return [] }
+        return memo.value(for: text) { segment(text) }
+    }
+
+    /// 强制全量切分（差分钉测的独立参照＋排障回
+    /// 退阀）：绕过备忘，与 blocks(for:) 同输出
+    /// 口径
+    public static func blocksForcingFullEvaluation(
+        for text: String
+    ) -> [StreamingBlock] {
+        guard !text.isEmpty else { return [] }
+        return segment(text)
+    }
+
+    /// 测试隔离：清备忘（用例间互不串扰）
+    public static func resetCachesForTesting() {
+        memo.removeAll()
+    }
+
+    /// 一次真切分（解析＋规范重构）
+    private static func segment(
+        _ text: String
+    ) -> [StreamingBlock] {
+        let parsed = MarkdownParser.parse(text)
+        return parsed.enumerated().map { index, block in
+            let (kind, source) = canonical(block)
+            return StreamingBlock(
+                index: index,
+                kind: kind,
+                sourceText: source,
+                isTail: index == parsed.count - 1
+            )
+        }
+    }
+
+    /// 闭合前缀：全部非尾块的规范源以空行连接
+    /// （块间分隔的源形态）——呈现侧以此串走落
+    /// 定同路渲染（MarkdownText），再解析回同一
+    /// 块序列（往返一致由单测钉住代表样本）。无
+    /// 闭合块时为空串
+    public static func closedPrefix(
+        of blocks: [StreamingBlock]
+    ) -> String {
+        blocks.filter { !$0.isTail }
+            .map { closedSource($0) }
+            .joined(separator: "\n\n")
+    }
+
+    /// 尾块规范源（呈现侧尾块渲染的输入）；无块
+    /// 时为空串
+    public static func tailSource(
+        of blocks: [StreamingBlock]
+    ) -> String {
+        blocks.last?.sourceText ?? ""
+    }
+
+    /// 块在闭合前缀中的源形态：与 sourceText 的
+    /// 唯一差异是代码块补闭合围栏——sourceText
+    /// 为身份/尾块口径保留「围栏开＋正文」的源前
+    /// 缀形态（流式尾块正是未闭合围栏），拼进前
+    /// 缀时若不补闭合，后续块会被未闭合围栏吞进
+    /// 代码块
+    private static func closedSource(
+        _ block: StreamingBlock
+    ) -> String {
+        if block.kind == .code {
+            return block.sourceText + "\n```"
+        }
+        return block.sourceText
+    }
+
+    /// 解析块 →（流式块类，规范源）。规范源逐项
+    /// 口径：只求渲染等价与确定性，不求与原始源
+    /// 逐字一致（尾随空白、列表标记字符一类不影
+    /// 响渲染的差异在重构中归一）
+    private static func canonical(
+        _ block: MarkdownBlock
+    ) -> (StreamingBlockKind, String) {
+        switch block {
+        case .paragraph(let text):
+            return (.paragraph, text)
+        case .heading(let text, let level):
+            let marks = String(repeating: "#", count: level)
+            return (.heading, "\(marks) \(text)")
+        case .code(let code, let language):
+            return (.code, "```\(language ?? "")\n\(code)")
+        case .blockquote(let lines):
+            let source = lines.map {
+                String(repeating: ">", count: $0.depth)
+                    + " " + $0.text
+            }.joined(separator: "\n")
+            return (.blockquote, source)
+        case .list(let items):
+            let hasTask = items.contains { item in
+                switch item.marker {
+                case .task: return true
+                case .bullet, .ordered: return false
+                }
+            }
+            let source = items.map { item in
+                let indent = String(
+                    repeating: "  ", count: item.level
+                )
+                let marker: String
+                switch item.marker {
+                case .bullet:
+                    marker = "-"
+                case .ordered(let number):
+                    marker = "\(number)."
+                case .task(let checked):
+                    marker = checked ? "- [x]" : "- [ ]"
+                }
+                return "\(indent)\(marker) \(item.text)"
+            }.joined(separator: "\n")
+            // 含任务项：整块归结构类 .taskList（与
+            // 装配层「含任务项的列表独立成段」的分
+            // 流一致），规范源同式重构（任务标记以
+            // - [ ]/- [x] 回写、再解析同形）
+            return (hasTask ? .taskList : .list, source)
+        case .table(let header, let alignments, let rows):
+            // 单元格内的字面 | 回逃逸（解析侧以 \|
+            // 占位拆格，规范源不逃逸则重解析错位）
+            let esc: (String) -> String = {
+                $0.replacingOccurrences(of: "|", with: "\\|")
+            }
+            let headerLine = "| "
+                + header.map(esc).joined(separator: " | ")
+                + " |"
+            let alignLine = "| " + alignments.map {
+                switch $0 {
+                case .left: return ":---"
+                case .center: return ":---:"
+                case .right: return "---:"
+                }
+            }.joined(separator: " | ") + " |"
+            let rowLines = rows.map {
+                "| " + $0.map(esc).joined(separator: " | ")
+                    + " |"
+            }
+            let source = ([headerLine, alignLine] + rowLines)
+                .joined(separator: "\n")
+            return (.table, source)
+        case .divider:
+            return (.divider, "---")
+        }
     }
 }
 

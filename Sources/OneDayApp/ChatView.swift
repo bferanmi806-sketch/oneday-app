@@ -135,6 +135,17 @@ struct ChatView: View {
     /// 本口径不变）；封存段真值在本体内，视图侧
     /// 镜像（旧 sealedStreamSegments）已退役
     @State private var streamAssembler = StreamSegmentAssembler()
+    /// §494：流式发布门（呈现节流的单点裁定，
+    /// Core StreamingPublishGate）＋已发布快照
+    /// 与代次——装配器只管精确累积、发布归本门，
+    /// §409 步 A 拆掉的「发布」一环在此接回
+    @State private var streamPublishGate = StreamingPublishGate()
+    @State private var livePublishedText = ""
+    @State private var livePublishGeneration = 0
+    /// §494：直播行武装位——只许 driveRun 新发
+    /// 轮置真（恢复轮半截条目已在屏、再挂直播
+    /// 行必双份，见 liveStreamingRow 守卫）
+    @State private var streamPresentationArmed = false
     /// 思考通道累积器（0.5.1 发布闸，§409 步 E 瘦
     /// 身为纯累积器）：fullText 是落盘推理文本的
     /// 源头、hasContent 喂占位行思考相判定，run
@@ -603,6 +614,11 @@ struct ChatView: View {
     /// 键→落定条目的同键沿用记账，会话内不落盘）
     @AppStorage(ChatStreamingFeature.defaultsKey)
     private var gen4StreamingEnabled = true
+    /// §494：打字动画开关读口（设置→外观写、本
+    /// 页直播行入场计划读；Core StreamingType-
+    /// writerFeature 单源，§409 后一度无消费方）
+    @AppStorage(StreamingTypewriterFeature.defaultsKey)
+    private var typewriterEnabled = true
     /// 反应浮排开关（DESIGN §343；Core ChatReactions-
     /// FloatingBarFeature 单一事实源，缺省开）：设置
     /// →外观→回复呈现写、本页 messageMenu 读；关＝
@@ -2852,9 +2868,19 @@ struct ChatView: View {
         // 的在飞形态，§409 步 A 改判——旧「直播项
         // 非空」随直播呈现退役失去来源）
         if sendTask != nil || activeRunThreadID != nil {
-            rows.append(
-                livePlaceholderRow(composer: composer)
-            )
+            // §494：首个发布快照到达后占位行原位
+            // 换直播正文行（同键落定不换装，见
+            // liveStreamingRow）；未到/未武装/半
+            // 截在屏时仍走占位行（§407 形态不变）
+            if let liveRow = liveStreamingRow(
+                composer: composer
+            ) {
+                rows.append(liveRow)
+            } else {
+                rows.append(
+                    livePlaceholderRow(composer: composer)
+                )
+            }
         }
         if let overviewStore {
             for item in ReportCardPolicy.cards(
@@ -3774,6 +3800,138 @@ struct ChatView: View {
     /// 案——阶段切换原地重配、高度逐值不变；落
     /// 定拍本行移除＋落定条目行入列（变更集由既
     /// 有追踪器派生、offset 走既有锚定路径）
+    /// §494 直播正文行：键＝本轮流式行键（落定
+    /// 条目同键建行、承载侧原位 reconfigure＝落
+    /// 定不换装，§247 身份桥）；高＝逐块估算
+    /// （闭合块备忘命中、只尾块新算，见 Stream-
+    /// ingLiveText.estimatedHeight）＋气泡纵内
+    /// 距，标临界走布局量实回填（估算起步＋量
+    /// 实覆盖，§247 行高口径）。出 Nil 的四种
+    /// 情形：gen4 开关关（回占位行旧形态＝天然
+    /// 回滚路）／未武装（恢复轮）／尚无发布快
+    /// 照（首增量未到）／半截条目在屏（防双份）
+    private func liveStreamingRow(
+        composer: ChatNativeRowHeightComposer
+    ) -> ChatNativeRow? {
+        guard gen4StreamingEnabled,
+              streamPresentationArmed,
+              !livePublishedText.isEmpty,
+              livePartialEntryIDs.isEmpty
+        else { return nil }
+        let text = livePublishedText
+        var revision = ChatNativeRowRevision()
+        revision.addText(text)
+        revision.addCount(livePublishGeneration)
+        return ChatNativeRow(
+            key: liveStreamRowKey(),
+            entryID: nil,
+            revision: revision,
+            height: StreamingLiveText.estimatedHeight(
+                    for: text, composer: composer
+                )
+                + OneDayMetrics.bubblePaddingV * 2,
+            heightIsProvisional: true,
+            makeView: {
+                AnyView(liveStreamingContent(text: text))
+            }
+        )
+    }
+
+    /// 本轮流式行键：账本在席取本轮用户条目 id
+    /// 派生（与 applySettledTurn 落定登记同源同
+    /// 值）；账本缺位（演示种子轮等）回落线程键
+    /// （StreamingRowIdentity 既有回落口径）
+    private func liveStreamRowKey() -> String {
+        let ledger = (activeRunThreadID ?? currentThread?.id)
+            .flatMap {
+                appState.runLedger.entry(forThreadID: $0)
+            }
+        if let ledger {
+            return StreamingRowIdentity.streamRowKey(
+                userEntryID: ledger.userEntryID
+            )
+        }
+        if let threadID = currentThread?.id {
+            return StreamingRowIdentity
+                .fallbackStreamRowKey(threadID: threadID)
+        }
+        return "stream-live"
+    }
+
+    /// 直播行视图：助手泡（不传 menuEntry——流
+    /// 式泡无菜单、形态与落定泡逐字同，见 assi-
+    /// stantBubble 注）＋块级正文；入场计划按发
+    /// 布门拍数单点裁定（首批＝首拍、直显）
+    private func liveStreamingContent(
+        text: String
+    ) -> some View {
+        assistantBubble {
+            StreamingLiveText(
+                text: text,
+                entrancePlan: StreamingEntrance.plan(
+                    typewriterEnabled: typewriterEnabled,
+                    reduceMotion: reduceMotion,
+                    isFirstBatchOfGeneration:
+                        streamPublishGate.publishCount <= 1
+                ),
+                publishGeneration: livePublishGeneration
+            )
+        }
+    }
+
+    // MARK: - §494 发布接线
+
+    /// 发布快照上屏单点：等值不重写（防无谓重
+    /// 喂行集），代次随真发布递增（入场计划与
+    /// 行修订同源）
+    private func noteStreamPublish(_ snapshot: String?) {
+        guard let snapshot,
+              snapshot != livePublishedText
+        else { return }
+        livePublishedText = snapshot
+        livePublishGeneration += 1
+    }
+
+    /// 增量到达拍：装配器最新全文喂发布门、到
+    /// 拍即上屏（首拍直发＝首字延迟 ≤1 拍）
+    private func offerStreamPublish() {
+        guard streamPresentationArmed else { return }
+        noteStreamPublish(
+            streamPublishGate.offer(
+                streamAssembler.mergedFullText,
+                now: Date().timeIntervalSince1970
+            )
+        )
+    }
+
+    /// 心跳拍（driveRun 期 50ms 驱动）：无新事
+    /// 件时排空积压——工具间隙里尾巴不许滞留
+    private func tickStreamPublish() {
+        guard streamPresentationArmed else { return }
+        noteStreamPublish(
+            streamPublishGate.tick(
+                now: Date().timeIntervalSince1970
+            )
+        )
+    }
+
+    /// 边界/终态全量发布：封段拍与终态拍调——
+    /// 已累积全文立即全量上屏（落定前的最后
+    /// 一帧与装配器兜底全文逐字一致）
+    private func flushStreamPublish() {
+        guard streamPresentationArmed else { return }
+        noteStreamPublish(streamPublishGate.flush())
+    }
+
+    /// 发布态整清（新轮起点/恢复轮/落定收尾共
+    /// 用）：门、快照、代次、武装位一并归零
+    private func resetStreamPresentation() {
+        streamPublishGate.reset()
+        livePublishedText = ""
+        livePublishGeneration = 0
+        streamPresentationArmed = false
+    }
+
     private func livePlaceholderRow(
         composer: ChatNativeRowHeightComposer
     ) -> ChatNativeRow {
@@ -11086,6 +11244,7 @@ private struct ComposerBarLayout: Layout {
         terminalStatusHint = nil
         streamAssembler.reset()
         reasoningPublishGate.reset()
+        resetStreamPresentation()
         reasoningStartedAt = nil
         // 半截呈现回填：上次落盘的本轮条目即当前可见
         // 内容（落定时以 transcript 整段替换）
@@ -11696,6 +11855,7 @@ private struct ComposerBarLayout: Layout {
         guard let config = appState.config,
               let apiKey = appState.apiKey else {
             streamingText = nil
+            resetStreamPresentation()
             reasoningStartedAt = nil
             presentError(.sessionExpired)
             // 基础止血包（P1）：连接态缺失同样是本轮
@@ -11729,6 +11889,10 @@ private struct ComposerBarLayout: Layout {
         terminalStatusHint = nil
         streamAssembler.reset()
         reasoningPublishGate.reset()
+        resetStreamPresentation()
+        // §494：直播行只在新发轮武装（恢复轮走
+        // resumeActiveRun、不经此点）
+        streamPresentationArmed = true
         reasoningStartedAt = nil
         // 输入组装：尾条纯文本走字符串形态、多模态走
         // 单元素消息形态（探针实测两形态均成立）
@@ -11876,6 +12040,19 @@ private struct ComposerBarLayout: Layout {
             finishRunPresentation(failed: true)
             return
         }
+        // §494：发布心跳——50ms 一拍问发布门排
+        // 空积压，与本轮同生共死（defer 取消）；
+        // 未武装/无积压时 tick 恒空转、无副作用
+        let publishTicker = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(
+                    for: .milliseconds(50)
+                )
+                if Task.isCancelled { break }
+                tickStreamPublish()
+            }
+        }
+        defer { publishTicker.cancel() }
         if case .generating(_) = runMachine.phase {
             await followRunEvents(
                 thread: thread, entry: ledgerEntry,
@@ -11891,7 +12068,9 @@ private struct ComposerBarLayout: Layout {
     }
 
     /// events 订阅：增量入装配器/思考累积器（数据
-    /// 面，§409 步 A 起不再发布呈现快照）、工具卡
+    /// 面）、§494 起增量同点喂发布门出呈现快照
+    /// （§409 步 A「不再发布呈现快照」口径作废）、
+    /// 工具卡
     /// 实时拼装、思考预览（若服务端发出）同路；见
     /// 到终态事件记账返回，流自结束（断线/缓冲过
     /// 期）按「未见终态」进结果未知——不在此报错、
@@ -11927,8 +12106,10 @@ private struct ComposerBarLayout: Layout {
                     // ——位置即新段的事件位（工具卡之后）
                     noteLiveOrder(.text)
                     // §409 步 A/E：增量只入装配器累
-                    // 积（纯累积器、无发布语义）
+                    // 积（纯累积器）；§494：同点把装
+                    // 配器全文喂发布门、到拍出快照
                     streamAssembler.offer(delta)
+                    offerStreamPublish()
                 }
             case .reasoningPreview(let text):
                 appState.livingAvatar.note(.reasoning)
@@ -12000,6 +12181,10 @@ private struct ComposerBarLayout: Layout {
                     )
                 }
                 terminalOutputHint = output
+                // §494：终态拍全量发布——对账落定
+                // 前直播行先呈全文（与装配器兜底逐
+                // 字一致），落定同键换装无跳变
+                flushStreamPublish()
                 runMachine.apply(.statusTerminal(kind))
                 return
             case .other(let name):
@@ -12026,6 +12211,9 @@ private struct ComposerBarLayout: Layout {
         if !runMachine.isSettled,
            case .generating(_) = runMachine.phase {
             runMachine.apply(.streamLost)
+            // §494：半截落盘接管呈现前先全量发布
+            // （落盘条目与直播行同文、换装无回退）
+            flushStreamPublish()
             persistRunPartials(thread: thread)
         }
     }
@@ -12033,14 +12221,15 @@ private struct ComposerBarLayout: Layout {
     /// 封段（第 93 条）：工具边界到达时把当前正文段
     /// 在装配器内定稿入封存列——liveOrder 的 .text
     /// 标记原位换成 .sealedText（段的事件位不动，
-    /// 半截落盘按此序成条）。§409 步 A 起无呈现侧
-    /// 同步（旧镜像/快照回写/块催产三件已退役）。
-    /// 当前段为空（工具先行/并行工具连发边界）时
-    /// 装配器无段可封，此处整件空转
+    /// 半截落盘按此序成条）。§494：封段拍同点全
+    /// 量发布（段已定稿、呈现不许等下一增量才追
+    /// 上封存段）。当前段为空（工具先行/并行工
+    /// 具连发边界）时装配器无段可封，此处整件空转
     private func sealStreamSegment() {
         guard streamAssembler
             .sealCurrentSegment() != nil
         else { return }
+        flushStreamPublish()
         let marker = LiveOrderItem.sealedText(
             streamAssembler.sealedSegments.count - 1
         )
@@ -12918,6 +13107,10 @@ private struct ComposerBarLayout: Layout {
         if failed {
             Haptics.error()
         }
+        // §494：全部落定/失败/取消出口共用收尾
+        // ——发布态同点整清，直播行随占位条件消
+        // 失、落定条目同键接位
+        resetStreamPresentation()
         streamingText = nil
         reasoningStartedAt = nil
         sendTask = nil
