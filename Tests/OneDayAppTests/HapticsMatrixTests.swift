@@ -114,16 +114,25 @@ final class HapticsMatrixTests: XCTestCase {
         // performSubmission 三落点（上传失败／准备
         // 失败／提交被拒），resend 改委托泵、失败触
         // 感由泵内落点承接，行为不丢，54→51
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 51)
-        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 6)
+        // §452（文件呈现换代，0.50.110 组版改钉）：
+        // DeliveryViews 交付卡新面新增 error 五落点
+        // （下载／打开失败面）＋warning／success／
+        // heavy 各一落点，FileFallbackView 兜底页新
+        // 增 error 一落点——error 51→57、warning
+        // 6→7、success 16→17、heavy 8→9；§461 附
+        // 件盘零触感变化。逐文件归因对账（rel-05109
+        // →合并树）全部落点增量只在 §452 两文件、
+        // 无既有落点丢失
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 57)
+        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 7)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
         // 复制动作由打开页与 QL 承载面承接、两面各自
         // 的 success 落点原在位，行为不丢。error 净不
         // 变：阅读页导出 PDF 的 error −1 与 QL 承载面
         // 新补 exportPDF 的 error ＋1 相抵（仍 49）
-        XCTAssertEqual(count(of: "Haptics.success()", in: all), 16)
-        XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 8)
+        XCTAssertEqual(count(of: "Haptics.success()", in: all), 17)
+        XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 9)
         // §295（原生重建 R3）：右滑回复触发的最轻
         // impact 在原生散文 cell 增一落点（5→6）——
         // 与 SwipeReplyModifier 的落点是同一事件的
