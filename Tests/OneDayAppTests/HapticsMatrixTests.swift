@@ -131,7 +131,14 @@ final class HapticsMatrixTests: XCTestCase {
         // 的 success 落点原在位，行为不丢。error 净不
         // 变：阅读页导出 PDF 的 error −1 与 QL 承载面
         // 新补 exportPDF 的 error ＋1 相抵（仍 49）
-        XCTAssertEqual(count(of: "Haptics.success()", in: all), 17)
+        // §459（动态/点子对齐，0.50.111 组版改钉）：
+        // IdeasStore 采纳回写共用段 markAdopted 新增
+        // 一 success 落点（立为目标/建为例行共用，
+        // 回读确认 adopted 才震），success 17→18；
+        // error/warning/heavy 三项逐数不变、既有落
+        // 点无丢失（逐文件归因：增量仅 IdeasStore
+        // 一处）
+        XCTAssertEqual(count(of: "Haptics.success()", in: all), 18)
         XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 9)
         // §295（原生重建 R3）：右滑回复触发的最轻
         // impact 在原生散文 cell 增一落点（5→6）——
