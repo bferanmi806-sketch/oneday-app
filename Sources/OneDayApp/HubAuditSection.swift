@@ -345,7 +345,7 @@ struct HubAuditSection: View {
                 ApprovalRulesSettingsView()
             } label: {
                 HStack(spacing: OneDayMetrics.spacingSM) {
-                    iconBox(
+                    rowGlyph(
                         systemImage: "checkmark.shield",
                         tint: Palette.inkSecondary
                     )
