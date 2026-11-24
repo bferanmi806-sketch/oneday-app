@@ -17348,3 +17348,49 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–112 逐字同红、已裁可接受。本版无新红、无改钉（HapticsMatrixTests 本轮全过）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05113-release，rc=0）；~/build/OneDay-0.50.113-241.ipa，16,835,397 字节，md5 7207d8acc03eca5e0a0fdade6fccd738；unzip 直验主 App 本体 plist 三值＝0.50.113／241／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.113-241.ipa）md5 一致。
 - 真机门（归用户 verdict）：①杀 App 48h 后重开，一轮前台周期内（≤15 分钟）calendar/reminders 的 synced_at 均刷新、审计账出现新成功记录、设备同步总览两行转绿；②装版先看健康面第一屏定因回读（权限分型人话＝实锤 blocked 分支）＋诊断段自检结论与审计逐条对账；③逐数据集点「立即同步」时刻往前走，断网点一次失败原因红字显形、不报假成功；④系统设置关日历权限→同步页该行红点＋「权限已关，去系统设置里开启」，恢复后下一轮自检自动恢复推送；⑤飞行模式回前台→恢复网络，退避到点自动补同步；提醒读取不再整轮挂死。
+
+## §474 身份胶囊收口（2026-11-24；用户 10:16 亲令，基线 rel-05113）
+
+缘起：用户亲令「胶囊里面的在线删了，小字改为 muse 内部的工作状态就行！现在胶囊下面还有个胶囊，你看看你内部的机制是咋样的」。参照机制（Muse，用户图证）：全 App 只有一个身份胶囊——头像＋名字＋小字，小字就是当前工作状态（如「检查运行情况」「完成诊断报告」），原地更新；后台/其他会话的活动不以悬浮胶囊压在聊天内容上，统一进中枢列表。
+
+### 盘点（全部身份胶囊实例，逐面核接线）
+
+- 聊天顶簇 HubIdentityCapsule（ChatView.headerIdentityHero）：小字原＝liveActivityPhrase ?? overviewStatusWord——有活动时已是工作状态，但无活动回落 OverviewStatusLine 的连接词（在线／联系不上／待审批 N）。
+- 资源库页头 IdentityAnchor（DeliverablesView，全仓唯一消费方）：statusWord 硬编码「未连接／在线」＋状态点（config 在即 success 绿）——用户图证（10:12/10:17 两图）中资源库胶囊的「● 在线」即此件。
+- 中枢 AgentHubView.statusLine：livePhrase → 台账活动行 → AgentHubStore.statusText 回落（「在线」「在线 · N 条待审批」「网关X」「状态未确认」）。
+- 动态／点子／目标页头：无身份胶囊（navigationTitle 大标题制），无此问题，不动。
+- 头像角绿点：HubAvatarButton 状态角点＝§449 定版全簇唯一 presence 点，本节不动（其 statusWord 仅入无障碍标签）。
+
+### 落码（分支 feat/capsule-status）
+
+1. HubIdentityCapsule：statusWord 改 String?，nil/空时第二行不呈现；ChatView 呼叫点只传 appState.liveActivityPhrase（删 ?? overviewStatusWord 回落）。无活动回落＝留空：Muse 空闲态小字原文查不到，按「查不到就留空、不自创词」处置，不拿连接词垫底。
+2. IdentityAnchor（OneDayDesign/Components.swift）：statusWord 改 String?；状态点随词同生同灭（无词不留一颗点单独表在线，合 §449 绿点口径）；无障碍标签改分段拼接。DeliverablesView 呼叫点改传 liveActivityPhrase＋中性色 inkMuted，删「在线／未连接」硬编码。
+3. 中枢：AgentHubStore.statusText 删「在线」与「在线 · 」前缀——待审批只报「N 条待审批」，运行中无待审批返回空串；AgentHubView.statusLine 第三分支对空串不渲染（不留空行）。「状态未确认」「网关X」等可证事实词保留。
+4. 第二胶囊退役：ProgressCapsuleView 整件删除、ChatView.topBarCluster 呈现点摘除。Core ProgressCapsule.derive 保留——其唯一消费面自此为中枢 hubActivityLine（全局不剔会话），头注已改判。
+
+### 第二胶囊定因（用户图证逐项对位）
+
+- 它是什么：ProgressCapsuleView（0.37.0 立，ChatView.topBarCluster 内、身份区下方），数据源＝工作台账 LedgerStore 中 status∈{running, queued} 且 sessionId≠当前会话的条目，Core ProgressCapsule.derive 取最近开始一件领衔：转圈＋名＋条目标题＋已耗时（LedgerElapsed M:SS）。
+- 图证对位：截图（10:12）胶囊＝转圈＋「三狗」＋「动态调研 · 11月24日」＋「12:32」——标题即台账条目标题（动态流水线调研作业），12:32 为已耗时 12 分 32 秒（M:SS 格式，非日期时间）。该条目属后台流水线作业、非本聊运行，按旧设计「只报他聊/后台进行中」而出现。
+- 为何悬浮压消息：顶簇由 TopBarGuideHost 以覆盖层托管，胶囊是条件出现件，呈现时叠在已滚至顶簇之下的消息气泡上（图证中胶囊正压在一条消息正文上）。
+- 与用户同批问题 2 的关联：胶囊只是呈现端——台账条目状态由服务端 overview 维护，作业实际已完成/已交付而台账仍挂 running 时胶囊即「还在动」；状态真源问题归台账/服务端领地（问题 2 本线），本节只处置呈现：聊天面撤除、活动归中枢（statusLine 活动行＋台账段＋LedgerDetailView 均现成同源）。
+- 处置依据：参照机制「后台活动统一进中枢列表」＋用户亲令；本聊自身运行状态由胶囊小字（liveActivityPhrase）与消息区呈现承担，不缺呈现面。
+
+### 钉测与实跑
+
+- 新套 CapsuleStatus474Tests（3 法）：testCapsuleStatusWordSingleSource（聊天胶囊＋资源库锚点只传活动短语单源、胶囊本体 statusWord 可选）、testNoOnlineWordInCapsuleTerritory（资源库文件无「在线」/「未连接」UI 字面、中枢词源无「在线」单独产出与「在线 · N 条待审批」拼式、IdentityAnchor 状态词可选）、testSecondCapsuleRemovedFromChatSurface（ChatView 无 ProgressCapsuleView( 实例化、呈现件文件不存在、中枢仍消费 ProgressCapsule.derive）。
+- 改钉 1 处：HubActivity449Tests 的 §449.9 接线钉（旧「先活动短语后状态词」回落式）随 §474 改判为「只传活动短语单源＋不得回落」，注记已入测试文件。
+- 实跑（测试通道 ProbePhone，dd-capsule）：第一轮（bundle capsule-474.xcresult）定向 4 套 20 法 19 过 1 红——红为新套断言过宽（把注释中的「在线」也算命中），收窄为 UI 字符串字面口径后第二轮（bundle capsule-474b.xcresult）CapsuleStatus474Tests 3/3 全过、exit 0；HubActivity449Tests、TopBarHitIntermittentTests、ProgressCapsuleTests（Core）第一轮全过。
+
+### ChatView 改动单列（备组版与 hubtabfix 线合并对账）
+
+- headerIdentityHero 内 HubIdentityCapsule 呼叫：statusWord 实参改一行（＋上方注记 6 行）。
+- topBarCluster 内：ProgressCapsuleView 实例化块（7 行）整段摘除、换 §474 注记；顶簇头注一处「进展胶囊」措辞同步。
+- 除此之外 ChatView 零改动；底栏领地未碰。
+
+### 真机门（归用户 verdict）
+
+1. 聊天页：智能体干活时胶囊小字＝正在做的事（如「检查运行情况」），停下后小字消失、胶囊只剩名字；任何时候不出现「在线」。
+2. 资源库页：页头胶囊同样只显工作状态或只剩名字，不再有绿点＋「在线」。
+3. 中枢：状态行干活时显活动、待审批时显「N 条待审批」，空闲时不显「在线」一行。
+4. 聊天面：后台/其他会话作业进行中时，消息上方不再出现第二颗悬浮胶囊；其活动在中枢状态行与台账段可见。
