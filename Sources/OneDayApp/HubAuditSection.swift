@@ -33,7 +33,7 @@ struct HubAuditSection: View {
     /// 性动作——旧形态 .bordered 小钮点按即撤、无确
     /// 认无后果说明；改走确认门（与技能商店卸载确认
     /// 同式：destructive 角色＋后果文案）
-    @State private var pendingRevoke: GrantEntry?
+    @State private var pendingRevoke: AuditEntry?
 
     var body: some View {
         List {
@@ -53,15 +53,16 @@ struct HubAuditSection: View {
             titleVisibility: .visible
         ) {
             Button("撤销", role: .destructive) {
-                if let entry = pendingRevoke {
+                if let entry = pendingRevoke,
+                   case .grant(let grant) = entry {
                     pendingRevoke = nil
-                    Task { await hubStore.revokeGrant(entry) }
+                    Task { await hubStore.revokeGrant(grant) }
                 }
             }
             Button("取消", role: .cancel) { pendingRevoke = nil }
         } message: {
             if let entry = pendingRevoke {
-                Text("「\(entry.scopeLabel)」撤销后立即失效，之后同类操作需要重新批准。")
+                Text("「\(title(for: entry))」撤销后立即失效，之后同类操作需要重新批准。")
             }
         }
     }
