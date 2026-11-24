@@ -216,7 +216,26 @@ struct OneDayApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if let container = modelBootstrap.container {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments
+                .contains("-livingAvatarGallery") {
+                // §479 验收画廊（仅 DEBUG）：活头像
+                // 逐状态实跑截图直达面，发布包无此路
+                LivingAvatarGalleryView()
+            } else {
+                rootSceneContent
+            }
+            #else
+            rootSceneContent
+            #endif
+        }
+    }
+
+    /// 根内容（容器分叉＋存储降级条）：画廊分支与
+    /// 正常路径共用一口，不留两处漂移。
+    @ViewBuilder
+    private var rootSceneContent: some View {
+        if let container = modelBootstrap.container {
                 // （症二实验台 CapsuleTapHarness 已随
                 // §202 路线 B 退役：动作级点按验证改打真
                 // App 演示模式装配，见 TopBarSingleAction-
@@ -256,7 +275,6 @@ struct OneDayApp: App {
                 )
                 .environment(\.locale, AppLocale.uiLocale)
             }
-        }
     }
 }
 
@@ -369,6 +387,9 @@ struct RootView: View {
         // 动判离线兜底，杀进程也不会留假在线
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
+                // §479：回前台＝用户交互（活头像睡眠/
+                // 醒来的本地计时喂食点，状态机单点合成）
+                appState.livingAvatar.note(.interaction)
                 appState.deviceSession.activate(
                     config: appState.config, isDemo: appState.isDemo
                 )

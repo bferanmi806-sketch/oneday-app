@@ -26,6 +26,9 @@ import SwiftUI
 /// 右下、衬一圈页面色环保证压在头像上也可辨。
 struct HubAvatarButton: View {
     var avatar: Image
+    /// 活头像控制器（§479）：在位时盘内改播状态
+    /// 片段（静态图作兜底）；不在位维持纯静态呈现
+    var livingAvatar: LivingAvatarController? = nil
     var displayName: String
     var statusWord: String
     var statusColor: Color
@@ -37,15 +40,24 @@ struct HubAvatarButton: View {
             onOpenHub()
         } label: {
             ZStack(alignment: .bottomTrailing) {
-                avatar
-                    .resizable()
-                    .scaledToFill()
-                    .frame(
-                        width: avatarPointSize,
-                        height: avatarPointSize
-                    )
-                    .clipShape(Circle())
-                    .accessibilityHidden(true)
+                Group {
+                    if let livingAvatar {
+                        LivingAvatarView(
+                            controller: livingAvatar,
+                            fallback: avatar
+                        )
+                    } else {
+                        avatar
+                            .resizable()
+                            .scaledToFill()
+                    }
+                }
+                .frame(
+                    width: avatarPointSize,
+                    height: avatarPointSize
+                )
+                .clipShape(Circle())
+                .accessibilityHidden(true)
                 StatusDot(color: statusColor)
                     .background {
                         Circle()
