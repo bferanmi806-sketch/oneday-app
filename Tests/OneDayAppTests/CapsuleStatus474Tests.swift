@@ -27,11 +27,19 @@ final class CapsuleStatus474Tests: XCTestCase {
     }
 
     /// 胶囊小字单源：聊天胶囊与资源库锚点都只传活动
-    /// 短语；胶囊本体状态词为可选（无活动不呈现）
+    /// 短语（资源库 §492 起经 ContentPageHeader 共同
+    /// 簇同传）；胶囊本体状态词为可选（无活动不呈现）
     func testCapsuleStatusWordSingleSource() throws {
         let chat = try source("Sources/OneDayApp/ChatView.swift")
         let capsule = try source(
             "Sources/OneDayApp/HubIdentityCapsule.swift"
+        )
+        // §492 改钉：资源库自写 identityHeader 已收编入
+        // ContentPageHeader 共同簇，胶囊小字字面随之迁至
+        // 共同簇的 HubIdentityCapsule 调用（行为不丢反
+        // 收编）；资源库页头本体另钉经共同簇收编
+        let header = try source(
+            "Sources/OneDayApp/ContentPageHeader.swift"
         )
         let library = try source(
             "Sources/OneDayApp/DeliverablesView.swift"
@@ -45,8 +53,12 @@ final class CapsuleStatus474Tests: XCTestCase {
             "§474：胶囊状态词应为可选，无活动不呈现第二行"
         )
         XCTAssertTrue(
-            library.contains("statusWord: appState.liveActivityPhrase,"),
-            "§474：资源库锚点小字应同传活动短语单源"
+            header.contains("statusWord: appState.liveActivityPhrase,"),
+            "§474＋§492：共同簇胶囊小字应同传活动短语单源（原资源库锚点字面随 §492 收编迁入）"
+        )
+        XCTAssertTrue(
+            library.contains("ContentPageHeader("),
+            "§492：资源库页头应经 ContentPageHeader 共同簇收编，不再自写页头"
         )
     }
 
