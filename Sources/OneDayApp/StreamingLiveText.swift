@@ -95,6 +95,42 @@ struct StreamingLiveText: View {
         }
     }
 
+    /// 直播行高估算（§247 估算起步口径）：闭
+    /// 合块逐块查合成器 markdownHeight——块源
+    /// 冻结、文本备忘恒命中，单拍新增成本只剩
+    /// 尾块；块间隙与呈现同走两级口径。估算与
+    /// 视图实高容许小差（行标临界、布局提供者
+    /// 量实回填修正——与落定行同制）
+    static func estimatedHeight(
+        for text: String,
+        composer: ChatNativeRowHeightComposer
+    ) -> CGFloat {
+        let blocks = StreamingBlockSegmenter.blocks(
+            for: text
+        )
+        let parts = closedParts(of: blocks)
+        let tail = StreamingBlockSegmenter.tailSource(
+            of: blocks
+        )
+        let tailKind = tail.isEmpty
+            ? nil
+            : blocks.last(where: { $0.isTail })?.kind
+        var total: CGFloat = 0
+        for (index, part) in parts.enumerated() {
+            total += composer.markdownHeight(part.source)
+            total += index == parts.count - 1 && tail.isEmpty
+                ? 0
+                : gapAfter(
+                    index: index, parts: parts,
+                    tailKind: tailKind
+                )
+        }
+        if !tail.isEmpty {
+            total += composer.markdownHeight(tail)
+        }
+        return total
+    }
+
     /// 闭合块分解：逐块规范源（代码块补闭合围
     /// 栏形态，空源块剔除）＋块本体。块一经闭
     /// 合其源即冻结——尾块生长、新块闭合都不

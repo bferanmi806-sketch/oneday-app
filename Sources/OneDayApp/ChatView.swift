@@ -3802,10 +3802,11 @@ struct ChatView: View {
     /// 有追踪器派生、offset 走既有锚定路径）
     /// §485 直播正文行：键＝本轮流式行键（落定
     /// 条目同键建行、承载侧原位 reconfigure＝落
-    /// 定不换装，§247 身份桥）；高＝合成器 mar-
-    /// kdownHeight（与落定文本槽同式）＋气泡纵
-    /// 内距，标临界走布局量实回填（估算起步＋
-    /// 量实覆盖，§247 行高口径）。出 Nil 的四种
+    /// 定不换装，§247 身份桥）；高＝逐块估算
+    /// （闭合块备忘命中、只尾块新算，见 Stream-
+    /// ingLiveText.estimatedHeight）＋气泡纵内
+    /// 距，标临界走布局量实回填（估算起步＋量
+    /// 实覆盖，§247 行高口径）。出 Nil 的四种
     /// 情形：gen4 开关关（回占位行旧形态＝天然
     /// 回滚路）／未武装（恢复轮）／尚无发布快
     /// 照（首增量未到）／半截条目在屏（防双份）
@@ -3825,7 +3826,9 @@ struct ChatView: View {
             key: liveStreamRowKey(),
             entryID: nil,
             revision: revision,
-            height: composer.markdownHeight(text)
+            height: StreamingLiveText.estimatedHeight(
+                    for: text, composer: composer
+                )
                 + OneDayMetrics.bubblePaddingV * 2,
             heightIsProvisional: true,
             makeView: {
