@@ -89,14 +89,8 @@ struct ScriptedBridgeClient: OneDayBridgeClientProtocol {
         throw stub
     }
 
-    func saveFeedInterest(
-        config: ServerConfig, interest: String
-    ) async throws -> BridgeBriefDoc {
-        throw stub
-    }
-
-    func saveFeedPrompt(
-        config: ServerConfig, brief: String
+    func saveFeedText(
+        config: ServerConfig, text: String
     ) async throws -> BridgeBriefDoc {
         throw stub
     }

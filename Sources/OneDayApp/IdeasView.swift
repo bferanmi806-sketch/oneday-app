@@ -8,9 +8,10 @@ import SwiftUI
 /// 内容 emoji 大字（无底砖）＋semibold 标题＋次色宽
 /// 松正文，行面不摆元信息；点行开底部 sheet 详情
 /// （「包含哪些内容」交付物清单＋底部动作栏「开始
-/// 吧」）。列表结构只有分类小节（标题＋其下卡片，
-/// 分类由桥下发、App 不自判；无分类的卡不进列表，
-/// 不设无分类区），页面不出现「待阅/已采纳」分区、
+/// 吧」）。列表结构只有领域小节（标题＋其下卡片；
+/// §459 起分节键＝桥下发 domain、App 不自判，旧
+/// category 只作存量折算兜底、恒有落点不丢卡），
+/// 页面不出现「待阅/已采纳」分区、
 /// 状态字与角标（§123 M3 底栏角标随本包退役，用
 /// 户 2026-11-12 亲定）。数据口径：生成卡由桥端管
 /// 道每日晨间产出（source=generated、evidence 必
@@ -199,17 +200,18 @@ struct IdeasView: View {
             }
         } else {
             List {
-                // §177：列表自上而下全程分类小节——
-                // 状态只决定卡进不进列表（口径在 Core
-                // IdeaBoard.categorySections），页面不
-                // 再有状态分区
-                ForEach(store.categorySections) { section in
+                // §177 立形、§459 换键：列表自上而下
+                // 全程领域小节——状态只决定卡进不进列
+                // 表（口径在 Core IdeaBoard.domainSec-
+                // tions，分节键＝domain、旧 category 只
+                // 作折算兜底），页面不再有状态分区
+                ForEach(store.domainSections) { section in
                     Section {
                         ForEach(section.ideas) { idea in
                             ideaRow(idea)
                         }
                     } header: {
-                        groupHeader(section.category.title)
+                        groupHeader(section.domain.title)
                     }
                 }
                 Section {
@@ -347,6 +349,16 @@ struct IdeaRowView: View {
         IdeaKicker.color(for: idea.category)
     }
 
+    /// chip 文案：去空白后非空才渲染（服务端已限长
+    /// ≤24 字、坏形折 null，呈现侧再兜一层空白）
+    private var chipLabel: String? {
+        guard let raw = idea.categoryLabel else { return nil }
+        let trimmed = raw.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Image(systemName: kickerSymbol)
@@ -382,6 +394,19 @@ struct IdeaRowView: View {
                         .font(.footnote)
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(1)
+                }
+                // §459：categoryLabel chip——服务端自由
+                // 短语（如「服务器运维」）；为 null/空白
+                // 不渲染，不许拿 domain 名冒充
+                if let label = chipLabel {
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(
+                            Palette.selectionFill, in: Capsule()
+                        )
                 }
                 if let note {
                     Text(note)
@@ -422,6 +447,9 @@ struct IdeaDetailView: View {
     let ideaID: String
 
     @State private var confirmDelete = false
+    /// §459 kind=routine：例行创建表单（既有 cron 面）
+    /// 的呈现开关
+    @State private var routineFormShown = false
 
     private var idea: BridgeIdea? {
         store.ideas.first { $0.id == ideaID }
@@ -508,6 +536,51 @@ struct IdeaDetailView: View {
         } message: {
             Text("只删点子本身；已经转成的任务不会受影响。")
         }
+        // §459：建为例行走既有 cron 创建面（预填点子
+        // 标题/正文，用户在面里定计划）；建成回执带
+        // 新 job 本体，回读共享 CronStore 名单确认在
+        // 列后才回写点子状态（回读判据）
+        .sheet(isPresented: $routineFormShown) {
+            if let idea {
+                CronJobFormView(
+                    job: nil,
+                    prefillName: idea.title,
+                    prefillPrompt: idea.detail.isEmpty
+                        ? idea.title : idea.detail,
+                    onCreated: { created in
+                        Task {
+                            await confirmRoutine(
+                                created, idea: idea
+                            )
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    /// 例行建成确认：刷新共享 CronStore 名单，新
+    /// job id 在列才算建成（§459 回读判据）；回写
+    /// 落定后退页，未落定留在本页看 notes 原因
+    private func confirmRoutine(
+        _ created: CronJob, idea: BridgeIdea
+    ) async {
+        let cron = appState.sharedCronStore()
+        await cron.refresh()
+        let confirmed = cron.jobs.contains {
+            $0.id == created.id
+        }
+        await store.markAdoptedForRoutine(
+            appState: appState, idea: idea,
+            routineConfirmed: confirmed
+        )
+        if confirmed,
+           let fresh = store.ideas.first(
+               where: { $0.id == idea.id }
+           ), fresh.status == .adopted,
+           store.notes[idea.id] == nil {
+            dismiss()
+        }
     }
 
     /// 「包含哪些内容」（0.47.0 §117）：交付物行＝粗
@@ -591,47 +664,26 @@ struct IdeaDetailView: View {
                     .foregroundStyle(Palette.ink)
                     .frame(width: 48, height: 48)
                     .background(Palette.surface, in: Circle())
+                    // §459 对位 Muse 参照：白底轻描边——
+                    // 参照像素实测钮面纯白 (255,255,255)、
+                    // 靠细边与浅灰页底分界；OneDay 截图
+                    // 实测为灰填充 (229,229,229)。白面
+                    // （surface 浅档 #FFF）＋separator
+                    // 1pt 描边把分界写实，不靠面色对比
+                    .overlay {
+                        Circle()
+                            .stroke(
+                                Palette.separator, lineWidth: 1
+                            )
+                    }
             }
             .disabled(acting)
             if idea.status == .pending {
-                Button {
-                    Task {
-                        await store.convertToTask(
-                            appState: appState, idea: idea,
-                            kanban: kanban
-                        )
-                        // 采纳落定判据与 store 内回读确认
-                        // 同口径：任务 id 已落字且无失败留
-                        // 痕才开旁聊；未落定留在本页看原因
-                        if let fresh = store.ideas.first(
-                            where: { $0.id == idea.id }
-                        ), fresh.taskId != nil,
-                           store.notes[idea.id] == nil {
-                            openIdeaChat(fresh)
-                        }
-                    }
-                } label: {
-                    HStack(spacing: OneDayMetrics.spacingS) {
-                        Image(systemName: "sparkles")
-                        Text(acting ? "处理中…" : "开始吧")
-                    }
-                    .font(.headline)
-                    // 2026-11-24 用户亲裁改判：主钮改饱和
-                    // 蓝底＋白字（Palette.primarySaturated，
-                    // 对位 Muse 样张 #0064D4）——推翻第
-                    // 85 条 BC-1 在本钮的 primaryPale 口
-                    // 径（§453 改判追记）；同栏「打开对
-                    // 话」已由主按钮统一线跟改同口径
-                    .foregroundStyle(Color.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(Palette.primarySaturated, in: Capsule())
-                }
-                // 手感 A 档：页面主动作补按下态（公用
-                // 按压件）；采纳结果触感已由 IdeasStore
-                // 按表 D 落 success，此处不叠震
-                .buttonStyle(.odPressable)
-                .disabled(acting)
+                // §459：主钮按 kind 分形——chat 开始吧
+                // （现行落点不变）／goal 立为目标／
+                // routine 建为例行；三态建成判据都是回
+                // 读（口径在 IdeasStore 与 confirmRoutine）
+                pendingPrimaryButton(idea, acting: acting)
             } else if idea.isAdopted, idea.taskId != nil {
                 Button {
                     openIdeaChat(idea)
@@ -650,11 +702,123 @@ struct IdeaDetailView: View {
                 }
                 // 手感 A 档：与「开始吧」同式补按下态
                 .buttonStyle(.odPressable)
+            } else if idea.isAdopted {
+                // §459：goal/routine 落地后无任务关联，
+                // 主钮位如实标已落地形态，不给假动作
+                Text(adoptedKindText(idea))
+                    .font(.headline)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
             }
         }
         .padding(.horizontal, OneDayMetrics.pageGutter)
         .padding(.vertical, OneDayMetrics.spacingSM)
         .background(Palette.pageBG)
+    }
+
+    /// 待阅主钮（§459 kind 分形）：三钮同几何同配色
+    /// （饱和蓝底白字，Palette.primarySaturated，对
+    /// 位 Muse 样张 #0064D4——2026-11-24 用户亲裁，
+    /// §453 改判追记；「打开对话」未跟改、待主线裁）
+    @ViewBuilder
+    private func pendingPrimaryButton(
+        _ idea: BridgeIdea, acting: Bool
+    ) -> some View {
+        switch idea.kind {
+        case .chat:
+            Button {
+                Task {
+                    await store.convertToTask(
+                        appState: appState, idea: idea,
+                        kanban: kanban
+                    )
+                    // 采纳落定判据与 store 内回读确认
+                    // 同口径：任务 id 已落字且无失败留
+                    // 痕才开旁聊；未落定留在本页看原因
+                    if let fresh = store.ideas.first(
+                        where: { $0.id == idea.id }
+                    ), fresh.taskId != nil,
+                       store.notes[idea.id] == nil {
+                        openIdeaChat(fresh)
+                    }
+                }
+            } label: {
+                primaryButtonLabel(
+                    icon: "sparkles",
+                    title: acting ? "处理中…" : "开始吧"
+                )
+            }
+            // 手感 A 档：页面主动作补按下态（公用
+            // 按压件）；采纳结果触感已由 IdeasStore
+            // 按表 D 落 success，此处不叠震
+            .buttonStyle(.odPressable)
+            .disabled(acting)
+        case .goal:
+            Button {
+                Task {
+                    await store.convertToGoal(
+                        appState: appState, idea: idea
+                    )
+                    // 回读确认落字（目标在列＋点子 adop-
+                    // ted）才退页；未落定留在本页看原因
+                    if let fresh = store.ideas.first(
+                        where: { $0.id == idea.id }
+                    ), fresh.status == .adopted,
+                       store.notes[idea.id] == nil {
+                        dismiss()
+                    }
+                }
+            } label: {
+                primaryButtonLabel(
+                    icon: "target",
+                    title: acting ? "处理中…" : "立为目标"
+                )
+            }
+            .buttonStyle(.odPressable)
+            .disabled(acting)
+        case .routine:
+            Button {
+                routineFormShown = true
+            } label: {
+                primaryButtonLabel(
+                    icon: "repeat",
+                    title: "建为例行"
+                )
+            }
+            .buttonStyle(.odPressable)
+            .disabled(acting)
+        }
+    }
+
+    /// 主钮标签（三态共用）：图标＋标题、饱和蓝胶囊
+    /// （开始吧图标＝sparkles 星簇，与 Muse 参照同
+    /// 名符号——大四角星＋两小星，像素比对坐实；用
+    /// 户 05:52 截图中 107 构建呈现魔杖形，与本分支
+    /// 代码不符、疑发货构建树差异，真机以新构建复
+    /// 核为准，见 §459 交卷对位表）
+    private func primaryButtonLabel(
+        icon: String, title: String
+    ) -> some View {
+        HStack(spacing: OneDayMetrics.spacingS) {
+            Image(systemName: icon)
+            Text(title)
+        }
+        .font(.headline)
+        .foregroundStyle(Color.white)
+        .frame(maxWidth: .infinity)
+        .frame(height: 48)
+        .background(Palette.primarySaturated, in: Capsule())
+    }
+
+    /// 已落地（无任务关联）的主钮位文案：按 kind 如
+    /// 实回显落地形态
+    private func adoptedKindText(_ idea: BridgeIdea) -> String {
+        switch idea.kind {
+        case .goal: return "已立为目标"
+        case .routine: return "已建为例行"
+        case .chat: return "已开始"
+        }
     }
 
     /// 开旁聊（§122 立形；§219 引用化）：关联线程还

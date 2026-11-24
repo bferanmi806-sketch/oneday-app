@@ -3,12 +3,15 @@ import XCTest
 @testable import OneDayCore
 
 /// §454 通知入账分级钉测：前台会话正常完成不入账、
-/// 失败必入账、待批两处同数（角标待批轴与快照逐字
-/// 同值——枢纽审核格与铃铛角标同出写闸待批一账：
-/// 桥 _overview 的 pendingApprovals 取写闸 /status
-/// 计数、枢纽 gateClient.pendingList 取同一写闸
-/// /pending 名单，本包不新建第三计数）、二级聚合
-/// 窗链式合并
+/// 待批两处同数（角标待批轴与快照逐字同值——枢纽
+/// 审核格与铃铛角标同出写闸待批一账：桥 _overview
+/// 的 pendingApprovals 取写闸 /status 计数、枢纽
+/// gateClient.pendingList 取同一写闸 /pending 名
+/// 单，本包不新建第三计数）、二级聚合窗链式合并。
+/// §459 增补：自有会话失败与完成同档不入账（非自
+/// 有失败维持一级）、自有识别归一（集合命中∨自
+/// 铸前缀）、真机同构用例（真实 refId 形态＋集合
+/// 缺条/空集）
 final class NotificationIntakePolicyTests: XCTestCase {
 
     private func item(
@@ -74,6 +77,9 @@ final class NotificationIntakePolicyTests: XCTestCase {
     }
 
     func testEmptySessionChainSuppressesNothing() {
+        // 非自铸形态的 refId 只认集合键：集合为空
+        // （调用方给不出名单）时不压——归一后仍成
+        // 立（自铸前缀键是另一键、见真机同构例）
         let entry = item(
             "run-4", kind: "task_completed", refId: "sess-mine"
         )
@@ -84,9 +90,64 @@ final class NotificationIntakePolicyTests: XCTestCase {
         )
     }
 
-    // MARK: - 一级：失败必入账、待批与回执逐条在账
+    // MARK: - §459 真机同构：自有终态不入账（完成＋失败）
 
-    func testFailureIsImmediateEvenForUserSession() {
+    /// 真机实证形态（2026-11-24 05:57 生产实查）：
+    /// 用户本人会话的完成 run——refId＝网关 runs
+    /// .session_id 原值（oneday-side-<uuid>），本
+    /// 机线程表快照缺该条（集合不含/为空）时 §454
+    /// 判据漏成二级；归一后凭自铸前缀键判自有
+    func testRealFormCompletionSuppressedWithoutSetHit() {
+        let entry = item(
+            "run-run_5854ae82",
+            kind: "task_completed",
+            refId: "oneday-side-59aed275-2cc0-42d7-8028-5443453b83a3"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: entry, userSessionIDs: []
+            ),
+            .suppressed
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: entry, userSessionIDs: mine
+            ),
+            .suppressed
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.suppressedIDs(
+                notifications: [entry], userSessionIDs: []
+            ),
+            ["run-run_5854ae82"]
+        )
+    }
+
+    /// 真机实证形态（2026-11-24 05:47 生产实查）：
+    /// 用户本人会话的失败 run（run_9791273a）——
+    /// §454 旧口径一律一级即时弹铃铛；§459 起自
+    /// 有失败与完成同档：不即时、不计未读、不入账
+    func testRealFormFailureSuppressedForOwnSession() {
+        let entry = item(
+            "run-run_9791273a",
+            kind: "run_failed",
+            refId: "oneday-side-b6238dda-8ce5-4f24-8e7e-e8e93ec339a4"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: entry, userSessionIDs: []
+            ),
+            .suppressed
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.suppressedIDs(
+                notifications: [entry], userSessionIDs: []
+            ),
+            ["run-run_9791273a"]
+        )
+    }
+
+    func testOwnSessionFailureSuppressedViaSetHit() {
         let failed = item(
             "run-5", kind: "run_failed", refId: "sess-mine"
         )
@@ -94,7 +155,7 @@ final class NotificationIntakePolicyTests: XCTestCase {
             NotificationIntakePolicy.disposition(
                 for: failed, userSessionIDs: mine
             ),
-            .immediate
+            .suppressed
         )
         // error 信号同口径（与 NotificationTier 分类同源）
         let errored = item(
@@ -104,7 +165,70 @@ final class NotificationIntakePolicyTests: XCTestCase {
             NotificationIntakePolicy.disposition(
                 for: errored, userSessionIDs: mine
             ),
+            .suppressed
+        )
+    }
+
+    func testMainSessionCompletionSuppressedByPrefix() {
+        let entry = item(
+            "run-7", kind: "task_completed",
+            refId: "oneday-main-59aed275-2cc0-42d7-8028-5443453b83a3"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: entry, userSessionIDs: []
+            ),
+            .suppressed
+        )
+    }
+
+    // MARK: - 一级：非自有失败必入账、待批与回执逐条在账
+
+    func testExternalFailureIsImmediate() {
+        // 服务端自跑 run（session_id 为 run id 自指
+        // 形，生产实查形态）：非自有，失败维持一级
+        let selfKeyed = item(
+            "run-8", kind: "run_failed",
+            refId: "run_4c56cfc32b104f6bbcd270e22742798b"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: selfKeyed, userSessionIDs: mine
+            ),
             .immediate
+        )
+        // 外部/cron 会话失败同口径
+        let cron = item(
+            "run-9", kind: "run_failed", refId: "sess-cron-9"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: cron, userSessionIDs: mine
+            ),
+            .immediate
+        )
+        // 无 refId 的失败认不出归属，维持一级不压
+        let anon = item("run-10", kind: "run_failed")
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: anon, userSessionIDs: mine
+            ),
+            .immediate
+        )
+    }
+
+    func testSelfKeyedCompletionStaysAggregatable() {
+        // 服务端自跑 run 的完成不是用户会话完成：
+        // 留底二级，不许被前缀键误压
+        let entry = item(
+            "run-11", kind: "task_completed",
+            refId: "run_4c56cfc32b104f6bbcd270e22742798b"
+        )
+        XCTAssertEqual(
+            NotificationIntakePolicy.disposition(
+                for: entry, userSessionIDs: []
+            ),
+            .aggregatable
         )
     }
 

@@ -693,6 +693,10 @@ struct CronJobFormView: View {
 
     let job: CronJob?
     var onSaved: () -> Void = {}
+    /// 新建建成回执（§459 点子建为例行用）：只在新建
+    /// 分支、服务端回执到手时以新 job 本体回调，供调
+    /// 用方做名单回读确认；编辑分支不触发
+    var onCreated: (CronJob) -> Void = { _ in }
 
     @State private var name: String
     @State private var prompt: String
@@ -704,11 +708,18 @@ struct CronJobFormView: View {
     @State private var errorMessage: String?
     @State private var isSaving = false
 
-    init(job: CronJob?, onSaved: @escaping () -> Void = {}) {
+    init(
+        job: CronJob?,
+        onSaved: @escaping () -> Void = {},
+        prefillName: String = "",
+        prefillPrompt: String = "",
+        onCreated: @escaping (CronJob) -> Void = { _ in }
+    ) {
         self.job = job
         self.onSaved = onSaved
-        _name = State(initialValue: job?.name ?? "")
-        _prompt = State(initialValue: job?.prompt ?? "")
+        self.onCreated = onCreated
+        _name = State(initialValue: job?.name ?? prefillName)
+        _prompt = State(initialValue: job?.prompt ?? prefillPrompt)
         _selectedDeliver = State(initialValue: job?.deliver ?? "")
         // 编辑态预填：schedule 是字符串时原样，对象时用展示串
         // 兜底（服务端能解析展示串之外的表达式才建议改动）
@@ -830,7 +841,8 @@ struct CronJobFormView: View {
                     )
                 }
             } else {
-                _ = try await appState.performAdmin { client, config in
+                let created = try await appState.performAdmin {
+                    client, config in
                     try await client.createCronJob(
                         config: config,
                         name: trimmedName.isEmpty ? nil : trimmedName,
@@ -840,6 +852,7 @@ struct CronJobFormView: View {
                             ? nil : selectedDeliver
                     )
                 }
+                onCreated(created)
             }
             onSaved()
             dismiss()

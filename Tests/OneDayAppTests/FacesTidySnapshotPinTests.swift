@@ -120,15 +120,18 @@ final class FacesTidySnapshotPinTests: XCTestCase {
 
     func testFeedSnapshotRecomputesOnlyOnInputChange() {
         let cache = FeedSnapshotCache()
-        // 多帖：600 条
-        let posts = (0..<600).map { feedPost($0) }
+        // 多帖：600 条；入参序故意非时间序（§459：
+        // 服务端序即呈现序——轮转一段后入参，快照
+        // 必须原样保序，旧时间重排口径下此断言必红）
+        let base = (0..<600).map { feedPost($0) }
+        let posts = Array(base[300...]) + Array(base[..<300])
         let first = cache.snapshot(
             posts: posts, searchText: "", isSearching: false
         )
         XCTAssertEqual(cache.revision, 1)
         XCTAssertEqual(
             first.visiblePosts.map(\.id),
-            FeedBoard.sorted(posts).map(\.id)
+            posts.map(\.id)
         )
         // 同入参反复取：零重算
         for _ in 0..<8 {
@@ -145,18 +148,18 @@ final class FacesTidySnapshotPinTests: XCTestCase {
         XCTAssertEqual(cache.revision, 2)
         XCTAssertEqual(
             searching.visiblePosts.map(\.id),
-            FeedBoard.sorted(posts).map(\.id)
+            posts.map(\.id)
         )
         // 搜索词变 → 重算，过滤与旧谓词同（标题或
-        // 正文命中即留）
+        // 正文命中即留）、过滤只删不挪（保序）
         let queried = cache.snapshot(
             posts: posts, searchText: "帖42", isSearching: true
         )
         XCTAssertEqual(cache.revision, 3)
-        let expected = FeedBoard.sorted(posts.filter {
+        let expected = posts.filter {
             $0.title.localizedCaseInsensitiveContains("帖42")
                 || $0.body.localizedCaseInsensitiveContains("帖42")
-        })
+        }
         XCTAssertEqual(
             queried.visiblePosts.map(\.id), expected.map(\.id)
         )
@@ -170,7 +173,7 @@ final class FacesTidySnapshotPinTests: XCTestCase {
 
     // MARK: - 点子面（IdeasStore 存储快照）
 
-    func testIdeasCategorySectionsStoredSnapshotRevision() {
+    func testIdeasDomainSectionsStoredSnapshotRevision() {
         let store = IdeasStore()
         let now = Date().timeIntervalSince1970
         let categories = [
@@ -188,40 +191,40 @@ final class FacesTidySnapshotPinTests: XCTestCase {
             )
         }
         store.installLoadedIdeas(ideas)
-        XCTAssertEqual(store.categorySectionsRevision, 1)
+        XCTAssertEqual(store.domainSectionsRevision, 1)
         // 存储快照与 Core 直算逐项同
         XCTAssertEqual(
-            store.categorySections,
-            IdeaBoard.categorySections(
+            store.domainSections,
+            IdeaBoard.domainSections(
                 ideas, now: Date().timeIntervalSince1970
             )
         )
         XCTAssertEqual(
-            store.categorySections.flatMap(\.ideas).count, 1500
+            store.domainSections.flatMap(\.ideas).count, 1500
         )
         // 呈现侧反复读（含 hasVisibleIdeas 的二次访
         // 问）：零重算
         for _ in 0..<8 {
-            _ = store.categorySections
+            _ = store.domainSections
             _ = store.hasVisibleIdeas
         }
-        XCTAssertEqual(store.categorySectionsRevision, 1)
+        XCTAssertEqual(store.domainSectionsRevision, 1)
         // 乐观离场（数据变更漏斗）→ 重算
         let removed = store.applyOptimisticDismiss(ideaID: "i0")
         XCTAssertNotNil(removed)
-        XCTAssertEqual(store.categorySectionsRevision, 2)
+        XCTAssertEqual(store.domainSectionsRevision, 2)
         XCTAssertEqual(
-            store.categorySections.flatMap(\.ideas).count, 1499
+            store.domainSections.flatMap(\.ideas).count, 1499
         )
         // 失败恢复（数据变更漏斗）→ 再重算
         store.restoreDismissed(removed!)
-        XCTAssertEqual(store.categorySectionsRevision, 3)
+        XCTAssertEqual(store.domainSectionsRevision, 3)
         XCTAssertEqual(
-            store.categorySections.flatMap(\.ideas).count, 1500
+            store.domainSections.flatMap(\.ideas).count, 1500
         )
         // 恢复幂等：已在名单不重复插＝数据未变、不
         // 重算
         store.restoreDismissed(removed!)
-        XCTAssertEqual(store.categorySectionsRevision, 3)
+        XCTAssertEqual(store.domainSectionsRevision, 3)
     }
 }

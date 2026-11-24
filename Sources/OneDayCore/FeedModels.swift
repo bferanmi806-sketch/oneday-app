@@ -11,6 +11,10 @@ public enum FeedPostKind: String, Sendable {
     case digest
     case morning
     case research
+    /// 本地事件帖（§459 复活）：用户 OneDay 记录里的
+    /// 实事（新点子/目标简报/监测变化/任务动态）成帖，
+    /// 与研究帖同流混排；refs 指向事件源头实体
+    case event
     /// FA-2 首次种子帖（App 内置、不进桥数据）：kind 只在
     /// 本地构造时出现，桥永不下发；label 即规格要求的
     /// kicker 明示——不冒充生成帖
@@ -29,6 +33,7 @@ public enum FeedPostKind: String, Sendable {
         case .morning: return "sunrise"
         case .research: return "magnifyingglass"
         case .digest: return "doc.text"
+        case .event: return "clock.arrow.circlepath"
         case .seed: return "sparkles"
         case .unknown: return "doc.text"
         }
@@ -39,6 +44,7 @@ public enum FeedPostKind: String, Sendable {
         case .morning: return "晨报"
         case .research: return "调研"
         case .digest: return "今日动态"
+        case .event: return "本地动态"
         case .seed: return "上手指南"
         case .unknown: return "动态"
         }
@@ -51,6 +57,7 @@ public enum FeedPostKind: String, Sendable {
         case .morning: return "🌅"
         case .research: return "🔍"
         case .digest: return "📰"
+        case .event: return "📋"
         case .seed: return "🧭"
         case .unknown: return "📰"
         }
@@ -269,6 +276,15 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
     public let sourceCard: BridgeFeedSourceCard?
     /// 所属简报方向名（调研帖才有）
     public let direction: String?
+    /// 话题分类（§459）：简报方向原文（如「GitHub
+    /// 热门」）；事件帖/小结帖为 nil——卡面 chip 与
+    /// 详情呈现的数据源，与 direction 旧字段并行下
+    /// 发（服务端 category 缺失时以 direction 折算）
+    public let category: String?
+    /// 有用度（§459）：服务端按点赞/讨论/已读/新鲜
+    /// 度算的分（列表近三日序的依据）；App 只作弱
+    /// 提示呈现（详情一行），不许拿它本地再排序
+    public let usefulness: Double?
     /// 行首内容 emoji（0.47.0，§117）：research 由桥
     /// 按主题选定、digest 固定 📰；旧帖为 nil，呈现
     /// 走 kind 缺省（displayEmoji）
@@ -311,7 +327,8 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
         direction: String? = nil,
         createdAt: Double, expiresAt: Double? = nil,
         readAt: Double? = nil, emoji: String? = nil,
-        likedAt: Double? = nil
+        likedAt: Double? = nil,
+        category: String? = nil, usefulness: Double? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -328,6 +345,8 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
         self.readAt = readAt
         self.emoji = emoji
         self.likedAt = likedAt
+        self.category = category
+        self.usefulness = usefulness
     }
 
     /// 本地已读副本（回执到达前的呈现不回退用；真源
@@ -339,7 +358,8 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
             images: images, sourceCard: sourceCard,
             direction: direction,
             createdAt: createdAt, expiresAt: expiresAt,
-            readAt: ts, emoji: emoji, likedAt: likedAt
+            readAt: ts, emoji: emoji, likedAt: likedAt,
+            category: category, usefulness: usefulness
         )
     }
 
@@ -355,7 +375,8 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
             images: images, sourceCard: sourceCard,
             direction: direction,
             createdAt: createdAt, expiresAt: expiresAt,
-            readAt: readAt, emoji: emoji, likedAt: ts
+            readAt: readAt, emoji: emoji, likedAt: ts,
+            category: category, usefulness: usefulness
         )
     }
 
@@ -363,6 +384,7 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
         case id, kind, title, body, refs, links, why
         case images, sourceCard, direction
         case createdAt, expiresAt, readAt, emoji, likedAt
+        case category, usefulness
     }
 
     public init(from decoder: Decoder) throws {
@@ -407,6 +429,12 @@ public struct BridgeFeedPost: Decodable, Equatable, Identifiable, Sendable {
         )
         likedAt = try container.decodeIfPresent(
             Double.self, forKey: .likedAt
+        )
+        category = try container.decodeIfPresent(
+            String.self, forKey: .category
+        )
+        usefulness = try container.decodeIfPresent(
+            Double.self, forKey: .usefulness
         )
     }
 }
@@ -558,8 +586,11 @@ public struct BridgeFeedGeneration: Decodable, Equatable, Sendable {
 // MARK: - 动态页呈现口径（P3，设计档第三章）
 
 public enum FeedBoard {
-    /// 列表排序：发布时间倒序（设计档定版：有用度
-    /// 排序缓办）；同刻以 id 定序，保证稳定
+    /// 时间倒序工具（同刻以 id 定序，保证稳定）：
+    /// §459 起动态列表不再消费本函数——列表序照单
+    /// 全收服务端序（近三日已按 usefulness 排好，
+    /// 见 FeedListSnapshot）；本函数只余枢纽台账段
+    /// dayGroups 的入参口径（FeedStore.sortedPosts）
     public static func sorted(_ posts: [BridgeFeedPost]) -> [BridgeFeedPost] {
         posts.sorted {
             if $0.createdAt != $1.createdAt {

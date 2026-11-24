@@ -58,7 +58,7 @@ final class IdeasStore {
 
     /// 待阅：生成卡在前、手记在后，各按时间倒序。
     /// §177 后只余内部用途（忽略回读确认判据），不
-    /// 再是页面分区——页面结构走 categorySections
+    /// 再是页面分区——页面结构走 domainSections
     var pendingIdeas: [BridgeIdea] {
         IdeaBoard.pendingList(ideas)
     }
@@ -69,32 +69,34 @@ final class IdeasStore {
         IdeaBoard.adoptedList(ideas, now: Date().timeIntervalSince1970)
     }
 
-    /// 页面唯一结构（§177）：分类小节（标题＋卡片），
-    /// 无分类的卡不进列表，口径收口在 Core IdeaBoard。
+    /// 页面唯一结构（§177 立形、§459 换键）：领域
+    /// 小节（标题＋卡片），分节键＝domain（旧
+    /// category 只作折算兜底），口径收口在 Core
+    /// IdeaBoard.domainSections。
     /// §415 改存储快照：旧计算属性每次访问重分组
     /// （body 一趟多次访问多次付账）——现由三个数
     /// 据变更漏斗（installLoadedIdeas/applyOpti-
     /// misticDismiss/restoreDismissed）在落点重算，
     /// 呈现侧读零计算（照资源库快照模板收口）
-    private(set) var categorySections: [IdeaCategorySection] = []
+    private(set) var domainSections: [IdeaDomainSection] = []
 
-    /// 分类快照修订号（§415）：每次重算 +1，钉测
+    /// 分节快照修订号（§415）：每次重算 +1，钉测
     /// 以此断言呈现侧反复读不重算
-    private(set) var categorySectionsRevision = 0
+    private(set) var domainSectionsRevision = 0
 
     /// 快照重算落点（数据变更漏斗共用）：入参口径
-    /// 与旧计算属性逐字同（IdeaBoard.categorySec-
+    /// 与旧计算属性逐字同（IdeaBoard.domainSec-
     /// tions＋当前时刻——已采纳 30 天窗随数据变更
     /// 刷新，与旧「下次访问重算」在可见面同果）
-    private func refreshCategorySections() {
-        categorySections = IdeaBoard.categorySections(
+    private func refreshDomainSections() {
+        domainSections = IdeaBoard.domainSections(
             ideas, now: Date().timeIntervalSince1970
         )
-        categorySectionsRevision += 1
+        domainSectionsRevision += 1
     }
 
     var hasVisibleIdeas: Bool {
-        !categorySections.isEmpty
+        !domainSections.isEmpty
     }
 
     /// 空态分法：还没生产过 vs 这一轮已清完
@@ -298,7 +300,7 @@ final class IdeasStore {
     /// 名单装载收口（load/回读/测试共用一个落点）
     func installLoadedIdeas(_ loaded: [BridgeIdea]) {
         ideas = loaded
-        refreshCategorySections()
+        refreshDomainSections()
     }
 
     /// 乐观离场落点：把点子从本地名单摘掉并返回摘下
@@ -308,7 +310,7 @@ final class IdeasStore {
             where: { $0.id == ideaID }
         ) else { return nil }
         let removed = ideas.remove(at: index)
-        refreshCategorySections()
+        refreshDomainSections()
         return removed
     }
 
@@ -318,7 +320,7 @@ final class IdeasStore {
         guard !ideas.contains(where: { $0.id == idea.id })
         else { return }
         ideas.append(idea)
-        refreshCategorySections()
+        refreshDomainSections()
     }
 
     /// 低风险动作：不弹确认；**卡当拍先离场**，后台
@@ -436,4 +438,123 @@ final class IdeasStore {
             notes[idea.id] = L10n.string("任务已建在任务板上，但回写点子状态失败，请刷新核对。")
         }
     }
+
+    // MARK: - kind 落地（§459）：立为目标／建为例行
+
+    /// 立为目标：POST /goals 建目标（标题＝点子标题、
+    /// 备注＝点子正文、分类＝旧 category 折算的目
+    /// 标分类）→ 回读目标列表确认新目标在列 → PATCH
+    /// 点子 adopted 回写 → 回读确认点子状态落字才算
+    /// 完成（回读判据，与转任务同档）。回写失败时目
+    /// 标已建成、点子未标：如实留 notes、不假成功、
+    /// 不回滚目标
+    func convertToGoal(appState: AppState, idea: BridgeIdea) async {
+        guard !actingIDs.contains(idea.id) else { return }
+        guard !isConverted(idea) else {
+            notes[idea.id] = L10n.string("这个点子已经落地了。")
+            return
+        }
+        guard let config = appState.config else {
+            notes[idea.id] = L10n.string("尚未连接服务器。")
+            return
+        }
+        actingIDs.insert(idea.id)
+        notes.removeValue(forKey: idea.id)
+        defer { actingIDs.remove(idea.id) }
+        do {
+            let created = try await client.createGoal(
+                config: config,
+                request: BridgeGoalCreateRequest.make(
+                    title: idea.title,
+                    note: idea.detail,
+                    milestoneTitles: [],
+                    category: GoalCategory.from(idea.category)
+                )
+            )
+            // 回读判据一：目标已在列表（服务端真源）
+            if let fetched = try? await client.goals(
+                config: config
+            ) {
+                goals = fetched
+            }
+            guard goals.contains(where: { $0.id == created.id })
+            else {
+                notes[idea.id] = L10n.string(
+                    "目标已提交，但回读列表里还没确认到，请刷新核对。"
+                )
+                return
+            }
+            try await markAdopted(appState: appState, idea: idea)
+        } catch is IdeaAdoptionUnconfirmed {
+            // notes 已在回写段就地落字，不覆写
+        } catch let error as OneDayBridgeError {
+            notes[idea.id] = GoalsStore.message(for: error)
+        } catch {
+            notes[idea.id] = L10n.string("立为目标失败，请稍后再试。")
+        }
+    }
+
+    /// 建为例行的回写段：例行本体由 CronJobFormView
+    /// 建成、存在性回读在视图侧（共享 CronStore 名
+    /// 单含新 job id）先行确认后以 routineConfirmed
+    /// 传入；未确认到不回写、如实留 notes（不许标
+    /// 已采纳）；确认后只做点子侧回写＋回读确认
+    func markAdoptedForRoutine(
+        appState: AppState, idea: BridgeIdea,
+        routineConfirmed: Bool
+    ) async {
+        guard !actingIDs.contains(idea.id) else { return }
+        guard appState.config != nil else {
+            notes[idea.id] = L10n.string("尚未连接服务器。")
+            return
+        }
+        guard routineConfirmed else {
+            notes[idea.id] = L10n.string(
+                "例行已提交，但回读列表里还没确认到，请刷新核对。"
+            )
+            return
+        }
+        actingIDs.insert(idea.id)
+        notes.removeValue(forKey: idea.id)
+        defer { actingIDs.remove(idea.id) }
+        do {
+            try await markAdopted(appState: appState, idea: idea)
+        } catch is IdeaAdoptionUnconfirmed {
+            // notes 已在回写段就地落字，不覆写
+        } catch let error as OneDayBridgeError {
+            notes[idea.id] = GoalsStore.message(for: error)
+        } catch {
+            notes[idea.id] = L10n.string("例行已建成，但点子状态回写失败，请刷新核对。")
+        }
+    }
+
+    /// 采纳回写共用段：PATCH {status: adopted} → 静
+    /// 默回读 → 点子状态落 adopted 才算成；未落字
+    /// 以 OneDayBridgeError 之外的哨兵错误上抛由调用
+    /// 方落 notes（此处直接落 notes 并以 throw 收口
+    /// 防双写——调用方 catch 只处理桥错误与未知错
+    /// 误，本段的未确认分支已自带 notes、经哨兵跳过）
+    private func markAdopted(
+        appState: AppState, idea: BridgeIdea
+    ) async throws {
+        guard let config = appState.config else { return }
+        _ = try await client.patchIdea(
+            config: config, id: idea.id,
+            request: BridgeIdeaPatchRequest(status: .adopted)
+        )
+        await refetch(appState: appState)
+        let after = ideas.first { $0.id == idea.id }
+        if after?.status == .adopted {
+            Haptics.success()
+        } else {
+            notes[idea.id] = L10n.string(
+                "已建成，但点子的「已落地」标记回写后没确认上，请刷新核对。"
+            )
+            throw IdeaAdoptionUnconfirmed()
+        }
+    }
+
+    /// 采纳回写未确认哨兵（notes 已就地落字，catch
+    /// 侧勿再覆写）
+    private struct IdeaAdoptionUnconfirmed: Error {}
 }

@@ -478,10 +478,22 @@ public struct BridgeIdea: Decodable, Equatable, Identifiable, Sendable {
     public let emoji: String?
     /// 主题分类（§177，用户 2026-11-12 亲定「点子必
     /// 须有分类、照 Muse 分法」）：桥按内容归类下发
-    /// （键或中文名），App 只读分组、不自判；旧桥/旧
-    /// 记录为 nil——无分类的卡不进点子列表（硬口径，
-    /// 见 IdeaBoard.categorySections）
+    /// （键或中文名），App 只读分组、不自判；§459 起
+    /// 只作存量折算兜底，不再作分节键（见 IdeaBoard
+    /// .domainSections）
     public let category: String?
+    /// 领域（§459，IDEAS_DOMAINS 十二值）：分节唯一
+    /// 键；服务端恒非 null 出数，旧桥/旧记录为 nil
+    /// 时由 IdeaDomain.resolve 走 category 折算兜底
+    public let domain: String?
+    /// 卡面自由短语 chip（§459，如「服务器运维」）：
+    /// 服务端可 null；为 null 不渲染，不许拿 domain
+    /// 名冒充
+    public let categoryLabel: String?
+    /// 落地形态（§459）：chat 对话／routine 例行／
+    /// goal 目标，决定详情主钮分形；存量恒 chat，
+    /// 未知值折 chat
+    public let kind: IdeaKind
     /// 交付物清单（0.47.0，§117）：旧记录为空数组
     public let deliverables: [BridgeIdeaDeliverable]
     /// 挂靠目标 id；未挂为 nil
@@ -518,13 +530,18 @@ public struct BridgeIdea: Decodable, Equatable, Identifiable, Sendable {
         status: IdeaStatus = .pending,
         taskId: String? = nil, expiresAt: Double? = nil,
         emoji: String? = nil, category: String? = nil,
-        deliverables: [BridgeIdeaDeliverable] = []
+        deliverables: [BridgeIdeaDeliverable] = [],
+        domain: String? = nil, categoryLabel: String? = nil,
+        kind: IdeaKind = .chat
     ) {
         self.id = id
         self.title = title
         self.detail = detail
         self.emoji = emoji
         self.category = category
+        self.domain = domain
+        self.categoryLabel = categoryLabel
+        self.kind = kind
         self.deliverables = deliverables
         self.goalId = goalId
         self.createdAt = createdAt
@@ -548,6 +565,7 @@ public struct BridgeIdea: Decodable, Equatable, Identifiable, Sendable {
         case source, evidence, evidenceRef, anchorId, dismissReason
         case status, taskId, expiresAt
         case emoji, deliverables, category
+        case domain, categoryLabel, kind
     }
 
     public init(from decoder: Decoder) throws {
@@ -562,6 +580,15 @@ public struct BridgeIdea: Decodable, Equatable, Identifiable, Sendable {
         )
         category = try container.decodeIfPresent(
             String.self, forKey: .category
+        )
+        domain = try container.decodeIfPresent(
+            String.self, forKey: .domain
+        )
+        categoryLabel = try container.decodeIfPresent(
+            String.self, forKey: .categoryLabel
+        )
+        kind = IdeaKind.from(
+            try container.decodeIfPresent(String.self, forKey: .kind)
         )
         deliverables = try container.decodeIfPresent(
             [BridgeIdeaDeliverable].self, forKey: .deliverables
@@ -830,6 +857,38 @@ public enum IdeaBoard {
                 }
             }
     }
+
+    /// 点子列表的领域分节（§459，取代 categorySections
+    /// 的分节键）：可见面口径与 §177 同（待阅全量＋已
+    /// 转近 30 天；已忽略/已过期不呈现）；分节键＝
+    /// IdeaDomain.resolve（卡面 domain 优先、旧
+    /// category 折算兜底、恒有落点——新口径下无卡因
+    /// 缺分类被丢）；节序＝十二域定序，空节不出；
+    /// 节内按 createdAt 倒序（与 categorySections 同）
+    public static func domainSections(
+        _ ideas: [BridgeIdea], now: Double
+    ) -> [IdeaDomainSection] {
+        let visible = ideas.filter {
+            $0.status == .pending
+                || ($0.status == .adopted
+                    && $0.createdAt >= now - 30 * 24 * 3600)
+        }
+        var byDomain: [IdeaDomain: [BridgeIdea]] = [:]
+        for idea in visible {
+            byDomain[IdeaDomain.resolve(idea), default: []]
+                .append(idea)
+        }
+        return IdeaDomain.allCases.compactMap { domain in
+            guard let cards = byDomain[domain],
+                  !cards.isEmpty else { return nil }
+            return IdeaDomainSection(
+                domain: domain,
+                ideas: cards.sorted {
+                    $0.createdAt > $1.createdAt
+                }
+            )
+        }
+    }
 }
 
 /// 点子主题分类（§177）：分类集合归桥下发，App 只做
@@ -910,6 +969,115 @@ public struct IdeaCategorySection: Equatable, Identifiable {
 
     public init(category: IdeaCategory, ideas: [BridgeIdea]) {
         self.category = category
+        self.ideas = ideas
+    }
+}
+
+/// 点子落地形态（§459）：决定详情主钮分形——chat
+/// 开始对话／routine 建为例行／goal 立为目标。存量
+/// 与未知值一律 chat（与服务端 _clean_idea_kind 同
+/// 口径）
+public enum IdeaKind: String, Sendable, Equatable {
+    case chat
+    case routine
+    case goal
+
+    public static func from(_ raw: String?) -> IdeaKind {
+        switch raw?.trimmingCharacters(in: .whitespacesAndNewlines) {
+        case "routine": return .routine
+        case "goal": return .goal
+        default: return .chat
+        }
+    }
+}
+
+/// 点子领域（§459）：服务端 IDEAS_DOMAINS 十二值，
+/// 节序与中文节名以服务端 DOMAIN_LABELS 为准、App
+/// 侧映射表与目标分类中文名同源维护（本表即该映射
+/// 的 App 落点）。CaseIterable 声明序＝节序
+public enum IdeaDomain: String, Sendable, Equatable, CaseIterable {
+    case personalProductivity = "personal_productivity"
+    case entertainment
+    case shopping
+    case finance
+    case relationships
+    case health
+    case career
+    case homeAutomation = "home_automation"
+    case connectDevices = "connect_devices"
+    case creationMedia = "creation_media"
+    case family
+    case goalScoped = "goal_scoped"
+
+    /// 中文节名（服务端 DOMAIN_LABELS 同值）
+    public var title: String {
+        switch self {
+        case .personalProductivity: return "个人效率"
+        case .entertainment: return "娱乐"
+        case .shopping: return "购物"
+        case .finance: return "财务"
+        case .relationships: return "人际关系"
+        case .health: return "健康"
+        case .career: return "事业"
+        case .homeAutomation: return "智能家居"
+        case .connectDevices: return "设备连接"
+        case .creationMedia: return "创作媒体"
+        case .family: return "家庭"
+        case .goalScoped: return "目标相关"
+        }
+    }
+
+    /// 旧 category（§177 七类，键或中文名）→ domain
+    /// 折算表（与服务端 _clean_idea_domain 的 legacy
+    /// 折算同口径；§177 表外自由类如「购物」按同名
+    /// 域收，其余未知值回默认域）
+    private static func foldLegacyCategory(
+        _ raw: String
+    ) -> IdeaDomain {
+        switch raw {
+        case "health", "健康": return .health
+        case "relationships", "人际关系": return .relationships
+        case "finance", "财务": return .finance
+        case "career", "事业": return .career
+        case "efficiency", "效率提升", "other", "其他":
+            return .personalProductivity
+        case "interest", "兴趣": return .entertainment
+        case "shopping", "购物": return .shopping
+        default: return .personalProductivity
+        }
+    }
+
+    /// 卡 → 域：卡面 domain 是已知十二值直接用；未
+    /// 知/缺失时以旧 category 折算兜底；再缺回默认
+    /// 域 personal_productivity（与服务端缺省同值）
+    /// ——恒有落点，不丢卡
+    public static func resolve(_ idea: BridgeIdea) -> IdeaDomain {
+        if let raw = idea.domain?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !raw.isEmpty,
+           let domain = IdeaDomain(rawValue: raw) {
+            return domain
+        }
+        if let category = idea.category?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+           !category.isEmpty {
+            return foldLegacyCategory(category)
+        }
+        return .personalProductivity
+    }
+}
+
+/// 领域小节（§459）：点子列表的结构单位（取代
+/// IdeaCategorySection 的页面角色；旧结构保留供
+/// categorySections 兼容口径）
+public struct IdeaDomainSection: Equatable, Identifiable {
+    public let domain: IdeaDomain
+    public let ideas: [BridgeIdea]
+
+    public var id: String { domain.rawValue }
+
+    public init(domain: IdeaDomain, ideas: [BridgeIdea]) {
+        self.domain = domain
         self.ideas = ideas
     }
 }
