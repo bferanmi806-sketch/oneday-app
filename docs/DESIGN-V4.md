@@ -17701,3 +17701,28 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **总账销账**：P1-03 本波页面 error 触感 0 处；P1-04 抽屉无 dragSpring（存量仅 ImageViewerView、归后波）；P3-03 工作/通知/台账详情等宽数字已合规。
 - **测试**：受影响 20 套直跑（iPhone 17e 独立模拟器＋自有 DD、Xcode 27.2）120 项全过、0 红 0 跳，逐套在册核对无静默跳过；帧＝demo UI 取证 14 帧（七面浅/深，存 oneday-design-review/hig-wave1-frames/），技能商店帧实证空态文案已缩短；电脑段/身份双卡/详情页 demo 不供数、无帧，归真机门。
 - **真机门**：撤销确认门实操、chip 命中观感、通知详情 VoiceOver 不念装饰符号；余等值收编视觉零变化抽查即可。
+
+## §491 0.50.117 组版（2026-11-24；基线 rel-05115 @ccb6a20＋rel-05116 @278f13d）
+
+六件合组（用户 13:48 亲裁「已交卷先一起组」）：§485 目标全抄＋§486 动态点子全抄＋§487 简报编辑器呈现＋§488 触感分拣＋§489 规范小改批 A＋§490 逐页第一波。设置 IA 不在本版（单独成版）。
+
+- **合并图**：rel-05117 自 ccb6a20 分叉，依次合 feat/goals-copy 4c1a2c3、feat/feed-ideas-copy 0f336a1、feat/brief-editor-top-panel 6cfc5aa、feat/hig-haptics-sort ad452b5e、feat/hig-batch-a 71042158、feat/hig-pages-wave1 f5ac3f16（逐笔编译绿），再并 origin/rel-05116 95b56efb。
+- **节号连排对照（原号→新号）**：§478→§485（目标）、§480→§486（动态点子）、§482→§487（简报编辑器）、§483→§488（触感分拣）、§483→§489（批 A）、§483→§490（逐页 wave1）；116 组版节 §484 不动。代码与测试自指 23 文件全量同步（提交 b0096434）；文件名与测试类型名作稳定标识不改（如 HigBatchA483Tests 现属 §489，以本对照为准）。
+- **冲突亲解**：第一阶段六合——代码仅一处真冲突：HapticsMatrixTests 计数钉两线各改，按并集定 error 57／warning 8／success 19，grep 实数三方对齐；余皆 DESIGN 尾附冲突（取全尾＋逐节尾附）与 FeedView/IdeasView/FontRoles 自动合。第二阶段并 116——HubAuditSection 两块（撤销钮取 wave1 确认门 pendingRevoke＝entry；行左字形取 §477 rowGlyph、40pt 盒退役＋补 accessibilityHidden）、HubLedgerSection 一块（取 §477 subtitleText，wave1 旧右列系被取代旧形态）、LedgerDetailView 一块（spacing 取 §477 spacingS：基线字面 4、wave1 仅等值收编、§477 刻意改值）、DESIGN 并集连排。合并后一处编译错亲解（提交 6247f060）：撤销确认框适配 §477 合并行模型——pendingRevoke 改 AuditEntry、确认后解包 .grant 再 revokeGrant、文案取行题 title(for:)。
+- **发布集**：116 bundle（Test-OneDayApp-rel05116）xcresulttool 提取 184 套/1491 项与 §484 精确闭合；谱系补入新套 4（GoalsCopy478Measure/FeedIdeasRenderProbe/BriefEditorTopPanel482/HigBatchA483）＝188 套。整跑（测试通道 RUN 2026-11-24 14:27:11，Rel115Phone）：单元腿 1508 过／1 红／共 1509 项——总项与预期（1491＋新套 18）精确对账，逐套比对零掉套、共有套项数零漂移；唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate（与 104–116 逐版同红、已裁可接受）。UI 腿 6 套（116 五套＋FeedIdeasProbeUITests）11 过／0 败／2 跳／共 13 项。
+- **版本戳**：989adbe1（Project.swift＋Derived plist 0.50.117/245，generate 后未还原 Derived）。
+- **IPA**：Release BUILD SUCCEEDED（dd-05117-release）；OneDay-0.50.117-245.ipa，28,082,886B，md5 3e801708d4815adfdccb567b23f3b25d；unzip 直验主 App 本体 plist 三值 0.50.117／245／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。包体较 115 增大系 116 活头像片段入包所致（116 包 28,535,614B，本版略小），非本版新增。
+- **真机门（归用户 verdict，六件合并）**：§485 目标——复选框描边浅/深可见、页头簇同位、行 pitch 与折叠把手形态；§486 动态点子——页头收起手感、链接预览卡真数据、点子空带消除、标题 34 档；§487 简报编辑器——顶部面板弹簧质感与压暗、保存成败触感；§488 触感——改名未确认 warning 档、error 落点密度主观扰人否；§489 批 A——App 图标深色/着色主屏呈现、sheet 抓手可拖、Feed 动画在 Reduce Motion 下瞬时、文件图标无回退；§490 wave1——中枢审核撤销确认实操（点撤销→确认→真撤）、通知/抽屉帧面、深色观感、chip 命中域。
+
+
+## §491 0.50.117 组版（2026-11-24；基线 rel-05115 @ccb6a20＋rel-05116 @278f13d）
+
+六件合组（用户 13:48 亲裁已交卷先一起组）：§485 目标全抄＋§486 动态点子全抄＋§487 简报编辑器呈现＋§488 触感分拣＋§489 规范小改批 A＋§490 逐页第一波。设置 IA 不在本版（单独成版）。
+
+- **合并图**：rel-05117 自 ccb6a20 分叉，依次合 feat/goals-copy 4c1a2c3、feat/feed-ideas-copy 0f336a1、feat/brief-editor-top-panel 6cfc5aa、feat/hig-haptics-sort ad452b5e、feat/hig-batch-a 71042158、feat/hig-pages-wave1 f5ac3f16（逐笔编译绿），再并 origin/rel-05116 95b56efb。
+- **节号连排对照（原号→新号）**：§478→§485（目标）、§480→§486（动态点子）、§482→§487（简报编辑器）、§483→§488（触感分拣）、§483→§489（批 A）、§483→§490（逐页 wave1）；116 组版节 §484 不动。代码与测试自指 23 文件全量同步（提交 b0096434）；文件名与测试类型名作稳定标识不改（如 HigBatchA483Tests 现属 §489，以本对照为准）。
+- **冲突亲解**：第一阶段六合——代码仅一处真冲突：HapticsMatrixTests 计数钉两线各改，按并集定 error 57／warning 8／success 19，grep 实数三方对齐；余皆 DESIGN 尾附冲突（取全尾＋逐节尾附）与 FeedView/IdeasView/FontRoles 自动合。第二阶段并 116——HubAuditSection 两块（撤销钮取 wave1 确认门 pendingRevoke＝entry；行左字形取 §477 rowGlyph、40pt 盒退役＋补 accessibilityHidden）、HubLedgerSection 一块（取 §477 subtitleText，wave1 旧右列系被取代旧形态）、LedgerDetailView 一块（spacing 取 §477 spacingS：基线字面 4、wave1 仅等值收编、§477 刻意改值）、DESIGN 并集连排。合并后一处编译错亲解（提交 6247f060）：撤销确认框适配 §477 合并行模型——pendingRevoke 改 AuditEntry、确认后解包 .grant 再 revokeGrant、文案取行题 title(for:)。
+- **发布集**：116 bundle（Test-OneDayApp-rel05116）xcresulttool 提取 184 套/1491 项与 §484 精确闭合；谱系补入新套 4（GoalsCopy478Measure/FeedIdeasRenderProbe/BriefEditorTopPanel482/HigBatchA483）＝188 套。整跑（测试通道 RUN 2026-11-24 14:27:11，Rel115Phone）：单元腿 1508 过／1 红／共 1509 项——总项与预期（1491＋新套 18）精确对账，逐套比对零掉套、共有套项数零漂移；唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate（与 104–116 逐版同红、已裁可接受）。UI 腿 6 套（116 五套＋FeedIdeasProbeUITests）11 过／0 败／2 跳／共 13 项。
+- **版本戳**：989adbe1（Project.swift＋Derived plist 0.50.117/245，generate 后未还原 Derived）。
+- **IPA**：Release BUILD SUCCEEDED（dd-05117-release）；OneDay-0.50.117-245.ipa，28,082,886B，md5 3e801708d4815adfdccb567b23f3b25d；unzip 直验主 App 本体 plist 三值 0.50.117／245／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。包体较 115 增大系 116 活头像片段入包所致（116 包 28,535,614B，本版略小），非本版新增。
+- **真机门（归用户 verdict，六件合并）**：§485 目标——复选框描边浅/深可见、页头簇同位、行 pitch 与折叠把手形态；§486 动态点子——页头收起手感、链接预览卡真数据、点子空带消除、标题 34 档；§487 简报编辑器——顶部面板弹簧质感与压暗、保存成败触感；§488 触感——改名未确认 warning 档、error 落点密度主观扰人否；§489 批 A——App 图标深色/着色主屏呈现、sheet 抓手可拖、Feed 动画在 Reduce Motion 下瞬时、文件图标无回退；§490 wave1——中枢审核撤销确认实操（点撤销→确认→真撤）、通知/抽屉帧面、深色观感、chip 命中域。
