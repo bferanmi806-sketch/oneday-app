@@ -370,7 +370,7 @@ public enum SoulPresentationBuilder {
         let distilled = SoulDistillation.visibleText(
             from: sections.displayedPersona
         )
-        var intro = paragraphs(
+        let allIntro = paragraphs(
             from: distilled.text,
             displayName: displayName, dropNameHeading: true
         )
@@ -378,21 +378,109 @@ public enum SoulPresentationBuilder {
             from: sections.style ?? "",
             displayName: displayName, dropNameHeading: false
         )
+        // §477 摘要化（2026-11-24 全抄参照身份页）：
+        // 简介区只呈摘要级——身份首段＋气质摘要（合
+        // 计约 5–6 行封顶的呈现量），人设其余段落撤
+        // 出本页：全文仍在 SOUL 卡详情与编辑面（读
+        // soulDocument.content 原文、零丢失），本页
+        // 只管摘要呈现、与参照同构（参照灰字摘要同
+        // 样只是其人设首段＋气质）。提炼层（SoulDis-
+        // tillation）口径不动：收起裁决仍在那一层，
+        // 本处只收呈现量
+        // §477 内部注记过滤（P3-2 防复发口径）：协
+        // 作对齐注记（如「（与主线三狗共用一份，
+        // 2026-11-24 对齐）」）是内部标记、不上呈
+        // 现面——先在提炼出口统一剥离（摘要与风格
+        // 两区同过，只剥括号注记组本身、正文一字不
+        // 动），再取首段作摘要，防首段恰为纯注记时
+        // 摘要落空
+        let cleanIntro = allIntro
+            .map(strippingInternalNotes)
+            .filter { !$0.isEmpty }
+        let cleanStyle = style
+            .map(strippingInternalNotes)
+            .filter { !$0.isEmpty }
+        // 摘要首段＝首个正文段：独占一段的纯标题行
+        // （文档名/节题，如「# SOUL.md」孤行、节题孤
+        // 行）是结构脚手架、不是身份内容，跳过不取
+        // （与名标题摘除同理）；标题与正文同段时整段
+        // 照取（一字不动）
+        let atxTitles = Set(
+            distilled.text.components(separatedBy: "\n")
+                .compactMap {
+                    SoulSectionParser.headingTitle(of: $0)
+                }
+        )
+        var intro: [String] = []
+        if let first = cleanIntro.first(where: {
+            !isHeadingOnly($0, atxTitles: atxTitles)
+        }) {
+            intro = [first]
+        }
         // §449.8 气质摘要（对 Muse 呈现结构）：风
         // 格块中带「气质／Vibe」标签的条目，其内容
         // 提作简介区末段灰字摘要——Muse 的灰字摘
         // 要与其「风格」节同文同源，此处同法；风格
         // 块内原文保留不动、只多呈一处摘要，无此
         // 标签不强凑
-        if let temperament = temperamentSummary(in: style),
+        if let temperament = temperamentSummary(in: cleanStyle),
            !intro.contains(temperament) {
             intro.append(temperament)
         }
         return SoulPresentation(
             introParagraphs: intro,
-            styleParagraphs: style,
+            styleParagraphs: cleanStyle,
             withheldSegmentCount: distilled.withheldCount
         )
+    }
+
+    /// 纯标题段判定（§477）：整段只有一行、且该行是
+    /// ATX 节题（在提炼文本里以标题行出现过）或平文
+    /// 节题（plainHeadingKey 命中）——只认结构、不
+    /// 猜语义（与本文件提炼纪律同款）
+    static func isHeadingOnly(
+        _ paragraph: String, atxTitles: Set<String>
+    ) -> Bool {
+        guard !paragraph.contains("\n") else { return false }
+        let line = paragraph.trimmingCharacters(in: .whitespaces)
+        if atxTitles.contains(line) { return true }
+        return SoulSectionParser.plainHeadingKey(of: line) != nil
+    }
+
+    /// 内部注记剥离（§477）：括号组（全角／半角）内
+    /// 容命中任一标记即整组剥除——含 ISO 日期
+    /// （yyyy-MM-dd）、或「共用一份」字样。这类注记
+    /// 是写作时的协作对齐标记（写进 SOUL 标题/正文
+    /// 的括号注），不是人设内容；判定只认括号组＋
+    /// 标记两条件，不做语义猜写（与本文件提炼纪律
+    /// 同款）。剥后折叠多余空白；整段只剩注记时返
+    /// 回空串、由调用方弃段
+    static func strippingInternalNotes(_ paragraph: String) -> String {
+        let pattern = "（[^（）]*）|\\([^()]*\\)"
+        guard let regex = try? NSRegularExpression(pattern: pattern)
+        else { return paragraph }
+        let range = NSRange(
+            paragraph.startIndex..., in: paragraph
+        )
+        var result = paragraph
+        // 自后向前替换，避免 range 漂移
+        let matches = regex.matches(in: paragraph, range: range)
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result)
+            else { continue }
+            let inner = String(result[matchRange])
+            let hasDate = inner.range(
+                of: "\\d{4}-\\d{2}-\\d{2}",
+                options: .regularExpression
+            ) != nil
+            if hasDate || inner.contains("共用一份") {
+                result.removeSubrange(matchRange)
+            }
+        }
+        return result
+            .split(whereSeparator: { $0 == " " || $0 == "　" })
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
     }
 
     /// 子弹行 → 条目文本（剥 `- `/`• ` 标记）；非子
