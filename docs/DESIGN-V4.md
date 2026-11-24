@@ -17304,3 +17304,35 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：①#13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–111 逐字同红、已裁可接受。②HapticsMatrixTests/testMatrixCallSiteCounts 新红——归因逐数坐实：声明式 .sensoryFeedback(.success) 3→2，逐文件对账（rel-05111→合并树）增量仅 GoalListRows.swift 一处——G-6 删 MilestoneCheckRow 时其 .sensoryFeedback(.success, trigger: done) 落点随里程碑面退役；目标行本体落点（同文件 380 行）仍在、其余各计数逐数不变、无既有落点丢失。处置：按该测既有惯例改钉并附 §467 注记（提交 3963939），独立模拟器（iPhone 17 Pro Max）复跑 HapticsMatrixTests 4/4 全绿（bundle Test-HapticsPin-rel05112）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05112-release）；~/build/OneDay-0.50.112-240.ipa，16,803,245 字节，md5 8e8e43f39a35377ff78ef4faf568e9ea；unzip 直验主 App 本体 plist 三值＝0.50.112／240／site.didichou.oneday；VM 副本 md5 一致。
 - 真机门（归用户 verdict）：①目标列表 41 条与历史进展呈现、条目标题行在位；②改动可见延迟：目标面停留时智能体记进展约 15–30 秒内自现（服务端看板轮询 15 秒＋App 30 秒指纹重验两腿）；③里程碑整面消失（详情段／头部进度条／表单组／勾选行）且旧数据打开不崩；④目标详情开着时新条目自达、指纹重验循环在面生效（离开面即停）。
+
+## §468 日历/提醒同步断供修复（2026-11-24，feat/cal-sync，基线 rel-05112；规格＝oneday-design-review/parity2-app-specs-20261124.md 规格 A）
+
+### 定因（代码逐环读实；一期服务端定因不重查）
+
+- 一期定案：服务端只收推送无拉取杠杆；审计账 sync:calendar／sync:reminders 末次成功 2026-11-12 12:23:38 后零发起、零失败记录、桥侧 permission=granted 为存量值、覆盖窗正常；同期 contacts 11-18 仍有、photos 至今仍活。
+- 本轮 App 侧逐环读实（触发三路 OneDayApp.swift:376/404/431→DeviceSyncController.foregroundCheck；reconcile→Core DeviceSyncPlanner.foregroundDecision；DevicePermissions.currentStates 同步现读、EK 翻译 .fullAccess/.authorized→.granted 无漏档；桥 status 解码 synced_at 键与 ISO8601 解析正常；EventKit 执行器与 DeviceBridgeClient 同步四端点无数据集专属早退）：共用链每一环单看都通，calendar/reminders 与 contacts/photos 的待遇差只剩 planner 的两个静默分支——.blockedPermission（权限被现读为不可用）与 .skipThrottled（节流未到期）。
+- 结构性成因（实证）：①reconcile 对 blocked/throttled 一律静默——不落日志、不写 lastErrors，十二天零记录正是此形态；②自动链对 notDetermined 是死锁式判定：planner 对未决定态判 blocked，而那一次授权请求只存在于 syncNow 内部、decision 非 .sync 永远到不了 syncNow——权限态一旦被系统读成未决定/仅写入，自动同步永久死亡且无自愈、无显形；③reportStateIfChanged 在本地从未上报过时对不可用态直接跳过上报（guard permission.isUsable || last != nil），桥侧永远看不到权限变化、存量 granted 与 App 现读脱节也无从对账；④数据集专属脆弱点两处：reminders 的 fetchReminders 旧写法是无超时 withCheckedContinuation，系统回调丢失即整轮永久挂起且 progress 残留锁死后续每一轮；EventKitEngine 的 EKEventStore 实例终身不重建、读前从不 refreshSourcesIfNecessary，授权变化后源缓存可能停在旧授权面。
+- 未实证一环（如实标）：真机上 calendar/reminders 的现读权限态此刻到底是何值，本轮无真机实证——装版后健康面第一屏即可回读（日历行若显「权限还没开/仅写入/已关」即实锤 blocked 分支；若显红点＋过期即节流/发起面问题），且修复后每轮自检结论落账可回查，不再靠推断。
+
+### 修法（逐条对规格 A；提交 dbaf524／a951beb／0f2df3a）
+
+- A-1 逐数据集健康面：落点＝设置内既有「设备与权限」页数据同步总览段（打开即 refreshStatus 回读刷新，原 .task 已有、本轮沿用并注明）。每行：健康点（Core DeviceSyncHealth.level：绿 ≤24h／黄 24–72h／红 >72h、从未同步或权限不可用；时刻取桥 status 回读 synced_at、本地回执兜底）、最近一次失败人话原因优先于状态字（lastErrors 红字）、行内「立即同步」钮（同步中转圈）。
+- A-2 过期判据统一：Core DeviceSyncHealth.isExpired 单点（>24h，从未同步也算过期），健康级与新鲜度句同口径。范围外明示：点子/简报材料引用处的「数据截至 X 日」注记在服务端消费侧，本包不动服务端、不在此关账；App 侧呈现面（健康红点＋详情页过期行＋新鲜度句）已承接。
+- A-3 令牌失效节流→全量退避：本仓无 EventKit 变更令牌机制（变更靠系统通知记号＋清单/窗口整换），规格语义落为 Core FullResyncBackoff——全量型三件（calendar/reminders/photos）引擎启动后失败即记账，间隔 15 分钟→1 小时→6 小时封顶、成功清零、跨启动落盘；reconcile 以退避合成自检处置 backoffDeferred 拦自动轮次，手动同步不受拦。令牌/基线状态进详情页诊断段（同步基线＝回执有无与最近成功时刻；退避行＝连续失败次数与下次可试时刻）。
+- A-4 单数据集手动同步：控制器 manualSync——只推该数据集（origin=.user），成败以同步前后回读的服务端副本时刻判定，没往前走即判失败并把原因写进 lastErrors（「回读对不上」），不报假成功；总览行与详情页同步区各一个入口共用此落点（详情页「立即同步这一件」，原退役钮按规格恢复）。
+- A-5 权限撤销显形：自检处置 SyncSelfCheckOutcome.blockedPermission 带分型（未决定/仅写入/被拒/受限四种人话互不相同，Core blockedLine 单点），reconcile 落账时把分型原因写进 lastErrors——总览行红字、详情页状态区红字，不再静默停推；权限恢复后自检自动收走自写旧账（permissionBlockedMarks 标记，不靠字符串比对）。授权读取全程同步现读（DevicePermissions.currentStates），已决定状态不重走异步请求回调——铁律未动，自动链不弹窗、那一次请求仍只在用户拨开关/手动同步的 syncNow 内发生。
+- A-6 前台触发自检：foregroundCheck 每件数据集的判定经 DeviceSyncSelfCheck.outcome 合成为四态结论（willSync/throttled/backoffDeferred/blockedPermission），逐件落 SyncSelfCheckRecord（时刻＋结论人话，内存＋UserDefaults 落盘），详情页诊断段可查最近一次自检结论。
+- 引擎加固（定因④）：EventKitEngine.store 改可重建——授权请求落定为可用即换新实例；批量读入口（events/listEventsResult/syncOccurrences/fetchAllReminders）读前 refreshSourcesIfNecessary；fetchReminders 改 withCheckedThrowingContinuation＋ResumeOnceBox 一次性守卫＋20 秒超时抛错，reminderSyncSnapshot 改 throws——提醒全量整换读失败即整轮失败落账，绝不拿空集清副本；详情页/工具读路径（reminderItems/listRemindersResult）以 try? 回空集呈现兜底（非同步面，不动副本）。
+
+### 测试
+
+- 钉测（Tests/OneDayCoreTests/DeviceSyncTests.swift 新增 4 法）：testSelfCheckBlockedPermissionReproAndVisibleLines（授权面断供复现：四种不可用态 planner 恒 blocked＋三关法分型人话互异）、testSelfCheckOutcomeComposition（可用＋过期→willSync、刚同步→throttled、退避未到→backoffDeferred）、testFullResyncBackoffLadder（节流/退避：15m→1h→6h 封顶、成功清零、首次不拦）、testHealthLevelBoundariesAndRecovery（失败面：11-12 副本对 11-24 判红＋过期、从未/权限关判红；成功面：新同步落下转绿；24h/72h 边界逐档）。
+- 实跑（测试通道 RUN 2026-11-24 09:37，ProbePhone，bundle ~/build/calsync-468.xcresult）：DeviceSyncTests 31 法（旧 27＋新 4）＋ConnectGuideDeviceConditionTests 5 法，共 36 过、0 失败，** TEST SUCCEEDED **；App 目标整体构建通过（健康面/诊断段/引擎改动编译面全过）。
+
+### 真机门（归用户 verdict，装版后验）
+
+1. 回前台即同步：杀 App 48 小时后重开，一轮前台周期内（≤15 分钟）calendar 与 reminders 副本 synced_at 均刷新（服务端审计账出现新的 sync:calendar／sync:reminders 成功记录）；总览页两行健康点转绿。
+2. 健康面第一屏定因回读：装版先看日历/提醒行——若显权限分型人话即实锤旧断供走的是 blocked 分支；诊断段「最近自检」结论与服务端审计逐条对得上。
+3. 手动同步：逐数据集点「立即同步」，行内转圈停后时刻往前走；故意断网点一次，失败原因红字显形、不报假成功。
+4. 权限撤销显形：系统设置里关掉日历权限→回 App 打开同步页，该行红点＋「权限已关：去系统设置里开启」；恢复权限后下一轮前台自检自动恢复推送，无需重装/重登。
+5. 断网恢复：飞行模式回前台（自检落账、同步失败进退避）→恢复网络回前台，退避到点后自动补同步；提醒读取不再出现整轮挂死（20 秒超时落账失败）。
