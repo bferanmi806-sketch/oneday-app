@@ -17336,3 +17336,15 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 3. 手动同步：逐数据集点「立即同步」，行内转圈停后时刻往前走；故意断网点一次，失败原因红字显形、不报假成功。
 4. 权限撤销显形：系统设置里关掉日历权限→回 App 打开同步页，该行红点＋「权限已关：去系统设置里开启」；恢复权限后下一轮前台自检自动恢复推送，无需重装/重登。
 5. 断网恢复：飞行模式回前台（自检落账、同步失败进退避）→恢复网络回前台，退避到点后自动补同步；提醒读取不再出现整轮挂死（20 秒超时落账失败）。
+
+## §469 0.50.113 组版（2026-11-24；基线 rel-05112 @2ea9e00）
+
+- 料源：§468 日历/提醒同步断供修复独占（feat/cal-sync，基线 rel-05112：dbaf524 纯逻辑＋钉测／a951beb 控制器自检落账／0f2df3a 健康面＋EventKit 引擎加固／34c56a9 §468 入档，7 文件 +843/−38），合并提交 c718ec9。
+- 冲突处置：零冲突（料线基线即 rel-05112 本体、DESIGN §468 尾部追加自动合并）。
+- 合并后亲验：primarySaturated 定义全仓恰一份；ChatView 键盘坞仍 §449 形态、§451 发送泵符号计数与 112 树同数（runSubmitPump 2、SubmissionLane 5）；§461 confirmButtonHeight 3、§459 IdeasView detents [.large] 1、BridgeMilestone 残留 1（注释）均与 112 树同数——§451/§452/§461/§459/目标对齐钉全不回潮。
+- 版本戳：Project.swift 升 0.50.113／241，tuist generate（先 tuist install）后 Derived 戳亲验 0.50.113／241，提交 2f4182d（generate 后未还原 Derived）。环境坑同 §467：派生 swift-markdown／cmark-gfm 部署目标生成 13.1，本地 sed 抬 15.0（生成物未入库）。
+- 发布集（RUN 2026-11-24 09:48:46，bundle Test-OneDayApp-rel05113.xcresult，dd-05113-test，ProbePhone 开跑前 simctl erase）：名单＝112 官方 bundle xcresulttool 提取 175 套／1415 项全限定名（与 §467 精确闭合）＋谱系补入 1 套＝176 套／1447 项；逐套对账仅此一处增量、其余 175 套计数与 112 逐套相同，总项精确闭合；1446 过、1 红。UI 腿三套（bundle Test-UI-rel05113）：9 项 7 过、2 跳（既有跳过）、0 红，同 112 口径。
+- 补入 1 套说明（谱系遗漏）：OneDayCoreTests/DeviceSyncTests——§468 料面所在套，自始不在发布集谱系内（112 名单无此套），与 RunTurnTests（109）等同型。本版按料面补入并明示：静态法数 28（112 树）→32（本版，+4 与 §468 交卷新增 4 法吻合），实跑 32/32 全过。
+- 红项处置：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–112 逐字同红、已裁可接受。本版无新红、无改钉（HapticsMatrixTests 本轮全过）。
+- IPA：Release 构建 BUILD SUCCEEDED（dd-05113-release，rc=0）；~/build/OneDay-0.50.113-241.ipa，16,835,397 字节，md5 7207d8acc03eca5e0a0fdade6fccd738；unzip 直验主 App 本体 plist 三值＝0.50.113／241／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.113-241.ipa）md5 一致。
+- 真机门（归用户 verdict）：①杀 App 48h 后重开，一轮前台周期内（≤15 分钟）calendar/reminders 的 synced_at 均刷新、审计账出现新成功记录、设备同步总览两行转绿；②装版先看健康面第一屏定因回读（权限分型人话＝实锤 blocked 分支）＋诊断段自检结论与审计逐条对账；③逐数据集点「立即同步」时刻往前走，断网点一次失败原因红字显形、不报假成功；④系统设置关日历权限→同步页该行红点＋「权限已关，去系统设置里开启」，恢复后下一轮自检自动恢复推送；⑤飞行模式回前台→恢复网络，退避到点自动补同步；提醒读取不再整轮挂死。
