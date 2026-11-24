@@ -13,7 +13,12 @@ import SwiftUI
 /// 迁出枢纽、落设置页「偏好与权限」组（Approval-
 /// RulesSettingsView 承载，规则面全 App 只此一处不
 /// 变）；台账自此只留审批记录（条目与详情即记录入
-/// 口），不再兼收设置面。本文件留三件：
+/// 口），不再兼收设置面。
+/// §482（2026-11-24，用户 12:23 亲批、改判 §244）：
+/// 中枢审核段已成型（账本＋记录同家），审批规则整
+/// 页迁回中枢审核段（HubAuditSection 入口行直推本
+/// 页），§244 当年归设置的理由（规则是长期设置）
+/// 让位于治理同家口径；设置目录条目退役。本文件留三件：
 /// ①审批规则区（ApprovalRulesView）与设置页承载；
 /// ②锚点点达支持（ApprovalAnchorSupport）——台账
 ///   详情的审批条目「查看原对话」复用原审核段的
@@ -23,12 +28,12 @@ import SwiftUI
 ///   ——只读 diff 呈现，聊天就地卡与台账详情共用，
 ///   本来就不属于审核段本体、原样保留。
 
-// MARK: - 审批规则（§244 归设置页权限区）
+// MARK: - 审批规则（§244 曾归设置页；§482 迁回中枢审核段）
 
 /// 审批规则区（0.36.21，规格 §4）：规则只存桥侧，
 /// 这里是只读镜像＋撤销入口——没有撤销面不许交付
-/// 是硬口径。§244 后本区由设置页「偏好与权限 →
-/// 审批规则」（ApprovalRulesSettingsView）承载、
+/// 是硬口径。§482 后本区由中枢审核段直推的规则
+/// 页（ApprovalRulesSettingsView）承载、
 /// 撤销确认框由承载方挂，只在审批数据就绪
 /// （.ready）时出现：通道未接通/未启用时规则无从
 /// 谈起，不拿空区冒充（未就绪态由承载页如实呈现）。
@@ -45,14 +50,14 @@ struct ApprovalRulesView: View {
             Section("审批规则") {
                 if let note = store.rulesNote {
                     Text(note)
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(Palette.danger)
                 }
                 if store.approvalRules.isEmpty {
                     Text(store.rulesLoaded
                         ? "暂无规则。在聊天里的待批卡上点「总是允许这一类」后，会在这里留下一条，可随时撤销。"
                         : "规则还没有拉到，下拉刷新后再看。")
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(Palette.inkSecondary)
                 }
                 ForEach(store.approvalRules) { rule in
@@ -70,7 +75,7 @@ struct ApprovalRulesView: View {
                     .foregroundStyle(Palette.ink)
                 if let createdAt = rule.createdAt {
                     Text("建立于 \(ApprovalTimeText.relative(createdAt))")
-                        .font(.caption)
+                        .font(.subheadline)
                         .foregroundStyle(Palette.inkSecondary)
                 }
             }
@@ -89,9 +94,11 @@ struct ApprovalRulesView: View {
     }
 }
 
-/// 审批规则设置页（§244 归位，大厂九项⑦）：规则是
-/// 长期设置、归设置页「偏好与权限」组；台账只留审
-/// 批记录。数据与枢纽/聊天卡同源（AppState 共享
+/// 审批规则页（§244 曾归设置页「偏好与权限」组；
+/// §482 迁中枢审核段，用户 2026-11-24 亲批改判）：
+/// 入口＝中枢审核段「审批规则」行（HubAuditSection
+/// 直推本页），与授权账本/审批记录同家。数据与枢
+/// 纽/聊天卡同源（AppState 共享
 /// AgentHubStore、同拉取同撤销路）；未就绪态在此
 /// 如实呈现（加载中/通道未接通/未启用/失败），不
 /// 拿空区冒充。撤销确认框与旧枢纽承载同一文案
@@ -110,8 +117,8 @@ struct ApprovalRulesSettingsView: View {
     var body: some View {
         List {
             Section {
-                Text("在聊天里的待批卡上点「总是允许这一类」，会在这里留下一条规则：同类写入以后直接通过、不再逐条问。撤销一条，恢复逐条审批。")
-                    .font(.footnote)
+                Text("在聊天里的待批卡上点「总是允许这一类」，同类写入以后直接通过、不再逐条问；撤销一条，恢复逐条审批。")
+                    .font(.subheadline)
                     .foregroundStyle(Palette.inkSecondary)
             }
             stateSection
@@ -156,13 +163,15 @@ struct ApprovalRulesSettingsView: View {
         }
     }
 
-    /// 写入审批（§450 治理归一）：注册表里两条
-    /// config-backed 记录（记忆/技能写入审批）此
-    /// 前只在注册表里、设置无行，治理被劈两处——
-    /// 本节按 key 直查注册表呈现（§437 五型只读渲
-    /// 染、值由服务器回读）；记录缺失整行不出、
-    /// 不造假行，整表拉不到整节不出（回落口径同
-    /// 设置根页：注册表是增益不是依赖）
+    /// 写入审批（§450 治理归一；§482 状态行化）：注
+    /// 册表里两条 config-backed 记录（记忆/技能写入
+    /// 审批）按 key 直查注册表呈现，值由服务器回
+    /// 读；记录缺失整行不出、不造假行，整表拉不到
+    /// 整节不出（回落口径同设置根页：注册表是增益
+    /// 不是依赖）。§482 起不再走五型通用渲染的禁用
+    /// 开关（死钮）——二期写面开闸前以状态行呈现
+    /// （题＋当前值），真可改随自主设置权二期在本
+    /// 页开
     @ViewBuilder
     private var writeApprovalSection: some View {
         let records = [
@@ -171,13 +180,51 @@ struct ApprovalRulesSettingsView: View {
         if !records.isEmpty {
             Section {
                 ForEach(records) { record in
-                    SettingsRegistryRowView(record: record)
+                    writeApprovalStatusRow(record)
                 }
             } header: {
                 Text("写入审批")
             } footer: {
-                Text("打开时，AI 新写或改动你的记忆、技能之前会先等你批准；关掉时直接写入、不再逐条问。这两项由服务器保存，本页只看当前状态。")
+                Text("打开时，AI 新写或改动你的记忆、技能之前会先等你批准；关掉时直接写入。")
             }
+        }
+    }
+
+    /// 写入审批状态行：图标＋题＋当前值一词（与注册
+    /// 表回读同源），不摆点不动的开关
+    private func writeApprovalStatusRow(
+        _ record: SettingsRegistryRecord
+    ) -> some View {
+        HStack(spacing: OneDayMetrics.spacingSM) {
+            Image(systemName: record.icon ?? "checkmark.shield")
+                .font(.system(
+                    size: FrameworkIcon.settingsGlyphSize,
+                    weight: .regular
+                ))
+                .foregroundStyle(Palette.ink)
+                .frame(width: OneDayMetrics.iconSlot, alignment: .center)
+                .accessibilityHidden(true)
+            Text(L10n.string(record.title))
+                .font(.rowTitleL)
+                .foregroundStyle(Palette.ink)
+            Spacer(minLength: OneDayMetrics.spacingS)
+            Text(writeApprovalValueWord(record))
+                .font(.subheadline)
+                .foregroundStyle(Palette.inkSecondary)
+        }
+        .frame(minHeight: OneDayMetrics.settingsRowHeight)
+        .contentShape(Rectangle())
+    }
+
+    private func writeApprovalValueWord(
+        _ record: SettingsRegistryRecord
+    ) -> String {
+        switch record.effectiveValue {
+        case .bool(let value):
+            return L10n.string(value ? "开启" : "关闭")
+        case .string(let value): return value
+        case .number(let value): return "\(value)"
+        case .none: return "—"
         }
     }
 

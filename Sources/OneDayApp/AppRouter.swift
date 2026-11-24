@@ -24,8 +24,9 @@ enum AgentRoute: Hashable {
     /// 设备与权限总览（0.34.0，本机连接器批一）：五件
     /// 数据源的授权状态＋调用开关汇总（设计档 §6.3）
     case devicePermissions
-    /// 审批规则（§244 归位）：设置页权限区内的规则面
-    case approvalRules
+    // 审批规则路由已退役（§482，D3 改判 §244）：规
+    // 则页迁中枢审核段、由中枢内层栈直推，不再经设
+    // 置页 AgentRoute 点达
 }
 
 /// （应用格内页面枚举 AppsPage 已于 0.20.0 随应用格
@@ -69,11 +70,8 @@ enum SettingsRoute: Hashable {
     /// 户端只读探活驻留面，落设置根服务器段（Core
     /// 目录 connectionSelfCheck 条目直达）
     case connectionSelfCheck
-    /// 状态详情页（StatusView）：总览撤页后状态的家
-    /// 原在服务器管理页（枢纽/总览归位对接点，合流
-    /// 2026-11-20 落位）——服务器管理页已随设置根归
-    /// 位撤销，入口改落设置根服务与工作区组直达
-    case status
+    // 状态详情页路由已退役（§482，D1）：StatusView
+    // 整页删除、三段内容各归正主（系统段收进网关页）
     /// 语音面（H2-a，台账 159）：台账 198 收敛 S13
     /// 归组后落设置根偏好与权限组（Core 目录 voice
     /// 条目直达）
@@ -120,7 +118,6 @@ extension SettingsRoute {
         case .serverDetail: return .serverDetail
         case .connectors: return .agent(.mcp)
         case .devicePermissions: return .agent(.devicePermissions)
-        case .approvalRules: return .agent(.approvalRules)
         case .gateway: return .gateway
         case .logs: return .logs
         case .appearance: return .appearance
@@ -128,9 +125,12 @@ extension SettingsRoute {
         case .about: return .about
         case .privacy: return .privacy
         case .terms: return .terms
-        case .computer, .serverFiles,
+        // §482：电脑/服务器文件/状态/审批规则四目的
+        // 地的设置侧入口已全退役（各归正主，见目录沿
+        // 革），映射恒 nil、目的地枚举保留备查
+        case .computer, .serverFiles, .status,
+             .approvalRules,
              .disconnect, .serverSessions: return nil
-        case .status: return .status
         case .mainSession: return .mainSession
         case .healthCheck: return .healthCheck
         case .connectionSelfCheck: return .connectionSelfCheck
@@ -144,17 +144,9 @@ extension SettingsRoute {
     }
 }
 
-/// 「工作区」组两页的 sheet 呈现槽枚举（原定义在
-/// SettingsView 内部、旧工作区枢纽页反向借用——
-/// §305 横扫 A-28 随 A-03 上移：呈现槽枚举归呈现
-/// 协调方，本枚举自此与 AppRouter 同文件公共层；
-/// 结构归位后枢纽页撤销、两页改由设置根组行直开）
-enum ManageSheet: String, Identifiable {
-    // overview 已撤（结构归位包，纲要 D5-1：总览撤
-    // 独立页，状态归服务器管理、最近会话归抽屉）
-    case computer, serverFiles
-    var id: String { rawValue }
-}
+// 「工作区」组 sheet 呈现槽枚举（ManageSheet）已
+// 退役（§482）：电脑并入中枢电脑格、服务器文件正口
+// 归资源库，设置页不再有 sheet 呈现的工作区面
 
 /// 全 App 唯一导航真值（§305，横扫 A-03 router-unify）：
 /// 0.4.0–§219 六代「置位—消费—清零」信箱原散在 AppState

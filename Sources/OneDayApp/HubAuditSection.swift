@@ -12,7 +12,8 @@ import SwiftUI
 /// 回读为准）；写闸规则的撤销仍归设置·权限区既有
 /// 规则面，本段只读呈现、不新造写路。待审批的裁
 /// 决仍只在聊天界面（§155 口径不变），本段只给计
-/// 数与去处。
+/// 数与去处。§482 起段末增「审批规则」入口（规则
+/// 页自设置迁回本段，改判 §244）。
 struct HubAuditSection: View {
     let hubStore: AgentHubStore
 
@@ -21,6 +22,7 @@ struct HubAuditSection: View {
             pendingSection
             grantsSection
             recordsSection
+            rulesSection
         }
         .listStyle(.plain)
         .task {
@@ -209,6 +211,41 @@ struct HubAuditSection: View {
             )
         }
         return parts.joined(separator: " · ")
+    }
+
+    // MARK: - 审批规则（§482 迁入，与账本/记录同家）
+
+    /// 审批规则入口：规则页本体 ApprovalRules-
+    /// SettingsView（§244 曾归设置页，§482 改判迁
+    /// 回本段直推）；页内含「总是允许」规则撤销、
+    /// 命令授权与写入审批状态
+    private var rulesSection: some View {
+        Section {
+            NavigationLink {
+                ApprovalRulesSettingsView()
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    iconBox(
+                        systemImage: "checkmark.shield",
+                        tint: Palette.inkSecondary
+                    )
+                    VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                        Text("审批规则")
+                            .font(.body)
+                            .foregroundStyle(Palette.ink)
+                        Text("「总是允许」规则、命令授权与写入审批")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.inkSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(rowInsets)
+                .padding(.vertical, OneDayMetrics.spacingXS)
+            }
+        } header: {
+            Text("审批规则")
+        }
     }
 
     // MARK: - 共用件

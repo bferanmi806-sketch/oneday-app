@@ -93,6 +93,8 @@ private func supportHeader(_ title: String) -> some View {
 /// help 页）：连接帮助两条如实口径（地址形态、双方式
 /// 登录凭据）＋反馈外链两条（OneDay 议题、Hermes 项
 /// 目）。全部是静态真内容，不接任何假表单
+/// §482（D5）：关于页的「更新说明」全表迁入本页末
+/// 节——更新日志归帮助、不归关于
 struct HelpView: View {
     var body: some View {
         List {
@@ -131,6 +133,8 @@ struct HelpView: View {
             }
             .listRowBackground(Palette.surface)
             .listRowInsets(OneDayMetrics.settingsRowInsets)
+
+            releaseNotesSection
         }
         .listStyle(.insetGrouped)
         .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
@@ -200,66 +204,6 @@ struct HelpView: View {
             .contentShape(Rectangle())
         }
     }
-}
-
-// MARK: - 关于
-
-/// 关于 OneDay（设置页重塑 §164；蓝本＝用户亲递原型
-/// about 页）：版本 hero＋服务两行（Hermes/伴生——原
-/// 设置首页版本组整组迁入，数值由 SettingsView 已加
-/// 载的 status 与伴生探测派生注入，本页不另发请求）
-/// ＋法律与隐私（隐私政策/用户协议正式全文两页）＋开源与署名（原
-/// 关于组两条外链迁入＋OneDay 仓库一条）。组脚注＝
-/// 三层命名分工句（2026-11-11 21:06 定案）与原隐私
-/// 说明合并
-struct AboutView: View {
-    /// Hermes 版本位（读不到如实显「未知」，口径同原
-    /// 版本组，不许拿已知生产版本冒充现读）
-    let hermesVersionText: String
-    /// 伴生副行（Core CompanionStatus 派生整行）
-    let companionLine: String
-    /// 伴生组脚注（缺失/需升级时的一句可行动人话）
-    let companionNote: String?
-
-    var body: some View {
-        List {
-            heroSection
-            serviceSection
-            releaseNotesSection
-            legalSection
-            openSourceSection
-            labSection
-        }
-        .listStyle(.insetGrouped)
-        .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
-        .scrollContentBackground(.hidden)
-        .background(Palette.settingsBG)
-        .navigationTitle("关于 OneDay")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var heroSection: some View {
-        Section {
-            VStack(spacing: OneDayMetrics.spacingXS) {
-                // §188：原型 hero 顶部 68×68 圆角图标
-                // 居中（角 17），图标与名行距 16＝
-                // SM(12)＋XS(4) 梯队合成
-                AppIconView(size: 68, cornerRadius: 17)
-                    .padding(.bottom, OneDayMetrics.spacingSM)
-                Text("OneDay")
-                    .font(.screenName)
-                    .foregroundStyle(Palette.ink)
-                Text(OneDayVersionLabel.hero)
-                    .font(.rowSubtitle)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, OneDayMetrics.spacingSM)
-            .accessibilityElement(children: .combine)
-        }
-        .listRowBackground(Palette.surface)
-        .listRowInsets(OneDayMetrics.settingsRowInsets)
-    }
 
     /// 当前安装版本（更新说明段的对账锚：只认包内真值）
     private static var appVersion: String {
@@ -268,10 +212,11 @@ struct AboutView: View {
         ) as? String ?? ""
     }
 
-    /// 更新说明段（台账 175，OB-U3 App 侧；§391）：
-    /// 当前版本在首（带「当前版本」标）、此前版本随后；
-    /// 内容走 Core ReleaseNotes 随包表（只记已发货版
-    /// 本），当前版本不在表中时整表呈现、不冒充
+    /// 更新说明段（台账 175，OB-U3 App 侧；§391；
+    /// §482 自关于页迁入）：当前版本在首（带「当前
+    /// 版本」标）、此前版本随后；内容走 Core
+    /// ReleaseNotes 随包表（只记已发货版本），当前
+    /// 版本不在表中时整表呈现、不冒充
     private var releaseNotesSection: some View {
         Section {
             ForEach(
@@ -302,35 +247,48 @@ struct AboutView: View {
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
     }
+}
 
-    private var serviceSection: some View {
+// MARK: - 关于
+
+/// 关于 OneDay（设置页重塑 §164；§482 瘦身，D5）：
+/// 只留版本 hero＋法律与隐私＋开源与署名——原服务
+/// 组（Hermes/伴生，与网关页状态、根页 notice 三处
+/// 重复）删、更新说明全表迁帮助与反馈页、内部实验
+/// 整节迁聊天诊断页末节；本页自此无注入参数
+struct AboutView: View {
+    var body: some View {
+        List {
+            heroSection
+            legalSection
+            openSourceSection
+        }
+        .listStyle(.insetGrouped)
+        .listSectionSpacing(OneDayMetrics.settingsSectionSpacing)
+        .scrollContentBackground(.hidden)
+        .background(Palette.settingsBG)
+        .navigationTitle("关于 OneDay")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var heroSection: some View {
         Section {
-            LabeledContent("Hermes") {
-                Text(hermesVersionText)
-                    .font(.system(.callout, design: .monospaced))
-            }
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
-                    Text("伴生服务")
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(companionLine)
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(2)
-                }
-                Spacer(minLength: OneDayMetrics.spacingS)
-            }
-            .frame(minHeight: OneDayMetrics.settingsRowHeight)
-            .contentShape(Rectangle())
-        } header: {
-            supportHeader("服务")
-        } footer: {
-            if let companionNote {
-                Text(companionNote)
+            VStack(spacing: OneDayMetrics.spacingXS) {
+                // §188：原型 hero 顶部 68×68 圆角图标
+                // 居中（角 17），图标与名行距 16＝
+                // SM(12)＋XS(4) 梯队合成
+                AppIconView(size: 68, cornerRadius: 17)
+                    .padding(.bottom, OneDayMetrics.spacingSM)
+                Text("OneDay")
+                    .font(.screenName)
+                    .foregroundStyle(Palette.ink)
+                Text(OneDayVersionLabel.hero)
                     .font(.rowSubtitle)
                     .foregroundStyle(Palette.inkSecondary)
             }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, OneDayMetrics.spacingSM)
+            .accessibilityElement(children: .combine)
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
@@ -386,10 +344,6 @@ struct AboutView: View {
             )
         } header: {
             supportHeader("开源与署名")
-        } footer: {
-            Text("OneDay 是客户端，服务端是 Hermes 开源项目；智能体的名字以你服务器上的人设为准。OneDay 只与你自己的服务器通信；凭据存本机钥匙串，聊天记录存本机，服务端数据归你所有。")
-                .font(.rowSubtitle)
-                .foregroundStyle(Palette.inkSecondary)
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
@@ -415,264 +369,6 @@ struct AboutView: View {
         }
     }
 
-    // MARK: - 内部实验（结构归位 2026-11-20 沉底）
-
-
-    // §247 流式呈现开关已于台账 198 收敛 S6 迁出
-    // 本节：键 chat.streaming.gen4 不变，唯一写口改
-    // 在外观页「回复呈现」组（与打字动画相邻成组、
-    // 文案互指）——本节不再留第二写口，免两处两名
-    // 两副面孔（审计 B4）
-
-    /// §374（换引擎步骤 1/2）增量喂入开关（与
-    /// ChatView 同键同源，缺省开（0.50.96 转正）；步骤 2 起为新
-    /// 路主路选择、关即回旧路全量对账）
-    @AppStorage(ChatListIncrementalFeature.defaultsKey)
-    private var chatListIncrementalEnabled = true
-    /// §374.3（换引擎步骤 3）单 section 布局开关
-    /// （与控制器同键同源，缺省开（0.50.97 组版
-    /// 转正）；开＝单 section 构造、关即回 §329
-    /// 逐行 section 构造（回退口））
-    @AppStorage(ChatListSingleSectionFeature.defaultsKey)
-    private var chatListSingleSectionEnabled = true
-    /// §374.4（换引擎步骤 4①）时间窗合并删除开
-    /// 关（与控制器同键同源，缺省开＝窗已删；关
-    /// 掉即恢复 §366 落定拍 150ms 时间窗合并，
-    /// 一个版本周期的回退口）
-    @AppStorage(
-        ChatListCoalesceWindowDropFeature.defaultsKey
-    )
-    private var chatListDropCoalesceWindow = true
-    /// §374.5（换引擎步骤 4②）停滚结清单拍结清
-    /// 开关（与控制器同键同源，缺省开＝单拍结
-    /// 清；关掉即恢复 §366 停滚结清拆拍，一个
-    /// 版本周期的回退口）
-    @AppStorage(
-        ChatListSettleSingleBeatFeature.defaultsKey
-    )
-    private var chatListSettleSingleBeat = true
-    /// §374.6（换引擎步骤 4③）抽屉动画期冻结删
-    /// 除开关（与控制器同键同源，缺省开＝冻结已
-    /// 删；关掉即恢复 §366 抽屉动画期冻结，一个
-    /// 版本周期的回退口）
-    @AppStorage(
-        ChatListDrawerFreezeDropFeature.defaultsKey
-    )
-    private var chatListDropDrawerFreeze = true
-    /// §374.7（换引擎步骤 4④）滚动闸记账降级
-    /// 开关（与控制器同键同源，缺省开＝已降级
-    /// 为过渡记账规则；关掉即恢复现行滚动闸，
-    /// 一个版本周期的回退口）
-    @AppStorage(
-        ChatListScrollLedgerFeature.defaultsKey
-    )
-    private var chatListScrollLedger = true
-    /// §374.8（换引擎步骤 5）选区单键暂缓开关
-    /// （与控制器同键同源，缺省开＝单键暂缓在
-    /// 场；关掉＝暂缓停用、全部变更直达的应急
-    /// 档，选区被打断风险随之回归，见 DESIGN
-    /// §374.8）
-    @AppStorage(
-        ChatListSelectionKeyGuardFeature.defaultsKey
-    )
-    private var chatListSelectionKeyGuard = true
-    /// §384（G-14）崩溃报告收集开关（与采集端同
-    /// 键同源，缺省开＝MetricKit 订阅在场；关掉
-    /// 即摘除订阅、不再收集，报告面存量仍可回读）
-    @AppStorage(
-        CrashCollectionFeature.defaultsKey
-    )
-    private var crashCollectionEnabled = true
-
-    /// 内部实验节（原设置根「实验」组整组迁入，纲要
-    /// D6-2／原则 7）：施工旗是内部机制，不与用户功
-    /// 能同级——沉本页末节并明示内部属性。台账 198
-    /// 收敛后本节＝聊天诊断入口＋§374 各步施工旗
-    /// （两面旗已随 §374.9 旧承载退役删除）：流式
-    /// 呈现旗已按 S6 迁外观页「回复呈现」
-    /// 组（它是用户呈现偏好、不是内部机制，原与本
-    /// 节同置是归组错位）
-    private var labSection: some View {
-        Section {
-            Toggle(isOn: $chatListIncrementalEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表增量喂入"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认关闭：开启后消息列表改走变更集增量喂入（只落写变化行）；关掉即回现行全量喂入，出问题随时回退。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListSingleSectionEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表单 section 布局"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：消息列表走单 section 布局构造（全体行同属一节、逐行确定高）；关掉即回现行逐行 section 构造，出问题随时回退。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListDropCoalesceWindow) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表落定拍直达施工"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：落定拍布局失效不再攒 150ms 时间窗、见账即施工，流式行高采纳跟发布节拍；关掉即恢复时间窗合并（回退口）。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListSettleSingleBeat) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表停滚结清单拍"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：停滚后落定拍一拍内结清全部待结账目（数据、布局、量测与落位），不再拆数据拍/布局拍两拍；关掉即恢复拆拍结清（回退口）。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListDropDrawerFreeze) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表抽屉动画期直达应用"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：抽屉开合动画期内到达的消息变更直接应用、不再冻结记账等动画结束；关掉即恢复动画期冻结（回退口）。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListScrollLedger) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表滚动期记账降级"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：滚动中到达的消息变更只记账、停滚时在滚动结束回调当场应用一次；关掉即恢复现行滚动闸（停滚后武装结清拍消费，回退口）。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            Toggle(isOn: $chatListSelectionKeyGuard) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("聊天列表选区单键暂缓"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：正在选字的那一行内容更新先暂存、选区消失后自动补发，其余行照常更新；关掉后所有更新立即直达，选字可能被流式更新打断（应急回退）。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            // 聊天诊断入口（台账 198 收敛 S13）：内部
-            // 取证与施工旗同族，入口自设置根支持组迁
-            // 入本节（根页目录仅保留搜索可达）；行式
-            // 与本页 legalRow 同式（图标＋题、值路由）
-            NavigationLink(value: SettingsRoute.chatDiagnostics) {
-                HStack(spacing: OneDayMetrics.spacingSM) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.system(
-                            size: FrameworkIcon.settingsGlyphSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(width: OneDayMetrics.iconSlot, alignment: .center)
-                        .accessibilityHidden(true)
-                    VStack(
-                        alignment: .leading,
-                        spacing: OneDayMetrics.spacingMicro
-                    ) {
-                        Text(L10n.string("聊天诊断"))
-                            .font(.rowTitleL)
-                            .foregroundStyle(Palette.ink)
-                        Text(L10n.string("卡顿探针、量测积压与诊断留痕，仅供排障。"))
-                            .font(.rowSubtitle)
-                            .foregroundStyle(Palette.inkSecondary)
-                    }
-                    Spacer(minLength: OneDayMetrics.spacingS)
-                }
-                .frame(minHeight: OneDayMetrics.settingsRowHeight)
-                .contentShape(Rectangle())
-            }
-            // 崩溃报告收集开关（G-14，DESIGN §384）：
-            // 与采集端 CrashDiagnosticsCollector 同键
-            // 同源，翻转经 onChange 即时摘/挂 MetricKit
-            // 订阅；报告只落本机过隐私门、不自动上传
-            Toggle(isOn: $crashCollectionEnabled) {
-                VStack(
-                    alignment: .leading,
-                    spacing: OneDayMetrics.spacingMicro
-                ) {
-                    Text(L10n.string("崩溃报告收集"))
-                        .font(.rowTitleL)
-                        .foregroundStyle(Palette.ink)
-                    Text(L10n.string("默认开启：崩溃与卡死由系统回传后脱敏保存在本机，可在下方报告页查看；关掉即停止收集。"))
-                        .font(.rowSubtitle)
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-            }
-            .onChange(of: crashCollectionEnabled) { _, newValue in
-                CrashDiagnosticsCollector.shared.setEnabled(newValue)
-            }
-            // 崩溃报告入口（G-14）：与聊天诊断同置同
-            // 式（图标＋题、值路由），根页目录仅搜索可达
-            NavigationLink(value: SettingsRoute.crashReports) {
-                HStack(spacing: OneDayMetrics.spacingSM) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(
-                            size: FrameworkIcon.settingsGlyphSize,
-                            weight: .regular
-                        ))
-                        .foregroundStyle(Palette.ink)
-                        .frame(width: OneDayMetrics.iconSlot, alignment: .center)
-                        .accessibilityHidden(true)
-                    VStack(
-                        alignment: .leading,
-                        spacing: OneDayMetrics.spacingMicro
-                    ) {
-                        Text(L10n.string("崩溃报告"))
-                            .font(.rowTitleL)
-                            .foregroundStyle(Palette.ink)
-                        Text(L10n.string("本机崩溃与卡死诊断（已脱敏），仅供排障。"))
-                            .font(.rowSubtitle)
-                            .foregroundStyle(Palette.inkSecondary)
-                    }
-                    Spacer(minLength: OneDayMetrics.spacingS)
-                }
-                .frame(minHeight: OneDayMetrics.settingsRowHeight)
-                .contentShape(Rectangle())
-            }
-        } header: {
-            supportHeader("内部实验")
-        } footer: {
-            Text("内部开关：仅供开发与排障使用，与正式功能无关；出问题时按每项说明关掉即回退。")
-                .font(.rowSubtitle)
-                .foregroundStyle(Palette.inkSecondary)
-        }
-        .listRowBackground(Palette.surface)
-        .listRowInsets(OneDayMetrics.settingsRowInsets)
-    }
 }
 
 // MARK: - 法律文档页

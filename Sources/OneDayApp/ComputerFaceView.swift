@@ -3,9 +3,12 @@ import OneDayDesign
 import SwiftUI
 import WebKit
 
-/// 电脑面（P9，0.15.0 转正）：应用格「电脑」行的落点，
-/// 把智能体的云电脑（Simular Box）做成完整一面——
-/// 状态头＋三段：桌面（截图/接管）、文件、终端。
+/// 电脑面（P9，0.15.0 转正；§482 归位中枢）：智能
+/// 体的云电脑（Simular Box）完整一面——状态头＋三
+/// 段：桌面（截图/接管）、文件、终端。原设置「电
+/// 脑」行是其唯一入口；§482（D4 甲）整面并入中枢
+/// 电脑格当家（与云电脑实时画面合家），设置行与
+/// sheet 呈现退役、全 App 只剩这一副「电脑」面孔。
 /// 单一事实源纪律：本面持有一份 BoxBridgeStore 并注入
 /// 桌面段（BrowserFaceView 关掉自带轮询与状态卡），
 /// 状态只在本面的状态头呈现一处；文件段就是文件格
@@ -16,9 +19,7 @@ import WebKit
 /// 额度，文件/终端段不为看不见的画面取图）。
 /// 唤醒只走手动入口：状态头与桌面段的「唤醒并查看」
 /// （桥在截图时才唤醒，状态读永不唤醒）。
-struct ComputerView: View {
-    var onBackToApps: (() -> Void)? = nil
-
+struct ComputerFaceView: View {
     @Environment(AppState.self) private var appState
     @State private var store = BoxBridgeStore()
     @State private var segment: Segment = .desktop
@@ -38,45 +39,32 @@ struct ComputerView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: OneDayMetrics.spacingM) {
-                statusHeader
-                Picker("电脑分段", selection: $segment) {
-                    ForEach(Segment.allCases) { item in
-                        Text(item.rawValue).tag(item)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, OneDayMetrics.pageGutter)
-                segmentContent
-            }
-            .padding(.top, OneDayMetrics.spacingM)
-            .background(Palette.pageBG)
-            .navigationTitle("电脑")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if let onBackToApps {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button(action: onBackToApps) {
-                            Label("返回", systemImage: "chevron.left")
-                        }
-                    }
+        VStack(spacing: OneDayMetrics.spacingM) {
+            statusHeader
+            Picker("电脑分段", selection: $segment) {
+                ForEach(Segment.allCases) { item in
+                    Text(item.rawValue).tag(item)
                 }
             }
-            .task { await runLoop() }
-            // 离面收尾：接管旗由本面负责清零——接管中
-            // 离开电脑面不得把「智能体已暂停」永久挂在
-            // 任务派发上（store.takeover 的 onChange 在
-            // 桌面段内回写，桌面段随本面一同卸载时补清）
-            .onDisappear {
-                if store.takeover {
-                    store.takeover = false
-                    appState.boxTakeoverActive = false
-                }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            segmentContent
+        }
+        .padding(.top, OneDayMetrics.spacingM)
+        .background(Palette.pageBG)
+        .task { await runLoop() }
+        // 离面收尾：接管旗由本面负责清零——接管中
+        // 离开电脑面不得把「智能体已暂停」永久挂在
+        // 任务派发上（store.takeover 的 onChange 在
+        // 桌面段内回写，桌面段随本面一同卸载时补清）
+        .onDisappear {
+            if store.takeover {
+                store.takeover = false
+                appState.boxTakeoverActive = false
             }
-            .sheet(item: $liveItem) { item in
-                liveSheet(item)
-            }
+        }
+        .sheet(item: $liveItem) { item in
+            liveSheet(item)
         }
     }
 

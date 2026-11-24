@@ -19,6 +19,11 @@ struct ServerDetailView: View {
     @State private var saveResult: String?
     @State private var saveFailed = false
     @State private var isRetesting = false
+    /// 是否已有实测结论（T12/§482）：未实测时状态行
+    /// 只呈中性态（host＋已保存凭据），不许先显「连
+    /// 接正常」——保存并测试/重新测试任一出了结论才
+    /// 置真
+    @State private var hasRetested = false
     @State private var retestResult: String?
     @State private var retestFailed = false
 
@@ -29,11 +34,17 @@ struct ServerDetailView: View {
                     .padding(.bottom, OneDayMetrics.spacingS)
                 VStack(spacing: 0) {
                     HStack(spacing: OneDayMetrics.spacingSM) {
-                        StatusDot(color: retestFailed ? Palette.danger : Palette.success)
-                        Text(retestFailed ? "连接异常" : "连接正常")
+                        StatusDot(color: statusDotColor)
+                        Text(statusRowText)
                             .font(.body)
                             .foregroundStyle(Palette.ink)
                         Spacer()
+                        if !hasRetested, !retestFailed,
+                           appState.config != nil {
+                            Text("已保存凭据")
+                                .font(.footnote)
+                                .foregroundStyle(Palette.inkSecondary)
+                        }
                     }
                     .padding(.horizontal, OneDayMetrics.spacingM)
                     .frame(minHeight: OneDayMetrics.rowHeight)
@@ -148,6 +159,47 @@ struct ServerDetailView: View {
                 }
                 .odGroup()
 
+                // 服务器管理（§482 收纳，D2）：根页
+                // 「维护」段撤销——服务器密钥（原「密
+                // 钥」改名）/体检与存档/日志/连接自检
+                // 四件收进本页成组，排障路径成串；点
+                // 达仍走设置路由原目的地（行为不变、
+                // 只换门的位置，与 §450 添加与配对收
+                // 纳同式）
+                SectionLabel("服务器管理")
+                    .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                    .padding(.bottom, OneDayMetrics.spacingS)
+                VStack(spacing: 0) {
+                    NavigationLink(value: SettingsRoute.envVars) {
+                        serverLinkRow(
+                            title: "服务器密钥",
+                            summary: "保存在服务器上的密钥"
+                        )
+                    }
+                    GroupDivider()
+                    NavigationLink(value: SettingsRoute.healthCheck) {
+                        serverLinkRow(
+                            title: "体检与存档",
+                            summary: "自检、安全审计与备份存档"
+                        )
+                    }
+                    GroupDivider()
+                    NavigationLink(value: SettingsRoute.logs) {
+                        serverLinkRow(
+                            title: "日志",
+                            summary: "服务端运行日志"
+                        )
+                    }
+                    GroupDivider()
+                    NavigationLink(value: SettingsRoute.connectionSelfCheck) {
+                        serverLinkRow(
+                            title: "连接自检",
+                            summary: "逐项检查连接、服务状态与服务器能力"
+                        )
+                    }
+                }
+                .odGroup()
+
                 // 版本与更新段（DESIGN §360；台账 36
                 // 案 A 只读感知面，段本体自带取数）
                 ServerVersionSection()
@@ -170,6 +222,19 @@ struct ServerDetailView: View {
                 apiKeyText = appState.apiKey ?? ""
             }
         }
+    }
+
+    /// 状态点颜色：异常红、已实测正常绿、未实测中性灰
+    private var statusDotColor: Color {
+        if retestFailed { return Palette.danger }
+        return hasRetested ? Palette.success : Palette.inkMuted
+    }
+
+    /// 状态行文案：未实测只报 host（中性态，T12）
+    private var statusRowText: String {
+        if retestFailed { return "连接异常" }
+        if hasRetested { return "连接正常" }
+        return appState.config?.host ?? "未连接"
     }
 
     /// 页内导航行（§450）：与本页既有行同几何（横
@@ -218,6 +283,8 @@ struct ServerDetailView: View {
             serverText = config.baseString
             apiKeyText = appState.apiKey ?? apiKeyText
             saveFailed = false
+            hasRetested = true
+            retestFailed = false
             saveResult = "已保存：健康检查与密钥验证都通过。"
             Haptics.success()
         } catch {
@@ -235,9 +302,11 @@ struct ServerDetailView: View {
         do {
             try await appState.retestConnection()
             retestFailed = false
+            hasRetested = true
             retestResult = "连接正常：校验全部通过。"
         } catch {
             retestFailed = true
+            hasRetested = true
             retestResult = (error as? HermesError)?.userMessage ?? "连接失败。"
         }
     }

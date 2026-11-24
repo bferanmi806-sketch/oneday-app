@@ -10,8 +10,9 @@ import OneDayCore
 /// AppState 零声明（防第二信箱再长出来）；②Settings-
 /// Route／AgentRoute 两枚举全仓单定义且同在
 /// AppRouter.swift、AppRoutes.swift 不复活；
-/// ③ManageSheet 顶层定义在 AppRouter.swift、全仓
-/// 代码行零 SettingsView.ManageSheet 反向借用；
+/// ③ManageSheet 已于 §482 随设置行 sheet 呈现整
+/// 套退役——全仓零定义、零 SettingsView.ManageSheet
+/// 反向借用（防自创呈现槽回潮）；
 /// ④行为钉：五件在 AppRouter 上互为独立槽、消费
 /// 清零一件不扰其他四件（补 AppRouterTests 独立槽
 /// 测只覆盖两件的缺口）
@@ -110,14 +111,14 @@ final class SettingsRouteInboxStructureTests: XCTestCase {
         )
     }
 
-    func testManageSheetTopLevelNoReverseBorrow() throws {
+    func testManageSheetRetiredNoReverseBorrow() throws {
         let all = try allAppSources()
         let defs = all
             .filter { $0.code.contains("enum ManageSheet") }
             .map(\.name)
         XCTAssertEqual(
-            defs, ["AppRouter.swift"],
-            "ManageSheet 定义点不是单点／公共层：\(defs)"
+            defs, [],
+            "ManageSheet 已于 §482 退役、不许复活：\(defs)"
         )
         for (name, code) in all {
             XCTAssertFalse(

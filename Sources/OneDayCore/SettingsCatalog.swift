@@ -86,17 +86,18 @@ public enum SettingsDestination: Equatable, Sendable {
     case serverDetail
     case connectors
     case devicePermissions
-    /// 审批规则（§244 归位，大厂九项⑦）：规则是长期
-    /// 设置、归设置页权限区；台账只留审批记录
+    /// 审批规则（§244 曾归位设置页权限区；§482 改
+    /// 判，D3，用户 2026-11-24 亲批）：整页迁中枢审
+    /// 核段与账本/记录合家，本目的地保留备查、目录
+    /// 条目已退役
     case approvalRules
     case gateway
     case logs
     // 总览目的地已撤（结构归位包，纲要 D5-1：总览撤
     // 独立页、入口摘除，待处理归聊天/枢纽记录、最近
-    // 会话归抽屉）；状态详情页（StatusView）的家经
-    // 合流对接点落位：原拟归服务器管理页、该页已随
-    // 设置根归位撤销，改由本目录 status 条目在服务
-    // 与工作区组直达
+    // 会话归抽屉）；状态详情页（StatusView）曾由本
+    // 目的地经目录 status 条目直达——§482（D1）整
+    // 页退役、三段内容各归正主，本目的地保留备查
     case status
     case computer
     case serverFiles
@@ -234,8 +235,8 @@ public enum SettingsCatalog {
         ),
         SettingsCatalogEntry(
             id: "profiles", group: .agent,
-            title: "档案",
-            summary: "决定人设与系统提示，保存在服务器",
+            title: "配置档案",
+            summary: "决定 AI 的性格与做事方式",
             keywords: ["配置档案", "配置", "档案", "人设", "系统提示", "profile", "soul"],
             destination: .profiles
         ),
@@ -262,9 +263,9 @@ public enum SettingsCatalog {
         ),
         SettingsCatalogEntry(
             id: "delegation", group: .agent,
-            title: "任务委派",
-            summary: "子任务走哪个后端、哪条模型路线、哪个档案",
-            keywords: ["委派路由", "委派", "子智能体", "后端", "路由", "delegation", "routing"],
+            title: "子任务",
+            summary: "子任务用什么模型、在哪台机器上跑",
+            keywords: ["子任务", "任务委派", "委派路由", "委派", "子智能体", "后端", "路由", "delegation", "routing"],
             destination: .delegation
         ),
         SettingsCatalogEntry(
@@ -367,56 +368,40 @@ public enum SettingsCatalog {
             keywords: ["主线会话", "主线", "当前会话", "main session"],
             destination: .mainSession, showsInBrowse: false, segment: .sessions
         ),
-        // 服务端会话条目已退役（§450，设置 IA 先行包）：
-        // 目的地本体就是全部对话一级面（名单正主），设
-        // 置里的深链行属状态类重复门——按 2026-11-24
-        // 用户裁定整条移出（根页与搜索都不留）；目的
-        // 地枚举与 activate 深链保留备查（台账 199 沿革
-        // 见 SettingsDestination.serverSessions 注）
-        // 状态详情（StatusView）：原「总览」条目已随
-        // 枢纽/总览归位摘除（纲要 D5-1 总览撤页、D5-2
-        // 入口提浅归正主）；总览的状态下钻页不随页丢
-        // ——合流对接点落位为本条目，接替总览原位在工
-        // 作区资源段首位直达（活动/定时/系统三段）。
-        // 台账 198 收敛 S14：汇总页性质由根行副题明示
-        // §470（S5-11 打包改）：汇总页是状态下钻、
-        // 不是设置——整条移出根页，降为仅搜索可达
-        // （与 §450 R2 日志/连接自检的工具型降级同
-        // 口径）；StatusView 本体与 activate 点达不变
-        SettingsCatalogEntry(
-            id: "status", group: .serverAndWorkspace,
-            title: "状态",
-            summary: "活动、定时与系统状态",
-            keywords: ["状态", "活动", "定时", "系统", "status", "overview", "工作区"],
-            destination: .status, showsInBrowse: false, segment: .workspace
-        ),
-        SettingsCatalogEntry(
-            id: "computer", group: .serverAndWorkspace,
-            title: "电脑",
-            summary: "智能体使用的电脑",
-            keywords: ["云电脑", "桌面", "computer", "工作区"],
-            destination: .computer, segment: .workspace
-        ),
-        SettingsCatalogEntry(
-            id: "serverFiles", group: .serverAndWorkspace,
-            title: "服务器文件",
-            summary: "服务器上的文件",
-            keywords: ["文件", "files", "工作区", "资源库"],
-            destination: .serverFiles, segment: .workspace
-        ),
+        // 服务端会话条目已退役（§450，设置 IA 先行
+        // 包）：目的地本体就是全部对话一级面（名单正
+        // 主），设置里的深链行属状态类重复门——按
+        // 2026-11-24 用户裁定整条移出（根页与搜索都不
+        // 留）；目的地枚举与 activate 深链保留备查
+        // （台账 199 沿革见 SettingsDestination.
+        // serverSessions 注）
+        // 状态条目已退役（§482，D1，用户 2026-11-24
+        // 12:23 亲批）：StatusView 整页退役——活动段
+        // 归全部对话/日志、定时段归定时任务页、系统
+        // 段（资源/版本与运行时/会话存储）整组收进网
+        // 关状态页；目的地枚举保留备查、目录条目与页
+        // 面本体一并删除（与 serverSessions 同式）
+        // 电脑条目已退役（§482，D4 甲）：电脑面（桌
+        // 面/文件/终端三段）整面并入中枢电脑格、归中
+        // 枢当家，设置不再设第二扇门；目的地枚举保留
+        // 备查
+        // 服务器文件条目已退役（§482，D6）：资源库
+        // ••• 菜单「系统文件」与本行同组件同根，纯重
+        // 复门——设置行删除、全 App 统一名「系统文
+        // 件」；目的地枚举保留备查
         SettingsCatalogEntry(
             id: "envVars", group: .serverAndWorkspace,
-            title: "密钥",
+            title: "服务器密钥",
             summary: "保存在服务器上的密钥",
-            keywords: ["环境变量", "key", "env", "维护"],
-            destination: .envVars, segment: .maintenance
+            keywords: ["服务器密钥", "密钥", "环境变量", "key", "env", "维护"],
+            destination: .envVars, showsInBrowse: false, segment: .maintenance
         ),
         SettingsCatalogEntry(
             id: "healthCheck", group: .serverAndWorkspace,
             title: "体检与存档",
             summary: "自检、安全审计与备份存档",
             keywords: ["体检", "自检", "安全审计", "健康", "维护", "health", "doctor", "audit"],
-            destination: .healthCheck, segment: .maintenance
+            destination: .healthCheck, showsInBrowse: false, segment: .maintenance
         ),
         // 断开连接（动作条目，只进搜索：浏览态由根页
         // 服务器组末行手写呈现，点达经 activate 起确认框）
@@ -468,13 +453,10 @@ public enum SettingsCatalog {
             keywords: ["权限", "授权", "同步", "设备", "隐私"],
             destination: .devicePermissions
         ),
-        SettingsCatalogEntry(
-            id: "approvalRules", group: .preferences,
-            title: "审批规则",
-            summary: "「总是允许」的规则与撤销",
-            keywords: ["审批", "规则", "总是允许", "撤销", "approval", "rules"],
-            destination: .approvalRules
-        ),
+        // 审批规则条目已退役（§482，D3，用户 2026-
+        // 11-24 12:23 亲批、改判 §244）：审批规则整
+        // 页迁中枢审核段（与授权账本/审批记录合家），
+        // 设置目录不再设门；目的地枚举保留备查
         // 支持
         SettingsCatalogEntry(
             id: "help", group: .support,
