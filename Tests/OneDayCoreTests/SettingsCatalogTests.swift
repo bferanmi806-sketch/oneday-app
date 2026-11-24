@@ -420,7 +420,10 @@ final class SettingsCatalogTests: XCTestCase {
     func testRootBrowseCountsAfterSettingsIA() {
         // §493 再减：条目 34→30（退役四条）、浏览行
         // 21→16、根页渲染行 22→17（浏览 16＋手写断
-        // 开行 1）、可见段 6→5
+        // 开行 1）、可见段 6→5；§496：手写断开行迁
+        // 出根页（住当前服务器页页末），根页渲染行
+        // 17→16＝浏览行合计、与目录逐字一致（本测
+        // 浏览口径不变）
         XCTAssertEqual(SettingsCatalog.entries.count, 30)
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .top).count, 0

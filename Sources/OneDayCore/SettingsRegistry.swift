@@ -249,7 +249,9 @@ extension SettingsRegistryResponse: Decodable {
 
 /// 设置根页/搜索的一行：目的地行＝现行目录条目（渲
 /// 染与点达全走既有路径，行为不变）；值行＝注册表
-/// 基础型条目（通用渲染器直出）
+/// 基础型条目——§496 起合并引擎不再产出值行（不进
+/// 浏览组/搜索，只许专属面按 key 直查），枚举与通用
+/// 渲染器保留备专属面消费
 public enum SettingsRowModel: Equatable, Sendable, Identifiable {
     case destination(SettingsCatalogEntry)
     case value(SettingsRegistryRecord)
@@ -398,9 +400,12 @@ public extension SettingsCatalog {
                 guard entry.showsInBrowse else { continue }
                 referenced.insert(entry.id)
                 rows.append(.destination(entry))
-            } else if record.destination == nil {
-                rows.append(.value(record))
             }
+            // §496 加门：值记录（destination == nil）
+            // 不进任何浏览组——只许专属面按 key 直查
+            // 消费（record(forKey:)）；根页浏览行自此
+            // 全为目录目的地行（堵 118 盲区：值行曾绕
+            // 过目录混排进根页、实际可见比目录多 3 行）
         }
         for entry in builtin where !referenced.contains(entry.id) {
             rows.append(.destination(entry))
@@ -445,8 +450,8 @@ public extension SettingsCatalog {
     /// 有效搜索：registry 为 nil 时与 search 逐字一致
     /// （同一份内置产物包装）；有注册表时目的地集合
     /// 仍是全量内置条目（永不删行——搜索可达面不因
-    /// 注册表缩水），值行按题/副行命中并入同分层
-    /// （题命中层：条目在前、值行在后；余命中层同序）
+    /// 注册表缩水）；§496 起值行不并入搜索（加门，
+    /// 只许专属面按 key 直查消费）
     static func effectiveSearch(
         _ query: String,
         registry: SettingsRegistryResponse?
@@ -457,12 +462,10 @@ public extension SettingsCatalog {
         let needle = query
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
-        let valueRecords = SettingsGroupID.allCases
-            .flatMap { validRecords(in: $0, registry: registry) }
-            .filter { $0.destination == nil }
+        // §496 加门：值记录不进搜索面（与浏览组同口
+        // 径），搜索命中自此只有目录条目
         guard !needle.isEmpty else {
             return entries.map(SettingsRowModel.destination)
-                + valueRecords.map(SettingsRowModel.value)
         }
         let entryTitleHits = entries.filter {
             $0.title.lowercased().contains(needle)
@@ -474,16 +477,7 @@ public extension SettingsCatalog {
                         $0.lowercased().contains(needle)
                     })
         }
-        let valueTitleHits = valueRecords.filter {
-            $0.title.lowercased().contains(needle)
-        }
-        let valueOtherHits = valueRecords.filter { record in
-            !record.title.lowercased().contains(needle)
-                && (record.summary?.lowercased().contains(needle) ?? false)
-        }
         return entryTitleHits.map(SettingsRowModel.destination)
-            + valueTitleHits.map(SettingsRowModel.value)
             + entryOtherHits.map(SettingsRowModel.destination)
-            + valueOtherHits.map(SettingsRowModel.value)
     }
 }

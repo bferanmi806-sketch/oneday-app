@@ -78,15 +78,25 @@ final class SettingsRegistryTests: XCTestCase {
             version: 1, records: [record]
         )
 
-        // agent 面：值行按记录序在前、内置条目原序附后
+        // agent 面（§496 改钉）：值记录自此不进浏览
+        // 组（原断言「值行在前」随设置目标树拍板作
+        // 废）——agent 行与内置全等；记录本体按 key
+        // 直查仍在（专属面消费不受门影响）
         let agentRows = SettingsCatalog.effectiveBrowseRows(
             in: .agent, registry: registry
         )
-        XCTAssertEqual(agentRows.first, .value(record))
         XCTAssertEqual(
-            agentRows.dropFirst().compactMap { $0.destinationEntry },
+            agentRows.compactMap { $0.destinationEntry },
             SettingsCatalog.browseEntries(in: .agent),
-            "未被引用的内置条目不许丢、按原序附后"
+            "值记录加门后浏览行须与内置全等"
+        )
+        XCTAssertEqual(
+            agentRows.count,
+            SettingsCatalog.browseEntries(in: .agent).count
+        )
+        XCTAssertEqual(
+            registry.record(forKey: "test.agent.flag"), record,
+            "按 key 直查须命中（专属面消费面）"
         )
 
         // 其余面：无有效记录→逐面回落全等
@@ -222,20 +232,17 @@ final class SettingsRegistryTests: XCTestCase {
         let rows = SettingsCatalog.effectiveBrowseRows(
             in: .preferences, registry: registry
         )
-        let valueKinds = rows.prefix(5).map { row -> SettingsRegistryRowModel.ControlKind? in
-            if case .value(let record) = row {
-                return SettingsRegistryRowModel(record: record).kind
-            }
-            return nil
-        }
+        // §496 改钉：五型值记录一律不进浏览组（原断
+        // 言「五型按 sort 成行」随设置目标树拍板作
+        // 废）；五型渲染模型本身仍由 testFiveTypeRow
+        // Models 逐型钉住，本测只钉门：值行出现数
+        // ＝0、浏览行与内置全等
         XCTAssertEqual(
-            valueKinds,
-            [.toggle, .picker, .textField, .numberField, .textBlock],
-            "五型须按 sort 序成行、控件型逐一对位"
+            rows.filter { $0.destinationEntry == nil }.count, 0,
+            "值行出现数须＝0"
         )
-        // 内置偏好条目随后附上（永不删行）
         XCTAssertEqual(
-            rows.dropFirst(5).compactMap { $0.destinationEntry },
+            rows.compactMap { $0.destinationEntry },
             SettingsCatalog.browseEntries(in: .preferences)
         )
     }
@@ -319,9 +326,16 @@ final class SettingsRegistryTests: XCTestCase {
         let hits = SettingsCatalog.effectiveSearch(
             "测试开关", registry: registry
         )
-        XCTAssertTrue(
+        // §496 改钉：值行不进搜索面（原断言「值行须
+        // 可按题搜达」随设置目标树拍板作废），只许
+        // 专属面按 key 直查
+        XCTAssertFalse(
             hits.contains(.value(record)),
-            "值行须可按题搜达"
+            "值行不许出现在搜索命中"
+        )
+        XCTAssertEqual(
+            registry.record(forKey: "test.agent.flag"), record,
+            "按 key 直查须命中（专属面消费面）"
         )
         let memoryHits = SettingsCatalog.effectiveSearch(
             "记忆", registry: registry
@@ -330,6 +344,72 @@ final class SettingsRegistryTests: XCTestCase {
             memoryHits.first?.destinationEntry?.id, "memory",
             "条目题命中仍居首（现行搜索分层不变）"
         )
+    }
+
+    // MARK: - §496 值行加门（根页值行数＝0）
+
+    /// §496 防复发钉：以生产同形三条记录（api_server
+    /// text／两条写入审批 bool，surface=agent）＋偏好
+    /// 组一条值记录造册——全组浏览行与分段中值行出
+    /// 现数须恒为 0、浏览行与内置逐字一致（目录口
+    /// 径＝实际可见）；三条记录按 key 直查仍在（审
+    /// 批规则页消费面不受门影响）
+    func testRegistryValueRowsNeverEnterBrowse() {
+        let registry = SettingsRegistryResponse(version: 1, records: [
+            SettingsRegistryRecord(
+                key: "platform_toolsets.api_server", type: .text,
+                title: "api_server 平台工具集",
+                surface: SettingsGroupID.agent.rawValue, sort: 90,
+                value: .string("[\"cron\"]")
+            ),
+            SettingsRegistryRecord(
+                key: "memory.write_approval", type: .bool,
+                title: "记忆写入审批",
+                surface: SettingsGroupID.agent.rawValue, sort: 91,
+                defaultValue: .bool(true)
+            ),
+            SettingsRegistryRecord(
+                key: "skills.write_approval", type: .bool,
+                title: "技能写入审批",
+                surface: SettingsGroupID.agent.rawValue, sort: 92,
+                defaultValue: .bool(true)
+            ),
+            SettingsRegistryRecord(
+                key: "test.pref.note", type: .string, title: "备注",
+                surface: SettingsGroupID.preferences.rawValue, sort: 0
+            ),
+        ])
+        for group in SettingsGroupID.allCases {
+            let rows = SettingsCatalog.effectiveBrowseRows(
+                in: group, registry: registry
+            )
+            XCTAssertEqual(
+                rows.filter { $0.destinationEntry == nil }.count, 0,
+                "\(group) 浏览值行出现数须＝0"
+            )
+            XCTAssertEqual(
+                rows.compactMap { $0.destinationEntry },
+                SettingsCatalog.browseEntries(in: group),
+                "\(group) 浏览行须与内置全等（目录口径＝实际可见）"
+            )
+        }
+        let segments = SettingsCatalog.effectiveBrowseSegments(
+            in: .serverAndWorkspace, registry: registry
+        )
+        XCTAssertEqual(
+            segments.flatMap { $0.rows }
+                .filter { $0.destinationEntry == nil }.count,
+            0, "分段浏览值行出现数须＝0"
+        )
+        for key in [
+            "platform_toolsets.api_server",
+            "memory.write_approval", "skills.write_approval",
+        ] {
+            XCTAssertNotNil(
+                registry.record(forKey: key),
+                "\(key) 按 key 直查须在（专属面消费不受门影响）"
+            )
+        }
     }
 
     // MARK: - 解码容错与能力位
