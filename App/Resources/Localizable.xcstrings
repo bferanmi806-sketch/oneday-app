@@ -2496,6 +2496,12 @@
             "value": "English"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anglais"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -2540,6 +2546,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Official Hermes repository"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dépôt officiel du projet Hermes"
           }
         },
         "zh-Hans": {
@@ -2841,6 +2853,12 @@
             "value": "OneDay has no accounts of its own — your data lives only on your server."
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneDay ne gère aucun compte. Vos données restent sur votre serveur."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -2931,6 +2949,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "OneDay is the client app — it connects to your own Hermes server, and your agent's name follows the persona set on that server."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OneDay se connecte à votre propre serveur Hermes. Le nom de votre agent vient du profil défini sur ce serveur."
           }
         },
         "zh-Hans": {
@@ -6199,6 +6223,12 @@
             "value": "Tasks keep running on your server, even with the screen locked"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les tâches continuent sur votre serveur, même si l’écran est verrouillé."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -7764,6 +7794,12 @@
             "value": "Your agent, always with you."
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre agent, partout avec vous."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -8774,6 +8810,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Edit connection details"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifier la connexion"
           }
         },
         "zh-Hans": {
@@ -11074,6 +11116,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Credentials stay in this device's Keychain"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos identifiants restent dans le Trousseau de cet appareil."
           }
         },
         "zh-Hans": {
@@ -15354,6 +15402,12 @@
             "value": "Possible cause"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cause possible"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -17125,6 +17179,12 @@
             "value": "File an issue on GitHub"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signaler un problème sur GitHub"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -18181,6 +18241,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Failed"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec"
           }
         },
         "zh-Hans": {
@@ -19865,6 +19931,12 @@
             "value": "Password"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mot de passe"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -20164,6 +20236,12 @@
             "value": "Key"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clé"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -20438,6 +20516,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Preview"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aperçu"
           }
         },
         "zh-Hans": {
@@ -23227,6 +23311,12 @@
             "value": "Done — 6 meetings summarized, and Thursday's conflict is flagged separately."
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Six réunions sont résumées ; le conflit de jeudi est signalé à part."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -24103,6 +24193,12 @@
             "value": "Connected"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -24492,6 +24588,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Help and feedback"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aide et commentaires"
           }
         },
         "zh-Hans": {
@@ -25460,6 +25562,12 @@
             "value": "Turn this week's meetings into a one-page summary."
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résumez sur une page les réunions de cette semaine."
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -26010,6 +26118,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Start chatting"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Discuter"
           }
         },
         "zh-Hans": {
@@ -41176,6 +41290,12 @@
             "value": "See connection help"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aide à la connexion"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -42372,6 +42492,12 @@
             "value": "Welcome"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenue"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -42393,6 +42519,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Welcome to OneDay"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bienvenue sur OneDay"
           }
         },
         "zh-Hans": {
@@ -42878,6 +43010,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Checking that this server is safe to use."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification de la sécurité de ce serveur…"
           }
         },
         "zh-Hans": {
@@ -43455,6 +43593,12 @@
             "value": "Connecting"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion…"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -43660,6 +43804,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Every step waits for the server's real answer — usually a few seconds."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chaque étape dépend de la réponse du serveur et prend généralement quelques secondes."
           }
         },
         "zh-Hans": {
@@ -50174,6 +50324,12 @@
             "value": "Traditional Chinese"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chinois traditionnel"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -50241,6 +50397,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Simplified Chinese"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chinois simplifié"
           }
         },
         "zh-Hans": {
@@ -50724,6 +50886,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Parts shown by the system, such as system dialogs and the share sheet, still follow the system language."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les alertes système et les feuilles de partage restent dans la langue de l’appareil."
           }
         },
         "zh-Hans": {
@@ -55096,6 +55264,12 @@
             "value": "Language"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Langue"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -55301,6 +55475,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Never paste keys, server addresses, or personal data into public issues."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne publiez pas de clés, d’adresses de serveur ni de données personnelles dans un ticket public."
           }
         },
         "zh-Hans": {
@@ -57074,6 +57254,12 @@
             "value": "Follow system"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivre le système"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -57879,6 +58065,12 @@
             "value": "Back"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -58384,6 +58576,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "No server yet? See how to set one up"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de serveur ? Voir comment en déployer un."
           }
         },
         "zh-Hans": {
@@ -61100,6 +61298,12 @@
             "value": "Can't connect, or have a suggestion?"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion impossible ou une idée à proposer ?"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -61121,6 +61325,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Connect your server"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion à votre serveur"
           }
         },
         "zh-Hans": {
@@ -62322,6 +62532,12 @@
             "value": "Passed"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réussi"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -63082,6 +63298,12 @@
             "value": "Reconnect"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -63658,6 +63880,12 @@
             "value": "Include steps to reproduce and your system version"
           }
         },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez les étapes de reproduction et la version du système"
+          }
+        },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
@@ -63841,6 +64069,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Need help?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aide ?"
           }
         },
         "zh-Hans": {
