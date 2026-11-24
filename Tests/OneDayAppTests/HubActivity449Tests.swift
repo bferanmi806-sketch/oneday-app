@@ -48,11 +48,18 @@ final class HubActivity449Tests: XCTestCase {
             ),
             "§449.9：短语应由 Core 映射表单点派生"
         )
+        // §474 改钉（2026-11-24 用户亲令）：胶囊第
+        // 二行只许工作状态——回落连接状态词的旧钉
+        // 随 §474 作废，改钉「只传活动短语单源」
         XCTAssertTrue(
             chat.contains(
-                "appState.liveActivityPhrase\n                    ?? overviewStatusWord"
+                "statusWord: appState.liveActivityPhrase,"
             ),
-            "§449.9：胶囊第二行应先活动短语后状态词"
+            "§474：胶囊第二行只传活动短语单源"
+        )
+        XCTAssertFalse(
+            chat.contains("?? overviewStatusWord"),
+            "§474：胶囊第二行不得回落连接状态词"
         )
         XCTAssertTrue(
             hub.contains("appState.liveActivityPhrase"),
