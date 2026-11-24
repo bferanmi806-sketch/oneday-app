@@ -26,6 +26,8 @@ struct ServerDetailView: View {
     @State private var hasRetested = false
     @State private var retestResult: String?
     @State private var retestFailed = false
+    /// 断开连接确认（§496 自设置根页迁入本页页末行）
+    @State private var showDisconnectConfirm = false
 
     var body: some View {
         ScrollView {
@@ -204,10 +206,52 @@ struct ServerDetailView: View {
                 // 案 A 只读感知面，段本体自带取数）
                 ServerVersionSection()
 
+                // 断开连接（§496 自设置根页服务器段末
+                // 行迁入）：连接的破坏性动作住连接详情
+                // 页页末——独立一组红字行；确认框文案
+                // 与执行（appState.disconnect()）与根
+                // 页原行同文同口径，只换门的位置；搜
+                // 索「断开」仍走设置 activate 原路径
+                VStack(spacing: 0) {
+                    Button(role: .destructive) {
+                        showDisconnectConfirm = true
+                    } label: {
+                        HStack(spacing: OneDayMetrics.spacingSM) {
+                            Image(
+                                systemName:
+                                    "rectangle.portrait.and.arrow.right"
+                            )
+                            .foregroundStyle(Palette.danger)
+                            Text("断开连接")
+                                .font(.body)
+                                .foregroundStyle(Palette.danger)
+                            Spacer(minLength: OneDayMetrics.spacingS)
+                        }
+                        .padding(.horizontal, OneDayMetrics.spacingM)
+                        .frame(minHeight: OneDayMetrics.rowHeight)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.odPressable)
+                }
+                .odGroup()
+                .padding(.top, OneDayMetrics.sectionOuterSpacing)
+
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingM)
             .padding(.bottom, OneDayMetrics.spacingXL)
+        }
+        .confirmationDialog(
+            "断开连接？",
+            isPresented: $showDisconnectConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("断开连接", role: .destructive) {
+                appState.disconnect()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("将清除这台手机上保存的服务器凭据与登录会话。本地聊天记录保留。")
         }
         .background(Palette.pageBG)
         .navigationTitle("当前服务器")

@@ -253,6 +253,8 @@ struct SettingsView: View {
                     CrashReportsView()
                 }
             }
+            // §496：断开行已迁当前服务器页，本确认框
+            // 只余搜索 activate(.disconnect) 路径在用
             .confirmationDialog(
                 "断开连接？",
                 isPresented: $showDisconnectConfirm,
@@ -414,8 +416,9 @@ struct SettingsView: View {
     /// 页只管行构建（browseRow）与段末动作（断开连接
     /// 收维护段末，确认框与执行口径不变）
     /// §493 收敛后浏览段只剩服务器段（工作区/维护段
-    /// 条目全退役或收进页内），断开连接随之改收服务
-    /// 器段末（破坏性动作归所属组末行，iOS 惯例）
+    /// 条目全退役或收进页内）；§496：断开连接迁出本
+    /// 段——住当前服务器页页末（连接动作归连接详情
+    /// 页），本段自此只剩目录行
     private var serverAndWorkspaceSection: some View {
         ForEach(
             SettingsCatalog.effectiveBrowseSegments(
@@ -426,9 +429,6 @@ struct SettingsView: View {
             Section {
                 ForEach(group.rows) { row in
                     browseRow(row)
-                }
-                if group.segment == .server {
-                    disconnectRow
                 }
             } header: {
                 sectionHeader(group.segment.title)
@@ -515,28 +515,6 @@ struct SettingsView: View {
         default:
             catalogNavRow(entry)
         }
-    }
-
-    /// 断开连接行（原服务器管理枢纽页页底动作迁此）：
-    /// 破坏性文案＋危险色，点按起根页既有确认框
-    private var disconnectRow: some View {
-        Button(role: .destructive) {
-            showDisconnectConfirm = true
-        } label: {
-            HStack(spacing: OneDayMetrics.spacingSM) {
-                rowIcon(
-                    "rectangle.portrait.and.arrow.right",
-                    color: Palette.danger
-                )
-                Text("断开连接")
-                    .font(.rowTitleL)
-                    .foregroundStyle(Palette.danger)
-                Spacer(minLength: OneDayMetrics.spacingS)
-            }
-            .frame(minHeight: OneDayMetrics.settingsRowHeight)
-            .contentShape(Rectangle())
-        }
-        .settingsSeparatorToIconEdge()
     }
 
     /// 体检留痕（原服务器管理页同源同读法）：「体检
