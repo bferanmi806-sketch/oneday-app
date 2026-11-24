@@ -1886,8 +1886,9 @@ struct ChatView: View {
 
     /// 顶簇本体（§195 前为消息列表 .safeAreaBar
     /// (edge: .top) 的注册内容，195 起迁 TopBar-
-    /// GuideHost 锚定托管、内容一字未动）：顶栏＋
-    /// 进展胶囊。顶簇实高由宿主量测回报（见
+    /// GuideHost 锚定托管、内容一字未动）：顶栏
+    /// （进展胶囊已随 §474 撤除）。顶簇实高由宿主
+    /// 量测回报（见
     /// D9：对话内查找栏（对标 iOS Messages）
     private var findBar: some View {
         HStack(spacing: OneDayMetrics.spacingS) {
@@ -1995,14 +1996,13 @@ struct ChatView: View {
             // 两段式（headerBar 整行＋其下身份区）退
             // 役：放大镜钮与顶栏模型胶囊整件删除、汉
             // 堡/铃两钮与居中身份区同带（topBand）；
-            // 进展胶囊与查找栏的次序不变
+            // 查找栏的次序不变（进展胶囊已随 §474 撤除）
             topBand
-            ProgressCapsuleView(
-                currentSessionID: currentThread?.serverSessionID,
-                onOpenSession: { sessionID in
-                    appState.router.pendingChatSessionID = sessionID
-                }
-            )
+            // §474（用户 2026-11-24 亲令）：进展胶囊
+            // 撤除——聊天面不许有第二胶囊；他会话／
+            // 后台活动统一归中枢（状态行 hubActivity-
+            // Line 与台账段同源 ProgressCapsule.
+            // derive 已在彼呈现，本面不再悬浮复读）
             if showFind {
                 findBar
             }
@@ -2147,11 +2147,13 @@ struct ChatView: View {
             // playName＋overviewStatusWord），不新造
             HubIdentityCapsule(
                 displayName: appState.agentDisplayName,
-                // §449.9：第二行＝当前工具活动短语（与
-                // 中枢状态行同读 AppState.liveActivity-
-                // Phrase、同源同口径），无活动回落状态词
-                statusWord: appState.liveActivityPhrase
-                    ?? overviewStatusWord,
+                // §449.9 立源、§474 收口：第二行＝当前
+                // 工具活动短语（与中枢状态行同读
+                // AppState.liveActivityPhrase、同源同
+                // 口径）；§474 起无活动不回落连接状态
+                // 词——第二行留空（用户亲令删「在线」、
+                // 小字只许工作状态）
+                statusWord: appState.liveActivityPhrase,
                 onOpenHub: { showHub = true },
                 onFindInConversation: { showFind = true }
             )
