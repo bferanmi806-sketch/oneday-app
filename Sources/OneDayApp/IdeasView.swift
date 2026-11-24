@@ -17,6 +17,17 @@ import SwiftUI
 /// 道每日晨间产出（source=generated、evidence 必
 /// 填、14 天过期），手记保留；已转任务以桥 taskId
 /// 为真源。桥未连接/未开通与目标格同口径、零假数据。
+/// 点子详情 sheet 档位（§470，2026-11-24 用户裁）：
+/// 默认半屏（.medium）打开、可上拖到大档（.large）。
+/// 档位集与默认档单源于此——呈现层只引本表，钉测
+/// 直断本表（IdeaDetailSheetDetentsTests）；此前为
+/// [.large] 单档（§459 对位时量测冲突未擅改、维持
+/// 现行，裁决回后按本节落码）
+enum IdeaDetailSheet {
+    static let detents: Set<PresentationDetent> = [.medium, .large]
+    static let defaultDetent: PresentationDetent = .medium
+}
+
 struct IdeasView: View {
     @Environment(AppState.self) private var appState
     /// 台账 199：点子店走 AppState 共享单例（§259
@@ -33,6 +44,11 @@ struct IdeasView: View {
     @State private var deleteCandidate: BridgeIdea?
     /// 详情 sheet 的当前点子（0.47.0：点行不再推页）
     @State private var selectedIdeaID: String?
+    /// 详情 sheet 当前档位（§470）：每次打开回默认
+    /// 档 .medium（onChange 于 selectedIdeaID 落定），
+    /// 用户上拖到 .large 只管本次呈现
+    @State private var detailDetent: PresentationDetent =
+        IdeaDetailSheet.defaultDetent
     /// §219：聊天里点点子引用块回跳的待决请求——名
     /// 单未就绪时挂起、就绪后由 resolveIdeaOpen 落
     /// 定（FeedView resolveFeedOpen 同式）
@@ -96,7 +112,10 @@ struct IdeasView: View {
                         store: store, kanban: kanban,
                         ideaID: selectedIdeaID
                     )
-                    .presentationDetents([.large])
+                    .presentationDetents(
+                        IdeaDetailSheet.detents,
+                        selection: $detailDetent
+                    )
                     .presentationCornerRadius(28)
                 }
             }
@@ -119,6 +138,13 @@ struct IdeasView: View {
                 Button("取消", role: .cancel) {}
             } message: { _ in
                 Text("只删点子本身；已经转成的任务不会受影响。")
+            }
+            // §470：详情每次打开回默认档（上一回拖到
+            // 大档不带进下一回，默认半屏是裁定口径）
+            .onChange(of: selectedIdeaID) { _, newValue in
+                if newValue != nil {
+                    detailDetent = IdeaDetailSheet.defaultDetent
+                }
             }
             // §219：聊天里点点子引用块的回跳——请求在
             // 此消费（清零先行防重入），落点判定走
