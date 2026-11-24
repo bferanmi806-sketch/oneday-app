@@ -91,6 +91,12 @@ struct SelectableInlineText: View {
     /// 用）；默认与引用块前景同档
     var dimmedForeground: Color = Palette.inkSecondaryOnFill
     var onSelectionChange: ((Bool) -> Void)?
+    /// §471：列表呈现态传 false——正文禁长按直接
+    /// 选字（仲裁归消息菜单、选字只从菜单「选择」
+    /// 行进 sheet）；默认 true＝其余呈现面（选择
+    /// sheet 本体、动态/技能等无菜单竞争面）逐字
+    /// 不变
+    var allowsDirectSelection: Bool = true
     /// 台账 190 留账②（§335）：排版产物段串直贴——
     /// 非 nil 时呈现直用本串（与量测同一拼装、同一
     /// 实例，入串色为 trait 动态色随承载 trait 解
@@ -113,7 +119,8 @@ struct SelectableInlineText: View {
                 cgColor: Palette.primary.resolve(in: environment).cgColor
             ),
             onSelectionChange: onSelectionChange,
-            openURL: openURL
+            openURL: openURL,
+            allowsDirectSelection: allowsDirectSelection
         )
     }
 
@@ -494,6 +501,46 @@ private extension UIFont {
 /// 会污染粘贴到别处的内容；系统「拷贝」走本覆盖，
 /// 选区与高亮行为全归系统
 final class SelectableUITextView: UITextView {
+    /// §471（长按三病过渡版·病一）：列表呈现态抑制
+    /// 直接选字——开启时内部长按选字链（放大镜/选
+    /// 区）与多击选词识别器在 shouldBegin 处被否、
+    /// 编辑菜单动作全关；触摸因此落回宿主的长按
+    /// 挂载点（浮排/系统菜单单点仲裁，与 iMessage
+    /// iOS 26「列表态禁直接选字、选字只从菜单
+    /// 『选择』行进入」口径同构）。选字能力只活在
+    /// 「选择」sheet 的独立实例（本旗默认关、逐字
+    /// 不变）。单点链接点按（tapsRequired==1）不
+    /// 在否决之列，shouldInteractWith 出口不变
+    var suppressesDirectSelection = false
+
+    override func gestureRecognizerShouldBegin(
+        _ gestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        if suppressesDirectSelection {
+            if gestureRecognizer
+                is UILongPressGestureRecognizer {
+                return false
+            }
+            if let tap = gestureRecognizer
+                as? UITapGestureRecognizer,
+                tap.numberOfTapsRequired >= 2 {
+                return false
+            }
+        }
+        return super.gestureRecognizerShouldBegin(
+            gestureRecognizer
+        )
+    }
+
+    override func canPerformAction(
+        _ action: Selector, withSender sender: Any?
+    ) -> Bool {
+        if suppressesDirectSelection { return false }
+        return super.canPerformAction(
+            action, withSender: sender
+        )
+    }
+
     override func copy(_ sender: Any?) {
         let range = selectedRange
         guard range.length > 0, let attributedText,
@@ -519,6 +566,9 @@ struct SelectableTextRepresentable: UIViewRepresentable {
     let linkColor: UIColor
     let onSelectionChange: ((Bool) -> Void)?
     let openURL: OpenURLAction
+    /// §471：false＝列表态抑制直接选字（默认 true
+    /// 保持其余面逐字不变）
+    var allowsDirectSelection: Bool = true
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -553,6 +603,8 @@ struct SelectableTextRepresentable: UIViewRepresentable {
         // 挂 zh-Hans 真机复验账，翻案时出口须走
         // UITextItem delegate 组、不是本处开关）
         textView.dataDetectorTypes = [.phoneNumber, .link]
+        textView.suppressesDirectSelection =
+            !allowsDirectSelection
         textView.delegate = context.coordinator
         textView.attributedText = attributed
         textView.linkTextAttributes = [
@@ -569,6 +621,21 @@ struct SelectableTextRepresentable: UIViewRepresentable {
     ) {
         context.coordinator.onSelectionChange = onSelectionChange
         context.coordinator.openURL = openURL
+        // §471：抑制旗随呈现态更新；由开转关（抑制
+        // 生效）时若已有残留选区即刻清掉——列表态
+        // 不许有选区在场（与 presentReactionBar 的
+        // §152 让行守卫同口径：守卫对象自此只剩
+        // sheet 外的历史残留）
+        let suppresses = !allowsDirectSelection
+        if uiView.suppressesDirectSelection != suppresses {
+            uiView.suppressesDirectSelection = suppresses
+            if suppresses, uiView.selectedRange.length > 0 {
+                uiView.selectedRange = NSRange(
+                    location: uiView.selectedRange.location,
+                    length: 0
+                )
+            }
+        }
         // §168：拼装走进程内缓存、同内容恒同实例，
         // isEqual 在此实际为恒等短路——内容键未变
         // 绝不重设文本（重设即冲选区）；布局期量测
