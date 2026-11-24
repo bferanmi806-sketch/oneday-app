@@ -608,11 +608,13 @@ struct AgentHubView: View {
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
                     .lineLimit(1)
-            } else {
+            } else if !store.statusText.isEmpty {
                 // §449（03:19 去重）：状态点删除——
                 // 本簇 presence 只以文案呈现（参照中
                 // 枢状态行同为纯文案、无点）；词的派
                 // 生与语义不动
+                // §474：statusText 空串（运行中无待审
+                // 批）＝本行不呈现，不留空行占位
                 Text(store.statusText)
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
