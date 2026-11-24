@@ -3932,7 +3932,7 @@ struct ChatView: View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Rectangle()
                 .fill(Palette.inkMuted)
-                .frame(width: 2, height: 30)
+                .frame(width: 2, height: 28)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                 // 0.7.0（M4）：分流种子的引用条改报去向——
                 // 这条引用不在原线程回复、是新旁聊的开场
@@ -3946,6 +3946,7 @@ struct ChatView: View {
                     // 撤销，与消息正文同一字重纪律）
                     .font(.caption)
                     .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
                 Text(quote.summary())
                     .font(.caption)
                     .foregroundStyle(Palette.inkSecondary)
@@ -3972,7 +3973,9 @@ struct ChatView: View {
             .accessibilityLabel("取消引用")
         }
         .padding(.horizontal, OneDayMetrics.spacingSM)
-        .padding(.vertical, OneDayMetrics.spacingS)
+        .padding(.vertical, OneDayMetrics.spacingXS)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.quotePreview")
     }
 
     /// 输入舱卡（0.36.19 入舱，§84）：玻璃卡的承载层——
@@ -3990,24 +3993,20 @@ struct ChatView: View {
     /// 不变），引用块高计入舱高、不挤占打字行数
     private var composerCard: some View {
         VStack(spacing: 0) {
-            // 引用块出现/消失走 SmoothExpand 平滑高度
-            // （条 7）；分隔线随引用块同进同出；满宽
-            // claim 落在本层（卡 VStack 的直接子层）——
-            // P-13 续案口径与附件条同，见下方附件条注
-            SmoothExpand(isExpanded: pendingQuote != nil) {
-                if let pendingQuote {
-                    VStack(spacing: 0) {
-                        quoteBar(pendingQuote)
-                        Rectangle()
-                            .fill(Palette.hairline)
-                            .frame(height: 1)
-                            .padding(
-                                .horizontal, OneDayMetrics.spacingSM
-                            )
-                    }
+            // 回复预览直接位于输入行上方；不经 SmoothExpand
+            // 的独立量测与裁剪容器，避免展开帧覆盖输入行。
+            if let pendingQuote {
+                VStack(spacing: 0) {
+                    quoteBar(pendingQuote)
+                    Rectangle()
+                        .fill(Palette.hairline)
+                        .frame(height: 1)
+                        .padding(
+                            .horizontal, OneDayMetrics.spacingSM
+                        )
                 }
+                .transition(.opacity)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             // 待发附件条（0.36.19 入舱 §84.4；0.36.26
             // §95 移出量测层）：0.36.19 把满宽锚加在条
             // 内部两层、0.36.23 上移到卡直接子层，两
@@ -4083,6 +4082,12 @@ struct ChatView: View {
                 MotionTokens.swap, reduceMotion: reduceMotion
             ),
             value: attachments.count
+        )
+        .animation(
+            MotionTokens.resolved(
+                MotionTokens.swap, reduceMotion: reduceMotion
+            ),
+            value: pendingQuote != nil
         )
         // 第 1 修（P0 键盘不弹）的聚焦保底层：整卡背景
         // 命中域内点按（文本区外的卡面空隙，含引用块
