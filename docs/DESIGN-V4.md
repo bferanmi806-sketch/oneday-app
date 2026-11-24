@@ -17785,3 +17785,12 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 ### 真机门（归用户 verdict）
 
 ①动态上滑：汉堡/头像胶囊/滑杆钮全程在位不淡没、字段槽换搜索入口手感；②目标/资源库：hero 大头像簇与首页同形、点胶囊/头像进中枢；③资源库放大镜/菜单点达与旧位等价、菜单四组功能无损；④目标右位恒空与「无页级动作」预期一致；⑤各页簇与首页并排比对同位（钮行高度、胶囊压沿）。
+
+### 落码记账（三续线回填，2026-11-24）
+
+- 落码与本节清单逐项吻合：未提交 5 文件经逐一审毕无半截（ContentPageHeader 收编、FeedView 簇与收起脱钩改名 fieldSlotSwapped、GoalsView/DeliverablesView 换 ContentPageHeader 并删私有 headerCircleButton、FeedIdeasRenderProbeTests 翻案）；IdeasView 基线调用点本不传 collapsed，签名更新零影响、无右钮登记不变，无需改动。
+- 改钉一处（主线裁，仅测试文件、零生产代码）：CapsuleStatus474Tests.testCapsuleStatusWordSingleSource 的资源库锚点 DeliverablesView.swift → ContentPageHeader.swift——字面 `statusWord: appState.liveActivityPhrase,` 随资源库自写簇删除迁入共同簇 HubIdentityCapsule 调用（ContentPageHeader.swift:72），行为不丢反收编；断言补 §492 归因，并加一条 DeliverablesView 含 `ContentPageHeader(` 的收编钉（同类先例：0.50.118 改钉）。
+- 测试：改钉后相关 12 套 54 项复跑＝54 过/0 败（xcresult Test-HeaderSrc，CapsuleStatus474Tests 3/3 含改钉项、FeedIdeasRenderProbe 翻案项 testHeaderStaysPinnedReplica 过——托管副本实滚 maxOffset=1384 簇恒在）。
+- 帧证据（临时 UITest HeaderSrcFrameProbeUITests，演示模式，取后已删）：AX 帧转储五页与首页逐值同——hero (186,66,67x67)、胶囊 (188,136,62x20)、汉堡 (20,70,44x44) 全页一致；动态滑杆 (376,70,44x44)、资源库放大镜 (324,70,44x44)＋菜单 (376,70,44x44)、目标/点子右位无钮；动态上滑两 swipe 后转储逐值不变（簇钉顶实证）。浅色截图逐帧目验：动态/目标/资源库均为大 hero＋胶囊压沿的首页同形（小横胶囊退役），目标右位恒空、资源库双钮齐。两点如实登记：①演示态动态为空状态不可滚，静止/上滑两帧同图，滚动钉顶以 AX 转储＋托管副本实滚探针为据；②深色帧以 -AppleInterfaceStyle Dark 启动未生效（成帧仍浅色，App 现行浅色定版），深色仅有 AX 几何同位证据、视觉深色未验，归真机门与批 C 深色帧账。另汉堡无障碍标识聊天页为 drawer.open、内容页为 line.3.horizontal（符号名），帧与行为同、仅标识名差，登记不改。
+- 节号注记：本节为预制期自占号；rel-05118 已有 §492 组版节与 §493 设置 IA 节，组版时本节按并集连排顺延。
+- 环境插曲（与本包代码无关）：复跑期间 Mac 进程表被 12 台常驻模拟器打满（约 2883 进程、fork 失败），当时无在飞 xcodebuild，已 simctl shutdown all 清理回落至约 496；首轮复跑被该故障毒化（posix_spawn 失败、构建未成），清理后重跑方得上数。另 tuist generate 须带 DEVELOPER_DIR=Xcode 27.2，否则 tuist-derived 依赖工程部署目标回落 13.1 触发构建错误（本轮实证，已按此重 generate 恢复 15.0）。
