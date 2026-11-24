@@ -497,4 +497,66 @@ public enum LedgerBoard {
             return nil
         }
     }
+
+    /// 详情页首一句话摘要（§475）：只用条目自有
+    /// 字段拼人话——终态给用时（＋子计数若有），
+    /// 失败给原因分类，活跃态给已运行／已等时长，
+    /// 失联给最后确认时刻。状态词本身归页首 chip，
+    /// 本行不重复；无可说时返回 nil，视图整行不显，
+    /// 不编造内容。
+    public static func detailSummary(
+        for item: LedgerItem, serverNow: Double,
+        locale: Locale = AppLocale.uiLocale
+    ) -> String? {
+        var parts: [String] = []
+        switch item.status {
+        case .failed:
+            if let reason = item.failReason {
+                parts.append(reason.category)
+            }
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .completed, .cancelled:
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .running, .queued, .blockedApproval:
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .stale:
+            if let evidence = item.lastEvidenceAt {
+                parts.append(
+                    L10n.format(
+                        "最后确认 %@", locale: locale,
+                        LedgerClock.time(evidence)
+                    )
+                )
+            }
+        case .other:
+            return nil
+        }
+        if let calls = item.toolCalls {
+            parts.append(
+                L10n.format(
+                    "工具调用 %@ 次", locale: locale, String(calls)
+                )
+            )
+        }
+        if let subs = item.subTasks {
+            parts.append(
+                L10n.format(
+                    "子任务 %@ 个", locale: locale, String(subs)
+                )
+            )
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
 }

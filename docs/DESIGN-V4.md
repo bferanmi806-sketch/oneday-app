@@ -17526,3 +17526,21 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 2. 资源库页：页头胶囊同样只显工作状态或只剩名字，不再有绿点＋「在线」。
 3. 中枢：状态行干活时显活动、待审批时显「N 条待审批」，空闲时不显「在线」一行。
 4. 聊天面：后台/其他会话作业进行中时，消息上方不再出现第二颗悬浮胶囊；其活动在中枢状态行与台账段可见。
+
+## §475 工作详情两件（2026-11-24；用户 10:16 亲报，基线 rel-05113）
+
+### 件一 状态不收敛定因（服务端，先查后改）
+
+- 样本 job:morning:1795486341（动态调研，10:12:21 开始）：生产 ledger 事件账实证——10:17:37 由 bridge 正常回写 completed，全程 5 分 16 秒、本轮 produced=0（hourly 线 activity-gate）。用户 10:15 截图（已运行 3:03）时它确实还在跑，此样本本身无回写故障；动态调研一轮约 5 分钟是常态（08:30 轮 6 分 16 秒、07:43 轮 4 分 16 秒）。
+- 同类真不收敛 2 条（同日 9 条 job：* completed 6／failed 1／stale 1／running 1）：job:morning:1795485581（09:59:41 简报保存触发轮，网关 runs 实证席位活动至约 10:11–10:14，companion 1.0.75 约 10:15 重建把轮次线程连同进程杀死——无 history 记录、无 finish 事件，至今 running）；job:morning:1795466451（04:40:51，同型丢失，被僵尸梯 +30 分钟标 stale 了事）。
+- 根因：完成回写只有一条路——轮次线程在自己进程内 _feed_record_locked → _ledger_job_finish，靠进程内单槽字典 _ledger_jobs[kind] 找条目。进程死亡即整链永久丢失、启动无人对账；僵尸梯按「属主可能只是沉默」设计只标 stale 永不结算，而 job 条目属主就是桥进程自己，死了不会再上报。
+- 修法（预制在 ~/workspace/hermes-deploy-ledgerfix/，未应用、随下一 companion 槽位由主线排）：①ledger.py 新增纯函数 settle_orphan_jobs——启动时结算仍活跃的 job:* 条目（属主已死是启动事实非推断；有本轮记录按活路径同一映射补结算、无记录 failed/执行被打断；记录匹配窗 started 前后数秒严配防后轮顶替）；②oneday_seg_ledger.py 在 _ledger_start_collector 开头调孤儿结算（feedGen/ideasGen/briefGen 三史），_ledger_job_finish 槽空时按 kind 前缀兜底查找最新活跃条目。自测 ledgerfix_selftest 9/9＋存量 ledger_selftest Part A 回归 40/40。基线哈希与生产 1.0.76 逐字一致（ledger.py 41b8d59b…、oneday_seg_ledger.py d7ca9573…）。
+
+### 件二 详情页按 Muse 任务详情卡形态重做（App）
+
+- 页首卡：人话标题（.title3 semibold）＋状态 chip（圆点＋LedgerText.statusWord 单源词，底 Palette.fillSecondary、字色按状态取 successText/danger/primary/inkSecondary）＋一句话摘要（Core LedgerBoard.detailSummary，只拼条目自有字段：终态用时＋子计数、失败原因分类打头、活跃态已运行/已等逐秒走、失联给最后确认时刻；无可说返回 nil 整行不显，不编造）。
+- 概况只留人话字段：来源（sourceWord）／开始／结束／用时（终态）；「最后确认」只在失联待核时出行（它就是失联判据），活跃态时长归页首摘要不重复占行。类别行撤（身份由标题与列表行承载）。
+- 「技术信息」整段撤除（状态原文/类别原文/来源原文/记账来源/标题来源/条目编号/会话编号/运行编号/纠正者全撤）：旧口径「本页技术信息区是排障原文唯一的家」作废（2026-11-24 用户裁），排障原文归设置诊断领地（ChatDiagnosticsView 一带），本页零原文枚举。事件时间线、失败原因节、工作量节、任务/审批续行下钻与打开会话入口原样保留，文案全走 LedgerText 既有单源、无新造词表。
+- 钉测：Tests/OneDayCoreTests/LedgerDetailSummaryTests 新增 6 法（completed/running/failed/stale 四态摘要＋缺结束时刻 nil＋状态词零原文）。
+
+- §475 实跑（独立模拟器 iPhone 17e 直跑，避共享通道占用；bundle ~/build/jobdetail-475.xcresult）：LedgerDetailSummaryTests 6＋LedgerModelsTests＋LedgerMonitorChangeTests 共 41 项全过、0 失败，** TEST SUCCEEDED **；App 目标整体编译通过。源码核查：LedgerDetailView 内 UI 原文标签（状态原文/类别原文/来源原文/记账来源/标题来源/条目编号/技术信息）零出现，rawValue 仅剩时间线解析（输出走 statusWord）。页面截图量测未做——详情页需真实台账数据驱动导航，归组版 UI 测/真机 verdict 一并验（标题/chip/摘要/时间线四件以源码结构＋Core 钉测先行对位）。
