@@ -1309,7 +1309,8 @@ struct DrawerView: View {
                 if thread.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.system(
-                            size: 10, weight: .semibold
+                            size: FrameworkIcon.badgeGlyphSize,
+                            weight: .semibold
                         ))
                         .foregroundStyle(Palette.inkSecondary)
                         .accessibilityHidden(true)

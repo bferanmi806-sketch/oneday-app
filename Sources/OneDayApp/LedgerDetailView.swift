@@ -155,7 +155,7 @@ struct LedgerDetailView: View {
     private var approvalSection: some View {
         if let record = pendingRecord {
             Section("审批记录") {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
                     Text(ApprovalCardCopy.question(for: record))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Palette.ink)
@@ -164,7 +164,7 @@ struct LedgerDetailView: View {
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(2)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, OneDayMetrics.spacingXS)
                 Button("查看改动") {
                     diffTarget = record
                 }
@@ -179,7 +179,7 @@ struct LedgerDetailView: View {
             }
         } else if let decision = decidedRecord {
             Section("审批记录") {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
                     HStack(spacing: OneDayMetrics.spacingS) {
                         Text(decision.decisionLabel)
                             .font(.caption.weight(.semibold))
@@ -204,7 +204,7 @@ struct LedgerDetailView: View {
                         .font(.caption)
                         .foregroundStyle(Palette.inkSecondary)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, OneDayMetrics.spacingXS)
                 if let request = anchorRequest(
                     subsystem: decision.subsystem,
                     recordID: decision.id,
@@ -249,7 +249,7 @@ struct LedgerDetailView: View {
 
     private var headerSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
                 Text(current.title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Palette.ink)

@@ -17414,3 +17414,17 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **红项处置**：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–114 逐字同红、已裁可接受；本版无新红、无改钉。注记：ThemeAlign431Tests 在 114 原始整跑中为改钉前红项，改钉 c4b174d 已随 rel-05114 在册，本版整跑该套 3/3 直接绿。
 - **IPA**：Release BUILD SUCCEEDED（dd-05115-release，rc=0）；OneDay-0.50.115-243.ipa，16,869,455 字节，md5 288dafd61586749b9f0fb2f3f62b594d；unzip 直验主 App 本体 plist 三值 0.50.115／243／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.115-243.ipa）md5 一致。
 - **真机门（归用户 verdict）**：件一——①打开简报编辑页即见服务端最新稿（润色已写回时不再是旧稿）；②润色在飞时编辑页约 10s 自动换新版（未改字时跟随、已改字只换基线不覆盖输入）；③编辑页无阻塞转圈，保存钮口径只剩保存中禁用、保存失败留页见错误。件三——④文件/资源库影音分类按 UTType 判类（mkv/m2ts/mka 兜底在位），注：生产影音实数仍为 0，此项待真实影音文件出现时验，本版只防未来错分类。件四——⑤资源库搜索空态下页头簇与筛选片钉顶（与有内容态同为 y=55）、不再整栈下移居中；⑥资源库页有「资源库」大标题、与兄弟页同字阶。
+
+## §483 HIG 全过第一波：中枢各页＋通知页＋抽屉（2026-11-24，feat/hig-pages-wave1，基线 rel-05115）
+
+仪器＝逐屏审计表（oneday-hig-screen-audit-checklist-20261124.md，12 节），规范源＝apple-design-skill 原文库＋game-feel/sf-symbols/typography 三篇；范围七面全文精读＋grep 实数对账，发现即修。交卷正本＝oneday-design-review/hig-wave1-report-20261124.md（含逐页 12 节打勾表）。注记：本树 DESIGN 最大节为 §481（0.50.115 组版），§482 属简报编辑器线（feat/brief-editor-top-panel，其正本 brief-editor-presentation-audit-20261124.md），本节按派单预定取 §483、合并时按节序连排。
+
+- **唯一真缺陷**：审核页撤销 exec 授权旧形态 `.bordered` 小钮点按即撤、无确认无后果——补 confirmationDialog（destructive＋指名 scopeLabel＋「撤销后立即失效，之后同类操作需要重新批准」），与技能商店卸载确认同式；终局仍以回读为准。
+- **文案清扫（§11）**：能力页删两处机制叙述（空态后半句「服务端会直接连接外部技能库…」、搜索中后半句「服务端直连外部技能库…」）；错误回执与状态回执全保留。本波其余页面文案逐条过：通知页脚 200 条＝数据范围声明、台账横幅/补记说明＝状态与来源回执、详情「技术信息」区＝宪法口径定版，均判留并在交卷登记。
+- **字形收编（P2-01 本波分）**：中枢模型行 chevron 13→FrameworkIcon.smallGlyphSize、能力页行尾 chevron 13→smallGlyphSize、抽屉置顶钉 10→badgeGlyphSize；审核页 iconBox 字形 18 为 §434 量测光学值（令牌无 18 档）注记保留。本波 25 处 `.system(size:)` 命中余皆令牌调用。
+- **间距/圆角收编（P3-02/P3-04 本波分）**：OneDayMetrics 新增 radiusBadge＝4，台账「补记」徽标收编；台账详情 spacing/padding 字面 4 共 5 处→spacingXS；能力页 chip 横距 12→spacingSM（均等值零视觉）。能力页来源 chip 命中域纵向扩 44（视觉不变，§478 同法）。
+- **无障碍补件**：通知详情 5 处装饰字形（结果 chip/变更 doc/提示 info/落点符号/技术记录 chevron）、身份双卡字形、审核 iconBox 字形补 accessibilityHidden。
+- **定版登记（不重判）**：身份双卡渐变 8 处 UIColor＝§449.8 亲令采样定版色（P2-02 本波销账）；中枢分段条纯图标＝§222 亲点对齐形态（VO 段名 label 在位）；底栏纯图标定版与本波无关面同册。
+- **总账销账**：P1-03 本波页面 error 触感 0 处；P1-04 抽屉无 dragSpring（存量仅 ImageViewerView、归后波）；P3-03 工作/通知/台账详情等宽数字已合规。
+- **测试**：受影响 20 套直跑（iPhone 17e 独立模拟器＋自有 DD、Xcode 27.2）120 项全过、0 红 0 跳，逐套在册核对无静默跳过；帧＝demo UI 取证 14 帧（七面浅/深，存 oneday-design-review/hig-wave1-frames/），技能商店帧实证空态文案已缩短；电脑段/身份双卡/详情页 demo 不供数、无帧，归真机门。
+- **真机门**：撤销确认门实操、chip 命中观感、通知详情 VoiceOver 不念装饰符号；余等值收编视觉零变化抽查即可。

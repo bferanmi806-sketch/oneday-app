@@ -442,7 +442,7 @@ struct AgentHubView: View {
                     .foregroundStyle(Palette.inkSecondary)
                     .lineLimit(1)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
             }
             .padding(.horizontal, OneDayMetrics.spacingM)

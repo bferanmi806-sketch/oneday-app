@@ -766,6 +766,7 @@ private struct NotificationDetailView: View {
         HStack(spacing: OneDayMetrics.spacingXS) {
             Image(systemName: outcome == .rejected ? "xmark" : "checkmark")
                 .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .semibold))
+                .accessibilityHidden(true)
             Text(outcome.label())
                 .font(.footnote.weight(.medium))
         }
@@ -802,6 +803,7 @@ private struct NotificationDetailView: View {
                     Image(systemName: "doc.text")
                         .font(.system(size: FrameworkIcon.composerGlyphSize))
                         .foregroundStyle(Palette.inkSecondary)
+                        .accessibilityHidden(true)
                         .padding(.top, OneDayMetrics.spacingMicro)
                     VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                         Text(line.name)
@@ -837,6 +839,7 @@ private struct NotificationDetailView: View {
             Image(systemName: "info.circle")
                 .font(.system(size: FrameworkIcon.composerGlyphSize))
                 .foregroundStyle(Palette.inkMuted)
+                .accessibilityHidden(true)
                 .padding(.top, 1)
             Text(note)
                 .font(.footnote)
@@ -861,6 +864,7 @@ private struct NotificationDetailView: View {
                 Image(systemName: destinationSymbol)
                     .font(.system(size: FrameworkIcon.composerGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
+                    .accessibilityHidden(true)
                 Text(label)
                     .font(.rowSubtitle)
                     .foregroundStyle(Palette.ink)
@@ -910,6 +914,7 @@ private struct NotificationDetailView: View {
                         ? "chevron.up" : "chevron.down")
                         .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkMuted)
+                        .accessibilityHidden(true)
                 }
                 .frame(minHeight: OneDayMetrics.minTapTarget)
                 .contentShape(Rectangle())
