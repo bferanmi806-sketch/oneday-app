@@ -366,9 +366,12 @@ struct DeliverablesView: View {
             IdentityAnchor(
                 // 0.36.22：名与头像收敛档案出口
                 name: appState.agentDisplayName,
-                statusWord: appState.config == nil ? "未连接" : "在线",
-                statusColor: appState.config == nil
-                    ? Palette.inkMuted : Palette.success,
+                // §474（用户 2026-11-24 亲令）：小字与
+                // 聊天胶囊同源＝当前工作状态（AppState.
+                // liveActivityPhrase）；无活动传 nil——
+                // 词与点一并收起，不再显「在线／未连接」
+                statusWord: appState.liveActivityPhrase,
+                statusColor: Palette.inkMuted,
                 // 真头像注入（0.22.0 审计 F3），与聊天页
                 // 胶囊同一头像源
                 avatarImage: appState.agentAvatarImage
