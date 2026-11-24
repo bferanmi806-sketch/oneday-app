@@ -161,8 +161,15 @@ final class HapticsMatrixTests: XCTestCase {
             count(of: ".sensoryFeedback(.selection", in: all), 7)
         XCTAssertEqual(
             count(of: ".sensoryFeedback(.impact", in: all), 1)
+        // §467（目标对齐组版，0.50.112 改钉）：G-6 里程
+        // 碑全摘删 GoalListRows.MilestoneCheckRow，其
+        // .sensoryFeedback(.success, trigger: done) 落
+        // 点随里程碑面一并退役（111 树 GoalListRows
+        // 560 行处）；目标行本体落点（380 行）仍在、
+        // 行为不丢，声明式 success 3→2；其余各项逐
+        // 数不变（逐文件归因：增量仅此一处）
         XCTAssertEqual(
-            count(of: ".sensoryFeedback(.success", in: all), 3)
+            count(of: ".sensoryFeedback(.success", in: all), 2)
         // 封装外禁止直调生成器（Haptics.swift 本体已剔除）
         XCTAssertEqual(
             count(of: "UINotificationFeedbackGenerator()", in: all), 0)
