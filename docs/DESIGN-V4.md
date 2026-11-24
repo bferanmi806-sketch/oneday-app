@@ -17714,6 +17714,21 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **IPA**：Release BUILD SUCCEEDED（dd-05117-release）；OneDay-0.50.117-245.ipa，28,082,886B，md5 3e801708d4815adfdccb567b23f3b25d；unzip 直验主 App 本体 plist 三值 0.50.117／245／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。包体较 115 增大系 116 活头像片段入包所致（116 包 28,535,614B，本版略小），非本版新增。
 - **真机门（归用户 verdict，六件合并）**：§485 目标——复选框描边浅/深可见、页头簇同位、行 pitch 与折叠把手形态；§486 动态点子——页头收起手感、链接预览卡真数据、点子空带消除、标题 34 档；§487 简报编辑器——顶部面板弹簧质感与压暗、保存成败触感；§488 触感——改名未确认 warning 档、error 落点密度主观扰人否；§489 批 A——App 图标深色/着色主屏呈现、sheet 抓手可拖、Feed 动画在 Reduce Motion 下瞬时、文件图标无回退；§490 wave1——中枢审核撤销确认实操（点撤销→确认→真撤）、通知/抽屉帧面、深色观感、chip 命中域。
 
+## §492 0.50.118 组版（2026-11-24；基线 rel-05117 @47fd3799）
+
+单件成版：§493 设置 IA 重构（feat/settings-ia d0187b61，基线 rel-05115）。
+
+- **合并图**：rel-05118 自 rel-05117 tip 47fd3799 分叉，合 feat/settings-ia（合并提交 7ef5fe9c）。冲突 2：HubAuditSection 文件头注释（并集：§477 全文＋§493 新增句）；DESIGN 尾附（取 HEAD 全尾＋设置节尾附顺延 §493）。
+- **基线缺陷顺手修**：rel-05117 DESIGN §491 整节重复两遍（第二遍含乱码字节），已删第二遍、留干净第一遍，零内容丢失。
+- **节号 renumber 对照**：设置节 §482→§493；本组版节 §492。代码/测试自指 54 处同步（13 文件）；标识符 testStatusEntryRetiredIn482 按稳定标识惯例不改（以本对照为准）。
+- **编译亲解**：首编一处真错——设置线审批规则入口行用 iconBox（已随 §477 退役）→改 rowGlyph 同式（提交 3955f95a），重编 TEST BUILD SUCCEEDED。
+- **入口零丢失对账（放行门）**：SettingsCatalog 旧目录 34 条 id 与新目录 30 条 id 逐字 diff——退役恰 4（status/computer/serverFiles/approvalRules）、新增 0，其余 30 条原样在位。退役四条落点（grep 实证）：status 系统段→网关页「系统」组（GatewayView:267），活动/定时/体检分别归全部对话/定时任务页/服务器管理组；computer→中枢电脑格 ComputerFaceView（HubBrowserSection:13）；serverFiles→中枢电脑格文件段；approvalRules→中枢审核段直推 ApprovalRulesSettingsView（HubAuditSection:345）。连带迁移：维护段密钥/体检→当前服务器页「服务器管理」组（ServerDetailView:169，仅搜索可达）；内部实验 7 开关＋崩溃报告→聊天诊断页「内部实验」节（ChatDiagnosticsView:130）；更新说明→帮助与反馈页末节；断开连接→根页服务器段末行。逐行对账表全文见交付审计档 settings-ia-hig-audit-20261124.md 第一节。
+- **发布集**：117 bundle 提取 188 套/1509 项＋UI 6 套/13 项，与 §491 记账闭合；118 预期总项 1510（SettingsCatalogTests 25→26＝设置线新钉，其余逐套零漂移）。整跑（测试通道 RUN 已配对 EXIT，Rel115Phone）：单元 1503 过／7 红／共 1510 项，总项精确对账、零掉套；UI 11 过／0 败／2 跳，与 117 同形。7 红定因：#13 性能门（名单内、逐版同红、已裁可接受）＋名单外 6 项全数系已批准重构的钉锚过期、功能零丢失（见改钉）。
+- **改钉（主线裁准后执行，六处全在测试文件、零生产代码，提交 4e2c7d1f）**：①ChatSwapStep4/4b/4c/4d/5 五测的设置源文件锚点 SettingsSupportViews.swift→ChatDiagnosticsView.swift——§374 回退开关五键（CoalesceWindowDrop/SettleSingleBeat/DrawerFreezeDrop/ScrollLedger/SelectionKeyGuard）已随内部实验节迁入该文件 37/41/45/49/53 行、@AppStorage 在位，改钉前 grep 复核五键齐。②ThemeAlign431Tests DisclosureChevron 计数钉 47→44，归因 §493 StatusView 整页退役 −3（该文件 3 处落点随整页删除消失；全仓实数 44 亲验；先例 §476 改钉法，归因注记已写入测试注释）。改钉后复跑受影响 6 套（Test-Repin05118.xcresult）：14 过／0 红，result Passed。
+- **版本戳**：76f46d7c（Project.swift＋Derived plist 0.50.118/246，generate 后未还原 Derived）。
+- **IPA**：Release BUILD SUCCEEDED（dd-05118-release）；OneDay-0.50.118-246.ipa，28,006,069B，md5 dd6409db50a3cec4d4894e8946e59154；unzip 直验主 App 本体 plist 三值 0.50.118／246／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。
+- **真机门（归用户 verdict）**：中枢电脑格帧、审批页写入审批节帧、AX 最大档帧、设置根页 5 段观感、网关页「系统」组可达性。
+
 ## §493 设置信息架构审计全量落码（2026-11-24，用户 12:23 亲批「按审计推荐全量落码」；扩围 12:24 子页 HIG 呈现＋逐子页文字全扫；12:43 逐屏审计表全过令）
 
 规格正本＝`oneday-design-review/settings-ia-audit-20261124.md` 逐项处置表＋D1–D8＋命名修订表＋文字清扫表；呈现自查表＝`oneday-design-review/oneday-hig-screen-audit-checklist-20261124.md`（12 节）；交付审计档＝`oneday-design-review/settings-ia-hig-audit-20261124.md`（对账表/清扫表/打勾表/帧清单全表在彼）。分支 feat/settings-ia（基线 rel-05115）。
