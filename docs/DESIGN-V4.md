@@ -17776,3 +17776,14 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **实跑**（独立模拟器 StreamingPhone＋dd-streaming，Xcode 27.2，未占共享测试通道、未 kick）：Core 5 套全绿（新 20 法＋StreamSegmentAssembler／StreamingAssemblyFidelity／RunTurn 存量）；App 相关 15 套中 10 套全绿（简化模型／落定交换／§451 发送／队列发送／预排版／根链结构／滞后喂入／落定域／失败保留／离线可靠性＋新接线钉 7/7、两轮复跑同绿）。余 5 套（ChatNativeListAssembly／R2／R3／R4／ChatNativeFollowSource）共 15 红——**同模拟器在 pristine rel-05116 基线树复跑，红项集合逐项全同**，定性为该新模拟器环境既有红、非本线回归（116 发布集在发布模拟器上为绿；组版整跑时以发布通道复核为准）。
 - **边界**：Exyte 面不在本包（数据面共用 followRunEvents／装配器／发布门，呈现投影后行，沿定因报告与 W 线的先后建议）；服务端零改动（cadence 平滑二期可选不在本包）；演示模式同走 driveRun、直播行同武装。
 - **真机门（归用户 verdict）**：①长回复逐块长出观感（首字快、生长平滑、无整段瞬现、≥2000 字无 >300ms 冻结，工具间隙除外）；②流式中上滑 ≥1 屏不被拽底、回底钮点后恢复跟随；③落定无跳变无重绘闪（同键换装、段距不涨落、落定正文与直播末帧逐字一致）；④停止生成后已上屏文本保留、走既有半截链不丢字不重复；⑤gen4 关＝占位行旧形态、开＝流式恢复，两态落定无差异；⑥typewriter 开/关与 Reduce Motion 下尾块渐显观感（过强/发虚时关开关即退）；⑦思考/工具轮次间直播行与工具卡/胶囊活动短语的衔接观感；⑧断网恢复后回放补发整段直显（明示例外形态）观感可接受。
+
+## §495 0.50.119 组版（2026-11-24；基线 rel-05118 @8167fa2c）
+
+单件成版：§494 流式呈现修复（feat/streaming-presentation，基线 rel-05116，三笔 5fa65391/8444c110/2dc78400）。
+
+- **合并图**：rel-05119 自 rel-05118 tip 8167fa2c 分叉，合 feat/streaming-presentation（合并提交 fbfb8c02）。冲突 1：docs/DESIGN-V4.md 尾附（并集亲解）。版本戳 0.50.119/247（提交 4a2c266a：Project.swift→tuist generate→Derived 亲验，generate 后未还原 Derived）。合并树 TEST BUILD SUCCEEDED（rel05119-build.log）。
+- **节号 renumber 对照**：流式节 §485→§494（随合并提交同步）；本组版节 §495。文件名/类型名 StreamingPresentation485Tests 等含旧号者按稳定标识惯例不改（以本对照为准）。
+- **发布集对账**：自 118 发布 bundle（results/Test-OneDayApp-rel05118.xcresult＋Test-UI-rel05118.xcresult）以 xcresulttool 提取全限定名——单元 188 套/1510 项、UI 6 套/13 项，与 §492 记账闭合。流式新增逐项：Core 新套 StreamingBlockProductTests 10 项＋StreamingPublishGateTests 10 项、App 新钉 StreamingPresentation485Tests 7 项，合计 +27；119 发布集＝单元 191 套/1537 项＋UI 13 项。整跑实测 1537 项精确命中、逐套对 118 零掉套、恰 +27。
+- **整跑结果**：单元 1536 过／1 红——唯一红 MarkdownEngineDifferentialTests/testPerformanceGate（#13 性能门，整树老红、逐版同红已裁可接受）。118 全跑曾红的改钉六套（ChatSwapStep4/4b/4c/4d/5＋ThemeAlign431Tests）在合并树全绿，改钉持稳。UI 全跑 10 过／2 跳／1 红：TopBarSingleActionTapTests/testTopBarSingleActionDispatch（GAP-L@(125,99) fired=sheet、expect=none；单测耗时 185.6s、UI 整腿 411s，时值多线满载、通道 kick 期现 fork 资源不足）——隔离复跑（克隆标准模拟器 Rel119TopBarPhone＋独立 DerivedData 直跑，未占共享通道）**TEST SUCCEEDED**，判满载絮乱间歇红、非本版回归（先例：字号收编满载隔离复跑绿、TopBarHitIntermittent）；UI 有效口径 11 过／0 红／2 跳，与 118 同形。名单外新红为零。
+- **IPA**：OneDay-0.50.119-247.ipa，28,036,365 字节，md5 3ab7ef4e1d15d6463a10ce622ea06c11（Mac 与 VM 副本双边一致）；unzip 直验主 App 本体 plist 三值 0.50.119／247／site.didichou.oneday。Release 构建 dd-05119-release、CODE_SIGNING_ALLOWED=NO、BUILD SUCCEEDED。
+- **真机门（归用户 verdict）**：§494 八项——①长回复逐块长出观感（≥2000 字无 >300ms 冻结）；②流式中上滑不拽底；③落定无跳变、与直播末帧逐字一致；④停止后文本保留；⑤gen4 开/关两态；⑥typewriter 尾块渐显观感；⑦思考/工具轮衔接；⑧断网回放整段直显可接受。
