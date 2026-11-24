@@ -51,6 +51,15 @@ import Foundation
 /// 统一升本角色（对位 Muse 实测约 20–21pt
 /// semibold）；C14 单轨对三面让位、其余页面
 /// 一字不变，本例外不许再外溢
+/// §478（2026-11-24 目标页全抄修复）：增两角
+/// 色——pageTitle（一级页页题，Title2 锚/24/
+/// bold：照 Muse 目标页页题量测 ≈24pt 粗体，
+/// 与 drawerTitle 同法以 Title2 为相对缩放锚、
+/// 消费形态在 GoalsPageTitle 的 @ScaledMetric，
+/// 只许一级页页题消费）；groupHeader（目标页
+/// 分组头，Title3 20 semibold：照段头量测
+/// ≈18–20 semibold 深色字，只许目标页分组头
+/// 消费）。两角色均为局部例外、不许外溢
 public enum TypeRole: String, CaseIterable {
     case screenName
     case rowTitleL
@@ -66,13 +75,17 @@ public enum TypeRole: String, CaseIterable {
     case drawerRowTitleCurrent
     case drawerTitle
     case contentListTitle
+    case pageTitle
+    case groupHeader
 
     /// SwiftUI 文本样式名（与 FontRoles 落法同名对账）
     public var textStyleName: String {
         switch self {
         case .screenName: return "title"
         case .drawerTitle: return "title2"
+        case .pageTitle: return "title2"
         case .contentListTitle: return "title3"
+        case .groupHeader: return "title3"
         case .rowTitleL, .rowTitle, .bodyText,
              .drawerNavTitle, .drawerRowTitle,
              .drawerRowTitleCurrent: return "body"
@@ -87,7 +100,9 @@ public enum TypeRole: String, CaseIterable {
         switch self {
         case .screenName: return 28
         case .drawerTitle: return 24
+        case .pageTitle: return 24
         case .contentListTitle: return 20
+        case .groupHeader: return 20
         case .rowTitleL, .rowTitle, .bodyText,
              .drawerNavTitle, .drawerRowTitle,
              .drawerRowTitleCurrent: return 17
@@ -109,7 +124,14 @@ public enum TypeRole: String, CaseIterable {
         switch self {
         case .screenName: return "bold"
         case .drawerTitle: return "bold"
+        // §478：bold 配额增 pageTitle 一席——同为
+        // 大标题类（一级页页题、Title2 锚），仍属
+        // 大标题配额内、不外溢行题；groupHeader
+        // 的 semibold 与 contentListTitle 同档（局
+        // 部例外、只许目标页分组头）
+        case .pageTitle: return "bold"
         case .contentListTitle: return "semibold"
+        case .groupHeader: return "semibold"
         case .drawerNavTitle: return "medium"
         case .drawerRowTitleCurrent: return "semibold"
         default: return "regular"

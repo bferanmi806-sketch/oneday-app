@@ -309,31 +309,26 @@ struct GoalIntroView: View {
     }
 }
 
-/// 分组头：浅色圆底＋状态点＋组名（进行中绿系、已完成
-/// 灰系——已完成形态图上未见，色口径为推定，照设计档
-/// §2.4 登记）
+/// 分组头（§478 全抄口径，照 Muse 目标页段头量
+/// 测）：纯色点 Ø10（进行中＝success 绿、已完成＝
+/// inkMuted 灰）＋组名 groupHeader 角色（Title3
+/// 20 semibold、bodyInk 深色字）。旧形态（17pt
+/// 浅绿底盘＋6.5pt 点＋.body semibold 绿字）整件
+/// 退役——参照段头无底盘、字为深色（审计 D3）。
+/// 已完成组头字阶/字色随进行中组统一（其折叠＋
+/// 计数形态不变，审计 §四.3）
 struct GoalGroupHeader: View {
     let title: String
     let completed: Bool
 
     var body: some View {
         HStack(spacing: OneDayMetrics.spacingS) {
-            ZStack {
-                Circle()
-                    .fill(completed ? Palette.surface : Palette.tintGreen)
-                    .frame(width: 17, height: 17)
-                Circle()
-                    .fill(completed ? Palette.inkMuted : Palette.success)
-                    .frame(width: 6.5, height: 6.5)
-            }
+            Circle()
+                .fill(completed ? Palette.inkMuted : Palette.success)
+                .frame(width: 10, height: 10)
             Text(title)
-                // §364（台账 23）：组头改 semibold
-                // （对位 Muse 实测半粗）——组头非
-                // 行题、不撞 C14 行题单轨
-                .font(.body.weight(.semibold))
-                .foregroundStyle(
-                    completed ? Palette.inkSecondary : Palette.successText
-                )
+                .font(.groupHeader)
+                .foregroundStyle(Palette.bodyInk)
         }
     }
 }
@@ -351,7 +346,8 @@ struct GoalCheckBox: View {
                     .fill(done ? Palette.ink : Color.clear)
                 RoundedRectangle(cornerRadius: OneDayMetrics.radiusCheckbox, style: .continuous)
                     .strokeBorder(
-                        done ? Color.clear : Palette.hairline,
+                        done ? Color.clear
+                            : Color(UIColor.opaqueSeparator),
                         lineWidth: 1.5
                     )
                 if done {
@@ -360,10 +356,30 @@ struct GoalCheckBox: View {
                         .foregroundStyle(.white)
                 }
             }
-            // 命中域 44×44（视觉框 22 不变）：-11 内
-            // 边距抵消额外命中域、不改行布局
-            // （0.36.0，无障碍 A11Y-V1/T1）
-            .frame(width: 44, height: 44)
+            // §478：视觉框/命中域/布局三层分开——内
+            // 层 frame 22 钉死绘制（旧实现形状无自
+            // 身 frame、直接撑满 44 命中框绘制，
+            // .padding(-11) 只缩布局不缩绘制、实
+            // 渲 44＝参照 2 倍，审计 D5）；外层
+            // frame 44＋contentShape 只承载命中；
+            // .padding(-11) 只抵消命中层布局占
+            // 用、绘制不经它缩放（0.36.0 的 44 命
+            // 中口径 A11Y-V1/T1 不变）。描边改系
+            // 统 separator 档浓度＝UIColor
+            // .opaqueSeparator（实色 #C6C6C8，审
+            // 计 D4 定版 ≈#C7C7CC 档；0.36.1
+            // odGroup 描边同因改挂此色收口先例）：
+            // 半透明 separator 在 iOS 26 解析
+            // α＝0.12、压白实渲 #E8E8E8 与旧
+            // hairline（#EEEEF0、白底对比
+            // ≈1.1:1 等于没画，审计 D4）几乎无
+            // 别——量测实证见 GoalsCopy478
+            // MeasureTests
+            .frame(width: 22, height: 22)
+            .frame(
+                width: OneDayMetrics.minTapTarget,
+                height: OneDayMetrics.minTapTarget
+            )
             .contentShape(Rectangle())
             .padding(-11)
         }
@@ -408,12 +424,16 @@ struct GoalRowView: View {
     var onDelete: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: OneDayMetrics.spacingSM) {
+        // §478：横向间距 spacingSM 12→spacingS 8
+        // （参照量测：框右缘→标题左缘 ≈8pt，审计
+        // R5/R6）；复选框删 spacingMicro 顶补丁——
+        // 视觉框回 22 后布局顶与标题首行同顶（顶
+        // 差 ≤3pt，审计 §四.4），补丁式对齐退役
+        HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             GoalCheckBox(done: goal.status == .completed) {
                 onToggleStatus()
             }
             .disabled(acting)
-            .padding(.top, OneDayMetrics.spacingMicro)
             NavigationLink {
                 GoalDetailView(store: store, goalID: goal.id)
             } label: {
@@ -426,17 +446,30 @@ struct GoalRowView: View {
                         // Muse 实测约 21pt semibold
                         .font(.contentListTitle)
                         .foregroundStyle(Palette.bodyInk)
-                        .lineLimit(2)
+                        // §478：lineLimit 2→1（照 Muse
+                        // 目标页参照：标题单行呈现、长题
+                        // 尾截断，审计 D7/R6）
+                        .lineLimit(1)
                         .multilineTextAlignment(.leading)
                     if !summary.isEmpty {
                         Text(summary)
-                            .font(.body)
+                            // §478：字阶 .body 17→rowSub-
+                            // title 15（参照 ≈15–16pt 档，
+                            // 审计 D8/R7）；lineSpacing
+                            // -1 把行 pitch 自 20 压到
+                            // 19±1（参照实测 19.0/18.7）
+                            .font(.rowSubtitle)
                             .foregroundStyle(Palette.inkSecondary)
+                            .lineSpacing(-1)
                             // §364：截断 2→3 行（对位 Muse 2–3 行）
                             // §453 改判 4 行：用户 2026-11-24
                             // 截图实证 Muse 现状摘要全显可达
                             // 4 行，3 行会腰斩最新进展条目
-                            .lineLimit(4)
+                            // §478 再改判 3 行：全抄审计逐
+                            // 帧量测参照摘要 ≤3 行、块高
+                            // ≤57pt（D8/R7），§453 的 4
+                            // 行口径就此被覆盖
+                            .lineLimit(3)
                             .multilineTextAlignment(.leading)
                     }
                     // 活动行（GD-1 呈现，§238）：桥派生
