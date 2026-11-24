@@ -17348,3 +17348,71 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–112 逐字同红、已裁可接受。本版无新红、无改钉（HapticsMatrixTests 本轮全过）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05113-release，rc=0）；~/build/OneDay-0.50.113-241.ipa，16,835,397 字节，md5 7207d8acc03eca5e0a0fdade6fccd738；unzip 直验主 App 本体 plist 三值＝0.50.113／241／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.113-241.ipa）md5 一致。
 - 真机门（归用户 verdict）：①杀 App 48h 后重开，一轮前台周期内（≤15 分钟）calendar/reminders 的 synced_at 均刷新、审计账出现新成功记录、设备同步总览两行转绿；②装版先看健康面第一屏定因回读（权限分型人话＝实锤 blocked 分支）＋诊断段自检结论与审计逐条对账；③逐数据集点「立即同步」时刻往前走，断网点一次失败原因红字显形、不报假成功；④系统设置关日历权限→同步页该行红点＋「权限已关，去系统设置里开启」，恢复后下一轮自检自动恢复推送；⑤飞行模式回前台→恢复网络，退避到点自动补同步；提醒读取不再整轮挂死。
+
+## §479 活头像一期：App 侧播放器＋状态机（2026-11-24，feat/living-avatar-p1，基线 rel-05113；规格＝oneday-design-review/living-avatar-spec-20261124.md，下称规格）
+
+### 479.1 大厂对位节（先行，落码以此为准）
+
+| 面 | 成熟做法 | 出处档 | 本包落法 |
+|---|---|---|---|
+| 状态驱动单一视觉面 | ChatGPT 语音态圆点、Apple Intelligence 的 Siri 光晕：聆听/思考/说话由**一个状态机**驱动一个视觉面，界面不各自猜状态 | 公开文档/现象推断 | 状态只出自 §479.4 的 Core 状态机一处；播放器只消费 `{state, since, source}`，不自带第二套状态（规格 §4「不许」逐字守） |
+| 无缝循环 | 苹果官方 `AVPlayerLooper`（AVQueuePlayer＋模板 item 循环）就是为装饰性无缝循环设的件 | 官方文档 | 循环段一律 AVPlayerLooper 托管，不手写 seek-to-zero 循环 |
+| 状态切换过渡 | Telegram 等成熟客户端的动态头像/贴纸切换用双层交叉淡化（约 200–300ms），不硬切 | 现象推断＋规格 §4 明文 | 双 AVPlayerLayer 交叉淡化 0.25s；新层就绪才淡入、旧层淡出后释放 |
+| 瞬时态 | Duolingo 吉祥物的庆祝动作、系统级「完成」动效：短播一次即回落，不循环占位 | 现象推断＋规格 §1.3 | S6 完成/S9 醒来呈示窗 2.8s、单播不循环，到点由状态机回落（不靠播放器播完事件，时间真源在状态机） |
+| 降级 | 成熟产品一律「动不了就静」：减少动态效果开启→静态、资源缺失→静态，无一例外不留空白 | HIG/现象推断 | Reduce Motion、离屏、片段缺失/解码失败、头像绑定不符——四路全回落静态头像图（与今日形态逐字一致） |
+| 状态源 | Hermes runs 事件 SSE 是既有真源（tool.started/tool.completed/message.delta/run 终态，RunTurn.swift 解析器在役） | 本仓实查 | 状态机喂食点与 AppState.liveActivityPhrase 的写点**同位**（ChatView.followRunEvents），不新开第二条事件通道（规格 §4「数据源装配归既有 run 状态面」） |
+
+### 479.2 一期呈现位与规格 §9.1 的口径差（登记）
+
+规格 §9.1 一期片段位为 S1/S3/S4·W0/S5/S6/S7；零号试验套实到片段为 S1（浅/深）、S4 通用（浅/深）、S4 写（浅/深）、S6（浅/深）、S9 醒来（仅深）、通话空闲（浅/深）。本期**状态机按规格全量 9 态建模**，呈现位以实到片段为准：S1、S4（通用＋写）、S6、S9 醒来、通话空闲（仅目录登记，通话面属通话包、本期不呈现）；S3/S5/S7 有状态无片段，按 §479.5 兜底表呈现。片段时长实测 8s（通话两段 8.72/9.68s），长于规格 3–5s 口径：循环段整段循环、瞬时段按 2.8s 呈示窗截断回落，登记为试验套既成事实、二期生成时按规格时长收。
+
+### 479.3 片段来源偏离（登记，架构实因）
+
+2026-11-24 实查 companion identity_bridge `_dispatch` 全量路由：只有 name/avatar/select/image，**没有任何 living-clips/manifest 的 HTTP 读口**（服务端片段目录 `/opt/identity-data/living-clips/` 仅落盘、无出网面）。本线只许动 App，故一期片段来源定为 **App 内置**：11 段 mp4＋manifest 原样入 `App/Resources/LivingAvatar/`（拉取时逐个 md5 与 manifest 对账 11/11 一致、manifest 本体 md5 与导入报告一致）。绑定口径代行规格 bound_version：片段集只对当前头像条目 `av_6199b491aa3e`（manifest bound_avatar）生效，当前条目非它（用户换图/选预置）即整套 stale→全静态——新脸不播旧动作。后续：identity 面随断桥批四入网关时补 manifest/clips 读口，App 改走远程拉取＋按 version 缓存（规格 §2.2/§4 本意），播放器与状态机不动。
+
+### 479.4 状态机（Core LivingAvatar.swift，纯函数＋注入时钟）
+
+- 状态词表与规格 §1/§7 共用：idle/listening/thinking/working(family)/speaking/done/blocked/awaiting/asleep/waking。listening 一期无事件源（规格二期）、awaiting 一期无喂食点（事件流无审批帧，规格一期本就代播）——两态建模在册、呈现走兜底，不假装有源。
+- 喂食事件（全部来自既有 runs 事件流的同位转译）：runStarted / reasoning / toolStarted(family) / toolCompleted(failed) / textDelta / terminalCompleted / terminalFailed / terminalCancelled / streamLost / interaction / subagent 起落（.other 名转译 delegate 族）。
+- 工具族（规格 §1.2）：write（write_file/files_write/patch/文档写族）、search（read_file/files_read/files_list/web_search/web_extract/memory 检索/browser 读族）、execute（terminal/execute_code/shell/process 族）、delegate（subagent.start 事件）、其余 general。映射缺失一律 general，不硬猜；表在 Core 单点、逐名列明。
+- 优先级（规格 §1.3）：blocked ＞ awaiting ＞ working ＞ speaking ＞ thinking ＞ waking ＞ done ＞ asleep ＞ idle（waking 为本包呈示瞬时态，插在运行态之下、done 之上：在睡态被交互唤醒且无 run 接管时呈示；run 一开始即被运行态压过，不拖活）。
+- 瞬时呈示窗：done 2.8s；waking 2.8s；blocked——工具级失败置 3s（其间任一后续活动事件即清，证明 run 已续走）、run 级失败置 10s（规格 S7 退出规则：新交互/新 run 即清、无交互 10s 回 idle）；streamLost（未见终态流断）→直接回 inactive，不算失败、不置 blocked（§58 既定口径：结果未知非错误）。
+- 睡眠：距最后活动 ≥1800s（规格默认 30 分钟，注册表键服务端侧后续接）且无 run 在跑→asleep；活动＝run 事件或 interaction 喂食。asleep 呈示＝静态（睡着即静）；离开 asleep 的首个 interaction（无 run）→waking 瞬时态。
+- 终态 cancelled/interrupted→回 inactive，不置 done/blocked（回执运行时化同口径：取消不算成败）。
+
+### 479.5 兜底表（无片段状态的呈现，逐态登记）
+
+| 状态 | 呈现 | 理由 |
+|---|---|---|
+| thinking | S1 idle 片段 | 无专属片段；「活着、在等第一步」与 idle 语义最近，冻静态反而像死了 |
+| speaking | S1 idle 片段 | 同上；规格 X3 二档本就只表「在说」、不对口型，不另造假动作 |
+| awaiting | S1 idle 片段（经 thinking 同路） | 规格一期口径＝S3 代播，S3 本套亦缺，再落一档到 idle；审批卡本体区分语义 |
+| blocked | 静态图 | 出错时忌讳还在欢快地动；冻结即「停住了」，与 §479.4 的短置窗配套 |
+| asleep | 静态图 | 睡眠呈示就是静；waking-dark 只用于醒来瞬时态 |
+| waking（浅色） | 静态图 | waking 片段仅深色一份（试验套缺口），浅色不拿深色片凑（底色不对版） |
+| working 的 search/execute/delegate | S4 通用片段 | 试验套只有通用＋写两变体；manifest 自带 delegate 与通用同源注记 |
+| 任一状态（绑定不符/Reduce Motion/离屏/解码失败） | 静态图 | §479.1 降级行 |
+
+### 479.6 播放器（App LivingAvatarView）
+
+- 载体：UIViewRepresentable 包双 AVPlayerLayer；循环段 AVQueuePlayer＋AVPlayerLooper、瞬时段 AVPlayer 单播（呈示窗由状态机管、播放器不自作主张回落）；全程静音（片段本无音轨，再钉 `isMuted`）、`resizeAspectFill` 填满头像盘、圆裁剪由宿主（HubAvatarButton）沿用。
+- 切换：状态→片段 key 变化才换 item；同 key 不重启（防同态内抖动重播）。淡化 0.25s，新层首帧就绪（readyForDisplay）才开始交叉。
+- 节制：视图离屏（onDisappear）暂停、回屏恢复；scenePhase 非 active 暂停；Reduce Motion 时整件不挂播放器、直出静态图。
+- 宿主：聊天页顶带 HubAvatarButton 的头像盘（hero 档）——按钮 API 不变，只把盘内静态 Image 换成本件（活/静同口）；其余露脸面（中枢 hero、抽屉、设置）本期不动（中枢在 hubcopy 线领地、余者登记后续）。
+
+### 479.7 pin 口径守恒
+
+用户手动换图＝当前条目 source=app-user 的图片条目；本套片段正是从该条目图生成、且绑定校验以条目 id 为准——pin 在位时播放器只在用户图上做状态呈示，从不替换图本体、不写头像仓、无任何 AI 写口（规格 §6 写面属二期，本期不提前开）。用户一旦换图，绑定失效→全静态，等服务端流水线（后续包）为新图生成片段后再活，零回退风险。
+
+### 479.8 触碰面与验收
+
+- 新增：Sources/OneDayCore/LivingAvatar.swift、Sources/OneDayApp/LivingAvatarController.swift、Sources/OneDayApp/LivingAvatarView.swift、App/Resources/LivingAvatar/（11 mp4＋manifest.json）、Tests/OneDayCoreTests/LivingAvatarTests.swift、Tests/OneDayAppTests/LivingAvatarShotsTests.swift。
+- 改：Sources/OneDayApp/AppState.swift（持 controller＋绑定 provider）、Sources/OneDayApp/HubAvatarButton.swift（盘内换播放器）、Sources/OneDayApp/ChatView.swift（followRunEvents 同位喂食约 8 处一行调用＋头部传 controller）。不碰：胶囊小字（§474 领地）、中枢结构（hubcopy 领地）、AgentHubView、身份编辑面。
+- 验收：Core 单测覆盖状态迁移/优先级/瞬时窗/睡眠醒来/族分类/目录解析与兜底；App 侧逐状态截图（idle/working 写/working 通用/done/waking 深色/静态兜底）留证；真机手感（接缝、淡化、耗电）归用户 verdict。
+
+### 479.9 落码与验证记录（2026-11-24 本线交卷）
+
+- 落码：Core `LivingAvatar.swift`（分类器/状态机/目录裁决，纯值＋注入时钟）＋钉测 9 项；App `LivingAvatarController`（事件喂食＋nextTransitionDate 精确唤醒、不轮询）、`LivingAvatarView`（双 AVPlayerLayer 交叉淡化 0.25s、循环段 AVPlayerLooper、瞬时段单播末帧定格、全程静音、失败落静态）；接线＝AppState 持控制器＋绑定 provider、HubAvatarButton 头像盘换活面（静态路径原样保留）、ChatView followRunEvents 八处一行转译、根 scenePhase .active 喂 interaction；片段 11 段＋manifest 以 `living-avatar-manifest.json` 改名入 `App/Resources/LivingAvatar/`，构建产物实查落 .app 包根（tuist 摊平目录），加载器子目录/包根双探命中包根。
+- 验证（iPhone 17e 独立模拟器，Xcode 27.2 工具链）：Core 钉测 9/9 全绿；DEBUG 画廊 UI 测试逐状态实跑 7 帧全过（01 idle 浅色/02 干活·写/03 干活·通用/04 完成/05 卡住静态兜底/06 深色睡着静态/07 深色醒来），帧图逐张目验为真片段画面（非黑屏/非兜底误报），存 Mac ~/build/livingavatar-shots2/。工具链注记：Xcode 26.6 下基线测试文件 LibraryListStoreC4Tests 的 Sendable 诊断成 error 阻断整靶编译（与本线改动无关、git 对账未触该面），27.2 下同套全过——后续组版跑测请用 27.2 或先处置该基线项。
+- 首跑实证两条（已修并复跑绿）：①绑定 provider 若晚于首帧裁决装配，idle 首帧误落静态兜底——画廊改创建期装配、呈现面 onAppear 只管状态重算与唤醒重排，裁决随状态发布与宿主重渲重跑；②画廊醒来按钮先抬睡眠阈值会让机器先判回空闲、醒来位永不触发——喂事件与改阈值的顺序即语义，产品侧阈值恒定不涉。
+- 未验（归用户真机 verdict）：切换接缝手感、长时间循环耗电/发热、真机弱性能下交叉淡化帧率、页头小尺寸（约 40pt）下片段可辨识度。服务端 identity 读口随断桥批四入网关后改远程拉取，播放器/状态机不动（§479.3 既登记）。
