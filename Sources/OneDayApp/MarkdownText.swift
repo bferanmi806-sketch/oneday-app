@@ -18,6 +18,10 @@ struct MarkdownText: View {
     /// §149：选区活动回报（聊天页据此在选字期间关
     /// 本行右滑引用）；其他消费面不传＝不回报
     let onSelectionChange: ((Bool) -> Void)?
+    /// §471：聊天列表呈现传 false——正文禁长按直
+    /// 接选字、仲裁归消息菜单；其余消费面（动态
+    /// 等）不传＝true，行为逐字不变
+    let allowsDirectSelection: Bool
     /// 台账 190 留账②（§335）：排版产物段串（呈现
     /// 段下标→属性串）——条目行由 ChatView 按产物
     /// 键查得后注入：散文/引用段下标命中即直贴产
@@ -32,11 +36,13 @@ struct MarkdownText: View {
     init(
         _ content: String,
         onSelectionChange: ((Bool) -> Void)? = nil,
-        segmentProducts: [Int: NSAttributedString]? = nil
+        segmentProducts: [Int: NSAttributedString]? = nil,
+        allowsDirectSelection: Bool = true
     ) {
         self.content = content
         self.onSelectionChange = onSelectionChange
         self.segmentProducts = segmentProducts
+        self.allowsDirectSelection = allowsDirectSelection
     }
 
     private var blocks: [MarkdownBlock] {
@@ -99,6 +105,7 @@ struct MarkdownText: View {
             textStyle: .body,
             foreground: Palette.bodyInk,
             onSelectionChange: onSelectionChange,
+            allowsDirectSelection: allowsDirectSelection,
             prebuiltAttributed: product
         )
     }
@@ -288,6 +295,7 @@ struct MarkdownText: View {
                 textStyle: .body,
                 foreground: Palette.inkSecondaryOnFill,
                 onSelectionChange: onSelectionChange,
+                allowsDirectSelection: allowsDirectSelection,
                 prebuiltAttributed: product
             )
         }
@@ -322,7 +330,8 @@ struct MarkdownText: View {
                         paragraphs: [.markdown(item.text)],
                         textStyle: .body,
                         foreground: Palette.bodyInk,
-                        onSelectionChange: onSelectionChange
+                        onSelectionChange: onSelectionChange,
+                        allowsDirectSelection: allowsDirectSelection
                     )
                     .alignmentGuide(.firstTextBaseline) { _ in
                         InlineTextFonts.firstBaseline(

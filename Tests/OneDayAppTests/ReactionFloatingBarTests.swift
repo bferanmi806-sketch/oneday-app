@@ -634,6 +634,57 @@ final class ReactionFloatingBarTests: XCTestCase {
         )
     }
 
+    // MARK: - §471 过渡版（动画参数＋选字仲裁）
+
+    /// 动画参数表逐值钉（照抄 Exyte MessageMenu
+    /// 源码：D＝0.3、就位 D×1.33、收起 D×0.66、
+    /// 段点 0.33D）——改参数先改本钉并注明出处
+    func testMotionParametersMatchExyte() {
+        XCTAssertEqual(ReactionBarMotion.duration, 0.3)
+        XCTAssertEqual(
+            ReactionBarMotion.stageDelay, 0.1, accuracy: 0.001
+        )
+        XCTAssertEqual(
+            ReactionBarMotion.dismissalTotal, 0.42, accuracy: 0.001
+        )
+    }
+
+    /// 病一仲裁钉：抑制开时内部长按/双击选字识别
+    /// 器不许 begin、编辑菜单动作全关；抑制关时
+    /// 逐字回系统默认（选择 sheet 实例口径）
+    func testSelectionSuppressionArbitration() {
+        let view = SelectableUITextView(
+            usingTextLayoutManager: true
+        )
+        let longPress = UILongPressGestureRecognizer()
+        let doubleTap = UITapGestureRecognizer()
+        doubleTap.numberOfTapsRequired = 2
+        let singleTap = UITapGestureRecognizer()
+
+        view.suppressesDirectSelection = true
+        XCTAssertFalse(
+            view.gestureRecognizerShouldBegin(longPress)
+        )
+        XCTAssertFalse(
+            view.gestureRecognizerShouldBegin(doubleTap)
+        )
+        XCTAssertTrue(
+            view.gestureRecognizerShouldBegin(singleTap),
+            "单点（链接点按）不在否决之列"
+        )
+        XCTAssertFalse(
+            view.canPerformAction(#selector(SelectableUITextView.copy(_:)), withSender: nil)
+        )
+
+        view.suppressesDirectSelection = false
+        XCTAssertTrue(
+            view.gestureRecognizerShouldBegin(longPress)
+        )
+        XCTAssertTrue(
+            view.gestureRecognizerShouldBegin(doubleTap)
+        )
+    }
+
     /// Muse 量测对位：4 项卡高 ≈187、宽 ≈屏宽
     /// 0.625；药丸排含「＋」总宽 372（量测 ≈372）
     func testCardMetricsAgainstMuseMeasure() {

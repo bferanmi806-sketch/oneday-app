@@ -620,6 +620,14 @@ struct ChatView: View {
     private var aiSelfReactionsEnabled = true
     /// 反应浮排会话（一次长按一份；nil＝无浮排）
     @State private var reactionBarSession: ReactionBarSession?
+    /// §471 浮排动画三段状态（参数全走 Reaction-
+    /// BarMotion＝Exyte 原文）：背景／快照／药丸卡
+    /// 分别驱动入场，收起逆序；dismissing 防收起
+    /// 途中重入（点按连发不双摘会话）
+    @State private var reactionBarBgShown = false
+    @State private var reactionBarSnapshotShown = false
+    @State private var reactionBarChromeShown = false
+    @State private var reactionBarDismissing = false
     @State private var streamSettleMap = StreamingSettleMap()
     /// 0.6.0：通知 sheet（顶栏铃铛点开，总览桥驱动）
     @State private var showNotifications = false
@@ -1154,6 +1162,13 @@ struct ChatView: View {
         // （confirmationDialog）随 §346 同呈退役
         .fullScreenCover(item: $reactionBarSession) { session in
             reactionBarOverlay(session)
+        }
+        // §471：系统 cover 转场（滑入硬切、三层互叠
+        // 重影的来源之一）摘除——呈现/收起的动画全
+        // 归浮排内部 ReactionBarMotion 时钟（Exyte
+        // 参数），cover 只作承载
+        .transaction(value: reactionBarSession?.id) { transaction in
+            transaction.disablesAnimations = true
         }
         // §125：文件打开页（中间页）——聊天侧点牌的
         // 唯一落点（图片仍走上方全屏查看器、不经此页）
@@ -5008,7 +5023,17 @@ struct ChatView: View {
             if showsUnreadDivider {
                 unreadDivider(for: entry)
             }
+            // §471（病二）：本条浮排在场期间原泡摘
+            // 除——快照在原位独呈，杜绝「原泡压暗＋
+            // 复刻盖上」的双份叠印（Exyte 本体抽出
+            // 语义的过渡实现：几何/命中不动、只摘
+            // 渲染）。快照走 bubble(entry) 直调、不
+            // 经本行构建，不受此摘除影响
             bubble(entry)
+                .opacity(
+                    reactionBarSession?.entryID == entry.id
+                        ? 0 : 1
+                )
             if !sources.isEmpty {
                 // D4 (§349): the source strip is a
                 // sibling slot of the bubble, not part
@@ -5241,6 +5266,11 @@ struct ChatView: View {
                                     entryID: entry.id, active: active
                                 )
                             },
+                            // §471（病一）：列表态禁直
+                            // 接选字——长按归浮排/菜
+                            // 单，选字只从菜单「选择」
+                            // 行进 sheet
+                            allowsDirectSelection: false,
                             // §335：用户正文产物段串直
                             // 贴（产物 plain 段与本段同
                             // 源同式——同整形拼装 §271、
@@ -5621,8 +5651,11 @@ struct ChatView: View {
                                     entryID: entry.id, active: active
                                 )
                             },
+                            // §471（病一）：列表态禁直
+                            // 接选字（同用户泡口径）
                             segmentProducts:
-                                entrySegmentProducts(entry)
+                                entrySegmentProducts(entry),
+                            allowsDirectSelection: false
                         )
                     }
                 }
@@ -6144,12 +6177,66 @@ struct ChatView: View {
         // 排不抢本行正在进行的选字）
         guard rowStateLedger.textSelectionEntryID != entry.id
         else { return }
+        // §471：动画三段状态复位（入场由 overlay 的
+        // onAppear 按 ReactionBarMotion 时序推进）
+        reactionBarBgShown = false
+        reactionBarSnapshotShown = false
+        reactionBarChromeShown = false
+        reactionBarDismissing = false
         reactionBarSession = ReactionBarSession(
             entryID: entry.id,
             data: actionSheetData(for: entry),
             sourceFrame: frame,
             alignsTrailing: entry.role == "user"
         )
+    }
+
+    /// §471 浮排入场时序（Exyte 三段：背景与快照
+    /// 同拍起、药丸/卡延迟 0.33D 后以 bouncy 入
+    /// 场）：各段独立 withAnimation、各用各的曲线
+    /// （ReactionBarMotion），同一时钟不混曲线
+    private func beginReactionBarEntrance() {
+        withAnimation(ReactionBarMotion.backgroundIn) {
+            reactionBarBgShown = true
+        }
+        withAnimation(ReactionBarMotion.messageIn) {
+            reactionBarSnapshotShown = true
+        }
+        Task { @MainActor in
+            try? await Task.sleep(
+                for: .seconds(ReactionBarMotion.stageDelay)
+            )
+            guard reactionBarSession != nil,
+                  !reactionBarDismissing else { return }
+            withAnimation(ReactionBarMotion.chromeIn) {
+                reactionBarChromeShown = true
+            }
+        }
+    }
+
+    /// §471 浮排收起（全 overlay 内收起路单点）：
+    /// 药丸/卡/快照先以 snappy(0.2) 退场、背景延
+    /// 迟 0.33D 后 easeOut 淡出，全程走完才摘会
+    /// 话——不再 session=nil 整组瞬时消失。投递
+    /// 路（pick/pickAction 成功后）同走本路
+    private func dismissReactionBar() {
+        guard reactionBarSession != nil,
+              !reactionBarDismissing else { return }
+        reactionBarDismissing = true
+        withAnimation(ReactionBarMotion.chromeOut) {
+            reactionBarChromeShown = false
+            reactionBarSnapshotShown = false
+        }
+        withAnimation(ReactionBarMotion.backgroundOut) {
+            reactionBarBgShown = false
+        }
+        Task { @MainActor in
+            try? await Task.sleep(
+                for: .seconds(ReactionBarMotion.dismissalTotal)
+            )
+            reactionBarSession = nil
+            reactionBarDismissing = false
+        }
     }
 
     /// 浮排 overlay（DESIGN §343／§346／§440）：
@@ -6163,6 +6250,14 @@ struct ChatView: View {
     /// snapshotPlacementY；点快照/点空白/在压暗
     /// 区拖动（滚动意图）同路收起（§440 补拖动
     /// 路——点外即散不分轻点还是拖动）
+    /// §471（病二）：背景改 Exyte 双层——.ultra-
+    /// ThinMaterial 虚化＋.primary.opacity(0.1)
+    /// 压暗（代原 Color.black 0.32 单层平压）；原
+    /// 泡由 entryRowContent 在浮排期间摘除
+    /// （opacity 0），快照原位独呈、不再双份叠印
+    /// §471（病三）：入/出场全走 ReactionBar-
+    /// Motion 时钟（背景/快照/药丸卡三段状态），
+    /// 收起一律经 dismissReactionBar 逆序退场
     @ViewBuilder
     private func reactionBarOverlay(
         _ session: ReactionBarSession
@@ -6195,25 +6290,34 @@ struct ChatView: View {
                 itemCount: items.count
             )
             ZStack(alignment: .topLeading) {
-                Color.black.opacity(0.32)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        reactionBarSession = nil
-                    }
-                    .simultaneousGesture(
-                        DragGesture(minimumDistance: 12)
-                            .onChanged { _ in
-                                reactionBarSession = nil
-                            }
-                    )
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(
-                        L10n.string("关闭")
-                    )
-                    .accessibilityAction {
-                        reactionBarSession = nil
-                    }
+                // §471 病二背景双层（Exyte 原文参数）：
+                // 材料虚化＋主色 10% 压暗；整体随
+                // reactionBarBgShown 淡入/淡出
+                ZStack {
+                    Rectangle()
+                        .fill(.ultraThinMaterial)
+                    Rectangle()
+                        .fill(Color.primary.opacity(0.1))
+                }
+                .ignoresSafeArea()
+                .opacity(reactionBarBgShown ? 1 : 0)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    dismissReactionBar()
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { _ in
+                            dismissReactionBar()
+                        }
+                )
+                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel(
+                    L10n.string("关闭")
+                )
+                .accessibilityAction {
+                    dismissReactionBar()
+                }
                 if let entry = currentThread?.sortedEntries
                     .first(where: { $0.id == session.entryID }) {
                     reactionSnapshot(
@@ -6226,12 +6330,12 @@ struct ChatView: View {
                         )
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            reactionBarSession = nil
+                            dismissReactionBar()
                         }
                         .simultaneousGesture(
                             DragGesture(minimumDistance: 12)
                                 .onChanged { _ in
-                                    reactionBarSession = nil
+                                    dismissReactionBar()
                                 }
                         )
                         .offset(
@@ -6243,25 +6347,34 @@ struct ChatView: View {
                     ownEmoji: session.data.ownEmoji
                 ) { emoji in
                     if session.pick(emoji) {
-                        reactionBarSession = nil
+                        dismissReactionBar()
                     }
                 }
+                // §471 病三：药丸随 chrome 段入场
+                // （bouncy＋下移 8pt 回位＋淡入），
+                // 收起同段逆放
+                .opacity(reactionBarChromeShown ? 1 : 0)
                 .offset(
                     x: layout.barOrigin.x,
                     y: layout.barOrigin.y
+                        + (reactionBarChromeShown ? 0 : 8)
                 )
                 ReactionActionCardView(items: items) { item in
                     if session.pickAction(item) {
-                        reactionBarSession = nil
+                        dismissReactionBar()
                     }
                 }
                 .frame(
                     width: layout.cardSize.width,
                     height: layout.cardSize.height
                 )
+                // §471 病三：动作卡随 chrome 段入场
+                // （与药丸同一 bouncy 时钟）
+                .opacity(reactionBarChromeShown ? 1 : 0)
                 .offset(
                     x: layout.cardOrigin.x,
                     y: layout.cardOrigin.y
+                        + (reactionBarChromeShown ? 0 : 8)
                 )
             }
             .frame(
@@ -6270,6 +6383,7 @@ struct ChatView: View {
             )
         }
         .ignoresSafeArea()
+        .onAppear { beginReactionBarEntrance() }
     }
 
     /// §440：key window 的安全区 insets（浮排视口
@@ -6315,7 +6429,15 @@ struct ChatView: View {
                         color: .black.opacity(0.22),
                         radius: 16, y: 6
                     )
-                    .scaleEffect(1.02)
+                    // §471 病三：就位动画——快照自原
+                    // 位 1.0 升至抬起 1.02（Exyte
+                    // messageIn easeInOut 0.4 驱动
+                    // reactionBarSnapshotShown），兼
+                    // 作长按识别时刻的按下反馈
+                    .scaleEffect(
+                        reactionBarSnapshotShown ? 1.02 : 1.0
+                    )
+                    .opacity(reactionBarSnapshotShown ? 1 : 0)
                     .offset(y: frame.minY - visible.minY)
                     .frame(
                         width: visible.width,
@@ -6339,7 +6461,11 @@ struct ChatView: View {
                         color: .black.opacity(0.22),
                         radius: 16, y: 6
                     )
-                    .scaleEffect(1.02)
+                    // §471 病三：就位动画（同裁切支）
+                    .scaleEffect(
+                        reactionBarSnapshotShown ? 1.02 : 1.0
+                    )
+                    .opacity(reactionBarSnapshotShown ? 1 : 0)
                     .offset(
                         x: frame.minX,
                         y: layout.snapshotPlacementY
@@ -6393,6 +6519,12 @@ struct ChatView: View {
     /// 层与铬件），挂载点清单见 DESIGN §265；长按
     /// 只置呈现状态，动作集在呈现时刻组装（action-
     /// SheetData），两面同开系统上下文菜单
+    /// §471 口径变更：§265「文本区长按归 UITextView
+    /// 原生选字」一句作废——列表态正文已关直接选
+    /// 字（SelectableInlineText allowsDirect-
+    /// Selection=false），长按一切落点归本菜单/浮
+    /// 排，选字唯一入口＝菜单「选择」行（iMessage
+    /// iOS 26 同构）；挂载面纪律本身不变
     private func messageMenu(for entry: ChatEntry) -> MessageMenuModifier {
         MessageMenuModifier(
             isEnabled: !entry.content.isEmpty
@@ -12819,8 +12951,10 @@ private struct ComposerBarLayout: Layout {
 /// §265 挂载面纪律不变：只许落在非文本层——气
 /// 泡背景层（背景＋内边距带）与行内铬件（图片
 /// 卡/文件牌/交付项/引用块/状态行）；不许挂行
-/// 内容根。文本区长按归 UITextView 原生选字＋
-/// 编辑菜单（141/142 本体不动）。
+/// 内容根。§471 口径变更：「文本区长按归
+/// UITextView 原生选字」作废——列表态正文关
+/// 直接选字，长按一切落点归菜单/浮排，选字只
+/// 从菜单「选择」行进入（141/142 承载本体不动）。
 /// 动作集单源不变：呈现时刻经 makeData 组装
 /// （ChatView.actionSheetData）——反应走「添加
 /// 反应」子菜单，动作项走 actionItems() 逐项搬

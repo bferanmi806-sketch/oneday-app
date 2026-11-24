@@ -300,6 +300,46 @@ struct ReactionActionCardView: View {
     }
 }
 
+/// 浮排动画参数表（DESIGN §471，照抄 Exyte
+/// Chat MessageMenu.swift 源码 A 级原文——W6 换
+/// Exyte 承载后由其状态机原生执行同一套，过渡
+/// 期在自绘浮排上同值实现、参数不返工）：
+/// 基准时长 D＝0.3s；三段时序点 0／0.33D／0.66D
+/// ——背景先行 .easeInOut(D) 淡入、消息就位
+/// .easeInOut(D×1.33≈0.4)、药丸/动作卡 .bouncy
+/// (D) 于 0.33D 后入场；收起药丸/卡/快照
+/// .snappy(D×0.66≈0.2)、背景延迟 0.33D 后
+/// .easeOut(D) 淡出。背景双层参数同出 Exyte 原
+/// 文：.ultraThinMaterial＋.primary.opacity(0.1)
+enum ReactionBarMotion {
+    /// 基准时长 D（Exyte animationDuration 默认）
+    static let duration: CGFloat = 0.3
+    /// 段间时序点 0.33D（Exyte 状态机 original/
+    /// ready 推进点同值）
+    static var stageDelay: CGFloat { duration / 3 }
+    static var backgroundIn: Animation {
+        .easeInOut(duration: duration)
+    }
+    static var messageIn: Animation {
+        .easeInOut(duration: duration * 1.33)
+    }
+    static var chromeIn: Animation {
+        .bouncy(duration: duration)
+    }
+    static var chromeOut: Animation {
+        .snappy(duration: duration * 0.66)
+    }
+    static var backgroundOut: Animation {
+        .easeOut(duration: duration)
+            .delay(duration / 3)
+    }
+    /// 收起全程（背景淡出走完）后才摘会话的等待：
+    /// 0.33D 延迟＋D 淡出，留 0.02 余量
+    static var dismissalTotal: CGFloat {
+        duration / 3 + duration + 0.02
+    }
+}
+
 /// 浮排布局产物（DESIGN §346／§440）：药丸原点／
 /// 动作卡原点与尺寸／快照可见带（帧全局坐标、定
 /// 义呈现哪段内容）／快照落位顶（屏幕坐标、定义
