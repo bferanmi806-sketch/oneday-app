@@ -734,7 +734,11 @@ public extension View {
 /// 份＋状态＋模型；总览/文件页不传、维持身份三件
 public struct IdentityAnchor: View {
     private let name: String
-    private let statusWord: String
+    /// §474：状态词改可选——只许工作状态（消费方传
+    /// AppState.liveActivityPhrase 单源）；nil＝词与
+    /// 状态点一并收起，胶囊只剩头像＋名，不再以连
+    /// 接状态词（在线／未连接）垫底
+    private let statusWord: String?
     private let statusColor: Color
     private let modelName: String?
     private let modelShortName: String?
@@ -759,7 +763,7 @@ public struct IdentityAnchor: View {
     }
 
     public init(
-        name: String, statusWord: String, statusColor: Color,
+        name: String, statusWord: String?, statusColor: Color,
         modelName: String? = nil, modelShortName: String? = nil,
         avatarImage: Image? = nil
     ) {
@@ -789,8 +793,12 @@ public struct IdentityAnchor: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            modelName.map { "\(name)，\(statusWord)，当前模型 \($0)" }
-                ?? "\(name)，\(statusWord)"
+            [
+                name, statusWord,
+                modelName.map { "当前模型 \($0)" },
+            ]
+            .compactMap { $0 }
+            .joined(separator: "，")
         )
     }
 
@@ -820,9 +828,12 @@ public struct IdentityAnchor: View {
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
                 .layoutPriority(2)
-            HStack(spacing: OneDayMetrics.iconTextGap) {
-                StatusDot(color: statusColor)
-                if let statusWord {
+            // §474：状态点随词同生同灭——无词时不留
+            // 一颗点单独表「在线」（§449 绿点口径：
+            // presence 点只许聊天簇头像角一处）
+            if let statusWord {
+                HStack(spacing: OneDayMetrics.iconTextGap) {
+                    StatusDot(color: statusColor)
                     Text(statusWord)
                         .font(.footnote)
                         .foregroundStyle(Palette.inkSecondary)

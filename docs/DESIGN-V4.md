@@ -17414,3 +17414,23 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **红项处置**：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–114 逐字同红、已裁可接受；本版无新红、无改钉。注记：ThemeAlign431Tests 在 114 原始整跑中为改钉前红项，改钉 c4b174d 已随 rel-05114 在册，本版整跑该套 3/3 直接绿。
 - **IPA**：Release BUILD SUCCEEDED（dd-05115-release，rc=0）；OneDay-0.50.115-243.ipa，16,869,455 字节，md5 288dafd61586749b9f0fb2f3f62b594d；unzip 直验主 App 本体 plist 三值 0.50.115／243／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.115-243.ipa）md5 一致。
 - **真机门（归用户 verdict）**：件一——①打开简报编辑页即见服务端最新稿（润色已写回时不再是旧稿）；②润色在飞时编辑页约 10s 自动换新版（未改字时跟随、已改字只换基线不覆盖输入）；③编辑页无阻塞转圈，保存钮口径只剩保存中禁用、保存失败留页见错误。件三——④文件/资源库影音分类按 UTType 判类（mkv/m2ts/mka 兜底在位），注：生产影音实数仍为 0，此项待真实影音文件出现时验，本版只防未来错分类。件四——⑤资源库搜索空态下页头簇与筛选片钉顶（与有内容态同为 y=55）、不再整栈下移居中；⑥资源库页有「资源库」大标题、与兄弟页同字阶。
+## §478 目标页全抄修复（2026-11-24，feat/goals-copy，基线 rel-05113）
+
+缘起：用户 2026-11-24 亲裁目标页照 Muse 全抄（施工图＝oneday-design-review/goals-page-audit-20261124.md 第四节，量测口径照报告 D1–D13）。本节只记落点与偏离，量测正本在审计报告。
+
+落点（六件）：
+1. 复选框（GoalListRows.GoalCheckBox）：绘制层 frame 死钉 22×22（radiusCheckbox 6 不变）；描边 Palette.hairline→UIColor.opaqueSeparator 实色（#C6C6C8，审计 D4 定版 ≈#C7C7CC 档）1.5pt——不用半透明 separator 的实证：iOS 26 上 UIColor.separator 解析 α＝0.12、压白实渲 (232,232,232)，与 hairline (238) 几乎无别、等于重蹈没画（量测套首跑实证）；opaqueSeparator 是同族实色档、且 0.36.1 odGroup 描边已同因改挂此色收口（D4 先例）；命中层＝44×44 frame＋contentShape(Rectangle()) 透明叠加，.padding(-11) 只抵消命中层布局占用、不经它缩放绘制（旧法把 44 命中框整体 -11 缩布局、绘制无自身 frame 撑满命中框实渲 ≈44 的病根在此摘除）；done 态 ink 填充＋白勾不变。
+2. 页头（GoalsView）：撤.toolbar 孤悬＋钮，接入与交付页同款身份胶囊簇——本文件私有 identityHeader（ZStack 居中 IdentityAnchor＋左圆钮开抽屉，HeaderButtonSpec 40 玻璃圆钮＋44 命中）＋.toolbar(.hidden, for:.navigationBar)；页题独立一行 34pt largeTitle→新角色 pageTitle（Title2 锚、24、bold；消费形态 GoalsPageTitle 的 @ScaledMetric＋.system 字体，与 drawerTitle 同法），簇底→页题墨迹 ≈18pt（参照 ≈17）。
+3. 段头（GoalGroupHeader）：摘浅绿底盘（tintGreen 圆）与绿字，改纯点 Ø10（进行中 Palette.success／已完成 inkMuted）＋新角色 groupHeader（.title3.weight(.semibold)＝20 semibold）＋字色 bodyInk；段名「进行中」→「追踪」。
+4. 行（GoalRowView）：标题 lineLimit 2→1；摘要.body 17→.rowSubtitle 15、lineLimit 4→3（本行覆盖 §453 的 4 行口径，以本节为准）、lineSpacing(-1) 使行 pitch 20→19；复选框与文本列间距 spacingSM→spacingS（参照框右缘→标题左缘 ≈8）；删复选框.padding(.top, spacingMicro)（行顶对齐改由 22 框与标题首行同顶的结构保证）；组内距 spacingSM 12→spacingM 16（两组同改）：行实高 83（标题行 24＋gap 3＋摘要块 56，量测实值）＋组内距 16＝行 pitch 99，落审计 102±6 带内（审计分解为行高 ≈86＋组内距 ≈16，我方行高因摘要块 56/标题行 24 略低 3pt，由组内距取审计值补齐，总量对齐）。
+5. 创建段（GoalsView.createArea）：摘段内直铺的 GoalCategoryRowsView 七分类行，整段改单个 Button（点段打开既有分类 sheet，createSheet=.categories 与空态流、工具栏原路径同门），入口收唯一；段形＝Divider＋「创建目标」（.title3 semibold、bodyInk、无 plus 图标）＋自家说明文（一字未动，偏离 P2）。
+6. 段尾折叠行：SF「ellipsis」换 3×2 点阵把手（GoalFoldHandleGlyph 程序绘制六点，照参照帧实形；SF 无 3×2 点阵字形，§452 程序绘制先例），两处同换。
+
+新角色登记（TypeRoles/FontRoles）：pageTitle（"title2"/24/"bold"，只许一级页页题消费）、groupHeader（"title3"/20/"semibold"，只许目标页分组头消费）——局部例外、不许外溢；VisualDirectionGateTests 全表钉同步扩为十六角色，groupHeader 同入 Dynamic Type 缩放闸，pageTitle 与 drawerTitle 同因（@ScaledMetric 承载、无静态 Font）不入缩放列、规格对账在全表钉。
+
+同捎：Components.swift 的 IdentityAnchor 可选状态词（statusWord 改 String?、无词时词与状态点一并收起、DeliverablesView 接 liveActivityPhrase＋inkMuted）为 §474 的 verbatim 镜像——本页新页头按 §474 后口径消费该签名，两线合并时同文取一侧即可，不算 §478 自有改动。
+
+偏离保留（照审计 §五，逐条未动）：P1 页边距 pageGutter 20 全局令牌（参照 ≈17 不从）；P2 创建段说明文案只抄结构不逐字抄（自家流程口径）；P3 未归类入口行保留（§453 拍板）；P4 GD-1 最新活动行保留待察；P5 已完成组默认收起＋组内 4 条折叠形态保留（参照未见该段）。新增知情偏离：页头右圆钮从缺——目标页无页级菜单动作、参照右钮功能单帧未验证，造空菜单违僵尸禁令；待有真动作时按同款补入。
+
+验收：新增 GoalsCopy478MeasureTests（ImageRenderer 墨迹量测，与审计同法）五项对账（2026-11-24 通道实跑，run 12:04 起、exit 0）——①复选框视觉尺寸 22.0×22.0pt；②描边墨迹 968px @阈0.88（旧 hairline 同阈对照 <40px）；③框顶 0.0 vs 标题首行顶 3.0、顶差 3.0 ≤3（参照 2.6）；④摘要三行带中心 35.5/55.0/73.5、pitch 19.5/18.5 ∈ 19±1；⑤行 pitch 99.0 ∈ 102±6；附页题墨迹高 20.7（24pt 档）、段头点右带浅绿盘色 0px。相关套件十套共 72 项全绿（GoalsCopy478Measure/GoalsFingerprintRevalidation/GoalsTailApp/GoalQuoteEntry/StoresSingleSourceStructure/VisualDirectionGate/GoalCategory/GoalDepth/GoalRectify/GoalsTail）。渲染帧为模拟器实验室口径，真机同位复核归用户 verdict。
+量测管线教训（本包实证，后续量测套照此）：CGImage 直绘进 premultipliedLast 位图上下文即 row0＝图顶，另加 translate+scale(1,-1) 会把图上下颠倒——首跑因此误读出「复选框沉底、摘要在标题上方」等假象，分件对照剖面（摘要单独渲染的三带墨迹数与整行渲染逐像素全等）才定因；量测套的像素提取不许再自加翻转。

@@ -34,9 +34,15 @@ final class VisualDirectionGateTests: XCTestCase {
         // §364（台账 23，用户 2026-11-22 裁定同例
         // 扩展）增 contentListTitle（Title3 20
         // semibold，三面行题例外角色）——十四角色
+        // §478（2026-11-24 目标页全抄修复）增
+        // pageTitle（Title2 锚 24 bold，一级页页
+        // 题）与 groupHeader（Title3 20 semibold，
+        // 目标页分组头）两局部角色——十六角色
         let expected: [TypeRole: (style: String, pt: CGFloat, weight: String)] = [
             .screenName: ("title", 28, "bold"),
             .drawerTitle: ("title2", 24, "bold"),
+            .pageTitle: ("title2", 24, "bold"),
+            .groupHeader: ("title3", 20, "semibold"),
             .rowTitleL: ("body", 17, "regular"),
             .rowTitle: ("body", 17, "regular"),
             .bodyText: ("body", 17, "regular"),
@@ -86,6 +92,11 @@ final class VisualDirectionGateTests: XCTestCase {
             ("drawerRowTitle", .drawerRowTitle),
             ("drawerRowTitleCurrent", .drawerRowTitleCurrent),
             ("contentListTitle", .contentListTitle),
+            // §478：groupHeader 有静态 Font、同入本
+            // 闸；pageTitle 与 drawerTitle 同因不设
+            // 静态值（@ScaledMetric 承载），不入本
+            // 列——其规格对账在 testTypeRoleTable
+            ("groupHeader", .groupHeader),
         ]
         for (name, font) in roles {
             let base = renderedTextHeight(font: font, category: .large)

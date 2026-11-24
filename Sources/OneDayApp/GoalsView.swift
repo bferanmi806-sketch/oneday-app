@@ -13,9 +13,14 @@ import SwiftUI
 /// 创建流（0.40.0 两步：选分类→表单；§238 改三步
 /// 终局：选分类→介绍卡→开目标旁聊在对话里聊定，
 /// GA-1/GA-2 定版）——空态整页与有目标时的底部创
-/// 建区/工具栏共用同一条流（分类组件
+/// 建段共用同一条流（分类组件
 /// GoalCategoryRowsView 共用）；表单降为介绍卡上
 /// 的次级入口「直接填写」，不删
+/// §478（2026-11-24 全抄修复）：页头改兄弟页同款
+/// 身份胶囊簇（资源库 identityHeader 同构）、撤自
+/// 带工具栏孤悬＋钮与系统 largeTitle、页题改
+/// ≈24pt 粗体档；创建入口收唯一＝列表底创建段
+/// （点段进分类 sheet），段内七分类行摘除
 private enum GoalCreateSheet: Identifiable {
     case categories
     case intro(GoalCategory)
@@ -29,6 +34,42 @@ private enum GoalCreateSheet: Identifiable {
             return "intro-\(category.rawValue)"
         case .form(let category):
             return "form-\(category?.rawValue ?? "none")"
+        }
+    }
+}
+
+/// 目标页页题（§478）：24pt 粗体——24 无文本样式
+/// 档，照 drawerTitle 先例以 Title2 为锚相对缩放
+/// 承载（规格单源 Core TypeRole.pageTitle：title2/
+/// 24/bold）；独立成件供量测测直接渲染对账
+/// （GoalsCopy478MeasureTests）
+struct GoalsPageTitle: View {
+    @ScaledMetric(relativeTo: .title2)
+    private var pointSize: CGFloat = 24
+
+    var body: some View {
+        Text("目标")
+            .font(.system(size: pointSize, weight: .bold))
+            .foregroundStyle(Palette.bodyInk)
+    }
+}
+
+/// 折叠行把手字形（§478）：3 列×2 行实心点阵——照
+/// Muse 目标页段尾行参照帧实形（审计 §四.8：
+/// ellipsis 换把手点阵；SF 无 3×2 点阵字形，程序
+/// 绘制六点，§452 文件图标程序绘制先例）
+struct GoalFoldHandleGlyph: View {
+    var body: some View {
+        VStack(spacing: 4) {
+            ForEach(0..<2, id: \.self) { _ in
+                HStack(spacing: 4) {
+                    ForEach(0..<3, id: \.self) { _ in
+                        Circle()
+                            .fill(Palette.inkMuted)
+                            .frame(width: 4.5, height: 4.5)
+                    }
+                }
+            }
         }
     }
 }
@@ -50,51 +91,51 @@ struct GoalsView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch store.loadState {
-                case .loading:
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .notConnected(let message):
-                    ContentUnavailableView {
-                        Label("还没连上你的服务", systemImage: "link.badge.plus")
-                    } description: {
-                        Text(message)
-                    } actions: {
-                        Button("重新检查") {
-                            Task { await store.load(appState: appState) }
+            VStack(spacing: 0) {
+                identityHeader
+                pageTitleRow
+                Group {
+                    switch store.loadState {
+                    case .loading:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    case .notConnected(let message):
+                        ContentUnavailableView {
+                            Label("还没连上你的服务", systemImage: "link.badge.plus")
+                        } description: {
+                            Text(message)
+                        } actions: {
+                            Button("重新检查") {
+                                Task { await store.load(appState: appState) }
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
-                    }
-                case .failed(let message):
-                    ContentUnavailableView {
-                        Label("目标没读出来，可能是网络或服务暂时没响应", systemImage: "exclamationmark.triangle")
-                    } description: {
-                        Text(message)
-                    } actions: {
-                        Button("重试") {
-                            Task { await store.load(appState: appState) }
+                    case .failed(let message):
+                        ContentUnavailableView {
+                            Label("目标没读出来，可能是网络或服务暂时没响应", systemImage: "exclamationmark.triangle")
+                        } description: {
+                            Text(message)
+                        } actions: {
+                            Button("重试") {
+                                Task { await store.load(appState: appState) }
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
+                    case .ready:
+                        readyContent
                     }
-                case .ready:
-                    readyContent
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            .navigationTitle("目标")
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        createSheet = .categories
-                    } label: {
-                        Label("新建目标", systemImage: "plus")
-                    }
-                }
-            }
+            // §478：自带导航栏隐藏（页头簇自理，资源
+            // 库同例）；详情页 push 后目的地各自的栏
+            // 由目的地自理（GoalDetailView/Ungrou-
+            // pedTasksView 均自带 navigationTitle）
+            .toolbar(.hidden, for: .navigationBar)
             .task {
                 await store.loadIfNeeded(appState: appState)
             }
@@ -172,6 +213,73 @@ struct GoalsView: View {
         createSheet = nil
     }
 
+    /// 页头簇（§478）：与资源库页 identityHeader 同
+    /// 构——左抽屉圆钮＋中央 IdentityAnchor 胶囊
+    /// （垫距同值：横 pageGutter/上 spacingS/下
+    /// spacingXS）。右侧不设圆钮：目标页无页级菜单
+    /// 动作，参照右钮（···）功能单帧未验证（审计
+    /// §六），造空菜单违僵尸禁令——知情偏离登记
+    /// 于 DESIGN §478。胶囊小字与聊天/资源库同源
+    /// （§474：liveActivityPhrase 单源、无活动时
+    /// 词与点一并收起）
+    private var identityHeader: some View {
+        ZStack {
+            HStack {
+                Button {
+                    appState.router.drawerPresented = true
+                } label: {
+                    headerCircleButton("line.3.horizontal")
+                }
+                .buttonStyle(.odPressable)
+                .accessibilityLabel("会话列表")
+                Spacer()
+            }
+            IdentityAnchor(
+                name: appState.agentDisplayName,
+                statusWord: appState.liveActivityPhrase,
+                statusColor: Palette.inkMuted,
+                avatarImage: appState.agentAvatarImage
+            )
+        }
+        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.top, OneDayMetrics.spacingS)
+        .padding(.bottom, OneDayMetrics.spacingXS)
+    }
+
+    /// 页头圆钮（与资源库 headerCircleButton 同款：
+    /// HeaderButtonSpec 规格单源——玻璃盘 40、字形
+    /// 20、命中域外扩 44）
+    private func headerCircleButton(_ symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(
+                size: HeaderButtonSpec.glyphPointSize,
+                weight: .regular
+            ))
+            .foregroundStyle(Palette.ink)
+            .frame(
+                width: HeaderButtonSpec.diameter,
+                height: HeaderButtonSpec.diameter
+            )
+            .glassEffect(.regular, in: Circle())
+            .frame(
+                width: OneDayMetrics.minTapTarget,
+                height: OneDayMetrics.minTapTarget
+            )
+            .contentShape(Rectangle())
+    }
+
+    /// 页题行（§478）：「目标」≈24pt 粗体档（照
+    /// Muse 量测、非系统 largeTitle 34，审计
+    /// D2/R3），置页头簇下、间距 spacingSM（簇底
+    /// 垫 spacingXS 4＋本行上垫 12＋字墨迹内偏
+    /// ≈2＝簇底→题墨迹 ≈18pt，审计 R2）
+    private var pageTitleRow: some View {
+        GoalsPageTitle()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingSM)
+    }
+
     @ViewBuilder
     private var readyContent: some View {
         if store.goals.isEmpty {
@@ -184,7 +292,10 @@ struct GoalsView: View {
                 ) {
                     if !groups.active.isEmpty {
                         goalGroup(
-                            title: "进行中", completed: false,
+                            // §478：段名「进行中」→
+                            // 「追踪」（照 Muse 参照
+                            // 的动作命名，审计 D3/R4）
+                            title: "追踪", completed: false,
                             goals: groups.active,
                             expanded: $expandedActive
                         )
@@ -253,12 +364,17 @@ struct GoalsView: View {
 
     /// 状态分组（照 Muse 行形态）：色点组头＋扁平行，
     /// 超过 4 条折叠为「显示另外N项」
+    /// §478：组内距 spacingSM 12→spacingM 16——行
+    /// pitch 合成口径（审计 §四.7：行高 ≈86＋组内
+    /// 距 ≈16＝102±6；本实现行实高 83［标题行 24
+    /// ＋gap 3＋摘要块 56］，组内距取审计的 16 合
+    /// 成 99 落带内；已完成组同口径）
     private func goalGroup(
         title: String, completed: Bool, goals: [BridgeGoal],
         expanded: Binding<Bool>
     ) -> some View {
         let folded = GoalBoard.folded(goals, expanded: expanded.wrappedValue)
-        return VStack(alignment: .leading, spacing: OneDayMetrics.spacingSM) {
+        return VStack(alignment: .leading, spacing: OneDayMetrics.spacingM) {
             GoalGroupHeader(title: title, completed: completed)
             ForEach(folded.visible) { goal in
                 GoalRowView(
@@ -291,10 +407,11 @@ struct GoalsView: View {
                 Button {
                     expanded.wrappedValue = true
                 } label: {
-                    Label(
-                        "显示另外\(folded.hiddenCount)项",
-                        systemImage: "ellipsis"
-                    )
+                    Label {
+                        Text("显示另外\(folded.hiddenCount)项")
+                    } icon: {
+                        GoalFoldHandleGlyph()
+                    }
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
                 }
@@ -304,8 +421,10 @@ struct GoalsView: View {
     }
 
     /// 已完成组：默认收起，点头展开（组内同样 4 条折叠）
+    /// §478：组内距同 goalGroup 改 spacingM（pitch
+    /// 合成口径见 goalGroup 注）
     private func completedGroup(goals: [BridgeGoal]) -> some View {
-        VStack(alignment: .leading, spacing: OneDayMetrics.spacingSM) {
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingM) {
             Button {
                 showCompletedGroup.toggle()
             } label: {
@@ -361,10 +480,11 @@ struct GoalsView: View {
                     Button {
                         expandedCompleted = true
                     } label: {
-                        Label(
-                            "显示另外\(folded.hiddenCount)项",
-                            systemImage: "ellipsis"
-                        )
+                        Label {
+                            Text("显示另外\(folded.hiddenCount)项")
+                        } icon: {
+                            GoalFoldHandleGlyph()
+                        }
                         .font(.body)
                         .foregroundStyle(Palette.inkSecondary)
                     }
@@ -410,24 +530,34 @@ struct GoalsView: View {
         )
     }
 
-    /// 列表底常驻创建区（照 Muse 目标页图位置）：分隔线
-    /// 下「＋ 创建目标」＋一句说明＋七分类行直接在列
-    /// （§453 对齐 Muse 底部形态、与空态同一分类组
-    /// 件）；点一行直达介绍卡（§238 三步流），工具栏
-    /// ＋仍走分类选择 sheet 为第二入口
+    /// 列表底常驻创建段（照 Muse 目标页图位置）：
+    /// 分隔线下「创建目标」标题＋一句说明一段，仅此
+    /// 两件（参照 R12）。§478：段内直铺的七分类行
+    /// 摘除（§453 旧形态），点段（标题/说明区整块）
+    /// 进既有分类选择 sheet 流（createSheet.
+    /// categories，与空态分类流同一条 §238 三步
+    /// 流）；工具栏＋已随页头改造撤销——全页创建
+    /// 入口唯一就是本段。说明文案保留自家口径不
+    /// 逐字抄参照（偏离 P2：参照文案承诺「制定个
+    /// 性化方案」与自家「对话里聊定」流程不符）
     private var createArea: some View {
-        VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
-            Divider()
-            Label("创建目标", systemImage: "plus")
-                .font(.title3.weight(.semibold))
-                .foregroundStyle(Palette.bodyInk)
-            Text("先选一个类别，再到对话里把目标聊定。定好之后它会出现在这里，进展和简报会慢慢长出来。")
-                .font(.body)
-                .foregroundStyle(Palette.inkSecondary)
-            GoalCategoryRowsView { category in
-                createSheet = .intro(category)
+        Button {
+            createSheet = .categories
+        } label: {
+            VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
+                Divider()
+                Text("创建目标")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Palette.bodyInk)
+                Text("先选一个类别，再到对话里把目标聊定。定好之后它会出现在这里，进展和简报会慢慢长出来。")
+                    .font(.body)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .multilineTextAlignment(.leading)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.odPressable)
         .padding(.top, OneDayMetrics.spacingS)
     }
 }
