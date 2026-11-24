@@ -27,6 +27,13 @@ import SwiftUI
 /// 段作列表首个折叠节「预定任务」（HubCronSec-
 /// tion 整段退役）；行距与图标盒按参照行解剖放
 /// 开（pitch ≈70pt、图标盒 40）。
+/// §477（2026-11-24 全抄）：删页首「正在进行」段
+/// （计数行＋蓝色 ⊕ 新建菜单整行退役，进行中条目
+/// 并入今天段以状态副题呈现）；段制收口为预定任
+/// 务＋按天两类、段头统一 HubSectionHeader 令牌件
+/// 且均可折叠；台账按会话聚合一行；行改圆盘 44＋
+/// 标题 20 semibold＋副题人话摘要，右列只留一行
+/// HH:MM（「最后确认」撤出列表归详情面）。
 struct HubLedgerSection: View {
     /// 枢纽共享审批 store（规则区与台账详情的审批
     /// 补齐用，与聊天就地卡同源同数据）
@@ -51,11 +58,13 @@ struct HubLedgerSection: View {
     private var monitorsStore: MonitorsStore {
         appState.sharedMonitorsStore()
     }
-    @State private var showCreateTask = false
-    @State private var showCreateMonitor = false
     /// 预定任务折叠节展开态（§434）：默认收起——对
     /// 参照大头态列表格「N 项预定任务」折叠行形态
     @State private var cronExpanded = false
+    /// 按天段折叠态（§477）：段头统一可折叠，默认全
+    /// 展开、收起的组名记在此集（组名＝LedgerDay-
+    /// Group.title，与分组单源同键）
+    @State private var collapsedDayTitles: Set<String> = []
     /// 定时数据（§434 并格）：与原定时段同源——共
     /// 享 CronStore 单源（台账 198 收敛口径不变）
     private var cronStore: CronStore {
@@ -113,12 +122,6 @@ struct HubLedgerSection: View {
             consumeFocusFields()
             await store.runVisibleLoop(appState: appState)
         }
-        .sheet(isPresented: $showCreateTask) {
-            KanbanCreateTaskView(store: kanbanStore)
-        }
-        .sheet(isPresented: $showCreateMonitor) {
-            MonitorCreateView(store: monitorsStore)
-        }
     }
 
     /// 通知落点聚焦消费（§123 置位—消费—清零同式）：
@@ -150,7 +153,23 @@ struct HubLedgerSection: View {
     @ViewBuilder
     private var readyContent: some View {
         VStack(spacing: 0) {
-            headerLine
+            // §477：「正在进行」段头行（计数文案＋蓝色
+            // ⊕ 新建菜单）整行退役——进行中条目并入
+            // 今天段以状态副题呈现（见 ledgerRow），新
+            // 建入口回任务/监测本面。迟滞注脚是鲜度信
+            // 号、不随段头丢：降为独立弱提示行保留
+            if !store.connectionLost,
+               store.freshness == .lagging,
+               let note = store.freshness.note(
+                   ledgerUpdatedAt: store.ledgerUpdatedAt
+               ) {
+                Text(note)
+                    .font(.footnote)
+                    .foregroundStyle(Palette.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, OneDayMetrics.hubGutter)
+                    .padding(.vertical, OneDayMetrics.spacingXS)
+            }
             if store.summary?.degraded == true {
                 banner(
                     icon: "exclamationmark.triangle",
@@ -187,63 +206,6 @@ struct HubLedgerSection: View {
         }
     }
 
-    /// 页首总览行：计数与下方列表同一 payload（规格
-    /// §4.2）；迟滞档（30 秒–5 分钟）在行尾挂弱标注，
-    /// 停更/断连走横幅不在这里重复
-    private var headerLine: some View {
-        HStack(spacing: OneDayMetrics.spacingS) {
-            Text(headerText)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(Palette.ink)
-            if !store.connectionLost,
-               store.freshness == .lagging,
-               let note = store.freshness.note(
-                   ledgerUpdatedAt: store.ledgerUpdatedAt
-               ) {
-                Text(note)
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            Spacer()
-            // §217：新建入口收口——原任务段/监测段各
-            // 自的新建钮随段退役，迁来页首一处菜单
-            // （两件新建表单本体与门控口径原样，见
-            // KanbanCreateTaskView/MonitorCreateView）
-            Menu {
-                Button {
-                    showCreateTask = true
-                } label: {
-                    Label("新建任务", systemImage: "checklist")
-                }
-                Button {
-                    showCreateMonitor = true
-                } label: {
-                    Label("新建监测", systemImage: "eye")
-                }
-            } label: {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: FrameworkIcon.fileGlyphSize))
-                    .foregroundStyle(Palette.primary)
-                    .frame(
-                        width: OneDayMetrics.minTapTarget,
-                        height: OneDayMetrics.minTapTarget
-                    )
-                    .contentShape(Rectangle())
-            }
-            .accessibilityLabel("新建")
-        }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
-        .padding(.vertical, OneDayMetrics.spacingS)
-    }
-
-    private var headerText: String {
-        let counts = store.headerCounts
-        return LedgerBoard.headerText(
-            inProgress: counts.inProgress,
-            blockedApproval: counts.blockedApproval
-        )
-    }
-
     private var ledgerList: some View {
         ScrollViewReader { proxy in
             List {
@@ -252,38 +214,68 @@ struct HubLedgerSection: View {
                 // 节）——数据走共享 CronStore、行走共
                 // 用 CronOverviewRow、点行下钻定时管理
                 // 页；未就绪/为空时整节不出，不占位
+                // §477：段头改段内首行（HubSectionHeader
+                // 单源件）＋手动折叠——系统 Section 头的
+                // 灰字灰带退役，两段同制式
                 if cronStore.hasLoaded, !cronStore.hubGroups.isEmpty {
-                    Section(isExpanded: $cronExpanded) {
-                        ForEach(cronStore.hubGroups, id: \.kind) { group in
-                            ForEach(group.items) { item in
-                                NavigationLink {
-                                    CronJobsView()
-                                } label: {
-                                    CronOverviewRow(item: item)
+                    Section {
+                        sectionHeaderRow(
+                            title: "预定任务 · \(cronTotalCount) 项",
+                            isExpanded: cronExpanded
+                        ) {
+                            cronExpanded.toggle()
+                        }
+                        if cronExpanded {
+                            ForEach(cronStore.hubGroups, id: \.kind) { group in
+                                ForEach(group.items) { item in
+                                    NavigationLink {
+                                        CronJobsView()
+                                    } label: {
+                                        CronOverviewRow(item: item)
+                                    }
+                                    .listRowInsets(rowInsets)
                                 }
                             }
                         }
-                    } header: {
-                        Text("预定任务 · \(cronTotalCount) 项")
                     }
                 }
                 // §244：审批规则已归位设置页权限区，
                 // 本列表只剩台账记录本体（审批记录条
                 // 目即记录入口，点开有原文与锚点）
+                // §477：按天段同制式（令牌段头＋可折
+                // 叠）；段内按会话聚合一行（Ledger-
+                // Board.sessionGroups），代表行承标题/
+                // 状态/下钻，聚焦命中按成员判定
                 ForEach(store.dayGroups) { group in
-                    Section(group.title) {
-                        ForEach(group.items) { item in
-                            NavigationLink {
-                                destination(for: item)
-                            } label: {
-                                ledgerRow(item)
+                    Section {
+                        sectionHeaderRow(
+                            title: group.title,
+                            isExpanded: !collapsedDayTitles
+                                .contains(group.title)
+                        ) {
+                            toggleDayGroup(group.title)
+                        }
+                        if !collapsedDayTitles.contains(group.title) {
+                            ForEach(
+                                LedgerBoard.sessionGroups(group.items)
+                            ) { sessionGroup in
+                                NavigationLink {
+                                    destination(
+                                        for: sessionGroup.representative
+                                    )
+                                } label: {
+                                    ledgerRow(sessionGroup)
+                                }
+                                .id(sessionGroup.representative.id)
+                                .listRowInsets(rowInsets)
+                                .listRowBackground(
+                                    sessionGroup.members.contains {
+                                        $0.id == focusItemID
+                                    }
+                                        ? Palette.primaryTint
+                                        : Color.clear
+                                )
                             }
-                            .id(item.id)
-                            .listRowBackground(
-                                item.id == focusItemID
-                                    ? Palette.primaryTint
-                                    : Color.clear
-                            )
                         }
                     }
                 }
@@ -336,44 +328,94 @@ struct HubLedgerSection: View {
     private func scrollToFocus(
         _ proxy: ScrollViewProxy, id: String?
     ) {
-        guard let id,
-              store.allItems.contains(where: { $0.id == id })
-        else { return }
+        guard let id else { return }
+        // §477：聚焦 id 可能是会话聚合组内任一成员，
+        // 落位到其代表行（成员不在任何组里＝目标已滚
+        // 出窗口，静默落空、与旧口径同）
+        let targetID = store.dayGroups
+            .flatMap { LedgerBoard.sessionGroups($0.items) }
+            .first { group in
+                group.members.contains { $0.id == id }
+            }?
+            .representative.id
+        guard let targetID else { return }
         withAnimation(
             MotionTokens.resolved(
                 MotionTokens.systemDefault, reduceMotion: reduceMotion
             )
         ) {
-            proxy.scrollTo(id, anchor: .center)
+            proxy.scrollTo(targetID, anchor: .center)
         }
+    }
+
+    // MARK: - 段头（§477 单源件）
+
+    /// 段头行：HubSectionHeader 作段内首行（边距走行
+    /// insets 与数据行同线），分隔线不挂段头行
+    private func sectionHeaderRow(
+        title: String, isExpanded: Bool,
+        onToggle: @escaping () -> Void
+    ) -> some View {
+        HubSectionHeader(
+            title: title, isExpanded: isExpanded,
+            onToggle: onToggle
+        )
+        .listRowSeparator(.hidden)
+        .listRowInsets(rowInsets)
+        .listRowBackground(Color.clear)
+    }
+
+    private func toggleDayGroup(_ title: String) {
+        if collapsedDayTitles.contains(title) {
+            collapsedDayTitles.remove(title)
+        } else {
+            collapsedDayTitles.insert(title)
+        }
+    }
+
+    /// 列表行边距（§477：中枢局部 16，段头与数据行
+    /// 同一条左缘线）
+    private var rowInsets: EdgeInsets {
+        EdgeInsets(
+            top: 0, leading: OneDayMetrics.hubGutter,
+            bottom: 0, trailing: OneDayMetrics.hubGutter
+        )
     }
 
     // MARK: - 行
 
-    /// 行三段式（§344，中枢四欠账·记录行三段式）：
-    /// 左图标盒／中题＋副题／右段 trailing——与全
-    /// App 公用行件（ContentRow）的三段语法同构；
-    /// 中/右两段文案同出 LedgerBoard.rowParts 单源
-    /// 派生（副题只留状态词与失败分类，时刻/已耗时
-    /// 归右段）。旧版时间全压副题复合串、右段仅
-    /// 「补记」徽标偶现、常空
-    private func ledgerRow(_ item: LedgerItem) -> some View {
-        HStack(spacing: OneDayMetrics.spacingSM) {
+    /// 会话聚合行（§477）：左圆盘／中题＋副题／右单
+    /// 行时刻——标题走代表条目（最近一次运行），副
+    /// 题是人话摘要（运行次数＋状态词＋已耗时/工具
+    /// 调用数，全是真字段、不编造步文）；右列只留
+    /// 一行 HH:MM（终态＝结束时刻、活跃态＝开始时
+    /// 刻），「最后确认」标龄注撤出列表（归工作详情
+    /// 面，§475 同源）。旧 §344 三段式的右段复合列
+    /// （已耗时＋注＋补记徽标）整段退役；rowParts 单
+    /// 源不动，详情面照旧消费
+    private func ledgerRow(_ group: LedgerSessionGroup) -> some View {
+        let item = group.representative
+        return HStack(spacing: OneDayMetrics.spacingSM) {
             iconBox(item)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
                 Text(item.title)
-                    .font(.body)
+                    .font(.system(
+                        size: OneDayMetrics.hubTitleSize,
+                        weight: .semibold
+                    ))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(2)
-                subtitle(item)
+                subtitle(group)
             }
             Spacer(minLength: OneDayMetrics.spacingS)
-            trailingColumn(item)
+            Text(rowTime(item))
+                .font(.subheadline)
+                .monospacedDigit()
+                .foregroundStyle(Palette.inkMuted)
+                .lineLimit(1)
         }
-        // §434 行距对位：参照工作行 pitch ≈70pt——
-        // 行内上下各补 spacingS，两行文本块＋图标盒
-        // 40 的总高与参照同档（原行距为 List 默认
-        // 紧排，是「感觉 low」的结构因之一）
+        // 行距对位：参照工作行 pitch ≈70pt——行内上
+        // 下各补 spacingS（§434 口径续）
         .padding(.vertical, OneDayMetrics.spacingS)
         .contentShape(Rectangle())
         .opacity(item.status == .cancelled ? 0.55 : 1)
@@ -382,119 +424,104 @@ struct HubLedgerSection: View {
 
     /// 副题（中段）：活跃态每秒重算（TimelineView 只
     /// 包副题一行，列表本体不跟着整表重绘）；其余状
-    /// 态静态一帧。文案走 rowParts.subtitle（§344）
+    /// 态静态一帧。文案组法见 subtitleText
     @ViewBuilder
-    private func subtitle(_ item: LedgerItem) -> some View {
+    private func subtitle(_ group: LedgerSessionGroup) -> some View {
+        let item = group.representative
         if item.status.isActive {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 Text(
-                    LedgerBoard.rowParts(
-                        for: item,
+                    subtitleText(
+                        group,
                         serverNow: store.displayServerNow(
                             at: context.date
                         )
-                    ).subtitle
+                    )
                 )
-                .font(.subheadline)
+                .font(.callout)
                 .foregroundStyle(Palette.inkSecondary)
                 .lineLimit(1)
             }
         } else {
-            Text(
-                LedgerBoard.rowParts(
-                    for: item, serverNow: store.serverNow
-                ).subtitle
-            )
-            .font(.subheadline)
-            .foregroundStyle(
-                item.status == .stale
-                    ? Palette.danger : Palette.inkSecondary
-            )
-            .lineLimit(1)
-        }
-    }
-
-    /// 右段（§344）：时刻/已耗时（.metaMonospaced
-    /// 等宽次色，与 ContentRow 右段同角色）；活跃态
-    /// 随秒跳动只包本列小子树（与副题同口径）；证
-    /// 据迟滞的「最后确认」标龄注在其下 footnote
-    /// 行；「补记」徽标原样收进本列（旧版独占右侧）
-    @ViewBuilder
-    private func trailingColumn(_ item: LedgerItem) -> some View {
-        if item.status.isActive {
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                trailingContent(
-                    item,
-                    serverNow: store.displayServerNow(
-                        at: context.date
-                    )
+            Text(subtitleText(group, serverNow: store.serverNow))
+                .font(.callout)
+                .foregroundStyle(
+                    item.status == .stale
+                        ? Palette.danger : Palette.inkSecondary
                 )
-            }
-        } else {
-            trailingContent(item, serverNow: store.serverNow)
+                .lineLimit(1)
         }
     }
 
-    @ViewBuilder
-    private func trailingContent(
-        _ item: LedgerItem, serverNow: Double
-    ) -> some View {
+    /// 副题人话摘要（§477）：[共 N 次运行 ·] 状态词
+    /// [· 已运行/已等 时长] [· 工具调用 N 次]——状
+    /// 态词与已耗时出 rowParts 单源（§344），聚合次
+    /// 数与工具调用数是台账真字段；证据迟滞的「最
+    /// 后确认」注（rowParts.trailingNote）不在列表
+    /// 消费、只留详情面
+    private func subtitleText(
+        _ group: LedgerSessionGroup, serverNow: Double
+    ) -> String {
+        let item = group.representative
         let parts = LedgerBoard.rowParts(
             for: item, serverNow: serverNow
         )
-        VStack(
-            alignment: .trailing,
-            spacing: OneDayMetrics.spacingMicro
-        ) {
-            if let trailing = parts.trailing {
-                Text(trailing)
-                    .font(.metaMonospaced)
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-            }
-            if let note = parts.trailingNote {
-                Text(note)
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-            }
-            if item.isReconciled {
-                Text("补记")
-                    .font(.caption2)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .padding(.horizontal, OneDayMetrics.iconTextGap)
-                    .padding(.vertical, OneDayMetrics.spacingMicro)
-                    .overlay {
-                        // §449 圆角规范核：补 .continuous（同 §449.3 身份卡口径）
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
-                            .stroke(Palette.hairline, lineWidth: 1)
-                    }
-            }
+        var segments: [String] = []
+        if group.count > 1 {
+            segments.append(
+                L10n.format("共 %lld 次运行", group.count)
+            )
         }
+        var status = parts.subtitle
+        if item.status.isActive, let elapsed = parts.trailing {
+            status += " · " + (
+                item.status == .running
+                    ? L10n.format("已运行 %@", elapsed)
+                    : L10n.format("已等 %@", elapsed)
+            )
+        }
+        segments.append(status)
+        if let toolCalls = item.toolCalls, toolCalls > 0 {
+            segments.append(
+                L10n.format("工具调用 %lld 次", toolCalls)
+            )
+        }
+        return segments.joined(separator: " · ")
     }
 
-    /// 图标盒（§434 起 40pt——参照行解剖对位档，
-    /// 原 36）：底色按类别
-    /// 给 pastel 令牌；状态层——进行中＝系统转圈（真
-    /// 转、状态变了同帧停：呈现只由条目状态驱动，没
-    /// 有第二条驱动源）、排队＝小点、待审批＝盾牌、
-    /// 完成＝细勾、失败＝叹号（红只点缀 glyph）、失
-    /// 联＝断链。Reduce Motion 时转圈由系统自动降级，
-    /// 状态另有副题文字通道不靠图标单传
+    /// 右列单行时刻（§477）：终态取结束时刻、活跃态
+    /// 取开始时刻，HH:MM 走 LedgerClock 单源口径
+    private func rowTime(_ item: LedgerItem) -> String {
+        let epoch = item.status.isActive
+            ? item.startedAt
+            : (item.endedAt ?? item.startedAt)
+        return LedgerClock.time(epoch)
+    }
+
+    /// 图标盘（§434 起 40pt 方盒；§477 改圆盘 44——
+    /// 参照工作行左盘形态）：底色按类别给 pastel 令
+    /// 牌；状态层——进行中＝系统转圈（真转、状态变
+    /// 了同帧停：呈现只由条目状态驱动，没有第二条
+    /// 驱动源）、排队＝小点、待审批＝盾牌、完成＝细
+    /// 勾、失败＝叹号（红只点缀 glyph）、失联＝断
+    /// 链。Reduce Motion 时转圈由系统自动降级，状态
+    /// 另有副题文字通道不靠图标单传。字形色守 ink
+    /// 系：参照是深彩底＋白字形，OneDay 类别底是浅
+    /// pastel 令牌、白字形对比不达标——形态照抄、
+    /// 字形色随自家令牌走，差异在此登记
     private func iconBox(_ item: LedgerItem) -> some View {
         ZStack {
-            RoundedRectangle(cornerRadius: OneDayMetrics.radiusThumb, style: .continuous)
+            Circle()
                 .fill(tint(item.kind))
             boxContent(item)
             if item.status == .queued {
                 Circle()
                     .fill(Palette.inkMuted)
                     .frame(width: 6, height: 6)
-                    .offset(x: 13, y: 13)
+                    .offset(x: 15, y: 15)
             }
         }
-        .frame(width: 40, height: 40)
+        .frame(width: 44, height: 44)
     }
 
     @ViewBuilder
@@ -585,7 +612,7 @@ struct HubLedgerSection: View {
             Spacer()
         }
         .foregroundStyle(Palette.ink)
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.vertical, OneDayMetrics.spacingS)
         .background(Palette.fieldFill)
     }
