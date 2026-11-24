@@ -782,12 +782,16 @@ public enum OneDayMetrics {
     /// 测 ≈16–17）：只许中枢页头/分段条/三子页消费，
     /// pageGutter 全局口径不动、不许外溢其他页面
     public static let hubGutter: CGFloat = 16
-    /// 中枢段头与行标题字号（§477：参照量测 ≈20
-    /// semibold 主黑，段头三页单源、行标题同档）
-    public static let hubTitleSize: CGFloat = 20
-    /// 中枢页头大名字号（§477：参照 ≈32；.title 28
-    /// 档由本值覆盖，仅页头 hero 消费）
-    public static let hubHeroNameSize: CGFloat = 32
+    /// 中枢段头与行标题字号（§477 立、§485 订正：
+    /// §477 注记的参照量测 ≈20 系误记——用户参照截
+    /// 图逐像素实测 ≈17 semibold（Headline 档），见
+    /// hub-type-measurement-20261124.md；段头三页单
+    /// 源、行标题同档）
+    public static let hubTitleSize: CGFloat = 17
+    /// 中枢页头大名字号（§477 立、§485 订正：§477
+    /// 注记的参照 ≈32 系误记，实测 ≈25 bold；仅页
+    /// 头 hero 消费）
+    public static let hubHeroNameSize: CGFloat = 25
     /// 列表行图标槽宽：全页同一条对齐线（0.24.0 与
     /// 设置/抽屉统一取 30，ListRowSpec.iconSlotWidth
     /// 同值，见 §51）

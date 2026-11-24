@@ -532,9 +532,11 @@ struct AgentHubView: View {
                 avatarBlock
 
                 Text(store.displayName)
-                    // §477：大名 .title(28) → 32 档（参
-                    // 照档案页量测 ≈32），走 hubHero-
-                    // NameSize 令牌
+                    // §477：大名 .title(28) → hubHero-
+                    // NameSize 令牌档；§485 订正：令牌
+                    // 值 32→25（§477 注记的参照量测
+                    // ≈32 系误记，实测 ≈25 bold，见
+                    // hub-type-measurement-20261124.md）
                     .font(.system(
                         size: OneDayMetrics.hubHeroNameSize,
                         weight: .bold
@@ -603,14 +605,16 @@ struct AgentHubView: View {
     /// §474 胶囊线同源收口），无短语即回落状态词，
     /// 不许再起第二套状态源
     private func statusLine(_ store: AgentHubStore) -> some View {
-        // §477 呈现对齐：字档升 20 主黑（参照状态行
-        // ≈19–20 主黑；旧 .body 17 灰退役）
+        // §477 呈现对齐：字档主黑（墨色口径保留）；
+        // §485 订正：§477 注记的参照量测 ≈19–20 系
+        // 误记——实测 ≈17 regular，字档回 .body 17
+        // regular（hub-type-measurement-20261124.md）
         HStack(spacing: OneDayMetrics.rowInnerGap) {
             if let livePhrase = appState.liveActivityPhrase {
                 ProgressView()
                     .controlSize(.mini)
                 Text(livePhrase)
-                    .font(.system(size: OneDayMetrics.hubTitleSize))
+                    .font(.body)
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
             } else if !store.statusText.isEmpty {
@@ -621,7 +625,7 @@ struct AgentHubView: View {
                 // §474：statusText 空串（运行中无待审
                 // 批）＝本行不呈现，不留空行占位
                 Text(store.statusText)
-                    .font(.system(size: OneDayMetrics.hubTitleSize))
+                    .font(.body)
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
             }
