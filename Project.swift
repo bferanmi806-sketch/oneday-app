@@ -8,8 +8,8 @@ let project = Project(
     settings: .settings(base: [
         "SWIFT_VERSION": "6.0",
         "TARGETED_DEVICE_FAMILY": "1",
-        "MARKETING_VERSION": "0.50.115",
-        "CURRENT_PROJECT_VERSION": "243",
+        "MARKETING_VERSION": "0.50.116",
+        "CURRENT_PROJECT_VERSION": "244",
     ]),
     targets: [
         .target(
