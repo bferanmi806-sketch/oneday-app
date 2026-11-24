@@ -1,42 +1,20 @@
 import XCTest
 @testable import OneDayCore
 
-/// 乐观化副本助手与回写闸（§233）：里程碑/状态/
-/// 开关的本地先行副本只翻目标字段；抽屉归档/置顶
-/// 回写服务端的闸口径（linked 放行、主线/合并桶/
-/// 无绑定不放行）
+/// 乐观化副本助手与回写闸（§233）：状态/开关的
+/// 本地先行副本只翻目标字段；抽屉归档/置顶回写服
+/// 务端的闸口径（linked 放行、主线/合并桶/无绑定
+/// 不放行）。G-6（2026-11-24）：里程碑乐观副本随
+/// 概念移除，本文件的里程碑段已删
 final class MutationOptimisticCoreTests: XCTestCase {
 
-    private func goal(
-        milestones: [BridgeMilestone] = [
-            BridgeMilestone(id: "m_1", title: "a", done: false),
-            BridgeMilestone(id: "m_2", title: "b", done: true),
-        ]
-    ) -> BridgeGoal {
+    private func goal() -> BridgeGoal {
         BridgeGoal(
             id: "g_1", title: "目标", note: "备注",
-            milestones: milestones, createdAt: 10, updatedAt: 20,
+            entriesFingerprint: "fp_1",
+            createdAt: 10, updatedAt: 20,
             status: .active, completedAt: nil, parentId: nil,
             category: nil, latestEntry: nil
-        )
-    }
-
-    // MARK: - 里程碑乐观副本
-
-    func testWithMilestoneDoneFlipsOnlyTarget() {
-        let flipped = goal().withMilestoneDone(id: "m_1", done: true)
-        XCTAssertEqual(
-            flipped.milestones.map(\.done), [true, true]
-        )
-        XCTAssertEqual(flipped.title, "目标")
-        XCTAssertEqual(flipped.updatedAt, 20)
-        XCTAssertEqual(flipped.status, .active)
-    }
-
-    func testWithMilestoneDoneUnknownIDIsNoOp() {
-        let goal = goal()
-        XCTAssertEqual(
-            goal.withMilestoneDone(id: "nope", done: true), goal
         )
     }
 
@@ -46,7 +24,8 @@ final class MutationOptimisticCoreTests: XCTestCase {
         let done = goal().withStatus(.completed, completedAt: 999)
         XCTAssertEqual(done.status, .completed)
         XCTAssertEqual(done.completedAt, 999)
-        XCTAssertEqual(done.milestones.count, 2)
+        // 其余字段原样（指纹不被状态副本动）
+        XCTAssertEqual(done.entriesFingerprint, "fp_1")
     }
 
     func testWithStatusReactivatedClearsTimestamp() {

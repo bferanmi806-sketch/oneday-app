@@ -133,7 +133,6 @@ struct GoalDetailView: View {
                         headerSection(goal)
                         activitySection(goal)
                         briefingSection(goal)
-                        milestonesSection(goal)
                         delegationSection(goal)
                         entriesSection(goal)
                         if goal.parentId == nil {
@@ -184,6 +183,16 @@ struct GoalDetailView: View {
             await loadAssociationStores(force: false)
             materializeGoalEchoes()
         }
+        .task {
+            // G-3a（2026-11-24）：详情可见期间每 30 秒指
+            // 纹重验——本目标指纹变了 store 会回拉条目流，
+            // 智能体新记的进展不用退出重进就能看见
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(30))
+                if Task.isCancelled { break }
+                await store.revalidateFingerprints(appState: appState)
+            }
+        }
         .sheet(isPresented: $showEdit) {
             GoalEditView(store: store, goalID: goalID)
         }
@@ -207,7 +216,7 @@ struct GoalDetailView: View {
         }
     }
 
-    // MARK: 头部（标题＋状态＋进度条在此安家）
+    // MARK: 头部（标题＋状态在此安家；G-6 后无进度条）
 
     private func headerSection(_ goal: BridgeGoal) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
@@ -250,27 +259,6 @@ struct GoalDetailView: View {
                 Text(goal.note)
                     .font(.body)
                     .foregroundStyle(Palette.inkSecondary)
-            }
-            if !goal.milestones.isEmpty {
-                HStack(spacing: OneDayMetrics.spacingS) {
-                    DataBar(
-                        fraction: GoalProgress.fraction(of: goal),
-                        height: 4
-                    )
-                    Text("\(GoalProgress.text(of: goal)) 里程碑")
-                        .font(.footnote)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .tabularDigits()
-                }
-            }
-            if goal.status == .active,
-               GoalBoard.allMilestonesDone(goal) {
-                Label(
-                    "里程碑已全部完成，可以标为完成了",
-                    systemImage: "checkmark.circle"
-                )
-                .font(.footnote)
-                .foregroundStyle(Palette.successText)
             }
         }
     }
@@ -410,45 +398,6 @@ struct GoalDetailView: View {
             for: Date(timeIntervalSince1970: updatedAt), now: Date()
         )
         return "\(status) · \(when)"
-    }
-
-    // MARK: 里程碑（就地勾选即存）
-
-    private func milestonesSection(_ goal: BridgeGoal) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionLabel("里程碑")
-                .padding(.bottom, OneDayMetrics.spacingS)
-            if goal.milestones.isEmpty {
-                Text("暂无里程碑，点右上角「编辑」添加。")
-                    .font(.footnote)
-                    .foregroundStyle(Palette.inkSecondary)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(
-                        Array(goal.milestones.enumerated()),
-                        id: \.element.id
-                    ) { index, milestone in
-                        if index > 0 {
-                            GroupDivider()
-                        }
-                        MilestoneCheckRow(
-                            done: milestone.done, title: milestone.title
-                        ) {
-                            Task {
-                                _ = await store.toggleMilestone(
-                                    appState: appState, goalID: goalID,
-                                    milestoneID: milestone.id
-                                )
-                            }
-                        }
-                        .disabled(acting)
-                        .padding(.horizontal, OneDayMetrics.spacingM)
-                        .padding(.vertical, OneDayMetrics.spacingSM)
-                    }
-                }
-                .odGroup()
-            }
-        }
     }
 
     // MARK: 委派（安排一件事，0.40.0 欠账补落）
@@ -706,6 +655,11 @@ struct GoalDetailView: View {
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
             }
+            if let entryTitle = entry.title, !entryTitle.isEmpty {
+                Text(entryTitle)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Palette.bodyInk)
+            }
             Text(entry.body)
                 .font(.body)
                 .foregroundStyle(Palette.bodyInk)
@@ -799,7 +753,7 @@ struct GoalDetailView: View {
                             subgoalError = nil
                             if await store.create(
                                 appState: appState, title: title, note: "",
-                                milestoneTitles: [], parentId: goalID
+                                parentId: goalID
                             ) {
                                 newSubgoalTitle = ""
                             } else {

@@ -6,10 +6,9 @@ import OneDayCore
 /// ①桥未连接/未开通如实露（noKey/401＝钥匙问题、
 /// 集合 404＝桥未开通），绝不拿假数据顶；②写动作分
 /// 档（§233）：表单保存/创建/删除等确认类仍回读对
-/// 账才算完成；**轻动作（里程碑勾选、完成态流转）
-/// 改乐观**——先翻本地呈现、后台保存（机制仍是全
-/// 量 PATCH），失败恢复原状＋行内提示；③已就绪时
-/// 刷新失败保持旧数据不翻态。
+/// 账才算完成；**轻动作（完成态流转）改乐观**——先
+/// 翻本地呈现、后台保存，失败恢复原状＋行内提示；
+/// ③已就绪时刷新失败保持旧数据不翻态。
 @MainActor
 @Observable
 final class GoalsStore {
@@ -129,6 +128,44 @@ final class GoalsStore {
     /// 名单装载收口（load/回读/测试共用一个落点）
     func installLoadedGoals(_ loaded: [BridgeGoal]) {
         goals = loaded
+        goalFingerprints = Dictionary(
+            uniqueKeysWithValues: loaded.map {
+                ($0.id, $0.entriesFingerprint ?? "")
+            }
+        )
+    }
+
+    /// 上次装载名单的条目指纹集（G-3a 在面重验的比对底）
+    private(set) var goalFingerprints: [String: String] = [:]
+
+    /// G-3a（2026-11-24）在面指纹重验：目标面可见期间
+    /// 视图每 30 秒调一次——拉一遍目标列表与指纹集比
+    /// 对，全等则什么都不做（零呈现扰动）；有变才装
+    /// 载新名单，并给「详情已打开过且指纹变了」的目标
+    /// 回拉条目流（智能体新记的进展、看板回声不用退
+    /// 出重进就能看见）。失败静默保持现值（与刷新失
+    /// 败同纪律）
+    func revalidateFingerprints(appState: AppState) async {
+        guard loadState == .ready,
+              let config = appState.config else { return }
+        guard let fetched = try? await client.goals(
+            config: config
+        ) else { return }
+        let newMap = Dictionary(
+            uniqueKeysWithValues: fetched.map {
+                ($0.id, $0.entriesFingerprint ?? "")
+            }
+        )
+        guard newMap != goalFingerprints else { return }
+        let changedIDs = fetched
+            .filter {
+                goalFingerprints[$0.id] != ($0.entriesFingerprint ?? "")
+            }
+            .map(\.id)
+        installLoadedGoals(fetched)
+        for gid in changedIDs where detailLoadedIDs.contains(gid) {
+            await refetchEntries(appState: appState, goalID: gid)
+        }
     }
 
     /// 乐观呈现落点（§233）：以同 id 副本整行替换本
@@ -176,7 +213,7 @@ final class GoalsStore {
 
     func create(
         appState: AppState, title: String, note: String,
-        milestoneTitles: [String], parentId: String? = nil,
+        parentId: String? = nil,
         category: GoalCategory? = nil
     ) async -> Bool {
         guard !creating else { return false }
@@ -188,7 +225,7 @@ final class GoalsStore {
         createError = nil
         defer { creating = false }
         let request = BridgeGoalCreateRequest.make(
-            title: title, note: note, milestoneTitles: milestoneTitles,
+            title: title, note: note,
             parentId: parentId, category: category
         )
         do {
@@ -212,13 +249,12 @@ final class GoalsStore {
 
     // MARK: - 编辑保存（PATCH 全量→回读确认字段一致）
 
-    /// 勾选翻转与改标题/备注/增删里程碑共用此路：草稿
-    /// 全量组装 PATCH 体（已有里程碑 id 原样带回、新条
-    /// 不带 id），回读后逐项对账（标题/备注/里程碑
-    /// id·标题·done 全等）才算保存成功
+    /// 改标题/备注走此路：PATCH 体只带标题/备注
+    /// （G-6 里程碑移除后编辑面无第三项），回读后对账
+    /// （标题/备注全等）才算保存成功
     func saveEdits(
         appState: AppState, goalID: String, title: String,
-        note: String, milestones: [MilestoneDraftState]
+        note: String
     ) async -> Bool {
         guard !actingIDs.contains(goalID) else { return false }
         guard let config = appState.config else {
@@ -228,8 +264,8 @@ final class GoalsStore {
         actingIDs.insert(goalID)
         notes.removeValue(forKey: goalID)
         defer { actingIDs.remove(goalID) }
-        let request = GoalPatchPlan.update(
-            title: title, note: note, milestones: milestones
+        let request = BridgeGoalPatchRequest.edited(
+            title: title, note: note
         )
         do {
             _ = try await client.patchGoal(
@@ -242,13 +278,6 @@ final class GoalsStore {
             }
             let confirmed = current.title == request.title
                 && current.note == request.note
-                && current.milestones.count == request.milestones.count
-                && zip(current.milestones, request.milestones)
-                    .allSatisfy { server, sent in
-                        server.title == sent.title
-                            && server.done == sent.done
-                            && (sent.id == nil || server.id == sent.id)
-                    }
             if confirmed {
                 return true
             }
@@ -387,76 +416,6 @@ final class GoalsStore {
             return false
         } catch {
             notes[goalID] = L10n.string("分类更新失败，请稍后再试。")
-            return false
-        }
-    }
-
-    /// 里程碑就地勾选（§233 乐观时序）：**勾选当拍先
-    /// 翻本地呈现**，后台仍走既有全量 PATCH 保存（草
-    /// 稿取翻后全量、不新开第二条写路），回读逐项对
-    /// 账才算落定；网络失败恢复勾选前原状＋行内提
-    /// 示，回读对不上时呈现已随回读回到服务端现值、
-    /// 只留提示。编辑表单的保存仍走 saveEdits 确认
-    /// 路（表单类不在乐观档）
-    func toggleMilestone(
-        appState: AppState, goalID: String, milestoneID: String
-    ) async -> Bool {
-        guard !actingIDs.contains(goalID) else { return false }
-        guard let original = goal(id: goalID),
-              let milestone = original.milestones.first(
-                  where: { $0.id == milestoneID }
-              ) else { return false }
-        guard let config = appState.config else {
-            notes[goalID] = L10n.string("尚未连接服务器。")
-            return false
-        }
-        actingIDs.insert(goalID)
-        notes.removeValue(forKey: goalID)
-        defer { actingIDs.remove(goalID) }
-        let target = !milestone.done
-        let flipped = original.withMilestoneDone(
-            id: milestoneID, done: target
-        )
-        applyGoal(flipped)
-        let drafts = flipped.milestones.map { item in
-            MilestoneDraftState(
-                id: item.id, title: item.title, done: item.done
-            )
-        }
-        let request = GoalPatchPlan.update(
-            title: flipped.title, note: flipped.note,
-            milestones: drafts
-        )
-        do {
-            _ = try await client.patchGoal(
-                config: config, id: goalID, request: request
-            )
-            await refetch(appState: appState)
-            guard let current = goal(id: goalID) else {
-                notes[goalID] = L10n.string("保存已发出，但再确认时目标不见了，请刷新核对。")
-                return false
-            }
-            let confirmed = current.title == request.title
-                && current.note == request.note
-                && current.milestones.count == request.milestones.count
-                && zip(current.milestones, request.milestones)
-                    .allSatisfy { server, sent in
-                        server.title == sent.title
-                            && server.done == sent.done
-                            && (sent.id == nil || server.id == sent.id)
-                    }
-            if confirmed {
-                return true
-            }
-            notes[goalID] = L10n.string("保存已发出，但再确认时内容对不上，请刷新核对。")
-            return false
-        } catch let error as OneDayBridgeError {
-            applyGoal(original)
-            notes[goalID] = Self.message(for: error)
-            return false
-        } catch {
-            applyGoal(original)
-            notes[goalID] = L10n.string("保存失败，请稍后再试。")
             return false
         }
     }
@@ -651,8 +610,7 @@ final class GoalsStore {
     /// 不加桥），App 回读目标任务面确认新行出现才算
     /// 完成；失败桥侧不落归属，如实留 notes，不假成功
     func delegateTask(
-        appState: AppState, goalID: String, title: String,
-        milestoneId: String?
+        appState: AppState, goalID: String, title: String
     ) async -> Bool {
         guard !actingIDs.contains(goalID) else { return false }
         guard let config = appState.config else {
@@ -669,7 +627,6 @@ final class GoalsStore {
                     title: title.trimmingCharacters(
                         in: .whitespacesAndNewlines
                     ),
-                    milestoneId: milestoneId,
                     idempotencyKey: UUID().uuidString
                 )
             )
