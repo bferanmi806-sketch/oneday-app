@@ -8,6 +8,9 @@ import SwiftUI
 /// 根页执行副本已删、总览无此动作）：二次确认后 POST，
 /// 状态靠回读确认不靠回执猜。页题与设置目录题对齐
 /// 「网关状态」（S9，此前页题只写「网关」与目录题不一）
+/// §470（S5-11 打包改）：用量自设置根页服务器段移
+/// 出、收进本页成「用量」组一行（点达走设置栈同一
+/// 路由 .usage，UsageDetailView 本体不变）
 struct GatewayView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
@@ -24,6 +27,7 @@ struct GatewayView: View {
                 if let status {
                     statusGroup(status)
                     platformsGroup(status)
+                    usageGroup
                     actionsGroup(status)
                 } else if let errorMessage {
                     InlineError(errorMessage)
@@ -172,6 +176,35 @@ struct GatewayView: View {
                         .frame(minHeight: OneDayMetrics.rowHeight)
                     }
                 }
+            }
+            .odGroup()
+        }
+    }
+
+    /// 用量入口（§470）：行貌与本页控制行同 metrics
+    /// （水平边距/行高/按压反馈），披露箭头走共用件
+    /// DisclosureChevron（§453 收口后的全仓单源）
+    private var usageGroup: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("用量")
+                .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                .padding(.bottom, OneDayMetrics.spacingS)
+            VStack(spacing: 0) {
+                NavigationLink(value: SettingsRoute.usage) {
+                    HStack(spacing: OneDayMetrics.spacingSM) {
+                        Text("用量")
+                            .font(.body)
+                            .foregroundStyle(Palette.ink)
+                        Spacer()
+                        DisclosureChevron(
+                            font: .footnote.weight(.semibold)
+                        )
+                    }
+                    .padding(.horizontal, OneDayMetrics.spacingM)
+                    .frame(minHeight: OneDayMetrics.rowHeight)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.odPressable)
             }
             .odGroup()
         }
