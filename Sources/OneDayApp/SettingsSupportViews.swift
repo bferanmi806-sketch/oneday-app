@@ -42,11 +42,22 @@ enum AppIconBitmap {
             "CFBundleIcons"
         ] as? [String: Any],
         let primary = icons["CFBundlePrimaryIcon"]
-            as? [String: Any],
-        let files = primary["CFBundleIconFiles"]
+            as? [String: Any] else { return nil }
+        if let files = primary["CFBundleIconFiles"]
             as? [String],
-        let name = files.last else { return nil }
-        return UIImage(named: name)
+            let name = files.last,
+            let image = UIImage(named: name) {
+            return image
+        }
+        // §483（HIG 批 A／P2-04 连带）：图标集转单尺寸
+        // 格式后 Info.plist 只写 CFBundleIconName、无
+        // CFBundleIconFiles 数组；actool 仍把主尺寸位
+        // 图以 AppIcon60x60 loose 文件落在包根，按约
+        // 定名取（与旧通道同为包内位图、同源桌面图标）
+        if primary["CFBundleIconName"] != nil {
+            return UIImage(named: "AppIcon60x60")
+        }
+        return nil
     }()
 }
 

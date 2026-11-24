@@ -110,26 +110,11 @@ struct FileSearchField: View {
     }
 }
 
-/// 类型图标图（§128）：按资源名取自制图标资产渲染；
-/// 资源缺失回落 unknown 枚——不许空白、不许回退字形
-/// （旧字母块渲染整套退役）。FileIconBox 与
-/// FileTypeFace 共用，呈现单源。
-struct FileIconImageView: View {
-    let assetName: String
-
-    var body: some View {
-        if let image = UIImage(named: assetName)
-            ?? UIImage(
-                named: DeliverableIconStyle.fallbackAssetName
-            ) {
-            Image(uiImage: image)
-                .resizable()
-        } else {
-            // 双缺失理论不可达（资产随包发布）：白砖兜底
-            Color.white
-        }
-    }
-}
+/// §483（HIG 批 A／P2-05）：§128 的资产渲染件
+/// FileIconImageView 随 fileicon 黏土 PNG 套一并退
+/// 役删除——该件自 §452.4 起零调用点（全树 grep 实
+/// 证），现行呈现单源是程序绘制的 FileTypeIconView
+///（FileIconBox／FileTypeFace 共用）。
 
 /// 类型图标盒 v3（§128，C8 定版）：Core 的
 /// DeliverableIconStyle 表给出资产 slug，本盒以白色
