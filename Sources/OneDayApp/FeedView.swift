@@ -39,6 +39,7 @@ import SwiftUI
 struct FeedView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var store = FeedStore()
     /// refs 点达与标题解析的数据源（与点子/目标格同
     /// 一套 Store）：台账 199 改走 AppState 共享单例
@@ -775,7 +776,12 @@ struct FeedView: View {
             .fixedSize(horizontal: true, vertical: false)
             Button {
                 markRead(post)
-                withAnimation(.easeInOut(duration: 0.25)) {
+                // §483（HIG 批 A／P1-01）：字面动画收编
+                // 令牌册——折叠展开走 swap 档、经 resolved
+                // 出口（Reduce Motion 开启即瞬时）
+                withAnimation(MotionTokens.resolved(
+                    MotionTokens.swap, reduceMotion: reduceMotion
+                )) {
                     expandedAboutID =
                         expandedAboutID == post.id ? nil : post.id
                 }

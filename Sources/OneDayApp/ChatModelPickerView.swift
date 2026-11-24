@@ -117,6 +117,9 @@ struct ChatModelPickerView: View {
             }
         }
         .presentationDetents([.medium, .large])
+        // §483（HIG 批 A／P1-02）：可调 sheet 补抓手
+        //（HIG Sheets：Include a grabber in a resizable sheet）
+        .presentationDragIndicator(.visible)
     }
 
     // MARK: - §158 折叠与隐藏
