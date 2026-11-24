@@ -17291,3 +17291,16 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **G-5 子目标核对（App 侧销项）**：详情 subgoalsSection 与服务端规则逐项对齐——子目标只在顶层目标详情出现（parentId==nil 门）、恰一层（子目标详情不再长子目标段）、完成子目标不自动完成父目标（文案与服务端行为一致）、删目标弹窗明示子目标一并删（服务端级联已验）。无代码改动。
 - **G-7 App 侧**：全仓无 briefings/generate 调用点（已核），无改动；端点收口在服务端完成。
 - 真机门：目标面停留时智能体记进展 ≤约 30 秒内自现、详情开着时回声条目自达、条目标题呈现——归组版真机 verdict，不以实验室绿关账。
+
+## §467 0.50.112 组版（2026-11-24；基线 rel-05111 @16d5220）
+
+- 料源：目标对齐 C/D 段 App 半边（feat/goals-align-cd @73ff942，基线 rel-05106：G-3a 指纹在面重验＋30 秒重验循环／G-2 条目标题呈现／G-6 里程碑全摘，17 文件 +309/−758），合并提交 24043cf。
+- 冲突处置：代码零冲突；DESIGN 尾部追加冲突一处并集解——HEAD 侧 §440–§466 全段与分支节全留。节号撞车明示：分支节写于基线 rel-05106 时期、自拟「§460 目标对齐 C/D 段 App 半边」，与 107 组版记账 §460 撞号，本版不追溯改号、两节按标题区分。
+- 合并构建缺口一件（首轮整跑构建失败、修复后重跑）：§459 IdeasStore「立为目标」调用点仍传 BridgeGoalCreateRequest.make 的 milestoneTitles 空参，而 G-6 已摘该参数——删该行（所传为空数组、零行为变化），提交 fc05cf6。与 111 的 kicker .event 缺口同型（两线各自自洽、合并面才暴露）。
+- 合并后亲验：primarySaturated 定义全仓恰一份；ChatView 键盘坞仍 §449 形态、§451 发送泵符号计数与 111 树同数（runSubmitPump 2、SubmissionLane 5）；§461 confirmButtonHeight 与 §459 IdeasView detents [.large] 均与 111 树同数、点子详情 sheet 高度未动；里程碑全摘亲验——BridgeMilestone 仅剩模型头注释一处、milestoneId 仅 BridgeGoalTask 读面保留（桥恒下发 null、解码兼容）、BridgeGoal.entriesFingerprint 走 decodeIfPresent（旧载荷 nil 不崩）。
+- 版本戳：Project.swift 升 0.50.112／240，tuist generate（先 tuist install）后 Derived 戳亲验 0.50.112／240，提交 712ffd8（generate 后未还原 Derived）。环境坑一件：新工地 tuist 派生工程 swift-markdown／cmark-gfm 的 IPHONEOS_DEPLOYMENT_TARGET 生成 13.1 被 Xcode 27.2 拒，本地 sed 抬 15.0（生成物未入库，同 §458 登记口径）。
+- 发布集（RUN 2026-11-24 09:01:10，bundle Test-OneDayApp-rel05112.xcresult，dd-05112-test，ProbePhone 开跑前 simctl erase）：名单＝111 官方 bundle xcresulttool 提取 168 套／1324 项全限定名（与 §466 精确闭合）＋补入 7 套 91 项＝175 套／1415 项；逐套对账仅此七处增量、其余 168 套计数与 111 逐套相同，总项精确闭合；1413 过、2 红。UI 腿三套（bundle Test-UI-rel05112）：9 项 7 过、2 跳（既有跳过）、0 红，同 111 口径。
+- 补入 7 套说明（谱系遗漏）：新套 GoalsFingerprintRevalidationTests（2，本包新增）＋六套本包改写却从不在发布集谱系内（OneDayBridgeModelsTests 26／ClosureLoopTests 20／MutationOptimisticTests 13／GoalDepthTests 12／GoalCategoryTests 11／MutationOptimisticCoreTests 7）——与 RunTurnTests（109）、LibraryMenuResolutionTests（110）、FeedV2／FeedIdeasParity（111）同型：名单逐版自上版 bundle 提取、遗漏自我延续。本版按料面补入并明示；六套实跑计数与静态方法数逐套吻合，八套合计 97 与分支交卷选集数闭合。另登记：全树 XCTestCase 套共 398、发布集外 230 套系各功能线自管口径，不在本版处置面。
+- 红项处置：①#13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–111 逐字同红、已裁可接受。②HapticsMatrixTests/testMatrixCallSiteCounts 新红——归因逐数坐实：声明式 .sensoryFeedback(.success) 3→2，逐文件对账（rel-05111→合并树）增量仅 GoalListRows.swift 一处——G-6 删 MilestoneCheckRow 时其 .sensoryFeedback(.success, trigger: done) 落点随里程碑面退役；目标行本体落点（同文件 380 行）仍在、其余各计数逐数不变、无既有落点丢失。处置：按该测既有惯例改钉并附 §467 注记（提交 3963939），独立模拟器（iPhone 17 Pro Max）复跑 HapticsMatrixTests 4/4 全绿（bundle Test-HapticsPin-rel05112）。
+- IPA：Release 构建 BUILD SUCCEEDED（dd-05112-release）；~/build/OneDay-0.50.112-240.ipa，16,803,245 字节，md5 8e8e43f39a35377ff78ef4faf568e9ea；unzip 直验主 App 本体 plist 三值＝0.50.112／240／site.didichou.oneday；VM 副本 md5 一致。
+- 真机门（归用户 verdict）：①目标列表 41 条与历史进展呈现、条目标题行在位；②改动可见延迟：目标面停留时智能体记进展约 15–30 秒内自现（服务端看板轮询 15 秒＋App 30 秒指纹重验两腿）；③里程碑整面消失（详情段／头部进度条／表单组／勾选行）且旧数据打开不崩；④目标详情开着时新条目自达、指纹重验循环在面生效（离开面即停）。
