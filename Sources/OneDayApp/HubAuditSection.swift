@@ -100,7 +100,8 @@ struct HubAuditSection: View {
                         ))
                         .foregroundStyle(Palette.ink)
                         Text("在对话里处理")
-                            .font(.callout)
+                            // §500：副题 16 → 15（rowSubtitle）
+                            .font(.rowSubtitle)
                             .foregroundStyle(Palette.inkSecondary)
                     }
                 }
@@ -229,7 +230,8 @@ struct HubAuditSection: View {
                     .lineLimit(2)
                 if let description = description(for: entry) {
                     Text(description)
-                        .font(.callout)
+                        // §500：副题 16 → 15（rowSubtitle）
+                        .font(.rowSubtitle)
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(2)
                 }

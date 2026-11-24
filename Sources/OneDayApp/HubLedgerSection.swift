@@ -438,13 +438,15 @@ struct HubLedgerSection: View {
                         )
                     )
                 )
-                .font(.callout)
+                // §500：副题 16 → 15（rowSubtitle）
+                .font(.rowSubtitle)
                 .foregroundStyle(Palette.inkSecondary)
                 .lineLimit(1)
             }
         } else {
             Text(subtitleText(group, serverNow: store.serverNow))
-                .font(.callout)
+                // §500：副题 16 → 15（rowSubtitle）
+                .font(.rowSubtitle)
                 .foregroundStyle(
                     item.status == .stale
                         ? Palette.danger : Palette.inkSecondary

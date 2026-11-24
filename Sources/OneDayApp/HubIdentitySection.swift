@@ -80,8 +80,12 @@ struct HubIdentitySection: View {
     /// 对位参照身份格以名起头的排版
     private var headerRow: some View {
         Text(store.displayName)
-            .font(.title)
-            .fontWeight(.bold)
+            // §500：段内大名 28 bold → 22 semibold
+            // （量测实测参照 ≈22 semibold——全页唯一
+            // 「又大又粗」处，hub-type-measurement-
+            // 20261124.md）；FontRoles.screenName 本
+            // 体不动（抽屉名字头等他面沿用）
+            .font(.title2.weight(.semibold))
             .foregroundStyle(Palette.ink)
             .lineLimit(1)
             .padding(.horizontal, OneDayMetrics.hubGutter)
@@ -100,16 +104,19 @@ struct HubIdentitySection: View {
     }
 
     /// 简介区：提炼后的散文段落，灰字、段间留节奏
-    /// §477：字档 .body(17) 降 .callout(16)——参照摘
-    /// 要 ≈15–16 灰、自然 pitch 由 ≈22.2 收到 ≈20
-    /// （靠字号档实现，不用负 lineSpacing 硬拧）
+    /// §477：字档 .body(17) 降 .callout(16)；§500 订
+    /// 正：§477 注记的参照摘要 ≈15–16 系误记——实
+    /// 测 ≈13 regular 灰，再降 FontRoles.meta
+    /// （Footnote 13，hub-type-measurement-
+    /// 20261124.md）；pitch 随字号自然收，不用负
+    /// lineSpacing 硬拧
     private func personaBlock(_ paragraphs: [String]) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
             ForEach(
                 Array(paragraphs.enumerated()), id: \.offset
             ) { _, paragraph in
                 Text(paragraph)
-                    .font(.callout)
+                    .font(.meta)
                     .foregroundStyle(Palette.inkSecondary)
             }
         }
@@ -122,13 +129,16 @@ struct HubIdentitySection: View {
     private func styleBlock(_ paragraphs: [String]) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
             Text("风格")
-                .font(.footnote)
+                // §500：13 → 11（量测实测参照 ≈11）
+                .font(.caption2)
                 .foregroundStyle(Palette.inkMuted)
             ForEach(
                 Array(paragraphs.enumerated()), id: \.offset
             ) { _, paragraph in
                 Text(paragraph)
-                    .font(.callout)
+                    // §500：16 → 15（FontRoles.rowSub-
+                    // title，量测实测参照 ≈15）
+                    .font(.rowSubtitle)
                     .foregroundStyle(Palette.ink)
             }
         }
@@ -148,7 +158,9 @@ struct HubIdentitySection: View {
                 Image(systemName: "pencil")
                 Text("编辑")
             }
-            .font(.body.weight(.semibold))
+            // §500：编辑钮字 17 semibold → 15 semi-
+            // bold（量测实测参照 ≈15 semibold）
+            .font(.subheadline.weight(.semibold))
             .foregroundStyle(Palette.ink)
             .frame(maxWidth: .infinity)
             .frame(height: OneDayMetrics.minTapTarget)

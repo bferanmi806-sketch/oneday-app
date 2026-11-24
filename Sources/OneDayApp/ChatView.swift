@@ -2025,8 +2025,9 @@ struct ChatView: View {
         VStack(spacing: OneDayMetrics.rowInnerGap) {
             // §449（六报之 1/2/3）：顶簇改单带——旧
             // 两段式（headerBar 整行＋其下身份区）退
-            // 役：放大镜钮与顶栏模型胶囊整件删除、汉
-            // 堡/铃两钮与居中身份区同带（topBand）；
+            // 役：顶栏模型胶囊整件删除、汉堡/铃两钮
+            // 与居中身份区同带（topBand）；放大镜钮
+            // §500 按总表 150 原文恢复（见 topBand 注）；
             // 查找栏的次序不变（进展胶囊已随 §474 撤除）
             topBand
             // §474（用户 2026-11-24 亲令）：进展胶囊
@@ -2045,10 +2046,13 @@ struct ChatView: View {
     /// 与居中身份区同带——ZStack 顶对齐，钮行顶距
     /// spacingS 使钮心落在头像心上方 ≈8pt（参照聊
     /// 天页量测 Δ≈4–15、取栅格值 8，见 DESIGN
-    /// §449.3）；放大镜钮（第 1 条）与顶栏模型胶
-    /// 囊（第 2 条）整件退役——会话内查找改由身
-    /// 份胶囊长按菜单下沉一级（§449.1）、模型切
-    /// 换唯一入口收中枢（§449.2）。两钮本体自旧
+    /// §449.3）；顶栏模型胶囊（第 2 条）整件退役、
+    /// 模型切换唯一入口收中枢（§449.2）。放大镜钮
+    /// 沿革：§449.1 曾随第 1 条退役、查找下沉身份
+    /// 胶囊长按菜单——§500 按总表 150 原文「删钮同
+    /// 时安置为直达放大镜钮」恢复直达钮（长按菜单
+    /// 入口保留、双入口并存，偏离登记见 §500）。
+    /// 两钮本体自旧
     /// headerBar 逐字迁入（盘/字形/命中域/角标不
     /// 变），仅承载行由独立行改同带叠放；旧行尾的
     /// 「会话名次行已撤销」注记随行退役（口径在
@@ -2059,7 +2063,10 @@ struct ChatView: View {
             HStack(alignment: .center, spacing: 0) {
                 drawerButton
                 Spacer(minLength: OneDayMetrics.spacingS)
-                bellButton
+                HStack(spacing: OneDayMetrics.spacingS) {
+                    findButton
+                    bellButton
+                }
             }
             .padding(.horizontal, OneDayMetrics.pageGutter)
             .padding(.top, OneDayMetrics.spacingS)
@@ -2098,6 +2105,40 @@ struct ChatView: View {
         .buttonStyle(.odPressable)
         .accessibilityLabel("会话列表")
         .accessibilityIdentifier("drawer.open")
+    }
+
+    /// 查找钮（总表 150／§500）：会话内查找的直达
+    /// 入口。⊙「更多」菜单已删（§434 清点实证：菜
+    /// 单内仅「在对话中查找」一项且系独一份入口）；
+    /// 安置回总表原文的直达放大镜钮——点按即展开
+    /// 现行 findBar，行为零变化。规格与汉堡/铃同族
+    /// （HeaderButtonSpec 玻璃盘 40／字形 20／命中
+    /// 域外扩 44）。身份胶囊长按菜单内的同名入口保
+    /// 留（§449.1，双入口并存）
+    private var findButton: some View {
+        Button {
+            showFind = true
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(
+                    size: HeaderButtonSpec.glyphPointSize,
+                    weight: .regular
+                ))
+                .foregroundStyle(Palette.ink)
+                .frame(
+                    width: HeaderButtonSpec.diameter,
+                    height: HeaderButtonSpec.diameter
+                )
+                .glassEffect(.regular, in: Circle())
+                .frame(
+                    width: OneDayMetrics.minTapTarget,
+                    height: OneDayMetrics.minTapTarget
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.odPressable)
+        .accessibilityLabel("在对话中查找")
+        .accessibilityIdentifier("topbar.find")
     }
 
     /// 右钮：铃铛＋角标（角标＝未读通知＋待审批，
