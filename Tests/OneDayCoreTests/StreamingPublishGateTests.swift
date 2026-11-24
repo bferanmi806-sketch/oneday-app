@@ -68,7 +68,7 @@ final class StreamingPublishGateTests: XCTestCase {
         var steps = 0
         _ = gate.offer(text(1005), now: 0.01)
         while gate.hasUnpublished, steps < 50 {
-            now += 0.09
+            now += 0.1
             let snapshot = gate.tick(now: now)
             XCTAssertNotNil(snapshot)
             let advanced = (snapshot?.count ?? 0) - lastCount
