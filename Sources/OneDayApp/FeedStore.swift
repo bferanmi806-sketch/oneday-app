@@ -169,13 +169,23 @@ final class FeedStore {
         ) {
             generation = fetched
         }
-        // 简报同为附带面：失败只降级简报行
+        // 简报同为附带面：失败只降级简报行（单读口径
+        // 与编辑器共用 loadBrief，§473 件一）
+        await loadBrief(appState: appState)
+    }
+
+    // MARK: - 简报单层（§459）
+
+    /// 简报单读（§473 件一）：只拉简报一面、不整表重
+    /// 载动态列表——编辑器打开必回读与 pending 期轻
+    /// 轮询共用本口；失败静默保留存量 briefDoc（编辑
+    /// 器见上次全文、不许空白冒充已同步）
+    func loadBrief(appState: AppState) async {
+        guard let config = appState.config else { return }
         if let doc = try? await client.feedBrief(config: config) {
             briefDoc = doc
         }
     }
-
-    // MARK: - 简报单层（§459）
 
     /// 保存生效全文：只发 {text}；回执即保存后全文，
     /// 润色在桥侧异步进行，回来时以 expandStarted 知
