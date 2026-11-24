@@ -271,7 +271,7 @@ struct ImageViewerView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: FrameworkIcon.actionGlyphSize, weight: .semibold))
                         .foregroundStyle(Palette.ink)
                         .frame(
                             width: ImageViewerSpec.closeButtonDiameter,
@@ -287,7 +287,7 @@ struct ImageViewerView: View {
                         Task { await saveCurrent() }
                     } label: {
                         Image(systemName: "arrow.down.to.line")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: FrameworkIcon.cardGlyphSize, weight: .semibold))
                             .foregroundStyle(Palette.ink)
                             .frame(
                                 width: ImageViewerSpec.chromeButtonWidth,
@@ -321,7 +321,7 @@ struct ImageViewerView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: FrameworkIcon.cardGlyphSize, weight: .semibold))
                             .foregroundStyle(Palette.ink)
                             .frame(
                                 width: ImageViewerSpec.chromeButtonWidth,
@@ -697,7 +697,7 @@ private struct ImageViewerPage: View {
     private var failureView: some View {
         VStack(spacing: OneDayMetrics.spacingS) {
             Image(systemName: "photo")
-                .font(.system(size: 26))
+                .font(.system(size: FrameworkIcon.overlayGlyphSize))
             Text("图片没加载出来")
                 .font(.callout)
             Button {

@@ -388,7 +388,7 @@ struct IdeaRowView: View {
     var body: some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Image(systemName: kickerSymbol)
-                .font(.system(size: 16, weight: .semibold))
+                .font(.system(size: FrameworkIcon.cardGlyphSize, weight: .semibold))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 28, height: 28)
                 .background(kickerColor)
@@ -622,7 +622,7 @@ struct IdeaDetailView: View {
                     .foregroundStyle(Palette.bodyInk)
                 Spacer()
                 Image(systemName: "list.clipboard")
-                    .font(.system(size: 17))
+                    .font(.system(size: FrameworkIcon.fileGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
             }
             ForEach(
@@ -646,7 +646,7 @@ struct IdeaDetailView: View {
                     }
                     Spacer()
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 22))
+                        .font(.system(size: FrameworkIcon.tabGlyphSize))
                         .foregroundStyle(Palette.primary)
                 }
             }
@@ -686,7 +686,7 @@ struct IdeaDetailView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.moreGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.ink)
                     .frame(width: 48, height: 48)
                     .background(Palette.surface, in: Circle())

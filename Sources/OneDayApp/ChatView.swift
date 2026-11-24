@@ -1932,7 +1932,7 @@ struct ChatView: View {
                 navigateToPreviousMatch()
             } label: {
                 Image(systemName: "chevron.up")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: FrameworkIcon.cardGlyphSize, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .frame(width: 32, height: 32)
             }
@@ -1943,7 +1943,7 @@ struct ChatView: View {
                 navigateToNextMatch()
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.system(size: FrameworkIcon.cardGlyphSize, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .frame(width: 32, height: 32)
             }
@@ -2448,7 +2448,7 @@ struct ChatView: View {
                 .frame(height: 1)
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: MessageActionSymbols.speak)
-                    .font(.system(size: 15))
+                    .font(.system(size: FrameworkIcon.actionGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .accessibilityHidden(true)
                 Text(
@@ -2500,7 +2500,7 @@ struct ChatView: View {
         Button(action: action) {
             HStack(spacing: OneDayMetrics.spacingXS) {
                 Image(systemName: symbol)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 Text(title)
                     .font(.subheadline)
             }
@@ -2534,7 +2534,7 @@ struct ChatView: View {
             awayUnread.reset()
         } label: {
             Image(systemName: "chevron.down")
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 34, height: 34)
                 // 台账 197（§335）：盘面由系统玻璃改
@@ -4812,7 +4812,7 @@ struct ChatView: View {
     private func echoRow(_ entry: ChatEntry) -> some View {
         HStack(spacing: OneDayMetrics.spacingXS) {
             Image(systemName: "flag.checkered")
-                .font(.system(size: 11))
+                .font(.system(size: FrameworkIcon.tinyGlyphSize))
                 .foregroundStyle(Palette.inkSecondary)
                 .accessibilityHidden(true)
             Text(entry.content)
@@ -4845,7 +4845,7 @@ struct ChatView: View {
             alignment: .top, spacing: OneDayMetrics.spacingS
         ) {
             Image(systemName: "wrench.and.screwdriver")
-                .font(.system(size: 13, weight: .regular))
+                .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 .foregroundStyle(
                     isFailed ? Palette.danger
                         : Palette.inkSecondary
@@ -4872,7 +4872,7 @@ struct ChatView: View {
                         if openableSessionID != nil {
                             Image(systemName: "chevron.right")
                                 .font(
-                                    .system(size: 10, weight: .semibold)
+                                    .system(size: FrameworkIcon.badgeGlyphSize, weight: .semibold)
                                 )
                                 .foregroundStyle(Palette.primary)
                                 .accessibilityHidden(true)
@@ -4974,7 +4974,7 @@ struct ChatView: View {
                 } label: {
                     HStack(spacing: OneDayMetrics.spacingSM) {
                         Image(systemName: suggestion.symbol)
-                            .font(.system(size: 15))
+                            .font(.system(size: FrameworkIcon.actionGlyphSize))
                             .foregroundStyle(Palette.inkSecondary)
                         Text(L10n.string(suggestion.text))
                             .font(.callout)
@@ -5098,7 +5098,7 @@ struct ChatView: View {
                 Image(
                     systemName: "exclamationmark.circle.fill"
                 )
-                .font(.system(size: 20))
+                .font(.system(size: FrameworkIcon.rowGlyphSize))
                 .foregroundStyle(Palette.danger)
                 .frame(
                     width: OneDayMetrics.minTapTarget,
@@ -5113,7 +5113,7 @@ struct ChatView: View {
                 resendPending(entry)
             } label: {
                 Image(systemName: "clock")
-                    .font(.system(size: 20))
+                    .font(.system(size: FrameworkIcon.rowGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(
                         width: OneDayMetrics.minTapTarget,
@@ -6984,7 +6984,7 @@ struct ChatView: View {
             } label: {
                 HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
                     Image(systemName: "bell.badge")
-                        .font(.system(size: 15, weight: .regular))
+                        .font(.system(size: FrameworkIcon.actionGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
@@ -7023,7 +7023,7 @@ struct ChatView: View {
                 Task { await store.markRead(appState: appState, id: item.id) }
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .regular))
+                    .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .regular))
                     // 0.23.0：功能字形随条内 ✕ 同档归
                     // inkSecondary（原 inkMuted）
                     .foregroundStyle(Palette.inkSecondary)
@@ -7111,7 +7111,7 @@ struct ChatView: View {
            let text = historySyncText(for: thread) {
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: "arrow.triangle.2.circlepath")
-                    .font(.system(size: 12))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .accessibilityHidden(true)
                 Text(text)
@@ -7158,7 +7158,7 @@ struct ChatView: View {
                 .frame(height: 1)
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: "arrow.clockwise.circle")
-                    .font(.system(size: 15))
+                    .font(.system(size: FrameworkIcon.actionGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .accessibilityHidden(true)
                 Text("这段对话没能载入")
@@ -7185,7 +7185,7 @@ struct ChatView: View {
                     importRetryContext = nil
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
                         .frame(
                             width: OneDayMetrics.minTapTarget,
@@ -7239,7 +7239,7 @@ struct ChatView: View {
                 .frame(height: 1)
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: "exclamationmark.circle")
-                    .font(.system(size: 15))
+                    .font(.system(size: FrameworkIcon.actionGlyphSize))
                     .foregroundStyle(Palette.danger)
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
@@ -7294,7 +7294,7 @@ struct ChatView: View {
                     failedResendEntryID = nil
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
                         // 0.23.0（命中域审计）：字形不变、命
                         // 中域外扩 44（条高随之由内容撑至 44）
@@ -7375,7 +7375,7 @@ struct ChatView: View {
                 .frame(height: 1)
             HStack(spacing: OneDayMetrics.spacingS) {
                 Image(systemName: "info.circle")
-                    .font(.system(size: 15))
+                    .font(.system(size: FrameworkIcon.actionGlyphSize))
                     .foregroundStyle(Palette.inkSecondary)
                     .accessibilityHidden(true)
                 Text(message)
@@ -7386,7 +7386,7 @@ struct ChatView: View {
                     dismissNotice()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         .foregroundStyle(Palette.inkSecondary)
                         // 0.23.0（命中域审计）：字形不变、命
                         // 中域外扩 44（条高随之由内容撑至 44）
@@ -7446,7 +7446,7 @@ struct ChatView: View {
     ) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Image(systemName: "exclamationmark.circle")
-                .font(.system(size: 14))
+                .font(.system(size: FrameworkIcon.inlineGlyphSize))
                 .foregroundStyle(Palette.warning)
                 .padding(.top, 1)
             VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
@@ -7470,7 +7470,7 @@ struct ChatView: View {
                 dictation.clearFailure()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.tinyGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 24, height: 24)
                     // 第 83 条（命中域收口）：视觉 24 不变、
@@ -7500,7 +7500,7 @@ struct ChatView: View {
     private func dictationNoticeBar(_ notice: String) -> some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingS) {
             Image(systemName: "checkmark.circle")
-                .font(.system(size: 14))
+                .font(.system(size: FrameworkIcon.inlineGlyphSize))
                 .foregroundStyle(Palette.inkSecondary)
                 .padding(.top, 1)
             Text(notice)
@@ -7553,7 +7553,7 @@ struct ChatView: View {
                 pendingQuoteIsFork = false
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 28, height: 28)
                     // 0.23.0（审计 C3）：视觉 28 不变、命
@@ -7627,7 +7627,7 @@ struct ChatView: View {
                 pendingFeedQuote = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 28, height: 28)
                     .frame(
@@ -7703,7 +7703,7 @@ struct ChatView: View {
                 pendingSourceQuote = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 28, height: 28)
                     .frame(
@@ -7743,7 +7743,7 @@ struct ChatView: View {
                 pendingSourceQuote = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 28, height: 28)
                     .frame(
@@ -7783,7 +7783,7 @@ struct ChatView: View {
                 pendingSourceQuote = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                     .foregroundStyle(Palette.inkSecondary)
                     .frame(width: 28, height: 28)
                     .frame(
@@ -8050,7 +8050,7 @@ private struct ComposerBarLayout: Layout {
             }
         } label: {
             Image(systemName: isStopDisc ? "stop.fill" : "arrow.up")
-                .font(.system(size: isStopDisc ? 12 : 13, weight: .bold))
+                .font(.system(size: isStopDisc ? FrameworkIcon.miniGlyphSize : FrameworkIcon.smallGlyphSize, weight: .bold))
                 // 0.6.1：发送钮改 OpenMuse 原貌——浅蓝圆
                 // primaryPale＋深墨箭头 onPrimary（chat.tsx:
                 // 985/996），取代旧深蓝圆＋白箭头
@@ -8270,7 +8270,7 @@ private struct ComposerBarLayout: Layout {
                 attachments.removeAll { $0.id == attachment.id }
             } label: {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 17))
+                    .font(.system(size: FrameworkIcon.fileGlyphSize))
                     .foregroundStyle(Palette.inkMuted, Palette.surface)
                     // 0.23.0（命中域审计）：命中域外扩 44；
                     // offset 补偿 13.5 使字形中心与旧 17 帧
@@ -13250,7 +13250,7 @@ struct SwipeReplyModifier: ViewModifier {
             offset: dragOffset
         )
         return Image(systemName: MessageActionSymbols.reply)
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: FrameworkIcon.inlineGlyphSize, weight: .semibold))
             .foregroundStyle(
                 armed ? Palette.onPrimary : Palette.inkSecondary
             )
@@ -13316,7 +13316,7 @@ struct EditSentBannerSlot: View {
             VStack(spacing: 0) {
                 HStack(spacing: OneDayMetrics.spacingS) {
                     Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                         .foregroundStyle(Palette.inkSecondary)
                     Text("正在编辑较早的一条消息")
                         .font(.footnote)
@@ -13327,7 +13327,7 @@ struct EditSentBannerSlot: View {
                         onCancel()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: FrameworkIcon.miniGlyphSize, weight: .semibold))
                             .foregroundStyle(Palette.inkSecondary)
                             .frame(width: 28, height: 28)
                             .frame(

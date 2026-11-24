@@ -88,7 +88,7 @@ struct StatusView: View {
                     .stroke(Palette.hairline, lineWidth: 0.5)
                     .frame(width: 64, height: 64)
                 Image(systemName: "sparkles")
-                    .font(.system(size: 28, weight: .regular))
+                    .font(.system(size: FrameworkIcon.largeGlyphSize, weight: .regular))
                     .foregroundStyle(Palette.ink)
                     .accessibilityHidden(true)
             }
@@ -153,7 +153,7 @@ struct StatusView: View {
                                         .foregroundStyle(Palette.inkSecondary)
                                 }
                                 Spacer(minLength: OneDayMetrics.spacingS)
-                                DisclosureChevron(font: .system(size: 13, weight: .regular))
+                                DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                             }
                             .padding(.horizontal, OneDayMetrics.spacingM)
                             .frame(minHeight: OneDayMetrics.rowHeight)
@@ -240,7 +240,7 @@ struct StatusView: View {
                                 .font(.body)
                                 .foregroundStyle(Palette.ink)
                             Spacer(minLength: OneDayMetrics.spacingS)
-                            DisclosureChevron(font: .system(size: 13, weight: .regular))
+                            DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                         }
                         .padding(.horizontal, OneDayMetrics.spacingM)
                         .frame(minHeight: OneDayMetrics.rowHeight)
@@ -340,7 +340,7 @@ struct StatusView: View {
                             .foregroundStyle(Palette.inkSecondary)
                     }
                     Spacer(minLength: OneDayMetrics.spacingS)
-                    DisclosureChevron(font: .system(size: 13, weight: .regular))
+                    DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
                 }
                 .padding(.horizontal, OneDayMetrics.spacingM)
                 .frame(minHeight: OneDayMetrics.rowHeight)

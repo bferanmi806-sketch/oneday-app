@@ -17414,3 +17414,14 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **红项处置**：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–114 逐字同红、已裁可接受；本版无新红、无改钉。注记：ThemeAlign431Tests 在 114 原始整跑中为改钉前红项，改钉 c4b174d 已随 rel-05114 在册，本版整跑该套 3/3 直接绿。
 - **IPA**：Release BUILD SUCCEEDED（dd-05115-release，rc=0）；OneDay-0.50.115-243.ipa，16,869,455 字节，md5 288dafd61586749b9f0fb2f3f62b594d；unzip 直验主 App 本体 plist 三值 0.50.115／243／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.115-243.ipa）md5 一致。
 - **真机门（归用户 verdict）**：件一——①打开简报编辑页即见服务端最新稿（润色已写回时不再是旧稿）；②润色在飞时编辑页约 10s 自动换新版（未改字时跟随、已改字只换基线不覆盖输入）；③编辑页无阻塞转圈，保存钮口径只剩保存中禁用、保存失败留页见错误。件三——④文件/资源库影音分类按 UTType 判类（mkv/m2ts/mka 兜底在位），注：生产影音实数仍为 0，此项待真实影音文件出现时验，本版只防未来错分类。件四——⑤资源库搜索空态下页头簇与筛选片钉顶（与有内容态同为 y=55）、不再整栈下移居中；⑥资源库页有「资源库」大标题、与兄弟页同字阶。
+
+## §484 HIG 字号收编续批（P2-01 余量）（2026-11-24，feat/hig-font-sort，基线 rel-05115）
+
+- 承审计 hig-compliance-audit-20261124.md 第二部分 B（P2-01）：第一波已分拣其页面 25 处，本节收全树余量。节号说明：§482/§483 已被多线同占（简报编辑器/设置 IA/触感分拣/批 A/逐页第一波），本节取 §484，组版合并时按并集连排顺延。
+- 普查实数（多行感知全量计数、非单行 grep）：`.system(size:)` 字面量全树 105 处（单行 104＋DrawerView 多行形态 1，后者第一波已收编、本线不动）。本线处置 104：字形→FrameworkIcon 既有令牌 54／新立令牌 37／文本→FontRoles 1／登记保留 9（AgentShareCard 成图定点 3＋内容 emoji 5＋FontRoles 定义本体 1）；另第一波已处置 3 处（iconBox 18，§434 登记在其分支）本线不动。表达式 74 处（令牌驱动/比例派生/参数透传，单源在位）与 UIFont 3 处（非 UI 铬面）不在本项口径、未动。逐处分拣表：oneday-design-review/hig-p201-font-sort-table-20261124.md。
+- 新立令牌八档（IconTokens.swift「收编二期补充令牌」节，按收编一期先例入表）：inlineGlyphSize 14／actionGlyphSize 15／cardGlyphSize 16／moreGlyphSize 18／overlayGlyphSize 26／attachmentGlyphSize 30／emptyStateGlyphSize 34／emptyStateLargeGlyphSize 44。命名教训：末档初名 emptyStateHeroGlyphSize 撞 §457 禁词 emptyStateHero（EmptyStateTrim457StructureTests 源码扫描钉），改名后复跑绿——新令牌命名先过全仓结构钉禁词再落码。
+- 唯一文本类与唯一行为变化：ReactionFloatingBar 菜单项题 17 写死→.rowTitle（body 17 semibold；字重 medium→semibold 系角色表定版口径）。行为变化仅此一处：该文本自此跟随 Dynamic Type 缩放（即 P2-01 修复目的）；字形收编 92 处（含 ChatView 停止钮 12/13 三元改 mini/small 令牌三元）全等值、渲染不变。补 import：EmptyState.swift、ServerCredentialForm.swift 原缺 OneDayCore 已补。
+- 登记保留补注记：反应 emoji 5 处逐处补 P2-01 登记注记（内容层字形定点、不随 Dynamic Type）；AgentShareCard C5 注记补交叉引用（卡面文字 44/26/22 同属导出成图定点）。
+- 残量回读（多行感知）：全树字面量 13 处＝登记保留 9＋第一波已处置 4（AgentHubView/SkillHubViews/HubAuditSection iconBox＋DrawerView 置顶钉）。目标达成：残量仅剩已登记的光学/定点类，新写字面量自此无处可藏（IconTokens 二期节头注已立规矩）。
+- 验收（专属模拟器 HigFontPhone＋专属 DerivedData、未占共享测试通道、Xcode 27.2）：全量双靶超集（OneDayAppTests＋OneDayCoreTests 全靶，非发布集子集）3468 项：3432 过／31 败／5 跳。31 败逐项归因——28 败经 pristine rel-05115 同机同选集对照逐套同数同形（基线红：ChatNativeListAssembly 5／R2 4／R3 3／R4 1／FollowSource 1／RowHeightProductionChain 2／SelectionProtection 1／SearchFocus 3／Quote332 3／QuoteDock195 1／LibraryOrdering 1／BasicsStopgap 1／HitArea44 1／#13 Markdown 性能门 1；其中 ChatNative 装配族系独立模拟器口径基线红、发布通道口径见 §481；HitArea44 的 Feed 来源钮锚点 `sourcesPost = post` 在基线源码已不存在、属既存测试腐坏非本线所致）；2 败（TextPipelineRunLayer、TraceEchoMaterialization）为满载絮乱，双边隔离复跑皆绿；1 败为本线禁词撞名（上条），改名后复跑绿。发布集口径内唯一红仍为 #13（已裁可接受）。本线零净回归。
+- 真机门：无新增（等值收编）；唯一行为变化（反应菜单项题跟随 AX 放大）随下版真机门顺带一瞥，不单独占门。

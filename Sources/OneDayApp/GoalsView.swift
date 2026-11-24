@@ -399,7 +399,7 @@ struct GoalsView: View {
                 }
                 Spacer()
                 DisclosureChevron(
-                    font: .system(size: 14, weight: .regular)
+                    font: .system(size: FrameworkIcon.inlineGlyphSize, weight: .regular)
                 )
             }
             .contentShape(Rectangle())
