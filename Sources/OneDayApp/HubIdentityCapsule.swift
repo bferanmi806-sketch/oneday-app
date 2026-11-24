@@ -16,9 +16,28 @@ struct HubIdentityCapsule: View {
     var displayName: String
     var statusWord: String
     var onOpenHub: () -> Void
-    var onFindInConversation: () -> Void
+    /// 「在对话中查找」是聊天页专属下沉动作（§449.1）：
+    /// §480 起本件被内容页页头簇（ContentPageHeader）
+    /// 复用，那些页面没有会话内查找——改可选，nil 时
+    /// 长按菜单只留「打开枢纽」、不挂 VO 自定义动作；
+    /// 聊天页传闭包、行为一字不变
+    var onFindInConversation: (() -> Void)? = nil
 
     var body: some View {
+        // VO 自定义动作只在宿主真有此动作时才挂（nil
+        // 时不许留一个按了没反应的空动作）：两分支共
+        // 用 capsuleButton 本体、只差这一条修饰
+        if let onFindInConversation {
+            capsuleButton
+                .accessibilityAction(named: "在对话中查找") {
+                    onFindInConversation()
+                }
+        } else {
+            capsuleButton
+        }
+    }
+
+    private var capsuleButton: some View {
         Button {
             onOpenHub()
         } label: {
@@ -45,14 +64,13 @@ struct HubIdentityCapsule: View {
             } label: {
                 Label("打开枢纽", systemImage: "person.crop.circle")
             }
-            Button {
-                onFindInConversation()
-            } label: {
-                Label("在对话中查找", systemImage: "magnifyingglass")
+            if let onFindInConversation {
+                Button {
+                    onFindInConversation()
+                } label: {
+                    Label("在对话中查找", systemImage: "magnifyingglass")
+                }
             }
-        }
-        .accessibilityAction(named: "在对话中查找") {
-            onFindInConversation()
         }
     }
 }

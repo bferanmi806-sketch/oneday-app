@@ -42,6 +42,9 @@ struct IdeasView: View {
         appState.sharedKanbanStore()
     }
     @State private var deleteCandidate: BridgeIdea?
+    /// 页头身份簇开中枢（§480：与动态页同件接入，
+    /// 落点本栈推 AgentHubView）
+    @State private var showHub = false
     /// 详情 sheet 的当前点子（0.47.0：点行不再推页）
     @State private var selectedIdeaID: String?
     /// 详情 sheet 当前档位（§470）：每次打开回默认
@@ -59,7 +62,9 @@ struct IdeasView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            VStack(spacing: 0) {
+                ideasPageHead
+                Group {
                 switch store.loadState {
                 case .loading:
                     ProgressView()
@@ -89,12 +94,20 @@ struct IdeasView: View {
                 case .ready:
                     readyContent
                 }
+                }
             }
             .background {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            .navigationTitle("点子")
+            // §480.5：页头整簇改页内自持（ContentPage-
+            // Header＋大标题，见 ideasPageHead）——本
+            // 页此前整簇缺失（状态栏下 87.7pt 空白直
+            // 达标题，审计 §2.2），系统导航栏在根隐藏
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showHub) {
+                AgentHubView()
+            }
             .task {
                 await store.loadIfNeeded(appState: appState)
                 // §177：底栏角标退役后进页不再推进
@@ -182,6 +195,24 @@ struct IdeasView: View {
         } else if case .ready = store.loadState {
             pendingIdeaOpenID = nil
             ideaGoneNotice = true
+        }
+    }
+
+    /// 页头整簇（§480.5）：与动态页同一 ContentPage-
+    /// Header（身份簇；本页无专属右钮、无滚动收起）
+    /// ＋大标题（pageTitle 34，与全 App 内容页统一
+    /// 口径）。87.7pt 顶部空白就此消除
+    private var ideasPageHead: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ContentPageHeader(onOpenHub: { showHub = true }) {
+                EmptyView()
+            }
+            Text("点子")
+                .font(.pageTitle)
+                .foregroundStyle(Palette.ink)
+                .padding(.horizontal, OneDayMetrics.pageGutter)
+                .padding(.top, OneDayMetrics.spacingS)
+                .padding(.bottom, OneDayMetrics.spacingS)
         }
     }
 
@@ -359,10 +390,11 @@ struct IdeasView: View {
 /// 大字（44pt 位、无底色瓷砖；桥按内容选定优先、
 /// 缺失统一 💡 兜底——§177 改判，不再按锚点来源分，
 /// 口径在 Core IdeaEmoji）＋标题（semibold、至多两
-/// 行）＋正文（次色、行距放宽、至多四行）＋依据行
-/// （生成卡、一次色一行）。行面不摆元信息：生成时
-/// 间/到期/目标/任务状态全收进详情 sheet。行内不摆
-/// 按钮：动作在详情与左滑/长按里
+/// 行）＋正文（次色、行距放宽、至多四行）。行面不
+/// 摆元信息：生成时间/到期/目标/任务状态全收进详
+/// 情 sheet。行内不摆按钮：动作在详情与左滑/长按
+/// 里。§480.6：依据行与 category 灰片已撤出卡面
+/// （依据进详情 sheet、分类只剩 domain 分组一处）
 struct IdeaRowView: View {
     let idea: BridgeIdea
     let note: String?
@@ -375,16 +407,6 @@ struct IdeaRowView: View {
         IdeaKicker.color(for: idea.category)
     }
 
-    /// chip 文案：去空白后非空才渲染（服务端已限长
-    /// ≤24 字、坏形折 null，呈现侧再兜一层空白）
-    private var chipLabel: String? {
-        guard let raw = idea.categoryLabel else { return nil }
-        let trimmed = raw.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
     var body: some View {
         HStack(alignment: .top, spacing: OneDayMetrics.spacingM) {
             Image(systemName: kickerSymbol)
@@ -392,7 +414,10 @@ struct IdeaRowView: View {
                 .foregroundStyle(Palette.ink)
                 .frame(width: 28, height: 28)
                 .background(kickerColor)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                // §480：瓷砖圆角与动态页同收 radiusTile
+                .clipShape(RoundedRectangle(
+                    cornerRadius: OneDayMetrics.radiusTile
+                ))
                 .frame(width: 44, height: 44)
                 // kicker 字形块是点子的类别信号、详情另
                 // 有类别语义——对 VO 隐藏免逐字念名
@@ -415,25 +440,14 @@ struct IdeaRowView: View {
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(4)
                 }
-                if idea.source == .generated, !idea.evidence.isEmpty {
-                    Text("依据 · \(idea.evidence)")
-                        .font(.footnote)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(1)
-                }
-                // §459：categoryLabel chip——服务端自由
-                // 短语（如「服务器运维」）；为 null/空白
-                // 不渲染，不许拿 domain 名冒充
-                if let label = chipLabel {
-                    Text(label)
-                        .font(.caption)
-                        .foregroundStyle(Palette.inkSecondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(
-                            Palette.selectionFill, in: Capsule()
-                        )
-                }
+                // §480.6：卡面分类呈现收口——「依据」行
+                // 与 categoryLabel 灰片整行撤出卡面：分
+                // 类在卡面只剩 domain 分组一处（分组与
+                // 卡面同源，不再双源打架——帧实证「个
+                // 人效率」组下卡片自称「服务器运维」）；
+                // 依据收进详情 sheet（见 IdeaDetail-
+                // View），category 数据层口径不变（§459
+                // 生成侧在管，本节只收呈现层）
                 if let note {
                     Text(note)
                         .font(.footnote)
@@ -452,6 +466,10 @@ struct IdeaRowView: View {
 /// 列）整形态退役、不许搬进 sheet；底部固定动作
 /// 栏＝左侧浅灰圆形「···」菜单（太泛了/忽略/删除，
 /// 沿用既有 store 动作）＋通栏蓝色胶囊主钮。
+/// §480.6 口径变更（同日、后令覆盖 §453 此点）：
+/// 「依据」随卡面收口收进本 sheet——只收依据一
+/// 件（生成卡且 evidence 非空才出），§453 退役的
+/// 信息组（来源/生成于罗列）不复活。
 /// 0.48.0（§122，用户亲定）：主钮落点改开旁聊——
 /// 未动手卡的「开始吧」＝做这件事的唯一主动作：后
 /// 台照旧建 kanban 任务（台账记账不动），成功后新
@@ -507,6 +525,30 @@ struct IdeaDetailView: View {
                         ) {
                             GroupDivider()
                             deliverablesSection(idea)
+                        }
+                        // §480.6：依据收进 sheet（卡面已
+                        // 撤）——生成卡且 evidence 非空才
+                        // 出，全文呈现不截断
+                        if idea.source == .generated,
+                           !idea.evidence.isEmpty {
+                            GroupDivider()
+                            VStack(
+                                alignment: .leading,
+                                spacing: OneDayMetrics.spacingS
+                            ) {
+                                Text("依据")
+                                    .font(.headline)
+                                    .foregroundStyle(Palette.bodyInk)
+                                Text(idea.evidence)
+                                    .font(.subheadline)
+                                    .foregroundStyle(
+                                        Palette.inkSecondary
+                                    )
+                            }
+                            .frame(
+                                maxWidth: .infinity,
+                                alignment: .leading
+                            )
                         }
                         if let note = store.notes[idea.id] {
                             InlineError(note)
