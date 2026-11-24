@@ -17555,3 +17555,29 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 测试：新增 HubAuditTextTests 7 法、LedgerSessionGroupsTests 4 法；HubSoulTests 改判 3 处（摘要化新口径、本体保留断言移至提炼层验）＋新增 2 法（摘要封顶／注记过滤）。实跑（iPhone Air 独立模拟器＋dd-hubcopy，未占共享测试通道、未 kick）：13 套全绿——Core：HubSoul／HubAuditText／LedgerSessionGroups／LedgerRowParts／LedgerModels／HubSegmentRegistry／HubCron／SoulSaveVerification／ApprovalCopy；App：HubSegmentsConsolidation／HubActivity449／SessionLedgerApp／SessionLedgerPackage2／SessionLedgerTailClose。首轮 HubSoul 2 红（摘要误取纯标题段）定因后以 isHeadingOnly 修复、复跑全过。
 - 截图对位（演示模式探针帧，iPhone Air）：审核页数据帧全项对位（段头 20 semibold 主黑无灰带、待批行无底盘字形、已决行三级人话实样、左缘 16 量测合）；页头三帧共验（头像 95 令牌／大名 32／状态行 20 主黑／选择模型行在位／分段栏几何未动）。工作页演示模式无台账登录、身份页无 SOUL 载荷，两页数据行形态由单测覆盖，真数据帧对位归组版后真机门。
 - 边界：邮箱/电脑两格不在本线（缺口登记见审计 §2.5）；§474 的数据源修复不在本线（本线只删中枢侧第二级顶替）；按天段保留全部日期组（段制两类＝预定任务＋按天，今天为首组——老日期组同制式可折叠、数据不丢）。
+
+## §484 0.50.116 组版（2026-11-24；基线 rel-05115 @ccb6a20）
+
+用户 13:11 亲令：活头像不等片段补齐、先组。合四件：§479 活头像一期＋§474 胶囊收口＋§475 工作详情＋§477 中枢全抄。
+
+- **合并图**（按序四笔 merge，代码全自动合、零代码冲突；DESIGN-V4 文末冲突四次、均并集亲解）：①§479 feat/living-avatar-p1＝5ace4af；装配 da7ef0d（片段入包，见下）；②§474 feat/capsule-status＝925fa2e；③§475 feat/job-detail＝63cd35c；④§477 feat/hub-copy＝8f03593。版本戳 b143c69＋5cc987f（0.50.116/244；注记：plist 真源是 Project.swift infoPlist 字面量、非工程设置——首笔只改工程设置 Derived 未刷新，已补正并亲验 Derived 现值 0.50.116/244，generate 后未还原 Derived）。改钉一笔 7b5501e（两处，见整跑处置）。
+- **活头像片段按现状入包对账**（权威 manifest＝living-clips-manifest-20261124.json，12 段逐段 md5 对账一致、构建产物实查 12 段落 .app 包根、包内 manifest 为 batch2 更新版）：
+  - S1 空闲：idle／idle-dark 有片段，播片段。
+  - S2 聆听：一期未排，§479 代码恒回落静态（noClipForState）。
+  - S3 思考：无片段（batch2 上游故障未成）→ 代码既定回落播 S1 片段。
+  - S4 干活：通用 working／working-dark、写 making_something／-dark 有片段；查／执行无专属变体→代码落通用（既定回落）；委派与通用同源。
+  - S5 说话：无片段 → 回落播 S1 片段。
+  - S6 完成：milestone_level_up／-dark 有片段，瞬时单播。
+  - S7 卡住：blocked.mp4（浅色）已入包在册，但 §479 代码 resolve 对 blocked 恒回落静态（noClipForState）——呈现接线不在一期范围，本版不为缺口新造机制；深色版缺。
+  - S8 等审批：无专属片段 → 回落播 S1（规格代播 S3、S3 亦缺，代码本落 S1）。
+  - S9 醒来／睡着：waking 仅深色 waking-dark 有片段（瞬时单播），浅色回落静态（appearanceMissing）；asleep 恒静态。
+  - 连接／通话面 idle：idle-call 浅／深两段在册（通话面本期不呈现，仅目录在册）。
+- **发布集**：115 bundle（Test-OneDayApp-rel05115.xcresult）xcresulttool 提取全限定名 179 套／1462 项、对账闭合；本版新套 5 个按料面明示补入——CapsuleStatus474Tests＋3、HubAuditTextTests＋7、LedgerDetailSummaryTests＋6、LedgerSessionGroupsTests＋4、LivingAvatarTests＋9（共＋29）→ 184 套／预期 1491 项。整跑实数 184 套全到、1491 项，missing／extra 均空（无静默跳过）。
+- **整跑**（独立模拟器 Rel115Phone 直跑、未占共享测试通道、未 kick；Xcode 27.2）：单元首跑 1488 过／3 红，处置后终局 **1490 过／1 红**：
+  - #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–115 逐版同红、已裁可接受，本版无新红定性。
+  - CapsuleStatus474Tests/testSecondCapsuleRemovedFromChatSurface——合并顺延改钉：§477 已把中枢活动派生改判 liveActivityPhrase 单源（码内注「与 §474 胶囊线同源收口」、状态行活动优先不变），§474 钉的字面（AgentHubView 直调 ProgressCapsule.derive）过期，改钉新单源并注记，复跑 3/3 绿。
+  - ChatSwapStep3ProbeTests/testSingleSectionApplyDecoupling——性能门 7099µs vs 上限 7000µs；首跑时机器 load 38–112（多线并行），低负载复跑绿，定性负载抖动、非本版回归（115 同项绿）。
+  - UI 腿 5 套／11 项（115 的 4 套＋本版新增 LivingAvatarGalleryUITests、绿）：首跑 8 过／2 跳／1 红，终局 **9 过／2 跳／0 红**；2 跳与 115 同（长按两项）。红项 TopBarSingleActionTapTests 几何钉随 §474 改钉：XCUI 胶囊帧为内容帧，§474 起空闲态第二行不呈现、内容两行变一行顶上移 8，而钮体恒 44 高、hero 几何（头像底距 36）在合并中一字未动、玻璃胶囊仍压下沿 ≈8——口径改「内容跨下沿带」＋注记，复跑绿。
+- **IPA**：Release BUILD SUCCEEDED（dd-05116-release，rc=0）；OneDay-0.50.116-244.ipa，28,535,614 字节，md5 e071dfcce2266a5f3a4184c2ceb8c653；unzip 直验主 App 本体 plist 三值 0.50.116／244／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.116-244.ipa）md5 一致。体积较 115 涨约 11.7MB＝活头像片段 11.4MB 入包所致。
+- **节号占用注记**：§482（简报编辑器呈现线）、§483（触感分拣线；HIG 逐页 wave1 线亦拟 §483、待其交卷顺延）、§427／§428（Exyte 线）已在各分支占用，本组版节顺排 §484。
+- **真机门（归用户 verdict）**：活头像——①空闲态头像动（idle 浅/深随外观）；②干活时切 working／写时切 making_something、完成弹 milestone；③思考/说话/等审批回落播 idle 片段观感可接受；④卡住态为静态（blocked 片段未接线、属一期既定回落，勿报「片段不播」为故障）、醒来仅深色有片段、浅色静态；⑤页头约 40pt 小尺寸下片段可辨识度与接缝手感、长时间循环耗电/发热。§474——⑥聊天顶簇只剩一颗身份胶囊、无第二胶囊；⑦空闲时胶囊只剩名字一行、干活时第二行是工作短语、无「在线」字样；⑧页头身份胶囊仍压头像下沿（空闲一行态观感）。§475——⑨工作详情页新形态：四态摘要人话、无技术原文段。§477——⑩中枢：审核页单段「审核记录」、身份页摘要化、任务页只剩预定任务＋按天分组（老日期组同制式可折叠保留——严格两段与否待用户裁）、状态行活动优先且无第二级台账行。
