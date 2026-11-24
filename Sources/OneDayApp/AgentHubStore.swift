@@ -86,12 +86,15 @@ final class AgentHubStore {
     }
 
     /// 状态行（0.6.1 改口径，用户真机点名）：只报可证
-    /// 事实——在线／在线 · N 条待审批（审核段已加载且
-    /// 非空时）／网关既报状态；旧「在线 · N 个会话进
-    /// 行中」退役：Hermes 不写 ended_at、endedAt 为空
-    /// 的计数实为会话总数、是假进行中。状态未拉到时
-    /// 显示「状态未确认」，不给离线假结论（失败口径
-    /// 沿数据设计）
+    /// 事实——N 条待审批（审核段已加载且非空时）／网
+    /// 关既报状态；旧「在线 · N 个会话进行中」退役：
+    /// Hermes 不写 ended_at、endedAt 为空的计数实为
+    /// 会话总数、是假进行中。状态未拉到时显示「状态
+    /// 未确认」，不给离线假结论（失败口径沿数据设计）
+    /// §474（2026-11-24 用户亲令）：「在线」字样全
+    /// 删——本行是活动行（工作状态／台账活动优先，
+    /// 见 AgentHubView.statusLine），连接在否不占本
+    /// 行；运行中且无待审批时返回空串＝不呈现回落行
     var statusText: String {
         guard let serverStatus else { return L10n.string("状态未确认") }
         let word = ServerLabels.gatewayState(
@@ -102,10 +105,10 @@ final class AgentHubStore {
         if word == L10n.string("运行中") {
             if case .ready(let records) = approvalState, !records.isEmpty {
                 return L10n.format(
-                    "在线 · %lld 条待审批", records.count
+                    "%lld 条待审批", records.count
                 )
             }
-            return L10n.string("在线")
+            return ""
         }
         return L10n.format("网关%@", word)
     }

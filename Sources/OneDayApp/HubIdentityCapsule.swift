@@ -12,9 +12,15 @@ import SwiftUI
 /// 找挂身份面下沉一级同式，见 DESIGN §449.1），
 /// VoiceOver 自定义动作同达。在线状态不在本件呈
 /// 现（§449 去重：全簇只留头像角点一处）
+/// §474（用户 2026-11-24 10:16 亲令）：第二行只许
+/// 是工作状态（AppState.liveActivityPhrase 单源，
+/// 与中枢状态行同词）；连接状态词（在线／联系不
+/// 上／待审批）一律不进本件——无活动时第二行不
+/// 呈现（回落留空，参照 Muse 空闲态查不到原文
+/// 不自创词），不拿连接词垫底
 struct HubIdentityCapsule: View {
     var displayName: String
-    var statusWord: String
+    var statusWord: String?
     var onOpenHub: () -> Void
     /// 「在对话中查找」是聊天页专属下沉动作（§449.1）：
     /// §480 起本件被内容页页头簇（ContentPageHeader）
@@ -46,17 +52,22 @@ struct HubIdentityCapsule: View {
                     .font(.headline)
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
-                Text(statusWord)
-                    .font(.caption)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
+                if let statusWord, !statusWord.isEmpty {
+                    Text(statusWord)
+                        .font(.caption)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .lineLimit(1)
+                }
             }
             .padding(.horizontal, OneDayMetrics.spacingSM)
             .frame(height: OneDayMetrics.minTapTarget)
             .glassEffect(.regular, in: Capsule())
         }
         .buttonStyle(.odPressable)
-        .accessibilityLabel("\(displayName)，\(statusWord)，打开枢纽")
+        .accessibilityLabel(
+            statusWord.map { "\(displayName)，\($0)，打开枢纽" }
+                ?? "\(displayName)，打开枢纽"
+        )
         .accessibilityIdentifier("topbar.identityCapsule")
         .contextMenu {
             Button {

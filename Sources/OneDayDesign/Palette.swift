@@ -781,6 +781,16 @@ public enum OneDayMetrics {
 
     /// 页面左右边距（内容页）
     public static let pageGutter: CGFloat = 20
+    /// 中枢页局部边距（§477，2026-11-24 全抄参照量
+    /// 测 ≈16–17）：只许中枢页头/分段条/三子页消费，
+    /// pageGutter 全局口径不动、不许外溢其他页面
+    public static let hubGutter: CGFloat = 16
+    /// 中枢段头与行标题字号（§477：参照量测 ≈20
+    /// semibold 主黑，段头三页单源、行标题同档）
+    public static let hubTitleSize: CGFloat = 20
+    /// 中枢页头大名字号（§477：参照 ≈32；.title 28
+    /// 档由本值覆盖，仅页头 hero 消费）
+    public static let hubHeroNameSize: CGFloat = 32
     /// 列表行图标槽宽：全页同一条对齐线（0.24.0 与
     /// 设置/抽屉统一取 30，ListRowSpec.iconSlotWidth
     /// 同值，见 §51）
@@ -800,8 +810,10 @@ public enum OneDayMetrics {
     /// 页头改版档（§434，参照截图工具采样定值）：
     /// 聊天页居中身份区头像 67／中枢页 hero 头像
     /// 85——照抄参照量测，不与页头盘 90 档混用
+    /// §477（2026-11-24 全抄复量）：中枢 hero 头像
+    /// 85→95（参照档案页大头实测 ≈95），仅本档改值
     public static let avatarChatHero: CGFloat = 67
-    public static let avatarHubHero: CGFloat = 85
+    public static let avatarHubHero: CGFloat = 95
     /// 分隔线起点（0.36.0，宪法 §3／审计 C1 定版）：
     /// 整行贯通——起点＝容器左缘、全 App 一个 x
     /// 值，恒 0。旧值 62（边距 20＋槽 30＋间距 12、

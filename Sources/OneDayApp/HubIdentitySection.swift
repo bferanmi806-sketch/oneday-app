@@ -23,6 +23,11 @@ import SwiftUI
 /// 128→150、标题升 title2、日期移左下与字形同行、
 /// 字形 30→40、卡间距 12→16。正文内容与提炼口径
 /// 一字不动（提炼归专包）；渐变仍守冷中性。
+/// §477（2026-11-24 全抄）：横边距 pageGutter 20→
+/// hubGutter 16（中枢局部令牌）；简介/风格字档降
+/// 16 档收 pitch 至 ≈20；「风格」标签改三级灰 13
+/// 档；摘要量由 Builder §477 摘要化承接（首段＋气
+/// 质），编辑钮与双卡随之回首屏；双卡本体不动。
 struct HubIdentitySection: View {
     let store: AgentHubStore
 
@@ -79,7 +84,7 @@ struct HubIdentitySection: View {
             .fontWeight(.bold)
             .foregroundStyle(Palette.ink)
             .lineLimit(1)
-            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.horizontal, OneDayMetrics.hubGutter)
             .padding(.top, OneDayMetrics.spacingSM)
             .padding(.bottom, OneDayMetrics.spacingXS)
     }
@@ -89,23 +94,26 @@ struct HubIdentitySection: View {
         Text("暂无人设内容，点下方编辑添加。")
             .font(.body)
             .foregroundStyle(Palette.inkSecondary)
-            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.horizontal, OneDayMetrics.hubGutter)
             .padding(.top, OneDayMetrics.spacingXS)
             .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     /// 简介区：提炼后的散文段落，灰字、段间留节奏
+    /// §477：字档 .body(17) 降 .callout(16)——参照摘
+    /// 要 ≈15–16 灰、自然 pitch 由 ≈22.2 收到 ≈20
+    /// （靠字号档实现，不用负 lineSpacing 硬拧）
     private func personaBlock(_ paragraphs: [String]) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
             ForEach(
                 Array(paragraphs.enumerated()), id: \.offset
             ) { _, paragraph in
                 Text(paragraph)
-                    .font(.body)
+                    .font(.callout)
                     .foregroundStyle(Palette.inkSecondary)
             }
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingXS)
         .padding(.bottom, OneDayMetrics.spacingXS)
     }
@@ -114,17 +122,17 @@ struct HubIdentitySection: View {
     private func styleBlock(_ paragraphs: [String]) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
             Text("风格")
-                .font(.caption)
-                .foregroundStyle(Palette.inkSecondary)
+                .font(.footnote)
+                .foregroundStyle(Palette.inkMuted)
             ForEach(
                 Array(paragraphs.enumerated()), id: \.offset
             ) { _, paragraph in
                 Text(paragraph)
-                    .font(.body)
+                    .font(.callout)
                     .foregroundStyle(Palette.ink)
             }
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingSM)
         .padding(.bottom, OneDayMetrics.spacingXS)
     }
@@ -147,7 +155,7 @@ struct HubIdentitySection: View {
             .background(Palette.fillSecondary, in: Capsule())
         }
         .buttonStyle(.odPressable)
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingM)
         .padding(.bottom, OneDayMetrics.spacingS)
     }
@@ -187,7 +195,7 @@ struct HubIdentitySection: View {
             }
             .buttonStyle(.odPressable)
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingS)
         .padding(.bottom, OneDayMetrics.spacingM)
     }

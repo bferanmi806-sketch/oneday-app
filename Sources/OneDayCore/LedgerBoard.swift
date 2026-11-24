@@ -243,6 +243,22 @@ public struct LedgerDayGroup: Equatable, Identifiable {
     }
 }
 
+/// 会话聚合行（§477）：一个会话在列表里的一行——
+/// 代表条目（最近一次运行）供标题/状态/下钻，成员
+/// 全集供计数与聚焦命中判定
+public struct LedgerSessionGroup: Equatable, Sendable, Identifiable {
+    public let representative: LedgerItem
+    public let members: [LedgerItem]
+
+    public var id: String { representative.id }
+    public var count: Int { members.count }
+
+    public init(representative: LedgerItem, members: [LedgerItem]) {
+        self.representative = representative
+        self.members = members
+    }
+}
+
 /// 台账行三段派生（§344）：中段副题（状态词＋非时
 /// 间信息）、右段 trailing（时刻/已耗时）、右段注
 /// （仅进行中证据迟滞时的「最后确认 HH:mm:ss」标
@@ -286,6 +302,42 @@ public enum LedgerBoard {
             }
         }
         return groups
+    }
+
+    /// 会话聚合（§477）：同一会话的多次运行在列表里
+    /// 合成一行（同名不重复）——代表＝最近开始的一次
+    /// 运行（startedAt 最大、同刻以 lastSeq 大者胜），
+    /// 状态与标题都取代表；无 sessionId 的条目各自成
+    /// 行不强并。组序按代表 startedAt 倒序（最近活动
+    /// 在前），组内成员保持入参序。只管列表呈现分组，
+    /// 台账数据本体与详情口径不动
+    public static func sessionGroups(
+        _ items: [LedgerItem]
+    ) -> [LedgerSessionGroup] {
+        var order: [String] = []
+        var buckets: [String: [LedgerItem]] = [:]
+        for item in items {
+            let key: String
+            if let sessionId = item.sessionId, !sessionId.isEmpty {
+                key = "s:" + sessionId
+            } else {
+                key = "i:" + item.id
+            }
+            if buckets[key] == nil { order.append(key) }
+            buckets[key, default: []].append(item)
+        }
+        let groups = order.map { key -> LedgerSessionGroup in
+            let members = buckets[key] ?? []
+            let representative = members.max {
+                ($0.startedAt, $0.lastSeq) < ($1.startedAt, $1.lastSeq)
+            } ?? members[0]
+            return LedgerSessionGroup(
+                representative: representative, members: members
+            )
+        }
+        return groups.sorted {
+            $0.representative.startedAt > $1.representative.startedAt
+        }
     }
 
     /// 页首计数（规格 §4.2）：优先用与列表同一 payload
@@ -496,5 +548,67 @@ public enum LedgerBoard {
         case .stale, .other:
             return nil
         }
+    }
+
+    /// 详情页首一句话摘要（§475）：只用条目自有
+    /// 字段拼人话——终态给用时（＋子计数若有），
+    /// 失败给原因分类，活跃态给已运行／已等时长，
+    /// 失联给最后确认时刻。状态词本身归页首 chip，
+    /// 本行不重复；无可说时返回 nil，视图整行不显，
+    /// 不编造内容。
+    public static func detailSummary(
+        for item: LedgerItem, serverNow: Double,
+        locale: Locale = AppLocale.uiLocale
+    ) -> String? {
+        var parts: [String] = []
+        switch item.status {
+        case .failed:
+            if let reason = item.failReason {
+                parts.append(reason.category)
+            }
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .completed, .cancelled:
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .running, .queued, .blockedApproval:
+            if let duration = durationText(
+                for: item, serverNow: serverNow, locale: locale
+            ) {
+                parts.append(duration)
+            }
+        case .stale:
+            if let evidence = item.lastEvidenceAt {
+                parts.append(
+                    L10n.format(
+                        "最后确认 %@", locale: locale,
+                        LedgerClock.time(evidence)
+                    )
+                )
+            }
+        case .other:
+            return nil
+        }
+        if let calls = item.toolCalls {
+            parts.append(
+                L10n.format(
+                    "工具调用 %@ 次", locale: locale, String(calls)
+                )
+            )
+        }
+        if let subs = item.subTasks {
+            parts.append(
+                L10n.format(
+                    "子任务 %@ 个", locale: locale, String(subs)
+                )
+            )
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

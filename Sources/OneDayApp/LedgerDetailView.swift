@@ -4,10 +4,14 @@ import SwiftData
 import SwiftUI
 
 /// 台账条目详情（下钻）：事件时间线全流水＋失败证
-/// 据＋子计数；原始枚举只许出现在本页「技术信息」
-/// 区（宪法口径：列表面零行话，排障原文有唯一的
-/// 家）。进页拉详情面（列表快照先顶着渲染，history
-/// 只在详情面有），记录已不在如实露。
+/// 据＋子计数。进页拉详情面（列表快照先顶着渲染，
+/// history 只在详情面有），记录已不在如实露。
+/// §475（2026-11-24 用户裁）：本页按任务详情卡形态
+/// 重做——页首人话标题＋状态 chip＋一句话摘要，概
+/// 况只留人话字段；原始枚举（状态/类别/来源原文、
+/// 记账/标题来源、条目编号）整段撤出用户面，旧
+/// 「技术信息区是原文唯一的家」口径就此作废，排障
+/// 原文归设置诊断领地（ChatDiagnosticsView 一带）。
 /// §217（枢纽收段）：任务/审批条目在本页续行下钻
 /// ——任务条目补「打开任务详情」（答题/证据/评论/
 /// 控制动作的家），审批条目补记录原文＋只读「查
@@ -78,7 +82,6 @@ struct LedgerDetailView: View {
                 approvalSection
             }
             historySection
-            technicalSection
         }
         .listStyle(.plain)
         .navigationTitle("工作详情")
@@ -247,17 +250,36 @@ struct LedgerDetailView: View {
 
     // MARK: - 段
 
+    /// 页首卡（§475，对 Muse 任务详情卡形态）：人话
+    /// 标题＋状态 chip＋一句话摘要，三件齐；不再用
+    /// 「状态词 · 来源词」的字段拼接行冒充摘要
     private var headerSection: some View {
         Section {
-            VStack(alignment: .leading, spacing: OneDayMetrics.spacingXS) {
+            VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
                 Text(current.title)
-                    .font(.body.weight(.semibold))
+                    .font(.title3.weight(.semibold))
                     .foregroundStyle(Palette.ink)
-                Text(
-                    "\(LedgerText.statusWord(current.status)) · \(LedgerText.sourceWord(current.source))"
-                )
-                .font(.subheadline)
-                .foregroundStyle(Palette.inkSecondary)
+                statusChip
+                if current.status.isActive {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        if let summary = LedgerBoard.detailSummary(
+                            for: current,
+                            serverNow: store.displayServerNow(
+                                at: context.date
+                            )
+                        ) {
+                            Text(summary)
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.inkSecondary)
+                        }
+                    }
+                } else if let summary = LedgerBoard.detailSummary(
+                    for: current, serverNow: store.serverNow
+                ) {
+                    Text(summary)
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.inkSecondary)
+                }
                 if current.isReconciled {
                     Text("这条是后来补记的：它开始的时候，台账还没记上。")
                         .font(.footnote)
@@ -269,9 +291,38 @@ struct LedgerDetailView: View {
         }
     }
 
+    /// 状态 chip：状态词只走 LedgerText.statusWord
+    /// 单源，原文枚举不出本页（§475）
+    private var statusChip: some View {
+        HStack(spacing: OneDayMetrics.spacingMicro) {
+            Circle()
+                .fill(statusTint)
+                .frame(width: 7, height: 7)
+            Text(LedgerText.statusWord(current.status))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(statusTint)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingS)
+        .padding(.vertical, 3)
+        .background(
+            Capsule().fill(Palette.fillSecondary)
+        )
+    }
+
+    private var statusTint: Color {
+        switch current.status {
+        case .completed: return Palette.successText
+        case .failed: return Palette.danger
+        case .running, .queued, .blockedApproval: return Palette.primary
+        case .cancelled, .stale, .other: return Palette.inkSecondary
+        }
+    }
+
+    /// 概况（§475）：只留人话字段——来源、开始、结束
+    /// 与用时；「最后确认」只在失联待核时有意义（它
+    /// 就是失联的判据），其余状态不占行
     private var overviewSection: some View {
         Section("概况") {
-            row("类别", LedgerText.kindWord(current.kind))
             row("来源", LedgerText.sourceWord(current.source))
             row(
                 "开始",
@@ -287,7 +338,8 @@ struct LedgerDetailView: View {
                     )
                 )
             }
-            if let evidence = current.lastEvidenceAt {
+            if current.status == .stale,
+               let evidence = current.lastEvidenceAt {
                 row(
                     "最后确认",
                     DisplayDate.dateTime(
@@ -295,20 +347,12 @@ struct LedgerDetailView: View {
                     )
                 )
             }
-            if current.status.isActive {
-                TimelineView(.periodic(from: .now, by: 1)) { context in
-                    if let text = LedgerBoard.durationText(
-                        for: current,
-                        serverNow: store.displayServerNow(
-                            at: context.date
-                        )
-                    ) {
-                        row("已耗时", text)
-                    }
-                }
-            } else if let text = LedgerBoard.durationText(
-                for: current, serverNow: store.serverNow
-            ) {
+            // 活跃态的已运行时长在页首摘要里逐秒走，
+            // 本节不重复占行；终态在此给总用时
+            if !current.status.isActive,
+               let text = LedgerBoard.durationText(
+                   for: current, serverNow: store.serverNow
+               ) {
                 row("用时", text)
             }
         }
@@ -415,28 +459,6 @@ struct LedgerDetailView: View {
         Text(text)
             .font(.caption2)
             .foregroundStyle(Palette.inkSecondary)
-    }
-
-    /// 技术信息：原始枚举与编号只进本区（排障用），
-    /// 列表面不露
-    private var technicalSection: some View {
-        Section("技术信息") {
-            row("状态原文", current.status.rawValue)
-            row("类别原文", current.kind.rawValue)
-            row("来源原文", current.source.rawValue)
-            row("记账来源", LedgerText.originWord(current.origin))
-            row("标题来源", LedgerText.titleSourceWord(current.titleSource))
-            row("条目编号", current.id)
-            if let session = current.sessionId {
-                row("会话编号", session)
-            }
-            if let run = current.runId {
-                row("运行编号", run)
-            }
-            if let by = current.correctedBy {
-                row("纠正者", by)
-            }
-        }
     }
 
     private func row(_ label: String, _ value: String) -> some View {
