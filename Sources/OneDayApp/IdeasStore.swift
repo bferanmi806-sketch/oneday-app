@@ -467,7 +467,6 @@ final class IdeasStore {
                 request: BridgeGoalCreateRequest.make(
                     title: idea.title,
                     note: idea.detail,
-                    milestoneTitles: [],
                     category: GoalCategory.from(idea.category)
                 )
             )
