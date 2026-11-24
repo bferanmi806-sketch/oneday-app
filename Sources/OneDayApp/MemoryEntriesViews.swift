@@ -104,7 +104,7 @@ struct MemoryEntriesSection: View {
     @ViewBuilder
     private var readyContent: some View {
         if store.memoryGateEnabled == false {
-            Text("记忆写入审批未启用：可以看条目，但暂时不能新建、修改或遗忘记忆。")
+            Text("写入审批未启用，暂不能改记忆。")
                 .font(.footnote)
                 .foregroundStyle(Palette.inkSecondary)
                 .padding(.bottom, OneDayMetrics.spacingS)

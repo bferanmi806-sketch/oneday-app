@@ -17714,15 +17714,35 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **IPA**：Release BUILD SUCCEEDED（dd-05117-release）；OneDay-0.50.117-245.ipa，28,082,886B，md5 3e801708d4815adfdccb567b23f3b25d；unzip 直验主 App 本体 plist 三值 0.50.117／245／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。包体较 115 增大系 116 活头像片段入包所致（116 包 28,535,614B，本版略小），非本版新增。
 - **真机门（归用户 verdict，六件合并）**：§485 目标——复选框描边浅/深可见、页头簇同位、行 pitch 与折叠把手形态；§486 动态点子——页头收起手感、链接预览卡真数据、点子空带消除、标题 34 档；§487 简报编辑器——顶部面板弹簧质感与压暗、保存成败触感；§488 触感——改名未确认 warning 档、error 落点密度主观扰人否；§489 批 A——App 图标深色/着色主屏呈现、sheet 抓手可拖、Feed 动画在 Reduce Motion 下瞬时、文件图标无回退；§490 wave1——中枢审核撤销确认实操（点撤销→确认→真撤）、通知/抽屉帧面、深色观感、chip 命中域。
 
+## §493 设置信息架构审计全量落码（2026-11-24，用户 12:23 亲批「按审计推荐全量落码」；扩围 12:24 子页 HIG 呈现＋逐子页文字全扫；12:43 逐屏审计表全过令）
 
-## §491 0.50.117 组版（2026-11-24；基线 rel-05115 @ccb6a20＋rel-05116 @278f13d）
+规格正本＝`oneday-design-review/settings-ia-audit-20261124.md` 逐项处置表＋D1–D8＋命名修订表＋文字清扫表；呈现自查表＝`oneday-design-review/oneday-hig-screen-audit-checklist-20261124.md`（12 节）；交付审计档＝`oneday-design-review/settings-ia-hig-audit-20261124.md`（对账表/清扫表/打勾表/帧清单全表在彼）。分支 feat/settings-ia（基线 rel-05115）。
 
-六件合组（用户 13:48 亲裁已交卷先一起组）：§485 目标全抄＋§486 动态点子全抄＋§487 简报编辑器呈现＋§488 触感分拣＋§489 规范小改批 A＋§490 逐页第一波。设置 IA 不在本版（单独成版）。
+### IA 终态（与审计树逐项对账）
+- 设置根页浏览行 22→17、可见段 5：身份卡节＋智能体 7（模型与服务商/配置档案/记忆/技能/工具/子任务/定时任务）＋服务器 3（当前服务器/网关状态/断开连接末行）＋偏好 5（外观/语音/通知/连接器/设备与权限）＋支持 2（帮助与反馈/关于 OneDay）。
+- 目录条目 34→30（SettingsCatalog）：status/computer/serverFiles/approvalRules 四条退役；envVars 改名「服务器密钥」且与 healthCheck 改仅搜索可达（showsInBrowse=false），正主入口＝当前服务器页「服务器管理」组四行（服务器密钥/体检与存档/日志/连接自检，副行与目录 summary 同文）。
 
-- **合并图**：rel-05117 自 ccb6a20 分叉，依次合 feat/goals-copy 4c1a2c3、feat/feed-ideas-copy 0f336a1、feat/brief-editor-top-panel 6cfc5aa、feat/hig-haptics-sort ad452b5e、feat/hig-batch-a 71042158、feat/hig-pages-wave1 f5ac3f16（逐笔编译绿），再并 origin/rel-05116 95b56efb。
-- **节号连排对照（原号→新号）**：§478→§485（目标）、§480→§486（动态点子）、§482→§487（简报编辑器）、§483→§488（触感分拣）、§483→§489（批 A）、§483→§490（逐页 wave1）；116 组版节 §484 不动。代码与测试自指 23 文件全量同步（提交 b0096434）；文件名与测试类型名作稳定标识不改（如 HigBatchA483Tests 现属 §489，以本对照为准）。
-- **冲突亲解**：第一阶段六合——代码仅一处真冲突：HapticsMatrixTests 计数钉两线各改，按并集定 error 57／warning 8／success 19，grep 实数三方对齐；余皆 DESIGN 尾附冲突（取全尾＋逐节尾附）与 FeedView/IdeasView/FontRoles 自动合。第二阶段并 116——HubAuditSection 两块（撤销钮取 wave1 确认门 pendingRevoke＝entry；行左字形取 §477 rowGlyph、40pt 盒退役＋补 accessibilityHidden）、HubLedgerSection 一块（取 §477 subtitleText，wave1 旧右列系被取代旧形态）、LedgerDetailView 一块（spacing 取 §477 spacingS：基线字面 4、wave1 仅等值收编、§477 刻意改值）、DESIGN 并集连排。合并后一处编译错亲解（提交 6247f060）：撤销确认框适配 §477 合并行模型——pendingRevoke 改 AuditEntry、确认后解包 .grant 再 revokeGrant、文案取行题 title(for:)。
-- **发布集**：116 bundle（Test-OneDayApp-rel05116）xcresulttool 提取 184 套/1491 项与 §484 精确闭合；谱系补入新套 4（GoalsCopy478Measure/FeedIdeasRenderProbe/BriefEditorTopPanel482/HigBatchA483）＝188 套。整跑（测试通道 RUN 2026-11-24 14:27:11，Rel115Phone）：单元腿 1508 过／1 红／共 1509 项——总项与预期（1491＋新套 18）精确对账，逐套比对零掉套、共有套项数零漂移；唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate（与 104–116 逐版同红、已裁可接受）。UI 腿 6 套（116 五套＋FeedIdeasProbeUITests）11 过／0 败／2 跳／共 13 项。
-- **版本戳**：989adbe1（Project.swift＋Derived plist 0.50.117/245，generate 后未还原 Derived）。
-- **IPA**：Release BUILD SUCCEEDED（dd-05117-release）；OneDay-0.50.117-245.ipa，28,082,886B，md5 3e801708d4815adfdccb567b23f3b25d；unzip 直验主 App 本体 plist 三值 0.50.117／245／site.didichou.oneday；VM 副本（~/workspace/）md5 一致。包体较 115 增大系 116 活头像片段入包所致（116 包 28,535,614B，本版略小），非本版新增。
-- **真机门（归用户 verdict，六件合并）**：§485 目标——复选框描边浅/深可见、页头簇同位、行 pitch 与折叠把手形态；§486 动态点子——页头收起手感、链接预览卡真数据、点子空带消除、标题 34 档；§487 简报编辑器——顶部面板弹簧质感与压暗、保存成败触感；§488 触感——改名未确认 warning 档、error 落点密度主观扰人否；§489 批 A——App 图标深色/着色主屏呈现、sheet 抓手可拖、Feed 动画在 Reduce Motion 下瞬时、文件图标无回退；§490 wave1——中枢审核撤销确认实操（点撤销→确认→真撤）、通知/抽屉帧面、深色观感、chip 命中域。
+### D1–D8 落点
+- D1 状态页整页退役：StatusView.swift 删除；SettingsRoute.status 退役（from() 并入 nil 组，目的地枚举按 serverSessions 先例保留备查）。**实查更正**：审计原文称状态页内容「均已在位」与实查不符——其系统段（内存/磁盘条、CPU/负载/运行时间/进程内存、主机/系统/Python/内核、SessionStatsBlock）在全 App 无第二呈现面，已整组 rehousing 至网关页新「系统」组（数据走 performAdmin 拉 systemStats，失败静默、占位分加载/失败两态文案）；活动段/定时段/体检入口各有正主（全部对话/定时页/服务器管理组）。
+- D2 维护段撤销：根页维护段整段删；密钥/体检见上；断开连接移服务器段末行（红色破坏性行）。
+- D3 审批规则整页迁中枢审核段：**改判 §244 旧定版**（审批规则居设置根页之定版作废；改判出处＝本次审计 D3，用户 2026-11-24 12:23 批准）。HubAuditSection 末加「审批规则」段：入口行直推 ApprovalRulesSettingsView（副行「「总是允许」规则、命令授权与写入审批」）；页首说明压一句（T1）、命令授权节保留、写入审批节改状态行呈现（图标＋题＋服务器回读值词，不摆开关——原设置页的 .disabled(true) 假开关就此退役，二期写面开闸前以真值状态行呈现，记录缺失整行不出）；设置侧目录条目/路由/ManageSheet 一并退役。
+- D4 电脑行删除（甲案）：ComputerView 改名 ComputerFaceView 并入中枢电脑格当家（HubBrowserSection 呈完整电脑面：状态头/实时画面/文件/终端，内部导航栈保留）；设置目录 computer 条目删。
+- D5 关于瘦身：AboutView 只剩 hero/法律与隐私/开源与署名三节、无注入参数；更新说明全表迁帮助与反馈页末节；服务组删除；开源节脚说明书文字全删（T3）。
+- D6 服务器文件行删：serverFiles 目录条目退役（中枢电脑格文件段为正主）。
+- D7 断开连接移位：见 D2。
+- D8 根页公告行直读：notice 由从未被赋值的 @State（§164 起恒 nil、该行实际从未渲染——实查）改为计算属性直读 companionProbe.status?.footerNote()，异常才显（absent/需更新两态）。
+
+### 命名与文字
+- 命名 9 条全落：配置档案（profiles，原「档案」）、子任务（delegation，原「任务委派」）、服务器密钥（envVars，原「密钥」）、偏好（根页组头，原「偏好与权限」）等；旧名全留搜索别名（档案/任务委派/密钥钉测在位）。
+- 文字清扫：审计 T1–T14 逐项落（T7 以实文为准改判：记忆横幅实文与审计引用有出入，按新文「写入审批未启用，暂不能改记忆。」落；同文件提交报错语境两处非横幅、未动）；扩围逐子页全扫——被触及页删/压全落，未触及页页脚逐条判定留存（能力边界/凭据去向/作用范围/安全提示/留存真值五类依据，逐页表见交付审计档）。内部实验 7 开关＋崩溃报告迁聊天诊断页新「内部实验」节，假文案「默认关闭」（实际默认开启）随迁改正为「默认开启：」起句（T5）；节脚一句（T6）。
+- 本地化：新增/改动文案 33 键补齐 en/zh-Hant（Localizable.xcstrings 3299→3332）。
+
+### HIG 逐屏自查（12 节）结论摘要
+- 全量打勾表见交付审计档。帧面自查修两件：①网关系统组拉取失败时占位由「正在读取系统状态…」改失败文案（不许拿加载态冒充失败态）；②诊断页崩溃报告行图标改顶对齐（多行行内锚题行）。
+- 登记不改两件：设置子页容器双轨（List.insetGrouped 与 ScrollView+odGroup 房屋形并存、令牌齐全）属跨线归一议题、本线不逐页改容器；AppearanceView 装饰胶囊内一处 .caption2 为 accessibilityHidden 的 chrome 预览，登记例外。
+- 帧证据：浅色 17 帧（根页 3/服务器 2/网关 2/关于 1/帮助 2/搜索达诊断 1/诊断实验节 1/中枢 5）＋深色 7 帧（外观页切深色实拍；simctl 外观被 App 内显式浅色档覆盖、首轮「深色」帧实为浅色渲染，已作废重拍）。缺帧登记：中枢电脑格（演示模式无 Box 钥匙、注册表不长此格，源码面已核）、审批页写入审批节（演示注册表无两条记录、按「记录缺失整节不出」口径不渲染，逻辑由注册表钉测覆盖）、AX 最大档（启动参数路线实测不生效、simctl 无 content_size 动词，工具路未达——以源码字阶全走 FontRoles 动态字型登记，真机 AX 验留待组版）。
+
+### 验收
+- 结构钉测按新架构更新：SettingsCatalogTests（条目 30/浏览序/段集/隐藏集 14/别名/改名钉＋status 退役与服务器管理仅搜索可达新钉）、SettingsRouteInboxStructureTests（ManageSheet 退役钉）。
+- 相关套件终验 75 项全绿、0 红（SettingsCatalogTests/SettingsRegistryTests/HermesAdvancedModelsTests/HubAuditTextTests/SettingsRouteInboxStructureTests/OBBundleStructureTests/NotificationTierStructureTests，删探针后复跑）。
+- 入口零丢失对账表（旧入口→新入口＋可达证据）见交付审计档。

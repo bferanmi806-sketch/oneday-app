@@ -26,6 +26,8 @@ import SwiftUI
 /// 核帧；与工作行圆盘勿混同）。待批段保留置于记
 /// 录段上方（偏离登记：裁决在对话内、计数须常驻
 /// 可见，§477 审计 §5 已录）。
+/// §493 起段末增「审批规则」入口（规则
+/// 页自设置迁回本段，改判 §244）。
 struct HubAuditSection: View {
     let hubStore: AgentHubStore
 
@@ -39,6 +41,7 @@ struct HubAuditSection: View {
         List {
             pendingSection
             recordsSection
+            rulesSection
         }
         .listStyle(.plain)
         .task {
@@ -328,6 +331,41 @@ struct HubAuditSection: View {
         }
         guard let decidedAt = record.decidedAt else { return head }
         return head + " · " + ApprovalTimeText.relative(decidedAt)
+    }
+
+    // MARK: - 审批规则（§493 迁入，与账本/记录同家）
+
+    /// 审批规则入口：规则页本体 ApprovalRules-
+    /// SettingsView（§244 曾归设置页，§493 改判迁
+    /// 回本段直推）；页内含「总是允许」规则撤销、
+    /// 命令授权与写入审批状态
+    private var rulesSection: some View {
+        Section {
+            NavigationLink {
+                ApprovalRulesSettingsView()
+            } label: {
+                HStack(spacing: OneDayMetrics.spacingSM) {
+                    iconBox(
+                        systemImage: "checkmark.shield",
+                        tint: Palette.inkSecondary
+                    )
+                    VStack(alignment: .leading, spacing: OneDayMetrics.spacingMicro) {
+                        Text("审批规则")
+                            .font(.body)
+                            .foregroundStyle(Palette.ink)
+                        Text("「总是允许」规则、命令授权与写入审批")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.inkSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(rowInsets)
+                .padding(.vertical, OneDayMetrics.spacingXS)
+            }
+        } header: {
+            Text("审批规则")
+        }
     }
 
     // MARK: - 共用件

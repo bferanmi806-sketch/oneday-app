@@ -75775,6 +75775,765 @@
           }
         }
       }
+    },
+    "决定 AI 的性格与做事方式": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decides the AI's personality and how it works"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "决定 AI 的性格与做事方式"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "決定 AI 的性格與做事方式"
+          }
+        }
+      }
+    },
+    "默认开启：消息列表走单 section 构造，关掉即回逐行 section 构造。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: the message list uses a single-section layout; turn it off to return to per-row sections."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：消息列表走单 section 构造，关掉即回逐行 section 构造。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：訊息列表改走單 section 構造，關掉即回逐行 section 構造。"
+          }
+        }
+      }
+    },
+    "聊天列表单 section 布局": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Single-Section Layout"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表单 section 布局"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表單 section 佈局"
+          }
+        }
+      }
+    },
+    "崩溃报告": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crash Reports"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "崩溃报告"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "崩潰報告"
+          }
+        }
+      }
+    },
+    "服务器密钥": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server Keys"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器密钥"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "伺服器金鑰"
+          }
+        }
+      }
+    },
+    "崩溃报告收集": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crash Report Collection"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "崩溃报告收集"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "崩潰報告收集"
+          }
+        }
+      }
+    },
+    "聊天列表增量喂入": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Incremental Updates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表增量喂入"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表增量饋入"
+          }
+        }
+      }
+    },
+    "聊天列表停滚结清单拍": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Settle-in-One-Beat on Scroll Stop"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表停滚结清单拍"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表停滾結清單拍"
+          }
+        }
+      }
+    },
+    "聊天列表落定拍直达施工": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Immediate Settle Application"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表落定拍直达施工"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表落定拍直達施工"
+          }
+        }
+      }
+    },
+    "自检、安全审计与备份存档": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Self-checks, security audits, and backup archives"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自检、安全审计与备份存档"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自檢、安全稽核與備份存檔"
+          }
+        }
+      }
+    },
+    "聊天列表抽屉动画期直达应用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Apply During Drawer Animation"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表抽屉动画期直达应用"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表抽屜動畫期直達應用"
+          }
+        }
+      }
+    },
+    "写入审批未启用，暂不能改记忆。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write approval isn't enabled, so memories can't be changed yet."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "写入审批未启用，暂不能改记忆。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "寫入審批未啟用，暫不能改記憶。"
+          }
+        }
+      }
+    },
+    "子任务用什么模型、在哪台机器上跑": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which model subtasks use and which machine they run on"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子任务用什么模型、在哪台机器上跑"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "子任務用什麼模型、在哪台機器上跑"
+          }
+        }
+      }
+    },
+    "逐项检查连接、服务状态与服务器能力": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checks the connection, service status, and server capabilities item by item"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "逐项检查连接、服务状态与服务器能力"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "逐項檢查連接、服務狀態與伺服器能力"
+          }
+        }
+      }
+    },
+    "「总是允许」规则、命令授权与写入审批": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "'Always Allow' rules, command grants, and write approval"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "「总是允许」规则、命令授权与写入审批"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "『總是允許』規則、命令授權與寫入審批"
+          }
+        }
+      }
+    },
+    "本机崩溃与卡死诊断（已脱敏），仅供排障。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On-device crash and hang diagnostics (redacted), for troubleshooting only."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机崩溃与卡死诊断（已脱敏），仅供排障。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本機崩潰與卡死診斷（已脫敏），僅供排障。"
+          }
+        }
+      }
+    },
+    "内部开关：仅供开发与排障使用，与正式功能无关。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal switches for development and troubleshooting only; unrelated to regular features."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内部开关：仅供开发与排障使用，与正式功能无关。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內部開關：僅供開發與排障使用，與正式功能無關。"
+          }
+        }
+      }
+    },
+    "默认开启：崩溃与卡死脱敏保存在本机，关掉即停止收集。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: crashes and hangs are saved on this device with secrets redacted; turn it off to stop collecting."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：崩溃与卡死脱敏保存在本机，关掉即停止收集。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：崩潰與卡死脫敏保存在本機，關掉即停止收集。"
+          }
+        }
+      }
+    },
+    "默认开启：消息列表改走变更集增量喂入，关掉即回全量喂入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: the message list applies change-set updates incrementally; turn it off to return to full reloads."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：消息列表改走变更集增量喂入，关掉即回全量喂入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：訊息列表改走變更集增量饋入，關掉即回全量饋入。"
+          }
+        }
+      }
+    },
+    "默认开启：停滚后一拍内结清全部待结账目，关掉即恢复拆拍结清。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: all pending changes settle in one beat after scrolling stops; turn it off to restore split-beat settling."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：停滚后一拍内结清全部待结账目，关掉即恢复拆拍结清。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：停滾後一拍內結清全部待結帳目，關掉即恢復拆拍結清。"
+          }
+        }
+      }
+    },
+    "默认开启：落定拍不再攒时间窗、见账即施工，关掉即恢复时间窗合并。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: settled beats apply immediately without a coalescing window; turn it off to restore window coalescing."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：落定拍不再攒时间窗、见账即施工，关掉即恢复时间窗合并。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：落定拍不再攢時間窗、見帳即施工，關掉即恢復時間窗合併。"
+          }
+        }
+      }
+    },
+    "默认开启：滚动中变更只记账、停滚时当场应用，关掉即恢复现行滚动闸。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: changes during scrolling are only recorded and applied when scrolling stops; turn it off to restore the current scroll gate."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：滚动中变更只记账、停滚时当场应用，关掉即恢复现行滚动闸。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：滾動中變更只記帳、停滾時當場應用，關掉即恢復現行滾動閘。"
+          }
+        }
+      }
+    },
+    "默认开启：抽屉动画期内到达的变更直接应用，关掉即恢复动画期冻结。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: changes arriving during the drawer animation apply immediately; turn it off to restore freezing during animation."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：抽屉动画期内到达的变更直接应用，关掉即恢复动画期冻结。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：抽屜動畫期內到達的變更直接應用，關掉即恢復動畫期凍結。"
+          }
+        }
+      }
+    },
+    "默认开启：正在选字的行更新先暂存、选区消失后补发，关掉即全部直达。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On by default: updates to a row being selected are held and applied once the selection clears; turn it off to apply everything immediately."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认开启：正在选字的行更新先暂存、选区消失后补发，关掉即全部直达。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "預設開啟：正在選字的行更新先暫存、選區消失後補發，關掉即全部直達。"
+          }
+        }
+      }
+    },
+    "在聊天里的待批卡上点「总是允许这一类」，同类写入以后直接通过、不再逐条问；撤销一条，恢复逐条审批。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you tap 'Always Allow This Kind' on a pending card in chat, similar writes pass automatically without asking each time; revoke one to restore per-item approval."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在聊天里的待批卡上点「总是允许这一类」，同类写入以后直接通过、不再逐条问；撤销一条，恢复逐条审批。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在聊天裡的待批卡上點『總是允許這一類』，同類寫入以後直接通過、不再逐條問；撤銷一條，恢復逐條審批。"
+          }
+        }
+      }
+    },
+    "打开时，AI 新写或改动你的记忆、技能之前会先等你批准；关掉时直接写入。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When on, the AI waits for your approval before writing or changing your memories and skills; when off, it writes directly."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开时，AI 新写或改动你的记忆、技能之前会先等你批准；关掉时直接写入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打開時，AI 新寫或改動你的記憶、技能之前會先等你批准；關掉時直接寫入。"
+          }
+        }
+      }
+    },
+    "已保存凭据": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved Credentials"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存凭据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已儲存憑據"
+          }
+        }
+      }
+    },
+    "内部实验": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal Experiments"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "内部实验"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "內部實驗"
+          }
+        }
+      }
+    },
+    "更新说明": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Release Notes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新说明"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新說明"
+          }
+        }
+      }
+    },
+    "聊天列表滚动期记账降级": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Scroll-Time Ledger Fallback"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表滚动期记账降级"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表滾動期記帳降級"
+          }
+        }
+      }
+    },
+    "聊天列表选区单键暂缓": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat List Selection Key Guard"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表选区单键暂缓"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天列表選區單鍵暫緩"
+          }
+        }
+      }
+    },
+    "开启": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "開啟"
+          }
+        }
+      }
+    },
+    "系统状态没读到，下拉刷新再试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't load system status. Pull to refresh to try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系统状态没读到，下拉刷新再试。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "系統狀態沒讀到，下拉刷新再試。"
+          }
+        }
+      }
     }
   }
 }

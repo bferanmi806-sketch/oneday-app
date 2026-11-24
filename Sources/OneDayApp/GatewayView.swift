@@ -16,6 +16,12 @@ struct GatewayView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @State private var status: ServerStatus?
+    /// 系统段数据（§493 承接 StatusView）：/api/
+    /// system/stats——资源与运行时明细
+    @State private var systemStats: SystemStats?
+    /// 系统组拉取已尝试（§493 帧面自查修）：失败后占
+    /// 位须改失败文案，不许拿「正在读取」冒充加载中
+    @State private var systemStatsAttempted = false
     @State private var errorMessage: String?
     @State private var pendingAction: String?
     @State private var notice: String?
@@ -29,6 +35,7 @@ struct GatewayView: View {
                     platformsGroup(status)
                     usageGroup
                     actionsGroup(status)
+                    systemGroup
                 } else if let errorMessage {
                     InlineError(errorMessage)
                     Button("重试") { Task { await load() } }
@@ -257,6 +264,123 @@ struct GatewayView: View {
         .disabled(isActing)
     }
 
+    /// 系统组（§493，D1 承接）：StatusView 整页退役
+    /// 时其系统段是唯一无等价正主的内容——整组收进
+    /// 本页：资源（内存/磁盘条＋CPU/负载/运行时间/
+    /// 进程内存）＋版本与运行时（主机/系统/Python/
+    /// 内核；Hermes 版本已在本页状态组、不重复）＋
+    /// 会话存储块（SessionStatsBlock 本体不变）
+    @ViewBuilder
+    private var systemGroup: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SectionLabel("系统")
+                .padding(.top, OneDayMetrics.sectionOuterSpacing)
+                .padding(.bottom, OneDayMetrics.spacingS)
+            if let systemStats {
+                VStack(spacing: 0) {
+                    percentRow(
+                        "内存", percent: systemStats.memory?.percent,
+                        detail: memoryDetail(systemStats)
+                    )
+                    GroupDivider()
+                    percentRow(
+                        "磁盘", percent: systemStats.disk?.percent,
+                        detail: diskDetail(systemStats)
+                    )
+                    GroupDivider()
+                    KeyValueRow("CPU", value: systemStats.cpuPercent.map {
+                        "\(AdminFormat.count($0))% · \(systemStats.cpuCount ?? 0) 核"
+                    } ?? "—")
+                    GroupDivider()
+                    KeyValueRow("负载", value: systemStats.loadAvg.map {
+                        $0.map { AdminFormat.count($0) }.joined(separator: " / ")
+                    } ?? "—")
+                    GroupDivider()
+                    KeyValueRow(
+                        "运行时间",
+                        value: systemStats.uptimeSeconds.map(uptimeText) ?? "—"
+                    )
+                    GroupDivider()
+                    KeyValueRow(
+                        "进程内存",
+                        value: systemStats.process?.rss.map(byteText) ?? "—"
+                    )
+                    GroupDivider()
+                    KeyValueRow("主机", value: systemStats.hostname ?? "—")
+                    GroupDivider()
+                    KeyValueRow("系统", value: [
+                        systemStats.os, systemStats.arch,
+                    ].compactMap { $0 }.joined(separator: " · "))
+                    GroupDivider()
+                    KeyValueRow("Python", value: systemStats.pythonVersion ?? "—")
+                    GroupDivider()
+                    KeyValueRow("内核", value: systemStats.osRelease ?? "—")
+                }
+                .odGroup()
+            } else {
+                Text(
+                    systemStatsAttempted
+                        ? "系统状态没读到，下拉刷新再试。"
+                        : "正在读取系统状态…"
+                )
+                    .font(.callout)
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            SessionStatsBlock()
+        }
+    }
+
+    private func percentRow(
+        _ label: String, percent: Double?, detail: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: OneDayMetrics.spacingS) {
+            HStack {
+                Text(label)
+                    .font(.body)
+                    .foregroundStyle(Palette.ink)
+                Spacer()
+                Text(detail)
+                    .font(.system(.callout, design: .monospaced))
+                    .foregroundStyle(Palette.inkSecondary)
+            }
+            DataBar(fraction: (percent ?? 0) / 100, height: 6)
+        }
+        .padding(.horizontal, OneDayMetrics.spacingM)
+        .padding(.vertical, OneDayMetrics.spacingSM)
+    }
+
+    private func memoryDetail(_ stats: SystemStats) -> String {
+        guard let memory = stats.memory,
+              let used = memory.used, let total = memory.total else {
+            return stats.memory?.percent.map {
+                "\(AdminFormat.count($0))%"
+            } ?? "—"
+        }
+        return "\(byteText(used)) / \(byteText(total))"
+    }
+
+    private func diskDetail(_ stats: SystemStats) -> String {
+        guard let disk = stats.disk,
+              let used = disk.used, let total = disk.total else {
+            return stats.disk?.percent.map {
+                "\(AdminFormat.count($0))%"
+            } ?? "—"
+        }
+        return "\(byteText(used)) / \(byteText(total))"
+    }
+
+    private func byteText(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .memory)
+    }
+
+    private func uptimeText(_ seconds: Double) -> String {
+        let days = Int(seconds) / 86400
+        let hours = (Int(seconds) % 86400) / 3600
+        if days > 0 { return "\(days) 天 \(hours) 小时" }
+        let minutes = (Int(seconds) % 3600) / 60
+        return "\(hours) 小时 \(minutes) 分"
+    }
+
     private func stateWord(_ status: ServerStatus) -> String {
         ServerLabels.gatewayState(status.gatewayState, running: status.gatewayRunning)
     }
@@ -270,6 +394,13 @@ struct GatewayView: View {
         } catch {
             errorMessage = (error as? HermesError)?.userMessage ?? "网关状态没读出来，可能是网络或服务暂时没响应"
         }
+        let loadedStats = try? await appState.performAdmin({ client, config in
+            try await client.systemStats(config: config)
+        })
+        if let loadedStats {
+            systemStats = loadedStats
+        }
+        systemStatsAttempted = true
     }
 
     private func perform(_ action: String) async {

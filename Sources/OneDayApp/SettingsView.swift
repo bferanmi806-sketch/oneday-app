@@ -56,12 +56,9 @@ struct SettingsView: View {
     /// 「去聊天」类动作（总览 sheet 内快捷动作）：关
     /// 设置并切聊天格（ContentView 注入）
     var onRequestChat: (() -> Void)? = nil
-    /// 「工作区」组两页的 sheet 呈现（电脑自带导
-    /// 航栈、服务器文件由本页包一层栈）：不进本页导航
-    /// 栈——三页都是整面工作区、且各自带栈，套栈必乱；
-    /// sheet 呈现与 Muse 设置里连接器/设备行打开整
-    /// 面页的形态一致（原「管理」组，§164 改组名工作区）
-    @State private var manageSheet: ManageSheet?
+    // （工作区 sheet 呈现已于 §493 退役：电脑并入中
+    // 枢电脑格、服务器文件正口归资源库，本页不再有
+    // sheet 呈现的工作区面，ManageSheet 枚举一并删）
     // §164 合裁：§159 的身份卡 Menu 形态与呈现旗退役
     // ——身份卡改导航进 IdentityDetailView，编辑面本
     // 体在详情页内复用（AgentAvatarEditorView／
@@ -81,7 +78,14 @@ struct SettingsView: View {
     /// 后，各行摘要状态与其加载一并退役，见 loadSummaries）
     @State private var status: ServerStatus?
     @State private var showDisconnectConfirm = false
-    @State private var notice: String?
+    /// 根页 notice 行（§493，D8）：伴生异常才显——
+    /// 值＝伴生探测 footerNote（未检测到/需升级 App
+    /// 时才有值、其余恒 nil 不占行）。旧 @State 自
+    /// §164 续存起从未被赋值、该行实际恒不渲染，本
+    /// 轮接真源
+    private var notice: String? {
+        appState.companionProbe.status?.footerNote()
+    }
     /// 设置注册表（§437）：能力位亮且拉到才有值；nil
     /// ＝回落内置目录（与注册表上线前逐字一致）——注
     /// 册表是增益不是依赖，失败对用户零感知
@@ -104,7 +108,8 @@ struct SettingsView: View {
                     supportSection
                     versionFooter
                 }
-                // notice 提示行在根页续存（§164 监工纠正⑥遗漏①）：浏览/搜索两态都显
+                // notice 提示行（§164 续存；§493 改异常
+                // 才显，见 notice 计算属性）
                 if let notice {
                     Section {
                         Text(notice)
@@ -166,9 +171,6 @@ struct SettingsView: View {
                     }
                 }
             }
-            .sheet(item: $manageSheet) { item in
-                manageSheetContent(item)
-            }
             .task {
                 await loadSummaries()
                 await loadSettingsRegistry()
@@ -218,11 +220,7 @@ struct SettingsView: View {
                 case .help:
                     HelpView()
                 case .about:
-                    AboutView(
-                        hermesVersionText: hermesVersionText,
-                        companionLine: companionVersionLine,
-                        companionNote: companionFooterNote
-                    )
+                    AboutView()
                 case .privacy:
                     LegalDocumentView(kind: .privacy)
                 case .terms:
@@ -241,13 +239,6 @@ struct SettingsView: View {
                     HealthCheckView()
                 case .connectionSelfCheck:
                     ConnectionSelfCheckView()
-                case .status:
-                    // 状态详情页落位（合流对接点 2026-11-20）：
-                    // 会话点按走全 App 同一路由通道（与枢纽
-                    // 包在旧服务器管理页的接线同口径）
-                    StatusView(onOpenSession: { id in
-                        appState.router.pendingChatSessionID = id
-                    })
                 case .voice:
                     VoiceSettingsView()
                 case .notifications:
@@ -298,8 +289,6 @@ struct SettingsView: View {
             ConnectorsView()
         case .devicePermissions:
             DevicePermissionsView()
-        case .approvalRules:
-            ApprovalRulesSettingsView()
         }
     }
 
@@ -424,6 +413,9 @@ struct SettingsView: View {
     /// 器口径出（SettingsCatalog.browseSegments），本
     /// 页只管行构建（browseRow）与段末动作（断开连接
     /// 收维护段末，确认框与执行口径不变）
+    /// §493 收敛后浏览段只剩服务器段（工作区/维护段
+    /// 条目全退役或收进页内），断开连接随之改收服务
+    /// 器段末（破坏性动作归所属组末行，iOS 惯例）
     private var serverAndWorkspaceSection: some View {
         ForEach(
             SettingsCatalog.effectiveBrowseSegments(
@@ -435,7 +427,7 @@ struct SettingsView: View {
                 ForEach(group.rows) { row in
                     browseRow(row)
                 }
-                if group.segment == .maintenance {
+                if group.segment == .server {
                     disconnectRow
                 }
             } header: {
@@ -520,17 +512,6 @@ struct SettingsView: View {
             } else {
                 catalogNavRow(entry)
             }
-        case .status:
-            // §470：状态条目已降仅搜索可达（搜索走
-            // searchRow 不经本分流），本特型浏览态不
-            // 可达、保留备查（与 serverSessions 深链
-            // 备查同式）
-            statusNavRow(
-                icon: iconName(for: entry),
-                title: L10n.string(entry.title),
-                status: L10n.string("汇总"),
-                route: .status
-            )
         default:
             catalogNavRow(entry)
         }
@@ -598,7 +579,8 @@ struct SettingsView: View {
         return availability == .unknown ? nil : availability.word
     }
 
-    // MARK: - 偏好与权限组（prototype-2 新组）
+    // MARK: - 偏好组（prototype-2 新组；§493 改名，D7：
+    // 审批规则迁出后组内只剩偏好与本机权限，组题收为「偏好」）
 
     /// 偏好与权限组（prototype-2；台账 198 收敛 S13
     /// 起含语音行）：外观／语音／连接器／设备与权限／
@@ -626,7 +608,7 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            sectionHeader("偏好与权限")
+            sectionHeader("偏好")
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
@@ -657,21 +639,6 @@ struct SettingsView: View {
         }
         .listRowBackground(Palette.surface)
         .listRowInsets(OneDayMetrics.settingsRowInsets)
-    }
-
-    // MARK: - 工作区 sheet 呈现（prototype-2 保持）
-
-    /// 工作区 sheet 内容：电脑／服务器文件保持现行 sheet 机制
-    @ViewBuilder
-    private func manageSheetContent(_ item: ManageSheet) -> some View {
-        switch item {
-        case .computer:
-            ComputerView(onBackToApps: { manageSheet = nil })
-        case .serverFiles:
-            NavigationStack {
-                FilesBrowserView()
-            }
-        }
     }
 
     // MARK: - 搜索（§164）
@@ -748,12 +715,10 @@ struct SettingsView: View {
         .settingsSeparatorToIconEdge()
     }
 
-    /// 搜索点达分发：管理两件开 sheet、断开连接起确
-    /// 认框、余者压设置栈（与深链消费同一落点口径）
+    /// 搜索点达分发：断开连接起确认框、余者压设置
+    /// 栈（与深链消费同一落点口径）
     private func activate(_ entry: SettingsCatalogEntry) {
         switch entry.destination {
-        case .computer: manageSheet = .computer
-        case .serverFiles: manageSheet = .serverFiles
         case .disconnect: showDisconnectConfirm = true
         case .serverSessions:
             // 台账 199（2026-11-21 用户裁）：服务端会
@@ -794,13 +759,10 @@ struct SettingsView: View {
         case "server": return "server.rack"
         case "connectors": return "cable.connector"
         case "devicePermissions": return "iphone"
-        case "approvalRules": return "checkmark.shield"
         case "gateway": return "network"
         case "logs": return "doc.text"
         case "envVars": return "key"
         case "usage": return "chart.bar"
-        case "computer": return "display"
-        case "serverFiles": return "folder"
         case "appearance": return "sun.max"
         case "help": return "questionmark.circle"
         case "about": return "info.circle"
@@ -815,7 +777,6 @@ struct SettingsView: View {
         case "mainSession": return "link"
         case "healthCheck": return "stethoscope"
         case "connectionSelfCheck": return "antenna.radiowaves.left.and.right"
-        case "status": return "waveform.path.ecg"
         case "voice": return "speaker.wave.2"
         case "notifications": return "bell"
         case "addDevice": return "qrcode"
@@ -904,28 +865,10 @@ struct SettingsView: View {
         EdgeInsets(top: 10, leading: 20, bottom: 0, trailing: 20)
     }
 
-    // MARK: - 版本派生（关于页注入，§164）
-
-    /// Hermes 版本位：status 读到才有版本，version
-    /// 字段缺失或整份 status 没读到都如实显「未知」
-    /// （原版本组口径：不许拿已知生产版本冒充现读）
-    private var hermesVersionText: String {
-        status?.version.map { "v\($0)" }
-            ?? L10n.string("未知")
-    }
-
-    /// 伴生副行：探测态未立（还没探过）显「尚未检
-    /// 测」；其余形态（现读/上次读到/未检测到/暂时
-    /// 读不到）全由 Core 派生态出整行
-    private var companionVersionLine: String {
-        guard let status = appState.companionProbe.status
-        else { return L10n.string("尚未检测") }
-        return status.settingsLine()
-    }
-
-    private var companionFooterNote: String? {
-        appState.companionProbe.status?.footerNote()
-    }
+    // （版本派生三件已于 §493 退役：关于页服务组删
+    // 除后 hermesVersionText/companionVersionLine 无
+    // 消费方；companionFooterNote 的语义由根页 notice
+    // 计算属性直读探测态承接）
 
 
     // MARK: - 共用行组件

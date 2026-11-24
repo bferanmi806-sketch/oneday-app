@@ -35,7 +35,7 @@ final class SettingsCatalogTests: XCTestCase {
             "mainSession",
             "server", "gateway", "logs", "envVars", "usage",
             "connectors", "devicePermissions",
-            "status", "computer", "serverFiles", "voice",
+            "voice",
             "appearance", "help", "about",
             "disconnect",
         ] {
@@ -53,6 +53,14 @@ final class SettingsCatalogTests: XCTestCase {
         // 包）：目的地本体是全部对话一级面，设置深链
         // 门面属状态类重复门、整条移出（根页搜索皆无）
         XCTAssertFalse(ids.contains("serverSessions"), "服务端会话条目应已退役（§450）")
+        // §493（设置 IA 审计全量落码）四条整条退役：
+        // 状态（D1，内容 rehousing 网关页/各正主）、
+        // 电脑（D4 甲，整面并入中枢电脑格）、服务器
+        // 文件（D6，与资源库文件面重复门）、审批规
+        // 则（D3，整页迁中枢审核段）
+        for id in ["status", "computer", "serverFiles", "approvalRules"] {
+            XCTAssertFalse(ids.contains(id), "§493 退役条目 \(id) 不许残留")
+        }
     }
 
     /// 现行主页全部目的地在清单里有锚（零丢失对账的
@@ -66,8 +74,7 @@ final class SettingsCatalogTests: XCTestCase {
             .delegation, .cron,
             .models, .envVars, .usage,
             .serverDetail, .connectors, .devicePermissions,
-            .approvalRules,
-            .gateway, .logs, .status, .computer, .serverFiles,
+            .gateway, .logs,
             .appearance, .help, .about, .privacy, .terms,
             // prototype-2 叶子（枢纽目的地已退役；重启
             // 网关目的地随台账 198 收敛 S4 一并退役）
@@ -96,6 +103,19 @@ final class SettingsCatalogTests: XCTestCase {
         // （activate 深链备查）但目录条目已退役——覆
         // 盖集不含它是裁定、不是丢失（见上退役钉）
         XCTAssertFalse(covered.contains(.serverSessions))
+        // §493 口径：status/computer/serverFiles/
+        // approvalRules 四目的地本体保留（深链/中枢
+        // 直推备查）但目录条目已退役——覆盖集不含
+        // 它们是裁定、不是丢失
+        for dest in [
+            SettingsDestination.status, .computer,
+            .serverFiles, .approvalRules,
+        ] {
+            XCTAssertFalse(
+                covered.contains(dest),
+                "§493 退役条目的目的地 \(dest) 不应在覆盖集"
+            )
+        }
     }
 
     /// 结构归位：agent 组五行——原智能体配置页内三项
@@ -121,12 +141,13 @@ final class SettingsCatalogTests: XCTestCase {
     /// 达、用量收进网关状态页、主线对话改深链——
     /// 组浏览行 9→6
     func testServerAndWorkspaceGroupBrowseOrder() {
+        // §493：工作区段（电脑/服务器文件退役）与维
+        // 护段（密钥/体检收进当前服务器页）双双撤销
+        // ——组浏览行只剩服务器段两行
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
             [
                 "server", "gateway",
-                "computer", "serverFiles",
-                "envVars", "healthCheck",
             ]
         )
     }
@@ -136,16 +157,16 @@ final class SettingsCatalogTests: XCTestCase {
     func testServerAndWorkspaceSegments() {
         let segments = SettingsCatalog.browseSegments(in: .serverAndWorkspace)
         // 台账 199 合流对账：会话段只剩 mainSession 一行（serverSessions 当年退役出段、§450 起条目本体整条删除）；服务器段 §450 后只剩连接本体三行（配对类收进服务器页、工具类降仅搜索）；§470 后：服务器段用量收进网关页、工作区段状态降仅搜索、会话段随主线对话改深链整段撤销——段集四段→三段
+        // §493：段集三段→一段（工作区段随电脑/服务
+        // 器文件退役撤销、维护段随密钥/体检收纳撤销）
         XCTAssertEqual(
             segments.map(\.segment),
-            [.server, .workspace, .maintenance]
+            [.server]
         )
         XCTAssertEqual(
             segments.map { $0.entries.map(\.id) },
             [
                 ["server", "gateway"],
-                ["computer", "serverFiles"],
-                ["envVars", "healthCheck"],
             ]
         )
         // 无段字段的组不分段（整组一个 Section）
@@ -159,7 +180,8 @@ final class SettingsCatalogTests: XCTestCase {
     func testPreferencesGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).map(\.id),
-            ["appearance", "voice", "notifications", "connectors", "devicePermissions", "approvalRules"]
+            // §493：审批规则整页迁中枢审核段（D3）——偏好组六行→五行
+            ["appearance", "voice", "notifications", "connectors", "devicePermissions"]
         )
     }
 
@@ -204,7 +226,8 @@ final class SettingsCatalogTests: XCTestCase {
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-["identity","privacy","terms","disconnect", "chatDiagnostics", "crashReports", "addDevice", "pairing", "logs", "connectionSelfCheck", "status", "usage", "mainSession"]
+// §493：status 整条退役（不在隐藏集、是无条目）；envVars/healthCheck 改仅搜索可达（入口收进当前服务器页「服务器管理」组）
+["identity","privacy","terms","disconnect", "chatDiagnostics", "crashReports", "addDevice", "pairing", "logs", "connectionSelfCheck", "usage", "mainSession", "envVars", "healthCheck"]
         )
     }
 
@@ -226,12 +249,14 @@ final class SettingsCatalogTests: XCTestCase {
     }
 
     func testSearchMatchesSummaryAndKeywords() {
-        // 「服务器」命中当前服务器/服务器文件（标题）、
-        // 配置档案（副行含「服务器」）等多条，按清单序返回
+        // 「服务器」命中当前服务器/服务器密钥（标题）
+        // 等多条，按清单序返回；§493 T9 后配置档案副
+        // 行改「决定 AI 的性格与做事方式」、不再搭载
+        // 「服务器」命中（旧断言随文案改判撤销）
         let hits = SettingsCatalog.search("服务器")
         XCTAssertTrue(hits.contains { $0.id == "server" })
-        XCTAssertTrue(hits.contains { $0.id == "serverFiles" })
-        XCTAssertTrue(hits.contains { $0.id == "profiles" })
+        XCTAssertTrue(hits.contains { $0.id == "envVars" })
+        XCTAssertFalse(hits.contains { $0.id == "profiles" })
         // 英文关键词大小写不敏感
         XCTAssertEqual(
             SettingsCatalog.search("MEMORY").map(\.id), ["memory"]
@@ -269,7 +294,9 @@ final class SettingsCatalogTests: XCTestCase {
         XCTAssertEqual(hits.first?.id, "healthCheck")
         XCTAssertEqual(hits.first?.destination, .healthCheck)
         XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
-        XCTAssertTrue(hits.first?.showsInBrowse ?? false)
+        // §493：根页不平铺、仅搜索可达（入口正主在
+        // 当前服务器页「服务器管理」组）
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
         // 英文关键词同达
         XCTAssertTrue(
             SettingsCatalog.search("doctor").contains {
@@ -357,14 +384,18 @@ final class SettingsCatalogTests: XCTestCase {
                 ($0.id, $0)
             }
         )
-        XCTAssertEqual(byId["profiles"]?.title, "档案")
+        // §493 改名三条：档案→配置档案、任务委派→
+        // 子任务、密钥→服务器密钥
+        XCTAssertEqual(byId["profiles"]?.title, "配置档案")
         XCTAssertEqual(byId["toolsets"]?.title, "工具")
-        XCTAssertEqual(byId["delegation"]?.title, "任务委派")
+        XCTAssertEqual(byId["delegation"]?.title, "子任务")
+        XCTAssertEqual(byId["envVars"]?.title, "服务器密钥")
         XCTAssertEqual(byId["pairing"]?.title, "设备配对")
         XCTAssertEqual(byId["mainSession"]?.title, "主线对话")
         for (alias, id) in [
-            ("配置档案", "profiles"), ("工具集", "toolsets"),
-            ("委派路由", "delegation"),
+            ("档案", "profiles"), ("工具集", "toolsets"),
+            ("任务委派", "delegation"), ("委派路由", "delegation"),
+            ("密钥", "envVars"),
             ("平台用户配对", "pairing"),
             ("主线会话", "mainSession"),
         ] {
@@ -387,7 +418,10 @@ final class SettingsCatalogTests: XCTestCase {
     /// 21、根页渲染行 22，条目总数不变（34，只移
     /// 落点不删条目）
     func testRootBrowseCountsAfterSettingsIA() {
-        XCTAssertEqual(SettingsCatalog.entries.count, 34)
+        // §493 再减：条目 34→30（退役四条）、浏览行
+        // 21→16、根页渲染行 22→17（浏览 16＋手写断
+        // 开行 1）、可见段 6→5
+        XCTAssertEqual(SettingsCatalog.entries.count, 30)
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .top).count, 0
         )
@@ -398,38 +432,42 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsCatalog.browseEntries(
                 in: .serverAndWorkspace
             ).count,
-            6
+            2
         )
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).count,
-            6
+            5
         )
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .support).count, 2
         )
     }
 
-    /// §470（S5-11 打包改）：状态条目——整条移出
-    /// 根页、仅搜索可达；目的地/归属不变（汇总页
-    /// 本体不删，与 §450 R2 工具型降级同口径）
-    func testStatusEntryIsSearchOnly() {
-        let byId = Dictionary(
-            uniqueKeysWithValues: SettingsCatalog.entries.map {
-                ($0.id, $0)
-            }
+    /// §493（D1）：状态条目整条退役——汇总页本体
+    /// 删（独有系统段 rehousing 网关页、活动/定时各
+    /// 有正主）；搜「状态」达网关状态条目、无 status
+    /// 条目残留；目的地本体保留备查（沿革见目录注）
+    func testStatusEntryRetiredIn482() {
+        XCTAssertFalse(
+            SettingsCatalog.entries.contains { $0.id == "status" }
         )
-        XCTAssertEqual(byId["status"]?.destination, .status)
-        XCTAssertEqual(byId["status"]?.group, .serverAndWorkspace)
-        XCTAssertFalse(byId["status"]?.showsInBrowse ?? true)
-        XCTAssertTrue(
-            SettingsCatalog.search("状态").contains {
-                $0.id == "status"
-            }
-        )
-        // 副行词直达（汇总页性质词）
-        XCTAssertEqual(
-            SettingsCatalog.search("活动").first?.id, "status"
-        )
+        let hits = SettingsCatalog.search("状态")
+        XCTAssertTrue(hits.contains { $0.id == "gateway" })
+        XCTAssertFalse(hits.contains { $0.id == "status" })
+    }
+
+    /// §493（维护段撤销）：服务器密钥/体检仅搜索可
+    /// 达钉——根页不平铺、搜索直达（入口正主在当前
+    /// 服务器页「服务器管理」组，App 层
+    /// ServerDetailView，本钉只管目录面）
+    func testServerAdminEntriesAreSearchOnly() {
+        let keyHits = SettingsCatalog.search("密钥")
+        XCTAssertEqual(keyHits.first?.id, "envVars")
+        XCTAssertEqual(keyHits.first?.title, "服务器密钥")
+        XCTAssertFalse(keyHits.first?.showsInBrowse ?? true)
+        let healthHits = SettingsCatalog.search("体检")
+        XCTAssertEqual(healthHits.first?.id, "healthCheck")
+        XCTAssertFalse(healthHits.first?.showsInBrowse ?? true)
     }
 
     /// §470（S5-11 打包改）：用量条目——移出根页、

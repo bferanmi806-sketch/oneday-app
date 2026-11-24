@@ -133,7 +133,7 @@ struct ProfilesView: View {
             .padding(.bottom, OneDayMetrics.spacingXL)
         }
         .background(Palette.pageBG)
-        .navigationTitle("档案")
+        .navigationTitle("配置档案")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
