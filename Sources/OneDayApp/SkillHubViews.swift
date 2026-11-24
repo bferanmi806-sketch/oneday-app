@@ -96,7 +96,7 @@ struct SkillHubView: View {
                 .foregroundStyle(
                     selected ? Palette.primary : Palette.inkSecondary
                 )
-                .padding(.horizontal, 12)
+                .padding(.horizontal, OneDayMetrics.spacingSM)
                 .padding(.vertical, OneDayMetrics.rowInnerGap)
                 .background(
                     selected ? Palette.primaryTint : Palette.surface,

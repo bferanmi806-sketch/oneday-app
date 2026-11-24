@@ -428,7 +428,7 @@ struct IdeaRowView: View {
                     Text(label)
                         .font(.caption)
                         .foregroundStyle(Palette.inkSecondary)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, OneDayMetrics.spacingS)
                         .padding(.vertical, 3)
                         .background(
                             Palette.selectionFill, in: Capsule()

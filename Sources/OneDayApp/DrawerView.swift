@@ -1846,7 +1846,7 @@ struct DrawerView: View {
         .frame(height: DrawerGeometry.bottomBarRowHeight)
         .padding(.horizontal, OneDayMetrics.drawerInset)
         .padding(.top, OneDayMetrics.spacingSM)
-        .padding(.bottom, 4)
+        .padding(.bottom, OneDayMetrics.spacingXS)
     }
 
     private func drawerRoundButton(

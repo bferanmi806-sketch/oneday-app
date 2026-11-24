@@ -439,6 +439,7 @@ struct HubLedgerSection: View {
                     )
                 )
                 .font(.callout)
+                .monospacedDigit()
                 .foregroundStyle(Palette.inkSecondary)
                 .lineLimit(1)
             }
@@ -449,6 +450,7 @@ struct HubLedgerSection: View {
                     item.status == .stale
                         ? Palette.danger : Palette.inkSecondary
                 )
+                .monospacedDigit()
                 .lineLimit(1)
         }
     }
