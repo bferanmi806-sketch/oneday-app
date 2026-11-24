@@ -451,7 +451,7 @@ struct AgentHubView: View {
             .background(Palette.fillSecondary, in: Capsule())
         }
         .buttonStyle(.odPressable)
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingS)
         .accessibilityLabel("选择模型，当前 \(entry.currentLabel)")
     }
@@ -511,7 +511,7 @@ struct AgentHubView: View {
         // §434（2026-11-24，用户亲点对位 Muse 身
         // 份页大头态）：页头恢复居中 hero——§344 的
         // 横排紧凑行（44 头像＋名/状态同行、总高
-        // ≈118）由本节覆盖：头像 avatarHubHero 85
+        // ≈118）由本节覆盖：头像 avatarHubHero 档
         // 居中（参照工具采样定值）、名居中（字阶
         // .title 28 bold 不动，HIG Title1 用户定版
         // 口径）、状态行居中；纵向节奏承 §222 hero
@@ -532,8 +532,13 @@ struct AgentHubView: View {
                 avatarBlock
 
                 Text(store.displayName)
-                    .font(.title)
-                    .fontWeight(.bold)
+                    // §477：大名 .title(28) → 32 档（参
+                    // 照档案页量测 ≈32），走 hubHero-
+                    // NameSize 令牌
+                    .font(.system(
+                        size: OneDayMetrics.hubHeroNameSize,
+                        weight: .bold
+                    ))
                     .lineLimit(1)
                     .padding(.top, OneDayMetrics.spacingM)
 
@@ -542,7 +547,7 @@ struct AgentHubView: View {
                     .padding(.top, OneDayMetrics.spacingS)
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.horizontal, OneDayMetrics.hubGutter)
 
             // 圆钮行（✕ 关闭＋分享名片）：0.36.22 起
             // 两模式统一常驻——整页呈现下活动模式同
@@ -577,36 +582,36 @@ struct AgentHubView: View {
 
                 shareButton(store)
             }
-            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.horizontal, OneDayMetrics.hubGutter)
         }
         .padding(.top, OneDayMetrics.spacingS)
         .padding(.bottom, OneDayMetrics.spacingS)
     }
 
     /// 状态行（结构归位包，D4-1）：第一语义＝
-    /// 当前活动——台账有进行中条目时显活动行
-    /// （转圈＋人话标题），连接状态降为兜底
-    /// （无进行中时回落现行状态词，§449 起不带点）。§344
-    /// 起自页头抽出独立件、搬入身份行名下，语义
-    /// 与派生不动
+    /// 当前活动，连接状态降为兜底（无活动时回落
+    /// 现行状态词，§449 起不带点）。§344 起自页头
+    /// 抽出独立件、搬入身份行名下
     /// §449.9 增补：本轮工具活动短语（AppState.live-
     /// ActivityPhrase，与聊天页头胶囊第二行同源同
     /// 口径）优先于台账活动行——同一活动两面一词
+    /// §477（2026-11-24）：第二级「台账标题顶替」
+    /// 整级退役——无工具短语时旧派生拿台账进行中
+    /// 条目的标题（会话名＋日期）顶上状态行，与参
+    /// 照状态语义不符（审计头号差 2 定因）；自此
+    /// 活动语义只许 liveActivityPhrase 单源（与
+    /// §474 胶囊线同源收口），无短语即回落状态词，
+    /// 不许再起第二套状态源
     private func statusLine(_ store: AgentHubStore) -> some View {
+        // §477 呈现对齐：字档升 20 主黑（参照状态行
+        // ≈19–20 主黑；旧 .body 17 灰退役）
         HStack(spacing: OneDayMetrics.rowInnerGap) {
             if let livePhrase = appState.liveActivityPhrase {
                 ProgressView()
                     .controlSize(.mini)
                 Text(livePhrase)
-                    .font(.body)
-                    .foregroundStyle(Palette.inkSecondary)
-                    .lineLimit(1)
-            } else if let activityLine = hubActivityLine {
-                ProgressView()
-                    .controlSize(.mini)
-                Text(activityLine)
-                    .font(.body)
-                    .foregroundStyle(Palette.inkSecondary)
+                    .font(.system(size: OneDayMetrics.hubTitleSize))
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1)
             } else {
                 // §449（03:19 去重）：状态点删除——
@@ -614,8 +619,8 @@ struct AgentHubView: View {
                 // 枢状态行同为纯文案、无点）；词的派
                 // 生与语义不动
                 Text(store.statusText)
-                    .font(.body)
-                    .foregroundStyle(Palette.inkSecondary)
+                    .font(.system(size: OneDayMetrics.hubTitleSize))
+                    .foregroundStyle(Palette.ink)
                     .lineLimit(1)
             }
         }
@@ -634,8 +639,8 @@ struct AgentHubView: View {
     /// 档案菜单——「更换虚拟形象」「编辑名称」改的是
     /// 本机档案（AgentProfileStore），不是服务器身份；
     /// 身份段仍在段列里、服务端身份编辑口径不变。
-    /// §434（hero 化）：头像升 avatarHubHero 85 档
-    /// （参照采样定值）；菜单仍整头像承载——点头像
+    /// §434（hero 化）：头像升 avatarHubHero 档
+    /// （§477 复量改 95）；菜单仍整头像承载——点头像
     /// 任意处出菜单（§344 立的口径不变），铅笔角标
     /// 随头像放大为 26pt 圆（字形等比），Palette.
     /// surface 底＋hairline 描边＋浮件档阴影不变
@@ -688,20 +693,6 @@ struct AgentHubView: View {
             .contentShape(Circle())
         }
         .accessibilityLabel("编辑头像与名称")
-    }
-
-    /// 页头状态行第一语义＝当前活动（结构归位包，
-    /// benchmark §3.2）：台账进行中集派生与进展胶囊
-    /// 同源（ProgressCapsule.derive，单件显标题、多
-    /// 件显「正在进行 N 件 · 标题」）；枢纽是看全局
-    /// 的面，不剔除任何会话（currentSessionID 传
-    /// nil）。无进行中条目返回 nil，页头回落连接
-    /// 状态词（兜底）
-    private var hubActivityLine: String? {
-        ProgressCapsule.derive(
-            items: appState.sharedLedgerStore().items,
-            currentSessionID: nil
-        )?.headlineText
     }
 
     // MARK: - 四段分段控件（§222 胶囊条形态对齐）
@@ -769,7 +760,7 @@ struct AgentHubView: View {
         .overlay {
             Capsule().stroke(Palette.hairline, lineWidth: 0.5)
         }
-        .padding(.horizontal, OneDayMetrics.pageGutter)
+        .padding(.horizontal, OneDayMetrics.hubGutter)
         .padding(.top, OneDayMetrics.spacingS)
         .padding(.bottom, OneDayMetrics.spacingSM)
         .animation(
