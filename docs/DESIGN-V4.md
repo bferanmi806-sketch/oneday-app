@@ -17581,3 +17581,15 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **IPA**：Release BUILD SUCCEEDED（dd-05116-release，rc=0）；OneDay-0.50.116-244.ipa，28,535,614 字节，md5 e071dfcce2266a5f3a4184c2ceb8c653；unzip 直验主 App 本体 plist 三值 0.50.116／244／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.116-244.ipa）md5 一致。体积较 115 涨约 11.7MB＝活头像片段 11.4MB 入包所致。
 - **节号占用注记**：§482（简报编辑器呈现线）、§483（触感分拣线；HIG 逐页 wave1 线亦拟 §483、待其交卷顺延）、§427／§428（Exyte 线）已在各分支占用，本组版节顺排 §484。
 - **真机门（归用户 verdict）**：活头像——①空闲态头像动（idle 浅/深随外观）；②干活时切 working／写时切 making_something、完成弹 milestone；③思考/说话/等审批回落播 idle 片段观感可接受；④卡住态为静态（blocked 片段未接线、属一期既定回落，勿报「片段不播」为故障）、醒来仅深色有片段、浅色静态；⑤页头约 40pt 小尺寸下片段可辨识度与接缝手感、长时间循环耗电/发热。§474——⑥聊天顶簇只剩一颗身份胶囊、无第二胶囊；⑦空闲时胶囊只剩名字一行、干活时第二行是工作短语、无「在线」字样；⑧页头身份胶囊仍压头像下沿（空闲一行态观感）。§475——⑨工作详情页新形态：四态摘要人话、无技术原文段。§477——⑩中枢：审核页单段「审核记录」、身份页摘要化、任务页只剩预定任务＋按天分组（老日期组同制式可折叠保留——严格两段与否待用户裁）、状态行活动优先且无第二级台账行。
+
+## §486 规范小分拣批（P3-02／P3-03／P3-04 余量收口）
+
+- 分支 feat/hig-sort-batch（基线 rel-05116 278f13d），审计正本 hig-compliance-audit-20261124.md 第三部分；改动总账 hig-sort-batch-ledger-20261124.md（逐处原值→令牌→等值标记＋登记全文）。
+- 普查（116 树实数）：圆角字面 14、spacing 非零字面 36、padding 字面 53，合计 103。分拣规则：与既有令牌等值才收编（零视觉差），无等值令牌登记保留、不新造、不改值。radiusBadge 系 wave1 分支新建、不在本基线，按 116 令牌表对位。
+- 收编 52 处全等值：spacing 22（4→spacingXS×11、8→spacingS×3、12→spacingSM×2、16→spacingM×1、2→spacingMicro×5）、padding 28（4→XS×13、8→S×6、12→SM×3、16→M×4、2→Micro×1、尾距 20→pageGutter×1）、圆角 2（ReactionFloatingBar 浮排底/描边 24→buttonCorner）。
+- P3-03 等宽补 6 处 .monospacedDigit()：HubLedgerSection 副题双支（逐秒已耗时＋计数）、LedgerDetailView 页首摘要双支＋row() 值列、UsageDetailView 百分比。核查已覆盖未动：NumberText 组件自带（录音计时/RollingNumberText 等）、用量页 token 数走 .monospaced 设计字体、监测/定时/通知 meta/导入计数已在位。
+- ChatView:7087 `.padding(.top, 140)` 核实：importingOverlay 导入等待卡的全屏顶对齐落位偏移（避顶栏簇、居中偏上），与键盘/舱位/锚点无关；无等值令牌且改值即移卡位——登记保留、值不动、原处已加注记。
+- 登记保留共 51 处：微光学值 33（1/3/6/7/10/11/15 无梯队档）、非梯队结构值 5（活头像 spacing 20、ChatView .bottom 36、分享卡 artwork 28/36、Widgets 扩展令牌不可达）、140 落位 1、圆角微形/比例值 12（图标比例 5/17、轨道 3、代码片 1.5/2、缩略 clip 6/8；radiusCheckbox 语义不挪用）。
+- 验收：build-for-testing exit 0（Xcode 27.2、独立模拟器＋dd-higsort）；两测试目标全量 233 套 2641 过／3 红／0 跳——3 红定性：#13 性能门逐版同红、LibraryOrdering 基线老红、BasicsStopgap testLedgerUpsertKeepsOneEntryPerThread 在纯基线 rel-05116 同签名复现（基线同红、非本包回归，疑不在 116 发布集名单内，提请主线登记）。残量回读 51 与登记逐行对账一致。
+- 真机门（等值抽查）：反应浮排形态、动态页卡内距、台账副题秒跳行宽不抖、工作详情值列、用量百分比列、主题行尾留白——预期全零变化。
+- 节号注记：本树 DESIGN 最大节为 §484（组版 116）；§485 预留 117 组版线，本批取 §486，组版合并时如撞号按并集连排顺延。
