@@ -123,7 +123,11 @@ final class HapticsMatrixTests: XCTestCase {
         // 件盘零触感变化。逐文件归因对账（rel-05109
         // →合并树）全部落点增量只在 §452 两文件、
         // 无既有落点丢失
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 57)
+                // §482（简报编辑器呈现换轨）：FeedView
+        // save() 失败路径补 error 一落点（表 D
+        // 既有语义、只接线不新造），57→58；逐
+        // 文件归因：增量仅 FeedView 一处
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 58)
         XCTAssertEqual(count(of: "Haptics.warning()", in: all), 7)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
@@ -138,7 +142,9 @@ final class HapticsMatrixTests: XCTestCase {
         // error/warning/heavy 三项逐数不变、既有落
         // 点无丢失（逐文件归因：增量仅 IdeasStore
         // 一处）
-        XCTAssertEqual(count(of: "Haptics.success()", in: all), 18)
+                // §482（同上）：FeedView save() 成功路
+        // 径补 success 一落点，18→19
+        XCTAssertEqual(count(of: "Haptics.success()", in: all), 19)
         XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 9)
         // §295（原生重建 R3）：右滑回复触发的最轻
         // impact 在原生散文 cell 增一落点（5→6）——

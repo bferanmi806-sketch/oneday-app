@@ -183,9 +183,6 @@ struct FeedView: View {
                     searchText = ""
                 }
             }
-            .sheet(isPresented: $briefEditorShown) {
-                FeedBriefEditorView(store: store)
-            }
             // §208：聊天里点动态引用块的原帖回跳——请
             // 求在此消费（清零先行防重入），落点判定走
             // resolveFeedOpen（在名单直达详情、名单就
@@ -247,6 +244,13 @@ struct FeedView: View {
                     refDestination(ref)
                 }
             }
+        }
+        .topAnchoredPanel(isPresented: $briefEditorShown) { size in
+            FeedBriefEditorView(
+                store: store,
+                screenHeight: size.height,
+                onClose: { briefEditorShown = false }
+            )
         }
     }
 
@@ -1502,10 +1506,23 @@ struct FeedLinkPreviewCard: View {
 /// PUT /meta/brief {"text"} 原样落盘；润色状态以
 /// 极小提示如实呈现，不许假装已润色。本地未保存
 /// 草稿与服务端不一致时打开先弹问、不许静默吞
+/// 简报编辑器（§482 呈现换轨）：内容逻辑沿 §473
+/// 件一定版（打开必回读／pending 轻轮询／已改字不
+/// 覆盖／保存恒可用，逻辑一字未动）；呈现弃底部全
+/// 屏 sheet，改顶部锚定覆盖面板（TopAnchoredPanel
+/// 组件，几何与主题照参照录屏量测抄，DESIGN
+/// §482）。页头只剩两行——标题＋一句说明（用户
+/// 2026-11-24 12:09 亲令简化）；其余说明性文字全
+/// 删（清点见 §482），只留错误回执（保存失败／上
+/// 次整理失败）——回执不是说明。
 struct FeedBriefEditorView: View {
     @Environment(AppState.self) private var appState
-    @Environment(\.dismiss) private var dismiss
     let store: FeedStore
+    /// 呈现根层屏高（TopAnchoredPanel 闭包下传）：
+    /// 卡高按 TopPanelMetrics 占比取
+    let screenHeight: CGFloat
+    /// 关闭呈现（代旧 sheet 的 dismiss 环境值）
+    let onClose: () -> Void
 
     @State private var text = ""
     @State private var initialized = false
@@ -1516,175 +1533,195 @@ struct FeedBriefEditorView: View {
     @State private var baselineText = ""
     @State private var draftConflictShown = false
 
+    /// 未改字判定（与草稿对账同源 FeedBriefBoard）：
+    /// 保存钮灰置档位以此为准——仅视觉档位，钮恒可
+    /// 用（§473 定版：禁用只剩 briefSaving 一因）
+    private var textUnchanged: Bool {
+        !FeedBriefBoard.textChanged(baselineText, text)
+    }
+
     var body: some View {
-        NavigationStack {
-            Form {
-                // 说明置顶＋全文编辑（§473 件一，形态对
-                // 齐 Muse 图 2：标题下先一句说明、再全
-                // 文、底部取消/保存双钮）
-                Section {
-                    Text("你的动态版块由以下指示驱动。"
-                         + "你对此简报做出的任何编辑，"
-                         + "都将应用于今后的动态帖子。")
-                        .font(.subheadline)
-                        .foregroundStyle(Palette.inkSecondary)
-                    TextEditor(text: $text)
-                        .frame(minHeight: 220)
-                } footer: {
-                    // 润色状态至多一行弱提示（§473 件
-                    // 一）：整理在后台进行——页内无转
-                    // 圈、不阻塞保存
-                    if let doc = store.briefDoc,
-                       let hint = weakPolishHint(doc) {
-                        Text(hint)
-                    }
+        VStack(spacing: TopPanelMetrics.cardButtonGap) {
+            card
+            buttonRow
+        }
+        .task {
+            // 打开必回读最新 briefDoc（§473 件一）：
+            // 不许再以「已有缓存」跳过——服务端润
+            // 色写回的专业稿靠本回读进编辑器（简报
+            // 定版第 3 条的 App 侧断链就此接上）
+            await store.loadBrief(appState: appState)
+            if !initialized {
+                let server = serverText
+                baselineText = server
+                if let draft = store.briefDraftText,
+                   FeedBriefBoard.textChanged(server, draft) {
+                    // 未保存草稿与服务端回读不一致：先以
+                    // 草稿占位并弹问，不许静默吞（§459）
+                    text = draft
+                    draftConflictShown = true
+                } else {
+                    text = server
                 }
-
-                Section {
-                    HStack(spacing: OneDayMetrics.spacingM) {
-                        Button {
-                            dismiss()
-                        } label: {
-                            Text("取消")
-                                .font(.headline)
-                                .foregroundStyle(Palette.ink)
-                                .frame(maxWidth: .infinity)
-                                .frame(
-                                    height: ApprovalCardSpec
-                                        .buttonHeight
-                                )
-                                .background(
-                                    Palette.surface, in: Capsule()
-                                )
-                                .contentShape(Capsule())
-                        }
-                        .buttonStyle(.odPressable)
-                        // 保存钮沿 §118 主钮形态（通栏胶
-                        // 囊、主钮配色）：禁用只剩
-                        // briefSaving 一因（§473 件一）——
-                        // 未改字恒可点（同文落盘无副作
-                        // 用）、不许再被「未变更」灰掉
-                        Button {
-                            Task { await save() }
-                        } label: {
-                            ZStack {
-                                Text("保存")
-                                    .font(.headline)
-                                    .foregroundStyle(
-                                        Palette.onPrimary
-                                    )
-                                if store.briefSaving {
-                                    HStack {
-                                        Spacer()
-                                        ProgressView()
-                                            .controlSize(.small)
-                                            .tint(Palette.onPrimary)
-                                    }
-                                    .padding(
-                                        .trailing,
-                                        OneDayMetrics.spacingM
-                                    )
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(
-                                height: ApprovalCardSpec
-                                    .buttonHeight
-                            )
-                            .background(
-                                Palette.primaryPale, in: Capsule()
-                            )
-                            .contentShape(Capsule())
-                        }
-                        .buttonStyle(.odPressable)
-                        .disabled(store.briefSaving)
-                    }
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                } footer: {
-                    Text("保存后原样生效；整理出新版会立刻"
-                         + "按新简报去看一轮。平时每天早上 "
-                         + "8:30 例行一轮，有新发现就多一篇，"
-                         + "没有就不凑数。")
-                }
-
-                if let error = store.briefError {
-                    Section {
-                        Text(error)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-                }
+                initialized = true
             }
-            .navigationTitle("我的简报")
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                // 打开必回读最新 briefDoc（§473 件一）：
-                // 不许再以「已有缓存」跳过——服务端润
-                // 色写回的专业稿靠本回读进编辑器（简报
-                // 定版第 3 条的 App 侧断链就此接上）
+            // pending 期轻轮询（§473 件一）：约 10s
+            // 回读一次、done/error 即停；只换基线，
+            // 编辑框跟随与否在 onChange(briefDoc)
+            // 按「未改字才跟随」口径处理
+            while !Task.isCancelled,
+                  let doc = store.briefDoc,
+                  Self.polishInFlight(doc) {
+                try? await Task.sleep(for: .seconds(10))
+                if Task.isCancelled { break }
                 await store.loadBrief(appState: appState)
-                if !initialized {
-                    let server = serverText
-                    baselineText = server
-                    if let draft = store.briefDraftText,
-                       FeedBriefBoard.textChanged(server, draft) {
-                        // 未保存草稿与服务端回读不一致：先以
-                        // 草稿占位并弹问，不许静默吞（§459）
-                        text = draft
-                        draftConflictShown = true
-                    } else {
-                        text = server
-                    }
-                    initialized = true
-                }
-                // pending 期轻轮询（§473 件一）：约 10s
-                // 回读一次、done/error 即停；只换基线，
-                // 编辑框跟随与否在 onChange(briefDoc)
-                // 按「未改字才跟随」口径处理
-                while !Task.isCancelled,
-                      let doc = store.briefDoc,
-                      Self.polishInFlight(doc) {
-                    try? await Task.sleep(for: .seconds(10))
-                    if Task.isCancelled { break }
-                    await store.loadBrief(appState: appState)
-                }
-            }
-            .onChange(of: store.briefDoc) { _, newDoc in
-                // 轮询换新（§473 件一）：编辑框仍等于旧
-                // 基线（用户未改字）时跟随新全文；已改
-                // 字只换基线、不覆盖编辑框
-                guard initialized, let newDoc else { return }
-                let newServer = FeedBriefBoard
-                    .effectiveText(newDoc)
-                if !FeedBriefBoard.textChanged(baselineText, text) {
-                    text = newServer
-                }
-                baselineText = newServer
-            }
-            .onChange(of: text) { _, newValue in
-                if initialized {
-                    store.noteBriefDraft(
-                        newValue, serverText: baselineText
-                    )
-                }
-            }
-            .confirmationDialog(
-                "有未保存的修改",
-                isPresented: $draftConflictShown,
-                titleVisibility: .visible
-            ) {
-                Button("继续编辑未保存的内容") {}
-                Button(
-                    "用服务器上的版本", role: .destructive
-                ) {
-                    text = baselineText
-                    store.discardBriefDraft()
-                }
-            } message: {
-                Text("上次写的内容还没保存，和服务器上的简报不一样。")
             }
         }
+        .onChange(of: store.briefDoc) { _, newDoc in
+            // 轮询换新（§473 件一）：编辑框仍等于旧
+            // 基线（用户未改字）时跟随新全文；已改
+            // 字只换基线、不覆盖编辑框
+            guard initialized, let newDoc else { return }
+            let newServer = FeedBriefBoard
+                .effectiveText(newDoc)
+            if !FeedBriefBoard.textChanged(baselineText, text) {
+                text = newServer
+            }
+            baselineText = newServer
+        }
+        .onChange(of: text) { _, newValue in
+            if initialized {
+                store.noteBriefDraft(
+                    newValue, serverText: baselineText
+                )
+            }
+        }
+        .confirmationDialog(
+            "有未保存的修改",
+            isPresented: $draftConflictShown,
+            titleVisibility: .visible
+        ) {
+            Button("继续编辑未保存的内容") {}
+            Button(
+                "用服务器上的版本", role: .destructive
+            ) {
+                text = baselineText
+                store.discardBriefDraft()
+            }
+        } message: {
+            Text("上次写的内容还没保存，和服务器上的简报不一样。")
+        }
+    }
+
+    /// 编辑卡：页头两行钉住（标题＋一句说明，错误回
+    /// 执随页头同钉）＋正文卡内滚动、上下缘淡出遮罩
+    private var card: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            FeedBriefPanelHeader(
+                briefError: store.briefError,
+                expandError: store.briefDoc?.expandError
+            )
+            TextEditor(text: $text)
+                .font(.body)
+                .foregroundStyle(.white)
+                .tint(.white)
+                .scrollContentBackground(.hidden)
+                .background(Color.clear)
+                // TextEditor 内建 5pt 行首缩进补偿：
+                // 正文左缘与页头标题对齐（参照同形）
+                .padding(.leading, -5)
+                .padding(.top, 6)
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0),
+                            .init(color: .black, location: 0.07),
+                            .init(color: .black, location: 0.93),
+                            .init(color: .clear, location: 1),
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+        }
+        .padding(
+            .horizontal, TopPanelMetrics.contentHorizontalInset
+        )
+        .padding(.top, 24)
+        .padding(.bottom, 14)
+        .frame(
+            height: TopPanelMetrics.cardHeight(
+                screenHeight: screenHeight
+            )
+        )
+        .frame(maxWidth: .infinity)
+        .background(
+            TopPanelMetrics.cardFill,
+            in: RoundedRectangle(
+                cornerRadius: TopPanelMetrics.cornerRadius,
+                style: .continuous
+            )
+        )
+        .padding(
+            .horizontal, TopPanelMetrics.cardHorizontalInset
+        )
+    }
+
+    /// 双钮出卡固定（§482 照参照）：卡下 10pt、黑底
+    /// 上等宽胶囊；保存未改字呈灰置观感（仅视觉档
+    /// 位、恒可用，见 textUnchanged）
+    private var buttonRow: some View {
+        HStack(spacing: TopPanelMetrics.buttonSpacing) {
+            Button {
+                onClose()
+            } label: {
+                Text("取消")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: TopPanelMetrics.buttonHeight)
+                    .background(
+                        TopPanelMetrics.cardFill, in: Capsule()
+                    )
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.odPressable)
+            Button {
+                Task { await save() }
+            } label: {
+                ZStack {
+                    Text("保存")
+                        .font(.headline)
+                        .foregroundStyle(
+                            textUnchanged
+                                ? TopPanelMetrics.saveIdleLabel
+                                : .white
+                        )
+                    if store.briefSaving {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(.white)
+                        }
+                        .padding(
+                            .trailing, OneDayMetrics.spacingM
+                        )
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: TopPanelMetrics.buttonHeight)
+                .background(
+                    TopPanelMetrics.cardFill, in: Capsule()
+                )
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.odPressable)
+            .disabled(store.briefSaving)
+        }
+        .padding(
+            .horizontal,
+            TopPanelMetrics.buttonRowHorizontalInset
+        )
     }
 
     /// 服务端生效全文（store 回读口径；baselineText
@@ -1694,7 +1731,7 @@ struct FeedBriefEditorView: View {
     }
 
     /// 润色在飞判定（新契约 pending／旧桥 idle 且
-    /// expanding 同义，§459 旧口径）：轮询与弱提示共用
+    /// expanding 同义，§459 旧口径）：轮询口径
     private static func polishInFlight(
         _ doc: BridgeBriefDoc
     ) -> Bool {
@@ -1702,30 +1739,62 @@ struct FeedBriefEditorView: View {
             || (doc.polishState == .idle && doc.expanding)
     }
 
-    /// 弱提示单行（§473 件一）：在飞只给一句静态文
-    /// 案（无转圈）；其余状态沿 FeedBriefBoard
-    /// .polishHint 口径；旧桥 expandError 兜底一行
-    private func weakPolishHint(
-        _ doc: BridgeBriefDoc
-    ) -> String? {
-        if Self.polishInFlight(doc) {
-            return "正在整理成正式简报，整理完这里会自动换成新版。"
-        }
-        if let hint = FeedBriefBoard.polishHint(doc) {
-            return hint
-        }
-        if let error = doc.expandError, !error.isEmpty {
-            return "上次整理没成功：\(error)"
-        }
-        return nil
-    }
-
     private func save() async {
-        // 保存成功即关页（对齐 Muse 表单形态：保存＝
+        // 保存成功即关页（对齐参照表单形态：保存＝
         // 落盘＋离开）；失败留在页内看 briefError
+        // 触感补接线（§482）：走全 App 单源表 D 既
+        // 有语义（保存＝任务成功／操作失败），只接
+        // 线不新造；失败震以 briefError 回执在案为
+        // 准——无回执的静默 false（如未连接时保存
+        // 守卫）不震
         if await store.saveBriefText(appState: appState, text) {
             baselineText = serverText
-            dismiss()
+            Haptics.success()
+            onClose()
+        } else if store.briefError != nil {
+            Haptics.error()
+        }
+    }
+}
+/// 简报面板页头（§482）：只剩两行——标题「动态说
+/// 明」＋一句说明，钉在卡顶不随正文滚；错误回执
+/// （保存失败／上次整理失败）随页头同钉、恒可见。
+/// 独立成件以便钉测实测其高（见 §482 钉测）。
+struct FeedBriefPanelHeader: View {
+    let briefError: String?
+    let expandError: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("动态说明")
+                .font(.title2.bold())
+                .foregroundStyle(.white)
+            Text("你的动态版块由以下指示驱动。"
+                 + "你对此说明做出的任何编辑，"
+                 + "都将应用于今后的动态帖子。")
+                .font(.subheadline)
+                .foregroundStyle(
+                    TopPanelMetrics.textSecondary
+                )
+            // 错误回执（功能必需，§482 清点留）：
+            // 保存失败即时回执
+            if let briefError {
+                Text(briefError)
+                    .font(.footnote)
+                    .foregroundStyle(
+                        TopPanelMetrics.errorText
+                    )
+            }
+            // 错误回执（同上）：上次整理失败的服务
+            // 端回执（旧 weakPolishHint 的 expandError
+            // 分支——其余弱提示文案已按 §482 全删）
+            if let expandError, !expandError.isEmpty {
+                Text("上次整理没成功：\(expandError)")
+                    .font(.footnote)
+                    .foregroundStyle(
+                        TopPanelMetrics.errorText
+                    )
+            }
         }
     }
 }
