@@ -123,8 +123,25 @@ final class HapticsMatrixTests: XCTestCase {
         // 件盘零触感变化。逐文件归因对账（rel-05109
         // →合并树）全部落点增量只在 §452 两文件、
         // 无既有落点丢失
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 57)
-        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 7)
+        // §483（HIG 批 B-1 触感分拣，审计 P1-03）：
+        // error 57 处逐处按「用户是否真感知到失败」
+        // 分拣——56 处为用户主动动作＋失败当场呈现
+        // （notice/失败行/条目标记），保留；1 处改判
+        // warning：FileOpenView.performRename 校验支
+        // （改名链已走完、回读未确认新文件落定、原
+        // 文件未动）属表 D 本义「结果未确认」，与删
+        // 除未生效等同类落点同档（error 57→56、
+        // warning 7→8）；合并档 0 处——同事件多落点
+        // 簇（听写起管道/扫码认领/改名链/提交泵）逐
+        // 簇核为互斥分支，单次事件至多震一次，无连
+        // 带双响可并。分拣全表见 DESIGN §483。
+        // 组版对账注意：§482（feat/brief-editor-top-
+        // panel 分支）另在简报编辑器 save 失败新接
+        // 一 error 落点（该线自记 57→58）；与本线合
+        // 并后 error 应为 56＋1＝57、warning 8，组版
+        // 时以合并树实数为准再对账
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 56)
+        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 8)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
         // 复制动作由打开页与 QL 承载面承接、两面各自

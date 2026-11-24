@@ -17414,3 +17414,15 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **红项处置**：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–114 逐字同红、已裁可接受；本版无新红、无改钉。注记：ThemeAlign431Tests 在 114 原始整跑中为改钉前红项，改钉 c4b174d 已随 rel-05114 在册，本版整跑该套 3/3 直接绿。
 - **IPA**：Release BUILD SUCCEEDED（dd-05115-release，rc=0）；OneDay-0.50.115-243.ipa，16,869,455 字节，md5 288dafd61586749b9f0fb2f3f62b594d；unzip 直验主 App 本体 plist 三值 0.50.115／243／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.115-243.ipa）md5 一致。
 - **真机门（归用户 verdict）**：件一——①打开简报编辑页即见服务端最新稿（润色已写回时不再是旧稿）；②润色在飞时编辑页约 10s 自动换新版（未改字时跟随、已改字只换基线不覆盖输入）；③编辑页无阻塞转圈，保存钮口径只剩保存中禁用、保存失败留页见错误。件三——④文件/资源库影音分类按 UTType 判类（mkv/m2ts/mka 兜底在位），注：生产影音实数仍为 0，此项待真实影音文件出现时验，本版只防未来错分类。件四——⑤资源库搜索空态下页头簇与筛选片钉顶（与有内容态同为 y=55）、不再整栈下移居中；⑥资源库页有「资源库」大标题、与兄弟页同字阶。
+
+## §483 HIG 批 B-1 触感分拣（2026-11-24；基线 rel-05115 @ccb6a20；分支 feat/hig-haptics-sort）
+
+一件：全 App HIG 合规审计 P1-03——Haptics.error() 57 处落点密度与宪法映射不符（宪法与 HIG 三类生成器逐项对得上、病在落点分拣），逐处按「用户是否真感知到失败」全量分拣落码。
+
+- **分拣口径**：error 只给「用户主动动作＋失败当场呈现（notice／失败行／条目标记）」的真失败；「已发出／已执行但结果未确认」归 warning（表 D 本义）；用户感知不到的失败降不震；同事件多落点非互斥才合并。
+- **三档计数**：保留 56／改判 warning 1／降不震 0／合并 0。合并为 0 的依据：同事件多落点簇（听写起管道 389/394/408、扫码认领 476/482、改名链、提交泵）逐簇核为互斥分支，单次事件至多震一次，无连带双响可并。逐处明细（57 行，文件:基线行号／场景／判定）见附表 ~/workspace/oneday-design-review/hig-p103-haptics-sort-table-20261124.md。
+- **唯一改判**：FileOpenView.swift:733 performRename 校验支——改名链已走完、回读没能确认新文件落定（原文件保持不变），属「结果未确认」而非真失败，error→warning，与删除未生效等同类落点同档；同函数请求抛错的真失败在 catch 支（基线 777）仍归 error。改名链其余三支（名不合法 662／同名冲突 702／文件太大 709）均为当场拦截的真失败、保留 error。
+- **落码三件**：FileOpenView 733 支改判＋注释；Haptics.swift 头注立规（error 只给真失败、未确认一律 warning 或无触感）；HapticsMatrixTests 改钉 error 57→56、warning 7→8 并写入分拣与合并对账注记。
+- **§482 合并对账**：§482（feat/brief-editor-top-panel）分支上 error 为 58（简报编辑器 save 失败新接一落点，该线自记 57→58）；本线基数 57（rel-05115）。两线组版合并后 error 应为 56＋1＝57、warning 8——组版时以合并树（并集）实数为准再对账、改钉随合并树走。
+- **测试**（专属模拟器 HapticsPhone483 直跑、未占共享通道、未 kick；Xcode 27.2）：受影响 6 套共 40 项全过、0 败、TEST SUCCEEDED——HapticsMatrixTests 4／FilePreviewSingleTrackStructureTests 4／DemoFileLibraryTests 5／FileOpenFailureTests 5／FileOpenRouteTests 16／FileRenamePlanTests 6（xcresult Test-Haptics483）。注记：本线首轮跑测曾因新 worktree 未 `tuist install` 而 generate 失败（workspace 不存在、exit 66），补 install 后 generate 与整跑全过，非代码问题。
+- **真机门（归用户 verdict）**：改名回读未确认场景下触感由 error 档变 warning 档（震感变轻一档）；其余 56 处无行为变化。
