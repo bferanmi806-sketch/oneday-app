@@ -475,7 +475,8 @@ struct SettingsView: View {
     /// 题＝状态词（状态即行内容）、体检行副题＝上次
     /// 结论（没跑过不占副题位、降普通行）、状态行副
     /// 题＝「汇总」（S14：汇总页性质明示，与枢纽工
-    /// 作台账、服务端会话名单分清）
+    /// 作台账、服务端会话名单分清；§470 后状态条目
+    /// 已降仅搜索可达，本特型浏览态不可达、保留备查）
     @ViewBuilder
     private func browseRow(for entry: SettingsCatalogEntry) -> some View {
         switch entry.destination {
@@ -520,6 +521,10 @@ struct SettingsView: View {
                 catalogNavRow(entry)
             }
         case .status:
+            // §470：状态条目已降仅搜索可达（搜索走
+            // searchRow 不经本分流），本特型浏览态不
+            // 可达、保留备查（与 serverSessions 深链
+            // 备查同式）
             statusNavRow(
                 icon: iconName(for: entry),
                 title: L10n.string(entry.title),
