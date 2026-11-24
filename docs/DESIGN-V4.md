@@ -17799,3 +17799,14 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **帧证据**（临时探针 Tests/OneDayUITests/SettingsTreeFrameProbeUITests，验后已删＋重新 generate）：根页顶部帧（智能体段恰 7 行止于定时任务、无 api_server／审批开关）、根页底部帧（服务器段终于网关状态、无断开行；偏好 5＋支持 2＋页脚）、服务器页页末帧（版本与更新组后独立组红字断开行）、确认框帧（iOS 26 在本呈现上下文把 confirmationDialog 渲为 popover 式：标题／消息／破坏性钮齐、无独立「取消」钮、点外关闭——探针首轮以取消钮存在性断言误判「未呈现」，帧面实证纠正后全过；演示模式注册表为空，值行缺席的机制证据由生产同形记录钉测承担、帧只管渲染形态）。
 - **真机门**：根页无三件且 16 行与目录一致；当前服务器页页末断开连接可点且确认框照旧；中枢审批规则页两条写入审批状态行照常（直查不受门影响）。
 - **节号注记**：本节 §496 按并集顺延取号（§494 流式呈现／§495 0.50.119 组版在 rel-05119 线），组版时按对照法核对顺延。
+
+## §497 0.50.120 组版（2026-11-24；基线 rel-05119 @e838fbfd）
+
+单件成版：§496 设置目标树落码 App 侧（feat/settings-tree-fix，基线 rel-05118，两笔 e9775bf1/a679064b）。服务端半边已随部署包 1.22.0 上线，本版只合 App 侧。
+
+- **合并图**：rel-05120 自 rel-05119 tip e838fbfd 分叉，合 feat/settings-tree-fix（合并提交 66a86140）。冲突 1：docs/DESIGN-V4.md 尾附（并集亲解，§494→§495→§496 顺排）；代码 5 文件（SettingsRegistry／SettingsView／ServerDetailView＋SettingsRegistryTests／SettingsCatalogTests）自动合并。版本戳 0.50.120/248（提交 13d5d302：Project.swift→tuist install＋generate→Derived 亲验 0.50.120/248，generate 后未还原 Derived）。
+- **节号对照**：§496 已在待合分支取号，合入后按并集顺延核对无撞号；本组版节 §497。
+- **发布集对账**：自 119 发布 bundle（results/Test-OneDayApp-rel05119.xcresult＋Test-UI-rel05119.xcresult）以 xcresulttool 提取全限定名——单元 191 套/1537 项、UI 6 套/13 项，与 §495 记账闭合。设置树新增逐项：SettingsRegistryTests 新钉 testRegistryValueRowsNeverEnterBrowse 1 项（三测翻案同名、不增减）；120 发布集＝单元 191 套/1538 项＋UI 13 项。整跑实测 1538 项精确命中、逐套对 119 零掉套、恰 +1。
+- **整跑结果**：单元 1536 过／2 红／0 跳。红一 MarkdownEngineDifferentialTests/testPerformanceGate（#13 性能门，整树老红、逐版同红已裁可接受）。红二 ChatSwapStep4cProbeTests/testDrawerWindowLatencyAndCostDroppedVsRetained（名单外）——延迟探针：基线五轮 62.9/61.7/37.8/57.8/57.5ms、阈值锚单次最快 37.8ms，删冻 min 58.8ms 以 0.08ms 越线；时值多线满载、与本版改动面（设置注册表/服务器页）无关。隔离复跑（新建 Rel120SwapPhone＋独立 DerivedData 直跑，未占共享通道）**TEST SUCCEEDED**——基线 29.0–34.7ms、删冻 28.4–33.3ms，删冻不劣，判满载噪声间歇红、非本版回归（复跑后模拟器已 shutdown）。UI 全跑 11 过／0 红／2 跳，与 119 同形。改动面相关套 SettingsRegistryTests 14 项（含新钉）与 SettingsCatalogTests 在合并树全绿。
+- **IPA**：OneDay-0.50.120-248.ipa，28,036,689 字节，md5 7ef35c0022c5c75ee0b7184d958f3a46（Mac 与 VM 副本双边一致）；unzip 直验主 App 本体 plist 三值 0.50.120／248／site.didichou.oneday。Release 构建 dd-05120-release、CODE_SIGNING_ALLOWED=NO、BUILD SUCCEEDED。
+- **真机门（归用户 verdict）**：§496 三项——①设置根页无三件（api_server 平台工具集行、记忆/技能写入审批两开关）且 16 浏览行与目录一致；②当前服务器页页末断开连接可点、确认框照旧（iOS 26 在本呈现上下文渲为 popover 式：无独立取消钮、点外关闭，非缺陷）；③中枢审批规则页两条写入审批状态行照常（直查不受门影响）。
