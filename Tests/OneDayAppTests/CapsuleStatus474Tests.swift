@@ -91,6 +91,11 @@ final class CapsuleStatus474Tests: XCTestCase {
     /// 第二胶囊摘除：聊天顶簇不再实例化进展胶囊、
     /// 呈现件本体退役；台账活动派生保留在中枢（归
     /// 中枢呈现的证据）
+    /// 组版 0.50.116 改钉注记：第三断言原钉 AgentHubView
+    /// 直调 ProgressCapsule.derive；§477 中枢全抄已把活
+    /// 动语义改判为 liveActivityPhrase 单源（码内注「与
+    /// §474 胶囊线同源收口」），状态行仍活动优先呈现、
+    /// §474 实质不变，断言随之改钉新单源字面。
     func testSecondCapsuleRemovedFromChatSurface() throws {
         let chat = try source("Sources/OneDayApp/ChatView.swift")
         let hub = try source("Sources/OneDayApp/AgentHubView.swift")
@@ -108,8 +113,8 @@ final class CapsuleStatus474Tests: XCTestCase {
             "§474：进展胶囊呈现件本体应退役"
         )
         XCTAssertTrue(
-            hub.contains("ProgressCapsule.derive("),
-            "§474：台账活动派生应保留在中枢状态行（活动归中枢）"
+            hub.contains("liveActivityPhrase"),
+            "§474：活动派生应保留在中枢状态行（活动归中枢；派生源随 §477 改判 liveActivityPhrase 单源）"
         )
     }
 }

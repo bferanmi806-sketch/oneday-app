@@ -101,6 +101,14 @@ final class TopBarSingleActionTapTests: XCTestCase {
         // 像同带（钮心纵差 ≤14＝设计 7.5＋AX 宽容）；
         // 胶囊压头像下沿（顶边在头像心之下、头像底
         // 之上）；两钮与头像横向不重叠
+        // 组版 0.50.116 改钉注记：XCUI 报的 capsule 帧
+        // 是胶囊内容帧（钮体恒 44 高、hero 底对齐与头
+        // 像底距 36 在 §474/§477/§479 合并中一字未动，
+        // 玻璃胶囊本体仍压头像下沿 ≈8）；§474 起空闲
+        // 态第二行不呈现，内容由两行（37）变一行（20）、
+        // 内容顶随之上移 8，旧「内容顶须压进下沿」口
+        // 径改钉为「内容跨下沿带」：顶在头像心之下、
+        // 底过头像底、顶距下沿 ≤12（两态实测 −4/+4）
         if abs(f0.avatar.width - 67) > 1.5
             || abs(f0.avatar.height - 67) > 1.5 {
             violations.append(
@@ -117,7 +125,8 @@ final class TopBarSingleActionTapTests: XCTestCase {
                     + "\(f0.bell.midY - f0.avatar.midY)")
         }
         if !(f0.capsule.minY > f0.avatar.midY
-             && f0.capsule.minY < f0.avatar.maxY) {
+             && f0.capsule.minY < f0.avatar.maxY + 12
+             && f0.capsule.maxY > f0.avatar.maxY) {
             violations.append(
                 "身份胶囊未压头像下沿：capsule=\(fmt(f0.capsule)) "
                     + "avatar=\(fmt(f0.avatar))")
