@@ -17365,3 +17365,5 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 概况只留人话字段：来源（sourceWord）／开始／结束／用时（终态）；「最后确认」只在失联待核时出行（它就是失联判据），活跃态时长归页首摘要不重复占行。类别行撤（身份由标题与列表行承载）。
 - 「技术信息」整段撤除（状态原文/类别原文/来源原文/记账来源/标题来源/条目编号/会话编号/运行编号/纠正者全撤）：旧口径「本页技术信息区是排障原文唯一的家」作废（2026-11-24 用户裁），排障原文归设置诊断领地（ChatDiagnosticsView 一带），本页零原文枚举。事件时间线、失败原因节、工作量节、任务/审批续行下钻与打开会话入口原样保留，文案全走 LedgerText 既有单源、无新造词表。
 - 钉测：Tests/OneDayCoreTests/LedgerDetailSummaryTests 新增 6 法（completed/running/failed/stale 四态摘要＋缺结束时刻 nil＋状态词零原文）。
+
+- §475 实跑（独立模拟器 iPhone 17e 直跑，避共享通道占用；bundle ~/build/jobdetail-475.xcresult）：LedgerDetailSummaryTests 6＋LedgerModelsTests＋LedgerMonitorChangeTests 共 41 项全过、0 失败，** TEST SUCCEEDED **；App 目标整体编译通过。源码核查：LedgerDetailView 内 UI 原文标签（状态原文/类别原文/来源原文/记账来源/标题来源/条目编号/技术信息）零出现，rawValue 仅剩时间线解析（输出走 statusWord）。页面截图量测未做——详情页需真实台账数据驱动导航，归组版 UI 测/真机 verdict 一并验（标题/chip/摘要/时间线四件以源码结构＋Core 钉测先行对位）。
