@@ -17348,3 +17348,57 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–112 逐字同红、已裁可接受。本版无新红、无改钉（HapticsMatrixTests 本轮全过）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05113-release，rc=0）；~/build/OneDay-0.50.113-241.ipa，16,835,397 字节，md5 7207d8acc03eca5e0a0fdade6fccd738；unzip 直验主 App 本体 plist 三值＝0.50.113／241／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.113-241.ipa）md5 一致。
 - 真机门（归用户 verdict）：①杀 App 48h 后重开，一轮前台周期内（≤15 分钟）calendar/reminders 的 synced_at 均刷新、审计账出现新成功记录、设备同步总览两行转绿；②装版先看健康面第一屏定因回读（权限分型人话＝实锤 blocked 分支）＋诊断段自检结论与审计逐条对账；③逐数据集点「立即同步」时刻往前走，断网点一次失败原因红字显形、不报假成功；④系统设置关日历权限→同步页该行红点＋「权限已关，去系统设置里开启」，恢复后下一轮自检自动恢复推送；⑤飞行模式回前台→恢复网络，退避到点自动补同步；提醒读取不再整轮挂死。
+
+## §480 动态＋点子两页全抄修复（2026-11-24）
+
+施工图＝three-pages-audit-20261124（动态/点子两页；资源库归 §473 件四）。分支 feat/feed-ideas-copy、基线 rel-05113。基线真貌先经构建实帧核对：两页均无页头簇（动态＝系统导航大标题＋工具栏滑杆钮、点子＝系统导航大标题＋87.7pt 空白），审计被审帧的簇与代码不符——以用户 10:34 亲正口径（页头统一、胶囊在动态页同样有）为准施工，帧来源差异只登记不采信。
+
+### 480.1 页头单源（新件 ContentPageHeader）
+
+- 审计 §三定因：五内容页页头/标题层无单源组件在管。本节立 ContentPageHeader（Sources/OneDayApp/ContentPageHeader.swift）：左抽屉圆钮（PageHeaderCircleButton：玻璃盘 HeaderButtonSpec 40＋命中域 44，与文件页 headerCircleButton 同值同材质）＋居中身份区（HubAvatarButton hero 67＋HubIdentityCapsule 压下沿 8，与聊天页 headerIdentityHero 逐值同构成）＋右页专属圆钮槽。动态/点子两页接入，导航栏在两页根隐藏（.toolbar(.hidden, for:.navigationBar)），推入页各自声明栏可见性（文件页同式先例）。
+- 大标题令牌 Font.pageTitle（LargeTitle 34 bold）入 FontRoles，两页共用；screenName（抽屉名头 28）是另一角色、不合并。
+- HubIdentityCapsule 的 onFindInConversation 改可选（§449 的「在对话中查找」是聊天专属下沉动作）：聊天页传闭包、行为一字不变；内容页传 nil 时长按菜单只留「打开枢纽」、不挂空 VO 动作。
+- 胶囊小字数据源：liveActivityPhrase?? 连接状态词（与 §474 单源方向同路；小字口径归 §474，本节只消费）；头像角点状态词/色与文件页 IdentityAnchor 同口径（config 缺位＝未连接/inkMuted、余＝在线/success）。
+- 中枢落点：两页各以本栈 navigationDestination(isPresented:) 推 AgentHubView（无注入包，modelEntry=nil 时中枢不显模型入口——AgentHubView 既有口径）。
+- 偏差①：标题/字段/簇横向一律 pageGutter 20（全 App 页边距单源），参照帧为 16——4pt 差为 house 令牌单源所致，列明存档。
+
+### 480.2 动态标题下字段槽
+
+- 形态判定单点＝FeedView.fieldMode ＋ collapseThreshold（24pt）：静止态＝简报胶囊（当前生效全文首行、单行省略，点开简报编辑器）；滚动收起后＝搜索字段形态顶替（照参照滚动帧量测：fieldFill 填充、高 50、radiusPreview 圆角、占位「搜索动态」17pt 档）；搜索激活＝真搜索行（FileSearchField 单源件＋「取消」，与资源库页同式，过滤走既有 FeedListSnapshot）。
+- 本衔接是审计 §1.3 的**推定非实证**（静止帧见简报胶囊、滚动帧同位见搜索字段，两帧非连拍）：真机帧若翻案，只改 fieldMode 判定与阈值一处，两形态件本体不动。
+- §126「简报胶囊行整行删除＋搜索改.searchable 工具栏点开式」口径就此作废（胶囊以字段槽形态回归，与 §126 所删旧行不同件）；滑杆钮自工具栏迁页头簇右位，落点不变（简报编辑器 sheet 本体归 §473 件一、本节未动）。
+
+### 480.3 动态行面
+
+- 标题：系统导航大标题退役，页内 pageTitle 34（480.1）。
+- 正文：核实既有 MarkdownText 走.body 规格（17pt／规格 leading 22，§263），与参照 17–18pt／22.2 一致——审计帧量测的 15–16／20 与规格不符，本节未改（依据：§263 规格表＋InlineTextFonts 实量口径）。
+- 话题灰片：§459 category chip 升参照档——.subheadline（≈15pt）＋padding（SM 水平/XS 垂直，高 ≈29）、selectionFill 圆角矩形（radiusTile），位置（标题下、正文上）与数据源（category 单源）不变。
+- 瓷砖：动态/点子两页 kicker 瓷砖圆角 6→radiusTile（9）收令牌；浅 tint 底＋深字形＋SF 字形（§462）本已扁平同形，未动。
+- 链接预览卡（新件 FeedLinkPreviewCard，FeedView.swift）：无来源卡时首链渲 OG 式卡（站点名＋标题＋域名、整卡 openURL），卡面与来源卡同族（surface 底＋radiusCard＋spacingM 内边距）。有来源卡时来源卡优先（仓库卡既有形态未动）；余下链接仍在详情页全量呈现。
+- 偏差②（数据契约所限）：桥 link 只有 {title, url}、不下发 og:site_name/og:description——站点名位与域名位同由 url 的 host 派生（去 www.；域名位非根路径时带路径以区分、根路径不重复显）。App 不自拼不假造（来源卡 §0.38 同旨）。
+- 链接出处图：首图 sourceUrl 命中本帖 links 或来源卡 url（＝该来源页 OG 图，桥抓图口径见 BridgeFeedImage）时不再整幅渲成封面图；真配图（不命中）照旧 FeedPostImageBox 16:9 通栏。动作行与正文蓝色链接为审计已对齐项，未动。
+
+### 480.4 动态页头滚动收起
+
+- 驱动：帖流 List 与种子帖 List 同挂 onScrollGeometryChange（归一化偏移＝contentOffset.y＋contentInsets.top；资源库页同 API 先例），过阈值收起：身份区与抽屉钮淡出、带高 107→48、滑杆圆钮留守、标题＋字段槽钉顶（整簇在列表外、天然钉顶）；动效 MotionTokens.swap（与资源库搜索行同款，reduceMotion 同读）。
+- 验收限制：演示模式下动态页是未连接态、无可滚列表——收起以托管副本探针验机制（真 ContentPageHeader＋同公式同阈值：静止 restOffset=0.0、滚至底 collapsed=true、静止/滚动两帧留痕）；真机滚动态帧待组版后由用户帧终判，与 480.2 推定同批坐实/翻案。
+
+### 480.5 点子页头接入
+
+- ContentPageHeader 接入（无专属右钮、恒不收起）＋pageTitle 大标题：状态栏下 87.7pt 空白消除。探针实证：点子页 capsule 元素在位、帧 (188,128,62×36) 与动态页同值。
+
+### 480.6 点子分类呈现收口
+
+- 卡面撤两件：「依据」行、categoryLabel 灰片——卡面分类呈现只剩 domain 分组一处（分组与卡面同源，审计帧实证的「个人效率」组下卡片自称「服务器运维」双源打架就此消除）。category 数据层口径不动（§459 生成侧在管，本节只收呈现层）。
+- 「依据」收进详情 sheet（生成卡且 evidence 非空才出、全文呈现）：此点**覆盖 §453**「依据小节整形态退役、不许搬进 sheet」——§453 退役的信息组（来源/生成于罗列）不复活，只收依据一件。
+
+### 480.7 点子行图标（P-2 关账）
+
+- 维持 §462 SF 字形口径（用户亲裁、证据等级高于 C 级录屏记录），不换内容插图。
+
+### 480.8 验收
+
+- 构建：xcodebuild build BUILD SUCCEEDED（工地 derivedData、iPhone 17e 目标）。
+- 探针（iPhone 17 Pro Max、演示模式、与基线同法）：FeedIdeasProbeUITests 2/2 过——动态/点子静止帧簇在位（capsule exists=true）、动态简报胶囊与滑杆在位、点子空白消除；FeedIdeasRenderProbeTests 2/2 过——链接卡两形态渲染图（带路径＝站点名/标题/域名三行齐、根路径＝域名行带路径区分）、页头收起副本（restOffset=0.0、collapsed=true）。
+- 相关套件一轮（Core：FeedAppA/FeedBoard/FeedCompact126/FeedDiscussQuote/FeedIdeasParity/FeedSeedPosts/FeedV2/HeaderButtonSpec/IdeaAnchor；App：FeedDiscussQuoteApp/HubActivity449/IdeasDeleteConfirm/TopBarBandFace/TopBarHitIntermittent；UI：HubPresentationProbe/TabBarIconInitial/SmokeGate）：共 134 例，130 过；4 红全在 SmokeGateUITests（BackToBottomArrow/ListEngineFlip/ListEnginePreset/DarkThemeAvatar），全为 40–59s 等待超时形、命题全在聊天列表面（本节零触碰）。基线对照：未改动的 rel-05113（576ec36、独立 worktree 同法同模拟器同负载）跑 testSmokeListEnginePresetFirstFrame 同样 40.4s 超时红——4 红定性为多线并行高负载（load 15min 均值一度 91）下的环境超时、非本节回归；该族等待超时在 §401.4 已有环境敏感登记（缺口二）。
+- 偏差清单：①页边距 20 vs 参照 16（480.1）；②链接卡站点名/域名同源 host（480.3）；③搜索激活行走 FileSearchField 单源件（高 ≈36）而非参照字段 50——收起态字段形态按参照 50 落，激活行从 house 单源（第 88 条对账优先于帧量测）。
