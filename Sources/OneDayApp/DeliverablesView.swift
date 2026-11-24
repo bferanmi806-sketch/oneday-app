@@ -158,6 +158,7 @@ struct DeliverablesView: View {
         return NavigationStack {
             VStack(spacing: 0) {
                 identityHeader
+                pageTitleRow
                 if searchVisible {
                     searchFieldRow
                 }
@@ -283,6 +284,23 @@ struct DeliverablesView: View {
                 FileShareSheet(url: item.url)
             }
         }
+    }
+
+    // MARK: - 页大标题（§473 件四②）
+
+    /// 大标题「资源库」：本页导航栏按定版隐藏
+    /// （.toolbar(.hidden, for: .navigationBar)，身份
+    /// 胶囊行代行顶栏），兄弟页的 .navigationTitle
+    /// 大字阶在本页无处落——标题改置内容区顶部，
+    /// 字阶与兄弟页统一（.largeTitle.weight(.bold)），
+    /// 横向边距走 pageGutter 与筛选片/列表同线。
+    private var pageTitleRow: some View {
+        Text("资源库")
+            .font(.largeTitle.weight(.bold))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, OneDayMetrics.pageGutter)
+            .padding(.top, OneDayMetrics.spacingSM)
+            .padding(.bottom, OneDayMetrics.spacingS)
     }
 
     // MARK: - 顶部身份区（左抽屉钮／中央胶囊／右 •••）
@@ -680,6 +698,13 @@ struct DeliverablesView: View {
         } else if let loadError, deliverables == nil {
             failureState(message: loadError)
         } else if snapshot.items.isEmpty {
+            // §473 件四：空态分支必须占满内容区——
+            // ODEmptyState 是刚性高度，若直接放进根
+            // VStack，整栈会收缩为内容高被宿主垂直居
+            // 中（页头被推离顶部，真机截图实证：页头
+            // 落到屏高约 39%）；占满后根栈恒全高、页
+            // 头钉顶，空态本体在内容区内居中（与
+            // ContentUnavailableView 同形态）
             emptyState(
                 title: query.isEmpty ? "暂无交付物" : "没有匹配的文件",
                 symbol: query.isEmpty
@@ -690,6 +715,7 @@ struct DeliverablesView: View {
                         : "换个筛选试试。")
                     : "换个关键词试试。"
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if displayMode == .list {
             fileListView(snapshot)
         } else {
