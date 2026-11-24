@@ -116,14 +116,16 @@ final class SettingsCatalogTests: XCTestCase {
     /// 区→维护）；§450（设置 IA 先行包）再收：添加
     /// 设备/设备配对收进服务器页内（仅搜索可达）、
     /// 日志/连接自检降仅搜索可达（工具型）、服务端
-    /// 会话条目整条退役——组浏览行 14→9
+    /// 会话条目整条退役——组浏览行 14→9；§470
+    /// （S5-11 打包改）三行再移出：状态降仅搜索可
+    /// 达、用量收进网关状态页、主线对话改深链——
+    /// 组浏览行 9→6
     func testServerAndWorkspaceGroupBrowseOrder() {
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .serverAndWorkspace).map(\.id),
             [
-                "server", "gateway", "usage",
-                "mainSession",
-                "status", "computer", "serverFiles",
+                "server", "gateway",
+                "computer", "serverFiles",
                 "envVars", "healthCheck",
             ]
         )
@@ -133,17 +135,16 @@ final class SettingsCatalogTests: XCTestCase {
     /// 段集是根页渲染的机器口径，不许渲染层另排
     func testServerAndWorkspaceSegments() {
         let segments = SettingsCatalog.browseSegments(in: .serverAndWorkspace)
-        // 台账 199 合流对账：会话段只剩 mainSession 一行（serverSessions 当年退役出段、§450 起条目本体整条删除）；服务器段 §450 后只剩连接本体三行（配对类收进服务器页、工具类降仅搜索）
+        // 台账 199 合流对账：会话段只剩 mainSession 一行（serverSessions 当年退役出段、§450 起条目本体整条删除）；服务器段 §450 后只剩连接本体三行（配对类收进服务器页、工具类降仅搜索）；§470 后：服务器段用量收进网关页、工作区段状态降仅搜索、会话段随主线对话改深链整段撤销——段集四段→三段
         XCTAssertEqual(
             segments.map(\.segment),
-            [.server, .sessions, .workspace, .maintenance]
+            [.server, .workspace, .maintenance]
         )
         XCTAssertEqual(
             segments.map { $0.entries.map(\.id) },
             [
-                ["server", "gateway", "usage"],
-                ["mainSession"],
-                ["status", "computer", "serverFiles"],
+                ["server", "gateway"],
+                ["computer", "serverFiles"],
                 ["envVars", "healthCheck"],
             ]
         )
@@ -195,13 +196,15 @@ final class SettingsCatalogTests: XCTestCase {
     /// （台账 198 收敛 S13：入口迁关于页内部实验节，
     /// 只进搜索索引）；§450 再加四条——添加设备/设
     /// 备配对（收进当前服务器页内）、日志/连接自检
-    /// （工具型降级），四条都仅搜索可达、功能不删
+    /// （工具型降级），四条都仅搜索可达、功能不删；
+    /// §470 再加三条——状态（汇总页降仅搜索）、用
+    /// 量（收进网关状态页内）、主线对话（改深链）
     func testHiddenFromBrowseEntries() {
         let hidden = SettingsCatalog.entries
             .filter { !$0.showsInBrowse }.map(\.id)
         XCTAssertEqual(
             Set(hidden),
-["identity","privacy","terms","disconnect", "chatDiagnostics", "crashReports", "addDevice", "pairing", "logs", "connectionSelfCheck"]
+["identity","privacy","terms","disconnect", "chatDiagnostics", "crashReports", "addDevice", "pairing", "logs", "connectionSelfCheck", "status", "usage", "mainSession"]
         )
     }
 
@@ -378,7 +381,11 @@ final class SettingsCatalogTests: XCTestCase {
     /// 整条退役）；各组浏览行——智能体 7／服务与工
     /// 作区 14→9／偏好 6／支持 2／顶层 0，浏览行合
     /// 计 24；根页渲染行＝浏览行＋手写断开行 1＝25
-    /// （改前 29，净减 4：配对收纳 2＋工具降级 2）
+    /// （改前 29，净减 4：配对收纳 2＋工具降级 2）；
+    /// §470（S5-11 打包改）再减：服务与工作区 9→6
+    /// （状态/用量/主线对话三行移出），浏览行合计
+    /// 21、根页渲染行 22，条目总数不变（34，只移
+    /// 落点不删条目）
     func testRootBrowseCountsAfterSettingsIA() {
         XCTAssertEqual(SettingsCatalog.entries.count, 34)
         XCTAssertEqual(
@@ -391,7 +398,7 @@ final class SettingsCatalogTests: XCTestCase {
             SettingsCatalog.browseEntries(
                 in: .serverAndWorkspace
             ).count,
-            9
+            6
         )
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .preferences).count,
@@ -399,6 +406,67 @@ final class SettingsCatalogTests: XCTestCase {
         )
         XCTAssertEqual(
             SettingsCatalog.browseEntries(in: .support).count, 2
+        )
+    }
+
+    /// §470（S5-11 打包改）：状态条目——整条移出
+    /// 根页、仅搜索可达；目的地/归属不变（汇总页
+    /// 本体不删，与 §450 R2 工具型降级同口径）
+    func testStatusEntryIsSearchOnly() {
+        let byId = Dictionary(
+            uniqueKeysWithValues: SettingsCatalog.entries.map {
+                ($0.id, $0)
+            }
+        )
+        XCTAssertEqual(byId["status"]?.destination, .status)
+        XCTAssertEqual(byId["status"]?.group, .serverAndWorkspace)
+        XCTAssertFalse(byId["status"]?.showsInBrowse ?? true)
+        XCTAssertTrue(
+            SettingsCatalog.search("状态").contains {
+                $0.id == "status"
+            }
+        )
+        // 副行词直达（汇总页性质词）
+        XCTAssertEqual(
+            SettingsCatalog.search("活动").first?.id, "status"
+        )
+    }
+
+    /// §470（S5-11 打包改）：用量条目——移出根页、
+    /// 仅搜索可达（入口收进网关状态页内，页内行在
+    /// App 层 GatewayView，本钉只管目录面）；英文
+    /// 关键词同达
+    func testUsageEntryIsSearchOnly() {
+        let hits = SettingsCatalog.search("用量")
+        XCTAssertEqual(hits.first?.id, "usage")
+        XCTAssertEqual(hits.first?.destination, .usage)
+        XCTAssertEqual(hits.first?.group, .serverAndWorkspace)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        XCTAssertTrue(
+            SettingsCatalog.search("usage").contains {
+                $0.id == "usage"
+            }
+        )
+    }
+
+    /// §470（S5-11 打包改）：主线对话——改深链呈
+    /// 现：条目保留、搜索（含旧名别名）直达详情页、
+    /// 根页不平铺；「会话」段随之整段撤销（S5-06
+    /// 独段问题同销）
+    func testMainSessionEntryIsDeepLinkOnly() {
+        let hits = SettingsCatalog.search("主线对话")
+        XCTAssertEqual(hits.first?.id, "mainSession")
+        XCTAssertEqual(hits.first?.destination, .mainSession)
+        XCTAssertFalse(hits.first?.showsInBrowse ?? true)
+        XCTAssertTrue(
+            SettingsCatalog.search("主线会话").contains {
+                $0.id == "mainSession"
+            }
+        )
+        XCTAssertFalse(
+            SettingsCatalog.browseSegments(in: .serverAndWorkspace)
+                .contains { $0.segment == .sessions },
+            "§470：根页会话段应整段撤销"
         )
     }
 }

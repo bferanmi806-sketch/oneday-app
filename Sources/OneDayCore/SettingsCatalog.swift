@@ -331,12 +331,17 @@ public enum SettingsCatalog {
             keywords: ["运行日志", "log", "logs"],
             destination: .logs, showsInBrowse: false, segment: .server
         ),
+        // 用量（§470，S5-11 打包改）：看数是工具不
+        // 是设置——自根页服务器段移出，收进网关状态
+        // 页内「用量」行直达（与 §450 配对收纳同式：
+        // 入口收进相关页、目录仅搜索可达）；条目与
+        // 目的地保留，UsageDetailView 本体不变
         SettingsCatalogEntry(
             id: "usage", group: .serverAndWorkspace,
             title: "用量",
             summary: "模型用量统计",
             keywords: ["统计", "消耗", "token", "usage"],
-            destination: .usage, segment: .server
+            destination: .usage, showsInBrowse: false, segment: .server
         ),
         // 连接自检（H13，台账 33，DESIGN §357）：连
         // 接语义归服务器段，与维护段的体检（服务端深
@@ -349,12 +354,18 @@ public enum SettingsCatalog {
             keywords: ["连接", "自检", "能力", "诊断", "探活", "capabilities", "self check", "health"],
             destination: .connectionSelfCheck, showsInBrowse: false, segment: .server
         ),
+        // 主线对话（§470，S5-11 打包改）：会话语义
+        // 属聊天面——根页行退役、改深链呈现（条目与
+        // 目的地保留，搜索命中经 activate 直达详情
+        // 页，与台账 199 服务端会话深链同式）；根页
+        // 「会话」段随本行移出整段撤销（S5-06 独段
+        // 问题同销）
         SettingsCatalogEntry(
             id: "mainSession", group: .serverAndWorkspace,
             title: "主线对话",
             summary: "主要对话、会话 ID",
             keywords: ["主线会话", "主线", "当前会话", "main session"],
-            destination: .mainSession, segment: .sessions
+            destination: .mainSession, showsInBrowse: false, segment: .sessions
         ),
         // 服务端会话条目已退役（§450，设置 IA 先行包）：
         // 目的地本体就是全部对话一级面（名单正主），设
@@ -368,12 +379,16 @@ public enum SettingsCatalog {
         // ——合流对接点落位为本条目，接替总览原位在工
         // 作区资源段首位直达（活动/定时/系统三段）。
         // 台账 198 收敛 S14：汇总页性质由根行副题明示
+        // §470（S5-11 打包改）：汇总页是状态下钻、
+        // 不是设置——整条移出根页，降为仅搜索可达
+        // （与 §450 R2 日志/连接自检的工具型降级同
+        // 口径）；StatusView 本体与 activate 点达不变
         SettingsCatalogEntry(
             id: "status", group: .serverAndWorkspace,
             title: "状态",
             summary: "活动、定时与系统状态",
             keywords: ["状态", "活动", "定时", "系统", "status", "overview", "工作区"],
-            destination: .status, segment: .workspace
+            destination: .status, showsInBrowse: false, segment: .workspace
         ),
         SettingsCatalogEntry(
             id: "computer", group: .serverAndWorkspace,
