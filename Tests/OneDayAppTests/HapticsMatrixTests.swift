@@ -123,12 +123,14 @@ final class HapticsMatrixTests: XCTestCase {
         // 件盘零触感变化。逐文件归因对账（rel-05109
         // →合并树）全部落点增量只在 §452 两文件、
         // 无既有落点丢失
-                // §482（简报编辑器呈现换轨）：FeedView
-        // save() 失败路径补 error 一落点（表 D
-        // 既有语义、只接线不新造），57→58；逐
-        // 文件归因：增量仅 FeedView 一处
-        XCTAssertEqual(count(of: "Haptics.error()", in: all), 58)
-        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 7)
+        // §482＋触感分拣合并对账（0.50.117 组版亲解）：
+        // §482 简报编辑器 save 失败新接一 error 落点
+        // （57→58）；触感分拣（原 §483）FileOpenView
+        // 改名未确认一处 error 改判 warning（error
+        // －1、warning＋1）。合并树实数：error 57、
+        // warning 8，以本钉为准。
+        XCTAssertEqual(count(of: "Haptics.error()", in: all), 57)
+        XCTAssertEqual(count(of: "Haptics.warning()", in: all), 8)
         // §259（文件预览双轨合一）：自研文档阅读页退
         // 役，其「复制全文」success 落点 −1（18→17）；
         // 复制动作由打开页与 QL 承载面承接、两面各自

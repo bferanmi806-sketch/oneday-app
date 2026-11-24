@@ -730,7 +730,13 @@ struct FileOpenContent: View {
                 notice = L10n.string(
                     "改名没完成：新文件没有确认成功，原文件保持不变。"
                 )
-                Haptics.error()
+                // §483 触感分拣改判 warning 档：本支不是
+                // 真失败——改名链已走完、回读没能确认新
+                // 文件落定（原文件未动），属表 D 本义的
+                // 「结果未确认」；与删除未生效等同类落点
+                // 同档。请求抛错的真失败在下方 catch 支
+                // 仍归 error 档
+                Haptics.warning()
                 return
             }
             var oldRemoved = true
