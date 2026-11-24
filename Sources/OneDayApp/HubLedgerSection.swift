@@ -467,7 +467,8 @@ struct HubLedgerSection: View {
                     .padding(.vertical, OneDayMetrics.spacingMicro)
                     .overlay {
                         // §449 圆角规范核：补 .continuous（同 §449.3 身份卡口径）
-                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        // HIG 全过第一波：半径 4 具名收编 radiusBadge（值不变）
+                        RoundedRectangle(cornerRadius: OneDayMetrics.radiusBadge, style: .continuous)
                             .stroke(Palette.hairline, lineWidth: 1)
                     }
             }

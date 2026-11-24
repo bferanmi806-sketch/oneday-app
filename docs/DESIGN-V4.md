@@ -17521,3 +17521,16 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **③P2-05 退役 fileicon PNG 删除**：删前全树查实——FileTypeIconView/FileIconBox/FileTypeFace 全部程序绘制（§452.4），15 套 fileicon-*.imageset 唯一加载者 FileIconImageView 为零调用点死件。处置：删 15 套 imageset（30 文件）＋死件本体（FilesView 原位留墓碑注记）；DeliverableIconStyle.swift 头注改实（PNG 已退役、slug 表仍为分类单源，assetName 等 API 字符串保留——DeliverableIconStyleTests 钉死、属字符串口径非资产引用）。删后构建与 .car 双验：编译产物 Assets.car 内 fileicon 条目为零。
 - **④P2-04 App 图标深色／着色变体＋格式转换（本节最大动作，须知）**：母版实测双色位图（字形蓝 #0052D9／白底、1024 RGB 无 alpha），变体按双色亮度映射生成——深色＝字形保持品牌蓝、底换深海军蓝 #000D23（蓝×0.16 同色系压暗）；着色＝灰度（白字形／黑底，系统着色时以亮度为 alpha 蒙版、此为对比最稳形态）。**格式实证（actool 双版本）**：旧多尺寸集逐尺寸挂 luminosity appearances 的写法被 actool 26.6 与 27.2 双双判「38 unassigned children」不予认领（最小夹具复现），唯一被认领的形态是单尺寸集（universal/ios/1024 三态）——故 AppIcon.appiconset 转换单尺寸格式：仅留 1024 三态（浅色母版字节不变、深色／着色新增），其余 18 个逐尺寸 PNG 删除（各尺寸由系统自 1024 母版生成，桌面图标视觉不变）；编译产物 .car 验：AppIcon 三态齐全（UIAppearanceAny/UIAppearanceDark/ISAppearanceTintable），actool unassigned 警告归零。**连带修复**：单尺寸格式下 Info.plist 只写 CFBundleIconName、无 CFBundleIconFiles 数组，§188 的 AppIconBitmap 取图通道断裂（AppIconBitmapTests 当场红、守护生效）——已按原口径补回退：CFBundleIconName 在场时按约定名 AppIcon60x60 取 actool 落在包根的 loose 位图（与旧通道同为包内位图、同源桌面图标），复跑绿。
 - **真机门（归用户 verdict）**：①动态页帖子展开／收起动画观感与旧版一致、Reduce Motion 开启时展开为瞬时切换；②模型选择与点子详情两 sheet 顶部见抓手、可拖动换档；③资源库/文件页文件图标与旧版一致（程序绘制未变）；④桌面图标深色模式下呈深蓝底版、着色模式下呈灰度版，浅色不变。
+## §483 HIG 全过第一波：中枢各页＋通知页＋抽屉（2026-11-24，feat/hig-pages-wave1，基线 rel-05115）
+
+仪器＝逐屏审计表（oneday-hig-screen-audit-checklist-20261124.md，12 节），规范源＝apple-design-skill 原文库＋game-feel/sf-symbols/typography 三篇；范围七面全文精读＋grep 实数对账，发现即修。交卷正本＝oneday-design-review/hig-wave1-report-20261124.md（含逐页 12 节打勾表）。注记：本树 DESIGN 最大节为 §481（0.50.115 组版），§482 属简报编辑器线（feat/brief-editor-top-panel，其正本 brief-editor-presentation-audit-20261124.md），本节按派单预定取 §483、合并时按节序连排。
+
+- **唯一真缺陷**：审核页撤销 exec 授权旧形态 `.bordered` 小钮点按即撤、无确认无后果——补 confirmationDialog（destructive＋指名 scopeLabel＋「撤销后立即失效，之后同类操作需要重新批准」），与技能商店卸载确认同式；终局仍以回读为准。
+- **文案清扫（§11）**：能力页删两处机制叙述（空态后半句「服务端会直接连接外部技能库…」、搜索中后半句「服务端直连外部技能库…」）；错误回执与状态回执全保留。本波其余页面文案逐条过：通知页脚 200 条＝数据范围声明、台账横幅/补记说明＝状态与来源回执、详情「技术信息」区＝宪法口径定版，均判留并在交卷登记。
+- **字形收编（P2-01 本波分）**：中枢模型行 chevron 13→FrameworkIcon.smallGlyphSize、能力页行尾 chevron 13→smallGlyphSize、抽屉置顶钉 10→badgeGlyphSize；审核页 iconBox 字形 18 为 §434 量测光学值（令牌无 18 档）注记保留。本波 25 处 `.system(size:)` 命中余皆令牌调用。
+- **间距/圆角收编（P3-02/P3-04 本波分）**：OneDayMetrics 新增 radiusBadge＝4，台账「补记」徽标收编；台账详情 spacing/padding 字面 4 共 5 处→spacingXS；能力页 chip 横距 12→spacingSM（均等值零视觉）。能力页来源 chip 命中域纵向扩 44（视觉不变，§478 同法）。
+- **无障碍补件**：通知详情 5 处装饰字形（结果 chip/变更 doc/提示 info/落点符号/技术记录 chevron）、身份双卡字形、审核 iconBox 字形补 accessibilityHidden。
+- **定版登记（不重判）**：身份双卡渐变 8 处 UIColor＝§449.8 亲令采样定版色（P2-02 本波销账）；中枢分段条纯图标＝§222 亲点对齐形态（VO 段名 label 在位）；底栏纯图标定版与本波无关面同册。
+- **总账销账**：P1-03 本波页面 error 触感 0 处；P1-04 抽屉无 dragSpring（存量仅 ImageViewerView、归后波）；P3-03 工作/通知/台账详情等宽数字已合规。
+- **测试**：受影响 20 套直跑（iPhone 17e 独立模拟器＋自有 DD、Xcode 27.2）120 项全过、0 红 0 跳，逐套在册核对无静默跳过；帧＝demo UI 取证 14 帧（七面浅/深，存 oneday-design-review/hig-wave1-frames/），技能商店帧实证空态文案已缩短；电脑段/身份双卡/详情页 demo 不供数、无帧，归真机门。
+- **真机门**：撤销确认门实操、chip 命中观感、通知详情 VoiceOver 不念装饰符号；余等值收编视觉零变化抽查即可。

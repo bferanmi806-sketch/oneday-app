@@ -96,12 +96,16 @@ struct SkillHubView: View {
                 .foregroundStyle(
                     selected ? Palette.primary : Palette.inkSecondary
                 )
-                .padding(.horizontal, 12)
+                .padding(.horizontal, OneDayMetrics.spacingSM)
                 .padding(.vertical, OneDayMetrics.rowInnerGap)
                 .background(
                     selected ? Palette.primaryTint : Palette.surface,
                     in: Capsule()
                 )
+                // HIG 全过第一波：胶囊视觉高约 30 不变、
+                // 命中域纵向扩到 minTapTarget（§478 同法）
+                .frame(minHeight: OneDayMetrics.minTapTarget)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.odPressable)
     }
@@ -119,13 +123,13 @@ struct SkillHubView: View {
             EmptyState(
                 icon: "bag",
                 title: "搜索技能库",
-                message: "输入关键词搜索可安装的技能。服务端会直接连接外部技能库，网络不通时可能较慢或失败。"
+                message: "输入关键词搜索可安装的技能。"
             )
             .padding(.top, OneDayMetrics.spacingXXL)
         case .searching:
             HStack(spacing: OneDayMetrics.spacingS) {
                 ProgressView()
-                Text("正在连接技能库…服务端直连外部技能库，可能需要一会儿")
+                Text("正在连接技能库…")
                     .font(.footnote)
                     .foregroundStyle(Palette.inkSecondary)
             }
@@ -196,7 +200,7 @@ struct SkillHubView: View {
                         .foregroundStyle(Palette.inkSecondary)
                 }
                 Spacer(minLength: OneDayMetrics.spacingS)
-                DisclosureChevron(font: .system(size: 13, weight: .regular))
+                DisclosureChevron(font: .system(size: FrameworkIcon.smallGlyphSize, weight: .regular))
             }
             .contentShape(Rectangle())
         }

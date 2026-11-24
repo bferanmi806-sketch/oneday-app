@@ -215,6 +215,7 @@ struct HubIdentitySection: View {
                 Image(systemName: glyph)
                     .font(.system(size: FrameworkIcon.identityGlyphSize, weight: .regular))
                     .foregroundStyle(.white.opacity(0.5))
+                    .accessibilityHidden(true)
             }
         }
         .padding(OneDayMetrics.spacingM)

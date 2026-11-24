@@ -775,6 +775,9 @@ public enum OneDayMetrics {
     /// 勾选框（24pt 方框的形状圆角，与 AppSymbolTile
     /// 的 size×0.26 比例画法同源量级）
     public static let radiusCheckbox: CGFloat = 6
+    /// 小徽标描边圆角（台账「补记」徽标等 caption2 级
+    /// 微形标签；HIG 全过第一波具名收编，值 4 不变）
+    public static let radiusBadge: CGFloat = 4
 
     /// 页面左右边距（内容页）
     public static let pageGutter: CGFloat = 20

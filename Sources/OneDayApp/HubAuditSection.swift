@@ -16,6 +16,12 @@ import SwiftUI
 struct HubAuditSection: View {
     let hubStore: AgentHubStore
 
+    /// 待撤销的授权（HIG 全过第一波）：撤销是破坏
+    /// 性动作——旧形态 .bordered 小钮点按即撤、无确
+    /// 认无后果说明；改走确认门（与技能商店卸载确认
+    /// 同式：destructive 角色＋后果文案）
+    @State private var pendingRevoke: GrantEntry?
+
     var body: some View {
         List {
             pendingSection
@@ -25,6 +31,26 @@ struct HubAuditSection: View {
         .listStyle(.plain)
         .task {
             await hubStore.loadGrants()
+        }
+        .confirmationDialog(
+            "撤销这条授权？",
+            isPresented: Binding(
+                get: { pendingRevoke != nil },
+                set: { if !$0 { pendingRevoke = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("撤销", role: .destructive) {
+                if let entry = pendingRevoke {
+                    pendingRevoke = nil
+                    Task { await hubStore.revokeGrant(entry) }
+                }
+            }
+            Button("取消", role: .cancel) { pendingRevoke = nil }
+        } message: {
+            if let entry = pendingRevoke {
+                Text("「\(entry.scopeLabel)」撤销后立即失效，之后同类操作需要重新批准。")
+            }
         }
     }
 
@@ -107,7 +133,7 @@ struct HubAuditSection: View {
             Spacer(minLength: OneDayMetrics.spacingS)
             if entry.source == .exec {
                 Button("撤销") {
-                    Task { await hubStore.revokeGrant(entry) }
+                    pendingRevoke = entry
                 }
                 .font(.subheadline)
                 .buttonStyle(.bordered)
@@ -230,8 +256,12 @@ struct HubAuditSection: View {
             )
             .fill(Palette.fillSecondary)
             Image(systemName: systemImage)
+                // 字形 18 为 §434 行解剖对位光学值（40
+                // 盒内字形档，令牌表无 18 档、就近 17/20
+                // 均漂移量测解剖，登记保留）
                 .font(.system(size: 18, weight: .medium))
                 .foregroundStyle(tint)
+                .accessibilityHidden(true)
         }
         .frame(width: 40, height: 40)
     }
