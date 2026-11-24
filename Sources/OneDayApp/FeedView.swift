@@ -17,14 +17,14 @@ import SwiftUI
 /// 静默账本，只停提醒面、不停账本；搜索改工具栏
 /// 点开式（.toolbar 落点，不再常驻一行）；列表顶
 /// 距改条件化（见 topMargin）。
-/// §480（2026-11-24，三页审计全抄）：页头安排再
+/// §486（2026-11-24，三页审计全抄）：页头安排再
 /// 换代——§126 的「简报胶囊行删除＋工具栏点开搜
 /// 索」口径就此作废：页内自持页头簇（身份簇＋34
 /// 大标题＋标题下字段槽），字段槽静止态＝简报胶
 /// 囊（胶囊行以此形态回归，与 §126 删的旧行不同
 /// 件）、滚动收起后＝搜索字段顶替【推定待真机帧
 /// 翻案】；链接改 OG 式预览卡、链接出处图不再整
-/// 幅渲染。细则见 DESIGN §480 与 feedPageHead。§177：帖面不单独设
+/// 幅渲染。细则见 DESIGN §486 与 feedPageHead。§177：帖面不单独设
 /// 色——根 List 与点子页同口径隐藏系统滚动底、透
 /// 出页面底 pageBG，帖行同色（此前本页根 List 没
 /// 隐藏系统滚动底，列表区被系统默认底罩住、与页
@@ -62,18 +62,18 @@ struct FeedView: View {
     @State private var path = NavigationPath()
     /// 简报编辑器（0.38.0 两层制）呈现
     @State private var briefEditorShown = false
-    /// 页头身份簇开中枢（§480：簇自聊天页同件接入
+    /// 页头身份簇开中枢（§486：簇自聊天页同件接入
     /// 本页，落点与聊天页同为本栈推 AgentHubView）
     @State private var showHub = false
-    /// 页头滚动收起态（§480.4）：列表内容偏移驱动
+    /// 页头滚动收起态（§486.4）：列表内容偏移驱动
     /// （onScrollGeometryChange，资源库页同式）——过
     /// 阈值簇整簇收起、滑杆留守、标题＋字段钉顶
     @State private var headerCollapsed = false
 
-    /// 收起阈值（§480.2 翻案单点之一）：内容上滚超
+    /// 收起阈值（§486.2 翻案单点之一）：内容上滚超
     /// 此值即收簇、字段槽换搜索形态
     private static let collapseThreshold: CGFloat = 24
-    /// 搜索（0.47.0 §117；§126 改点开式；§480 改
+    /// 搜索（0.47.0 §117；§126 改点开式；§486 改
     /// 页头字段槽）：激活态由标题下字段槽的搜索行
     /// 承载（FileSearchField 单源件），不再走 .sea-
     /// rchable 工具栏落点；按标题＋正文过滤当前已
@@ -169,7 +169,7 @@ struct FeedView: View {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            // §480：页头整簇改页内自持（ContentPage-
+            // §486：页头整簇改页内自持（ContentPage-
             // Header＋大标题＋字段槽，见 feedPageHead），
             // 系统导航栏在本页根隐藏——推入的详情页
             // 各自声明栏可见性（与文件页同式）；§126
@@ -268,12 +268,12 @@ struct FeedView: View {
         await store.loadIfNeeded(appState: appState)
     }
 
-    // MARK: - 页头（§480）
+    // MARK: - 页头（§486）
 
     /// 页头整簇：身份簇（ContentPageHeader，滑杆钮
     /// 归其右位）＋大标题（pageTitle 34，与参照同
     /// 档）＋标题下字段槽。本簇在列表之外——滚动时
-    /// 天然钉顶，收起只动簇高（§480.4）
+    /// 天然钉顶，收起只动簇高（§486.4）
     private var feedPageHead: some View {
         VStack(alignment: .leading, spacing: 0) {
             ContentPageHeader(
@@ -308,7 +308,7 @@ struct FeedView: View {
         }
     }
 
-    /// 标题下字段槽的形态（§480.2【推定待真机帧翻
+    /// 标题下字段槽的形态（§486.2【推定待真机帧翻
     /// 案】）：静止态＝简报胶囊首行、滚动收起后＝搜
     /// 索字段顶替、搜索激活中＝真搜索行。依据＝审
     /// 计 §1.3 槽位推定（静止帧见简报胶囊、滚动帧
@@ -497,7 +497,7 @@ struct FeedView: View {
             // spacingM，不回系统默认
             .listSectionSpacing(OneDayMetrics.spacingM)
             .contentMargins(.top, topMargin, for: .scrollContent)
-            // §480.4：滚动偏移驱动页头收起（归一化偏
+            // §486.4：滚动偏移驱动页头收起（归一化偏
             // 移＝offset＋顶 inset，静止恒 0）
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 geometry.contentOffset.y + geometry.contentInsets.top
@@ -539,7 +539,7 @@ struct FeedView: View {
                 .foregroundStyle(Palette.ink)
                 .frame(width: 28, height: 28)
                 .background(post.kind.kickerColor)
-                // §480.3：扁平瓷砖圆角收令牌 radiusTile
+                // §486.3：扁平瓷砖圆角收令牌 radiusTile
                 // （与点子页 §462 瓷砖同值同形）
                 .clipShape(RoundedRectangle(
                     cornerRadius: OneDayMetrics.radiusTile
@@ -579,7 +579,7 @@ struct FeedView: View {
                 .accessibilityElement(children: .combine)
                 // §459：category chip——简报方向原文
                 // （如「GitHub 热门」）；事件/小结帖为
-                // nil 不渲染，不拿 kind 名冒充。§480.3
+                // nil 不渲染，不拿 kind 名冒充。§486.3
                 // 升参照话题灰片档：subheadline（≈15）
                 // ＋高 ≈29、浅灰填充、圆角矩形（照审
                 // 计量测：标题下、正文上、单片）
@@ -629,7 +629,7 @@ struct FeedView: View {
                 // 机理，用户 12:41 截图实证）；加载未
                 // 成/失败整块不显（宁无图不假图、不摆
                 // 占位，旧口径不变）
-                // §480.3：首图若是某链接/来源卡的出处图
+                // §486.3：首图若是某链接/来源卡的出处图
                 // （sourceUrl 命中 links 或来源卡 url，
                 // 即该页的 OG 图），不再整幅渲成封面图
                 // ——链接由下方预览卡/来源卡承载；真配
@@ -661,7 +661,7 @@ struct FeedView: View {
                 if let card = post.sourceCard {
                     FeedSourceCardView(card: card)
                 } else if let link = post.links.first {
-                    // §480.3：无来源卡时首链走 OG 式预
+                    // §486.3：无来源卡时首链走 OG 式预
                     // 览卡（站点名＋标题＋域名）；余下链
                     // 接仍在详情页全量呈现
                     FeedLinkPreviewCard(link: link)
@@ -776,7 +776,7 @@ struct FeedView: View {
             .fixedSize(horizontal: true, vertical: false)
             Button {
                 markRead(post)
-                // §483（HIG 批 A／P1-01）：字面动画收编
+                // §489（HIG 批 A／P1-01）：字面动画收编
                 // 令牌册——折叠展开走 swap 档、经 resolved
                 // 出口（Reduce Motion 开启即瞬时）
                 withAnimation(MotionTokens.resolved(
@@ -844,7 +844,7 @@ struct FeedView: View {
         path.append(Route.post(post.id))
     }
 
-    /// 链接出处图判定（§480.3）：图注 sourceUrl 命
+    /// 链接出处图判定（§486.3）：图注 sourceUrl 命
     /// 中本帖任一链接或来源卡的 url＝该页的 OG 图
     /// （桥抓图口径：图出自来源页，见 BridgeFeed-
     /// Image）；空 sourceUrl 不命中
@@ -1425,7 +1425,7 @@ struct FeedSourceCardView: View {
     }
 }
 
-/// 链接预览卡（§480.3）：照 Muse 动态页 OG 卡形
+/// 链接预览卡（§486.3）：照 Muse 动态页 OG 卡形
 /// 态——站点名（小字，顶）＋标题（大字 semibold）
 /// ＋域名（小字，底），整卡点开链接。数据只用桥下
 /// 发的 link{title, url}：桥不下发 og:site_name／
@@ -1512,14 +1512,14 @@ struct FeedLinkPreviewCard: View {
 /// PUT /meta/brief {"text"} 原样落盘；润色状态以
 /// 极小提示如实呈现，不许假装已润色。本地未保存
 /// 草稿与服务端不一致时打开先弹问、不许静默吞
-/// 简报编辑器（§482 呈现换轨）：内容逻辑沿 §473
+/// 简报编辑器（§487 呈现换轨）：内容逻辑沿 §473
 /// 件一定版（打开必回读／pending 轻轮询／已改字不
 /// 覆盖／保存恒可用，逻辑一字未动）；呈现弃底部全
 /// 屏 sheet，改顶部锚定覆盖面板（TopAnchoredPanel
 /// 组件，几何与主题照参照录屏量测抄，DESIGN
-/// §482）。页头只剩两行——标题＋一句说明（用户
+/// §487）。页头只剩两行——标题＋一句说明（用户
 /// 2026-11-24 12:09 亲令简化）；其余说明性文字全
-/// 删（清点见 §482），只留错误回执（保存失败／上
+/// 删（清点见 §487），只留错误回执（保存失败／上
 /// 次整理失败）——回执不是说明。
 struct FeedBriefEditorView: View {
     @Environment(AppState.self) private var appState
@@ -1672,7 +1672,7 @@ struct FeedBriefEditorView: View {
         )
     }
 
-    /// 双钮出卡固定（§482 照参照）：卡下 10pt、黑底
+    /// 双钮出卡固定（§487 照参照）：卡下 10pt、黑底
     /// 上等宽胶囊；保存未改字呈灰置观感（仅视觉档
     /// 位、恒可用，见 textUnchanged）
     private var buttonRow: some View {
@@ -1748,7 +1748,7 @@ struct FeedBriefEditorView: View {
     private func save() async {
         // 保存成功即关页（对齐参照表单形态：保存＝
         // 落盘＋离开）；失败留在页内看 briefError
-        // 触感补接线（§482）：走全 App 单源表 D 既
+        // 触感补接线（§487）：走全 App 单源表 D 既
         // 有语义（保存＝任务成功／操作失败），只接
         // 线不新造；失败震以 briefError 回执在案为
         // 准——无回执的静默 false（如未连接时保存
@@ -1762,10 +1762,10 @@ struct FeedBriefEditorView: View {
         }
     }
 }
-/// 简报面板页头（§482）：只剩两行——标题「动态说
+/// 简报面板页头（§487）：只剩两行——标题「动态说
 /// 明」＋一句说明，钉在卡顶不随正文滚；错误回执
 /// （保存失败／上次整理失败）随页头同钉、恒可见。
-/// 独立成件以便钉测实测其高（见 §482 钉测）。
+/// 独立成件以便钉测实测其高（见 §487 钉测）。
 struct FeedBriefPanelHeader: View {
     let briefError: String?
     let expandError: String?
@@ -1782,7 +1782,7 @@ struct FeedBriefPanelHeader: View {
                 .foregroundStyle(
                     TopPanelMetrics.textSecondary
                 )
-            // 错误回执（功能必需，§482 清点留）：
+            // 错误回执（功能必需，§487 清点留）：
             // 保存失败即时回执
             if let briefError {
                 Text(briefError)
@@ -1793,7 +1793,7 @@ struct FeedBriefPanelHeader: View {
             }
             // 错误回执（同上）：上次整理失败的服务
             // 端回执（旧 weakPolishHint 的 expandError
-            // 分支——其余弱提示文案已按 §482 全删）
+            // 分支——其余弱提示文案已按 §487 全删）
             if let expandError, !expandError.isEmpty {
                 Text("上次整理没成功：\(expandError)")
                     .font(.footnote)

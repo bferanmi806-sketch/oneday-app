@@ -49,7 +49,7 @@ enum AppIconBitmap {
             let image = UIImage(named: name) {
             return image
         }
-        // §483（HIG 批 A／P2-04 连带）：图标集转单尺寸
+        // §489（HIG 批 A／P2-04 连带）：图标集转单尺寸
         // 格式后 Info.plist 只写 CFBundleIconName、无
         // CFBundleIconFiles 数组；actool 仍把主尺寸位
         // 图以 AppIcon60x60 loose 文件落在包根，按约

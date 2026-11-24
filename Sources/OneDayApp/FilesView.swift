@@ -110,7 +110,7 @@ struct FileSearchField: View {
     }
 }
 
-/// §483（HIG 批 A／P2-05）：§128 的资产渲染件
+/// §489（HIG 批 A／P2-05）：§128 的资产渲染件
 /// FileIconImageView 随 fileicon 黏土 PNG 套一并退
 /// 役删除——该件自 §452.4 起零调用点（全树 grep 实
 /// 证），现行呈现单源是程序绘制的 FileTypeIconView

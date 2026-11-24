@@ -103,7 +103,7 @@ struct SkillHubView: View {
                     in: Capsule()
                 )
                 // HIG 全过第一波：胶囊视觉高约 30 不变、
-                // 命中域纵向扩到 minTapTarget（§478 同法）
+                // 命中域纵向扩到 minTapTarget（§485 同法）
                 .frame(minHeight: OneDayMetrics.minTapTarget)
                 .contentShape(Rectangle())
         }

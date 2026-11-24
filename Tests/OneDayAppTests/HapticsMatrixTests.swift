@@ -123,9 +123,9 @@ final class HapticsMatrixTests: XCTestCase {
         // 件盘零触感变化。逐文件归因对账（rel-05109
         // →合并树）全部落点增量只在 §452 两文件、
         // 无既有落点丢失
-        // §482＋触感分拣合并对账（0.50.117 组版亲解）：
-        // §482 简报编辑器 save 失败新接一 error 落点
-        // （57→58）；触感分拣（原 §483）FileOpenView
+        // §487＋§488 合并对账（0.50.117 组版亲解）：
+        // §487 简报编辑器 save 失败新接一 error 落点
+        // （57→58）；触感分拣（原 §483、现 §488）FileOpenView
         // 改名未确认一处 error 改判 warning（error
         // －1、warning＋1）。合并树实数：error 57、
         // warning 8，以本钉为准。
@@ -144,7 +144,7 @@ final class HapticsMatrixTests: XCTestCase {
         // error/warning/heavy 三项逐数不变、既有落
         // 点无丢失（逐文件归因：增量仅 IdeasStore
         // 一处）
-                // §482（同上）：FeedView save() 成功路
+                // §487（同上）：FeedView save() 成功路
         // 径补 success 一落点，18→19
         XCTAssertEqual(count(of: "Haptics.success()", in: all), 19)
         XCTAssertEqual(count(of: "Haptics.impact(.heavy)", in: all), 9)

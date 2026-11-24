@@ -309,7 +309,7 @@ struct GoalIntroView: View {
     }
 }
 
-/// 分组头（§478 全抄口径，照 Muse 目标页段头量
+/// 分组头（§485 全抄口径，照 Muse 目标页段头量
 /// 测）：纯色点 Ø10（进行中＝success 绿、已完成＝
 /// inkMuted 灰）＋组名 groupHeader 角色（Title3
 /// 20 semibold、bodyInk 深色字）。旧形态（17pt
@@ -356,7 +356,7 @@ struct GoalCheckBox: View {
                         .foregroundStyle(.white)
                 }
             }
-            // §478：视觉框/命中域/布局三层分开——内
+            // §485：视觉框/命中域/布局三层分开——内
             // 层 frame 22 钉死绘制（旧实现形状无自
             // 身 frame、直接撑满 44 命中框绘制，
             // .padding(-11) 只缩布局不缩绘制、实
@@ -424,7 +424,7 @@ struct GoalRowView: View {
     var onDelete: () -> Void
 
     var body: some View {
-        // §478：横向间距 spacingSM 12→spacingS 8
+        // §485：横向间距 spacingSM 12→spacingS 8
         // （参照量测：框右缘→标题左缘 ≈8pt，审计
         // R5/R6）；复选框删 spacingMicro 顶补丁——
         // 视觉框回 22 后布局顶与标题首行同顶（顶
@@ -446,14 +446,14 @@ struct GoalRowView: View {
                         // Muse 实测约 21pt semibold
                         .font(.contentListTitle)
                         .foregroundStyle(Palette.bodyInk)
-                        // §478：lineLimit 2→1（照 Muse
+                        // §485：lineLimit 2→1（照 Muse
                         // 目标页参照：标题单行呈现、长题
                         // 尾截断，审计 D7/R6）
                         .lineLimit(1)
                         .multilineTextAlignment(.leading)
                     if !summary.isEmpty {
                         Text(summary)
-                            // §478：字阶 .body 17→rowSub-
+                            // §485：字阶 .body 17→rowSub-
                             // title 15（参照 ≈15–16pt 档，
                             // 审计 D8/R7）；lineSpacing
                             // -1 把行 pitch 自 20 压到
@@ -465,7 +465,7 @@ struct GoalRowView: View {
                             // §453 改判 4 行：用户 2026-11-24
                             // 截图实证 Muse 现状摘要全显可达
                             // 4 行，3 行会腰斩最新进展条目
-                            // §478 再改判 3 行：全抄审计逐
+                            // §485 再改判 3 行：全抄审计逐
                             // 帧量测参照摘要 ≤3 行、块高
                             // ≤57pt（D8/R7），§453 的 4
                             // 行口径就此被覆盖

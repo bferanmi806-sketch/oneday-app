@@ -19,7 +19,7 @@ public extension Font {
     /// 题档（旧 largeTitle 34 semibold 让位：Muse 量
     /// 测口径被用户当日指令覆盖，见 §51）
     static let screenName: Font = .title.weight(.bold)
-    /// 内容页大标题（§480）：动态/点子页头标题——
+    /// 内容页大标题（§486）：动态/点子页头标题——
     /// LargeTitle 34 bold，与 Muse 参照页同档（审
     /// 计 three-pages-20261124 量测：参照 34pt、动
     /// 态页旧呈现低一档、点子页系统大标题同为 34，
@@ -58,14 +58,14 @@ public extension Font {
     /// 只许三面行题消费、不许外溢（Core TypeRole
     /// .contentListTitle 对账）
     static let contentListTitle: Font = .title3.weight(.semibold)
-    /// 分组头（§478 局部角色，目标页分组头专用）：
+    /// 分组头（§485 局部角色，目标页分组头专用）：
     /// Title3 20 semibold——照 Muse 目标页段头量测
     /// ≈18–20pt semibold 深色字（Core TypeRole
     /// .groupHeader 对账）；只许目标页分组头消费、
     /// 不许外溢（与 contentListTitle 同为局部例外，
     /// 消费面不同：彼为行题、此为段头）
     static let groupHeader: Font = .title3.weight(.semibold)
-    /// 页题（§478）：基准 24 bold、Title2 锚——与
+    /// 页题（§485）：基准 24 bold、Title2 锚——与
     /// drawerTitle 同因（24 无文本样式档、Font 静
     /// 态值承载不了相对缩放），本处不设静态值；规
     /// 格单源在 Core TypeRole.pageTitle，消费形态

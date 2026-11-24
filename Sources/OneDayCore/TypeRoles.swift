@@ -51,7 +51,7 @@ import Foundation
 /// 统一升本角色（对位 Muse 实测约 20–21pt
 /// semibold）；C14 单轨对三面让位、其余页面
 /// 一字不变，本例外不许再外溢
-/// §478（2026-11-24 目标页全抄修复）：增两角
+/// §485（2026-11-24 目标页全抄修复）：增两角
 /// 色——pageTitle（一级页页题，Title2 锚/24/
 /// bold：照 Muse 目标页页题量测 ≈24pt 粗体，
 /// 与 drawerTitle 同法以 Title2 为相对缩放锚、
@@ -124,7 +124,7 @@ public enum TypeRole: String, CaseIterable {
         switch self {
         case .screenName: return "bold"
         case .drawerTitle: return "bold"
-        // §478：bold 配额增 pageTitle 一席——同为
+        // §485：bold 配额增 pageTitle 一席——同为
         // 大标题类（一级页页题、Title2 锚），仍属
         // 大标题配额内、不外溢行题；groupHeader
         // 的 semibold 与 contentListTitle 同档（局

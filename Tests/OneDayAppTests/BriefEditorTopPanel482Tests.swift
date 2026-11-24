@@ -2,7 +2,7 @@ import SwiftUI
 import XCTest
 @testable import OneDayApp
 
-/// §482 钉测：动态简报编辑器呈现换轨（底部全屏
+/// §487 钉测：动态简报编辑器呈现换轨（底部全屏
 /// sheet → 顶部锚定覆盖面板）。几何与主题数值全抄
 /// 参照录屏量测（brief-editor-presentation-audit
 /// -20261124），本套钉死：①TopPanelMetrics 量测值
@@ -177,7 +177,7 @@ final class BriefEditorTopPanel482Tests: XCTestCase {
     /// 钉：卡内容宽 342pt（402 屏宽 − 卡边距 2×10
     /// − 内容内距 2×20）下，标题一行＋说明两行＋行
     /// 间距 12 ＝ 76.3pt（2026-11-24 UIHosting 实测
-    /// 回填，见 DESIGN §482）；文案再改字先改本钉
+    /// 回填，见 DESIGN §487）；文案再改字先改本钉
     @MainActor
     func testHeaderHeightPinnedFromMeasurement() {
         let header = FeedBriefPanelHeader(

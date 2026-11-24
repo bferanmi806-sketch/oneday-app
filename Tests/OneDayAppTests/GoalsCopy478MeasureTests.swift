@@ -5,7 +5,7 @@ import UIKit
 import XCTest
 @testable import OneDayApp
 
-/// §478 目标页全抄修复量测（与审计同一量测法：渲染
+/// §485 目标页全抄修复量测（与审计同一量测法：渲染
 /// 帧墨迹投影，pt＝px÷scale）：五项对账——①复选框
 /// 视觉尺寸 22×22 ②描边可测（opaqueSeparator 档墨
 /// 迹量；对照旧 hairline 在同阈下测不到，审计 D4。
@@ -109,7 +109,7 @@ final class GoalsCopy478MeasureTests: XCTestCase {
             space: CGColorSpaceCreateDeviceRGB(),
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         )!
-        // 朝向口径（§478 量测首跑实证）：renderer 的
+        // 朝向口径（§485 量测首跑实证）：renderer 的
         // CGImage 直绘进本上下文即 row0＝图顶；再加
         // translate+scale(1,-1) 翻转会把图上下颠倒
         // （首跑因此误读：摘要三带被当成标题在上、
@@ -178,7 +178,7 @@ final class GoalsCopy478MeasureTests: XCTestCase {
         let store = GoalsStore()
         // 行宽＝屏宽 402 − 左右 pageGutter 20×2＝362
         // （与真机帧同位）；两行同组间距＝组内距
-        // spacingM（§478 pitch 合成口径，与
+        // spacingM（§485 pitch 合成口径，与
         // GoalsView.goalGroup 同值）
         let stack = VStack(spacing: OneDayMetrics.spacingM) {
             sampleRow(store: store)

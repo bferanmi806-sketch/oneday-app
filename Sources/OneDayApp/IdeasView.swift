@@ -42,7 +42,7 @@ struct IdeasView: View {
         appState.sharedKanbanStore()
     }
     @State private var deleteCandidate: BridgeIdea?
-    /// 页头身份簇开中枢（§480：与动态页同件接入，
+    /// 页头身份簇开中枢（§486：与动态页同件接入，
     /// 落点本栈推 AgentHubView）
     @State private var showHub = false
     /// 详情 sheet 的当前点子（0.47.0：点行不再推页）
@@ -100,7 +100,7 @@ struct IdeasView: View {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            // §480.5：页头整簇改页内自持（ContentPage-
+            // §486.5：页头整簇改页内自持（ContentPage-
             // Header＋大标题，见 ideasPageHead）——本
             // 页此前整簇缺失（状态栏下 87.7pt 空白直
             // 达标题，审计 §2.2），系统导航栏在根隐藏
@@ -129,7 +129,7 @@ struct IdeasView: View {
                         IdeaDetailSheet.detents,
                         selection: $detailDetent
                     )
-                    // §483（HIG 批 A／P1-02）：可调 sheet
+                    // §489（HIG 批 A／P1-02）：可调 sheet
                     // 补抓手（HIG Sheets：Include a grabber
                     // in a resizable sheet）
                     .presentationDragIndicator(.visible)
@@ -202,7 +202,7 @@ struct IdeasView: View {
         }
     }
 
-    /// 页头整簇（§480.5）：与动态页同一 ContentPage-
+    /// 页头整簇（§486.5）：与动态页同一 ContentPage-
     /// Header（身份簇；本页无专属右钮、无滚动收起）
     /// ＋大标题（pageTitle 34，与全 App 内容页统一
     /// 口径）。87.7pt 顶部空白就此消除
@@ -397,7 +397,7 @@ struct IdeasView: View {
 /// 行）＋正文（次色、行距放宽、至多四行）。行面不
 /// 摆元信息：生成时间/到期/目标/任务状态全收进详
 /// 情 sheet。行内不摆按钮：动作在详情与左滑/长按
-/// 里。§480.6：依据行与 category 灰片已撤出卡面
+/// 里。§486.6：依据行与 category 灰片已撤出卡面
 /// （依据进详情 sheet、分类只剩 domain 分组一处）
 struct IdeaRowView: View {
     let idea: BridgeIdea
@@ -418,7 +418,7 @@ struct IdeaRowView: View {
                 .foregroundStyle(Palette.ink)
                 .frame(width: 28, height: 28)
                 .background(kickerColor)
-                // §480：瓷砖圆角与动态页同收 radiusTile
+                // §486：瓷砖圆角与动态页同收 radiusTile
                 .clipShape(RoundedRectangle(
                     cornerRadius: OneDayMetrics.radiusTile
                 ))
@@ -444,7 +444,7 @@ struct IdeaRowView: View {
                         .foregroundStyle(Palette.inkSecondary)
                         .lineLimit(4)
                 }
-                // §480.6：卡面分类呈现收口——「依据」行
+                // §486.6：卡面分类呈现收口——「依据」行
                 // 与 categoryLabel 灰片整行撤出卡面：分
                 // 类在卡面只剩 domain 分组一处（分组与
                 // 卡面同源，不再双源打架——帧实证「个
@@ -470,7 +470,7 @@ struct IdeaRowView: View {
 /// 列）整形态退役、不许搬进 sheet；底部固定动作
 /// 栏＝左侧浅灰圆形「···」菜单（太泛了/忽略/删除，
 /// 沿用既有 store 动作）＋通栏蓝色胶囊主钮。
-/// §480.6 口径变更（同日、后令覆盖 §453 此点）：
+/// §486.6 口径变更（同日、后令覆盖 §453 此点）：
 /// 「依据」随卡面收口收进本 sheet——只收依据一
 /// 件（生成卡且 evidence 非空才出），§453 退役的
 /// 信息组（来源/生成于罗列）不复活。
@@ -530,7 +530,7 @@ struct IdeaDetailView: View {
                             GroupDivider()
                             deliverablesSection(idea)
                         }
-                        // §480.6：依据收进 sheet（卡面已
+                        // §486.6：依据收进 sheet（卡面已
                         // 撤）——生成卡且 evidence 非空才
                         // 出，全文呈现不截断
                         if idea.source == .generated,

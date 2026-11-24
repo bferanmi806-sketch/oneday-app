@@ -23,7 +23,7 @@ struct HubIdentityCapsule: View {
     var statusWord: String?
     var onOpenHub: () -> Void
     /// 「在对话中查找」是聊天页专属下沉动作（§449.1）：
-    /// §480 起本件被内容页页头簇（ContentPageHeader）
+    /// §486 起本件被内容页页头簇（ContentPageHeader）
     /// 复用，那些页面没有会话内查找——改可选，nil 时
     /// 长按菜单只留「打开枢纽」、不挂 VO 自定义动作；
     /// 聊天页传闭包、行为一字不变

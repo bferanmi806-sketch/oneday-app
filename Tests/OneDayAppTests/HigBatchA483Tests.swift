@@ -1,7 +1,7 @@
 import XCTest
 @testable import OneDayApp
 
-/// §483 结构钉测（HIG 合规批 A）：四项小改的回潮
+/// §489 结构钉测（HIG 合规批 A）：四项小改的回潮
 /// 把守——①FeedView 帖子展开动画只许走 MotionTokens
 /// .resolved 出口（禁字面曲线回潮）；②可调 sheet 两
 /// 面（模型选择／点子详情）抓手在场；③fileicon 退役
@@ -45,19 +45,19 @@ final class HigBatchA483Tests: XCTestCase {
         ))
         XCTAssertTrue(
             code.contains("MotionTokens.resolved("),
-            "§483：FeedView 动画必须经 resolved 出口（Reduce Motion 降级）"
+            "§489：FeedView 动画必须经 resolved 出口（Reduce Motion 降级）"
         )
         XCTAssertTrue(
             code.contains("MotionTokens.swap"),
-            "§483：帖子展开收编 swap 档"
+            "§489：帖子展开收编 swap 档"
         )
         XCTAssertFalse(
             code.contains("easeInOut(duration"),
-            "§483：FeedView 不许再有字面 easeInOut 曲线"
+            "§489：FeedView 不许再有字面 easeInOut 曲线"
         )
         XCTAssertFalse(
             code.contains("withAnimation(."),
-            "§483：FeedView 不许再有字面 withAnimation 曲线"
+            "§489：FeedView 不许再有字面 withAnimation 曲线"
         )
     }
 
@@ -69,14 +69,14 @@ final class HigBatchA483Tests: XCTestCase {
         ))
         XCTAssertTrue(
             picker.contains(".presentationDragIndicator(.visible)"),
-            "§483：模型选择 sheet（.medium/.large 可调）必须带抓手"
+            "§489：模型选择 sheet（.medium/.large 可调）必须带抓手"
         )
         let ideas = codeLines(try source(
             "Sources/OneDayApp/IdeasView.swift"
         ))
         XCTAssertTrue(
             ideas.contains(".presentationDragIndicator(.visible)"),
-            "§483：点子详情 sheet（§470 双档可调）必须带抓手"
+            "§489：点子详情 sheet（§470 双档可调）必须带抓手"
         )
     }
 
@@ -90,14 +90,14 @@ final class HigBatchA483Tests: XCTestCase {
             .contentsOfDirectory(atPath: assets.path)
         XCTAssertFalse(
             entries.contains { $0.hasPrefix("fileicon-") },
-            "§483：fileicon 退役 PNG 套不许回仓（渲染已由 FileTypeIconView 程序绘制接管）"
+            "§489：fileicon 退役 PNG 套不许回仓（渲染已由 FileTypeIconView 程序绘制接管）"
         )
         let files = codeLines(try source(
             "Sources/OneDayApp/FilesView.swift"
         ))
         XCTAssertFalse(
             files.contains("struct FileIconImageView"),
-            "§483：死件 FileIconImageView（零调用点）不许回潮"
+            "§489：死件 FileIconImageView（零调用点）不许回潮"
         )
     }
 
@@ -132,18 +132,18 @@ final class HigBatchA483Tests: XCTestCase {
                         FileManager.default.fileExists(
                             atPath: url.path
                         ),
-                        "§483：变体文件缺失 \(filename)"
+                        "§489：变体文件缺失 \(filename)"
                     )
                 }
             }
         }
         XCTAssertTrue(
             values.contains("dark"),
-            "§483：App 图标必须登记深色变体"
+            "§489：App 图标必须登记深色变体"
         )
         XCTAssertTrue(
             values.contains("tinted"),
-            "§483：App 图标必须登记着色变体"
+            "§489：App 图标必须登记着色变体"
         )
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 顶部锚定覆盖面板（§482）：呈现组件单源——覆盖式
+/// 顶部锚定覆盖面板（§487）：呈现组件单源——覆盖式
 /// 呈现（overlay＋自顶生长转场＋平台弹簧），底层页
 /// 随同一下降＋压暗。首个消费面＝动态简报编辑器
 /// （FeedView）；中枢卡片线（hub-card 同族呈现）后
@@ -50,7 +50,7 @@ enum TopPanelMetrics {
     /// 错误回执文字（深底上的浅红，本面局部色）
     static let errorText = Color(red: 1.0, green: 0.45, blue: 0.42)
 
-    /// 入场弹簧（DESIGN §482）：参照入场
+    /// 入场弹簧（DESIGN §487）：参照入场
     /// 0.20–0.23s、ease-out 无过冲。初值按对位
     /// 推算 response 0.30，2026-11-24 模拟器录屏
     /// 实测可见时长 ≈0.30s 超带，按比例回填
@@ -64,7 +64,7 @@ enum TopPanelMetrics {
     static var exitAnimation: Animation {
         .spring(response: 0.21, dampingFraction: 0.95)
     }
-    /// Reduce Motion 降级：crossfade（§482，照
+    /// Reduce Motion 降级：crossfade（§487，照
     /// ZoomTransitionPolicy 先例的降级口径）
     static var reduceMotionAnimation: Animation {
         .easeInOut(duration: 0.2)
@@ -159,7 +159,7 @@ struct TopAnchoredPanelModifier<PanelContent: View>: ViewModifier {
 }
 
 extension View {
-    /// 顶部锚定覆盖面板呈现（§482）：用法见
+    /// 顶部锚定覆盖面板呈现（§487）：用法见
     /// TopAnchoredPanelModifier；panel 闭包拿到根层
     /// 尺寸（屏宽高），按 TopPanelMetrics 组装面板。
     func topAnchoredPanel<PanelContent: View>(

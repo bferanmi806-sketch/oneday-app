@@ -16,7 +16,7 @@ import SwiftUI
 /// 建段共用同一条流（分类组件
 /// GoalCategoryRowsView 共用）；表单降为介绍卡上
 /// 的次级入口「直接填写」，不删
-/// §478（2026-11-24 全抄修复）：页头改兄弟页同款
+/// §485（2026-11-24 全抄修复）：页头改兄弟页同款
 /// 身份胶囊簇（资源库 identityHeader 同构）、撤自
 /// 带工具栏孤悬＋钮与系统 largeTitle、页题改
 /// ≈24pt 粗体档；创建入口收唯一＝列表底创建段
@@ -38,7 +38,7 @@ private enum GoalCreateSheet: Identifiable {
     }
 }
 
-/// 目标页页题（§478）：24pt 粗体——24 无文本样式
+/// 目标页页题（§485）：24pt 粗体——24 无文本样式
 /// 档，照 drawerTitle 先例以 Title2 为锚相对缩放
 /// 承载（规格单源 Core TypeRole.pageTitle：title2/
 /// 24/bold）；独立成件供量测测直接渲染对账
@@ -54,7 +54,7 @@ struct GoalsPageTitle: View {
     }
 }
 
-/// 折叠行把手字形（§478）：3 列×2 行实心点阵——照
+/// 折叠行把手字形（§485）：3 列×2 行实心点阵——照
 /// Muse 目标页段尾行参照帧实形（审计 §四.8：
 /// ellipsis 换把手点阵；SF 无 3×2 点阵字形，程序
 /// 绘制六点，§452 文件图标程序绘制先例）
@@ -131,7 +131,7 @@ struct GoalsView: View {
                 Palette.pageBG
                     .ignoresSafeArea()
             }
-            // §478：自带导航栏隐藏（页头簇自理，资源
+            // §485：自带导航栏隐藏（页头簇自理，资源
             // 库同例）；详情页 push 后目的地各自的栏
             // 由目的地自理（GoalDetailView/Ungrou-
             // pedTasksView 均自带 navigationTitle）
@@ -213,13 +213,13 @@ struct GoalsView: View {
         createSheet = nil
     }
 
-    /// 页头簇（§478）：与资源库页 identityHeader 同
+    /// 页头簇（§485）：与资源库页 identityHeader 同
     /// 构——左抽屉圆钮＋中央 IdentityAnchor 胶囊
     /// （垫距同值：横 pageGutter/上 spacingS/下
     /// spacingXS）。右侧不设圆钮：目标页无页级菜单
     /// 动作，参照右钮（···）功能单帧未验证（审计
     /// §六），造空菜单违僵尸禁令——知情偏离登记
-    /// 于 DESIGN §478。胶囊小字与聊天/资源库同源
+    /// 于 DESIGN §485。胶囊小字与聊天/资源库同源
     /// （§474：liveActivityPhrase 单源、无活动时
     /// 词与点一并收起）
     private var identityHeader: some View {
@@ -268,7 +268,7 @@ struct GoalsView: View {
             .contentShape(Rectangle())
     }
 
-    /// 页题行（§478）：「目标」≈24pt 粗体档（照
+    /// 页题行（§485）：「目标」≈24pt 粗体档（照
     /// Muse 量测、非系统 largeTitle 34，审计
     /// D2/R3），置页头簇下、间距 spacingSM（簇底
     /// 垫 spacingXS 4＋本行上垫 12＋字墨迹内偏
@@ -292,7 +292,7 @@ struct GoalsView: View {
                 ) {
                     if !groups.active.isEmpty {
                         goalGroup(
-                            // §478：段名「进行中」→
+                            // §485：段名「进行中」→
                             // 「追踪」（照 Muse 参照
                             // 的动作命名，审计 D3/R4）
                             title: "追踪", completed: false,
@@ -364,7 +364,7 @@ struct GoalsView: View {
 
     /// 状态分组（照 Muse 行形态）：色点组头＋扁平行，
     /// 超过 4 条折叠为「显示另外N项」
-    /// §478：组内距 spacingSM 12→spacingM 16——行
+    /// §485：组内距 spacingSM 12→spacingM 16——行
     /// pitch 合成口径（审计 §四.7：行高 ≈86＋组内
     /// 距 ≈16＝102±6；本实现行实高 83［标题行 24
     /// ＋gap 3＋摘要块 56］，组内距取审计的 16 合
@@ -421,7 +421,7 @@ struct GoalsView: View {
     }
 
     /// 已完成组：默认收起，点头展开（组内同样 4 条折叠）
-    /// §478：组内距同 goalGroup 改 spacingM（pitch
+    /// §485：组内距同 goalGroup 改 spacingM（pitch
     /// 合成口径见 goalGroup 注）
     private func completedGroup(goals: [BridgeGoal]) -> some View {
         VStack(alignment: .leading, spacing: OneDayMetrics.spacingM) {
@@ -532,7 +532,7 @@ struct GoalsView: View {
 
     /// 列表底常驻创建段（照 Muse 目标页图位置）：
     /// 分隔线下「创建目标」标题＋一句说明一段，仅此
-    /// 两件（参照 R12）。§478：段内直铺的七分类行
+    /// 两件（参照 R12）。§485：段内直铺的七分类行
     /// 摘除（§453 旧形态），点段（标题/说明区整块）
     /// 进既有分类选择 sheet 流（createSheet.
     /// categories，与空态分类流同一条 §238 三步

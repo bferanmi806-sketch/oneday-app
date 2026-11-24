@@ -5,7 +5,7 @@ import XCTest
 
 @testable import OneDayApp
 
-/// §480 渲染/托管探针（改前无此件）：
+/// §486 渲染/托管探针（改前无此件）：
 /// ①演示模式下动态页无帖数据（未连接态），行内新件
 /// FeedLinkPreviewCard 无法在整机面上验——以 Image-
 /// Renderer 离屏渲染两形态（带路径/根路径）落 PNG。

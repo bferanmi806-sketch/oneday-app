@@ -37,7 +37,7 @@ import UIKit
 /// Menu 行点开（声明式 impact .light）。清单其余
 /// 条目不变；新增落点全走 .sensoryFeedback 声明
 /// 式、计数由 HapticsMatrixTests 钉住。
-/// §483（2026-11-24，HIG 批 B-1 分拣）：error 落点
+/// §488（2026-11-24，HIG 批 B-1 分拣）：error 落点
 /// 全量逐处分拣落定——用户主动动作且失败当场呈现
 /// 的保留；唯一改判＝改名校验「回读未确认」支归
 /// warning（表 D 本义直接适用，与删除未生效同类
