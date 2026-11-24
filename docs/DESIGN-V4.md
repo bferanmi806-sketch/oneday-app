@@ -17878,3 +17878,14 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 帧证据（临时 UITest HeaderSrcFrameProbeUITests，演示模式，取后已删）：AX 帧转储五页与首页逐值同——hero (186,66,67x67)、胶囊 (188,136,62x20)、汉堡 (20,70,44x44) 全页一致；动态滑杆 (376,70,44x44)、资源库放大镜 (324,70,44x44)＋菜单 (376,70,44x44)、目标/点子右位无钮；动态上滑两 swipe 后转储逐值不变（簇钉顶实证）。浅色截图逐帧目验：动态/目标/资源库均为大 hero＋胶囊压沿的首页同形（小横胶囊退役），目标右位恒空、资源库双钮齐。两点如实登记：①演示态动态为空状态不可滚，静止/上滑两帧同图，滚动钉顶以 AX 转储＋托管副本实滚探针为据；②深色帧以 -AppleInterfaceStyle Dark 启动未生效（成帧仍浅色，App 现行浅色定版），深色仅有 AX 几何同位证据、视觉深色未验，归真机门与批 C 深色帧账。另汉堡无障碍标识聊天页为 drawer.open、内容页为 line.3.horizontal（符号名），帧与行为同、仅标识名差，登记不改。
 - 节号注记：本节预制期自占 §492；0.50.121 组版时按并集连排顺延为 **§498**（§492＝0.50.118 组版节、§493＝设置 IA 节保持原号），代码/测试自指已同步 §498（六文件，见 §499 组版节对照表）。
 - 环境插曲（与本包代码无关）：复跑期间 Mac 进程表被 12 台常驻模拟器打满（约 2883 进程、fork 失败），当时无在飞 xcodebuild，已 simctl shutdown all 清理回落至约 496；首轮复跑被该故障毒化（posix_spawn 失败、构建未成），清理后重跑方得上数。另 tuist generate 须带 DEVELOPER_DIR=Xcode 27.2，否则 tuist-derived 依赖工程部署目标回落 13.1 触发构建错误（本轮实证，已按此重 generate 恢复 15.0）。
+
+## §499 0.50.121 组版（2026-11-24；基线 rel-05120 @8e02ca17）
+
+单件成版：§498 页头单源收编（feat/header-single-source，基线 rel-05117，两笔 c3d7de86/1b664074）。
+
+- **合并图**：rel-05121 自 rel-05120 tip 8e02ca17 分叉，合 feat/header-single-source（合并提交 fa70d7fe）。冲突 1：docs/DESIGN-V4.md 尾附——取 HEAD 全尾（§492–§497 全节），页头节顺延 §498 追加于 §497 之后；incoming 侧的 §491 重复节（rel-05117 基线既有缺陷、118 组版时已删第二遍）未带入。代码 6 文件（ContentPageHeader／DeliverablesView／FeedView／GoalsView＋CapsuleStatus474Tests／FeedIdeasRenderProbeTests）自动合并。版本戳 0.50.121/249（提交 8c097510：Project.swift→tuist install＋generate（带 DEVELOPER_DIR 27.2）→Derived plist 亲验 0.50.121/249，generate 后未还原 Derived）。
+- **节号对照**：页头节 §492→**§498**（§492＝0.50.118 组版节、§493＝设置 IA 节保持原号）；代码/测试自指 §492→§498 同步六文件（即上列合并 6 文件，grep 残量 0）；本组版节 §499。
+- **发布集对账**：自 120 发布 bundle（results/Test-OneDayApp-rel05120.xcresult＋Test-UI-rel05120.xcresult）以 xcresulttool 提取全限定名——单元 191 套/1538 项、UI 6 套/13 项，与 §497 记账闭合。页头改动面逐项：CapsuleStatus474Tests 3 项同数（改钉锚点迁 ContentPageHeader，不增减）；FeedIdeasRenderProbeTests 2 项同数，testHeaderCollapseReplica 翻案改名 testHeaderStaysPinnedReplica（§486.4 整簇收起废止）。121 发布集＝单元 191 套/1538 项＋UI 13 项。整跑实测 1538 项精确命中、逐套对 120 零漂移、仅此一项改名。
+- **整跑结果**：共享测试通道当时被 Exyte W6 线占用（末位 RUN 无 EXIT 配对、xcodebuild 在飞），按 kick 纪律未抢道，改独立模拟器 Rel121Phone＋独立 DerivedData（dd-05121-test）直跑全套。单元 **1537 过／1 红／0 跳**；唯一红 MarkdownEngineDifferentialTests/testPerformanceGate（#13 性能门，整树老红名单内、逐版同红已裁可接受）。120 的名单外红 ChatSwapStep4cProbe 延迟探针本版整跑通过（满载间歇红口径再证）。UI 全跑 **11 过／0 红／2 跳**，与 119/120 同形。名单外新红为零，未改钉。改动面相关套 CapsuleStatus474Tests 3/3、FeedIdeasRenderProbeTests 2/2（含翻案项 testHeaderStaysPinnedReplica）在合并树全绿。跑后本线模拟器已 shutdown。
+- **IPA**：OneDay-0.50.121-249.ipa，28,026,823 字节，md5 22b234ac4882e3b7b45bbb9d1c088bb6（Mac 与 VM 副本双边一致）；unzip 直验主 App 本体 plist 三值 0.50.121／249／site.didichou.oneday。Release 构建 dd-05121-release、CODE_SIGNING_ALLOWED=NO、BUILD SUCCEEDED。
+- **真机门（归用户 verdict）**：§498 五项——①动态上滑全程簇恒在不淡没（字段槽换搜索入口手感另看）；②目标/资源库 hero 大头像簇与首页同形、点胶囊/头像进中枢；③资源库放大镜/菜单点达与旧位等价、菜单四组功能无损；④目标右位恒空与「无页级动作」预期一致；⑤各页簇与首页并排同位（钮行高度、胶囊压沿）。
