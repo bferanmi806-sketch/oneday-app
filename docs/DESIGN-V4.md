@@ -17304,3 +17304,25 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - 红项处置：①#13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–111 逐字同红、已裁可接受。②HapticsMatrixTests/testMatrixCallSiteCounts 新红——归因逐数坐实：声明式 .sensoryFeedback(.success) 3→2，逐文件对账（rel-05111→合并树）增量仅 GoalListRows.swift 一处——G-6 删 MilestoneCheckRow 时其 .sensoryFeedback(.success, trigger: done) 落点随里程碑面退役；目标行本体落点（同文件 380 行）仍在、其余各计数逐数不变、无既有落点丢失。处置：按该测既有惯例改钉并附 §467 注记（提交 3963939），独立模拟器（iPhone 17 Pro Max）复跑 HapticsMatrixTests 4/4 全绿（bundle Test-HapticsPin-rel05112）。
 - IPA：Release 构建 BUILD SUCCEEDED（dd-05112-release）；~/build/OneDay-0.50.112-240.ipa，16,803,245 字节，md5 8e8e43f39a35377ff78ef4faf568e9ea；unzip 直验主 App 本体 plist 三值＝0.50.112／240／site.didichou.oneday；VM 副本 md5 一致。
 - 真机门（归用户 verdict）：①目标列表 41 条与历史进展呈现、条目标题行在位；②改动可见延迟：目标面停留时智能体记进展约 15–30 秒内自现（服务端看板轮询 15 秒＋App 30 秒指纹重验两腿）；③里程碑整面消失（详情段／头部进度条／表单组／勾选行）且旧数据打开不崩；④目标详情开着时新条目自达、指纹重验循环在面生效（离开面即停）。
+
+
+## §470 S5-11 无家状态行三行打包改＋点子详情 sheet 双档高度（2026-11-24，用户 09:45 双裁）
+
+分支 feat/settings-s511-sheet（基线 rel-05112），只落码不组版。
+
+### S5-11 三行新落点（按 settings-five-lens-review S5-11 建议）
+- 状态（StatusView）：SettingsCatalog `.status` 改 `showsInBrowse: false`，仅搜索可达（与 §450 R2 四行同口径）；browseRow 对 .status 的特型（状态点/版本摘要）注记为浏览态不可达、保留备查（照 serverSessions 先例）。
+- 用量（UsageDetailView）：`.usage` 改 `showsInBrowse: false`，落点收进网关页——GatewayView 新增「用量」组 NavigationLink(value: SettingsRoute.usage)，行面＝用量标题＋ValueRowSummary.currentUsageSummary 摘要＋DisclosureChevron 共用件；深链 SettingsRoute.usage 目的地不变。
+- 主线对话（MainSessionView）：`.mainSession` 改 `showsInBrowse: false`、深链呈现（SettingsRoute.mainSession 目的地与深链不变）；SettingsView 的「会话」段（段头＋浏览行）整段撤销——连带消解 S5-06 独段问题。
+- 注册表侧对账：App 目录即消费口径（合并引擎尊重目录 showsInBrowse）；服务端种子待登记项（只登记不擅改）：hermes-deploy patches/settings_registry.py 中 settings.entry.usage／mainSession／status 三条 shows_in_browse 须由 true 改 false（surface 维持 serverAndWorkspace），由服务端线随下一部署包处理。
+- 钉测：SettingsCatalogTests 四处对账更新（browse 集合减三行）＋新增三条 §470 钉（status/usage/mainSession 均 showsInBrowse==false 且仍在册可搜索；usage 归属面 serverAndWorkspace 不变）。
+
+### 点子详情 sheet 双档
+- IdeasView 新增 IdeaDetailSheet 枚举单源：detents [.medium, .large]、defaultDetent .medium、orderedDetents 保声明序；IdeasView 以 @State detailDetent 呈现（.presentationDetents(detents, selection: $detailDetent)），onChange(of: selectedIdeaID) 每次打开回 .medium——默认半屏打开、可上拖到大档（用户 09:45 裁，取代 §459 [.large] 单档）。
+- 呈现点盘点：IdeaDetailView 仅 IdeasView 一处 sheet 呈现；GoalDetailView:499 与 FeedView:848 均为 NavigationLink 推页、不在改面。
+- 钉测：新增 Tests/OneDayAppTests/IdeaDetailSheetDetentsTests.swift 两法（双档在位且恰两档／默认档 medium 且属档集、detents 声明序 medium 在前）。
+
+### 验收
+- 选集 7 套（Core：SettingsCatalogTests／SettingsRegistryTests／FeedIdeasParityTests／IdeaAnchorTests；App：IdeaDetailSheetDetentsTests／IdeasDeleteConfirmTests／SettingsRouteInboxStructureTests）经测试通道 RUN 2026-11-24 10:01:22 跑完，xcresult 71 过／0 败、TEST SUCCEEDED。
+- 真机门：①设置根页「会话」段消失、根页再减三行；②搜索「状态」可达状态页、根页无状态行；③网关页内「用量」组可达用量页且摘要与原行一致；④主线对话深链（通知/搜索跳转）仍可达；⑤点子详情默认半屏打开、上拖可到大档、关闭重开回半屏。
+
