@@ -50,16 +50,19 @@ enum TopPanelMetrics {
     /// 错误回执文字（深底上的浅红，本面局部色）
     static let errorText = Color(red: 1.0, green: 0.45, blue: 0.42)
 
-    /// 入场弹簧（对位推算，DESIGN §482）：参照入场
-    /// 0.20–0.23s、ease-out 无过冲 → response 0.30／
-    /// damping 0.9；逐帧对账后定钉
+    /// 入场弹簧（DESIGN §482）：参照入场
+    /// 0.20–0.23s、ease-out 无过冲。初值按对位
+    /// 推算 response 0.30，2026-11-24 模拟器录屏
+    /// 实测可见时长 ≈0.30s 超带，按比例回填
+    /// 0.22／damping 0.92 定钉（录屏复测为准）
     static var enterAnimation: Animation {
-        .spring(response: 0.30, dampingFraction: 0.9)
+        .spring(response: 0.22, dampingFraction: 0.92)
     }
-    /// 退出弹簧：参照退出 0.17–0.20s（入场逆放、
-    /// 略快）→ response 0.25／damping 0.95
+    /// 退出弹簧：参照退出 0.17–0.20s。初值
+    /// 0.25 实测 0.23s 在带内上沿，回填 0.21／
+    /// damping 0.95 落带中段
     static var exitAnimation: Animation {
-        .spring(response: 0.25, dampingFraction: 0.95)
+        .spring(response: 0.21, dampingFraction: 0.95)
     }
     /// Reduce Motion 降级：crossfade（§482，照
     /// ZoomTransitionPolicy 先例的降级口径）

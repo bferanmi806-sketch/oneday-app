@@ -17414,3 +17414,18 @@ TG 出处（ChatMessageInteractiveFileNode.updateStatus/progressPressed）：未
 - **红项处置**：唯一红 #13 MarkdownEngineDifferentialTests/testPerformanceGate——与 104–114 逐字同红、已裁可接受；本版无新红、无改钉。注记：ThemeAlign431Tests 在 114 原始整跑中为改钉前红项，改钉 c4b174d 已随 rel-05114 在册，本版整跑该套 3/3 直接绿。
 - **IPA**：Release BUILD SUCCEEDED（dd-05115-release，rc=0）；OneDay-0.50.115-243.ipa，16,869,455 字节，md5 288dafd61586749b9f0fb2f3f62b594d；unzip 直验主 App 本体 plist 三值 0.50.115／243／site.didichou.oneday；VM 副本（~/workspace/OneDay-0.50.115-243.ipa）md5 一致。
 - **真机门（归用户 verdict）**：件一——①打开简报编辑页即见服务端最新稿（润色已写回时不再是旧稿）；②润色在飞时编辑页约 10s 自动换新版（未改字时跟随、已改字只换基线不覆盖输入）；③编辑页无阻塞转圈，保存钮口径只剩保存中禁用、保存失败留页见错误。件三——④文件/资源库影音分类按 UTType 判类（mkv/m2ts/mka 兜底在位），注：生产影音实数仍为 0，此项待真实影音文件出现时验，本版只防未来错分类。件四——⑤资源库搜索空态下页头簇与筛选片钉顶（与有内容态同为 y=55）、不再整栈下移居中；⑥资源库页有「资源库」大标题、与兄弟页同字阶。
+
+## §482 动态简报编辑器呈现换轨（2026-11-24，feat/brief-editor-top-panel，基线 rel-05115）
+
+对位正本：oneday-design-review/brief-editor-presentation-audit-20261124.md §六修法全件。旧形态＝底部全屏 .sheet（Form 分节＋导航栏），与参照（Muse「动态版块说明」）逐项不合，本节整件换轨。
+
+- **呈现器（可复用组件）**：新增 Sources/OneDayApp/TopAnchoredPanel.swift——`View.topAnchoredPanel(isPresented:panel:)` 修饰符＋`TopPanelMetrics` 量测单源。形态＝宿主内容 ZStack 底层（整体下推＋压暗＋顶圆角）＋面板 overlay（.move(edge:.top)＋opacity 转场）。判定：iOS 无顶部锚定 sheet API（detent 只管底部高度，HIG 原文实查）→ 平台标准件组合（overlay／transition／spring）＝判①；后续中枢卡片线同族复用本组件，不许另造。Reduce Motion 时降级 crossfade 且底层不下推。
+- **几何（参照录屏逐帧量测抄录，402×874 屏）**：卡顶边 62pt／卡高屏高 45.8%（874 屏＝400pt）／侧距 10pt／圆角 31pt／内容左内距 20pt；双钮出卡下方（间距 10pt）、等宽、高 47pt、左右边距 14pt／钮间 19pt；底层页下推至屏高 60.7%、压暗 ×0.46（实现 dimOpacity 0.54 黑罩）、只压暗不模糊、下部可见；面板总占位（卡顶→钮底）52.4%。
+- **主题例外登记**：本面照参照定版为黑底＋深灰卡（白 0.11 填）＋浅字，与全 App 浅色口径相左——出处＝参照录屏实拍＋审计正本 §六钉子 2，仅限本面板及其同族复用面，不外溢。
+- **弹簧定钉（录屏量测回填）**：入场 .spring(response: 0.22, dampingFraction: 0.92)、退场 .spring(response: 0.21, dampingFraction: 0.95)。初值（推算 0.30／0.25）模拟器录屏实测入场可见时长 ≈0.30s 超参照带、退场 0.23s 在带上沿，按比例回填；复测（30fps 逐帧）：入场 0.23s（参照 0.20–0.23）、退场 0.20s（参照 0.17–0.20）、卡底边轨迹单调无过冲。
+- **文案（用户 12:09 两令）**：标题弃「我的简报」，按自家页面名落「动态说明」；说明收成参照同构一句：「你的动态版块由以下指示驱动。你对此说明做出的任何编辑，都将应用于今后的动态帖子。」；参照两行之外的说明性／辅助性文字全删——删保存说明 footer、润色在飞弱提示、FeedBriefBoard.polishHint 取值；留两条功能回执（保存失败 briefError、上次整理失败 expandError——回执非说明）与草稿冲突裁决对话框全文（功能裁决非说明）。页头（标题＋说明）钉住、正文卡内滚、滚动区上下淡出遮罩；页头实测高 76.3pt（卡内容宽 342pt、UIHosting 量测）已回填钉测。
+- **保存灰置定性**：参照未改字时保存标签字芯亮度 ≈69/255（白 0.27）——本件落**仅视觉档位、钮恒可用**（标签色 saveIdleLabel 白 0.27，改字即回白），不破 §473「保存禁用只剩 briefSaving 一因」定版；录屏静止帧实测保存标签峰值亮度 74（参照 69）、取消 255。
+- **触感接线**：save() 成功接 Haptics.success()（notification .success）、失败（store.briefError 在位）接 Haptics.error()，单源 Haptics.swift 表 D 既有语义只接线不新造；静默 false（如未连接守卫、无回执）不震，代码注释在册。打开／落位／取消不加（防腻清单）；落位 impact.light 属待裁项未落。HapticsMatrixTests 全树计数改钉 success 18→19、error 57→58。
+- **编辑逻辑零改**：§473 回读／轻轮询／不覆盖已改字／保存口径逐字保留（TrioBriefLoadTests 全绿）。
+- **验收（BriefPanelPhone 独立模拟器、未占共享通道）**：构建 BUILD SUCCEEDED；选集全绿——§482 新钉 BriefEditorTopPanel482Tests 8/8（含量测常量、总占位 52.4%±2%、sheet 退役、双钮出卡、页头文案与高度 76.3、辅助文字已删、触感接线点）、§473 TrioBriefLoadTests、HapticsMatrixTests、FeedDiscussQuoteAppTests、FeedBoardTests（Core）。录屏逐帧量测（与参照同法）：卡顶 62.0／卡底 461.3／卡高 399.3pt、钮顶 472.7／高 46.0／卡钮距 11.3pt、总占位跨度 456.7pt＝52.2%（参照 52.4%）、页顶 530.7pt＝60.7%、压暗比 116/252＝0.46、标题字形顶距卡顶 28pt（参照 ≈30）——全项在 ±2%／±0.05s 带内。录屏驱动 UITest 为临时件、录完已删不入仓。
+- **真机门（归用户 verdict）**：①面板入场／退场手感与参照同档（时长已量测对齐、弹簧质感归真机）；②save 成功／失败触感各响一次、无多余震动；③正文长文卡内滚动＋上下淡出观感；④底层页下推＋压暗观感与参照一致。

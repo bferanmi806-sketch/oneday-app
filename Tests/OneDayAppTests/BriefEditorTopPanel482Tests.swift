@@ -176,8 +176,8 @@ final class BriefEditorTopPanel482Tests: XCTestCase {
     /// 页头（标题＋一句说明、无错误行）实测高回填
     /// 钉：卡内容宽 342pt（402 屏宽 − 卡边距 2×10
     /// − 内容内距 2×20）下，标题一行＋说明两行＋行
-    /// 间距 12 ＝ 80pt（2026-11-24 模拟器实测回填，
-    /// 见 DESIGN §482）；文案再改字先改本钉
+    /// 间距 12 ＝ 76.3pt（2026-11-24 UIHosting 实测
+    /// 回填，见 DESIGN §482）；文案再改字先改本钉
     @MainActor
     func testHeaderHeightPinnedFromMeasurement() {
         let header = FeedBriefPanelHeader(
@@ -190,6 +190,6 @@ final class BriefEditorTopPanel482Tests: XCTestCase {
         let size = host.sizeThatFits(
             in: CGSize(width: width, height: .infinity)
         )
-        XCTAssertEqual(size.height, 80, accuracy: 2)
+        XCTAssertEqual(size.height, 76.3, accuracy: 1.5)
     }
 }
