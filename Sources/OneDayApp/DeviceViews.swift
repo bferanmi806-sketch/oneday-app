@@ -1660,35 +1660,47 @@ struct DevicePermissionsView: View {
             .listRowInsets(deviceRowInsets)
 
             // 数据同步总览（0.36.14）：五件副本各一行
-            // 状态字＋删除全部副本的总入口
+            // 状态字＋删除全部副本的总入口。§468 起
+            // 兼作逐数据集健康面（规格 A-1/A-4）：行
+            // 头健康点（绿/黄/红）、行尾失败原因优先
+            // 于状态字、行内「立即同步」只推这一件；
+            // 打开本页即回读刷新（下方 .task）
             Section {
                 ForEach(
                     DeviceSyncDataset.allCases, id: \.self
                 ) { dataset in
-                    NavigationLink {
-                        DeviceDetailDestination(source: dataset.sourceID)
-                    } label: {
-                        HStack(
-                            spacing: OneDayMetrics.spacingSM
-                        ) {
-                            Text(dataset.label)
-                                .font(.rowTitleL)
-                                .foregroundStyle(Palette.ink)
-                            Spacer(
-                                minLength: OneDayMetrics.spacingS
+                    HStack(
+                        spacing: OneDayMetrics.spacingSM
+                    ) {
+                        healthDot(dataset)
+                        NavigationLink {
+                            DeviceDetailDestination(
+                                source: dataset.sourceID
                             )
-                            Text(syncSegment(dataset))
-                                .font(.footnote)
-                                .foregroundStyle(
-                                    Palette.inkSecondary
+                        } label: {
+                            HStack(
+                                spacing: OneDayMetrics.spacingSM
+                            ) {
+                                Text(dataset.label)
+                                    .font(.rowTitleL)
+                                    .foregroundStyle(Palette.ink)
+                                Spacer(
+                                    minLength: OneDayMetrics.spacingS
                                 )
-                                .lineLimit(1)
+                                Text(healthLine(dataset))
+                                    .font(.footnote)
+                                    .foregroundStyle(
+                                        healthLineColor(dataset)
+                                    )
+                                    .lineLimit(1)
+                            }
                         }
-                        .frame(
-                            minHeight: OneDayMetrics
-                                .settingsRowHeight
-                        )
+                        manualSyncButton(dataset)
                     }
+                    .frame(
+                        minHeight: OneDayMetrics
+                            .settingsRowHeight
+                    )
                 }
                 Button(role: .destructive) {
                     showDeleteAllConfirm = true
@@ -1750,6 +1762,81 @@ struct DevicePermissionsView: View {
             ),
             now: Date()
         )
+    }
+
+    // MARK: 健康面（§468，规格 A-1/A-4/A-5）
+
+    /// 健康级取数：时刻以服务端副本回读为准（桥
+    /// 状态优先、本地回执兜底，两者同源于桥回执），
+    /// 权限以系统现读为准
+    private func healthLevel(
+        _ dataset: DeviceSyncDataset
+    ) -> SyncHealthLevel {
+        let sync = appState.deviceSync
+        let syncedAt = sync.statuses[dataset]?.syncedAt
+            ?? sync.receipts[dataset].map {
+                Date(timeIntervalSince1970: $0.syncedAt)
+            }
+        let permission = controller.permissions[dataset.sourceID]
+            ?? .notDetermined
+        return DeviceSyncHealth.level(
+            syncedAt: syncedAt,
+            permissionUsable: permission.isUsable, now: Date()
+        )
+    }
+
+    private func healthDot(_ dataset: DeviceSyncDataset) -> some View {
+        let color: Color = switch healthLevel(dataset) {
+        case .green: Palette.success
+        case .yellow: Palette.warning
+        case .red: Palette.dangerFill
+        }
+        return Circle()
+            .fill(color)
+            .frame(width: 8, height: 8)
+            .accessibilityHidden(true)
+    }
+
+    /// 行尾文案：最近失败的人话原因优先（规格
+    /// A-1），没有失败才回状态字
+    private func healthLine(_ dataset: DeviceSyncDataset) -> String {
+        if let error = appState.deviceSync.lastErrors[dataset],
+           !error.isEmpty
+        {
+            return error
+        }
+        return syncSegment(dataset)
+    }
+
+    private func healthLineColor(
+        _ dataset: DeviceSyncDataset
+    ) -> Color {
+        appState.deviceSync.lastErrors[dataset] != nil
+            ? Palette.danger : Palette.inkSecondary
+    }
+
+    /// 行内「立即同步」（规格 A-4）：只推这一件；
+    /// 同步中转圈，完成回读时刻判成败、失败原因
+    /// 落本行红字（manualSync 内落账）
+    @ViewBuilder
+    private func manualSyncButton(
+        _ dataset: DeviceSyncDataset
+    ) -> some View {
+        if appState.deviceSync.isRunning(dataset) {
+            ProgressView()
+        } else {
+            Button {
+                Task {
+                    await appState.deviceSync.manualSync(
+                        dataset, config: appState.config
+                    )
+                }
+            } label: {
+                Text("立即同步")
+                    .font(.footnote)
+            }
+            .buttonStyle(.borderless)
+        }
     }
 
 }

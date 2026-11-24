@@ -747,7 +747,7 @@ final class DeviceSyncController: PermissionSyncPerforming {
                 aggregates: nil, removedIds: nil
             )
         case .reminders:
-            let snapshot = await dispatcher.events
+            let snapshot = try await dispatcher.events
                 .reminderSyncSnapshot()
             return Assembled(
                 records: snapshot.records.map(\.json), mode: "full",
